@@ -1,4 +1,4 @@
-$Id: README,v 1.24 2002/08/28 20:08:58 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.25 2002/08/28 20:22:33 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -24,6 +24,10 @@ or for the bleeding edge, instead
 1a.2) cvs -z3 -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan
           co -A asdf
 
+If you are tracking the bleeding edge, you may want to subscribe to
+the cclan-commits mailing list (see
+<URL:http://sourceforge.net/mail/?group_id=28536>) to receive commit
+messages and diffs whenever changes are made.
 
 For more CVS information, look at http://sourceforge.net/cvs/?group_id=28536
 
