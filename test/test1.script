@@ -1,0 +1,21 @@
+;;; -*- Lisp -*-
+(load "../asdf")
+(setf asdf:*central-registry* '(*default-pathname-defaults*))
+(asdf:oos 'asdf:load-op 'test1)
+
+;; test that it compiled
+(defvar file1-date (file-write-date (compile-file-pathname "file1")))
+(assert (and file1-date (file-write-date (compile-file-pathname "file2"))))
+
+;; and loaded
+(assert test-package::*file1*)
+
+;; now remove one output file and check that the other is _not_
+;; recompiled
+(sleep 1) ; mtime has 1-second granularity, so pause here for fast machines
+
+(asdf::run-shell-command "rm ~A"
+			 (namestring (compile-file-pathname "file2")))
+(asdf:oos 'asdf:load-op 'test1)
+(assert (= file1-date (file-write-date (compile-file-pathname "file1"))))
+(assert (file-write-date (compile-file-pathname "file2")))

@@ -1,0 +1,14 @@
+;;; -*- Lisp -*-
+(load "../asdf")
+(setf asdf:*central-registry* '(*default-pathname-defaults*))
+;(trace asdf::perform)
+;(trace asdf::find-component)
+;(trace asdf::traverse)
+(asdf:oos 'asdf:load-op 'test2b1)
+(assert (and (file-write-date (compile-file-pathname "file3"))
+	     (file-write-date (compile-file-pathname "file4"))))
+(handler-case 
+    (asdf:oos 'asdf:load-op 'test2b2)
+  (asdf:missing-dependency (c)
+    (format t "load failed as expected: - ~%~A~%" c))
+  (:no-error (c) (error "should have failed, oops")))
