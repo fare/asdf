@@ -1,4 +1,4 @@
-$Id: README,v 1.23 2002/08/28 12:33:26 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.24 2002/08/28 20:08:58 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -7,7 +7,7 @@ asdf: another system definition facility
 * Getting the latest version
 
 0) Decide which version you want.  HEAD is the newest version and
-usually OK, whereas STABLE is for cautious people (e.g. who already
+usually OK, whereas RELEASE is for cautious people (e.g. who already
 have systems using asdf that they don't want broken), a slightly older
 version about which none of the HEAD users have complained.
 
@@ -17,7 +17,7 @@ version about which none of the HEAD users have complained.
      (no password: just press Enter)
  
 1a.1) cvs -z3 -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan
-         co -r STABLE asdf
+         co -r RELEASE asdf
 
 or for the bleeding edge, instead
 
@@ -275,6 +275,12 @@ The rules for this inference are:
 Note that the DEFSYSTEM operator (used to create a "top-level" system)
 does additional processing to set the filesystem location of the
 top component in that system.  This is detailed elsewhere
+
+The answer to the frequently asked question "how do I create a system 
+definition where all the source files have a .cl extension" is thus
+
+(defmethod source-file-type ((c cl-source-file) (s (eql (find-system 'my-sys))))
+   "cl")
 
 **** properties (optional)
 
