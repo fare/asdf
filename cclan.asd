@@ -1,7 +1,7 @@
-
+;;; -*- Lisp -*- 
 (defpackage :cclan-system (:use #:cl #:asdf))
 
-(defsystem 'cclan
-	:components
-	(:file "cclan-package")
-	(:file "cclan" :depends-on ("cclan-package")))
+(defsystem cclan
+    :version "0.0"
+    :components ((:file "cclan-package")
+		 (:file "cclan" :depends-on ("cclan-package"))))
