@@ -1,3 +1,9 @@
+cl-asdf (1.49-1) unstable; urgency=low
+
+  * Remove clc-reregister-all-impl from postinst
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Sat,  5 Oct 2002 09:38:18 -0600
+
 cl-asdf (1.49) unstable; urgency=low
 
   * New upstream release, fixes run-shell-command for allegro. Code
