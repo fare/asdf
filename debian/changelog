@@ -1,3 +1,9 @@
+cl-asdf (1.45) unstable; urgency=low
+
+  * Changes to improve clisp support
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Fri, 20 Sep 2002 07:12:21 -0600
+
 cl-asdf (1.44.1-1) unstable; urgency=low
 
   * Make cclan.asd a symlink, remove :pathname keyword
