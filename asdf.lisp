@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.47 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.48 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.47 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.48 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -856,80 +856,50 @@ Returns the new tree (which probably shares structure with the old one)"
 ;;; gratefully accepted, if they do the same thing.  If the docstring
 ;;; is ambiguous, send a bug report
 
-#+sbcl
 (defun run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
 output to *trace-output*.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
     (format *trace-output* "; $ ~A~%" command)
+    #+sbcl
     (sb-impl::process-exit-code
      (sb-ext:run-program  
       "/bin/sh"
       (list  "-c" command)
-      :input nil :output *trace-output*))))
-
-#+(or cmu scl)
-(defun run-shell-command (control-string &rest args)
-  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
-synchronously execute the result using a Bourne-compatible shell, with
-output to *trace-output*.  Returns the shell's exit code."
-  (let ((command (apply #'format nil control-string args)))
-    (format *trace-output* "; $ ~A~%" command)
+      :input nil :output *trace-output*))
+    
+    #+(or cmu scl)
     (ext:process-exit-code
      (ext:run-program  
       "/bin/sh"
       (list  "-c" command)
-      :input nil :output *trace-output*))))
+      :input nil :output *trace-output*))
 
-;;; Added KMR 8/02
-#+allegro
-(defun run-shell-command (control-string &rest args)
-  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
-synchronously execute the result using a Bourne-compatible shell, with
-output to *trace-output*.  Returns the shell's exit code."
-  (let ((command (apply #'format nil control-string args)))
-    (format *trace-output* "; $ ~A~%" command)
-     (excl:run-shell-command
-      (make-array 3 :initial-contents (list "/bin/sh" "-c" command))
-      :input nil :output *trace-output*)))
+    #+allegro
+    (excl:run-shell-command
+     (make-array 3 :initial-contents (list "/bin/sh" "-c" command))
+     :input nil :output *trace-output*)
+    
+    #+lispworks
+    (system:call-system-showing-output
+     command
+     :shell-type "/bin/sh"
+     :output-stream *trace-output*)
+    
+    #+clisp				;XXX not exactly *trace-output*, I know
+    (ext:run-shell-command  command :output :terminal :wait t)
 
-;;; Added KMR 8/02
-#+lispworks
-(defun run-shell-command (control-string &rest args)
-  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
-synchronously execute the result using a Bourne-compatible shell, with
-output to *trace-output*.  Returns the shell's exit code."
-  (let ((command (apply #'format nil control-string args)))
-    (format *trace-output* "; $ ~A~%" command)
-     (system:call-system-showing-output
-      command
-      :shell-type "/bin/sh"
-      :output-stream *trace-output*)))
-
-#+clisp
-(defun run-shell-command (control-string &rest args)
-  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
-synchronously execute the result using a Bourne-compatible shell, with
-output to *trace-output*.  Returns the shell's exit code."
-  (let ((command (apply #'format nil control-string args)))
-    (format *trace-output* "; $ ~A~%" command)
-    ;; XXX :terminal is not exactly *trace-output*, but it'll do
-    ;; XXX determined the return value of this by experimentation, it
-    ;;  doesn't seem to be documented
-    (ext:run-shell-command  command :output :terminal :wait t)))
-
-#+openmcl
-(defun run-shell-command (control-string &rest args)
-  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
-synchronously execute the result using a Bourne-compatible shell, with
-output to *trace-output*.  Returns the shell's exit code."
-  (let ((command (apply #'format nil control-string args)))
-    (format *trace-output* "; $ ~A~%" command)
+    #+openmcl
     (nth-value 1
-       (ccl:external-process-status
-	(ccl:run-program "/bin/sh" (list "-c" command)
-			 :input nil :output *trace-output* :wait t)))))
+	       (ccl:external-process-status
+		(ccl:run-program "/bin/sh" (list "-c" command)
+				 :input nil :output *trace-output*
+				 :wait t)))
+
+    #-(or openmcl clisp lispworks allegro scl cmu sbcl)
+    (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
+    ))
   
 
 (pushnew :asdf *features*)
