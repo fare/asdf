@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.9 2002/02/12 12:24:00 dan_b Exp $
+$Id: README,v 1.10 2002/02/12 12:46:54 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -295,7 +295,6 @@ is recommended to) include defpackage and in-package forms in his
 system definition files, however, so that they can be loaded manually
 if need be.
 
-
 ** Syntax
 
 Systems can always be constructed programmatically by instantiating
@@ -393,6 +392,23 @@ do (a :before method on perform ((op compile-op) (c (eql ...)))
 will run after all the dependencies and sub-components have been
 processed, but before the component in question has been
 compiled).
+
+*** Source location
+
+The :pathname option is optional in all cases for native-syntax
+systems.  If it is not supplied for the top-level form, defsystem will
+set it from
+
+- *load-truename*, if it is bound
+- *default-pathname-defaults*, otherwise
+
+If a system is being redefined, the top-level pathname will be 
+
+- changed, if explicitly supplied or obtained from *load-truename*
+- changed if it had previously been set from *default-pathname-defaults*
+- left as before, if it had previously been set from *load-truename*
+  and *load-truename* is not now bound
+  
 
 * Error handling
 
