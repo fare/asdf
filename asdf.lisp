@@ -85,13 +85,15 @@
    (pathname :initarg :pathname)))
 
 (defmethod string-unix-common-casify (string &key (start 0) end)
+  "Converts a string assumed local to a Unix filesystem into its
+:common :case partner."
   (unless end
     (setf end (length string)))
   (let ((result (copy-seq string)))
     (cond
-      ((every (lambda (x) (and (char>= x #\A) (char<= x #\Z))) (subseq string start end))
+      ((every (lambda (x) (or (not (alpha-char-p x)) (and (char>= x #\A) (char<= x #\Z)))) (subseq string start end))
        (nstring-downcase result :start start :end end))
-      ((every (lambda (x) (and (char>= x #\a) (char<= x #\z))) (subseq string start end))
+      ((every (lambda (x) (or (not (alpha-char-p x)) (and (char>= x #\a) (char<= x #\z)))) (subseq string start end))
        (nstring-upcase result :start start :end end))
       (t result))))
 
