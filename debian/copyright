@@ -7,10 +7,7 @@ It was downloaded from SourceForge CVS server with the below commands:
     cvs -z3 -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan \
          co asdf
 
-Upstream Author(s): Dan Barlow <dan@telent.net> & Contributors
-
-Changes compared to upstream:
-  Added /usr/share/common-lisp/systems/ to *central-registry*
+Upstream Authors: Dan Barlow <dan@telent.net> & Contributors
 
 Copyright:
 
