@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.14 2002/02/19 15:27:02 dan_b Exp $
+$Id: README,v 1.15 2002/02/20 14:15:27 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -333,7 +333,7 @@ In the case of a symbol,
 No case translation is done for systems named by strings
 
 This attempts to find the system in a file on the disk.  This file has
-the name of the system, the type "system", and is looked for in each
+the name of the system, the type "asd", and is looked for in each
 of the directories given by evaluating members of *central-registry*.
 The first matching file is considered, whether or not it turns out to
 actually define the appropriate system
@@ -344,7 +344,7 @@ If a suitable file exists, it is loaded if
 - the file's last-modified time exceeds the last-modified time of the
   system in memory
 
-When system definitions are loaded from .system files, a new scratch
+When system definitions are loaded from .asd files, a new scratch
 package is created for them to load into, so that different systems do
 not overwrite each others operations.  The user may also wish to (and
 is recommended to) include defpackage and in-package forms in his
@@ -453,7 +453,7 @@ These rules are designed so that (i) find-system will load a system
 from disk and have its pathname default to the right place, (ii)
 this pathname information will not be overwritten with
 *default-pathname-defaults* (which could be somewhere else altogether)
-if the user loads up the .system file into his editor and
+if the user loads up the .asd file into his editor and
 interactively re-evaluates that form
 
 * Error handling
@@ -479,14 +479,18 @@ OPERATION-ERROR
 
 (2) pathname computations for a component named by a symbol are
 done using :case :common.  This applies in component-relative-pathname
-and in find-system or whatever it calls to load the foo.system file
+and in find-system or whatever it calls to load the foo.asd file
 
-** style guide for .system files
+** style guide for .asd files
 
 You should either use keywords or be careful with the package that you
 evaluate defsystem forms in.  Otherwise (defsystem partition ...)
 being read in the cl-user package will intern a cl-user:partition
 symbol, which will then collide with the partition:partition symbol.
+
+Actually there's a hairier packages problem to think about too.
+in-order-to is not a keyword: if you read defsystem forms in a package
+that doesn't use ASDF, odd things might happen
 
 ** extending defsystem with new options
 
@@ -501,6 +505,7 @@ the existing syntax.  Reinstate parse-option or something akin
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** "and" and "or" dependencies are broken
 ** compiler/loader options, other stuff needing specials
+** rules for pathname defaulting are not yet implemented properly
 
 new operations created during a traversal should get a link back to
 their parent, and accessors for component properties should
@@ -508,13 +513,9 @@ automatically check the parent operation if it's not set on the
 current op.  Then we don't need specials for compiler options or "what
 have we visited so far" stuff
 
-** test suite
-
-Some form of testing is essential.  Preferably it should not involve
-having to ship db-sockets along with asdf
-
 
 * layered standard for lisp code packages a la clc
 
 See http://ww.telent.net/cliki/ASDF%20System
 
+http://bugs.plt-scheme.org/cgi-bin/gnats-query?pr-number=5271&query-type=pr-number
