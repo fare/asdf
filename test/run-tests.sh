@@ -1,6 +1,6 @@
 #!/bin/sh
 
-function do_tests {
+do_tests() {
 rm *.$2 || true
 ( cd .. && echo '(compile-file "asdf")' |$1  )
 for i in *.script; 
