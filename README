@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.11 2002/02/14 11:37:58 dan_b Exp $
+$Id: README,v 1.12 2002/02/14 16:32:43 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -450,14 +450,11 @@ doing anything that's (a) useful, and (b) not convenient with
 
 ** case-sensitivity wrt filenames
 
-Presently we do no case munging except for symbols in find-system.  To
-find a .system file we (make-pathname :name name :type "SYSTEM" :case
-:common) ("use the file system's customary case") which translates
-this uppercase into whatever case is nicest (lowercase for sbcl on
-unix)
+(1) components can be named using strings or symbols
 
-We have excitingly chunky rules for merging component names, which
-need to be documented.  Oh, and implemented.
+(2) pathname computations for a component named by a symbol are
+done using :case :common.  This applies in component-relative-pathname
+and in find-system or whatever it calls to laod the foo.system file
 
 ** symbols vs strings
 
@@ -467,29 +464,112 @@ the package that they evaluate defsystem forms in.  Otherwise
 intern a cl-user:partition symbol, which will then collide with the
 partition:partition symbol
 
+** switches for different lisp implementations/platforms so that the
+   defsystem form doesn't get #+foo and #-foo in it
+
+(:file "sbcl-dep"
+ :in-order-to ((compile-op (test-feature :sbcl))))
+(:file "cmucl-dep"
+ :in-order-to ((compile-op (test-feature :cmu))))
+(:file "dependencies"
+ :in-order-to ((compile-op (load-op (or "sbcl-dep" "cmucl-dep" "clisp-dep"))))
+
 ** error reporting
 
 Need an explicit error for "dependency missing" and "required version
 of dependency missing" so that we can fit this to an automated
 dependency downloading thing.  
 
+** output filename munging per-platform
+
+Note that this is site policy not system policy.  On the basis that
+each different implementation can be expected to run different startup
+files, we just need to document a hook of some kind that sets this up
+appropriately
+
 * missing bits in implementation
+
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
-** defsystem syntax for EQL methods
-
-How the hell  Cop out and use EVAL?
-
+** defsystem syntax for EQL methods - need to remove the old methods
 ** versions
 ** test suite, insofar as it makes sense
 ** compiler/loader options
  verbosity, proclamations, etc: do this with specials
+** rewrite the component-visiting stuff to keep state in operations
+not specials
 
-(defvar *visited-nodes* nil)
-(defvar *visiting-nodes* nil)
+* layered standard for lisp code packages a la clc
 
-rewrite the component-visiting stuff to hide this state in the
-operation 
+some kind of archive (e.g. optionally {g,b2}zipped tar file) which
+creates a directory packagename-version
 
+contains packagename.system, which has
+- no :pathname specified
+- a :version identifier that matches the directory name
+- a (in-package) form
 
-** pathname defaulting in defsystem
+some mechanism to find out what Lisp packages this creates.  Symbols
+within the packages can be looked up by introspection, so that's not
+an issue.
+
+doesn't require the provide/require mechanism, doesn't touch
+*modules*.  If provide/require want to wrap us, fine
+
+say nothing either way about *features*, as we can test the
+presence/absense of packages directly in system definitions anyway
+and outside of system definitions is outside of scope
+
+** using this standard with your personal lisp installation
+
+might work like this
+$ cd ~/src/lisp
+$ tar jxf /tmp/downloads/package-1.0.tar.bz2
+$ cd ~/src/defsystems
+$ ln -s ~/src/lisp/package-1.0/package.system .
+$ $LISP
+* (asdf:oos 'load-op 'package)
+
+** using this standard to make platform packages: example using vaguely
+  Debian-like directory conventions
+
+*** Per-site 
+
+1) The "managed area" is the part of the filesystem owned by the
+   platform package system: for example, /usr/share/common-lisp/source/
+   and /usr/lib/common-lisp/$implementation/
+
+2) Each managed lisp implementation should ensure when it starts that
+   it defines an appropriate output-files :around method that tests
+   whether the output file is in the managed source area and relocates
+   it to the appropriate binary area if so
+
+*** Per-package
+
+1) packagename, version, dependencies on other lisp packages can all
+   be parsed out of system file.
+
+2) Dependencies on non-Lisp packages need to be listed somewhere, but
+   problem is that different platforms will have different package
+   names for the same functionality.  Perhaps we could spec
+   dependencies on filenames and have the package maker look up the
+   package(s) that provide that file
+
+3) Package should arrange that the contents of the upstream archive are
+   installed into /usr/share/common-lisp/source/
+
+4) postinst script does:
+   - symlink /usr/share/common-lisp/systems/package.system to source dir
+   - run "(asdf:oos 'load-op 'package)" for each lisp implementation that it
+       manages 
+
+5) Package removal: remove files, remove symlink, remove binaries for
+   each managed lisp implementation.
+
+** Optional extra features that we would like to support in a standard
+   way where authors/packagers provide them
+
+tests
+documentation in standard format to be installed in standard place
+emacs support for looking up documentation for word at point
+
