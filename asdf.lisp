@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.64 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.65 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,8 +88,8 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.64 $")
-			       (colon (position #\: v))
+(defvar *asdf-revision* (let* ((v "$Revision: 1.65 $")
+			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
 			       (list (parse-integer v :start (1+ colon)
