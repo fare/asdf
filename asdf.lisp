@@ -84,7 +84,7 @@
    ;; because quite often that's not what we actually use it for)
    (pathname :initarg :pathname)))
 
-(defmethod string-unix-common-casify (string &key (start 0) end)
+(defun string-unix-common-casify (string &key (start 0) end)
   "Converts a string assumed local to a Unix filesystem into its
 :common :case partner."
   (unless end
@@ -97,6 +97,8 @@
        (nstring-upcase result :start start :end end))
       (t result))))
 
+(defgeneric component-pathname (component)
+  (:documentation "Extracts the pathname applicable for a particular component."))
 
 (defmethod component-pathname  ((component component))
   (let ((*default-pathname-defaults* *component-parent-pathname*))
@@ -127,6 +129,11 @@
 (defmethod component-relative-pathname ((component module))
   (make-pathname :directory `(:relative ,(component-name component))
 		 :host (pathname-host *component-parent-pathname*)))
+
+(defgeneric find-component (module name)
+  (:documentation "Finds the component with name NAME present in the
+MODULE module; if MODULE is nil, then the component is assumed to be a
+system."))
 
 (defmethod find-component ((module module) name)
   (if (slot-boundp module 'components)
@@ -426,11 +433,13 @@
         if b append b into bindings
         finally (return (values initargs bindings))))
 
-;;; process-option returns as its first value a list of initargs that
-;;; eventually gets appended to a call to reinitialize instance; its
-;;; optional second value is a list of binding clauses suitable for a
-;;; let that may be referred to in the initargs.
-(defmethod process-option (option  value)
+(defgeneric process-option (option value)
+  (:documentation "returns as its first value a list of initargs that
+eventually gets appended to a call to reinitialize instance; its
+optional second value is a list of binding clauses suitable for a let
+that may be referred to in the initargs."))
+		  
+(defmethod process-option (option value)
   (list option value))
 
 #|
