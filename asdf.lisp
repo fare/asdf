@@ -8,6 +8,7 @@
 	   #:compile-op #:load-op #:test-system-version
 	   #:operation			; operations
 	   #:feature			; sort-of operation
+	   #:version			; metaphorically sort-of an operation
 	   
 	   #:output-files #:perform	; operation methods
 	   #:operation-done-p #:explain
@@ -30,6 +31,7 @@
 	   
 	   #:operation-error #:compile-failed #:compile-warned
 	   #:system-definition-error #:system-not-found
+	   #:missing-dependency
 	   #:circular-dependency	; errors
 	   )
   (:use "CL"))
@@ -64,6 +66,7 @@ and NIL NAME and TYPE components"
 
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components)))
+
 (define-condition missing-dependency (system-definition-error)
   ((requires :initarg :requires :reader requires)
    (required-by :initarg :required-by :reader required-by))
@@ -136,15 +139,16 @@ MODULE module; if MODULE is nil, then the component is assumed to be a
 system."))
 
 (defmethod find-component ((module module) name &optional version)
-  (declare (ignore version))
   (if (slot-boundp module 'components)
-      (find name (module-components module)
-	    :test #'equal :key #'component-name)))
+      (let ((m (find name (module-components module)
+		     :test #'equal :key #'component-name)))
+	(if (and m (version-satisfies m version)) m))))
+	    
 
 ;;; a component with no parent is a system
 (defmethod find-component ((module (eql nil)) name &optional version)
-  (declare (ignore version))
-  (find-system name))
+  (let ((m (find-system name)))
+    (if (and m (version-satisfies m version)) m)))
 
 (defclass source-file (component) ())
 
@@ -242,7 +246,9 @@ system."))
 
 ;;; we enforce that function is a symbol to allow us to specialize on
 ;;; (eql 'perform) and (eql 'explain) for :before and :after
-(defmethod traverse ((operation operation) (c component) (function symbol))
+(defmethod traverse ((operation operation) (c component) (function
+							  symbol))
+  (declare (optimize (debug 3)))
   (labels ((do-one-dep (required-op required-c required-v)
 	     (let ((op (if (subtypep (type-of operation) required-op)
 			   operation
@@ -277,8 +283,8 @@ system."))
 		  (and (do-every-dep op (cdr dep)))
 		  (or (do-first-dep op (cdr dep)))
 		  (version
-		   (destructuring-bind (ignore name version-object)
-		       (do-one-dep op name version-object)))
+		   (destructuring-bind (ignore name version-object) dep
+		     (do-one-dep op name version-object)))
 		  ;; if we had a list with unrecognised car, assume 'and'
 		  (t (do-every-dep op dep))))
 	       (t (do-one-dep op dep nil)))))
@@ -375,12 +381,12 @@ system."))
         (call-next-method)))
 
 
-;;; test-system-version
-
-(defclass test-system-version (operation)
+;;; version-satisfies
+#|
+(defclass test-version (operation)
   ((minimum :initarg :minimum :initform ""
-	    :accessor test-system-version-minimum)))
-
+	    :accessor test-version-minimum)))
+|#
 ;;; with apologies to christophe rhodes ...
 (defun split (string &optional max (ws '(#\Space #\Tab)))
   (flet ((is-ws (char) (find char ws)))
@@ -395,12 +401,13 @@ system."))
 	(unless end (return list))
 	(setf start (1+ end)))))))
 
-(defmethod perform ((operation test-system-version) (c component))
+(defmethod version-satisfies ((c component) version)
+  (unless (and version (slot-boundp c 'version))
+    (return-from version-satisfies t))
   (let ((x (mapcar #'parse-integer
 		   (split (component-version c) nil '(#\.))))
 	(y (mapcar #'parse-integer
-		   (split
-		    (test-system-version-minimum operation) nil '(#\.)))))
+		   (split version nil '(#\.)))))
     (labels ((bigger (x y)
 	       (cond ((not y) t)
 		     ((not x) nil)
@@ -409,6 +416,7 @@ system."))
 		      (bigger (cdr x) (cdr y))))))
       (and (= (car x) (car y))
 	   (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
@@ -440,7 +448,7 @@ system."))
 	    (let* ((defaults (eval dir))
 		   (file (merge-pathnames
 			  (make-pathname
-			   :case :common :name name :type "SYSTEM"
+			   :case :common :name name :type "ASD"
 			   :defaults defaults)
 			  defaults)))
 	      (if (probe-file file) (return file)))) ))
@@ -491,7 +499,9 @@ system."))
 
 
 (defun class-for-type (parent type)
-  (let ((class (find-class (intern (symbol-name type) *package*) nil)))
+  (let ((class (find-class
+		(or (find-symbol (symbol-name type) *package*)
+		    (find-symbol (symbol-name type) #.*package*)) nil)))
     (or class
 	(and (eq type :file)
 	     (or (module-default-component-class parent)
@@ -537,11 +547,21 @@ Returns the new tree (which probably shares structure with the old one)"
 
 (defun parse-component-form (parent options)
   (destructuring-bind
-	#.`(type name &rest rest &key ,@*option-names*
+	#.`(type name &rest rest &key
+	    ;; the following list of keywords is reproduced below in the
+	    ;; remove-keys frm.  important to keep them in sync
+	    components pathname default-component-class
+	    perform explain output-files operation-done-p
+	    depends-on serialize in-order-to
+	    ;; list ends
 	    &allow-other-keys) options
 	    (declare (ignore serialize))
 	    ;; XXX add dependencies for serialized subcomponents
-	    (let* ((other-args (remove-keys *option-names* rest))
+	    (let* ((other-args (remove-keys
+				'(components pathname default-component-class
+				  perform explain output-files operation-done-p
+				  depends-on serialize in-order-to)
+				rest))
 		   (ret
 		    (or (find-component parent name)
 			(make-instance (class-for-type parent type)))))
