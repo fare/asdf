@@ -1,3 +1,10 @@
+cl-asdf (1.49) unstable; urgency=low
+
+  * New upstream release, fixes run-shell-command for allegro. Code
+    refactoring for run-shell-code.
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Fri, 20 Sep 2002 16:13:45 -0600
+
 cl-asdf (1.47) unstable; urgency=low
 
   * Return numeric exit status for openmcl's run-shell-command
