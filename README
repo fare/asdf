@@ -1,4 +1,4 @@
-$Id: README,v 1.27 2002/11/12 12:53:26 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.28 2003/02/04 17:01:24 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -40,18 +40,19 @@ Lisp implementation, by loading it from the startup script, or dumping
 a custom core, or something.
 
 - The variable asdf:*central-registry* is a list of system directory
-  designators.  A ssytem directory designator is either a function
-  designator for a function of one argument, which when called with
-  the system name will return a directory to look for .asd files in,
-  or it is a form which will be evaluated whenever a system is to be
-  found, and must evaluate to a directory to look in.  For example,
-  you might have
+  designators.  A system directory designator is a form which will be
+  evaluated whenever a system is to be found, and must evaluate to a
+  directory to look in.  For example, you might have
 
      (*default-pathname-defaults* "/home/me/cl/systems/"
       "/usr/share/common-lisp/systems/")
 
   (When we say "directory" here, we mean "designator for a pathname
   with a supplied DIRECTORY component")
+
+  It is possible to customize the system definition file search.
+  That's considered advanced use, and covered later: search forward
+  for *system-definition-search-functions*
 
 - To compile and load a system 'foo', you need to (1) ensure that
   foo.asd is in one of the directories in *central-registry* (a
@@ -182,7 +183,7 @@ to make-pathname in whatever filesystem the system is to be found.
 The lower-casing-symbols behaviour is unconventional, but was selected
 after some consideration.  Observations suggest that the type of
 systems we want to support either have lowercase as customary case
-(unix, mac, windows) or silently convert lowercase to uppercase
+(Unix, Mac, windows) or silently convert lowercase to uppercase
 (lpns), so this makes more sense than attempting to use :case :common,
 which is reported not to work on some implementations
 
@@ -194,8 +195,8 @@ This is used by the test-system-version operation (see later).
 
 Traditionally defsystem users have used reader conditionals to include
 or exclude specific per-implementation files.  This means that any
-single implmentation cannot read the entire system, which becomes a
-problem if it doesnb't wish to compile it, but instead for example to
+single implementation cannot read the entire system, which becomes a
+problem if it doesn't wish to compile it, but instead for example to
 create an archive file containing all the sources, as it will omit to
 process the system-dependent sources for other systems.
 
@@ -295,9 +296,9 @@ information to satisfy these systems.  Sometimes the creator of an
 asdf system may know the additional information and wish to provide it
 directly.
 
-component-properties is a symbol-value alist (plist?) which system
-authors may set and package building rograms may query.  asdf make sno
-further specification of the contents of this slot.
+(component-property component property-name) and associated setf method 
+will allow the programmatic update of this information.  Property
+names are compared as if by EQL, so use symbols or keywords or something
 
 ** Subclasses of component
 
@@ -456,11 +457,9 @@ any other component names (including case conversion)
 ** find-system
 
 Given a system designator, find-system finds an actual system - either
-in memory, or in a file on the disk.  This file has the name of the
-system, the type "asd", and is looked for in each of the directories
-given by evaluating members of *central-registry*.  The first matching
-file is considered, whether or not it turns out to actually define the
-appropriate system
+in memory, or in a file on the disk.  It funcalls each element in the
+*system-definition-search-functions* list, expecting a pathname to be
+returned.
 
 If a suitable file exists, it is loaded if
 
@@ -474,6 +473,17 @@ not overwrite each others operations.  The user may also wish to (and
 is recommended to) include defpackage and in-package forms in his
 system definition files, however, so that they can be loaded manually
 if need be.
+
+For convenience in the normal case, and for backward compatibility
+with the spirit of mk-defsystem, the default contents of
+*system-definition-search-functions* is a function called
+sysdef-central-registry-search.  This looks in each of the directories
+given by evaluating members of *central-registry*, for a file whose
+name is the name of the system and whose type is "asd".  The first
+such file is returned, whether or not it turns out to actually define
+the appropriate system
+
+
 
 ** Syntax
 

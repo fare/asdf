@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 (load "../asdf")
 (setf asdf:*central-registry* '(*default-pathname-defaults*))
-(asdf:oos 'asdf:load-op 'test1)
+(asdf:operate 'asdf:load-op 'test1)
 
 ;; test that it compiled
 (defvar file1-date (file-write-date (compile-file-pathname "file1")))
@@ -16,7 +16,7 @@
 
 (asdf::run-shell-command "rm ~A"
 			 (namestring (compile-file-pathname "file2")))
-(asdf:oos 'asdf:load-op 'test1)
+(asdf:operate 'asdf:load-op 'test1)
 (assert (= file1-date (file-write-date (compile-file-pathname "file1"))))
 (assert (file-write-date (compile-file-pathname "file2")))
 

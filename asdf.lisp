@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.56 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.57 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -13,7 +13,7 @@
 ;;; is the latest development version, whereas the revision tagged
 ;;; RELEASE may be slightly older but is considered `stable'
 
-;;; Copyright (c) 2001, 2002 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2003 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.56 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.57 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -305,27 +305,33 @@ and NIL NAME and TYPE components"
      (string name)
      (t (sysdef-error "Invalid component designator ~A" name))))
 
+(defun system-definition-pathname (system)
+  (some (lambda (x) (funcall x system))
+	*system-definition-search-functions*))
+	
+(defun sysdef-central-registry-search (system)
+  (let ((name (coerce-name system)))
+    (block nil
+      (dolist (dir *central-registry*)
+	(let* ((defaults (eval dir))
+	       (file (and defaults
+			  (make-pathname
+			   :defaults defaults :version :newest
+			   :name name :type "asd" :case :local))))
+	  (if (and file (probe-file file))
+	      (return file)))))))
+
+
 (defvar *central-registry*
   '(*default-pathname-defaults*
-    "/home/dan/src/sourceforge/cclan/asdf/systems/"
+    #+nil "/home/dan/src/sourceforge/cclan/asdf/systems/"
     #+nil "telent:asdf;systems;"))
 
-(defun system-definition-pathname (system)
-  (let ((name (coerce-name system)))
-    (dolist (dir *central-registry*)
-      (let* ((defaults (if (and (symbolp dir)
-				(fboundp dir))
-			   (funcall dir name)
-			   (eval dir)))
-	     (file (and defaults
-			(make-pathname
-			 :name name :case :local :type "asd"
-			 :defaults defaults
-			 :version :newest))))
-	(if (and file (probe-file file))
-	    (return-from system-definition-pathname file))))
-    nil))
-  
+;;; for the sake of keeping things reasonably neat, we adopt a
+;;; convention that functions in this list are prefixed SYSDEF-
+
+(defvar *system-definition-search-functions*
+  '(sysdef-central-registry-search))
 
 (defun find-system (name &optional (error-p t))
   (let* ((name (coerce-name name))
