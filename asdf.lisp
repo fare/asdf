@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.80 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.81 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -107,7 +107,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.80 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.81 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -175,8 +175,8 @@ and NIL NAME and TYPE components"
 (define-condition compile-warned (compile-error) ())
 
 (defclass component ()
-  ((name :type string :accessor component-name :initarg :name :documentation
-	 "Component name, restricted to portable pathname characters")
+  ((name :accessor component-name :initarg :name :documentation
+	 "Component name: designator for a string composed of portable pathname characters")
    (version :accessor component-version :initarg :version)
    (in-order-to :initform nil :initarg :in-order-to)
    ;;; XXX crap name
