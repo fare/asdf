@@ -7,6 +7,7 @@
 	   
 	   #:compile-op #:load-op #:test-system-version
 	   #:operation			; operations
+	   #:feature			; sort-of operation
 	   
 	   #:output-files #:perform	; operation methods
 	   #:operation-done-p #:explain
@@ -41,7 +42,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility stuff
 
-(defmacro aif (test then else) `(let ((it ,test)) (if it ,then ,else)))
+(defmacro aif (test then &optional else)
+  `(let ((it ,test)) (if it ,then ,else)))
+
+(defun pathname-sans-name+type (pathname)
+  "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
+and NIL NAME and TYPE components"
+  (make-pathname :name nil :type nil :defaults pathname))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; problems
@@ -87,41 +94,20 @@
 	 "Component name, restricted to portable pathname characters")
    (version :accessor component-version :initarg :version)
    (in-order-to :initform nil :initarg :in-order-to)
+   ;; methods defined using the "inline" style inside a defsystem form:
+   ;; need to store them somewhere so we can delete them when the system
+   ;; is re-evaluated
+   (inline-methods :accessor component-inline-methods :initform nil)
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
    (relative-pathname :initarg :pathname)))
-
-#+ew
-(defun string-unix-common-casify (string &key (start 0) end)
-  "Converts a string assumed local to a Unix filesystem into its
-:common :case partner."
-  (unless end
-    (setf end (length string)))
-  (let ((result (copy-seq string)))
-    (cond
-      ((every (lambda (x) (or (upper-case-p x) (not (alpha-char-p x)))) (subseq string start end))
-       (nstring-downcase result :start start :end end))
-      ((every (lambda (x) (or (lower-case-p x) (not (alpha-char-p x)))) (subseq string start end))
-       (nstring-upcase result :start start :end end))
-      (t result))))
 
 (defgeneric component-pathname (component)
   (:documentation "Extracts the pathname applicable for a particular component."))
 
 (defmethod component-pathname  ((component component))
   (let ((*default-pathname-defaults* *component-parent-pathname*))
-    (if (and nil (slot-boundp component 'pathname))
-	(let ((p (slot-value component 'pathname)))
-	  (cond ((pathnamep p)
-		 (merge-pathnames p))
-		((and (stringp p) (> (length p) 0))
-		 (merge-pathnames p))
-		((and (stringp p) (= (length p) 0))
-		 *component-parent-pathname*)
-		(t
-		 (warn ":pathname argument to ~A is not a pathname designator.  Ignoring it" component)
-		 (merge-pathnames (component-relative-pathname component)))))
-	(merge-pathnames (component-relative-pathname component)))))
+    (merge-pathnames (component-relative-pathname component))))
 
 
 (defmethod print-object ((c component) (stream stream))
@@ -131,6 +117,11 @@
 
 (defclass module (component)
   ((components :accessor module-components :initarg :components)
+   ;; what to do if we can't satisfy a dependency of one of this module's
+   ;; components.  This allows a limited form of conditional processing
+   (if-component-dep-fails :initform :fail
+			   :accessor module-if-component-dep-fails
+			   :initarg :if-component-dep-fails)
    (default-component-class :accessor module-default-component-class
      :initform 'cl-source-file :initarg :default-component-class)))
 
@@ -139,18 +130,20 @@
     (or (slot-value component 'relative-pathname)
 	(make-pathname :directory `(:relative ,(component-name component))))))
 
-(defgeneric find-component (module name)
+(defgeneric find-component (module name &optional version)
   (:documentation "Finds the component with name NAME present in the
 MODULE module; if MODULE is nil, then the component is assumed to be a
 system."))
 
-(defmethod find-component ((module module) name)
+(defmethod find-component ((module module) name &optional version)
+  (declare (ignore version))
   (if (slot-boundp module 'components)
       (find name (module-components module)
 	    :test #'equal :key #'component-name)))
 
 ;;; a component with no parent is a system
-(defmethod find-component ((module (eql nil)) name)
+(defmethod find-component ((module (eql nil)) name &optional version)
+  (declare (ignore version))
   (find-system name))
 
 (defclass source-file (component) ())
@@ -186,10 +179,10 @@ system."))
 (defclass operation ()
   ((forced-p :initform nil :initarg :force :accessor operation-forced-p )))
 
-(defgeneric perform (operation system))
-(defgeneric operation-done-p (operation system))
-(defgeneric explain (operation system))
-(defgeneric output-files (operation system))
+(defgeneric perform (operation component))
+(defgeneric operation-done-p (operation component))
+(defgeneric explain (operation component))
+(defgeneric output-files (operation component))
 
 (defvar *visited-nodes* nil)
 (defvar *visiting-nodes* nil)
@@ -235,6 +228,8 @@ system."))
   (let ((raw-form
 	 (cdr (assoc (class-name (class-of o))
 		     (slot-value c 'in-order-to)))))
+    raw-form
+    #+nil
     (loop for (op . components) in raw-form
 	  append (mapcar (lambda (x) (list op x)) components))))
 
@@ -248,38 +243,81 @@ system."))
 ;;; we enforce that function is a symbol to allow us to specialize on
 ;;; (eql 'perform) and (eql 'explain) for :before and :after
 (defmethod traverse ((operation operation) (c component) (function symbol))
-  ;; dependencies
-  (if (component-visiting-p operation c)
-      (error 'circular-dependency :components (list c)))
-  (setf (visiting-component operation c) t)
-  (loop for (prereq-op  prereq-c) in
-	(component-depends-on operation c)
-	do (let ((op (if (subtypep (type-of operation) prereq-op)
-			 operation
-			 (make-instance prereq-op :force
-					(operation-forced-p operation))))
-		 (dep-c (or (find-component *component-parent* prereq-c)
-			    (error 'missing-dependency :required-by c
-				   :requires prereq-c))))
-	     (traverse op dep-c function)))
-  ;; constituent bits
-  (when (typep c 'module)
-    (let ((*component-parent-pathname* (component-pathname c))
-	  (*component-parent* c))
-      (mapc (lambda (c) (traverse operation c function))
-	    (module-components c))))
-  ;; now the thing itself
-  (unless (component-visited-p operation c)
-    (if (or (operation-forced-p operation)
-	    (not (operation-done-p operation c)))
-	(loop
-	 (restart-case 
-	     (progn (funcall function operation c)
-		    (return))
-	   (retry-component ())
-	   (skip-component () (return)))))
-    (setf (visiting-component operation c) nil)	      
-    (visit-component operation c)))
+  (labels ((do-one-dep (required-op required-c required-v)
+	     (let ((op (if (subtypep (type-of operation) required-op)
+			   operation
+			   (make-instance required-op :force
+					  (operation-forced-p operation))))
+		   (dep-c (or (find-component
+			       *component-parent* required-c required-v)
+			      (error 'missing-dependency :required-by c
+				     :version required-v
+				     :requires required-c))))
+	       (traverse op dep-c function)))
+	   (do-every-dep (op deps)
+	     (dolist (d deps)
+	       (do-dep op  d)))
+	   (do-first-dep (op deps)
+	     (block found
+	       (dolist (d deps)
+		 (handler-case
+		     (do-dep op d)
+		   (missing-dependency (c) (return-from found nil)))
+		 (error 'missing-dependency
+			:version nil :required-by c :requires deps))))
+	   (do-dep (op dep)
+	     (when (eq op 'feature)
+	       (return-from do-dep
+		 (or (member (car dep) *features*)
+		     (error 'missing-dependency :required-by c
+			    :requires (car dep) :version nil))))
+	     (cond 
+	       ((consp dep)
+		(case (car dep)
+		  (and (do-every-dep op (cdr dep)))
+		  (or (do-first-dep op (cdr dep)))
+		  (version
+		   (destructuring-bind (ignore name version-object)
+		       (do-one-dep op name version-object)))
+		  ;; if we had a list with unrecognised car, assume 'and'
+		  (t (do-every-dep op dep))))
+	       (t (do-one-dep op dep nil)))))
+    ;; dependencies
+    (if (component-visiting-p operation c)
+	(error 'circular-dependency :components (list c)))
+    (setf (visiting-component operation c) t)
+    (loop for (required-op . deps) in (component-depends-on operation c)
+	  do (do-dep required-op deps))
+    ;; constituent bits
+    (when (typep c 'module)
+      (let ((*component-parent-pathname* (component-pathname c))
+	    (*component-parent* c)
+	    (at-least-one nil)
+	    (error nil))
+	(loop for kid in (module-components c)
+	      do (handler-case
+		     (traverse operation kid function)		   
+		   (missing-dependency (condition)
+		     (if (eq (module-if-component-dep-fails c) :fail)
+			 (error condition))
+		     (setf error condition))
+		   (:no-error (c)
+		     (setf at-least-one t))))
+	(when (and (eq (module-if-component-dep-fails c) :try-next)
+		   (not at-least-one))
+	  (error error))))
+    ;; now the thing itself
+    (unless (component-visited-p operation c)
+      (if (or (operation-forced-p operation)
+	      (not (operation-done-p operation c)))
+	  (loop
+	   (restart-case 
+	       (progn (funcall function operation c)
+		      (return))
+	     (retry-component ())
+	     (skip-component () (return)))))
+      (setf (visiting-component operation c) nil)	      
+      (visit-component operation c))))
 
 (defmethod perform ((operation operation) (c source-file))
   (sysdef-error
@@ -306,10 +344,13 @@ system."))
    (fail-on-warning-p :initarg :fail-on-warning
 		      :accessor operation-fail-on-warning-p :initform nil)))
 
+;;; perform is required to check output-files to find out where to put
+;;; its answers, in case it has been overridden for site policy
 (defmethod perform ((operation compile-op) (c cl-source-file))
   (let ((source-file (component-pathname c)))
     (multiple-value-bind (output warnings-p failure-p)
-	(compile-file source-file)
+	(compile-file source-file
+		      :output-file (car (output-files operation c)))
       (when (and warnings-p (operation-fail-on-warning-p operation))
 	(error 'compile-warned :component c :operation operation))
       (when (and failure-p (operation-fail-on-error-p operation))
@@ -329,10 +370,6 @@ system."))
 (defmethod output-files ((operation load-op) (c component))
   nil)
 
-
-;;; compile-and-load-op
-
-(defclass compile-and-load-op (load-op) ())
 (defmethod component-depends-on ((operation load-op) (c source-file))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
@@ -394,6 +431,7 @@ system."))
     "/home/dan/src/sourceforge/cclan/asdf/systems/"
     "telent:asdf;systems;"))
 
+
 (defun find-system (name)
   (let* ((name (if (symbolp name) (symbol-name name) name))
 	 (in-memory (gethash name *defined-systems*))
@@ -425,19 +463,31 @@ system."))
   (setf (gethash (if (symbolp name) (symbol-name name) name) *defined-systems*)
 	(cons (get-universal-time) system)))
 
+(defun system-registered-p (name)
+  (gethash (if (symbolp name) (symbol-name name) name) *defined-systems*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; syntax
 
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key pathname &allow-other-keys) options
-    `(register-system (quote ,name)
-      (parse-component-form nil '(:module ,name
-				  :pathname
-				  ,(or pathname
-				       *load-truename*
-				       *default-pathname-defaults*)
-				  ,@options)))))
+    `(progn
+      ;; system must be registered before we parse the body, otherwise
+      ;; we recur when trying to find an existing system of the same name
+      ;; to reuse options (e.g. pathname) from
+      (let ((s (system-registered-p ',name)))
+	(if s
+	    (setf (car s) (get-universal-time))
+	    (register-system (quote ,name)
+			     (make-instance 'module :name ',name))))
+      (parse-component-form nil (apply
+				 #'list
+				 :module ',name
+				 :pathname
+				 (or ,pathname
+				     (pathname-sans-name+type *load-truename*)
+				     *default-pathname-defaults*)
+				 ',options)))))
 
 
 (defun class-for-type (parent type)
@@ -472,12 +522,12 @@ Returns the new tree (which probably shares structure with the old one)"
 	    (setf new-tree
 		  (maybe-add-tree new-tree (car op-tree) (car op) c))))))
     new-tree))
-    
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defparameter *option-names*
+
+;;; ew
+#.(defparameter *option-names*
     '(components pathname default-component-class
       perform explain output-files operation-done-p
-      depends-on serialize in-order-to)))
+      depends-on serialize in-order-to))
 
 (defun remove-keys (key-names args)
   (loop for ( name val ) on args by #'cddr
@@ -491,17 +541,18 @@ Returns the new tree (which probably shares structure with the old one)"
 	    &allow-other-keys) options
 	    (declare (ignore serialize))
 	    ;; XXX add dependencies for serialized subcomponents
-	    ;; XXX reuse existing component instead of creating new one
 	    (let* ((other-args (remove-keys *option-names* rest))
 		   (ret
-		    (apply
-		     #'make-instance (class-for-type parent type)
+		    (or (find-component parent name)
+			(make-instance (class-for-type parent type)))))
+	      (apply #'reinitialize-instance
+		     ret
 		     :name name
 		     :pathname pathname
 		     :in-order-to (union-of-dependencies
 				   in-order-to
 				   `((compile-op (load-op ,@depends-on))))
-		     other-args)))
+		     other-args)
 	      (when (typep ret 'module)
 		(setf (module-default-component-class ret)
 		      (or default-component-class
@@ -510,17 +561,22 @@ Returns the new tree (which probably shares structure with the old one)"
 	      (when components
 		(setf (module-components ret)
 		      (mapcar (lambda (x) (parse-component-form ret x)) components)))
-	      ;; XXX need to remove old methods
 	      (loop for (n v) in `((perform ,perform) (explain ,explain)
 				   (output-files ,output-files)
 				   (operation-done-p ,operation-done-p))
+		    do (map 'nil
+			    ;; this is inefficient as most of the stored
+			    ;; methods will not be for this particular gf n
+			    ;; But this is hardly performance-critical
+			    (lambda (m) (remove-method (symbol-function n) m))
+			    (component-inline-methods ret))
 		    when v
 		    do (destructuring-bind (op qual (o c) &body body) v
-			 (eval `(defmethod ,n ,qual ((,o ,op) (,c (eql ,ret)))
-				 ,@body))))
-	ret)))
-
-
+			 (pushnew
+			  (eval `(defmethod ,n ,qual ((,o ,op) (,c (eql ,ret)))
+				  ,@body))
+			  (component-inline-methods ret))))
+	      ret)))
 
 
 ;;; optional extras
@@ -541,3 +597,5 @@ output to *trace-output*.  Returns the shell's exit code."
       "/bin/sh"
       (list  "-c" command)
       :input nil :output *trace-output*))))
+
+
