@@ -137,10 +137,10 @@ an immediate concern
 
 (defun download (package-name-or-url file-name)
   (let ((url
-	 (if (string-equal package-name-or-url "http://"
-			   :end1 7)
+	 (if (= (mismatch package-name-or-url "http://") 7)
 	     package-name-or-url
-	     (format nil "http://www.cliki.net/~A?download" package-name))))
+	     (format nil "http://www.cliki.net/~A?download"
+		     package-name-or-url))))
     (destructuring-bind (response headers stream)
 	(block got
 	  (loop
