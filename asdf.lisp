@@ -315,12 +315,16 @@ system."))
 (defclass cl-source-file (source-file) ())
 (defclass c-source-file (source-file) ())
 (defclass java-source-file (source-file) ())
+(defclass static-file (source-file) ())
+(defclass doc-file (static-file) ())
+(defclass html-file (doc-file) ())
 
 (defgeneric source-file-type (component system))
 (defmethod source-file-type ((c cl-source-file) (s module)) "lisp")
 (defmethod source-file-type ((c c-source-file) (s module)) "c")
 (defmethod source-file-type ((c java-source-file) (s module)) "java")
-  
+(defmethod source-file-type ((c static-file) (s module)) nil)
+
 (defmethod component-relative-pathname ((component source-file))
   (let ((*default-pathname-defaults* (component-parent-pathname component)))
     (or (slot-value component 'relative-pathname)
@@ -329,10 +333,6 @@ system."))
 		       (source-file-type component
 					 (component-system component))))))
 
-(defclass static-file (source-file) ())
-(defclass doc-file (static-file) ())
-(defclass html-file (doc-file) ())
-(defmethod source-file-type ((c static-file) (s module)) nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; operations
@@ -537,6 +537,7 @@ system."))
 (defmethod perform ((operation compile-op) (c cl-source-file))
   (let ((source-file (component-pathname c))
 	(output-file (car (output-files operation c))))
+    (setf (component-property c 'last-compiled) nil)
     (multiple-value-bind (output warnings-p failure-p)
 	(compile-file source-file
 		      :output-file output-file)
@@ -571,8 +572,11 @@ system."))
 (defmethod perform ((o load-op) (c cl-source-file))
   (let* ((co (make-sub-operation o 'compile-op))
 	(output-files (output-files co c)))
-    (setf (component-property c 'last-loaded) (file-write-date (car output-files)))
-    (map nil #'load output-files)))
+    (setf (component-property c 'last-loaded) 
+	  (if (some #'not (map 'list #'load output-files))
+	      nil
+	      (file-write-date (car output-files))))))
+
 
 (defmethod perform ((operation load-op) (c static-file))
   nil)
@@ -591,7 +595,8 @@ system."))
 
 (defmethod operation-done-p ((o load-op) (c source-file))
   (if (or (not (component-property c 'last-loaded))
-	  (> (or (component-property c 'last-compiled) 0)
+	  (not (component-property c 'last-compiled))
+	  (> (component-property c 'last-compiled) 
 	     (component-property c 'last-loaded)))
       nil t))
 
@@ -613,12 +618,14 @@ system."))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; syntax
 
+(defun remove-keyword (key arglist)
+  (loop for sublist = arglist then rest until (null sublist)
+	for (elt arg . rest) = sublist
+	unless (eq key elt) append (list elt arg)))
+
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key pathname (class 'system) &allow-other-keys) options
-    (let ((component-options
-	   (if (member :class options)
-	       (remove :class options)
-	       options)))
+    (let ((component-options (remove-keyword :class options)))
       `(progn
 	;; system must be registered before we parse the body, otherwise
 	;; we recur when trying to find an existing system of the same name
