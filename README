@@ -1,4 +1,4 @@
-$Id: README,v 1.30 2003/03/16 15:18:25 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.31 2003/03/17 18:58:23 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -62,7 +62,7 @@ a custom core, or something.
     $ cd /home/me/cl/systems/
     $ ln -s ~/src/foo/foo.asd .
     $ lisp
-    * (asdf :operate 'asdf:load-op 'foo)
+    * (asdf:operate 'asdf:load-op 'foo)
 
 - To write your own system definitions, look at the test systems in
   test/ , and read the rest of this.  Ignore systems/ which is old
