@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.53 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.54 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.53 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.54 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -615,11 +615,6 @@ system."))
 (defmethod explain ((operation operation) (component component))
   (format *trace-output* "~&;;; ~A on ~A~%"
 	  operation component))
-
-(defmethod output-files ((operation operation) (c component))
-  (sysdef-error
-   "Required method OUTPUT-FILES not implemented for operation ~A, component ~A"
-	 (class-of operation) (class-of c)))
 
 ;;; compile-op
 
