@@ -1,0 +1,10 @@
+;;; -*- Lisp -*-
+(in-package :user)
+(defsystem dan-barlow
+  :source-pathname #p"src:dan-barlow;"
+  :components ((:file "defpackage")
+               (:file "copy-stream" :depends-on ("defpackage"))
+               (:file "lists" :depends-on ("defpackage"))
+               (:file "aif" :depends-on ("defpackage"))               
+               (:file "split" :depends-on ("defpackage"))))
+

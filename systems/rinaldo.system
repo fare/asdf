@@ -1,0 +1,101 @@
+;;; -*- Lisp -*-
+(in-package :user)
+
+;;; all per-host configuration is done in e.g kenya_pentacom_co_uk.lisp
+;;; - at least, nearly all
+
+(defvar *rinaldo-host-name*
+  (ext:host-entry-name (ext:lookup-host-entry (unix:unix-gethostname))))
+(defvar *rinaldo-configuration*
+  (substitute #\- #\.
+              (if (boundp '*config-tag*)
+                  (format nil "~A-~A" *rinaldo-host-name* *config-tag*)
+                *rinaldo-host-name*)))
+
+
+(defsystem rinaldo
+  :source-pathname #.(translate-logical-pathname #p"stargreen:rinaldo;")
+  :components ((:file "dhttp")          ;dhttp glue
+               (:file "defpackage" :depends-on
+                      ("dhttp"))               
+               (:file "default-configuration" :depends-on ("defpackage"))
+               (:file #.*rinaldo-configuration*
+                      :depends-on ("default-configuration"))
+               ;; core stuff
+               (:file "smtp")           ;pretty standalone, this
+               (:file "utilities" :depends-on ("defpackage"))
+               (:file "rinaldo" :depends-on
+                      (#.*rinaldo-configuration* "utilities" "defpackage"))
+               (:file "html-bits" :depends-on ("rinaldo"))
+               (:file "mop" :depends-on
+                      ("defpackage" "utilities" #+nil "users"))
+               (:file "db" :depends-on ("mop"))
+               (:file "searching" :depends-on ("mop" "db" "defpackage"))
+               (:file "country-class")
+               (:file "address-class")
+               (:file "user-class")
+               (:file "country" :depends-on ("country-class"))
+               (:file "address" :depends-on ("address-class" "country-class"))
+               (:file "users" :depends-on
+                      ("mop" "searching" "address-class" "user-class"))
+               (:file "styles" :depends-on ("defpackage"))
+               (:file "idle" :depends-on ("mop"))
+               
+               ;; admin system
+               (:file "admin-stylesheet" :depends-on ("mop" "defpackage"))
+               (:file "edit-object" :depends-on
+                      ("defpackage" "admin-stylesheet"))
+               (:file "edit-objects" :depends-on
+                      ("defpackage" "admin-stylesheet"))
+               (:file "edit" :depends-on
+                      ("defpackage" "admin-stylesheet"))
+               (:file "edit-class" :depends-on
+                      ("defpackage" "admin-stylesheet"))
+               (:file "stargreen-admin" :depends-on
+                      ("defpackage" "admin-stylesheet" "transactions"
+                       "stargreen-classes" "bid-offer"))
+               (:file "admin-stuff" :depends-on
+                      ("admin-stylesheet"
+                       #+nil "addressable-objects" "initial-db"))
+                              
+               ;; end-user system
+               (:file "bundled-classes" :depends-on
+                      ("mop" "defpackage" "searching"))
+               (:file "bid-offer" :depends-on ("bundled-classes"))
+               (:file "creditcard" :depends-on ("users"))
+               (:file "transactions" :depends-on ("bundled-classes"))
+               
+               ;; handlers
+               ;;(:file "addressable-objects" :depends-on ("bundled-classes"))
+               (:file "ooplemod" :depends-on ("bundled-classes"))
+               (:file "xmls-handler" :depends-on
+                      ("defpackage" "mop" "ooplemod"))
+               (:file "ooplesearch"
+                      :depends-on ("bundled-classes" "ooplemod"))
+               ;(:file "basket" :depends-on ("bundled-classes"))
+               (:file "delivery-handler" :depends-on ("bundled-classes"))
+               (:file "register" :depends-on
+                      ("mop" "smtp" "defpackage" "address"))
+               (:file "login" :depends-on ("register"))
+               (:file "payment-handler" :depends-on ("bundled-classes"))
+               ;(:file "session" :depends-on ("bundled-classes"))
+               (:file "single-item" :depends-on ("bundled-classes"))
+               ;; data
+               (:file "initial-db" :depends-on
+                      ("bundled-classes" "mop"))
+               ;; customers
+               (:file "stargreen-delivery" :depends-on
+                      ("initial-db"))
+               ;; stargreen files which will one day be in the store not
+              ;; in files, so won't need loading this way
+               (:file "stargreen-classes" :depends-on ("initial-db"))
+               (:file "stargreen-ooplemod"
+                      :depends-on ("stargreen-classes" "ooplemod"))
+               (:file "stargreen-exports" :depends-on ("exports"))
+               (:file "stargreen-mail" :depends-on ("stargreen-ooplemod"))
+               ;;; the export list
+               (:file "exports" :depends-on ("initial-db")))
+  :depends-on (dan-barlow xml http-server maisql maisql-mysql))
+
+
+

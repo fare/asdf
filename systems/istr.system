@@ -1,0 +1,111 @@
+;;; -*- Lisp -*-
+(in-package :cl-user)
+
+(load "/home/stargreen-http/src/telent/uncommonsql-1.0.2/dbms/mysql/system.lisp")
+
+(make:defsystem istr
+    :source-pathname #p"stargreen:istr;"
+    :components ((:file "defpackage") 
+                 ;; core
+                 (:file "utilities" :depends-on ("defpackage"))
+                 (:file "smtp")
+                 (:file "uncommonsql" :depends-on ("defpackage"))
+                 (:file "types" :depends-on ("defpackage"))
+                 (:file "istr-instance-class" :depends-on
+                        ("defpackage" "types" "uncommonsql"))
+                 (:file "object-system" :depends-on
+                        ("istr-instance-class" "utilities"))
+                 (:file "searches" :depends-on ("object-system"))
+                 (:file "rewrite-rules" :depends-on ("object-system"))
+                 (:file "pages" :depends-on ("object-system" "rewrite-rules"))
+                 
+                 (:file "admin-stylesheet" :depends-on ("pages"))
+                 (:file "admin-select-objects"
+                        :depends-on ("pages" "admin-stylesheet"))
+                 
+                 (:file "db" :depends-on ("uncommonsql"))
+                 (:file "stargreen" :depends-on ("defpackage"))
+                 ;;(:file "http-server" :depends-on ("defpackage"))
+                 (:file "handlers" :depends-on ("stargreen" #+nil "http-server"))
+                 
+                 ;; classes
+                 (:file "country-class"  :depends-on ("object-system"))
+                 (:file "user-class" :depends-on
+                        ("country-class" "object-system"))
+                 (:file "resource-class" :depends-on ("object-system"))
+                 
+                 (:file "artist-class"
+                        :depends-on ("object-system" "resource-class"))
+                 (:file "order-class" :depends-on
+                        ("artist-class" "creditcard-class" "event-class"
+                                        "locality-class" "venue-class"
+                                        "ticket-class" 
+                                        "user-class"))
+                 (:file "order-line-class" :depends-on
+                        ("order-class" "ticket-class" "artist-class"
+                                       "venue-class" "event-class"))
+                 
+                 (:file "creditcard-class"  :depends-on ("object-system"))
+                 (:file "event-class"  :depends-on
+                        ("object-system"  "venue-class" "artist-class"))
+                 (:file "artist-event-class" :depends-on
+                        ("artist-class" "event-class"))
+                 (:file "locality-class"  :depends-on ("object-system"))
+                 (:file "mail-alert-class" :depends-on ("object-system"))
+                 (:file "news-item-class" :depends-on ("object-system"))
+                 
+                 (:file "session-class" :depends-on ("order-class" "object-system"))
+                 (:file "ticket-class"
+                        :depends-on ("event-class" "object-system"))
+                 
+                 (:file "venue-class" :depends-on ("locality-class" "object-system"))
+                 
+                 (:file "artist" :depends-on ("artist-class"))
+                 (:file "session" :depends-on ("session-class"))
+                 (:file "country" :depends-on ("country-class"))
+                 (:file "creditcard" :depends-on ("creditcard-class" "date"))
+                 (:file "date"  :depends-on ("defpackage"))
+                 (:file "event"  :depends-on ("event-class"))
+               ;(:file "mail-alert" :depends-on ("mail-alert-class"))
+                 (:file "news-item" :depends-on ("news-item-class"))
+                 (:file "order" :depends-on
+                        ("order-line-class" "ticket-class" "event-class"
+                                            "smtp" "locality-class"))
+                 (:file "order-line" :depends-on ("order-line-class"))
+                 (:file "resource" :depends-on ("resource-class"))
+                 (:file "ticket" :depends-on ("ticket-class" "event-class"))
+                 (:file "user" :depends-on ("user-class"  "smtp"))
+                 (:file "venue" :depends-on ("venue-class"))
+
+                 (:file "relevant-instances" :depends-on ("order" "event" "date"))
+                 
+                 ;; pages
+                 (:file "address-page" :depends-on ("pages" "user"))
+                 (:file "about-us-page" :depends-on ("pages"))
+
+                 (:file "admin-menu-page" :depends-on ("pages"))
+                 (:file "stargreen-admin" :depends-on ("admin-menu-page" "order" "event" "order-line"))
+                 (:file "artist-page" :depends-on ("artist" "pages"))
+                 (:file "basket-page" :depends-on ("order" "session" "pages"))
+                 (:file "creditcard-page" :depends-on ("creditcard" "pages"))
+                 ;;(:file "email-alerts-page"
+                 ;;       :depends-on ("pages" "mail-alert"))
+                 (:file "event-page"
+                        :depends-on ("pages" "event"))
+                 (:file "front-page"
+                        :depends-on ("pages" "news-item" #+nil "event"))
+                 (:file "listing-page" :depends-on ("pages"))
+                 (:file "my-account-page" :depends-on ("pages")) 
+                 (:file "order-confirmation-page" :depends-on ("pages"))
+                 (:file "password-change-page" :depends-on ("pages"))
+                 (:file "password-reminder-page" :depends-on ("pages"))
+                 (:file "registration-page" :depends-on ("pages"))
+                 (:file "review-order-page" :depends-on ("pages"))
+                 (:file "search-page" :depends-on ("pages" "event" "date"))
+
+                 
+                 ;; fluff
+                 #+nil (:file "post-migration" :depends-on ("defpackage")))
+  :depends-on (araneida uncommonsql xml uncommonsql-mysql))
+  ;;:depends-on (araneida maisql xml maisql-mysql))
+

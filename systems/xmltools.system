@@ -1,0 +1,8 @@
+;;; -*- Lisp -*-
+(in-package :cl-user)
+
+(make:defsystem xmltools
+  :source-pathname #p"telent:allegro-xmltools;"
+  :components ((:file "defpackage")               
+               (:file "ifstar" :depends-on ("defpackage"))
+               (:file "phtml" :depends-on ("ifstar"))))

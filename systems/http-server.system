@@ -1,0 +1,38 @@
+;;; -*- Lisp -*-
+(in-package :user)
+
+(defvar *processor* #+alpha "alpha" #+x86 "i386" nil)
+(defvar *system* "linux")
+(defvar *implementation* "cmucl")
+(defvar *proc-sys-impl*
+  (format nil "~A-~A-~A" *processor* *system* *implementation*))
+(defvar *impl-macros* 
+  (concatenate 'string *implementation* "-macros"))
+
+(defsystem http-server
+  :source-pathname #p"src:http-server;"
+  :components ((:file "defpackage")
+               ;; random convenience stuff
+               (:file "utilities")
+               ;; system dependencies
+               (:file #.*impl-macros*)
+               (:file #.*proc-sys-impl* :depends-on (#.*impl-macros*))
+               (:file #.*implementation*
+                      :depends-on (#.*proc-sys-impl* #.*impl-macros*))
+               (:file "pmp" :depends-on (#.*implementation*))
+               (:file "html")
+               (:file "url-class")
+               (:file "url" :depends-on ("utilities" "url-class"))
+               (:file "server-class")
+               (:file "server" :depends-on ("server-class" "url-class"))
+               (:file "exports"
+                      :depends-on ("defpackage" "utilities" "url"))
+               (:file "session" :depends-on ("request"))
+               (:file "request-class")
+               (:file "request" :depends-on ("url" "request-class") )
+               (:file "file-request" :depends-on ("pmp" "request"))
+               (:file "daemon"
+                      :depends-on ("url" "pmp" "defpackage" "exports" "request")))
+  :depends-on ("dan-barlow"))
+
+

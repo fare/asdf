@@ -1,0 +1,9 @@
+;;; -*-  Lisp -*-
+
+(in-package :cl-user)
+
+(make:defsystem net-telent-date
+  :source-pathname  #p"cl-library:net-telent-date;"
+  :components ((:file "defpackage")
+               (:file "date" :depends-on ("defpackage"))
+	       (:file "parse-time" :depends-on ("defpackage"))))

@@ -1,0 +1,73 @@
+;;; -*- Syntax: Ansi-Common-Lisp; Base: 10; Mode: lisp; Package: cl-user -*-
+;;; $Id: XML.system,v 1.1 2001/08/01 17:52:50 dan_b Exp $
+
+(in-package :cl-user)
+
+;;
+;; XML parser
+;;
+
+(defsystem "XML"
+    :source-pathname "onshore:uncommonxml;"
+    :source-extension "lisp"
+    :binary-pathname nil
+    :binary-extension nil
+    :components
+    ((:file "application"		; good
+	    :depends-on ("events" "locale"))
+     (:file "ascii-encoding"		; good
+	    :depends-on ("encoding"))	
+     (:file "attribute-definition"	; good
+	    :depends-on ("macros"))	
+     (:file "comment-driver")		; SAX comment driver - commented out.
+     (:file "conditions")		; good
+     (:file "content-token"		; COMPLETE
+	    :depends-on ("token"))
+     (:file "doctype"			; good
+	    :depends-on ("entity-parser"))	 
+     (:file "driver")			; SAX driver - commented out.
+     (:file "dtd")			; 9
+     (:file "element-type"		; good
+	    :depends-on ("macros"))	
+     (:file "encoding"
+	    :depends-on ("encoding-tables"))			;
+     (:file "encoding-tables"		; good
+	    :depends-on ("macros"))
+     (:file "entity-manager")		; good
+     (:file "entity-parser"		; not good
+	    :depends-on ("content-token" "dtd" "events" "prolog-parser"
+					 "string-cache"))
+     (:file "events"			; good
+	    :depends-on ("package"))
+     (:file "internal-encoding")	; 2 - Java-like 16 bit encoding - commented out.
+     (:file "iso8859-1-encoding")	; Latin-1 encoding - commented out.
+     (:file "locale")			; good
+     (:file "locator")			; good
+     (:file "macros"
+	    :depends-on ("string"))			; 8 - good
+     (:file "messages")			; 9 - error messages
+     (:file "normalize")		; 7 - App: write normalized XML doc
+     (:file "open-entity")		; good
+     (:file "package")			; good
+     (:file "parse-location")		; good
+     (:file "parser")			; good
+     (:file "position")			; good
+     (:file "prolog-parser")		;
+     (:file "single-byte-encoding")	; arbitrary single byte encoding
+     (:file "string-cache")		;
+     (:file "string")			; Unicode garbage
+     (:file "test")			; Run the W3C test suite
+     (:file "text-decl")		;
+     (:file "token")			; good
+     (:file "utf16be-encoding")		;
+     (:file "utf16le-encoding")		;
+     (:file "utf8-encoding")		;
+     (:file "xml-decl"
+	    :depends-on ("text-decl"))	;
+     (:file "xml-streams")		;
+     )
+    )
+
+
+
+

@@ -1,0 +1,20 @@
+;;; -*- Lisp -*-
+(in-package :cl-user)
+
+(make:defsystem cliki
+  :depends-on (ARANEIDA xmltools net-telent-date)
+  :source-pathname #p"telent:cliki;"
+  :components ((:file "defpackage")               
+               (:file "indexing" :depends-on ("defpackage"))
+	       (:file "index" :depends-on ("defpackage"))
+               ;(:file "date" :depends-on ("defpackage"))
+               (:file "link-checker" :depends-on ("indexing"))
+               (:file "view" :depends-on ("indexing"))
+               (:file "recent-changes" :depends-on ("defpackage" ))
+               (:file "view-source" :depends-on ("defpackage"))
+               (:file "edit" :depends-on ("indexing" "recent-changes"))
+               (:file "search" :depends-on ("indexing"))
+               (:file "handlers" :depends-on
+                      ("view" "indexing" "view-source" "edit" "search"))))
+
+

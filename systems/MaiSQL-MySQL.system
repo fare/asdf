@@ -1,0 +1,39 @@
+;;; -*- Mode: Lisp -*-
+;;;; MaiSQL --- Common Lisp Interface Layer to SQL Databases
+;;;; This is copyrighted software.  See documentation for terms.
+;;;; 
+;;;; MaiSQL.system --- System definition for MaiSQL-MySQL
+;;;; 
+;;;; Checkout Tag: $Name:  $
+;;;; $Id: MaiSQL-MySQL.system,v 1.1 2001/08/01 17:52:50 dan_b Exp $
+
+#+CLISP
+(in-package "USER")
+#-CLISP
+(in-package :CL-USER)
+
+;;; System definition
+
+(defsystem "MaiSQL-MySQL"
+    :source-pathname "onshore:uncommonsql;dbms;mysql"
+    :source-extension "lisp"
+    :binary-pathname nil
+    :binary-extension nil
+    :components
+    ((:file "mysql-package")
+     (:file "mysql-loader"
+	    :depends-on ("mysql-package"))
+     (:file "mysql"
+	    :depends-on ("mysql-package"
+			 "mysql-loader"))
+     (:file "mysql-sql"
+	    :depends-on ("mysql"))
+     )
+    :depends-on ("MaiSQL")
+    )
+
+;(oos "MaiSQL-MySQL" :compile)
+
+
+
+

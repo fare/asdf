@@ -1,0 +1,7 @@
+;;; -*- Lisp -*-
+(defsystem imap
+  :source-pathname #p"src:imap;"
+  :components ((:file "defpackage")
+               (:file "imap" :depends-on ("defpackage")))
+  :depends-on nil)
+

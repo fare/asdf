@@ -1,0 +1,16 @@
+;;; -*- Lisp -*-
+(in-package :user)
+(defsystem dhttp
+  :source-pathname #p"src:dhttp;"
+  :components ((:file "defpackage")
+               (:file "socket")
+               (:file "utilities")
+               (:file "exports" :depends-on ("utilities"))
+               (:file "html") (:file "auth") (:file "session")
+               (:file "request") ;(:file "object-request")
+               (:file "file-request")
+;               (:file "mail-request") 
+               (:file "daemon" :depends-on ("defpackage" "exports")))
+  :depends-on ("dan-barlow"))
+
+

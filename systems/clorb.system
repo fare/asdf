@@ -1,0 +1,13 @@
+;;; -*- Lisp -*-
+
+(make:defsystem "clorb"
+    :source-extension "lisp"
+    :binary-pathname "bin/"
+    :components ((:file "clorb-pkgdcl")
+                 (:file "clorb-macros"  :depends-on ("clorb-pkgdcl"))
+		 (:file "clorb-options" :depends-on ("clorb-pkgdcl"))
+                 (:file "clorb-supp")
+                 (:file "clorb-basetypes")
+                 (:file "clorb-exceptions")
+                 (:file "dumpir"        :depends-on ("clorb-pkgdcl"))))
+

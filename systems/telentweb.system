@@ -1,0 +1,14 @@
+;;; -*- Lisp -*-
+(in-package :cl-user)
+
+(defvar *per-host-configuration*
+  (substitute #\- #\. (machine-instance)))
+
+(make:defsystem telentweb
+  :depends-on (ARANEIDA araneida-examples cliki)
+  :source-pathname  #p"telent:telentweb;"
+  :components ((:file "defpackage")               
+               (:file "configuration"
+                      :source-pathname #.*per-host-configuration*)
+               (:file "main" :depends-on ("defpackage" "configuration"))))
+

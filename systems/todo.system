@@ -1,0 +1,9 @@
+;;; -*- Lisp -*-
+(in-package :user)
+(defsystem todo
+  :depends-on (rinaldo)
+  :source-pathname #.(translate-logical-pathname #p"src:todo;")
+  :components ((:file "defpackage")               
+               (:file "todo-class" :depends-on ("defpackage"))
+               (:file "todo" :depends-on ("todo-class"))))
+
