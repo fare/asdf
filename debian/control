@@ -8,7 +8,7 @@ Standards-Version: 3.5.7.1
 Package: cl-asdf
 Architecture: all
 Depends: ${shlibs:Depends}
-Recommends: common-lisp-controller, cmucl-normal | lisp-compiler
+Recommends: common-lisp-controller, sbcl | lisp-compiler
 Description: Another System Definition Facility
  asdf provides a "make" type functions for Common Lisp packages. It
  provides compilation and loading features for complex Lisp systems
@@ -19,7 +19,7 @@ Description: Another System Definition Facility
 
 Package: cl-cclan
 Architecture: all
-Depends: ${shlibs:Depends}, cl-asdf, cmucl-normal | lisp-compiler, common-lisp-controller
+Depends: ${shlibs:Depends}, cl-asdf
 Description: Comprehensive Common Lisp Archive Network
  cclan is a tool for creating a repository of Common Lisp packages.
  cclan utilizes asdf to automatically create installable packages for various
