@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.67 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.68 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -43,6 +43,7 @@
 	   #:hyperdocumentation #:hyperdoc
 	   
 	   #:compile-op #:load-op #:load-source-op #:test-system-version
+	   #:test-op
 	   #:operation			; operations
 	   #:feature			; sort-of operation
 	   #:version			; metaphorically sort-of an operation
@@ -88,7 +89,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.67 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.68 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -766,6 +767,10 @@ system."))
 	     (component-property c 'last-loaded-as-source)))
       nil t))
 
+(defclass test-op (operation) ())
+
+(defmethod perform ((operation test-op) (c component))
+  nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
