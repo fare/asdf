@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.65 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.66 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.65 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.66 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -471,11 +471,8 @@ system."))
 		(not (eql c dep-c)))
 	   (when (eql force-p t)
 	     (setf (getf args :force) nil))
-	   ;; note we lose the parent slot, because we don't want
-	   ;; forced to propagate backwards either (changes in depended-on
-	   ;; systems shouldn't force recompilation of the depending system)
 	   (apply #'make-instance dep-o
-		  ;:parent o
+		  :parent o
 		  :original-initargs args args))
 	  ((subtypep (type-of o) dep-o)
 	   o)
