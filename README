@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.3 2001/08/03 00:36:02 dan_b Exp $
+$Id: README,v 1.4 2001/08/03 01:13:30 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -149,8 +149,8 @@ foreign-language linked libraries or archive files.
 An operation is instantiated whenever the user asks that an operation
 be performed, inspected, or etc.  The operation object contains
 whatever state is relevant to this purpose (perhaps a list of visited
-nodes, for example) but primarily is a nicer thing to specialise
-operation methods on than having them all be EQL methods.
+nodes, for example) but primarily is a nice thing to specialise
+operation methods on and easier than having them all be EQL methods.
 
 There are no differences between standard operations and user-defined
 operations, except that the user is respectfully requested to keep his
@@ -170,7 +170,7 @@ defined to accept.
 
 The definition of `compile' is "do everything that we can do to make
 subsequent loads (in a new image that we didn't do the compile in)"
-faster.
+faster.  
 
 If proclamations are supplied, they will be proclaimed.  This is a
 good place to specify optimization settings
@@ -310,6 +310,8 @@ the package that they evaluate defsystem forms in
 <Krystof> Hence (defsystem :partition ...)
 <rahul> yeah
 
+actually I'm beginning to wonder if we shouldn't name _all_ components
+with symbols and depend on :case :common to map them into customary case.
 
 ** defsystem syntax
 *** export process-option-list?
@@ -330,7 +332,7 @@ and specifying that b depends on a _actually_ means that
 
   (compile b) depends on (load a)
 
-One idea, borrowed from ACL defsystem :
+We currently intend to do something rather like ACL's defsystem :
 
 :in-order-to (compile-system (load-system "a" "b")
               load-system (load-system "foo"))
@@ -342,27 +344,14 @@ dependencies: e.g. in-order-to (load-system x), first (compile-system x)
 ** the :pathname argument is misnamed
 
 As demonstrated by the way we split it into name and type ourselves
-instead of using parse-namestring, to avoid the problem that "foo.lisp"
-is an absolute director when treated as an LPN.  As it doesn't behave
+instead of using parse-namestring (to avoid the problem that "foo.lisp"
+is an absolute directory when treated as an LPN).  As it doesn't behave
 like a pathname, we shouldn't fool the user into thinking it is one
-
-<dan_b> because "foo.lisp" in an LPN is an absolute path
-<Krystof> So you should be merging the other way round, no?
-<Krystof> (merge-pathname *component-pathname-defaults* "foo.lisp")
-[ no ]
-
-<Krystof> But you can't currently do ((:file "/absolute/file/that/I/want.lisp")) anyway
-[ this is true ]
 
 * missing bits in implementation
 ** all of the above
-** package exports
-
-present list is ad-hoc, so go through and consider it properly
-
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** defsystem syntax for EQL methods
 ** dependency circularities: test it works
 ** versions
-
 
