@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-pkg=cl-cclan
+pkg=cclan
 
 # summary of how this script can be called:
 #        * <prerm> `remove'
