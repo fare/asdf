@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.81 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.82 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -107,7 +107,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.81 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.82 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -706,6 +706,7 @@ system."))
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
 (defmethod perform ((operation compile-op) (c cl-source-file))
+  #-:cormanlisp
   (let ((source-file (component-pathname c))
 	(output-file (car (output-files operation c))))
     (multiple-value-bind (output warnings-p failure-p)
@@ -732,7 +733,8 @@ system."))
 	(error 'compile-error :component c :operation operation)))))
 
 (defmethod output-files ((operation compile-op) (c cl-source-file))
-  (list (compile-file-pathname (component-pathname c))))
+  #-:cormanlisp (list (compile-file-pathname (component-pathname c)))
+  #+:cormanlisp (list (component-pathname c)))
 
 (defmethod perform ((operation compile-op) (c static-file))
   nil)
