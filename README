@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.15 2002/02/20 14:15:27 dan_b Exp $
+$Id: README,v 1.16 2002/02/28 03:51:26 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -48,7 +48,7 @@ list was very useful.
 ** defsystem-4 proposal
 
 Marco and Peter's proposal for defsystem 4 served as the driver for
-many of the features in here,  Notable differences are 
+many of the features in here.  Notable differences are
 
 - we don't specify output files or output file extensions as part of
   the system
@@ -249,7 +249,9 @@ operations, except that the user is respectfully requested to keep his
 
 keyword-args are passed to the make-instance call when creating the
 operation: valid keywords depend on the initargs that the operation is
-defined to accept.
+defined to accept.  Note that dependencies may cause the operation to
+invoke other operations on the system or its components: the new
+operation will be created with the same initargs as the original one
 
 ** standard operations
 
@@ -504,18 +506,5 @@ the existing syntax.  Reinstate parse-option or something akin
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** "and" and "or" dependencies are broken
-** compiler/loader options, other stuff needing specials
-** rules for pathname defaulting are not yet implemented properly
-
-new operations created during a traversal should get a link back to
-their parent, and accessors for component properties should
-automatically check the parent operation if it's not set on the
-current op.  Then we don't need specials for compiler options or "what
-have we visited so far" stuff
-
-
-* layered standard for lisp code packages a la clc
-
-See http://ww.telent.net/cliki/ASDF%20System
-
-http://bugs.plt-scheme.org/cgi-bin/gnats-query?pr-number=5271&query-type=pr-number
+** rules for system pathname defaulting are not yet implemented properly
+** proclamations probably aren't
