@@ -22,12 +22,6 @@ a) gpg signature checking would be better if it actually checked against
 a list of "trusted to write Lisp" keys, instead of just "trusted to be
 who they say they are"
 
-c) error handling and stuff.  one obvious problem with in-place compilation is
-that no backout is possible after upgrading to a package that turns out to be
-buggy or for which dependencies are missing.  That said, this would be simpler
-if packages unpacked into a directory with the version number in their name
-(yes, like clx does)
-
 d) in sbcl 0.8.1 we'll have a run-program that knows about $PATH and so
 won't need to hardcode gpgpgpgp and tar locations.
 
