@@ -1,9 +1,9 @@
-rSource: cl-asdf
+Source: cl-asdf
 Section: devel
 Priority: optional
 Maintainer: Kevin M. Rosenberg <kmr@debian.org>
 Build-Depends-Indep: debhelper (>> 4.0.0)
-Standards-Version: 3.5.7.0
+Standards-Version: 3.5.7.1
 
 Package: cl-asdf
 Architecture: all
