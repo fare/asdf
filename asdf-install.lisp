@@ -269,8 +269,8 @@ an immediate concern
 			 (loop for p in packages
 			       unless (probe-file p)
 			       do (let ((tmp (temp-file-name p)))
-				    (download p tmp)
 				    (pushnew tmp *temporary-files*)
+				    (download p tmp)
 				    (setf p tmp))
 			       end
 			       do (format t "Installing ~A in ~A,~A~%" p source system)
@@ -289,7 +289,8 @@ an immediate concern
     (let ((*temporary-files* nil))
       (unwind-protect
 	   (run)
-	(dolist (l *temporary-files*) (delete-file l))))
+	(dolist (l *temporary-files*)
+	  (when (probe-file l) (delete-file l)))))
   (error (c)
     (princ "Install failed due to error:") (terpri)
     (princ c) (terpri)
