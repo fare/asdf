@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.10 2002/02/12 12:46:54 dan_b Exp $
+$Id: README,v 1.11 2002/02/14 11:37:58 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -214,18 +214,33 @@ defined to accept.
 
 ** standard operations
 
-*** compile-op &key proclamations
+*** compile-op, load-op
 
-The definition of `compile' is "do everything that we can do to make
-subsequent loads (in a new image that we didn't do the compile in)"
-faster.  
+When creating a new component, you should provide methods for these.  
+As a user, you almost never want to use them, though.  See below.
+
+*** compile-and-load-op &key proclamations
+
+This is roughly equivalent to the mk-defsystem 'compile' operation.
+Compiling a system usually involves loading each component after it is
+compiled - we've changed the name of this operation to make it more
+explicit what is happening
 
 If proclamations are supplied, they will be proclaimed.  This is a
 good place to specify optimization settings
 
-*** load-op
+You probably don't need to create this method if you are creating a new
+component type.  The default method for this operation on source-files
+calls compile-op and load-op
 
-This is the `do everything' operation.  It depends on compile-op.
+*** load-source-op
+
+Sometimes systems have knotty dependencies which require that sources
+are loaded before they can be compiled.  This is how you do that.
+
+If you are creating a component type, you need to implement this
+operation - at least, where meaningful.
+
 
 *** test-system-version &key minimum
 
@@ -388,10 +403,10 @@ has the effect of
 
 where ... is the component in question; note that while :before
 methods are also supported by this, they may not do what you want them
-do (a :before method on perform ((op compile-op) (c (eql ...)))
+to -  a :before method on perform ((op compile-op) (c (eql ...)))
 will run after all the dependencies and sub-components have been
 processed, but before the component in question has been
-compiled).
+compiled.
 
 *** Source location
 
@@ -456,13 +471,25 @@ partition:partition symbol
 
 Need an explicit error for "dependency missing" and "required version
 of dependency missing" so that we can fit this to an automated
-dependency downloading thing
+dependency downloading thing.  
 
 * missing bits in implementation
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** defsystem syntax for EQL methods
+
+How the hell  Cop out and use EVAL?
+
 ** versions
 ** test suite, insofar as it makes sense
 ** compiler/loader options
  verbosity, proclamations, etc: do this with specials
+
+(defvar *visited-nodes* nil)
+(defvar *visiting-nodes* nil)
+
+rewrite the component-visiting stuff to hide this state in the
+operation 
+
+
+** pathname defaulting in defsystem
