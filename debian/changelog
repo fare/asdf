@@ -1,6 +1,12 @@
+cl-asdf (1.62) unstable; urgency=low
+
+  * New upstream, fixes a sbcl-specific directory name
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Fri,  7 Mar 2003 09:23:11 -0700
+
 cl-asdf (1.61-1) unstable; urgency=low
 
-  * New upstream, fixes 'load-sourc-op
+  * New upstream, fixes 'load-source-op
 
  -- Kevin M. Rosenberg <kmr@debian.org>  Tue,  4 Mar 2003 09:48:40 -0700
 
