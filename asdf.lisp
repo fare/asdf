@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.44 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.45 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.44 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.45 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -611,7 +611,7 @@ system."))
     (multiple-value-bind (output warnings-p failure-p)
 	(compile-file source-file
 		      :output-file output-file)
-      (declare (ignore output))
+      ;(declare (ignore output))
       (when warnings-p
 	(case (operation-on-warnings operation)
 	  (:warn (warn "COMPILE-FILE warned while performing ~A on ~A"
@@ -708,9 +708,13 @@ system."))
 ;;; syntax
 
 (defun remove-keyword (key arglist)
-  (loop for sublist = arglist then rest until (null sublist)
-	for (elt arg . rest) = sublist
-	unless (eq key elt) append (list elt arg)))
+  (labels ((aux (key arglist)
+	     (cond ((null arglist) nil)
+		   ((eq key (car arglist)) (cddr arglist))
+		   (t (cons (car arglist) (cons (cadr arglist)
+						(remove-keyword
+						 key (cddr arglist))))))))
+    (aux key arglist)))
 
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key pathname (class 'system) &allow-other-keys) options
@@ -902,5 +906,18 @@ output to *trace-output*.  Returns the shell's exit code."
       command
       :shell-type "/bin/sh"
       :output-stream *trace-output*)))
+
+#+clisp
+(defun run-shell-command (control-string &rest args)
+  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
+synchronously execute the result using a Bourne-compatible shell, with
+output to *trace-output*.  Returns the shell's exit code."
+  (let ((command (apply #'format nil control-string args)))
+    (format *trace-output* "; $ ~A~%" command)
+    ;; XXX :terminal is not exactly *trace-output*, but it'll do
+    ;; XXX determined the return value of this by experimentation, it
+    ;;  doesn't seem to be documented
+    (ext:run-shell-command  command :output :terminal :wait t)))
+
 
 (pushnew :asdf *features*)

@@ -43,7 +43,7 @@
     will compile and load the system into your running lisp.
 
 [*] This path (~W) is only a suggestion; the important
-thing is that asdf know where to find the .asd file. Adsf uses the
+thing is that asdf know where to find the .asd file.  asdf uses the
 contents of the variable ASDF:*CENTRAL-REGISTRY* to find its system
 definitions.
 

@@ -5,8 +5,8 @@
 ;(trace asdf::find-component)
 ;(trace asdf::traverse)
 (asdf:oos 'asdf:load-op 'test2b1)
-(assert (and (file-write-date (compile-file-pathname "file3"))
-	     (file-write-date (compile-file-pathname "file4"))))
+(assert (and (probe-file (compile-file-pathname "file3"))
+	     (probe-file (compile-file-pathname "file4"))))
 (handler-case 
     (asdf:oos 'asdf:load-op 'test2b2)
   (asdf:missing-dependency (c)
