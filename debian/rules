@@ -45,8 +45,8 @@ install: build
 	dh_install -p $(pkg) asdf.lisp wild-modules.lisp $(asdf-files)
 	dh_install -p $(pkg) test $(doc-dir)
 	dh_installdirs -p $(pkg-cclan) $(clc-systems) $(cclan-files)
-	dh_install -p $(pkg-cclan) cclan.asd $(clc-systems)
-	dh_install -p $(pkg-cclan) cclan-package.lisp cclan.lisp $(cclan-files)
+	dh_install -p $(pkg-cclan) cclan-package.lisp cclan.lisp cclan.asd $(cclan-files)
+	dh_link -p $(pkg-cclan) $(cclan-files)/cclan.asd $(clc-systems)/cclan.asd
 
 # Build architecture-independent files here.
 binary-indep: build install
