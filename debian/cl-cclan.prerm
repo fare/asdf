@@ -16,7 +16,7 @@ pkg=cclan
 
 case "$1" in
     remove|upgrade|deconfigure)
-	/usr/sbin/unregister-common-lisp-source $pkg
+	echo pending: /usr/sbin/unregister-common-lisp-source $pkg
         ;;
     failed-upgrade)
         ;;

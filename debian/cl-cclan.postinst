@@ -22,7 +22,7 @@ pkg=cclan
 
 case "$1" in
     configure)
-	/usr/sbin/register-common-lisp-source $pkg
+	echo pending: /usr/sbin/register-common-lisp-source $pkg
 	;;
     abort-upgrade|abort-remove|abort-deconfigure)
 	;;
