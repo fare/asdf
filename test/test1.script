@@ -19,3 +19,14 @@
 (asdf:oos 'asdf:load-op 'test1)
 (assert (= file1-date (file-write-date (compile-file-pathname "file1"))))
 (assert (file-write-date (compile-file-pathname "file2")))
+
+;; now touch file1 and check that file2 _is_ also recompiled
+
+;; XXX run-shell-command loses if *default-pathname-defaults* is not the
+;; unix cwd.  this is not a problem for run-tests.sh, but can be in general
+
+(let ((before (file-write-date (compile-file-pathname "file2"))))
+  (asdf::run-shell-command "touch file1.lisp")
+  (sleep 1)
+  (asdf:operate 'asdf:load-op 'test1)
+  (assert (>  (file-write-date (compile-file-pathname "file2")) before)))

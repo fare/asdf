@@ -1,4 +1,4 @@
-$Id: README,v 1.25 2002/08/28 20:22:33 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.26 2002/11/08 01:54:23 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -648,24 +648,30 @@ functionality?
 ** proclamations probably aren't
 ** when a system is reloaded with fewer components than it previously
    had, odd things happen
-** circularities may not be being detected as they should
 
-** now
+we should do something inventive when processing a defsystem form,
+like take the list of kids and setf the slot to nil, then transfer
+children from old to new list as they're found
 
-*** restarts may not be as visible as we'd like when chasing dependencies
+**  traverse may become a normal function and not generic
 
-*** some reasonably neat way to deal with this-file-already-loaded
+If you're defining methods on traverse (especially if they specialise
+on the third arg, which we don't actually use any more) speak up.
 
-perhaps compile-op/load-op perform after methods should be setting the
-last-loaded and last-compiled properties?
+** return list from traverse is not in final form yet 
 
-*** better integration of load-binary-ignoring-state-of-source-op
+We'll probably make it have actual operations in it, not just the names.
 
-** later
+** a lot of load-op methods can be rewritten to use input-files
+
+so should be.
+
+
+** (stuff that might happen later)
 
 *** david lichteblau's patch for symlink resolution?
 
-*** Propagation of the :force option.  I notice that
+*** Propagation of the :force option.  ``I notice that
 
 	(oos 'compile-op :araneida :force t)
 
@@ -674,5 +680,6 @@ depends on.  This is rarely useful to me; usually, when I want to force
 recompilation of something more than a single source file, I want to
 recompile only one system.  So it would be more useful to have
 make-sub-operation refuse to propagate ":force t" to other systems, and
-propagate only something like ":force :recursively".
+propagate only something like ":force :recursively". ''
+
 
