@@ -23,7 +23,7 @@ set -e
 
 case "$1" in
     configure)
-	echo Pending: /usr/sbin/reregister-common-lisp-implementations
+	/usr/sbin/reregister-common-lisp-implementations
 	;;
     abort-upgrade|abort-remove|abort-deconfigure)
 	;;

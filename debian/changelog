@@ -1,3 +1,9 @@
+cl-asdf (1.42-2) unstable; urgency=low
+
+  * Add reregister-common-lisp-implementations call when installing cl-asdf.
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Mon, 16 Sep 2002 08:31:13 -0600
+
 cl-asdf (1.42-1) unstable; urgency=low
 
   * Remove Depends on lisp-compiler for cl-asdf (fixes problem with
