@@ -1,3 +1,9 @@
+cl-asdf (1.55-1) unstable; urgency=low
+
+  * New upstream.version (closes: 172074) 
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Mon,  9 Dec 2002 10:23:21 -0700
+
 cl-asdf (1.54-1) unstable; urgency=low
 
   * New upstream.
