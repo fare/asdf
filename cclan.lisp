@@ -138,6 +138,7 @@ binary: binary-indep binary-arch
 .PHONY: build clean binary-indep binary-arch binary install configure
 " (component-name system) changelog-file-name)))
 
+#+infix
 (defun write-debian-control (stream system)
   (format stream "Source: ~A
 Section: devel
@@ -244,7 +245,7 @@ exit 0
 	    ;; FIXME: I'm sure this is wrong
 	    (+ (* (truncate tz) 100) (mod (* tz 60) 60)))))
 		     
-
+#+infix
 (defun write-debian-changelog (stream system)
   (format stream "~A (~A-1) cclan; urgency=low
 

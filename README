@@ -1,4 +1,4 @@
-$Id: README,v 1.18 2002/03/06 23:58:34 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.19 2002/04/30 17:22:51 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -11,10 +11,12 @@ maximum convenience you want to have it loaded whenever you start your
 Lisp implementation, by loading it from the startup script, or dumping
 a custom core, or something.
 
-- The variable asdf:*central-registry* is a list of forms each of
-  which evaluates to a directory in which .asd files (system
-  definitions) may be found.  Typically you might for example 
-  have  
+- The variable asdf:*central-registry* is a list of system directory
+  designators.  A ssytem directory designator is either a function
+  designator for a function of one argument, which when called with
+  the system name will return a directory to look for .asd files in,
+  or it is a form which evaluates to a directory to look in.
+  Typically you might for example have
 
      (*default-pathname-defaults* "/home/me/cl/systems/"
       "/usr/share/common-lisp/systems/")
@@ -27,15 +29,16 @@ a custom core, or something.
     $ cd /home/me/cl/systems/
     $ ln -s ~/src/foo/foo.asd .
     $ lisp
-    * (asdf :operate asdf:load-op 'foo)
+    * (asdf :operate 'asdf:load-op 'foo)
 
 - To write your own system definitions, look at the test systems in
   test/ , and read the rest of this.  Ignore systems/ which is old
   and may go away when next I clean up
 
 - Syntax is similar to mk-defsystem 3 for straightforward systems, you
-  may only need to remove the :source-pathname option (and replace
-  it with :pathname if you aren't using symlinks in *central-registry*)
+  may only need to remove the :source-pathname option (and replace it
+  with :pathname if the asd file is not in the same place as the
+  system sources)
 
 - Join cclan-list@lists.sf.net for discussion, bug reports, questions, etc
 
@@ -147,6 +150,19 @@ which is reported not to work on some implementations
 
 This is used by the test-system-version operation (see later).
 
+**** *features* required
+
+Traditionally defsystem users have used reader conditionals to include
+or exclude specific per-implementation files.  This means that any
+single implmentation cannot read the entire system, which becomes a
+problem if it doesnb't wish to compile it, but instead for example to
+create an archive file containing all the sources, as it will omit to
+process the system-dependent sources for other systems.
+
+Each component in an asdf system may therefore specify features using
+the same syntax as #+ does, and it will (somehow) be ignored for
+certain operations unless the feature conditional matches
+
 **** dependencies on its siblings  (optional but often necessary)
 
 There is an excitingly complicated relationship between the initarg
@@ -155,20 +171,18 @@ and the method that you use to ask about dependencies
 Dependencies are between (operation component) pairs.  In your
 initargs, you can say
 
-:in-order-to ((compile-op (load-op (and "a" "b")) (compile-op "c"))
+:in-order-to ((compile-op (load-op "a" "b") (compile-op "c"))
 	      (load-op (load-op "foo")))
 
 - before performing compile-op on this component, we must perform
-load-op on both of "a" and "b" and compile-op on c, 
-- before performing load-op, we have to load "foo"
+load-op on "a" and "b", and compile-op on c, - before performing
+load-op, we have to load "foo"
 
 The syntax is approximately
 
 (this-op {(other-op required-components)}+)
 
 required-components := component-name
-		     | (or required-components required-components)
-                     | (and required-components required-components)
                      | (required-components required-components)
 
 component-name := string
@@ -177,21 +191,8 @@ component-name := string
 The last case in required-components is a shorthand for the 'and'
 form, as and is usually the common case
 
-The dependency mechanism can also be used to introduce conditional
-compilation based on features of the Lisp environment.  A 
-dependency on (feature foo) is satisfied if foo is in the
-*features* list -
-
-(:module "deps"
-	 :if-component-dep-fails :try-next
-         (:file "sbcl-dep"
-		:in-order-to ((compile-op (feature :sbcl))))
-	 (:file "cmucl-dep"
-	        :in-order-to ((compile-op (feature :cmu)))))
- 
-[ This is on a par with what ACL defsystem does, though the and/or
-stuff is of our own invention.  mk-defsystem is less general: it has
-an implied dependency
+[ This is on a par with what ACL defsystem does.  mk-defsystem is less
+general: it has an implied dependency
 
   for all x, (load x) depends on (compile x)
 
@@ -242,6 +243,19 @@ Note that the DEFSYSTEM operator (used to create a "top-level" system)
 does additional processing to set the filesystem location of the
 top component in that system.  This is detailed elsewhere
 
+**** properties (optional)
+
+Packaging systems often require information about files or systems
+additional to that specified here.  Programs that create vendor
+packages out of asdf systems therefore have to create "placeholder"
+information to satisfy these systems.  Sometimes the creator of an
+asdf system may know the additional information and wish to provide it
+directly.
+
+component-properties is a symbol-value alist (plist?) which system
+authors may set and package building rograms may query.  asdf make sno
+further specification of the contents of this slot.
+
 ** Subclasses of component
 
 *** 'source-file'
@@ -277,10 +291,17 @@ This has extra slots for
 The default operation knows how to traverse a module, so most
 operations will not need to provide methods specialised on modules.
 
-A system object is usually a module. 
-
 The module may be subclassed to represent components such as
 foreign-language linked libraries or archive files.
+
+*** system, subclasses module
+
+A system is a module with a few extra attributes for documentation
+purposes.  In behaviour, it's usually identical.
+
+Users can create new classes for their systems: the default defsystem
+macro takes a :classs keyword argument.
+
 
 ** operation
 
@@ -307,6 +328,16 @@ operation will be created with the same initargs as the original one.
 oos is accepted as a synonym for operate
 
 *** standard operations
+
+**** feature-dependent-op
+
+This is not intended to be instantiated directly, but other operations
+may inherit from it.  An instance of feature-dependent-op will ignore
+any components which have a `features' attribute, unless the feature
+combination it designates is satisfied by *features*
+
+See the earlier explanation about the component features attribute for
+more information
 
 **** compile-op &key proclamations
 
@@ -507,8 +538,8 @@ interactively re-evaluates that form
 * Error handling
 
 It is an error to define a system incorrectly: an implementation may
-detect this and signal a SYSTEM-DEFINITION-ERROR or generalised
-instance thereof
+detect this and signal a generalised instance of
+SYSTEM-DEFINITION-ERROR
 
 Operations may go wrong (for example when source files contain
 errors).  These are signalled using generalised instances of
@@ -520,6 +551,10 @@ OPERATION-ERROR
 ----------------------------------------------------------
 
 * Outstanding spec questions, things to add
+
+** packaging systems
+
+*** manual page component?
 
 ** style guide for .asd files
 
@@ -539,10 +574,22 @@ the existing syntax.  Reinstate parse-option or something akin
 
 ** document all the error classes
 
+** putting functions onto *central-registry* ?
+
+For the benefit of people who don't want to keep all their systems in
+the same place, we could
+
+1) put functions onto *central-registry*.  These would take the
+   syestem name as argument
+
+2) expose the system-definition-pathname function.  Problem, it's
+   currently a function not a gf.  What would it specialize on?
+
+
 * missing bits in implementation
 
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
-** "and" and "or" dependencies are broken
 ** rules for system pathname defaulting are not yet implemented properly
 ** proclamations probably aren't
+

@@ -24,9 +24,9 @@
     (princ (list filename output-file real-output-file
 		 tmp-c-source tmp-a-dot-out tmp-constants))
     (terpri)
-    #+nil
-    (funcall (intern "C-CONSTANTS-EXTRACT" (find-package "SOCKETS"))
+    (funcall (intern "C-CONSTANTS-EXTRACT" (find-package "DB-SOCKETS-SYSTEM"))
 	     filename tmp-c-source :sockets-internal)
+    #+nil
     (c-constants-extract filename tmp-c-source :sockets-internal)
     (and
      (= (run-shell-command
@@ -66,10 +66,11 @@
 			      (module-components dso)))))
       (error 'operation-error :operation operation :component dso))))
 
+;; XXX this is overridden later
 (defmethod perform ((operation load-op) (dso unix-dso))
   (let ((dso-name (unix-name (car (output-files
 				   (make-instance 'compile-op) dso)))))
-    #+sbcl (sb-sys::load-1-foreign dso-name)
+    #+sbcl (sb-alien:load-1-foreign dso-name)
     #+cmu (system::load-object-file dso-name)))
 	
 
@@ -94,14 +95,16 @@
     (perform co c)
     (let ((filename (car (output-files co c))))
       #+cmu (system::load-object-file filename)
-      #+sbcl (sb-sys::load-1-foreign filename))))
+      #+sbcl (sb-alien:load-1-foreign filename))))
 
 (defsystem db-sockets
     :components ((:file "defpackage" :depends-on ("rt"))
 		 (:file "split" :depends-on ("defpackage"))
-		 (:unix-dso "alien"
-			    :components ((:file "undefs.c")
-					 (:file "get-h-errno.c")))
+                 (:file "array-data" :depends-on ("defpackage"))
+ q		 (:unix-dso "alien"
+			    :pathname "."
+			    :components ((:c-source-file "undefs")
+					 (:c-source-file "get-h-errno")))
 		 (:file "malloc" :depends-on ("defpackage"))
 		 (:file "foreign-glue" :depends-on ("defpackage" "malloc"))
 		 (:constants-file "constants"

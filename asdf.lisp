@@ -16,6 +16,9 @@
 	   #:component #:module #:source-file 
 	   #:c-source-file #:cl-source-file #:java-source-file
 	   #:static-file
+	   #:doc-file
+	   #:html-file
+	   #:text-file
 	   #:source-file-type
 	   #:module			; components
 	   #:unix-dso
@@ -45,6 +48,9 @@
 (proclaim '(optimize (debug 3)))
 (declaim (optimize (debug 3)))
 
+(defvar  *compile-file-warnings-behaviour* :error)
+(defvar  *compile-file-failure-behaviour* :error)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility stuff
 
@@ -57,7 +63,7 @@ and NIL NAME and TYPE components"
   (make-pathname :name nil :type nil :defaults pathname))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; problems
+;; classes, condiitons
 
 (define-condition system-definition-error (error) ())
 (define-condition formatted-system-definition-error (system-definition-error)
@@ -66,31 +72,16 @@ and NIL NAME and TYPE components"
   (:report (lambda (c s)
 	     (apply #'format s (format-control c) (format-arguments c)))))
 
-(defun sysdef-error (format &rest arguments)
-  (error 'formatted-system-definition-error :format-control format :format-arguments arguments))
-
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components)))
-
 
 (define-condition missing-component (system-definition-error)
   ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)
    (version :initform nil :reader missing-version :initarg :version)
    (parent :initform nil :reader missing-parent :initarg :parent)))
 
-(defmethod print-object ((c missing-component) s)
-  (format s "Component ~S not found" (missing-requires c))
-  (when (missing-version c)
-    (format s " or does not match version ~A" (missing-version c)))
-  (when (missing-parent c)
-    (format s " in ~A" (component-name (missing-parent c)))))
-
 (define-condition missing-dependency (missing-component)
   ((required-by :initarg :required-by :reader missing-required-by)))
-
-(defmethod print-object ((c missing-dependency) s)
-  (call-next-method)
-  (format s ", required by ~A" (missing-required-by c)))
 
 (define-condition operation-error (error)
   ((component :reader error-component :initarg :component)
@@ -100,9 +91,6 @@ and NIL NAME and TYPE components"
 		     (error-operation c) (error-component c)))))
 (define-condition compile-failed (operation-error) ())
 (define-condition compile-warned (operation-error) ())
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; components
 
 (defclass component ()
   ((name :type string :accessor component-name :initarg :name :documentation
@@ -116,25 +104,36 @@ and NIL NAME and TYPE components"
    (parent :initarg :parent :initform nil :reader component-parent)
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
-   (relative-pathname :initarg :pathname)))
+   (relative-pathname :initarg :pathname)
+   ;; XXX we should provide some atomic interface for updating the
+   ;; component properties
+   (properties :accessor component-properties :initarg :properties)))
+  
+;;;; methods: conditions
 
+(defmethod print-object ((c missing-dependency) s)
+  (call-next-method)
+  (format s ", required by ~A" (missing-required-by c)))
+
+(defun sysdef-error (format &rest arguments)
+  (error 'formatted-system-definition-error :format-control format :format-arguments arguments))
+
+;;;; methods: components
+
+(defmethod print-object ((c missing-component) s)
+  (format s "Component ~S not found" (missing-requires c))
+  (when (missing-version c)
+    (format s " or does not match version ~A" (missing-version c)))
+  (when (missing-parent c)
+    (format s " in ~A" (component-name (missing-parent c)))))
+
+(defgeneric component-system (component)
+  (:documentation "Find the top-level system containing COMPONENT"))
+  
 (defmethod component-system ((component component))
-  "Find the top-level system containing COMPONENT"
   (aif (component-parent component)
        (component-system it)
        component))
-
-(defgeneric component-pathname (component)
-  (:documentation "Extracts the pathname applicable for a particular component."))
-
-(defun component-parent-pathname (component)
-  (aif (component-parent component)
-       (component-pathname it)
-       *default-pathname-defaults*))
-
-(defmethod component-pathname ((component component))
-  (let ((*default-pathname-defaults* (component-parent-pathname component)))
-    (merge-pathnames (component-relative-pathname component))))
 
 (defmethod print-object ((c component) (stream stream))
   (print-unreadable-object (c stream :type t :identity t)
@@ -151,12 +150,125 @@ and NIL NAME and TYPE components"
    (default-component-class :accessor module-default-component-class
      :initform 'cl-source-file :initarg :default-component-class)))
 
+(defgeneric component-pathname (component)
+  (:documentation "Extracts the pathname applicable for a particular component."))
+
+(defun component-parent-pathname (component)
+  (aif (component-parent component)
+       (component-pathname it)
+       *default-pathname-defaults*))
+
 (defmethod component-relative-pathname ((component module))
   (or (slot-value component 'relative-pathname)
       (make-pathname
        :directory `(:relative ,(component-name component))
        :host (pathname-host (component-parent-pathname component)))))
 
+(defmethod component-pathname ((component component))
+  (let ((*default-pathname-defaults* (component-parent-pathname component)))
+    (merge-pathnames (component-relative-pathname component))))
+
+
+(defclass system (module)
+  ((description :accessor system-description :initarg :description)
+   (long-description :accessor long-description :initarg :long-description)
+   (author :accessor system-author :initarg :author)
+   (maintainer :accessor system-maintainer :initarg :maintainer)
+   (licence :accessor system-licence :initarg :licence)))
+
+;;; version-satisfies
+
+;;; with apologies to christophe rhodes ...
+(defun split (string &optional max (ws '(#\Space #\Tab)))
+  (flet ((is-ws (char) (find char ws)))
+    (nreverse
+     (let ((list nil) (start 0) (words 0) end)
+       (loop
+	(when (and max (>= words (1- max)))
+	  (return (cons (subseq string start) list)))
+	(setf end (position-if #'is-ws string :start start))
+	(push (subseq string start end) list)
+	(incf words)
+	(unless end (return list))
+	(setf start (1+ end)))))))
+
+(defmethod version-satisfies ((c component) version)
+  (unless (and version (slot-boundp c 'version))
+    (return-from version-satisfies t))
+  (let ((x (mapcar #'parse-integer
+		   (split (component-version c) nil '(#\.))))
+	(y (mapcar #'parse-integer
+		   (split version nil '(#\.)))))
+    (labels ((bigger (x y)
+	       (cond ((not y) t)
+		     ((not x) nil)
+		     ((> (car x) (car y)) t)
+		     ((= (car x) (car y))
+		      (bigger (cdr x) (cdr y))))))
+      (and (= (car x) (car y))
+	   (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; finding systems
+
+(defvar *defined-systems* (make-hash-table :test 'equal))
+(defun coerce-name (name)
+   (typecase name
+     (component (component-name name))
+     (symbol (string-downcase (symbol-name name)))
+     (string name)
+     (t (sysdef-error "Invalid component designator ~A" name))))
+
+(defvar *central-registry*
+  '(*default-pathname-defaults*
+    "/home/dan/src/sourceforge/cclan/asdf/systems/"
+    #+nil "telent:asdf;systems;"))
+
+(defun system-definition-pathname (system)
+  (let ((name (coerce-name system)))
+    (dolist (dir *central-registry*)
+      (let* ((defaults (if (and (symbolp dir)
+				(fboundp dir))
+			   (funcall dir name)
+			   (eval dir)))
+	     (file (and defaults
+			(make-pathname
+			 :name name :case :local :type "asd"
+			 :defaults defaults
+			 :version :newest))))
+	(if (and file (probe-file file))
+	    (return-from system-definition-pathname file))))
+    nil))
+  
+
+(defun find-system (name &optional (error-p t))
+  (let* ((name (coerce-name name))
+	 (in-memory (gethash name *defined-systems*))
+	 (on-disk (system-definition-pathname name)))	 
+    (when (and on-disk
+	       (or (not in-memory)
+		   (< (car in-memory) (file-write-date on-disk))))
+      (let ((*package* (make-package (gensym (package-name #.*package*))
+				     :use '("CL" "ASDF"))))
+	(format t ";;; Loading system definition from ~A into ~A~%"
+		on-disk *package*)
+	(load on-disk)))
+    (let ((in-memory (gethash name *defined-systems*)))
+      (if in-memory
+	  (progn (if on-disk (setf (car in-memory) (file-write-date on-disk)))
+		 (cdr in-memory))
+	  (if error-p (error 'missing-component :requires name))))))
+
+(defun register-system (name system)
+  (format t "Registering ~A as ~A ~%" system name)
+  (setf (gethash (coerce-name  name) *defined-systems*)
+	(cons (get-universal-time) system)))
+
+(defun system-registered-p (name)
+  (gethash (coerce-name name) *defined-systems*))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; finding components
 
 (defgeneric find-component (module name &optional version)
   (:documentation "Finds the component with name NAME present in the
@@ -172,8 +284,10 @@ system."))
 
 ;;; a component with no parent is a system
 (defmethod find-component ((module (eql nil)) name &optional version)
-  (let ((m (internal-find-system name)))
+  (let ((m (find-system name nil)))
     (if (and m (version-satisfies m version)) m)))
+
+;;; component subclasses
 
 (defclass source-file (component) ())
 
@@ -195,6 +309,8 @@ system."))
 					 (component-system component))))))
 
 (defclass static-file (source-file) ())
+(defclass doc-file (static-file) ())
+(defclass html-file (doc-file) ())
 (defmethod source-file-type ((c static-file) (s module)) nil)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -225,8 +341,10 @@ system."))
 (defun node-for (o c)
   (cons (class-name (class-of o)) c))
 
+(defgeneric operation-ancestor (operation)
+  (:documentation   "Recursively chase the operation's parent pointer until we get to the head of the tree"))
+
 (defmethod operation-ancestor ((operation operation))
-  "Recursively chase the operation's parent pointer until we get to the head of the tree"
   (aif (operation-parent operation)
        (operation-ancestor it)
        operation))
@@ -290,6 +408,7 @@ system."))
 
 ;;; we enforce that function is a symbol to allow us to specialize on
 ;;; (eql 'perform) and (eql 'explain) for :before and :after
+(defgeneric traverse (operation component symbol))
 (defmethod traverse ((operation operation) (c component) (function
 							  symbol))
   (labels ((do-one-dep (required-op required-c required-v)
@@ -310,7 +429,9 @@ system."))
 	       (dolist (d deps)
 		 (handler-case
 		     (do-dep op d)
-		   (missing-dependency (c) (return-from found nil)))
+		   (missing-dependency (c)
+		     (declare (ignore c))
+		     (return-from found nil)))
 		 (error 'missing-dependency
 			:version nil :required-by c :requires deps))))
 	   (do-dep (op dep)
@@ -326,6 +447,7 @@ system."))
 		  (or (do-first-dep op (cdr dep)))
 		  (version
 		   (destructuring-bind (ignore name version-object) dep
+		     (declare (ignore ignore))
 		     (do-one-dep op name version-object)))
 		  ;; if we had a list with unrecognised car, assume 'and'
 		  (t (do-every-dep op dep))))
@@ -348,6 +470,7 @@ system."))
 			 (error condition))
 		     (setf error condition))
 		   (:no-error (c)
+		     (declare (ignore c))
 		     (setf at-least-one t))))
 	(when (and (eq (module-if-component-dep-fails c) :try-next)
 		   (not at-least-one))
@@ -386,10 +509,11 @@ system."))
 
 (defclass compile-op (operation)
   ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
-   (fail-on-error-p :initarg :fail-on-error
-		    :accessor operation-fail-on-error-p :initform t)
-   (fail-on-warning-p :initarg :fail-on-warning
-		      :accessor operation-fail-on-warning-p :initform nil)))
+   (on-warnings :initarg :on-warnings :accessor operation-on-warnings
+		:initform *compile-file-warnings-behaviour*)
+   (on-failure :initarg :on-failure :accessor operation-on-failure
+	       :initform *compile-file-failure-behaviour*)))
+   
 
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
@@ -398,10 +522,17 @@ system."))
     (multiple-value-bind (output warnings-p failure-p)
 	(compile-file source-file
 		      :output-file (car (output-files operation c)))
-      (when (and warnings-p (operation-fail-on-warning-p operation))
-	(error 'compile-warned :component c :operation operation))
-      (when (and failure-p (operation-fail-on-error-p operation))
-	(error 'compile-failed :component c :operation operation)))))
+      (declare (ignore output))
+      (when warnings-p
+	(case (operation-on-warnings operation)
+	  (:warn (warn 'compile-warned :component c :operation operation))
+	  (:error (error 'compile-warned :component c :operation operation))
+	  (:ignore nil)))
+      (when failure-p
+	(case (operation-on-failure operation)
+	  (:warn (warn 'compile-failed :component c :operation operation))
+	  (:error (error 'compile-failed :component c :operation operation))
+	  (:ignore nil))))))
 
 (defmethod output-files ((operation compile-op) (c cl-source-file))
   (list (compile-file-pathname (component-pathname c))))
@@ -431,41 +562,6 @@ system."))
         (call-next-method)))
 
 
-;;; version-satisfies
-#|
-(defclass test-version (operation)
-  ((minimum :initarg :minimum :initform ""
-	    :accessor test-version-minimum)))
-|#
-;;; with apologies to christophe rhodes ...
-(defun split (string &optional max (ws '(#\Space #\Tab)))
-  (flet ((is-ws (char) (find char ws)))
-    (nreverse
-     (let ((list nil) (start 0) (words 0) end)
-       (loop
-	(when (and max (>= words (1- max)))
-	  (return (cons (subseq string start) list)))
-	(setf end (position-if #'is-ws string :start start))
-	(push (subseq string start end) list)
-	(incf words)
-	(unless end (return list))
-	(setf start (1+ end)))))))
-
-(defmethod version-satisfies ((c component) version)
-  (unless (and version (slot-boundp c 'version))
-    (return-from version-satisfies t))
-  (let ((x (mapcar #'parse-integer
-		   (split (component-version c) nil '(#\.))))
-	(y (mapcar #'parse-integer
-		   (split version nil '(#\.)))))
-    (labels ((bigger (x y)
-	       (cond ((not y) t)
-		     ((not x) nil)
-		     ((> (car x) (car y)) t)
-		     ((= (car x) (car y))
-		      (bigger (cdr x) (cdr y))))))
-      (and (= (car x) (car y))
-	   (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -482,91 +578,38 @@ system."))
   (apply #'operate args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; finding systems
-
-(defvar *defined-systems* (make-hash-table :test 'equal))
-(defun coerce-name (name)
-   (typecase name
-     (component (component-name name))
-     (symbol (string-downcase (symbol-name name)))
-     (string name)
-     (t (sysdef-error "Invalid component designator ~A" name))))
-
-(defvar *central-registry*
-  '(*default-pathname-defaults*
-    "/home/dan/src/sourceforge/cclan/asdf/systems/"
-    #+nil "telent:asdf;systems;"))
-
-(defun system-definition-pathname (system)
-  (let ((name (coerce-name system)))
-    (dolist (dir *central-registry*)
-      (let* ((defaults (eval dir))
-	     (file (make-pathname
-		    :name name :case :local :type "asd"
-		    :defaults defaults
-		    :version :newest)))
-	(if (probe-file file) (return-from system-definition-pathname file))))
-    nil))
-  
-
-(defun internal-find-system (name)
-  (let* ((name (coerce-name name))
-	 (in-memory (gethash name *defined-systems*))
-	 (on-disk (system-definition-pathname name)))	 
-    (when (and on-disk
-	       (or (not in-memory)
-		   (< (car in-memory) (file-write-date on-disk))))
-      (let ((*package* (make-package (gensym (package-name #.*package*))
-				     :use '("CL" "ASDF"))))
-	(format t ";;; Loading system definition from ~A into ~A~%"
-		on-disk *package*)
-	(load on-disk)))
-    (let ((in-memory (gethash name *defined-systems*)))
-      (if in-memory
-	  (progn (if on-disk (setf (car in-memory) (file-write-date on-disk)))
-		 (cdr in-memory))))))
-
-(defun find-system (name)
-  (or (internal-find-system name)
-      (error 'missing-component :requires name)))
-
-(defun register-system (name system)
-  (format t "Registering ~A as ~A ~%" system name)
-  (setf (gethash (coerce-name  name) *defined-systems*)
-	(cons (get-universal-time) system)))
-
-(defun system-registered-p (name)
-  (gethash (coerce-name name) *defined-systems*))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; syntax
 
 (defmacro defsystem (name &body options)
-  (destructuring-bind (&key pathname (class 'module) &allow-other-keys) options
-    `(progn
-      ;; system must be registered before we parse the body, otherwise
-      ;; we recur when trying to find an existing system of the same name
-      ;; to reuse options (e.g. pathname) from
-      (let ((s (system-registered-p ',name)))
-	(cond ((and s (eq (type-of (cdr s)) ',class))
-	       (setf (car s) (get-universal-time)))
-	      (s
-	       #+clisp
-	       (sysdef-error "Cannot redefine the existing system ~A with a different class" s)
-	       #-clisp
-	       (change-class (cdr s) ',class))
-	      (t
-	       (register-system (quote ,name)
-				(make-instance ',class :name ',name)))))
-      (parse-component-form nil (apply
-				 #'list
-				 :module (coerce-name ',name)
-				 :pathname
-				 (or ,pathname
-				     (pathname-sans-name+type *load-truename*)
-				     *default-pathname-defaults*)
-				 ',options)))))
-
+  (destructuring-bind (&key pathname (class 'system) &allow-other-keys) options
+    (let ((component-options
+	   (if (member :class options)
+	       (remove :class options)
+	       options)))
+      `(progn
+	;; system must be registered before we parse the body, otherwise
+	;; we recur when trying to find an existing system of the same name
+	;; to reuse options (e.g. pathname) from
+	(let ((s (system-registered-p ',name)))
+	  (cond ((and s (eq (type-of (cdr s)) ',class))
+		 (setf (car s) (get-universal-time)))
+		(s
+		 #+clisp
+		 (sysdef-error "Cannot redefine the existing system ~A with a different class" s)
+		 #-clisp
+		 (change-class (cdr s) ',class))
+		(t
+		 (register-system (quote ,name)
+				  (make-instance ',class :name ',name)))))
+	(parse-component-form nil (apply
+				   #'list
+				   :module (coerce-name ',name)
+				   :pathname
+				   (or ,pathname
+				       (pathname-sans-name+type *load-truename*)
+				       *default-pathname-defaults*)
+				   ',component-options))))))
+  
 
 (defun class-for-type (parent type)
   (let ((class (find-class
@@ -617,7 +660,7 @@ Returns the new tree (which probably shares structure with the old one)"
 	      ;; remove-keys form.  important to keep them in sync
 	      components pathname default-component-class
 	      perform explain output-files operation-done-p
-	      depends-on serialize in-order-to class
+	      depends-on serialize in-order-to
 	      ;; list ends
 	      &allow-other-keys) options
     (declare (ignore serialize))
@@ -625,9 +668,7 @@ Returns the new tree (which probably shares structure with the old one)"
 	    (let* ((other-args (remove-keys
 				'(components pathname default-component-class
 				  perform explain output-files operation-done-p
-				  depends-on serialize in-order-to
-				  ;; XXX I seem to need this
-				  class)
+				  depends-on serialize in-order-to)
 				rest))
 		   (ret
 		    (or (find-component parent name)
