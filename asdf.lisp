@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.32 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.33 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -47,7 +47,7 @@
 	   #:output-files #:perform	; operation methods
 	   #:operation-done-p #:explain
 	   
-	   #:component #:module #:source-file 
+	   #:component #:source-file 
 	   #:c-source-file #:cl-source-file #:java-source-file
 	   #:static-file
 	   #:doc-file
@@ -55,6 +55,7 @@
 	   #:text-file
 	   #:source-file-type
 	   #:module			; components
+	   #:system
 	   #:unix-dso
 	   
 	   #:module-components		; component accessors
