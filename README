@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.12 2002/02/14 16:32:43 dan_b Exp $
+$Id: README,v 1.13 2002/02/14 17:23:06 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -454,18 +454,16 @@ doing anything that's (a) useful, and (b) not convenient with
 
 (2) pathname computations for a component named by a symbol are
 done using :case :common.  This applies in component-relative-pathname
-and in find-system or whatever it calls to laod the foo.system file
+and in find-system or whatever it calls to load the foo.system file
 
-** symbols vs strings
+** style guide for .system files
 
-Warn the user that they should either use keywords or be careful with
-the package that they evaluate defsystem forms in.  Otherwise
-(defsystem partition ...) being read in the cl-user package will
-intern a cl-user:partition symbol, which will then collide with the
-partition:partition symbol
+You should either use keywords or be careful with the package that you
+evaluate defsystem forms in.  Otherwise (defsystem partition ...)
+being read in the cl-user package will intern a cl-user:partition
+symbol, which will then collide with the partition:partition symbol.
 
-** switches for different lisp implementations/platforms so that the
-   defsystem form doesn't get #+foo and #-foo in it
+** switches for different lisp implementations/platforms
 
 (:file "sbcl-dep"
  :in-order-to ((compile-op (test-feature :sbcl))))
@@ -476,28 +474,20 @@ partition:partition symbol
 
 ** error reporting
 
-Need an explicit error for "dependency missing" and "required version
-of dependency missing" so that we can fit this to an automated
-dependency downloading thing.  
-
-** output filename munging per-platform
-
-Note that this is site policy not system policy.  On the basis that
-each different implementation can be expected to run different startup
-files, we just need to document a hook of some kind that sets this up
-appropriately
+Need an explicit error for "dependency missing" which includes the
+version asked for, so that we can fit an automated dependency
+downloading thing.
 
 * missing bits in implementation
 
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
+** reuse existing component instead of creating new one
 ** defsystem syntax for EQL methods - need to remove the old methods
 ** versions
 ** test suite, insofar as it makes sense
-** compiler/loader options
- verbosity, proclamations, etc: do this with specials
-** rewrite the component-visiting stuff to keep state in operations
-not specials
+** compiler/loader options for verbosity, proclamations, etc: add specials
+** rewrite traversal to keep state in operations not specials
 
 * layered standard for lisp code packages a la clc
 
@@ -507,14 +497,14 @@ creates a directory packagename-version
 contains packagename.system, which has
 - no :pathname specified
 - a :version identifier that matches the directory name
-- a (in-package) form
+- a package of its own called packagename-system
 
-some mechanism to find out what Lisp packages this creates.  Symbols
-within the packages can be looked up by introspection, so that's not
-an issue.
+Need some mechanism to find out what Lisp packages this creates.
+Symbols within the packages can be looked up by introspection, so
+that's not an issue.
 
-doesn't require the provide/require mechanism, doesn't touch
-*modules*.  If provide/require want to wrap us, fine
+We don't require the provide/require mechanism, nor touch *modules*.
+If provide/require want to wrap us, fine
 
 say nothing either way about *features*, as we can test the
 presence/absense of packages directly in system definitions anyway
@@ -528,7 +518,7 @@ $ tar jxf /tmp/downloads/package-1.0.tar.bz2
 $ cd ~/src/defsystems
 $ ln -s ~/src/lisp/package-1.0/package.system .
 $ $LISP
-* (asdf:oos 'load-op 'package)
+CL-USER> (asdf:oos 'load-op 'package)
 
 ** using this standard to make platform packages: example using vaguely
   Debian-like directory conventions
