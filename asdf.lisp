@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.40 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.41 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -86,7 +86,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.40 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.41 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
