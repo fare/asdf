@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.34 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.35 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -86,7 +86,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.34 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.35 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -594,8 +594,9 @@ system."))
   (setf (component-property c 'last-compiled) nil))
 
 (defmethod perform :after ((operation compile-op) (c source-file))
-  (setf (component-property c 'last-compiled)
-	(file-write-date (car (output-files operation c)))))
+  (when (output-files operation c)
+    (setf (component-property c 'last-compiled)
+	  (file-write-date (car (output-files operation c))))))
 
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
@@ -635,9 +636,11 @@ system."))
 (defclass load-op (operation) ())
 
 (defmethod perform :after ((o load-op) (c source-file))
-  (let ((output-files (output-files co c)))
-    (setf (component-property c 'last-loaded) 
-	  (file-write-date (car output-files)))))
+  (let* ((co (make-sub-operation o 'compile-op))
+	 (output-files (output-files co c)))
+    (when output-files
+      (setf (component-property c 'last-loaded) 
+	    (file-write-date (car output-files))))))
 
 (defmethod perform ((o load-op) (c cl-source-file))
   (let* ((co (make-sub-operation o 'compile-op))
