@@ -1,4 +1,4 @@
-$Id: README,v 1.20 2002/06/08 01:54:16 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.21 2002/06/19 18:38:52 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -48,7 +48,7 @@ a custom core, or something.
 - To compile and load a system 'foo', you need to (1) ensure that
   foo.asd is in one of the directories in *central-registry* (a
   symlink to the real location of foo.asd is preferred), (2) execute
-  ``(asdf:operate asdf:load-op 'foo)''
+  ``(asdf:operate 'asdf:load-op 'foo)''
 
     $ cd /home/me/cl/systems/
     $ ln -s ~/src/foo/foo.asd .
@@ -513,7 +513,8 @@ For example
 
 (defsystem "foo"
   :version "1.0"
-  :components ((:module "foo" :components (:serial "bar" "baz" "quux")
+  :components ((:module "foo" :components ((:file "bar") (:file"baz") 
+                                           (:file "quux"))
 	        :perform (compile-op :after (op c)
 			  (do-something c))
 		:explain (compile-op :after (op c)
