@@ -1,9 +1,0 @@
-;;; -*- Lisp -*-
-(in-package :user)
-(defsystem xml
-;  :depends-on (dhttp)
-  :source-pathname #p"src:xml;"
-  :components ((:file "defpackage")
-               (:file "memoization" :depends-on ("defpackage"))
-               (:file "xml" :depends-on ("memoization" "defpackage"))))
-
