@@ -525,12 +525,14 @@ system."))
       (declare (ignore output))
       (when warnings-p
 	(case (operation-on-warnings operation)
-	  (:warn (warn 'compile-warned :component c :operation operation))
+	  (:warn (warn "COMPILE-FILE warned while performing ~A on ~A"
+		       c operation))
 	  (:error (error 'compile-warned :component c :operation operation))
 	  (:ignore nil)))
       (when failure-p
 	(case (operation-on-failure operation)
-	  (:warn (warn 'compile-failed :component c :operation operation))
+	  (:warn (warn "COMPILE-FILE failed while performing ~A on ~A"
+		       c operation))
 	  (:error (error 'compile-failed :component c :operation operation))
 	  (:ignore nil))))))
 
