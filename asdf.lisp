@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.48 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.49 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.48 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.49 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -877,9 +877,7 @@ output to *trace-output*.  Returns the shell's exit code."
       :input nil :output *trace-output*))
 
     #+allegro
-    (excl:run-shell-command
-     (make-array 3 :initial-contents (list "/bin/sh" "-c" command))
-     :input nil :output *trace-output*)
+    (excl:run-shell-command command :input nil :output *trace-output*)
     
     #+lispworks
     (system:call-system-showing-output
