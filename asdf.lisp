@@ -56,7 +56,7 @@ and NIL NAME and TYPE components"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; problems
 
-(define-condition system-definition-error (error))
+(define-condition system-definition-error (error) ())
 (define-condition formatted-system-definition-error (system-definition-error)
   ((format-control :initarg :format-control :reader format-control)
    (format-arguments :initarg :format-arguments :reader format-arguments))
@@ -190,34 +190,61 @@ system."))
 ;;; one of these is instantiated whenever (operate ) is called
 
 (defclass operation ()
-  ((forced-p :initform nil :initarg :force :accessor operation-forced-p )))
+  ((forced-p :initform nil :initarg :force :accessor operation-forced-p )
+   (original-initargs :initform nil :initarg :original-initargs
+		      :accessor operation-original-initargs)
+   (visited-nodes :initform nil :accessor operation-visited-nodes)
+   (visiting-nodes :initform nil :accessor operation-visiting-nodes)
+   (parent :initform nil :initarg :parent :accessor operation-parent)))
+
+(defmethod shared-initialize :after ((operation operation) slot-names
+				     &key force 
+				     &allow-other-keys)
+  (declare (ignore slot-names force))
+  ;; empty method to disable initarg validity checking
+  )
 
 (defgeneric perform (operation component))
 (defgeneric operation-done-p (operation component))
 (defgeneric explain (operation component))
 (defgeneric output-files (operation component))
 
-(defvar *visited-nodes* nil)
-(defvar *visiting-nodes* nil)
-
 (defun node-for (o c)
   (cons (class-name (class-of o)) c))
 
+(defmethod operation-ancestor ((operation operation))
+  "Recursively chase the operation's parent pointer until we get to the head of the tree"
+  (aif (operation-parent operation)
+       (operation-ancestor it)
+       operation))
+
+(defun make-sub-operation (o type)
+  (let ((args (operation-original-initargs o)))
+    (apply #'make-instance type :parent o :original-initargs args args)))
+
+
 (defmethod visit-component ((o operation) (c component))
-  (pushnew (node-for o c) *visited-nodes* :test 'equal))
+  (pushnew (node-for o c)
+	   (operation-visited-nodes (operation-ancestor o))
+	   :test 'equal))
 
 (defmethod component-visited-p ((o operation) (c component))
-  (member (node-for o c) *visited-nodes* :test 'equal))
+  (member (node-for o c)
+	  (operation-visited-nodes (operation-ancestor o))
+	  :test 'equal))
 
 (defmethod (setf visiting-component) (new-value (o operation) (c component))
-  (let ((node (node-for o c)))
+  (let ((node (node-for o c))
+	(a (operation-ancestor o)))
     (if new-value
-	(pushnew node *visiting-nodes* :test 'equal)
-	(setf *visiting-nodes* (remove node *visiting-nodes* :test 'equal)))))
+	(pushnew node (operation-visiting-nodes a) :test 'equal)
+	(setf (operation-visiting-nodes a)
+	      (remove node  (operation-visiting-nodes a) :test 'equal)))))
 
 (defmethod component-visiting-p ((o operation) (c component))
   (let ((node (cons o c)))
-    (member node *visiting-nodes* :test 'equal)))
+    (member node (operation-visiting-nodes (operation-ancestor o))
+	    :test 'equal)))
 
 ;;; this needs a new name.  should be operation-needs-doing-p
 (defmethod operation-done-p ((o operation) (c source-file))
@@ -256,8 +283,7 @@ system."))
   (labels ((do-one-dep (required-op required-c required-v)
 	     (let ((op (if (subtypep (type-of operation) required-op)
 			   operation
-			   (make-instance required-op :force
-					  (operation-forced-p operation))))
+			   (make-sub-operation operation required-op)))
 		   (dep-c (or (find-component
 			       *component-parent* required-c required-v)
 			      (error 'missing-dependency :required-by c
@@ -374,7 +400,7 @@ system."))
 (defclass load-op (operation) ())
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  (let ((co (make-instance 'compile-op)))
+  (let ((co (make-sub-operation o 'compile-op)))
     (map nil #'load (output-files co c))))
 
 (defmethod output-files ((operation load-op) (c component))
@@ -426,10 +452,9 @@ system."))
 ;;; invoking operations
 
 (defun oos (operation-class system &rest args)
-  (let ((op (apply #'make-instance operation-class args))
+  (let ((op (apply #'make-instance operation-class
+		   :original-initargs args args))
 	(*component-parent-pathname* *default-pathname-defaults*)
-	(*visiting-nodes* nil)
-	(*visited-nodes* nil)
 	(*component-parent* nil)
 	(system (if (typep system 'component) system (find-system system))))
     (traverse op system 'perform)))
