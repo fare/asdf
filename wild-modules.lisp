@@ -32,4 +32,7 @@ use a wild pathname instead." module)))
                              options))
                     files)))))
 
-(export '(wild-module))
+;; Don't export wild-module or else will get a full warning
+;; when (require 'asdf) if asdf is already loaded
+
+;;(export '(wild-module))

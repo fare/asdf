@@ -1,3 +1,10 @@
+cl-asdf (1.77.2-1) unstable; urgency=low
+
+  * Don't export asdf:wild-module as can cause a full warning when
+  reloading asdf
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Mon, 11 Aug 2003 21:55:16 -0600
+
 cl-asdf (1.77.1-1) unstable; urgency=low
 
   * cclan.lisp: conditionalize for sbcl (closes: 201822)
