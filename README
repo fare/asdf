@@ -1,4 +1,4 @@
-$Id: README,v 1.29 2003/02/08 15:31:15 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.30 2003/03/16 15:18:25 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -705,5 +705,13 @@ recompilation of something more than a single source file, I want to
 recompile only one system.  So it would be more useful to have
 make-sub-operation refuse to propagate ":force t" to other systems, and
 propagate only something like ":force :recursively". ''
+
+Ideally what we actually want is some kind of criterion that says
+to which systems (and which operations) a :force switch will propagate.
+
+(defgeneric operation-propagates-force-p (operation component))
+
+make-sub-operation would call this
+
 
 
