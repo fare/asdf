@@ -1,3 +1,11 @@
+cl-asdf (1.70) unstable; urgency=low
+
+  * Add another check in check-component-values.
+  * Signal a generalized instance of SYSTEM-DEFINITION-ERROR
+  from check-component-values
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Tue,  6 May 2003 09:32:16 -0600
+
 cl-asdf (1.69) unstable; urgency=low
 
   * Add check-component-values function with partial checking of components

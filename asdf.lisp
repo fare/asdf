@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.69 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.70 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -89,7 +89,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.69 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.70 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -889,7 +889,7 @@ Returns the new tree (which probably shares structure with the old one)"
 	      depends-on serial in-order-to
 	      ;; list ends
 	      &allow-other-keys) options
-    (check-component-input type name depends-on components)
+    (check-component-input type name depends-on components in-order-to)
     (let* ((other-args (remove-keys
 			'(components pathname default-component-class
 			  perform explain output-files operation-done-p
@@ -944,16 +944,22 @@ Returns the new tree (which probably shares structure with the old one)"
 		  (component-inline-methods ret))))
       ret)))
 
-(defun check-component-input (type name depends-on components)
+(defun check-component-input (type name depends-on components in-order-to)
   "A partial test of the values of a component."
   (unless (listp depends-on)
-    (error
-     ":depends-on must be a list.~&The value for ~(~A~) ~A is ~W" type name depends-on))
-  (unless (and (listp components) (listp (car components)))
-    (error
-     ":components must be NIL or a list of lists.~&The value for ~(~A~) ~A is ~W"
-     type name components)))
+    (sysdef-error-component ":depends-on must be a list."
+			    type name depends-on))
+  (unless (listp components)
+    (sysdef-error-component ":components must be NIL or a list of components."
+			    type name components))
+  (unless (and (listp in-order-to) (listp (car in-order-to)))
+    (sysdef-error-comonent ":in-order-to must be NIL or a list of components."
+			   type name in-order-to)))
 
+(defun sysdef-error-component (msg type name value)
+  (sysdef-error (concatenate 'string msg
+			     "~&The value specified for ~(~A~) ~A is ~W")
+		type name value))
 
 (defun resolve-symlinks (path)
   #-allegro (truename path)
