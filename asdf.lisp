@@ -5,7 +5,7 @@
   (:export #:defsystem #:oos #:find-system #:run-shell-command
 	   #:find-component		; miscellaneous
 	   
-	   #:compile-system #:load-system #:test-system-version
+	   #:compile-op #:load-op #:test-system-version
 	   #:operation			; operations
 	   
 	   #:output-files #:perform	; operation methods
@@ -30,7 +30,8 @@
 	   #:operation-error #:compile-failed #:compile-warned
 	   #:system-definition-error #:system-not-found
 	   #:circular-dependency	; errors
-	   ))
+	   )
+  (:use "CL"))
 
 (in-package #:asdf)
 
@@ -38,10 +39,22 @@
 (declaim (optimize (debug 3)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; utility stuff
+
+(defmacro aif (test then else) `(let ((it ,test)) (if it ,then ,else)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; problems
 
 (define-condition system-definition-error (error)
-  ())
+  ((format-control :initarg :format-control :reader format-control)
+   (format-arguments :initarg :format-arguments :reader format-arguments))
+  (:report (lambda (c s)
+	     (apply #'format s (format-control c) (format-arguments c)))))
+
+(defun sysdef-error (format &rest arguments)
+  (error 'system-definition-error :format-control format :format-arguments arguments))
+
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components)))
 (define-condition missing-dependency (system-definition-error)
@@ -73,10 +86,6 @@
   ((name :type string :accessor component-name :initarg :name :documentation
 	 "Component name, restricted to portable pathname characters")
    (version :accessor component-version :initarg :version)
-   ;; the defsystem syntax allows us to define EQL methods with our
-   ;; components.  We must keep track of them all so we can get rid of
-   ;; them if need be when the defsystem form is re-evaluated
-   (inline-methods :initform nil :initarg :inline-methods)
    (in-order-to :initform nil :initarg :in-order-to)
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
@@ -84,6 +93,7 @@
    ;; because quite often that's not what we actually use it for)
    (pathname :initarg :pathname)))
 
+#+ew
 (defun string-unix-common-casify (string &key (start 0) end)
   "Converts a string assumed local to a Unix filesystem into its
 :common :case partner."
@@ -114,7 +124,7 @@
 		 (warn ":pathname argument to ~A is not a pathname designator.  Ignoring it" component)
 		 (merge-pathnames (component-relative-pathname component)))))
 	(merge-pathnames (component-relative-pathname component)))))
-	   
+
 
 (defmethod print-object ((c component) stream)
   (print-unreadable-object (c stream :type t :identity t)
@@ -244,9 +254,6 @@ system."))
   (setf (visiting-component operation c) t)
   (loop for (prereq-op  prereq-c) in
 	(component-depends-on operation c)
-	;; this operation instantiation thing sucks somewhat, as we don't
-	;; transfer arguments in any meaningful way.  if compile calls
-	;; load calls compile, how do we still have the original proclamations?
 	do (let ((op (if (subtypep (type-of operation) prereq-op)
 			 operation
 			 (make-instance prereq-op :force
@@ -275,7 +282,7 @@ system."))
     (visit-component operation c)))
 
 (defmethod perform ((operation operation) (c source-file))
-  (error
+  (sysdef-error
    "Required method PERFORM not implemented for operation ~A, component ~A"
    (class-of operation) (class-of c)))
 
@@ -287,19 +294,19 @@ system."))
 	  operation component))
 
 (defmethod output-files ((operation operation) (c component))
-  (error "Required method OUTPUT-FILES not implemented for operation ~A"
+  (sysdef-error "Required method OUTPUT-FILES not implemented for operation ~A"
 	 (class-of operation)))
 
-;;; compile-system
+;;; compile-op
 
-(defclass compile-system (operation)
-  ((proclamations :initarg :proclamations :accessor compile-system-proclamations :initform nil)
+(defclass compile-op (operation)
+  ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
    (fail-on-error-p :initarg :fail-on-error
 		    :accessor operation-fail-on-error-p :initform t)
    (fail-on-warning-p :initarg :fail-on-warning
 		      :accessor operation-fail-on-warning-p :initform nil)))
 
-(defmethod perform ((operation compile-system) (c cl-source-file))
+(defmethod perform ((operation compile-op) (c cl-source-file))
   (let ((source-file (component-pathname c)))
     (multiple-value-bind (output warnings-p failure-p)
 	(compile-file source-file)
@@ -308,25 +315,28 @@ system."))
       (when (and failure-p (operation-fail-on-error-p operation))
 	(error 'compile-failed :component c :operation operation)))))
 
-(defmethod output-files ((operation compile-system) (c cl-source-file))
+(defmethod output-files ((operation compile-op) (c cl-source-file))
   (list (compile-file-pathname (component-pathname c))))
 
-;;; load-system
+;;; load-op
 
-(defclass load-system (operation) ())
+(defclass load-op (operation) ())
 
-(defmethod component-depends-on ((operation load-system) (c component))
-  (cons
-   (list 'compile-system (component-name c))
-   (call-next-method)))
+(defmethod perform ((o load-op) (c cl-source-file))
+  (let ((co (make-instance 'compile-op)))
+    (mapc nil #'load (output-files co c))))
 
-(defmethod perform ((o load-system) (c cl-source-file))
-  (let ((co (make-instance 'compile-system)))
-    (load (car (output-files co c)))))
-
-(defmethod output-files ((operation load-system) (c component))
+(defmethod output-files ((operation load-op) (c component))
   nil)
-  
+
+;;; compile-and-load-op
+
+(defclass compile-and-load-op (load-op) ())
+(defmethod component-depends-on ((operation compile-and-load-op) (c source-file))
+  (cons (list 'compile-op (component-name c))
+        (call-next-method)))
+
+
 ;;; test-system-version
 
 (defclass test-system-version (operation)
@@ -409,84 +419,108 @@ system."))
 		 (cdr in-memory))
 	  (error 'system-not-found :name name)))))
 
+(defun register-system (name system)
+  (format t "Registering ~A as ~A ~%" system name)
+  (setf (gethash (if (symbolp name) (symbol-name name) name) *defined-systems*)
+	(cons (get-universal-time) system)))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; syntax
 
 (defmacro defsystem (name &body options)
-  (let ((name (if (symbolp name) (symbol-name name) name)))
-    (multiple-value-bind (initargs bindings)
-        (process-option-list options)
-      ;; this macro is called (sic) during executing of find-system, so
-      ;; we had better not call find-system recursively
-      ;;
-      ;; asdf:component is explicitly here to be shadowed later on.
-      `(let ((component (or (cdr (gethash ,name *defined-systems*))
-			    (make-instance 'module :name ,name  ))))
-	(setf (gethash ,name *defined-systems*) (cons 0 component))
-	(let (,@bindings) ; yes, I know this is the same as let ,bindings
-	  (reinitialize-instance component :name ,name ,@initargs))))))
+  (destructuring-bind (&key pathname &allow-other-keys) options
+    `(register-system (quote ,name)
+      (parse-component-form nil '(:module ,name
+				  :pathname
+				  ,(or pathname
+				       *load-truename*
+				       *default-pathname-defaults*)
+				  ,@options)))))
 
-(defmethod process-option-list (options)
-  (loop for (name value) on options by #'cddr
-        for (i b) = (multiple-value-list (process-option name value))
-	append i into initargs
-        if b append b into bindings
-        finally (return (values initargs bindings))))
 
-(defgeneric process-option (option value)
-  (:documentation "returns as its first value a list of initargs that
-eventually gets appended to a call to reinitialize instance; its
-optional second value is a list of binding clauses suitable for a let
-that may be referred to in the initargs."))
-		  
-(defmethod process-option (option value)
-  (list option value))
+(defun class-for-type (parent type)
+  (let ((class (find-class (intern (symbol-name type) *package*) nil)))
+    (or class
+	(and (eq type :file)
+	     (or (module-default-component-class parent)
+		 (find-class 'cl-source-file)))
+	(sysdef-error "Don't recognize component type ~A" type))))
 
-#|
-source-file components defined with (:file "a-string") or "a-string"
-will have the string parsed into name and type as if it were a
-filename, and an instance of the appropriate source-file subclass
-created.  If a type is not provided, it will default to the parent's
-default constituent type.
-|#
+(defun maybe-add-tree (tree op1 op2 c)
+  "Add the node C at /OP1/OP2 in TREE, unless it's there already.
+Returns the new tree (which probably shares structure with the old one)"
+  (let ((first-op-tree (assoc op1 tree)))
+    (if first-op-tree
+	(progn
+	  (aif (assoc op2 (cdr first-op-tree))
+	       (if (find c (cdr it))
+		   nil
+		   (setf (cdr it) (cons c (cdr it))))
+	       (setf (cdr first-op-tree)
+		     (acons op2 (list c) (cdr first-op-tree))))
+	  tree)
+	(acons op1 (list (list op2 c)) tree))))
+		
+(defun union-of-dependencies (&rest deps)
+  (let ((new-tree nil))
+    (dolist (dep deps)
+      (dolist (op-tree dep)
+	(dolist (op  (cdr op-tree))
+	  (dolist (c (cdr op))
+	    (setf new-tree
+		  (maybe-add-tree new-tree (car op-tree) (car op) c))))))
+    new-tree))
+    
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *option-names*
+    '(components pathname default-component-class
+      perform explain output-files operation-done-p
+      depends-on serialize in-order-to)))
 
-(defun create-instance-for-component (keyword name args)
-  (multiple-value-bind (initargs bindings)
-      (process-option-list args)
-    `(let* ((name-bits (split ,name 2 '(#\.)))
-           (name (car name-bits))
-           (extension (second name-bits))
-           (class
-            (cond ((eq ,keyword :file)
-                   (if extension
-                       (cdr (assoc extension *known-extensions* :test 'equal))
-                       (module-default-component-class component)))
-                  ((eq ,keyword :module) 'module)
-                  (t (intern (symbol-name ,keyword) *package*)))))
-      ;; here's where we use asdf:component. This is probably a
-      ;; documentable feature of the implementation (`option
-      ;; processing may use asdf:component to refer to the parent
-      ;; thingy; and MUST bind asdf:component to the current thingy
-      ;; before doing recursive processing').
-      (let ((component (or (find-component component name)
-			   (make-instance class :name name))))
-	(let (,@bindings)
-	  (reinitialize-instance component :name name ,@initargs)
-	  component)))))
+(defun remove-keys (key-names args)
+  (loop for ( name val ) on args by #'cddr
+	unless (member (symbol-name name) key-names 
+		       :key #'symbol-name :test 'equal)
+	append (list name val)))
 
-(defmethod process-option ((option (eql :components)) value)
-  ;; we don't want to shadow asdf::cs
-  (let ((cs (gensym "CS")))
-    (values
-     (list :components cs)
-     (list (list cs
-		 (list* 'list
-			(mapcar
-			 (lambda (i)
-			   (if (consp i)
-			       (create-instance-for-component (first i) (second i) (cddr i))
-			       (create-instance-for-component :file i nil)))
-			 value)))))))
+(defun parse-component-form (parent options)
+  (destructuring-bind
+	#.`(type name &rest rest &key ,@*option-names*
+	    &allow-other-keys) options
+	    (declare (ignore serialize))
+	    ;; XXX add dependencies for serialized subcomponents
+	    ;; XXX reuse existing component instead of creating new one
+	    (let* ((other-args (remove-keys *option-names* rest))
+		   (ret
+		    (apply
+		     #'make-instance (class-for-type parent type)
+		     :name name
+		     :pathname pathname
+		     :in-order-to (union-of-dependencies
+				   in-order-to
+				   `((compile-op (load-op ,@depends-on))))
+		     other-args)))
+	      (when (typep ret 'module)
+		(setf (module-default-component-class ret)
+		      (or default-component-class
+			  (and (typep parent 'module)
+			       (module-default-component-class parent)))))
+	      (when components
+		(setf (module-components ret)
+		      (mapcar (lambda (x) (parse-component-form ret x)) components)))
+	      ;; XXX need to remove old methods
+	      (loop for (n v) in `((perform ,perform) (explain ,explain)
+				   (output-files ,output-files)
+				   (operation-done-p ,operation-done-p))
+		    when v
+		    do (destructuring-bind (op qual (o c) &body body) v
+			 (eval `(defmethod ,n ,qual ((,o ,op) (,c (eql ,ret)))
+				 ,@body))))
+	ret)))
+
+
+
 
 ;;; optional extras
 
@@ -496,7 +530,9 @@ default constituent type.
 
 #+sbcl
 (defun run-shell-command (control-string &rest args)
-  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and execute the result using a Bourne-compatible shell, with output to *trace-output*.  Returns the shell's exit code."
+  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
+synchronously execute the result using a Bourne-compatible shell, with
+output to *trace-output*.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
     (format *trace-output* "; $ ~A~%" command)
     (sb-impl::process-exit-code
@@ -504,79 +540,3 @@ default constituent type.
       "/bin/sh"
       (list  "-c" command)
       :input nil :output *trace-output*))))
-
-(defmethod process-option ((option (eql :perform)) value)
-  (destructuring-bind
-	(op-specializer combination (op c) &body body)
-      value
-    (values
-     nil
-     `((#:ignore
-	(defmethod perform ,combination ((,op ,op-specializer) (,c (eql component)))
-	  ,@body))))))
-
-(defmethod process-option ((option (eql :explain)) value)
-  (destructuring-bind
-	(op-specializer combination (op c) &body body)
-      value
-    (values
-     nil
-     `((#:ignore
-	(defmethod explain ,combination ((,op ,op-specializer) (,c (eql component)))
-	  ,@body))))))
-
-;;; mk-compatibility
-(defmethod process-option ((option (eql :source-pathname)) value)
-  (list :pathname value))
-
-(defmethod process-option ((option (eql :source-extension)) value)
-  ;; we currently ignore this; arguably we shouldn't.
-  nil)
-
-(defmethod process-option ((option (eql :binary-pathname)) value)
-  ;; we currently ignore this
-  nil)
-
-(defmethod process-option ((option (eql :binary-extension)) value)
-  ;; we currently ignore this
-  nil)
-
-(defmethod process-option ((option (eql :depends-on)) value)
-  (list :in-order-to `'((compile-system (load-system ,@value)))))
-
-;;; initially-do (and finally-do) may need to be moved out of
-;;; mk-compatibility (or maybe renamed first...)
-(defmethod process-option ((option (eql :initially-do)) value)
-  (let ((op (gensym "OPERATION"))
-	(c (gensym "COMPONENT"))
-	(f (gensym "FUNCTION")))
-    (values
-     nil ; no initargs needed -- functionality is in the method.
-     `((#:ignore
-	;; look, ma! No explicit coercion or compilation needed! Also
-	;; note that we are using the asdf:component thing.
-	(defmethod traverse :before ((,op compile-system) (,c (eql component)) (,f (eql 'perform)))
-	  ,value))))))
-		  
-(defmethod process-option ((option (eql :finally-do)) value)
-  (let ((op (gensym "OPERATION"))
-	(c (gensym "COMPONENT"))
-	(f (gensym "FUNCTION")))
-    (values
-     nil ; no initargs needed
-     `((#:ignore
-	(defmethod traverse :after ((,op load-system) (,c (eql component)) (,f (eql 'perform)))
-	  ,value))))))
-
-(defmethod process-option ((option (eql :load-only)) value)
-  (let ((op (gensym "OPERATION"))
-	(c (gensym "COMPONENT")))
-    (when value
-      (values
-       nil
-       `((#:ignore
-	  (defmethod perform ((,op compile-system) (,c (eql component)))
-	    nil))
-	 (#:ignore
-	  (defmethod output-files ((,op compile-system) (,c (eql component)))
-	    (list (component-pathname ,c)))))))))
