@@ -1,4 +1,4 @@
-cl-asdf (1.77) unstable; urgency=low
+cl-asdf (1.77-1) unstable; urgency=low
 
   * New upstream
   * Add automated [cvs2cl] ChangeLog
