@@ -48,7 +48,7 @@
 (proclaim '(optimize (debug 3)))
 (declaim (optimize (debug 3)))
 
-(defvar  *compile-file-warnings-behaviour* :error)
+(defvar  *compile-file-warnings-behaviour* :warn)
 (defvar  *compile-file-failure-behaviour* :error)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
