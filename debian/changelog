@@ -1,9 +1,3 @@
-cl-asdf (1.62-woody1) unstable; urgency=low
-
-  * woody
-
- -- Kevin M. Rosenberg <kmr@debian.org>  Fri,  7 Mar 2003 16:06:00 -0700
-
 cl-asdf (1.62) unstable; urgency=low
 
   * New upstream, fixes a sbcl-specific directory name
