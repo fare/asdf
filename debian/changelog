@@ -1,3 +1,10 @@
+cl-asdf (1.75) unstable; urgency=low
+
+  * New upstream
+  * Use compat rather than DH_COMPAT
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Thu,  5 Jun 2003 00:15:11 -0600
+
 cl-asdf (1.73b) unstable; urgency=low
 
   * Update README
