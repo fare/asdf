@@ -5,9 +5,12 @@
 export DH_COMPAT=4
 
 pkg=cl-asdf
+pkg-cclan=cl-cclan
 clc-base=usr/share/common-lisp
 clc-src=$(clc-base)/source
-lisp-files=$(clc-src)/asdf
+clc-systems=$(clc-base)/systems
+asdf-files=$(clc-src)/asdf
+cclan-files=$(clc-src)/cclan
 doc-dir=usr/share/doc/$(pkg)
 
 configure: configure-stamp
@@ -38,9 +41,12 @@ install: build
 	dh_installdirs
 
 	# Add here commands to install the package into debian/asdf.
-	dh_installdirs $(lisp-files) $(doc-dir)
-	dh_install asdf.lisp wild-modules.lisp $(lisp-files)
-	dh_install test $(doc-dir)
+	dh_installdirs -p $(pkg) $(asdf-files) $(doc-dir) 
+	dh_install -p $(pkg) asdf.lisp wild-modules.lisp $(asdf-files)
+	dh_install -p $(pkg) test $(doc-dir)
+	dh_installdirs -p $(pkg-cclan) $(clc-systems) $(cclan-files)
+	dh_install -p $(pkg-cclan) cclan.asd $(clc-systems)
+	dh_install -p $(pkg-cclan) cclan-package.lisp cclan.lisp $(cclan-files)
 
 # Build architecture-independent files here.
 binary-indep: build install

@@ -17,3 +17,11 @@ Description: Another System Definition Facility
  common-lisp-controller package. Unlike defsystem3 in CLC, asdf is
  object-oriented and extensible.
 
+Package: cl-cclan
+Architecture: all
+Depends: ${shlibs:Depends}, cl-asdf, cmucl-normal | lisp-compiler
+Recommends: common-lisp-controller
+Description: Comprehensive Common Lisp Archive Network
+ cclan is a tool for creating a repository of Common Lisp packages.
+ cclan utilizes asdf to automatically create installable packages for various
+ operating systems.

@@ -1,7 +1,16 @@
-cl-asdf (0.0+cvs.2002.08.15-2) unstable; urgency=low
+cl-asdf (0.0+cvs.2002.08.22) unstable; urgency=low
 
+  * Add new binary package: cl-cclan
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Thu, 22 Aug 2002 12:43:21 -0600
+
+cl-asdf (0.0+cvs.2002.08.18) unstable; urgency=low
+
+  * New upstream version
   * Expand description in control file.
-
+  * Change version numbering scheme since upstream has native debian
+  directory
+  
  -- Kevin M. Rosenberg <kmr@debian.org>  Sat, 17 Aug 2002 14:25:33 -0600
 
 cl-asdf (0.0+cvs.2002.08.15-1) unstable; urgency=low
