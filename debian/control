@@ -7,8 +7,8 @@ Standards-Version: 3.5.7.0
 
 Package: cl-asdf
 Architecture: all
-Depends: ${shlibs:Depends}, cmucl-normal | lisp-compiler
-Recommends: common-lisp-controller
+Depends: ${shlibs:Depends}
+Recommends: common-lisp-controller, cmucl-normal | lisp-compiler
 Description: Another System Definition Facility
  asdf provides a "make" type functions for Common Lisp packages. It
  provides compilation and loading features for complex Lisp systems
