@@ -30,7 +30,8 @@
 	   #:*central-registry*
 	   
 	   #:operation-error #:compile-failed #:compile-warned
-	   #:system-definition-error #:system-not-found
+	   #:system-definition-error 
+	   #:missing-component
 	   #:missing-dependency
 	   #:circular-dependency	; errors
 	   )
@@ -67,18 +68,25 @@ and NIL NAME and TYPE components"
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components)))
 
-(define-condition missing-dependency (system-definition-error)
-  ((requires :initarg :requires :reader requires)
-   (required-by :initarg :required-by :reader required-by))
-  (:report (lambda (c s)
-	     (format s "unsatisfied dependency: component ~S requires ~S"
-		     (required-by c) (requires c)))))
 
-(define-condition system-not-found (system-definition-error)
-  ((name :initform "(unnamed)" :reader system-name  :initarg :name))
-  (:report (lambda (c s)
-	     (format s "System ~S not found"
-		     (system-name c)))))
+(define-condition missing-component (system-definition-error)
+  ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)
+   (version :initform nil :reader missing-version :initarg :version)
+   (parent :initform nil :reader missing-parent :initarg :parent)))
+
+(defmethod print-object ((c missing-component) s)
+  (format s "Component ~S not found" (missing-requires c))
+  (when (missing-version c)
+    (format s " or does not match version ~A" (missing-version c)))
+  (when (missing-parent c)
+    (format s " in ~A" (component-name (missing-parent c)))))
+
+(define-condition missing-dependency (missing-component)
+  ((required-by :initarg :required-by :reader missing-required-by)))
+
+(defmethod print-object ((c missing-dependency) s)
+  (call-next-method)
+  (format s ", required by ~A" (missing-required-by c)))
 
 (define-condition operation-error (error)
   ((component :reader error-component :initarg :component)
@@ -147,7 +155,7 @@ system."))
 
 ;;; a component with no parent is a system
 (defmethod find-component ((module (eql nil)) name &optional version)
-  (let ((m (find-system name)))
+  (let ((m (internal-find-system name)))
     (if (and m (version-satisfies m version)) m)))
 
 (defclass source-file (component) ())
@@ -229,13 +237,8 @@ system."))
 (defgeneric component-depends-on (operation component))
 
 (defmethod component-depends-on ((o operation) (c component))
-  (let ((raw-form
-	 (cdr (assoc (class-name (class-of o))
-		     (slot-value c 'in-order-to)))))
-    raw-form
-    #+nil
-    (loop for (op . components) in raw-form
-	  append (mapcar (lambda (x) (list op x)) components))))
+  (cdr (assoc (class-name (class-of o))
+	      (slot-value c 'in-order-to))))
 
 
 ;;; So you look at this code and think "why isn't it a bunch of
@@ -376,7 +379,7 @@ system."))
 (defmethod output-files ((operation load-op) (c component))
   nil)
 
-(defmethod component-depends-on ((operation load-op) (c source-file))
+(defmethod component-depends-on ((operation load-op) (c component))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
 
@@ -440,7 +443,7 @@ system."))
     "telent:asdf;systems;"))
 
 
-(defun find-system (name)
+(defun internal-find-system (name)
   (let* ((name (if (symbolp name) (symbol-name name) name))
 	 (in-memory (gethash name *defined-systems*))
 	 (on-disk
@@ -463,8 +466,11 @@ system."))
     (let ((in-memory (gethash name *defined-systems*)))
       (if in-memory
 	  (progn (if on-disk (setf (car in-memory) (file-write-date on-disk)))
-		 (cdr in-memory))
-	  (error 'system-not-found :name name)))))
+		 (cdr in-memory))))))
+
+(defun find-system (name)
+  (or (internal-find-system name)
+      (error 'missing-component :requires name)))
 
 (defun register-system (name system)
   (format t "Registering ~A as ~A ~%" system name)
