@@ -35,7 +35,7 @@
 	   #:missing-dependency
 	   #:circular-dependency	; errors
 	   )
-  (:use "CL"))
+  (:use :cl))
 
 (in-package #:asdf)
 
@@ -56,14 +56,15 @@ and NIL NAME and TYPE components"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; problems
 
-(define-condition system-definition-error (error)
+(define-condition system-definition-error (error))
+(define-condition formatted-system-definition-error (system-definition-error)
   ((format-control :initarg :format-control :reader format-control)
    (format-arguments :initarg :format-arguments :reader format-arguments))
   (:report (lambda (c s)
 	     (apply #'format s (format-control c) (format-arguments c)))))
 
 (defun sysdef-error (format &rest arguments)
-  (error 'system-definition-error :format-control format :format-arguments arguments))
+  (error 'formatted-system-definition-error :format-control format :format-arguments arguments))
 
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components)))
@@ -440,7 +441,7 @@ system."))
 (defparameter *central-registry*
   '(*default-pathname-defaults*
     "/home/dan/src/sourceforge/cclan/asdf/systems/"
-    "telent:asdf;systems;"))
+    #+nil "telent:asdf;systems;"))
 
 
 (defun internal-find-system (name)
@@ -449,11 +450,10 @@ system."))
 	 (on-disk
 	  (dolist (dir *central-registry*)
 	    (let* ((defaults (eval dir))
-		   (file (merge-pathnames
-			  (make-pathname
-			   :case :common :name name :type "ASD"
-			   :defaults defaults)
-			  defaults)))
+		   (file (make-pathname
+			  :case :common :name name :type "ASD"
+			  :defaults defaults
+			  :version :newest)))
 	      (if (probe-file file) (return file)))) ))
     (when (and on-disk
 	       (or (not in-memory)
@@ -539,11 +539,6 @@ Returns the new tree (which probably shares structure with the old one)"
 		  (maybe-add-tree new-tree (car op-tree) (car op) c))))))
     new-tree))
 
-;;; ew
-#.(defparameter *option-names*
-    '(components pathname default-component-class
-      perform explain output-files operation-done-p
-      depends-on serialize in-order-to))
 
 (defun remove-keys (key-names args)
   (loop for ( name val ) on args by #'cddr
@@ -553,15 +548,15 @@ Returns the new tree (which probably shares structure with the old one)"
 
 (defun parse-component-form (parent options)
   (destructuring-bind
-	#.`(type name &rest rest &key
-	    ;; the following list of keywords is reproduced below in the
-	    ;; remove-keys frm.  important to keep them in sync
-	    components pathname default-component-class
-	    perform explain output-files operation-done-p
-	    depends-on serialize in-order-to
-	    ;; list ends
-	    &allow-other-keys) options
-	    (declare (ignore serialize))
+	(type name &rest rest &key
+	      ;; the following list of keywords is reproduced below in the
+	      ;; remove-keys form.  important to keep them in sync
+	      components pathname default-component-class
+	      perform explain output-files operation-done-p
+	      depends-on serialize in-order-to
+	      ;; list ends
+	      &allow-other-keys) options
+    (declare (ignore serialize))
 	    ;; XXX add dependencies for serialized subcomponents
 	    (let* ((other-args (remove-keys
 				'(components pathname default-component-class
@@ -620,6 +615,19 @@ output to *trace-output*.  Returns the shell's exit code."
     (format *trace-output* "; $ ~A~%" command)
     (sb-impl::process-exit-code
      (sb-ext:run-program  
+      "/bin/sh"
+      (list  "-c" command)
+      :input nil :output *trace-output*))))
+
+#+cmu
+(defun run-shell-command (control-string &rest args)
+  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
+synchronously execute the result using a Bourne-compatible shell, with
+output to *trace-output*.  Returns the shell's exit code."
+  (let ((command (apply #'format nil control-string args)))
+    (format *trace-output* "; $ ~A~%" command)
+    (ext:process-exit-code
+     (ext:run-program  
       "/bin/sh"
       (list  "-c" command)
       :input nil :output *trace-output*))))
