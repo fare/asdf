@@ -7,7 +7,7 @@
 
 (defclass constants-file (cl-source-file) ())
 
-(defmethod perform ((op compile-system) (component constants-file))
+(defmethod perform ((op compile-op) (component constants-file))
   ;; we want to generate all our temporary files in the fasl directory
   ;; because that's where we have write permission.  Can't use /tmp;
   ;; it's insecure (these files will later be owned by root)
@@ -46,7 +46,7 @@
      (logical-pathname (translate-logical-pathname pathname))
      (t pathname))))
 
-(defmethod output-files ((operation compile-system) (dso unix-dso))
+(defmethod output-files ((operation compile-op) (dso unix-dso))
   (let ((dir (component-pathname dso)))
     (list
      (make-pathname :type "so"
@@ -54,7 +54,7 @@
 		    :directory (butlast (pathname-directory dir))
 		    :defaults dir))))
 
-(defmethod perform :after ((operation compile-system) (dso unix-dso))
+(defmethod perform :after ((operation compile-op) (dso unix-dso))
   (let ((dso-name (unix-name (car (output-files operation dso)))))
     (unless (zerop
 	     (run-shell-command
@@ -66,38 +66,37 @@
 			      (module-components dso)))))
       (error 'operation-error :operation operation :component dso))))
 
-(defmethod perform ((operation load-system) (dso unix-dso))
+(defmethod perform ((operation load-op) (dso unix-dso))
   (let ((dso-name (unix-name (car (output-files
-				   (make-instance 'compile-system) dso)))))
+				   (make-instance 'compile-op) dso)))))
     #+sbcl (sb-sys::load-1-foreign dso-name)
     #+cmu (system::load-object-file dso-name)))
 	
 
 ;;; if this goes into the standard asdf, it could reasonably be extended
 ;;; to allow cflags to be set somehow
-(defmethod output-files ((op compile-system) (c c-source-file))
+(defmethod output-files ((op compile-op) (c c-source-file))
   (list (let ((*default-pathname-defaults* *component-parent-pathname*))
 	  (make-pathname :type "o" :defaults
 			 (component-pathname c)))))
-(defmethod perform ((op compile-system) (c c-source-file))
+(defmethod perform ((op compile-op) (c c-source-file))
   (unless
       (= 0 (run-shell-command "/usr/bin/gcc -fPIC -o ~S -c ~S"
 			      (unix-name (car (output-files op c)))
 			      (unix-name (component-pathname c))))
     (error 'operation-error :operation op :component c)))
 
-(defmethod perform ((operation load-system) (c c-source-file))
+(defmethod perform ((operation load-op) (c c-source-file))
   t)
   
-(defmethod perform ((o load-system) (c unix-dso))
-  (let ((co (make-instance 'compile-system)))
+(defmethod perform ((o load-op) (c unix-dso))
+  (let ((co (make-instance 'compile-op)))
     (perform co c)
     (let ((filename (car (output-files co c))))
       #+cmu (system::load-object-file filename)
       #+sbcl (sb-sys::load-1-foreign filename))))
 
 (defsystem db-sockets
-    :source-pathname #p"cl-library:db-sockets;"
     :components ((:file "defpackage" :depends-on ("rt"))
 		 (:file "split" :depends-on ("defpackage"))
 		 (:unix-dso "alien"
@@ -108,13 +107,13 @@
 		 (:constants-file "constants"
 				  :pathname "constants.lisp"
 				  :in-order-to
-				  ((compile-system
-				    (load-system "def-to-lisp"
+				  ((compile-op
+				    (load-op "def-to-lisp"
 						 "defpackage"
 						 "foreign-glue"))))
 		 (:file "sockets"
-			:in-order-to ((compile-system
-				       (load-system "constants"))))
+			:in-order-to ((compile-op
+				       (load-op "constants"))))
 		 
 		 (:file "sockopt" :depends-on ("sockets"))
 		 (:file "inet" :depends-on ("sockets" "split"  "constants" ))
