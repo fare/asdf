@@ -58,7 +58,9 @@ at your own peril.~%" suggested-registry suggested-registry system-name suggeste
   (let* ((parent-dir
 	  (parse-namestring
 	   (format nil "/tmp/~A.~A/"
-		   (sb-unix:unix-getpid) (get-internal-run-time))))
+		   #+sbcl (sb-unix:unix-getpid)
+		   #-sbcl (random 1000000)
+		   (get-internal-run-time))))
 	 (system (find-system system))
 	 (sub-dir-name
 	  (format nil "~A_~A"
