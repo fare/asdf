@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.30 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.31 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -814,5 +814,28 @@ output to *trace-output*.  Returns the shell's exit code."
       "/bin/sh"
       (list  "-c" command)
       :input nil :output *trace-output*))))
+
+#+allegro
+(defun run-shell-command (control-string &rest args)
+  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
+synchronously execute the result using a Bourne-compatible shell, with
+output to *trace-output*.  Returns the shell's exit code."
+  (let ((command (apply #'format nil control-string args)))
+    (format *trace-output* "; $ ~A~%" command)
+     (excl:run-shell-command
+      (make-array 3 :initial-contents (list "/bin/sh" "-c" command))
+      :input nil :output *trace-output*)))
+
+#+lispworks
+(defun run-shell-command (control-string &rest args)
+  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
+synchronously execute the result using a Bourne-compatible shell, with
+output to *trace-output*.  Returns the shell's exit code."
+  (let ((command (apply #'format nil control-string args)))
+    (format *trace-output* "; $ ~A~%" command)
+     (system:call-system-showing-output
+      command
+      :shell-type "/bin/sh"
+      :output-stream *trace-output*)))
 
 (pushnew :asdf *features*)
