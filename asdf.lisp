@@ -84,6 +84,18 @@
    ;; because quite often that's not what we actually use it for)
    (pathname :initarg :pathname)))
 
+(defmethod string-unix-common-casify (string &key (start 0) end)
+  (unless end
+    (setf end (length string)))
+  (let ((result (copy-seq string)))
+    (cond
+      ((every (lambda (x) (and (char>= x #\A) (char<= x #\Z))) (subseq string start end))
+       (nstring-downcase result :start start :end end))
+      ((every (lambda (x) (and (char>= x #\a) (char<= x #\z))) (subseq string start end))
+       (nstring-upcase result :start start :end end))
+      (t result))))
+
+
 (defmethod component-pathname  ((component component))
   (let ((*default-pathname-defaults* *component-parent-pathname*))
     (if (slot-boundp component 'pathname)
@@ -91,8 +103,7 @@
 	  (cond ((pathnamep p)
 		 (merge-pathnames p))
 		((and (stringp p) (> (length p) 0))
-		 (destructuring-bind (name type) (split p 2 '(#\.))
-		   (merge-pathnames (make-pathname :name name :type type))))
+		 (merge-pathnames p))
 		((and (stringp p) (= (length p) 0))
 		 *component-parent-pathname*)
 		(t
@@ -136,9 +147,10 @@
     ("java" . java-source-file)))
 
 (defmethod component-relative-pathname ((component source-file))
-  (make-pathname :name (component-name component)
-		 :type (car (rassoc (class-name (class-of component))
-				    *known-extensions* ))))
+  (make-pathname :name (string-unix-common-casify (component-name component))
+		 :type (string-unix-common-casify (car (rassoc (class-name (class-of component))
+				    *known-extensions*)))
+		 :case :common))
 
 (defclass c-source-file (source-file) ())
 (defclass java-source-file (source-file) ())
@@ -412,9 +424,12 @@
         if b append b into bindings
         finally (return (values initargs bindings))))
 
+;;; process-option returns as its first value a list of initargs that
+;;; eventually gets appended to a call to reinitialize instance; its
+;;; optional second value is a list of binding clauses suitable for a
+;;; let that may be referred to in the initargs.
 (defmethod process-option (option  value)
   (list option value))
-
 
 #|
 source-file components defined with (:file "a-string") or "a-string"
@@ -434,7 +449,7 @@ default constituent type.
             (cond ((eq ,keyword :file)
                    (if extension
                        (cdr (assoc extension *known-extensions* :test 'equal))
-                       (module-default-component-class m)))
+                       (module-default-component-class component)))
                   ((eq ,keyword :module) 'module)
                   (t (intern (symbol-name ,keyword) *package*)))))
       ;; here's where we use asdf:component. This is probably a
@@ -503,8 +518,20 @@ default constituent type.
 (defmethod process-option ((option (eql :source-pathname)) value)
   (list :pathname value))
 
+(defmethod process-option ((option (eql :source-extension)) value)
+  ;; we currently ignore this; arguably we shouldn't.
+  nil)
+
+(defmethod process-option ((option (eql :binary-pathname)) value)
+  ;; we currently ignore this
+  nil)
+
+(defmethod process-option ((option (eql :binary-extension)) value)
+  ;; we currently ignore this
+  nil)
+
 (defmethod process-option ((option (eql :depends-on)) value)
-  (list :in-order-to `((compile-system (load-system ,@value)))))
+  (list :in-order-to `'((compile-system (load-system ,@value)))))
 
 ;;; initially-do (and finally-do) may need to be moved out of
 ;;; mk-compatibility (or maybe renamed first...)
@@ -529,3 +556,16 @@ default constituent type.
      `((#:ignore
 	(defmethod traverse :after ((,op load-system) (,c (eql component)) (,f (eql 'perform)))
 	  ,value))))))
+
+(defmethod process-option ((option (eql :load-only)) value)
+  (let ((op (gensym "OPERATION"))
+	(c (gensym "COMPONENT")))
+    (when value
+      (values
+       nil
+       `((#:ignore
+	  (defmethod perform ((,op compile-system) (,c (eql component)))
+	    nil))
+	 (#:ignore
+	  (defmethod output-files ((,op compile-system) (,c (eql component)))
+	    (list (component-pathname ,c)))))))))
