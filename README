@@ -1,6 +1,41 @@
-asdf: another system definition facility                 -*- Text -*-
+$Id: README,v 1.17 2002/03/06 00:39:50 dan_b Exp $         -*- Text -*-
 
-$Id: README,v 1.16 2002/02/28 03:51:26 dan_b Exp $
+
+asdf: another system definition facility          
+========================================
+
+* Getting started
+
+- The single file asdf.lisp is all you need to use asdf normally.  For
+maximum convneience you want to have it loaded whenever you start your
+Lisp implementation, by loading it from th startup script, or dumping
+a custom core, or something.
+
+- The variable asdf:*central-registry* is a list of forms each of
+  which evaluates to a directory in which .asd files (system
+  definitions) may be found.
+
+- To compile and load a system 'foo', you need to (1) ensure that
+  foo.asd is in one of the directories in *central-registry* (a
+  symlink to the real location of foo.asd is preferred), (2) execute
+  ``(asdf:operate asdf:load-op 'foo)''
+
+- To write your own system definitions, look at the test systems in
+  test/ , and read the rest of this.  Ignore systems/ which is old
+  and may go away when next I clean up
+
+- Syntax is similar to mk-defsystem 3 for straightforward systems, you
+  may only need to remove the :source-pathname option (and replace
+  it with :pathname if you aren't using symlinks in *central-registry*)
+
+- Join cclan-list@lists.sf.net for discussion, bug reports, questions, etc
+
+- cclan.asd and the source files listed therein contain useful extensions 
+  for maintainers of systems in the cCLan.  If this isn't you, you
+  don't need them - although you may want to look at them anyway
+ 
+
+* Concepts
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -76,22 +111,34 @@ http://world.std.com/~pitman/Papers/Large-Systems.html
 
 In our implementation we borrow kmp's overall PROCESS-OPTIONS and
 concept to deal with creating component trees from defsystem surface
-syntax.
+syntax.  [ this is not true right now, though it used to be and
+probably will be again soon ]
 
-* component
 
-** a component has:
+* The Objects
 
-*** A name (required)
+** component
 
-This is a string.  It must be a suitable value for the :name initarg
+*** Component Attributes
+
+**** A name (required)
+
+This is a string or a symbol.  If a symbol, its name is taken and
+lowercased.  The name must be a suitable value for the :name initarg
 to make-pathname in whatever filesystem the system is to be found.
 
-*** a version identifier (optional, will default to parent's version)
+The lower-casing-symbols behaviour is unconventional, but was selected
+after some consideration.  Observations suggest that the type of
+systems we want to support either have lowercase as customary case
+(unix, mac, windows) or silently convert lowercase to uppercase
+(lpns), so this makes more sense than attempting to use :case :common,
+which is reported not to work on some implementations
+
+**** a version identifier (optional)
 
 This is used by the test-system-version operation (see later).
 
-*** dependencies on its siblings  (optional but often necessary)
+**** dependencies on its siblings  (optional but often necessary)
 
 There is an excitingly complicated relationship between the initarg
 and the method that you use to ask about dependencies
@@ -162,16 +209,16 @@ completely overriding the default dependencies
 do this transparently.  But, we need to support CLISP.  If you have
 the time for some CLISP hacking, I'm sure they'd welcome your fixes)
 
-*** a pathname
+**** a pathname
 
-Optional, may be inferred from name, type (the subclass of
-source-file), and location of parent.
+This is optional and if absent will be inferred from name, type (the
+subclass of source-file), and the location of parent.
 
 The rules for this inference are:
 
 (for source-files)
 - the host is taken from the parent
-- pathname type is (rassoc classname  *known-extensions* :test 'equal)
+- pathname type is (source-file-type component system)
 - the pathname case option is :local
 - the pathname is merged against the parent
 
@@ -182,16 +229,11 @@ The rules for this inference are:
 - the pathname case option is :local
 - the pathname is merged against the parent
 
-Note that a component doesn't actually have any references to its
-parent, so this inference will only be valid in the context of a
-system operation (a special variable is bound to the location of
-the parent while a child is processed)
-
 Note that the DEFSYSTEM operator (used to create a "top-level" system)
 does additional processing to set the filesystem location of the
 top component in that system.  This is detailed elsewhere
 
-** components are subclassed into 
+** Subclasses of component
 
 *** 'source-file'
 
@@ -231,7 +273,7 @@ A system object is usually a module.
 The module may be subclassed to represent components such as
 foreign-language linked libraries or archive files.
 
-* operation
+** operation
 
 An operation is instantiated whenever the user asks that an operation
 be performed, inspected, or etc.  The operation object contains
@@ -243,38 +285,39 @@ There are no differences between standard operations and user-defined
 operations, except that the user is respectfully requested to keep his
 (or more importantly, our) package namespace clean
 
-** invoking operations
+*** invoking operations
 
-(oos operation system &rest keywords-args)
+(operate operation system &rest keywords-args)
 
 keyword-args are passed to the make-instance call when creating the
 operation: valid keywords depend on the initargs that the operation is
 defined to accept.  Note that dependencies may cause the operation to
 invoke other operations on the system or its components: the new
-operation will be created with the same initargs as the original one
+operation will be created with the same initargs as the original one.
 
-** standard operations
+oos is accepted as a synonym for operate
 
-*** compile-op &key proclamations
+*** standard operations
 
-When creating a new component, you should provide methods for this.  
-You probably don't want to use it as a user, though.  See below.
-
-*** load-op &key proclamations
-
-This is roughly equivalent to the mk-defsystem 'compile' operation.
-Compiling a system usually involves loading each component after it is
-compiled - we've changed the name of this operation to make it more
-explicit what is happening
+**** compile-op &key proclamations
 
 If proclamations are supplied, they will be proclaimed.  This is a
 good place to specify optimization settings
+
+When creating a new component, you should provide methods for this.  
+
+If you invoke compile-op as a user, component dependencies often mean
+you may get some parts of the system loaded.  This may not necessarily
+be the whole thing, though; for your own sanity it is recommended that
+you use load-op if you want to load a system.
+
+**** load-op &key proclamations
 
 The default methods for load-op compile files before loading them.
 For parity, your own methods on new component types should probably do
 so too
 
-*** load-source-op
+**** load-source-op
 
 Sometimes systems have knotty dependencies which require that sources
 are loaded before they can be compiled.  This is how you do that.
@@ -282,7 +325,7 @@ are loaded before they can be compiled.  This is how you do that.
 If you are creating a component type, you need to implement this
 operation - at least, where meaningful.
 
-*** test-system-version &key minimum
+**** test-system-version &key minimum
 
 Asks the system whether it satisfies a version requirement.
 
@@ -306,7 +349,7 @@ If that doesn't work for your system, you can override it.  I hope
 yoyu have as much fun writing the new method as #lisp did
 reimplementing this one. 
 
-** Creating new operations
+*** Creating new operations
 
 subclass operation, provide methods for source-file for 
 
@@ -318,27 +361,21 @@ subclass operation, provide methods for source-file for
 - explain
 - operation-done-p, if you don't like the default one
 
-* System definitions
+* Writing system definitions
 
 ** System designators
 
-Strings and symbols are treated as system designators.  They are
-transformed into actual system objects using
+System designators are strings or symbols and behave just like
+any other component names (including case conversion)
 
-(find-system system-designator) => a MODULE object
+** find-system
 
-In the case of a symbol, 
-- the symbol name is taken
-- if the system name is monocase and not in customary case for the
-   filesystem, its case is inverted
-
-No case translation is done for systems named by strings
-
-This attempts to find the system in a file on the disk.  This file has
-the name of the system, the type "asd", and is looked for in each
-of the directories given by evaluating members of *central-registry*.
-The first matching file is considered, whether or not it turns out to
-actually define the appropriate system
+Given a system designator, find-system finds an actual system - either
+in memory, or in a file on the disk.  This file has the name of the
+system, the type "asd", and is looked for in each of the directories
+given by evaluating members of *central-registry*.  The first matching
+file is considered, whether or not it turns out to actually define the
+appropriate system
 
 If a suitable file exists, it is loaded if
 
@@ -369,13 +406,13 @@ utility is being emulated.  It should instantiate components in
 accordance with whatever language it accepts, and register the topmost
 component using REGISTER-SYSTEM
 
-** Native syntax
+*** Native syntax
 
 The native syntax is inspired by mk-defsystem, to the extent that it
 should be possible to take most straightforward mk- system definitions
-and run them unchanged or with only light editing.  For my
-convenience, this turns out to be basically the same as the initargs
-to the various components, with a few extensions for convenience
+and run them with only light editing.  For my convenience, this turns
+out to be basically the same as the initargs to the various
+components, with a few extensions for convenience
                
 system-definition := ( defsystem system-designator {option}* )
 
@@ -406,6 +443,7 @@ required-op := operation-name | test-feature
 For example
 
 (defsystem "foo"
+  :version "1.0"
   :components ((:module "foo" :components (:serial "bar" "baz" "quux")
 	        :perform (compile-op :after (op c)
 			  (do-something c))
@@ -427,14 +465,13 @@ has the effect of
 (defmethod explain :after ((op compile-op) (c (eql ...)))
 	   (explain-something c))
 
-where ... is the component in question; note that while :before
-methods are also supported by this, they may not do what you want them
-to -  a :before method on perform ((op compile-op) (c (eql ...)))
-will run after all the dependencies and sub-components have been
-processed, but before the component in question has been
-compiled.
+where ... is the component in question; note that although this also
+supports :before methods, they may not do what you want them to - a
+:before method on perform ((op compile-op) (c (eql ...)))  will run
+after all the dependencies and sub-components have been processed, but
+before the component in question has been compiled.
 
-*** Source location
+**** Source location
 
 The :pathname option is optional in all cases for native-syntax
 systems, and in the usual case the user is recommended not to supply
@@ -474,14 +511,6 @@ OPERATION-ERROR
 ----------------------------------------------------------
 
 * Outstanding spec questions, things to add
-
-** case-sensitivity wrt filenames
-
-(1) components can be named using strings or symbols
-
-(2) pathname computations for a component named by a symbol are
-done using :case :common.  This applies in component-relative-pathname
-and in find-system or whatever it calls to load the foo.asd file
 
 ** style guide for .asd files
 
