@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.52 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.53 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.52 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.53 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -858,13 +858,10 @@ Returns the new tree (which probably shares structure with the old one)"
 	      ret)))
 
 
-#-(or allegro)
 (defun resolve-symlinks (path)
-  (truename path))
-
-#+allegro
-(defun resolve-symlinks (path)
-  (excl:pathname-resolve-symbolic-links path))
+  #-allegro (truename path)
+  #+allegro (excl:pathname-resolve-symbolic-links path)
+  )
 
 ;;; optional extras
 
