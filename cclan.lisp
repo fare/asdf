@@ -61,7 +61,7 @@ at your own peril.~%" suggested-registry suggested-registry system-name suggeste
 		   (sb-unix:unix-getpid) (get-internal-run-time))))
 	 (system (find-system system))
 	 (sub-dir-name
-	  (format nil "~A-~A"
+	  (format nil "~A_~A"
 		  (component-name system) (component-version system)))
 	 (cvsroot-file
 	  (merge-pathnames "CVS/Root" (component-pathname system)))
