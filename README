@@ -1,4 +1,10 @@
-$Id: README,v 1.36 2003/12/01 03:14:34 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.37 2004/05/16 18:19:54 dan_b Exp $         -*- Text -*-
+
+The canonical documentation for asdf is in the file asdf.texinfo.  
+The significant overlap between this file and that will one day be
+resolved by deleting text from this file; in the meantime, please look
+there before here.
+
 
 
 asdf: another system definition facility          
@@ -609,7 +615,7 @@ this pathname information will not be overwritten with
 if the user loads up the .asd file into his editor and
 interactively re-evaluates that form
 
-* Error handling
+ * Error handling
 
 It is an error to define a system incorrectly: an implementation may
 detect this and signal a generalised instance of

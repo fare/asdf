@@ -120,8 +120,8 @@ Lisp programs and libraries.
 
 @section Downloading asdf
 
-Some Lisp implementations (such as SBCL and OpenMCL) some with asdf
-included already, so there is no need to download it separately.
+Some Lisp implementations (such as SBCL and OpenMCL) come with asdf
+included already, so you don't need to download it separately.
 Consult your Lisp system's documentation.  If you need to download
 asdf and install it by hand, the canonical source is the cCLan CVS
 repository at
@@ -137,18 +137,19 @@ startup script or dumping a custom core -- check your Lisp
 implementation's manual for details.
 
 The variable @code{asdf:*central-registry*} is a list of ``system
-directory designators''@footnote{When we say ``directory'' here, we mean
-``designator for a pathname with a supplied DIRECTORY component''.}.
-A @dfn{system directory designator} is a form which will be evaluated
-whenever a system is to be found, and must evaluate to a directory to
-look in.  You might want to set @code{*central-registry*} in your Lisp
-init file, for example:
+directory designators''@footnote{When we say ``directory'' here, we
+mean ``designator for a pathname with a supplied DIRECTORY
+component''.}.  A @dfn{system directory designator} is a form which
+will be evaluated whenever a system is to be found, and must evaluate
+to a directory to look in.  You might want to set or augment
+@code{*central-registry*} in your Lisp init file, for example:
 
 @lisp
 (setf asdf:*central-registry*
-  '(*default-pathname-defaults*
-    #p"/home/me/cl/systems/"
-    #p"/usr/share/common-lisp/systems/"))
+  (list* '*default-pathname-defaults*
+         #p"/home/me/cl/systems/"
+         #p"/usr/share/common-lisp/systems/"
+         asdf:*central-registry*))
 @end lisp
 
 @section Setting up a system to be loaded

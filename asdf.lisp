@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.84 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.85 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -107,7 +107,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.84 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.85 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -362,7 +362,7 @@ and NIL NAME and TYPE components"
     (when (and on-disk
 	       (or (not in-memory)
 		   (< (car in-memory) (file-write-date on-disk))))
-      (let ((*package* (make-package (gensym (package-name #.*package*))
+      (let ((*package* (make-package (gensym #.(package-name *package*))
 				     :use '(:cl :asdf))))
 	(format *verbose-out*
 		"~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
@@ -873,9 +873,11 @@ system."))
   
 
 (defun class-for-type (parent type)
-  (let ((class (find-class
-		(or (find-symbol (symbol-name type) *package*)
-		    (find-symbol (symbol-name type) #.*package*)) nil)))
+  (let ((class 
+	 (find-class
+	  (or (find-symbol (symbol-name type) *package*)
+	      (find-symbol (symbol-name type) #.(package-name *package*)))
+	  nil)))
     (or class
 	(and (eq type :file)
 	     (or (module-default-component-class parent)
@@ -1047,8 +1049,9 @@ output to *verbose-out*.  Returns the shell's exit code."
 		(ccl:run-program "/bin/sh" (list "-c" command)
 				 :input nil :output *verbose-out*
 				 :wait t)))
-
-    #-(or openmcl clisp lispworks allegro scl cmu sbcl)
+    #+ecl ;; courtesy of Juan Jose Garcia Ripoll
+    (si:system command)
+    #-(or openmcl clisp lispworks allegro scl cmu sbcl ecl)
     (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
     ))
 
