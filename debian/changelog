@@ -1,3 +1,9 @@
+cl-asdf (1.42-1) unstable; urgency=low
+
+  * Add 'reregister-common-lisp-implementations' call to cl-asdf.postinst
+
+ --
+
 cl-asdf (1.42) unstable; urgency=low
 
   * New upstream.
