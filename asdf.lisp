@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.73 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.74 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -71,6 +71,9 @@
 	   #:component-property
 	   
 	   #:component-depends-on
+
+	   #:operation-on-warnings
+	   #:operation-on-failure
 	   
 	   ;#:*component-parent-pathname* 
 	   #:*central-registry*		; variables
@@ -91,7 +94,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.73 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.74 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -102,6 +105,8 @@
 
 (defvar *compile-file-warnings-behaviour* :warn)
 (defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
+
+(defvar *verbose-out* *trace-output*)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility stuff
@@ -349,7 +354,7 @@ and NIL NAME and TYPE components"
 		   (< (car in-memory) (file-write-date on-disk))))
       (let ((*package* (make-package (gensym (package-name #.*package*))
 				     :use '(:cl :asdf))))
-	(format t
+	(format *verbose-out*
 		(formatter "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%")
 		;; FIXME: This wants to be (ENOUGH-NAMESTRING
 		;; ON-DISK), but CMUCL barfs on that.
@@ -363,7 +368,8 @@ and NIL NAME and TYPE components"
 	  (if error-p (error 'missing-component :requires name))))))
 
 (defun register-system (name system)
-  (format t (formatter "~&~@<; ~@;registering ~A as ~A~@:>~%") system name)
+  (format *verbose-out*
+	  (formatter "~&~@<; ~@;registering ~A as ~A~@:>~%") system name)
   (setf (gethash (coerce-name  name) *defined-systems*)
 	(cons (get-universal-time) system)))
 
@@ -666,7 +672,7 @@ system."))
   nil)
 
 (defmethod explain ((operation operation) (component component))
-  (format *trace-output* "~&;;; ~A on ~A~%"
+  (format *verbose-out* "~&;;; ~A on ~A~%"
 	  operation component))
 
 ;;; compile-op
@@ -780,6 +786,10 @@ system."))
 (defun operate (operation-class system &rest args)
   (let* ((op (apply #'make-instance operation-class
 		    :original-initargs args args))
+	 (*verbose-out*
+	  (if (getf args :verbose t)
+	      *verbose-out*
+	      (make-broadcast-stream)))
 	 (system (if (typep system 'component) system (find-system system)))
 	 (steps (traverse op system)))
     (with-compilation-unit ()
@@ -977,40 +987,40 @@ Returns the new tree (which probably shares structure with the old one)"
 (defun run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
-output to *trace-output*.  Returns the shell's exit code."
+output to *verbose-out*.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
-    (format *trace-output* "; $ ~A~%" command)
+    (format *verbose-out* "; $ ~A~%" command)
     #+sbcl
     (sb-impl::process-exit-code
      (sb-ext:run-program  
       "/bin/sh"
       (list  "-c" command)
-      :input nil :output *trace-output*))
+      :input nil :output *verbose-out*))
     
     #+(or cmu scl)
     (ext:process-exit-code
      (ext:run-program  
       "/bin/sh"
       (list  "-c" command)
-      :input nil :output *trace-output*))
+      :input nil :output *verbose-out*))
 
     #+allegro
-    (excl:run-shell-command command :input nil :output *trace-output*)
+    (excl:run-shell-command command :input nil :output *verbose-out*)
     
     #+lispworks
     (system:call-system-showing-output
      command
      :shell-type "/bin/sh"
-     :output-stream *trace-output*)
+     :output-stream *verbose-out*)
     
-    #+clisp				;XXX not exactly *trace-output*, I know
+    #+clisp				;XXX not exactly *verbose-out*, I know
     (ext:run-shell-command  command :output :terminal :wait t)
 
     #+openmcl
     (nth-value 1
 	       (ccl:external-process-status
 		(ccl:run-program "/bin/sh" (list "-c" command)
-				 :input nil :output *trace-output*
+				 :input nil :output *verbose-out*
 				 :wait t)))
 
     #-(or openmcl clisp lispworks allegro scl cmu sbcl)
