@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.13 2002/02/14 17:23:06 dan_b Exp $
+$Id: README,v 1.14 2002/02/19 15:27:02 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -99,15 +99,43 @@ and the method that you use to ask about dependencies
 Dependencies are between (operation component) pairs.  In your
 initargs, you can say
 
-:in-order-to ((compile-op (load-op "a" "b") (compile-op "c"))
+:in-order-to ((compile-op (load-op (and "a" "b")) (compile-op "c"))
 	      (load-op (load-op "foo")))
 
 - before performing compile-op on this component, we must perform
-load-op on each of "a" and "b", and before performing load-op, we have
-to load "foo"
+load-op on both of "a" and "b" and compile-op on c, 
+- before performing load-op, we have to load "foo"
 
-[ This is pretty similar to what ACL defsystem does.  mk-defsystem is
-less general: it has an implied dependency 
+The syntax is approximately
+
+(this-op {(other-op required-components)}+)
+
+required-components := component-name
+		     | (or required-components required-components)
+                     | (and required-components required-components)
+                     | (required-components required-components)
+
+component-name := string
+                | (version string object)
+
+The last case in required-components is a shorthand for the 'and'
+form, as and is usually the common case
+
+The dependency mechanism can also be used to introduce conditional
+compilation based on features of the Lisp environment.  A 
+dependency on (feature foo) is satisfied if foo is in the
+*features* list -
+
+(:module "deps"
+	 :if-component-dep-fails :try-next
+         (:file "sbcl-dep"
+		:in-order-to ((compile-op (feature :sbcl))))
+	 (:file "cmucl-dep"
+	        :in-order-to ((compile-op (feature :cmu)))))
+ 
+[ This is on a par with what ACL defsystem does, though the and/or
+stuff is of our own invention.  mk-defsystem is less general: it has
+an implied dependency
 
   for all x, (load x) depends on (compile x)
 
@@ -120,15 +148,15 @@ This is insufficient for e.g. the McCLIM system, which requires that
 all the files are loaded before any of them can be compiled ]
 
 In asdf, the dependency information for a given component and
-operation can be queried using (depends-on operation component), which
-returns a list
+operation can be queried using (component-depends-on operation
+component), which returns a list
 
 ((load-op "a") (load-op "b") (compile-op "c") ...)
 
-depends-on can be subclassed for more specific component/operation
-types: these need to (call-next-method) and append the answer to their
-dependency, unless they have a good reason for completely overriding
-the default dependencies
+component-depends-on can be subclassed for more specific
+component/operation types: these need to (call-next-method) and append
+the answer to their dependency, unless they have a good reason for
+completely overriding the default dependencies
 
 (If it weren't for CLISP, we'd be using a LIST method combination to
 do this transparently.  But, we need to support CLISP.  If you have
@@ -183,9 +211,20 @@ Subclasses of source-file exist for various languages.
 
 *** 'module', a collection of sub-components
 
-This has extra slots :components and :default-component-class.  The
-default operation knows how to traverse a module, so most operations
-will not need to provide methods specialised on modules.
+This has extra slots for
+
+ :components - the components contained in this module
+
+ :default-component-class - for child components which don't specify
+   their class explicitly
+
+ :if-component-dep-fails takes one of the values :fail, :try-next, :ignore 
+   (default value is :fail).  The other values can be used for implementing
+   conditional compilation based on implementation *features*, where
+   it is not necessary for all files in a module to be compiled
+
+The default operation knows how to traverse a module, so most
+operations will not need to provide methods specialised on modules.
 
 A system object is usually a module. 
 
@@ -214,12 +253,12 @@ defined to accept.
 
 ** standard operations
 
-*** compile-op, load-op
+*** compile-op &key proclamations
 
-When creating a new component, you should provide methods for these.  
-As a user, you almost never want to use them, though.  See below.
+When creating a new component, you should provide methods for this.  
+You probably don't want to use it as a user, though.  See below.
 
-*** compile-and-load-op &key proclamations
+*** load-op &key proclamations
 
 This is roughly equivalent to the mk-defsystem 'compile' operation.
 Compiling a system usually involves loading each component after it is
@@ -229,9 +268,9 @@ explicit what is happening
 If proclamations are supplied, they will be proclaimed.  This is a
 good place to specify optimization settings
 
-You probably don't need to create this method if you are creating a new
-component type.  The default method for this operation on source-files
-calls compile-op and load-op
+The default methods for load-op compile files before loading them.
+For parity, your own methods on new component types should probably do
+so too
 
 *** load-source-op
 
@@ -240,7 +279,6 @@ are loaded before they can be compiled.  This is how you do that.
 
 If you are creating a component type, you need to implement this
 operation - at least, where meaningful.
-
 
 *** test-system-version &key minimum
 
@@ -270,9 +308,12 @@ reimplementing this one.
 
 subclass operation, provide methods for source-file for 
 
-- perform
-- explain
 - output-files
+- perform
+   The perform method must call output-files to find out where to
+   put its files, because the user is allowed to override output-files
+   for local policy
+- explain
 - operation-done-p, if you don't like the default one
 
 * System definitions
@@ -316,45 +357,23 @@ Systems can always be constructed programmatically by instantiating
 components using make-instance.  For most purposes, however, it is
 likely that people will want a static defystem form. 
 
-asdf has `pluggable syntax', based around the principle that
-components should not have to know defsystem syntax.  That is, the
-initargs that a component accepts are not necessarily related to the
-defsystem form which creates it.  defsystem forms are parsed by
-methods of generic functions which can be specialised for new
-syntaxes.
+asdf is based around the principle that components should not have to
+know defsystem syntax.  That is, the initargs that a component accepts
+are not necessarily related to the defsystem form which creates it.
 
 A defsystem parser must implement a `defsystem' macro, which can
 be named for compatibility with whatever other system definition
-utility is being emualted.  It probably would look something like this:
-
-(defmacro mk:defsystem (name &rest options)
-  (parse-component-form mk-syntax ,name ,options))
-
-Internally the parser implements a method for parse-component-form,
-which is called in the following fashion:
-
-(parse-component-form syntax parent '(:module name :op1 val1 :op2 (blah blah)))
-
-It should return a component.  It gets the parent component available
-to it, and should test whether the component to be created already
-exists (as it might in a system redefinition) and update it in place
-if so
-
-[ Why are we specifying this?  The complete parsing is under the
-control of the person who implements a defsystem macro: given that we
-don't even do the recursion for him, is there any point in our
-specifying a protocol that he should use?  Useful stuff we could 
-write, though, is the interface that the defsystem form thus created
-should use to register the new system where find-system can get at it ]
-
+utility is being emulated.  It should instantiate components in
+accordance with whatever language it accepts, and register the topmost
+component using REGISTER-SYSTEM
 
 ** Native syntax
 
 The native syntax is inspired by mk-defsystem, to the extent that it
 should be possible to take most straightforward mk- system definitions
-and run them unchanged.  For my convenience, this turns out to be
-basically the same as the initargs to the various components, with
-a few extensions for convenience
+and run them unchanged or with only light editing.  For my
+convenience, this turns out to be basically the same as the initargs
+to the various components, with a few extensions for convenience
                
 system-definition := ( defsystem system-designator {option}* )
 
@@ -367,7 +386,7 @@ option := :components component-list
         | :operation-done-p method-form
         | :depends-on ( {simple-component-name}* ) 
 	| :serialize [ t | nil ]
-        | :in-order-to 
+        | :in-order-to ( {dependency}+ )
 
 component-list := ( {component-def}* )
                 
@@ -376,6 +395,11 @@ component-def  := simple-component-name
 
 component-type := :module | :file | :system | other-component-type
 
+dependency := (dependent-op {requirement}+)
+requirement := (required-op {required-component}+)
+             | (test-feature feature-name)
+dependent-op := operation-name
+required-op := operation-name | test-feature
 
 For example
 
@@ -411,10 +435,11 @@ compiled.
 *** Source location
 
 The :pathname option is optional in all cases for native-syntax
-systems.  If it is not supplied for the top-level form, defsystem will
-set it from
+systems, and in the usual case the user is recommended not to supply
+it.  If it is not supplied for the top-level form, defsystem will set
+it from
 
-- *load-truename*, if it is bound
+- The host/device/directory parts of *load-truename*, if it is bound
 - *default-pathname-defaults*, otherwise
 
 If a system is being redefined, the top-level pathname will be 
@@ -423,7 +448,13 @@ If a system is being redefined, the top-level pathname will be
 - changed if it had previously been set from *default-pathname-defaults*
 - left as before, if it had previously been set from *load-truename*
   and *load-truename* is not now bound
-  
+
+These rules are designed so that (i) find-system will load a system
+from disk and have its pathname default to the right place, (ii)
+this pathname information will not be overwritten with
+*default-pathname-defaults* (which could be somewhere else altogether)
+if the user loads up the .system file into his editor and
+interactively re-evaluates that form
 
 * Error handling
 
@@ -442,12 +473,6 @@ OPERATION-ERROR
 
 * Outstanding spec questions, things to add
 
-** initially-do
-
-The mk-alike :initially-do and :finally-do are ugly, but are they
-doing anything that's (a) useful, and (b) not convenient with
-:perform :after?
-
 ** case-sensitivity wrt filenames
 
 (1) components can be named using strings or symbols
@@ -463,103 +488,33 @@ evaluate defsystem forms in.  Otherwise (defsystem partition ...)
 being read in the cl-user package will intern a cl-user:partition
 symbol, which will then collide with the partition:partition symbol.
 
-** switches for different lisp implementations/platforms
+** extending defsystem with new options
 
-(:file "sbcl-dep"
- :in-order-to ((compile-op (test-feature :sbcl))))
-(:file "cmucl-dep"
- :in-order-to ((compile-op (test-feature :cmu))))
-(:file "dependencies"
- :in-order-to ((compile-op (load-op (or "sbcl-dep" "cmucl-dep" "clisp-dep"))))
+You might not want to write a whole parser, but just to add options to
+the existing syntax.  Reinstate parse-option or something akin
 
-** error reporting
-
-Need an explicit error for "dependency missing" which includes the
-version asked for, so that we can fit an automated dependency
-downloading thing.
+** document all the error classes
 
 * missing bits in implementation
 
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
-** reuse existing component instead of creating new one
-** defsystem syntax for EQL methods - need to remove the old methods
-** versions
-** test suite, insofar as it makes sense
-** compiler/loader options for verbosity, proclamations, etc: add specials
-** rewrite traversal to keep state in operations not specials
+** "and" and "or" dependencies are broken
+** compiler/loader options, other stuff needing specials
+
+new operations created during a traversal should get a link back to
+their parent, and accessors for component properties should
+automatically check the parent operation if it's not set on the
+current op.  Then we don't need specials for compiler options or "what
+have we visited so far" stuff
+
+** test suite
+
+Some form of testing is essential.  Preferably it should not involve
+having to ship db-sockets along with asdf
+
 
 * layered standard for lisp code packages a la clc
 
-some kind of archive (e.g. optionally {g,b2}zipped tar file) which
-creates a directory packagename-version
-
-contains packagename.system, which has
-- no :pathname specified
-- a :version identifier that matches the directory name
-- a package of its own called packagename-system
-
-Need some mechanism to find out what Lisp packages this creates.
-Symbols within the packages can be looked up by introspection, so
-that's not an issue.
-
-We don't require the provide/require mechanism, nor touch *modules*.
-If provide/require want to wrap us, fine
-
-say nothing either way about *features*, as we can test the
-presence/absense of packages directly in system definitions anyway
-and outside of system definitions is outside of scope
-
-** using this standard with your personal lisp installation
-
-might work like this
-$ cd ~/src/lisp
-$ tar jxf /tmp/downloads/package-1.0.tar.bz2
-$ cd ~/src/defsystems
-$ ln -s ~/src/lisp/package-1.0/package.system .
-$ $LISP
-CL-USER> (asdf:oos 'load-op 'package)
-
-** using this standard to make platform packages: example using vaguely
-  Debian-like directory conventions
-
-*** Per-site 
-
-1) The "managed area" is the part of the filesystem owned by the
-   platform package system: for example, /usr/share/common-lisp/source/
-   and /usr/lib/common-lisp/$implementation/
-
-2) Each managed lisp implementation should ensure when it starts that
-   it defines an appropriate output-files :around method that tests
-   whether the output file is in the managed source area and relocates
-   it to the appropriate binary area if so
-
-*** Per-package
-
-1) packagename, version, dependencies on other lisp packages can all
-   be parsed out of system file.
-
-2) Dependencies on non-Lisp packages need to be listed somewhere, but
-   problem is that different platforms will have different package
-   names for the same functionality.  Perhaps we could spec
-   dependencies on filenames and have the package maker look up the
-   package(s) that provide that file
-
-3) Package should arrange that the contents of the upstream archive are
-   installed into /usr/share/common-lisp/source/
-
-4) postinst script does:
-   - symlink /usr/share/common-lisp/systems/package.system to source dir
-   - run "(asdf:oos 'load-op 'package)" for each lisp implementation that it
-       manages 
-
-5) Package removal: remove files, remove symlink, remove binaries for
-   each managed lisp implementation.
-
-** Optional extra features that we would like to support in a standard
-   way where authors/packagers provide them
-
-tests
-documentation in standard format to be installed in standard place
-emacs support for looking up documentation for word at point
+See http://ww.telent.net/cliki/ASDF%20System
 
