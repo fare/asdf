@@ -90,7 +90,8 @@
 
 (defsystem db-sockets
     :source-pathname #p"cl-library:db-sockets;"
-    :components ((:file "defpackage"); :depends-on ("rt"))               
+    :components ((:file "defpackage"
+			:in-order-to ((compile-system (load-system "def-to-lisp"))))
 		 (:file "split" :depends-on ("defpackage"))
 		 (:unix-dso "alien"
 			    :components ((:file "undefs.c")
@@ -99,9 +100,15 @@
 		 (:file "foreign-glue" :depends-on ("defpackage" "malloc"))
 		 (:constants-file "constants"
 				  :pathname "constants.lisp"
-				  :depends-on
-				  ("defpackage" "foreign-glue" "def-to-lisp"))
-		 (:file "sockets" :depends-on ("constants" ))
+				  :in-order-to
+				  ((compile-system
+				    (load-system "def-to-lisp"
+						 "defpackage"
+						 "foreign-glue"))))
+		 (:file "sockets"
+			:in-order-to ((compile-system
+				       (load-system "malloc" "split"))))
+		 
 		 (:file "sockopt" :depends-on ("sockets"))
 		 (:file "inet" :depends-on ("sockets" "split"  "constants" ))
 		 (:file "unix" :depends-on ("sockets" "split" "constants" ))
