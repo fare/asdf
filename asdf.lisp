@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.71 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.72 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -89,7 +89,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.71 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.72 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -1037,7 +1037,7 @@ output to *trace-output*.  Returns the shell's exit code."
     (let ((system (asdf:find-system name nil)))
       (when system
 	(asdf:operate 'asdf:load-op name)
-	(provide name))))
+	t)))
 
   (pushnew
    '(merge-pathnames "systems/"
