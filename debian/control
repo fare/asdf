@@ -19,8 +19,7 @@ Description: Another System Definition Facility
 
 Package: cl-cclan
 Architecture: all
-Depends: ${shlibs:Depends}, cl-asdf, cmucl-normal | lisp-compiler
-Recommends: common-lisp-controller
+Depends: ${shlibs:Depends}, cl-asdf, cmucl-normal | lisp-compiler, common-lisp-controller
 Description: Comprehensive Common Lisp Archive Network
  cclan is a tool for creating a repository of Common Lisp packages.
  cclan utilizes asdf to automatically create installable packages for various
