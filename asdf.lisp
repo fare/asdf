@@ -3,16 +3,34 @@
 
 (defpackage #:asdf
   (:export #:defsystem #:oos #:find-system #:run-shell-command
-	   #:unix-dso #:compile-system #:load-system #:component-pathname
-	   #:module-components #:output-files
-	   #:component #:module #:source-file #:operation
-	   #:c-source-file #:cl-source-file
-	   #:component-pathname  #:perform
-	   #:*component-parent-pathname*
-	   #:operation-error #:system-definition-error #:system-not-found
-	   #:circular-dependency
-	   #:compile-failed #:compile-warned
+	   #:find-component		; miscellaneous
+	   
+	   #:compile-system #:load-system #:test-system-version
+	   #:operation			; operations
+	   
+	   #:output-files #:perform	; operation methods
+	   #:operation-done-p #:explain
+	   
+	   #:component #:module #:source-file 
+	   #:c-source-file #:cl-source-file #:java-source-file
+	   #:module			; components
+	   #:unix-dso
+	   
+	   #:module-components		; component accessors
+	   #:component-pathname
+	   #:component-relative-pathname
+	   #:component-name
+	   #:component-version
+	   #:component-depends-on
+	   
+	   #:*component-parent-pathname* ; variables
+	   #:*central-registry*
+	   
+	   #:operation-error #:compile-failed #:compile-warned
+	   #:system-definition-error #:system-not-found
+	   #:circular-dependency	; errors
 	   ))
+
 (in-package #:asdf)
 
 (proclaim '(optimize (debug 3)))
@@ -115,7 +133,7 @@
 (defclass c-source-file (source-file) ())
 (defclass java-source-file (source-file) ())
 
-;;; XXX we don't need the first of these if we have the second
+;;; XXX we don't need the first of these if we have the second, probably
 (defvar *component-parent-pathname*)
 (defvar *component-parent*)
 
@@ -258,7 +276,7 @@
   ((minimum :initarg :minimum :initform ""
 	    :accessor test-system-version-minimum)))
 
-;;; you may have seen this before ...
+;;; with apologies to christophe rhodes ...
 (defun split (string &optional max (ws '(#\Space #\Tab)))
   (flet ((is-ws (char) (find char ws)))
     (nreverse
@@ -352,7 +370,7 @@
   (list option value))
 
 
-#||
+#|
 source-file components defined with (:file "a-string") or "a-string"
 will have the string parsed into name and type as if it were a
 filename, and an instance of the appropriate source-file subclass
@@ -388,6 +406,10 @@ default constituent type.
 	 value)))
 
 ;;; optional extras
+
+;;; run-shell-command functions for other lisp implementations will be
+;;; gratefully accepted, if they do the same thing.  If the docstring
+;;; is ambiguous, send a bug report
 
 #+sbcl
 (defun run-shell-command (control-string &rest args)
