@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.37 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.38 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -86,7 +86,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.37 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.38 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -329,7 +329,7 @@ and NIL NAME and TYPE components"
 	       (or (not in-memory)
 		   (< (car in-memory) (file-write-date on-disk))))
       (let ((*package* (make-package (gensym (package-name #.*package*))
-				     :use '("CL" "ASDF"))))
+				     :use '(:cl :asdf))))
 	(format t ";;; Loading system definition from ~A into ~A~%"
 		on-disk *package*)
 	(load on-disk)))
@@ -851,7 +851,7 @@ output to *trace-output*.  Returns the shell's exit code."
       (list  "-c" command)
       :input nil :output *trace-output*))))
 
-#+cmu
+#+(or cmu scl)
 (defun run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
