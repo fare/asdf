@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.70 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.71 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -89,7 +89,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.70 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.71 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -953,7 +953,7 @@ Returns the new tree (which probably shares structure with the old one)"
     (sysdef-error-component ":components must be NIL or a list of components."
 			    type name components))
   (unless (and (listp in-order-to) (listp (car in-order-to)))
-    (sysdef-error-comonent ":in-order-to must be NIL or a list of components."
+    (sysdef-error-component ":in-order-to must be NIL or a list of components."
 			   type name in-order-to)))
 
 (defun sysdef-error-component (msg type name value)
