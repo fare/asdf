@@ -1,4 +1,4 @@
-$Id: README,v 1.35 2003/08/05 23:00:32 kevinrosenberg Exp $         -*- Text -*-
+$Id: README,v 1.36 2003/12/01 03:14:34 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -674,6 +674,11 @@ A "dry run" of an operation can be made with the following form:
 
 This uses unexported symbols.  What would be a nice interface for this
 functionality?
+
+** patches
+
+Sometimes one wants to 
+
 
 * missing bits in implementation
 

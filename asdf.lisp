@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.79 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.80 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -48,7 +48,7 @@
 	   #:feature			; sort-of operation
 	   #:version			; metaphorically sort-of an operation
 	   
-	   #:output-files #:perform	; operation methods
+	   #:input-files #:output-files #:perform	; operation methods
 	   #:operation-done-p #:explain
 	   
 	   #:component #:source-file 
@@ -69,6 +69,7 @@
 	   #:component-version
 	   #:component-parent
 	   #:component-property
+	   #:component-system
 	   
 	   #:component-depends-on
 
@@ -106,7 +107,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.79 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.80 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 

@@ -50,7 +50,7 @@ an immediate concern
 (defvar *proxy* (posix-getenv "http_proxy"))
 (defvar *cclan-mirror*
   (or (posix-getenv "CCLAN_MIRROR")
-      "http://ftp.linux.org.uk/pub/lisp/experimental/cclan/"))
+      "http://ftp.linux.org.uk/pub/lisp/cclan/"))
 
 (defun directorify (name)
   ;; input name may or may not have a training #\/, but we know we
