@@ -1,23 +1,26 @@
+#|| sh asdf-install.lisp will compile this file to an exe called asdf-install
+sbcl <<EOF
+(require 'sb-executable)
+(compile-file "asdf-install.lisp")
+(sb-executable:make-executable "asdf-install" *)
+EOF
+exit 0
+||#
+
 ;;; Install an ASDF system or anything else that looks convincingly
 ;;; like one, including updating symlink for all the toplevel .asd files it
 ;;; contains
 
+;;; If the file $HOME/.asdf-install exists, it is loaded.  This can be
+;;; used to override the default values of exported special variables
+;;; (see the defpackage form for details) - however, most of them are
+;;; sensible and/or taken from the environment anyway
+
 #||
-
-This is intended to be built as a command line utility: here's how 
-
-(require 'sb-executable)
-(compile-file "asdf-install")
-(sb-executable:make-executable "asdf-install" *)
-
-$ ./asdf-install net-telent-date_0.1.tar.gz pgutils.tar.gz split-sequence.tar.gz
-
-
 TODO:
-a) enable gpg signature checking
-3) behaviour if no trusted signature found probably should be customizable
-   
-done- b) clear up the temporary files we're using for downloads
+a) gpg signature checking would be better if it actually checked against
+a list of "trusted to write Lisp" keys, instead of just "trusted to be
+who they say they are"
 
 c) error handling and stuff.  one obvious problem with in-place compilation is
 that no backout is possible after upgrading to a package that turns out to be
@@ -25,15 +28,12 @@ buggy or for which dependencies are missing.  That said, this would be simpler
 if packages unpacked into a directory with the version number in their name
 (yes, like clx does)
 
-d) find where the user has put gpgpgpgp and tar instead of hardcoding locations
+d) in sbcl 0.8.1 we'll have a run-program that knows about $PATH and so
+won't need to hardcode gpgpgpgp and tar locations.
 
 e) nice to have: resume half-done downloads instead of starting from scratch
 every time.  but right now we're dealing in fairly small packages, this is not
 an immediate concern
-
-f) ought to pull in some rc file after doing default locations of
-things, so that the user actually has a chance to configure without editing
-these specials and rebuilding
 
 ||#
 (in-package :cl-user)
@@ -43,11 +43,15 @@ these specials and rebuilding
   (require 'sb-executable)
   (require 'sb-bsd-sockets))
 
-(defpackage :asdf-install (:use "CL" "SB-EXT"  "SB-BSD-SOCKETS"))
+(defpackage :asdf-install
+  (:use "CL" "SB-EXT"  "SB-BSD-SOCKETS")
+  (:export #:*proxy* #:*cclan-mirror* #:*sbcl-home*
+	   #:*verify-gpg-signatures* #:*locations*))
+
+(defpackage :asdf-install-customize
+  (:use "CL" "SB-EXT"  "SB-BSD-SOCKETS" "ASDF-INSTALL"))
 
 (in-package :asdf-install)
-
-
 
 (defvar *proxy* (posix-getenv "http_proxy"))
 (defvar *cclan-mirror*
@@ -79,6 +83,12 @@ these specials and rebuilding
     (,(merge-pathnames "site/" *dot-sbcl*)
      ,(merge-pathnames "systems/" *dot-sbcl*)
      "Personal installation")))
+
+(let* ((*package* (find-package :asdf-install-customize))
+       (file (probe-file (merge-pathnames
+			  (make-pathname :name ".asdf-install")
+			  (user-homedir-pathname)))))
+  (when file (load file)))
 
 (define-condition download-error (error)
   ((url :initarg :url :reader download-url)
