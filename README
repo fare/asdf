@@ -1,17 +1,12 @@
 asdf: another system definition facility                 -*- Text -*-
 
-[ Changes in draft 3: plans go away again, but process-option comes
- in.  OPERATION turns into a clos object ]
-
-[ Changes in draft 2: acknowledge sources, incorporated bunch of stuff
-from kmp proposal, perhaps-easier-to-understand version-satisfies
-sample implementation ]
+$Id: README,v 1.2 2001/08/02 19:09:07 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
 
 Components form systems: a component represents a source file, or a
-collection of source files.  A system is therefore a component,
+collection of components.  A system is therefore a component,
 recursively formed of a tree of subcomponents.
 
 Operations are instantiated then performed on the nodes of a tree to
@@ -244,21 +239,22 @@ There is a defsystem form which looks basically similar to
 mk-defsystem syntax
 
 We extend the defsystem syntax to allow for eql-specialised methods on
-modules -
+components -
 
   (:module "foo" (:components "bar" "baz" "quux")
-		 (:perform compile-system :after ((c component))
+	         (:perform compile-system :after (op c)
 			   (do-something c))
-		 (:explain compile-system :after ((c component))
+		 (:explain compile-system :after (op c)
 			   (explain-something c))
 
 has the effect of
 
-(defmethod perform :after ((operation (eql 'compile-system)) ((c component)))
+(defmethod perform :after ((op compile-system) (c (eql ...)))
 	   (do-something c))
-(defmethod explain :after ((operation (eql 'compile-system)) ((c component)))
+(defmethod explain :after ((op compile-system) (c (eql ...)))
 	   (explain-something c))
 
+where ... is the component in question
 
 ** shorthand for source-file components
 
@@ -300,6 +296,21 @@ probably lowercase - and lowercase extensions, with :case :local.
 This appears to work out fine, but but I haven't thought too hard
 about it
 
+** symbols vs strings
+
+Warn the user that they should either use keywords or be careful with
+the package that they evaluate defsystem forms in
+
+<Krystof> You don't want to have (defsystem partition ...) being read in the
++cl-user package
+<rahul> hrm
+<Krystof> Because that will intern a cl-user:partition symbol
+<rahul> yeah, accidental interning could be a problem
+<Krystof> Which will then collide with the partition:partition symbol
+<Krystof> Hence (defsystem :partition ...)
+<rahul> yeah
+
+
 ** defsystem syntax
 *** export process-option-list?
 *** shortcut to setting up dependencies using :serial, :parallel
@@ -323,6 +334,21 @@ We should do this the more general way internally even if it never
 gets to surface syntax; it'd make the whole "compile-after-load"
 stuff a lot cleaner.  
 
+** the :pathname argument is misnamed
+
+As demonstrated by the way we split it into name and type ourselves
+instead of using parse-namestring, to avoid the problem that "foo.lisp"
+is an absolute director when treated as an LPN.  As it doesn't behave
+like a pathname, we shouldn't fool the user into thinking it is one
+
+<dan_b> because "foo.lisp" in an LPN is an absolute path
+<Krystof> So you should be merging the other way round, no?
+<Krystof> (merge-pathname *component-pathname-defaults* "foo.lisp")
+[ no ]
+
+<Krystof> But you can't currently do ((:file "/absolute/file/that/I/want.lisp")) anyway
+[ this is true ]
+
 * missing bits in implementation
 ** all of the above
 ** package exports
@@ -333,4 +359,5 @@ present list is ad-hoc, so go through and consider it properly
 ** defsystem syntax for EQL methods
 ** dependency circularities: test it works
 ** versions
+
 
