@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.54 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.55 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.54 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.55 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -573,32 +573,36 @@ system."))
       (loop for (required-op . deps) in (component-depends-on operation c)
 	    do (do-dep required-op deps))
       ;; constituent bits
-      (when (typep c 'module)
-	(let ((at-least-one nil)
-	      (error nil))
-	  (loop for kid in (module-components c)
-		do (handler-case
-		       (appendf forced (traverse operation kid ))
-		     (missing-dependency (condition)
-		       (if (eq (module-if-component-dep-fails c) :fail)
-			   (error condition))
-		       (setf error condition))
-		     (:no-error (c)
-		       (declare (ignore c))
-		       (setf at-least-one t))))
-	  (when (and (eq (module-if-component-dep-fails c) :try-next)
-		     (not at-least-one))
-	    (error error))))
-      ;; now the thing itself
-      (when (or forced
-		(operation-forced-p (operation-ancestor operation))
-		(not (operation-done-p operation c)))
-	(let ((do-first (cdr (assoc (class-name (class-of operation))
-				    (slot-value c 'do-first)))))
-	  (loop for (required-op . deps) in do-first
-		do (do-dep required-op deps)))
-	(setf forced (append (delete 'pruned-op forced :key #'car)
-			     (list (cons operation c)))))
+      (let ((module-ops
+	     (when (typep c 'module)
+	       (let ((at-least-one nil)
+		     (forced nil)
+		     (error nil))
+		 (loop for kid in (module-components c)
+		       do (handler-case
+			      (appendf forced (traverse operation kid ))
+			    (missing-dependency (condition)
+			      (if (eq (module-if-component-dep-fails c) :fail)
+				  (error condition))
+			      (setf error condition))
+			    (:no-error (c)
+			      (declare (ignore c))
+			      (setf at-least-one t))))
+		 (when (and (eq (module-if-component-dep-fails c) :try-next)
+			    (not at-least-one))
+		   (error error))
+		 forced))))
+	;; now the thing itself
+	(when (or forced module-ops
+		  (operation-forced-p (operation-ancestor operation))
+		  (not (operation-done-p operation c)))
+	  (let ((do-first (cdr (assoc (class-name (class-of operation))
+				      (slot-value c 'do-first)))))
+	    (loop for (required-op . deps) in do-first
+		  do (do-dep required-op deps)))
+	  (setf forced (append (delete 'pruned-op forced :key #'car)
+			       (delete 'pruned-op module-ops :key #'car)
+			       (list (cons operation c))))))
       (setf (visiting-component operation c) nil)
       (visit-component operation c (and forced t))
       forced)))
