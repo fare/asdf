@@ -1,3 +1,9 @@
+cl-asdf (1.73) unstable; urgency=low
+
+  * Update README to mention asdf::*compile-file-warnings-behaviour*
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Tue, 27 May 2003 16:00:36 -0600
+
 cl-asdf (1.72) unstable; urgency=low
 
   * New upstream

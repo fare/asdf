@@ -1,4 +1,4 @@
-$Id: README,v 1.31 2003/03/17 18:58:23 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.32 2003/05/27 22:03:16 kevinrosenberg Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -619,6 +619,13 @@ Operations may go wrong (for example when source files contain
 errors).  These are signalled using generalised instances of
 OPERATION-ERROR
 
+* Compilation warning handling
+
+ASDF checks for compiler warnings when a file is compiled. The
+variable asdf::*compile-file-warnings-behaviour* controls the handling
+of any such warnings. The default value is :error or :warn, depending
+upon the Common Lisp implementation. This variable can be set to
+:ignore if you want ASDF to ignore any compiler warnings.
 
 ----------------------------------------------------------
                       TODO List
