@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.59 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.60 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -87,7 +87,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.59 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.60 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -956,6 +956,16 @@ output to *trace-output*.  Returns the shell's exit code."
   (pushnew
    (merge-pathnames "systems/"
 		    (truename (sb-ext:posix-getenv "SBCL_HOME")))
+   *central-registry*)
+  
+  (pushnew
+   (merge-pathnames "site-systems/"
+ 		    (truename (sb-ext:posix-getenv "SBCL_HOME")))
+   *central-registry*)
+  
+  (pushnew
+   (merge-pathnames ".sbcl/systems"
+ 		    (user-homedir-pathname))
    *central-registry*)
   
   (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*))
