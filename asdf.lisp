@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.76 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.77 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -93,6 +93,10 @@
 	   #:missing-component
 	   #:missing-dependency
 	   #:circular-dependency	; errors
+
+	   #:retry
+	   #:accept                     ; restarts
+	   
 	   )
   (:use :cl))
 
@@ -102,7 +106,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.76 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.77 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -709,14 +713,18 @@ system."))
       ;(declare (ignore output))
       (when warnings-p
 	(case (operation-on-warnings operation)
-	  (:warn (warn "COMPILE-FILE warned while performing ~A on ~A"
-		       c operation))
+	  (:warn (warn
+		  (formatter "~@<COMPILE-FILE warned while ~
+                              performing ~A on ~A.~@:>")
+		  operation c))
 	  (:error (error 'compile-warned :component c :operation operation))
 	  (:ignore nil)))
       (when failure-p
 	(case (operation-on-failure operation)
-	  (:warn (warn "COMPILE-FILE failed while performing ~A on ~A"
-		       c operation))
+	  (:warn (warn
+		  (formatter "~@<COMPILE-FILE failed while ~
+                              performing ~A on ~A.~@:>")
+		  operation c))
 	  (:error (error 'compile-failed :component c :operation operation))
 	  (:ignore nil)))
       (unless output
@@ -805,8 +813,23 @@ system."))
 	     (restart-case 
 		 (progn (perform op component)
 			(return))
-	       (retry-component ())
-	       (skip-component () (return))))))))
+	       (retry ()
+		 :report
+		 (lambda (s)
+		   (format s
+			   (formatter "~@<Retry performing ~S on ~S.~@:>")
+			   op component)))
+	       (accept ()
+		 :report
+		 (lambda (s)
+		   (format s
+			   (formatter "~@<Continue, treating ~S on ~S as ~
+                                       having been successful.~@:>")
+			   op component))
+		 (setf (gethash (type-of op)
+				(component-operation-times component))
+		       (get-universal-time))
+		 (return))))))))
 
 (defun oos (&rest args)
   "Alias of OPERATE function"
