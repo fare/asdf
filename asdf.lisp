@@ -89,9 +89,7 @@
    (in-order-to :initform nil :initarg :in-order-to)
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
-   ;; (:pathname is actually a really bad choice of name for this slot,
-   ;; because quite often that's not what we actually use it for)
-   (pathname :initarg :pathname)))
+   (relative-pathname :initarg :pathname)))
 
 #+ew
 (defun string-unix-common-casify (string &key (start 0) end)
@@ -112,7 +110,7 @@
 
 (defmethod component-pathname  ((component component))
   (let ((*default-pathname-defaults* *component-parent-pathname*))
-    (if (slot-boundp component 'pathname)
+    (if (and nil (slot-boundp component 'pathname))
 	(let ((p (slot-value component 'pathname)))
 	  (cond ((pathnamep p)
 		 (merge-pathnames p))
@@ -126,10 +124,10 @@
 	(merge-pathnames (component-relative-pathname component)))))
 
 
-(defmethod print-object ((c component) stream)
+(defmethod print-object ((c component) (stream stream))
   (print-unreadable-object (c stream :type t :identity t)
-			   (ignore-errors
-			     (prin1 (component-name c) stream))))
+    (ignore-errors
+      (prin1 (component-name c) stream))))
 
 (defclass module (component)
   ((components :accessor module-components :initarg :components)
@@ -137,8 +135,9 @@
      :initform 'cl-source-file :initarg :default-component-class)))
 
 (defmethod component-relative-pathname ((component module))
-  (make-pathname :directory `(:relative ,(component-name component))
-		 :host (pathname-host *component-parent-pathname*)))
+  (let ((*default-pathname-defaults* *component-parent-pathname*))
+    (or (slot-value component 'relative-pathname)
+	(make-pathname :directory `(:relative ,(component-name component))))))
 
 (defgeneric find-component (module name)
   (:documentation "Finds the component with name NAME present in the
@@ -166,10 +165,11 @@ system."))
     ("java" . java-source-file)))
 
 (defmethod component-relative-pathname ((component source-file))
-  (make-pathname :name (string-unix-common-casify (component-name component))
-		 :type (string-unix-common-casify (car (rassoc (class-name (class-of component))
-				    *known-extensions*)))
-		 :case :common))
+  (let ((*default-pathname-defaults* *component-parent-pathname*))
+    (or (slot-value component 'relative-pathname)
+	(make-pathname :name (component-name component)
+		       :type (car (rassoc (class-name (class-of component))
+					  *known-extensions*))))))
 
 (defclass c-source-file (source-file) ())
 (defclass java-source-file (source-file) ())
@@ -324,15 +324,16 @@ system."))
 
 (defmethod perform ((o load-op) (c cl-source-file))
   (let ((co (make-instance 'compile-op)))
-    (mapc nil #'load (output-files co c))))
+    (map nil #'load (output-files co c))))
 
 (defmethod output-files ((operation load-op) (c component))
   nil)
 
+
 ;;; compile-and-load-op
 
 (defclass compile-and-load-op (load-op) ())
-(defmethod component-depends-on ((operation compile-and-load-op) (c source-file))
+(defmethod component-depends-on ((operation load-op) (c source-file))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
 
