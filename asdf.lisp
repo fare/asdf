@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.31 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.32 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -39,7 +39,7 @@
   (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
 	   #:system-definition-pathname #:find-component ; miscellaneous
 	   
-	   #:compile-op #:load-op #:test-system-version
+	   #:compile-op #:load-op #:load-source-op #:test-system-version
 	   #:operation			; operations
 	   #:feature			; sort-of operation
 	   #:version			; metaphorically sort-of an operation
@@ -612,6 +612,18 @@ system."))
 	      nil
 	      (file-write-date (car output-files))))))
 
+;;; >>>> Added KMR 8/02
+;;; Add load-source-op for cl-source-file as documented in README
+(defclass load-source-op (operation) ())
+(defmethod perform ((o load-source-op) (c cl-source-file))
+  (let* ((output-files (output-files o c)))
+    (setf (component-property c 'last-loaded) 
+	  (if (some #'not (map 'list #'load output-files))
+	      nil
+	      (file-write-date (car output-files))))))
+(defmethod output-files ((operation load-source-op) (c component))
+  (list (component-pathname c)))
+;;; <<<< End KMR
 
 (defmethod perform ((operation load-op) (c static-file))
   nil)
@@ -815,6 +827,7 @@ output to *trace-output*.  Returns the shell's exit code."
       (list  "-c" command)
       :input nil :output *trace-output*))))
 
+;;; Added KMR 8/02
 #+allegro
 (defun run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
@@ -826,6 +839,7 @@ output to *trace-output*.  Returns the shell's exit code."
       (make-array 3 :initial-contents (list "/bin/sh" "-c" command))
       :input nil :output *trace-output*)))
 
+;;; Added KMR 8/02
 #+lispworks
 (defun run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
