@@ -12,3 +12,8 @@
   (asdf:missing-dependency (c)
     (format t "load failed as expected: - ~%~A~%" c))
   (:no-error (c) (error "should have failed, oops")))
+(handler-case 
+    (asdf:oos 'asdf:load-op 'test2b3)
+  (asdf:missing-dependency (c)
+    (format t "load failed as expected: - ~%~A~%" c))
+  (:no-error (c) (error "should have failed, oops")))
