@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.72 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.73 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -74,6 +74,8 @@
 	   
 	   ;#:*component-parent-pathname* 
 	   #:*central-registry*		; variables
+	   #:*compile-file-warnings-behaviour*
+	   #:*compile-file-failure-behaviour*
 	   
 	   #:operation-error #:compile-failed #:compile-warned #:compile-error
 	   #:system-definition-error 
@@ -89,7 +91,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.72 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.73 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -98,8 +100,8 @@
 				     (parse-integer v :start (1+ dot)
 						    :junk-allowed t)))))
 
-(defvar  *compile-file-warnings-behaviour* :warn)
-(defvar  *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
+(defvar *compile-file-warnings-behaviour* :warn)
+(defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility stuff

@@ -1,3 +1,10 @@
+cl-asdf (1.73b) unstable; urgency=low
+
+  * Update README
+  * export two variables
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Wed, 28 May 2003 11:19:40 -0600
+
 cl-asdf (1.73) unstable; urgency=low
 
   * Update README to mention asdf::*compile-file-warnings-behaviour*
