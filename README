@@ -1,4 +1,4 @@
-$Id: README,v 1.17 2002/03/06 00:39:50 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.18 2002/03/06 23:58:34 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -7,18 +7,27 @@ asdf: another system definition facility
 * Getting started
 
 - The single file asdf.lisp is all you need to use asdf normally.  For
-maximum convneience you want to have it loaded whenever you start your
-Lisp implementation, by loading it from th startup script, or dumping
+maximum convenience you want to have it loaded whenever you start your
+Lisp implementation, by loading it from the startup script, or dumping
 a custom core, or something.
 
 - The variable asdf:*central-registry* is a list of forms each of
   which evaluates to a directory in which .asd files (system
-  definitions) may be found.
+  definitions) may be found.  Typically you might for example 
+  have  
+
+     (*default-pathname-defaults* "/home/me/cl/systems/"
+      "/usr/share/common-lisp/systems/")
 
 - To compile and load a system 'foo', you need to (1) ensure that
   foo.asd is in one of the directories in *central-registry* (a
   symlink to the real location of foo.asd is preferred), (2) execute
   ``(asdf:operate asdf:load-op 'foo)''
+
+    $ cd /home/me/cl/systems/
+    $ ln -s ~/src/foo/foo.asd .
+    $ lisp
+    * (asdf :operate asdf:load-op 'foo)
 
 - To write your own system definitions, look at the test systems in
   test/ , and read the rest of this.  Ignore systems/ which is old
