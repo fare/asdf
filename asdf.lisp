@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.39 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.40 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -86,7 +86,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.39 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.40 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -315,10 +315,7 @@ and NIL NAME and TYPE components"
 			(make-pathname
 			 :name name :case :local :type "asd"
 			 :defaults defaults
-			 :version
-			 ;; KMR: Kludge to get CLC LPN's to work with CMUCL
-			 #+common-lisp-controller :unspecific
-			 #-common-lisp-controller :newest))))
+			 :version :newest))))
 	(if (and file (probe-file file))
 	    (return-from system-definition-pathname file))))
     nil))
