@@ -1,0 +1,7 @@
+;;; -*- Lisp -*-
+
+(load "../asdf")
+(load "../wild-modules")
+
+(setf asdf:*central-registry* '(*default-pathname-defaults*))
+(asdf:oos 'asdf:load-op 'wild-module)
