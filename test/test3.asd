@@ -1,5 +1,6 @@
 ;;; -*- Lisp -*-
 (asdf:defsystem test3
+    :properties ((:prop1 . "value"))
     :components
   ((:module "deps"
 	    :if-component-dep-fails :try-next

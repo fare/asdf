@@ -107,7 +107,8 @@ and NIL NAME and TYPE components"
    (relative-pathname :initarg :pathname)
    ;; XXX we should provide some atomic interface for updating the
    ;; component properties
-   (properties :accessor component-properties :initarg :properties)))
+   (properties :accessor component-properties :initarg :properties
+	       :initform nil)))
   
 ;;;; methods: conditions
 
@@ -167,6 +168,17 @@ and NIL NAME and TYPE components"
 (defmethod component-pathname ((component component))
   (let ((*default-pathname-defaults* (component-parent-pathname component)))
     (merge-pathnames (component-relative-pathname component))))
+
+(defmethod component-property ((c component) property)
+  (cdr (assoc property (slot-value c 'properties))))
+
+(defmethod (setf component-property) (new-value (c component) property)
+  (let ((a (assoc property (slot-value c 'properties))))
+    (if a
+	(setf (cdr a) new-value)
+	(setf (slot-value c 'properties)
+	      (acons property new-value (slot-value c 'properties))))))
+
 
 
 (defclass system (module)
@@ -522,11 +534,13 @@ system."))
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
 (defmethod perform ((operation compile-op) (c cl-source-file))
-  (let ((source-file (component-pathname c)))
+  (let ((source-file (component-pathname c))
+	(output-file (car (output-files operation c))))
     (multiple-value-bind (output warnings-p failure-p)
 	(compile-file source-file
-		      :output-file (car (output-files operation c)))
+		      :output-file output-file)
       (declare (ignore output))
+      (setf (component-property c 'last-compiled) (file-write-date output-file))
       (when warnings-p
 	(case (operation-on-warnings operation)
 	  (:warn (warn "COMPILE-FILE warned while performing ~A on ~A"
@@ -554,8 +568,10 @@ system."))
 (defclass load-op (operation) ())
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  (let ((co (make-sub-operation o 'compile-op)))
-    (map nil #'load (output-files co c))))
+  (let* ((co (make-sub-operation o 'compile-op))
+	(output-files (output-files co c)))
+    (setf (component-property c 'last-loaded) (file-write-date (car output-files)))
+    (map nil #'load output-files)))
 
 (defmethod perform ((operation load-op) (c static-file))
   nil)
@@ -567,6 +583,16 @@ system."))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
 
+;;; This is arguably an abuse of component properties; transient stuff
+;;; like last-compiled-time is is not really what they're intended
+;;; for.  But I don't really have a better idea, and it's definitely 
+;;; useful functionality
+
+(defmethod operation-done-p ((o load-op) (c source-file))
+  (if (or (not (component-property c 'last-loaded))
+	  (> (or (component-property c 'last-compiled) 0)
+	     (component-property c 'last-loaded)))
+      nil t))
 
 
 
