@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.4 2001/08/03 01:13:30 dan_b Exp $
+$Id: README,v 1.5 2001/08/06 01:10:05 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -93,17 +93,51 @@ happen one way or another.
 This is a string.  It must satisfy the restrictions imposed on a
 portable pathname character.
 
+[ This restriction is probably going away ]
+
 *** a version identifier (optional, will default to parent's version)
 
-This is used by the check-component-version operation (see later).
+This is used by the test-system-version operation (see later).
 
 *** dependencies on its siblings  (optional but often necessary)
 
-This slot contains a list whose elements are each names of siblings,
-or lists of (name version) for siblings
+There is an excitingly complicated relationship between the initarg
+and the method that you use to ask about dependencies
 
-[ this will change.  Dependencies are between (component operation)
-pairs, not between components themselves ]
+Dependencies are between (operation component) pairs.  In your
+initargs, you can say
+
+:in-order-to ((compile-system (load-system "a" "b") (compile-system "c"))
+	      (load-system (load-system "foo")))
+
+- before performing the compile-system operation on this component, we
+must perform the load-system operation on each of "a" and "b", and
+before performing load-system, we have to load "foo"
+
+This is pretty similar to what ACL defsystem does.  mk-defsystem is
+less general: it has an implied dependency 
+
+  for all x, (load x) depends on (compile x)
+
+and using a :depends-on argument to say that b depends on a _actually_
+means that
+
+  (compile b) depends on (load a)
+
+In asdf, the dependency information for a given component and
+operation can be queried using (depends-on operation component), which
+returns a list
+
+((load-system "a") (load-system "b") (compile-system "c") ...)
+
+depends-on can be subclassed for more specific component/operation
+types: these need to (call-next-method) and append the answer to their
+dependency, unless they have a good reason for completely overriding
+the default dependencies
+
+(If it weren't for CLISP, we'd be using a LIST method combination to
+do this transparently.  But, we need to support CLISP.  If you have
+the time for some CLISP hacking, I'm sure they'd welcome your fixes)
 
 *** a filesystem location
 
@@ -303,7 +337,6 @@ the package that they evaluate defsystem forms in
 
 <Krystof> You don't want to have (defsystem partition ...) being read in the
 +cl-user package
-<rahul> hrm
 <Krystof> Because that will intern a cl-user:partition symbol
 <rahul> yeah, accidental interning could be a problem
 <Krystof> Which will then collide with the partition:partition symbol
@@ -318,28 +351,8 @@ with symbols and depend on :case :common to map them into customary case.
 *** shortcut to setting up dependencies using :serial, :parallel
   options.
 *** split into native syntax and mixin for mk- syntax extras
-
-** Argh dependencies.
-
-Our dependencies are conceptually wrong.  Dependencies exist between
-the application of operations to components, not the components
-themselves.  For example, there is an implied dependency in
-mk-defsystem
-
-  for all x, (load x) depends on (compile x)
-
-and specifying that b depends on a _actually_ means that
-
-  (compile b) depends on (load a)
-
-We currently intend to do something rather like ACL's defsystem :
-
-:in-order-to (compile-system (load-system "a" "b")
-              load-system (load-system "foo"))
-
-We can combine this with a gf that has methods specialised on
-component and operation to augment the dependency list with "standard"
-dependencies: e.g. in-order-to (load-system x), first (compile-system x)
+*** reintroduce :depends-on or some other succint form of dependency 
+  specification
 
 ** the :pathname argument is misnamed
 
@@ -352,6 +365,9 @@ like a pathname, we shouldn't fool the user into thinking it is one
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** defsystem syntax for EQL methods
-** dependency circularities: test it works
 ** versions
+** traverse
 
+this operation instantiation thing sucks somewhat, as we don't
+transfer arguments in any meaningful way.  if compile calls load calls
+compile, how do we access the original proclamations?
