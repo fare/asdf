@@ -23,7 +23,9 @@ set -e
 
 case "$1" in
     configure)
-	/usr/sbin/reregister-common-lisp-implementations
+	if [ -x /usr/sbin/clc-register-impl ]; then 
+	    /usr/sbin/clc-reregister-impl all
+	fi
 	;;
     abort-upgrade|abort-remove|abort-deconfigure)
 	;;
