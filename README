@@ -1,4 +1,4 @@
-$Id: README,v 1.22 2002/08/23 20:54:08 kevinrosenberg Exp $         -*- Text -*-
+$Id: README,v 1.23 2002/08/28 12:33:26 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -39,11 +39,15 @@ a custom core, or something.
   designators.  A ssytem directory designator is either a function
   designator for a function of one argument, which when called with
   the system name will return a directory to look for .asd files in,
-  or it is a form which evaluates to a directory to look in.
-  Typically you might for example have
+  or it is a form which will be evaluated whenever a system is to be
+  found, and must evaluate to a directory to look in.  For example,
+  you might have
 
      (*default-pathname-defaults* "/home/me/cl/systems/"
       "/usr/share/common-lisp/systems/")
+
+  (When we say "directory" here, we mean "designator for a pathname
+  with a supplied DIRECTORY component")
 
 - To compile and load a system 'foo', you need to (1) ensure that
   foo.asd is in one of the directories in *central-registry* (a
@@ -606,17 +610,25 @@ the existing syntax.  Reinstate parse-option or something akin
 
 ** document all the error classes
 
-** putting functions onto *central-registry* ?
+** what to do with compile-file failure
 
-For the benefit of people who don't want to keep all their systems in
-the same place, we could
+Should check the primary return value from compile-file and see if
+that gets us any closer to a sensible error handling strategy
 
-1) put functions onto *central-registry*.  These would take the
-   syestem name as argument
+** foreign files
 
-2) expose the system-definition-pathname function.  Problem, it's
-   currently a function not a gf.  What would it specialize on?
+lift unix-dso stuff from db-sockets
 
+** Diagnostics
+
+A "dry run" of an operation can be made with the following form:
+
+(traverse (make-instance '<operation-name>)
+          (find-system <system-name>)
+          'explain)
+
+This uses unexported symbols.  What would be a nice interface for this
+functionality?
 
 * missing bits in implementation
 
@@ -624,4 +636,33 @@ the same place, we could
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** rules for system pathname defaulting are not yet implemented properly
 ** proclamations probably aren't
+** when a system is reloaded with fewer components than it previously
+   had, odd things happen
+** circularities may not be being detected as they should
+
+** now
+
+*** restarts may not be as visible as we'd like when chasing dependencies
+
+*** some reasonably neat way to deal with this-file-already-loaded
+
+perhaps compile-op/load-op perform after methods should be setting the
+last-loaded and last-compiled properties?
+
+*** better integration of load-binary-ignoring-state-of-source-op
+
+** later
+
+*** david lichteblau's patch for symlink resolution?
+
+*** Propagation of the :force option.  I notice that
+
+	(oos 'compile-op :araneida :force t)
+
+also forces compilation of every other system the :araneida system
+depends on.  This is rarely useful to me; usually, when I want to force
+recompilation of something more than a single source file, I want to
+recompile only one system.  So it would be more useful to have
+make-sub-operation refuse to propagate ":force t" to other systems, and
+propagate only something like ":force :recursively".
 
