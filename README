@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.2 2001/08/02 19:09:07 dan_b Exp $
+$Id: README,v 1.3 2001/08/03 00:36:02 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -330,9 +330,14 @@ and specifying that b depends on a _actually_ means that
 
   (compile b) depends on (load a)
 
-We should do this the more general way internally even if it never
-gets to surface syntax; it'd make the whole "compile-after-load"
-stuff a lot cleaner.  
+One idea, borrowed from ACL defsystem :
+
+:in-order-to (compile-system (load-system "a" "b")
+              load-system (load-system "foo"))
+
+We can combine this with a gf that has methods specialised on
+component and operation to augment the dependency list with "standard"
+dependencies: e.g. in-order-to (load-system x), first (compile-system x)
 
 ** the :pathname argument is misnamed
 
