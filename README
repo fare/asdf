@@ -1,4 +1,4 @@
-$Id: README,v 1.26 2002/11/08 01:54:23 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.27 2002/11/12 12:53:26 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -653,14 +653,10 @@ we should do something inventive when processing a defsystem form,
 like take the list of kids and setf the slot to nil, then transfer
 children from old to new list as they're found
 
-**  traverse may become a normal function and not generic
+**  traverse may become a normal function
 
-If you're defining methods on traverse (especially if they specialise
-on the third arg, which we don't actually use any more) speak up.
+If you're defining methods on traverse,  speak up.
 
-** return list from traverse is not in final form yet 
-
-We'll probably make it have actual operations in it, not just the names.
 
 ** a lot of load-op methods can be rewritten to use input-files
 

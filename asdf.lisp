@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.50 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.51 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.50 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.51 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -527,11 +527,8 @@ system."))
 ;;; for our purposes.  And CLISP doesn't have non-standard method
 ;;; combinations, so let's keep it simple and aspire to portability
 
-;;; we enforce that function is a symbol to allow us to specialize on
-;;; (eql 'perform) and (eql 'explain) for :before and :after
-(defgeneric traverse (operation component symbol))
-(defmethod traverse ((operation operation) (c component) (function
-							  symbol))
+(defgeneric traverse (operation component))
+(defmethod traverse ((operation operation) (c component))
   (let ((forced nil))
     (labels ((do-one-dep (required-op required-c required-v)
 	       (let ((op (if (subtypep (type-of operation) required-op)
@@ -546,7 +543,7 @@ system."))
 				(error 'missing-dependency :required-by c
 				       :version required-v
 				       :requires required-c))))
-		 (traverse op dep-c function)))	   	   
+		 (traverse op dep-c)))	   	   
 	     (do-dep (op dep)
 	       (cond ((eq op 'feature)
 		      (or (member (car dep) *features*)
@@ -563,7 +560,7 @@ system."))
                               (t
                                (appendf forced (do-one-dep op d nil)))))))))
       (aif (component-visited-p operation c)
-	   (return-from traverse 	; been here before
+	   (return-from traverse
 	     (if (cdr it) (list (cons 'pruned-op c)) nil)))
       ;; dependencies
       (if (component-visiting-p operation c)
@@ -577,7 +574,7 @@ system."))
 	      (error nil))
 	  (loop for kid in (module-components c)
 		do (handler-case
-		       (appendf forced (traverse operation kid function))
+		       (appendf forced (traverse operation kid ))
 		     (missing-dependency (condition)
 		       (if (eq (module-if-component-dep-fails c) :fail)
 			   (error condition))
@@ -589,11 +586,11 @@ system."))
 		     (not at-least-one))
 	    (error error))))
       ;; now the thing itself
-      (if (or forced
-	      (operation-forced-p (operation-ancestor operation))
-	      (not (operation-done-p operation c)))
-	  (appendf forced (list (node-for operation c))))
-      
+      (when (or forced
+		(operation-forced-p (operation-ancestor operation))
+		(not (operation-done-p operation c)))
+	(setf forced (append (delete 'pruned-op forced :key #'car)
+			     (list (cons operation c)))))
       (setf (visiting-component operation c) nil)
       (visit-component operation c (and forced t))
       forced)))
@@ -670,9 +667,7 @@ system."))
 (defclass load-op (operation) ())
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  (let* ((co (make-sub-operation o 'compile-op))
-	 (output-files (output-files co c)))
-    (mapcar #'load output-files)))
+  (mapcar #'load (input-files o c)))
 
 (defmethod perform ((operation load-op) (c static-file))
   nil)
@@ -701,18 +696,12 @@ system."))
   (let* ((op (apply #'make-instance operation-class
 		    :original-initargs args args))
 	 (system (if (typep system 'component) system (find-system system)))
-	 (steps (traverse op system 'perform)))
-    ;; XXX this make-instance stuff is a little silly.  really we should
-    ;; have traverse return operations directly instead of their types
+	 (steps (traverse op system)))
     (with-compilation-unit ()
-      (loop for (op-name . component) in steps
-	    unless (eql op-name 'pruned-op)
-	    do
+      (loop for (op . component) in steps do
 	    (loop
 	     (restart-case 
-		 (progn (perform
-			 (apply #'make-instance op-name
-				:original-initargs args args) component)
+		 (progn (perform op component)
 			(return))
 	       (retry-component ())
 	       (skip-component () (return))))))))
