@@ -416,7 +416,11 @@ system."))
 			   operation
 			   (make-sub-operation operation required-op)))
 		   (dep-c (or (find-component
-			       (component-parent c) required-c required-v)
+			       (component-parent c)
+			       ;; XXX tacky.  really we should build the
+			       ;; in-order-to slot with canonicalized
+			       ;; names instead of coercing this late
+			       (coerce-name required-c) required-v)
 			      (error 'missing-dependency :required-by c
 				     :version required-v
 				     :requires required-c))))
