@@ -1,8 +1,32 @@
-$Id: README,v 1.19 2002/04/30 17:22:51 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.20 2002/06/08 01:54:16 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
 ========================================
+
+* Getting the latest version
+
+0) Decide which version you want.  HEAD is the newest version and
+usually OK, whereas STABLE is for cautious people (e.g. who already
+have systems using asdf that they don't want broken), a slightly older
+version about which none of the HEAD users have complained.
+
+1) Check it out from sourceforge cCLan CVS:
+
+1a) cvs -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan login
+     (no password: just press Enter)
+ 
+1a.1) cvs -z3 -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan
+         co -r STABLE asdf
+
+or for the bleeding edge, instead
+
+1a.2) cvs -z3 -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan
+          co -A asdf
+
+
+For more CVS information, look at http://sourceforge.net/cvs/?group_id=28536
+
 
 * Getting started
 
@@ -45,7 +69,15 @@ a custom core, or something.
 - cclan.asd and the source files listed therein contain useful extensions 
   for maintainers of systems in the cCLan.  If this isn't you, you
   don't need them - although you may want to look at them anyway
- 
+
+- For systems that do complicated things (e.g. compiling C files to
+  load as foreign code), the packages in vn-cclan may provide some
+  guidance.  db-sockets, for example, is known to do outlandish things
+  with preprocessors
+
+   http://ww.telent.net/cliki/vn-cclan 
+
+
 
 * Concepts
 
@@ -186,10 +218,7 @@ required-components := component-name
                      | (required-components required-components)
 
 component-name := string
-                | (version string object)
-
-The last case in required-components is a shorthand for the 'and'
-form, as and is usually the common case
+                | (:version string minimum-version-object)
 
 [ This is on a par with what ACL defsystem does.  mk-defsystem is less
 general: it has an implied dependency
@@ -476,9 +505,9 @@ component-type := :module | :file | :system | other-component-type
 
 dependency := (dependent-op {requirement}+)
 requirement := (required-op {required-component}+)
-             | (test-feature feature-name)
+             | (feature feature-name)
 dependent-op := operation-name
-required-op := operation-name | test-feature
+required-op := operation-name | feature
 
 For example
 

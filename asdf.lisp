@@ -159,6 +159,9 @@ and NIL NAME and TYPE components"
        (component-pathname it)
        *default-pathname-defaults*))
 
+(defgeneric component-relative-pathname (component)
+  (:documentation "Extracts the relative pathname applicable for a particular component."))
+   
 (defmethod component-relative-pathname ((component module))
   (or (slot-value component 'relative-pathname)
       (make-pathname
@@ -169,8 +172,12 @@ and NIL NAME and TYPE components"
   (let ((*default-pathname-defaults* (component-parent-pathname component)))
     (merge-pathnames (component-relative-pathname component))))
 
+(defgeneric component-property (component property))
+
 (defmethod component-property ((c component) property)
   (cdr (assoc property (slot-value c 'properties))))
+
+(defgeneric (setf component-property) (new-value component property))
 
 (defmethod (setf component-property) (new-value (c component) property)
   (let ((a (assoc property (slot-value c 'properties))))
@@ -203,6 +210,8 @@ and NIL NAME and TYPE components"
 	(incf words)
 	(unless end (return list))
 	(setf start (1+ end)))))))
+
+(defgeneric version-satisfies (component version))
 
 (defmethod version-satisfies ((c component) version)
   (unless (and version (slot-boundp c 'version))
@@ -365,16 +374,23 @@ system."))
   (let ((args (operation-original-initargs o)))
     (apply #'make-instance type :parent o :original-initargs args args)))
 
+(defgeneric visit-component (operation component))
 
 (defmethod visit-component ((o operation) (c component))
   (pushnew (node-for o c)
 	   (operation-visited-nodes (operation-ancestor o))
 	   :test 'equal))
 
+(defgeneric component-visited-p (operation component))
+  
 (defmethod component-visited-p ((o operation) (c component))
   (member (node-for o c)
 	  (operation-visited-nodes (operation-ancestor o))
 	  :test 'equal))
+
+(defgeneric (setf visiting-component) (new-value operation component))
+
+(defmethod (setf visiting-component) (new-value operation component))
 
 (defmethod (setf visiting-component) (new-value (o operation) (c component))
   (let ((node (node-for o c))
@@ -383,6 +399,8 @@ system."))
 	(pushnew node (operation-visiting-nodes a) :test 'equal)
 	(setf (operation-visiting-nodes a)
 	      (remove node  (operation-visiting-nodes a) :test 'equal)))))
+
+(defgeneric component-visiting-p (operation component))
 
 (defmethod component-visiting-p ((o operation) (c component))
   (let ((node (cons o c)))
@@ -436,38 +454,22 @@ system."))
 			      (error 'missing-dependency :required-by c
 				     :version required-v
 				     :requires required-c))))
-	       (traverse op dep-c function)))
-	   (do-every-dep (op deps)
-	     (dolist (d deps)
-	       (do-dep op  d)))
-	   (do-first-dep (op deps)
-	     (block found
-	       (dolist (d deps)
-		 (handler-case
-		     (do-dep op d)
-		   (missing-dependency (c)
-		     (declare (ignore c))
-		     (return-from found nil)))
-		 (error 'missing-dependency
-			:version nil :required-by c :requires deps))))
+	       (traverse op dep-c function)))	   	   
 	   (do-dep (op dep)
-	     (when (eq op 'feature)
-	       (return-from do-dep
-		 (or (member (car dep) *features*)
-		     (error 'missing-dependency :required-by c
-			    :requires (car dep) :version nil))))
-	     (cond 
-	       ((consp dep)
-		(case (car dep)
-		  (and (do-every-dep op (cdr dep)))
-		  (or (do-first-dep op (cdr dep)))
-		  (version
-		   (destructuring-bind (ignore name version-object) dep
-		     (declare (ignore ignore))
-		     (do-one-dep op name version-object)))
-		  ;; if we had a list with unrecognised car, assume 'and'
-		  (t (do-every-dep op dep))))
-	       (t (do-one-dep op dep nil)))))
+	     (cond ((eq op 'feature)
+		    (or (member (car dep) *features*)
+			(error 'missing-dependency :required-by c
+			       :requires (car dep) :version nil)))
+		   (t (dolist (d dep)
+			(cond ((consp d)
+			       (assert (string-equal
+					(symbol-name (first d))
+					"VERSION"))
+			       (do-one-dep op (second d) (third d)))
+			      (t
+			       (do-one-dep op d nil))))))))    
+    (when (component-visited-p operation c)
+      (return-from traverse nil)) ;; been here before
     ;; dependencies
     (if (component-visiting-p operation c)
 	(error 'circular-dependency :components (list c)))
@@ -492,17 +494,16 @@ system."))
 		   (not at-least-one))
 	  (error error))))
     ;; now the thing itself
-    (unless (component-visited-p operation c)
-      (if (or (operation-forced-p operation)
-	      (not (operation-done-p operation c)))
-	  (loop
-	   (restart-case 
-	       (progn (funcall function operation c)
-		      (return))
-	     (retry-component ())
-	     (skip-component () (return)))))
-      (setf (visiting-component operation c) nil)	      
-      (visit-component operation c))))
+    (if (or (operation-forced-p operation)
+	    (not (operation-done-p operation c)))
+	(loop
+	 (restart-case 
+	     (progn (funcall function operation c)
+		    (return))
+	   (retry-component ())
+	   (skip-component () (return)))))
+    (setf (visiting-component operation c) nil)	      
+    (visit-component operation c)))
 
 (defmethod perform ((operation operation) (c source-file))
   (sysdef-error
