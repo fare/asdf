@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.42 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.43 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.42 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.43 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -595,7 +595,8 @@ system."))
 	       :initform *compile-file-failure-behaviour*)))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
-  (setf (component-property c 'last-compiled) nil))
+  (setf (component-property c 'last-compiled) nil)
+  (map nil #'ensure-directories-exist (output-files operation c)))
 
 (defmethod perform :after ((operation compile-op) (c source-file))
   (when (output-files operation c)

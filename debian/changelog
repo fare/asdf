@@ -1,3 +1,9 @@
+cl-asdf (1.43-1) unstable; urgency=low
+
+  * New upstream version
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Tue, 17 Sep 2002 10:34:57 -0600
+
 cl-asdf (1.42-2) unstable; urgency=low
 
   * Add reregister-common-lisp-implementations call when installing cl-asdf.
