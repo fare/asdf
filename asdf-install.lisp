@@ -135,8 +135,12 @@ an immediate concern
 				  (subseq line (1+ colon))))))
        stream))))
 
-(defun download (package-name file-name)
-  (let ((url (format nil "http://www.cliki.net/~A?download" package-name)))
+(defun download (package-name-or-url file-name)
+  (let ((url
+	 (if (string-equal package-name-or-url "http://"
+			   :end1 7)
+	     package-name-or-url
+	     (format nil "http://www.cliki.net/~A?download" package-name))))
     (destructuring-bind (response headers stream)
 	(block got
 	  (loop
@@ -249,8 +253,14 @@ an immediate concern
 
 (defvar *temporary-files*)
 (defun temp-file-name (p)
-  (merge-pathnames (make-pathname :type "asdf-install-tmp")
-		   (merge-pathnames p)))
+  (let* ((pos-slash (position #\/ p :from-end t))
+	 (pos-dot (position #\. p :start (or pos-slash 0))))
+    (merge-pathnames
+     (make-pathname
+      :name (subseq p (if pos-slash (1+ pos-slash) 0) pos-dot)
+      :type "asdf-install-tmp"))))
+		     
+
 
 (defun run (&optional (packages (cdr *posix-argv*)))
   (destructuring-bind (source system name) (where)
