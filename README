@@ -1,4 +1,4 @@
-$Id: README,v 1.28 2003/02/04 17:01:24 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.29 2003/02/08 15:31:15 dan_b Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -519,7 +519,7 @@ option := :components component-list
 	| :output-files  method-form
         | :operation-done-p method-form
         | :depends-on ( {simple-component-name}* ) 
-	| :serialize [ t | nil ]
+	| :serial [ t | nil ]
         | :in-order-to ( {dependency}+ )
 
 component-list := ( {component-def}* )
@@ -566,6 +566,24 @@ supports :before methods, they may not do what you want them to - a
 :before method on perform ((op compile-op) (c (eql ...)))  will run
 after all the dependencies and sub-components have been processed, but
 before the component in question has been compiled.
+
+**** Serial dependencies
+
+If the `:serial t' option is specified for a module, asdf will add
+dependencies for each each child component, on all the children
+textually preceding it.  This is done as if by :depends-on
+
+:components ((:file "a") (:file "b") (:file "c"))
+:serial t
+
+is equivalent to
+:components ((:file "a") 
+	     (:file "b" :depends-on ("a"))
+	     (:file "c" :depends-on ("a" "b")))
+
+
+
+have all the 
 
 **** Source location
 

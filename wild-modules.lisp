@@ -7,9 +7,9 @@
                       :initform nil :initarg :component-options)))
 
 (defmethod (setf module-components) (new-value (module wild-module))
-  (declare (ignore new-value))
-  (sysdef-error "Cannot explicitly set wild-module ~A's components. Please ~
-use a wild pathname instead." module))
+  (when  new-value
+    (sysdef-error "Cannot explicitly set wild-module ~A's components. Please ~
+use a wild pathname instead." module)))
 
 (defmethod reinitialize-instance :after ((self wild-module) &key)
   (let ((pathname (slot-value self 'relative-pathname)))
