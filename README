@@ -1,4 +1,4 @@
-$Id: README,v 1.37 2004/05/16 18:19:54 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.38 2004/07/19 21:18:07 crhodes Exp $         -*- Text -*-
 
 The canonical documentation for asdf is in the file asdf.texinfo.  
 The significant overlap between this file and that will one day be
@@ -619,11 +619,12 @@ interactively re-evaluates that form
 
 It is an error to define a system incorrectly: an implementation may
 detect this and signal a generalised instance of
-SYSTEM-DEFINITION-ERROR
+SYSTEM-DEFINITION-ERROR.
 
 Operations may go wrong (for example when source files contain
 errors).  These are signalled using generalised instances of
-OPERATION-ERROR
+OPERATION-ERROR, with condition readers ERROR-COMPONENT and
+ERROR-OPERATION for the component and operation which erred.
 
 * Compilation error and warning handling
 

@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.85 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.86 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -90,6 +90,7 @@
 	   #:*asdf-revision*
 	   
 	   #:operation-error #:compile-failed #:compile-warned #:compile-error
+	   #:error-component #:error-operation
 	   #:system-definition-error 
 	   #:missing-component
 	   #:missing-dependency
@@ -107,7 +108,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.85 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.86 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
