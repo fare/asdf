@@ -56,17 +56,22 @@
 
 (defmethod perform :after ((operation compile-system) (dso unix-dso))
   (let ((dso-name (unix-name (car (output-files operation dso)))))
-    (if (zerop
-	 (run-shell-command
-	  "gcc -shared -o ~S ~{~S ~}"
-	  dso-name
-	  (mapcar #'unix-name
-		  (mapcan (lambda (c)
-			    (output-files operation c))
-			  (module-components dso)))))
-	#+sbcl (sb-sys::load-1-foreign dso-name)
-	#+cmu (system::load-object-file filename)
-	(error 'operation-error :operation operation :component dso))))
+    (unless (zerop
+	     (run-shell-command
+	      "gcc -shared -o ~S ~{~S ~}"
+	      dso-name
+	      (mapcar #'unix-name
+		      (mapcan (lambda (c)
+				(output-files operation c))
+			      (module-components dso)))))
+      (error 'operation-error :operation operation :component dso))))
+
+(defmethod perform ((operation load-system) (dso unix-dso))
+  (let ((dso-name (unix-name (car (output-files
+				   (make-instance 'compile-system) dso)))))
+    #+sbcl (sb-sys::load-1-foreign dso-name)
+    #+cmu (system::load-object-file dso-name)))
+	
 
 ;;; if this goes into the standard asdf, it could reasonably be extended
 ;;; to allow cflags to be set somehow
@@ -81,6 +86,9 @@
 			      (unix-name (component-pathname c))))
     (error 'operation-error :operation op :component c)))
 
+(defmethod perform ((operation load-system) (c c-source-file))
+  t)
+  
 (defmethod perform ((o load-system) (c unix-dso))
   (let ((co (make-instance 'compile-system)))
     (perform co c)
@@ -90,8 +98,7 @@
 
 (defsystem db-sockets
     :source-pathname #p"cl-library:db-sockets;"
-    :components ((:file "defpackage"
-			:in-order-to ((compile-system (load-system "def-to-lisp"))))
+    :components ((:file "defpackage" :depends-on ("rt"))
 		 (:file "split" :depends-on ("defpackage"))
 		 (:unix-dso "alien"
 			    :components ((:file "undefs.c")
@@ -107,7 +114,7 @@
 						 "foreign-glue"))))
 		 (:file "sockets"
 			:in-order-to ((compile-system
-				       (load-system "malloc" "split"))))
+				       (load-system "constants"))))
 		 
 		 (:file "sockopt" :depends-on ("sockets"))
 		 (:file "inet" :depends-on ("sockets" "split"  "constants" ))
