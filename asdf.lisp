@@ -617,7 +617,7 @@ Returns the new tree (which probably shares structure with the old one)"
 	      ;; remove-keys form.  important to keep them in sync
 	      components pathname default-component-class
 	      perform explain output-files operation-done-p
-	      depends-on serialize in-order-to
+	      depends-on serialize in-order-to class
 	      ;; list ends
 	      &allow-other-keys) options
     (declare (ignore serialize))
@@ -625,7 +625,9 @@ Returns the new tree (which probably shares structure with the old one)"
 	    (let* ((other-args (remove-keys
 				'(components pathname default-component-class
 				  perform explain output-files operation-done-p
-				  depends-on serialize in-order-to)
+				  depends-on serialize in-order-to
+				  ;; XXX I seem to need this
+				  class)
 				rest))
 		   (ret
 		    (or (find-component parent name)
