@@ -1,3 +1,10 @@
+cl-asdf (1.38) unstable; urgency=low
+
+  * New upstream version
+  * Re-add register and unregister clc-source for cclan
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Wed, 11 Sep 2002 13:39:51 -0600
+
 cl-asdf (1.35-1) unstable; urgency=low
 
   * Comment call to register and unregister clc-source until new
