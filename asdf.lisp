@@ -21,6 +21,7 @@
 	   #:component-relative-pathname
 	   #:component-name
 	   #:component-version
+
 	   #:component-depends-on
 	   
 	   #:*component-parent-pathname* ; variables
@@ -43,6 +44,13 @@
   ())
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components)))
+(define-condition missing-dependency (system-definition-error)
+  ((requires :initarg :requires :reader requires)
+   (required-by :initarg :required-by :reader required-by))
+  (:report (lambda (c s)
+	     (format s "unsatisfied dependency: component ~S requires ~S"
+		     (required-by c) (requires c)))))
+
 (define-condition system-not-found (system-definition-error)
   ((name :initform "(unnamed)" :reader system-name  :initarg :name))
   (:report (lambda (c s)
@@ -65,13 +73,15 @@
   ((name :type string :accessor component-name :initarg :name :documentation
 	 "Component name, restricted to portable pathname characters")
    (version :accessor component-version :initarg :version)
-   (depends-on :initform nil
-	       :accessor component-depends-on :initarg :depends-on)
+   ;; the defsystem syntax allows us to define EQL methods with our
+   ;; components.  We must keep track of them all so we can get rid of
+   ;; them if need be when the defsystem form is re-evaluated
+   (inline-methods :initform nil :initarg :inline-methods)
+   (in-order-to :initform nil :initarg :in-order-to)
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
-
-   ;; :pathname is actually a realy bad choice of name for this slot,
-   ;; because quite often that's not what we actually use it for
+   ;; (:pathname is actually a really bad choice of name for this slot,
+   ;; because quite often that's not what we actually use it for)
    (pathname :initarg :pathname)))
 
 (defmethod component-pathname  ((component component))
@@ -143,29 +153,34 @@
 ;;; one of these is instantiated whenever (operate ) is called
 
 (defclass operation ()
-  ((forced-p :initform nil :initarg :force :accessor operation-forced-p )
-   (visited-components :initform nil :accessor operation-visited-components)
-   (visiting-components :initform nil :accessor operation-visiting-components)))
+  ((forced-p :initform nil :initarg :force :accessor operation-forced-p )))
 
 (defgeneric perform (operation system))
 (defgeneric operation-done-p (operation system))
 (defgeneric explain (operation system))
 (defgeneric output-files (operation system))
 
+(defvar *visited-nodes* nil)
+(defvar *visiting-nodes* nil)
+
+(defun node-for (o c)
+  (cons (class-name (class-of o)) c))
+
 (defmethod visit-component ((o operation) (c component))
-  (pushnew c (operation-visited-components o)))
+  (pushnew (node-for o c) *visited-nodes* :test 'equal))
 
 (defmethod component-visited-p ((o operation) (c component))
-  (member c (operation-visited-components o)))
+  (member (node-for o c) *visited-nodes* :test 'equal))
 
 (defmethod (setf visiting-component) (new-value (o operation) (c component))
-  (if new-value
-      (pushnew c (operation-visiting-components o))
-      (setf (operation-visiting-components o)
-	    (remove c (operation-visiting-components o)))))
+  (let ((node (node-for o c)))
+    (if new-value
+	(pushnew node *visiting-nodes* :test 'equal)
+	(setf *visiting-nodes* (remove node *visiting-nodes* :test 'equal)))))
 
 (defmethod component-visiting-p ((o operation) (c component))
-  (member c (operation-visiting-components o)))
+  (let ((node (cons o c)))
+    (member node *visiting-nodes* :test 'equal)))
 
 ;;; this needs a new name.  should be operation-needs-doing-p
 (defmethod operation-done-p ((o operation) (c source-file))
@@ -183,26 +198,43 @@
   ;;; can't tell easily
   nil)
 
+(defgeneric component-depends-on (operation component))
+
+(defmethod component-depends-on ((o operation) (c component))
+  (let ((raw-form
+	 (cdr (assoc (class-name (class-of o))
+		     (slot-value c 'in-order-to)))))
+    (loop for (op . components) in raw-form
+	  append (mapcar (lambda (x) (list op x)) components))))
+
+
 ;;; So you look at this code and think "why isn't it a bunch of
 ;;; methods".  And the answer is, because standard method combination
 ;;; runs :before methods most->least-specific, which is back to front
-;;; for our purposes.  And CLISP apparently doesn't have non-standard
-;;; method combinations, so let's keep it simple and aspire to
-;;; portability
+;;; for our purposes.  And CLISP doesn't have non-standard method
+;;; combinations, so let's keep it simple and aspire to portability
 
 (defmethod traverse ((operation operation) (c component) function)
   ; dependencies
-  (if (and nil (component-visiting-p operation c))
+  (if (component-visiting-p operation c)
       (error 'circular-dependency :components (list c)))
   (setf (visiting-component operation c) t)
-  (mapc (lambda (k)
-	  (traverse operation (find-component *component-parent* k)
-		    function))
-	(component-depends-on c))
+  (loop for (prereq-op  prereq-c) in
+	(component-depends-on operation c)
+	;; this operation instantiation thing sucks somewhat, as we don't
+	;; transfer arguments in any meaningful way.  if compile calls
+	;; load calls compile, how do we still have the original proclamations?
+	do (let ((op (if (subtypep (type-of operation) prereq-op)
+			 operation
+			 (make-instance prereq-op :force
+					(operation-forced-p operation))))
+		 (dep-c (or (find-component *component-parent* prereq-c)
+			    (error 'missing-dependency :required-by c
+				   :requires prereq-c))))
+	     (traverse op dep-c function)))
   ;; constituent bits
   (when (typep c 'module)
-    (let ((*component-parent-pathname*
-	   (component-pathname c))
+    (let ((*component-parent-pathname* (component-pathname c))
 	  (*component-parent* c))
       (mapc (lambda (c) (traverse operation c function))
 	    (module-components c))))
@@ -263,6 +295,11 @@
 
 (defclass load-system (operation) ())
 
+(defmethod component-depends-on ((operation load-system) (c component))
+  (cons
+   (list 'compile-system (component-name c))
+   (call-next-method)))
+
 (defmethod perform ((o load-system) (c cl-source-file))
   (let ((co (make-instance 'compile-system)))
     (load (car (output-files co c)))))
@@ -311,6 +348,8 @@
 (defun oos (operation-class system &rest args)
   (let ((op (apply #'make-instance operation-class args))
 	(*component-parent-pathname* *default-pathname-defaults*)
+	(*visiting-nodes* nil)
+	(*visited-nodes* nil)
 	(*component-parent* nil)
 	(system (if (typep system 'component) system (find-system system))))
     (traverse op system 'perform)))
@@ -321,6 +360,7 @@
 (defvar *defined-systems* (make-hash-table :test 'equal))
 (defparameter *central-registry*
   '(*default-pathname-defaults*
+    "/home/dan/src/sourceforge/cclan/asdf/systems/"
     "telent:asdf;systems;"))
 
 (defun find-system (name)
@@ -391,6 +431,8 @@ default constituent type.
 		(t (intern (symbol-name keyword) *package*)))))
     (let ((instance (or (find-component parent-component name)
 			(make-instance class :name name))))
+      (mapc (lambda (x) (remove-method (car x) (cdr x)))
+	    (slot-value instance 'inline-methods))
       (apply #'reinitialize-instance
 	     instance
 	     :name name (process-option-list instance args))
@@ -402,8 +444,25 @@ default constituent type.
 	 (lambda (i)
 	   (if (consp i)
 	       (create-instance-for-component c (first i) (second i) (cddr i))
-	       (create-instance-for-component c :file (second i) nil)))
+	       (create-instance-for-component c :file i nil)))
 	 value)))
+
+#|
+(defun add-dependency (component our-op their-op them)
+  (let ((method
+	 ;; tacky, but if you dont have the MOP, what can you do?
+	 (eval `(defmethod depends-on list ((operation ,our-op)
+					    (component (eql ,component)))
+		 (mapcar (lambda (X) (list (quote ,their-op) (
+		 (cons (quote ,their-op) (quote ,them))))))
+    (pushnew method (slot-value component 'inline-methods))))
+
+(defmethod process-option ((c component) (option (eql :in-order-to)) value)
+  (loop for rest on value by #'cddr
+	do (add-dependency c (first rest) (car (second rest))
+			   (cdr (second rest)))))
+
+|#
 
 ;;; optional extras
 
@@ -425,3 +484,7 @@ default constituent type.
 ;;; mk-compatibility
 (defmethod process-option ((c component) (option (eql :source-pathname)) value)
   (list :pathname value))
+
+;;; mk not-very-compatibility
+(defmethod process-option ((c component) (option (eql :depends-on)) value)
+  nil)
