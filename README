@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.8 2002/02/11 14:01:49 dan_b Exp $
+$Id: README,v 1.9 2002/02/12 12:24:00 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -24,12 +24,8 @@ the grunt work.
 asdf is extensible to new operations and to new component types.  This
 allows the addition of behaviours: for example, a new component could
 be added for Java JAR archives, and methods specialised on
-compile-system added for it that would accomplish the relevant
+compile-op added for it that would accomplish the relevant
 actions.
-
-asdf is not presently extensible to new syntax (for example, to
-emulate other defsystem utilities), but that's on the cards for a
-future version.
 
 * Inspiration
 
@@ -79,10 +75,8 @@ Available in updated-for-CL form on the web at
 http://world.std.com/~pitman/Papers/Large-Systems.html
 
 In our implementation we borrow kmp's overall PROCESS-OPTIONS and
-PROCESS-OPTION concepts to deal with creating component trees from
-defsystem surface syntax.  We haven't yet decided whether or how to
-present this to users (i.e to specify it) but that will probably
-happen one way or another.
+concept to deal with creating component trees from defsystem surface
+syntax.
 
 * component
 
@@ -105,12 +99,12 @@ and the method that you use to ask about dependencies
 Dependencies are between (operation component) pairs.  In your
 initargs, you can say
 
-:in-order-to ((compile-system (load-system "a" "b") (compile-system "c"))
-	      (load-system (load-system "foo")))
+:in-order-to ((compile-op (load-op "a" "b") (compile-op "c"))
+	      (load-op (load-op "foo")))
 
-- before performing the compile-system operation on this component, we
-must perform the load-system operation on each of "a" and "b", and
-before performing load-system, we have to load "foo"
+- before performing compile-op on this component, we must perform
+load-op on each of "a" and "b", and before performing load-op, we have
+to load "foo"
 
 [ This is pretty similar to what ACL defsystem does.  mk-defsystem is
 less general: it has an implied dependency 
@@ -129,7 +123,7 @@ In asdf, the dependency information for a given component and
 operation can be queried using (depends-on operation component), which
 returns a list
 
-((load-system "a") (load-system "b") (compile-system "c") ...)
+((load-op "a") (load-op "b") (compile-op "c") ...)
 
 depends-on can be subclassed for more specific component/operation
 types: these need to (call-next-method) and append the answer to their
@@ -140,25 +134,34 @@ the default dependencies
 do this transparently.  But, we need to support CLISP.  If you have
 the time for some CLISP hacking, I'm sure they'd welcome your fixes)
 
-*** a filesystem location
+*** a pathname
 
 Optional, may be inferred from name, type (the subclass of
 source-file), and location of parent.
 
 The rules for this inference are:
 
+(for source-files)
 - the host is taken from the parent
-- the pathname type is (rassoc classname *known-extensions* :test 'equal)
+- pathname type is (rassoc classname  *known-extensions* :test 'equal)
 - the pathname case option is :local
 - the pathname is merged against the parent
 
-[ Pathname case can be controlled by some per-component option whose 
-name I have not yet decided ]
+(for modules)
+- the host is taken from the parent
+- the name and type are NIL
+- the directory is (:relative component-name)
+- the pathname case option is :local
+- the pathname is merged against the parent
 
 Note that a component doesn't actually have any references to its
 parent, so this inference will only be valid in the context of a
 system operation (a special variable is bound to the location of
 the parent while a child is processed)
+
+Note that the DEFSYSTEM operator (used to create a "top-level" system)
+does additional processing to set the filesystem location of the
+top component in that system.  This is detailed elsewhere
 
 ** components are subclassed into 
 
@@ -211,7 +214,7 @@ defined to accept.
 
 ** standard operations
 
-*** compile-system &key proclamations
+*** compile-op &key proclamations
 
 The definition of `compile' is "do everything that we can do to make
 subsequent loads (in a new image that we didn't do the compile in)"
@@ -220,9 +223,9 @@ faster.
 If proclamations are supplied, they will be proclaimed.  This is a
 good place to specify optimization settings
 
-*** load-system
+*** load-op
 
-This is the `do everything' operation.  It depends on compile-system.
+This is the `do everything' operation.  It depends on compile-op.
 
 *** test-system-version &key minimum
 
@@ -259,55 +262,137 @@ subclass operation, provide methods for source-file for
 
 * System definitions
 
-** Finding them
+** System designators
 
-(find-system name) => a MODULE object
+Strings and symbols are treated as system designators.  They are
+transformed into actual system objects using
 
-Systems are named by strings.  If a system is not present in memory
-when asked for, attempts are made to load a file which is expected to
-define it.  This file has the name of the system, the type "system",
-and is looked for in each of the directories given by evaluating 
-members of *central-registry*
+(find-system system-designator) => a MODULE object
 
-A system may also be referred to by symbol.  In this case the symbol
-name is taken before a lookup is performed.
+In the case of a symbol, 
+- the symbol name is taken
+- if the system name is monocase and not in customary case for the
+   filesystem, its case is inverted
+
+No case translation is done for systems named by strings
+
+This attempts to find the system in a file on the disk.  This file has
+the name of the system, the type "system", and is looked for in each
+of the directories given by evaluating members of *central-registry*.
+The first matching file is considered, whether or not it turns out to
+actually define the appropriate system
+
+If a suitable file exists, it is loaded if
+
+- there is no system of that name in memory, 
+- the file's last-modified time exceeds the last-modified time of the
+  system in memory
 
 When system definitions are loaded from .system files, a new scratch
-package is created for them to load into, so that different systems
-do not overwrite each others operations.  The user may also wish 
-to include defpackage and in-package forms in his system definition
-files, however, so that they can be loaded manually if need be.
+package is created for them to load into, so that different systems do
+not overwrite each others operations.  The user may also wish to (and
+is recommended to) include defpackage and in-package forms in his
+system definition files, however, so that they can be loaded manually
+if need be.
+
 
 ** Syntax
 
-There is a defsystem form which looks basically similar to
-mk-defsystem syntax
+Systems can always be constructed programmatically by instantiating
+components using make-instance.  For most purposes, however, it is
+likely that people will want a static defystem form. 
 
-We extend the defsystem syntax to allow for eql-specialised methods on
-components -
+asdf has `pluggable syntax', based around the principle that
+components should not have to know defsystem syntax.  That is, the
+initargs that a component accepts are not necessarily related to the
+defsystem form which creates it.  defsystem forms are parsed by
+methods of generic functions which can be specialised for new
+syntaxes.
 
-  :module "foo" :components ("bar" "baz" "quux")
-	         :perform (compile-system :after (op c)
-			   (do-something c))
-		 :explain (compile-system :after (op c)
-			   (explain-something c))
+A defsystem parser must implement a `defsystem' macro, which can
+be named for compatibility with whatever other system definition
+utility is being emualted.  It probably would look something like this:
 
+(defmacro mk:defsystem (name &rest options)
+  (parse-component-form mk-syntax ,name ,options))
+
+Internally the parser implements a method for parse-component-form,
+which is called in the following fashion:
+
+(parse-component-form syntax parent '(:module name :op1 val1 :op2 (blah blah)))
+
+It should return a component.  It gets the parent component available
+to it, and should test whether the component to be created already
+exists (as it might in a system redefinition) and update it in place
+if so
+
+[ Why are we specifying this?  The complete parsing is under the
+control of the person who implements a defsystem macro: given that we
+don't even do the recursion for him, is there any point in our
+specifying a protocol that he should use?  Useful stuff we could 
+write, though, is the interface that the defsystem form thus created
+should use to register the new system where find-system can get at it ]
+
+
+** Native syntax
+
+The native syntax is inspired by mk-defsystem, to the extent that it
+should be possible to take most straightforward mk- system definitions
+and run them unchanged.  For my convenience, this turns out to be
+basically the same as the initargs to the various components, with
+a few extensions for convenience
+               
+system-definition := ( defsystem system-designator {option}* )
+
+option := :components component-list
+        | :pathname pathname
+        | :default-component-class
+        | :perform method-form 
+        | :explain method-form
+	| :output-files  method-form
+        | :operation-done-p method-form
+        | :depends-on ( {simple-component-name}* ) 
+	| :serialize [ t | nil ]
+        | :in-order-to 
+
+component-list := ( {component-def}* )
+                
+component-def  := simple-component-name
+                | ( component-type name {option}* )
+
+component-type := :module | :file | :system | other-component-type
+
+
+For example
+
+(defsystem "foo"
+  :components ((:module "foo" :components (:serial "bar" "baz" "quux")
+	        :perform (compile-op :after (op c)
+			  (do-something c))
+		:explain (compile-op :after (op c)
+			  (explain-something c)))
+               (:file "blah")))
+
+
+The method-form tokens need explaining: esentially, 
+
+	        :perform (compile-op :after (op c)
+			  (do-something c))
+		:explain (compile-op :after (op c)
+			  (explain-something c)))
 has the effect of
 
-(defmethod perform :after ((op compile-system) (c (eql ...)))
+(defmethod perform :after ((op compile-op) (c (eql ...)))
 	   (do-something c))
-(defmethod explain :after ((op compile-system) (c (eql ...)))
+(defmethod explain :after ((op compile-op) (c (eql ...)))
 	   (explain-something c))
 
 where ... is the component in question; note that while :before
 methods are also supported by this, they may not do what you want them
-do (a :before method on perform ((op compile-system) (c (eql ...)))
+do (a :before method on perform ((op compile-op) (c (eql ...)))
 will run after all the dependencies and sub-components have been
 processed, but before the component in question has been
-compiled). The mk-alike :initially-do and :finally-do may be what you
-are looking for.
-
-How do we convert the defsystem form into a system?  
+compiled).
 
 * Error handling
 
@@ -319,31 +404,26 @@ Operations may go wrong (for example when source files contain
 errors).  These are signalled using generalised instances of
 OPERATION-ERROR
 
+
 ----------------------------------------------------------
                       TODO List
 ----------------------------------------------------------
 
-
-defsystem is a macro that basically hands off its arguments to
-parse-module-definition.  parse-system-definition
-
-
-
 * Outstanding spec questions, things to add
 
-** Finding code: ":source-pathname " is not really good enough unless
- LPNs suddenly develop union filesystem semantics
+** initially-do
 
-[ We're looking to get the effect of search lists: "try here, here or
-here" ]
+The mk-alike :initially-do and :finally-do are ugly, but are they
+doing anything that's (a) useful, and (b) not convenient with
+:perform :after?
 
 ** case-sensitivity wrt filenames
 
-Convention is to refer to systems with symbols, which means they end
-up being named by uppercase strings.  To find a .system file we
-(make-pathname :name name :type "SYSTEM" :case :common) ("use the file
-system's customary case") which translates this uppercase into
-whatever case is nicest (lowercase for sbcl on unix)
+Presently we do no case munging except for symbols in find-system.  To
+find a .system file we (make-pathname :name name :type "SYSTEM" :case
+:common) ("use the file system's customary case") which translates
+this uppercase into whatever case is nicest (lowercase for sbcl on
+unix)
 
 We have excitingly chunky rules for merging component names, which
 need to be documented.  Oh, and implemented.
@@ -351,45 +431,22 @@ need to be documented.  Oh, and implemented.
 ** symbols vs strings
 
 Warn the user that they should either use keywords or be careful with
-the package that they evaluate defsystem forms in
+the package that they evaluate defsystem forms in.  Otherwise
+(defsystem partition ...) being read in the cl-user package will
+intern a cl-user:partition symbol, which will then collide with the
+partition:partition symbol
 
-<Krystof> You don't want to have (defsystem partition ...) being read in the
-+cl-user package
-<Krystof> Because that will intern a cl-user:partition symbol
-<rahul> yeah, accidental interning could be a problem
-<Krystof> Which will then collide with the partition:partition symbol
-<Krystof> Hence (defsystem :partition ...)
+** error reporting
 
-** defsystem syntax
-*** export process-option-list?
-*** shortcut to setting up dependencies using :serial, :parallel
-  options.
-*** split into native syntax and mixin for mk- syntax extras
-
-** compiler/loader options
-
-verbosity, proclamations, etc.  would be nice to be able to override
-or supplement this per-component as well
-
-** the :pathname argument is misnamed
-
-As demonstrated by the way we split it into name and type ourselves
-instead of using parse-namestring (to avoid the problem that "foo.lisp"
-is an absolute directory when treated as an LPN).  As it doesn't behave
-like a pathname, we shouldn't fool the user into thinking it is one
-
-I think we should lose its funny behaviour and introduce a :type option
-
+Need an explicit error for "dependency missing" and "required version
+of dependency missing" so that we can fit this to an automated
+dependency downloading thing
 
 * missing bits in implementation
 ** all of the above
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** defsystem syntax for EQL methods
 ** versions
-** operation instantiation in traverse sucks 
-
-we don't transfer arguments from one op to the next in any meaningful
-way.  if compile calls load calls compile, how do we access the
-original proclamations?
-
 ** test suite, insofar as it makes sense
+** compiler/loader options
+ verbosity, proclamations, etc: do this with specials
