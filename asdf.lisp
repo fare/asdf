@@ -193,6 +193,8 @@ system."))
 					 (component-system component))))))
 
 (defclass static-file (source-file) ())
+(defclass html-file (static-file) ())
+(defmethod source-file-type ((c html-file) (s module)) "html")
 (defmethod source-file-type ((c static-file) (s module)) nil)
 
 
