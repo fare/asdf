@@ -6,7 +6,7 @@
 # - quit with exit status >0 if an unhandled error occurs
 LISP="sbcl --noprogrammer"
 
-# file extension that compiling fiels with $LISP will use
+# file extension that $LISP uses for compiled files
 FASL=fasl
 
 rm *.$FASL || true
@@ -20,4 +20,4 @@ do
     exit 1
   fi
 done
-
+echo "All tests apparently successful"
