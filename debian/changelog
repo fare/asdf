@@ -1,3 +1,10 @@
+cl-asdf (1.66) unstable; urgency=low
+
+  * New upstream version, added changes to dependent system
+  compilations with :force option.
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Mon, 17 Mar 2003 12:50:00 -0700
+
 cl-asdf (1.62) unstable; urgency=low
 
   * New upstream, fixes a sbcl-specific directory name
