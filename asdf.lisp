@@ -1,3 +1,37 @@
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.30 $
+;;;
+;;; The canonical source for asdf is presently the cCLan CVS repository,
+;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
+;;;
+;;; If you obtained this copy from anywhere else, and you experience
+;;; trouble using it, or find bugs, you may want to check at the
+;;; location above for a more recent version (and for documentation
+;;; and test files, if your copy came without them) before reporting
+;;; bugs.  There are usually two "supported" revisions - the CVS HEAD
+;;; is the latest development version, whereas the revision tagged
+;;; RELEASE may be slightly older but is considered `stable'
+
+;;; Copyright (c) 2001, 2002 Daniel Barlow and contributors
+;;;
+;;; Permission is hereby granted, free of charge, to any person obtaining
+;;; a copy of this software and associated documentation files (the
+;;; "Software"), to deal in the Software without restriction, including
+;;; without limitation the rights to use, copy, modify, merge, publish,
+;;; distribute, sublicense, and/or sell copies of the Software, and to
+;;; permit persons to whom the Software is furnished to do so, subject to
+;;; the following conditions:
+;;;
+;;; The above copyright notice and this permission notice shall be
+;;; included in all copies or substantial portions of the Software.
+;;;
+;;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+;;; EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+;;; MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+;;; NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+;;; LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+;;; OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+;;; WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 ;;; the problem with writing a defsystem replacement is bootstrapping:
 ;;; we can't use defsystem to compile it.  Hence, all in one file
 
@@ -29,6 +63,7 @@
 	   #:component-name
 	   #:component-version
 	   #:component-parent
+	   #:component-property
 	   
 	   #:component-depends-on
 	   
