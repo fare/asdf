@@ -1,7 +1,9 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.41 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.42 $
 ;;;
-;;; The canonical source for asdf is presently the cCLan CVS repository,
-;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
+;;; Feedback, bug reports, and patches are all welcome: please mail to
+;;; <cclan-list@lists.sf.net>.  But note first that the canonical
+;;; source for asdf is presently the cCLan CVS repository at
+;;; <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
 ;;;
 ;;; If you obtained this copy from anywhere else, and you experience
 ;;; trouble using it, or find bugs, you may want to check at the
@@ -86,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.41 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.42 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -449,7 +451,9 @@ system."))
 
 (defgeneric (setf visiting-component) (new-value operation component))
 
-(defmethod (setf visiting-component) (new-value operation component))
+(defmethod (setf visiting-component) (new-value operation component)
+  ;; MCL complains about unused lexical variables
+  (declare (ignorable new-value operation component)))
 
 (defmethod (setf visiting-component) (new-value (o operation) (c component))
   (let ((node (node-for o c))
