@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.45 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.46 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -88,7 +88,7 @@
 (in-package #:asdf)
 
 ;;; parse the cvs revision into something that might be vaguely useful.  
-(defvar *asdf-revision* (let* ((v "$Revision: 1.45 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.46 $")
 			       (colon (position #\: v))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -918,6 +918,16 @@ output to *trace-output*.  Returns the shell's exit code."
     ;; XXX determined the return value of this by experimentation, it
     ;;  doesn't seem to be documented
     (ext:run-shell-command  command :output :terminal :wait t)))
+
+#+openmcl
+(defun run-shell-command (control-string &rest args)
+  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
+synchronously execute the result using a Bourne-compatible shell, with
+output to *trace-output*.  Returns the shell's exit code."
+  (let ((command (apply #'format nil control-string args)))
+    (format *trace-output* "; $ ~A~%" command)
+    (ccl:run-program "/bin/sh" (list "-c" command)
+		     :input nil :output *trace-output* :wait t)))
 
 
 (pushnew :asdf *features*)
