@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.33 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.34 $
 ;;;
 ;;; The canonical source for asdf is presently the cCLan CVS repository,
 ;;; at <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
@@ -71,7 +71,7 @@
 	   ;#:*component-parent-pathname* 
 	   #:*central-registry*		; variables
 	   
-	   #:operation-error #:compile-failed #:compile-warned
+	   #:operation-error #:compile-failed #:compile-warned #:compile-error
 	   #:system-definition-error 
 	   #:missing-component
 	   #:missing-dependency
@@ -79,13 +79,27 @@
 	   )
   (:use :cl))
 
+#+nil
+(error "The author of this file habitually uses #+nil to comment out forms.  But don't worry, it was unlikely to work in the New Implementation of Lisp anyway")
+
+
 (in-package #:asdf)
+
+;;; parse the cvs revision into something that might be vaguely useful.  
+(defvar *asdf-revision* (let* ((v "$Revision: 1.34 $")
+			       (colon (position #\: v))
+			       (dot (position #\. v)))
+			  (and v colon dot 
+			       (list (parse-integer v :start (1+ colon)
+						    :junk-allowed t)
+				     (parse-integer v :start (1+ dot)
+						    :junk-allowed t)))))
 
 (proclaim '(optimize (debug 3)))
 (declaim (optimize (debug 3)))
 
 (defvar  *compile-file-warnings-behaviour* :warn)
-(defvar  *compile-file-failure-behaviour* :error)
+(defvar  *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility stuff
@@ -101,7 +115,15 @@ and NIL NAME and TYPE components"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; classes, condiitons
 
-(define-condition system-definition-error (error) ())
+(define-condition system-definition-error (error) ()
+  ;; [this use of :report should be redundant, but unfortunately it's not.
+  ;; cmucl's lisp::output-instance prefers the kernel:slot-class-print-function
+  ;; over print-object; this is always conditions::%print-condition for
+  ;; condition objects, which in turn does inheritance of :report options at
+  ;; run-time.  fortunately, inheritance means we only need this kludge here in
+  ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
+  #+cmu (:report print-object))
+
 (define-condition formatted-system-definition-error (system-definition-error)
   ((format-control :initarg :format-control :reader format-control)
    (format-arguments :initarg :format-arguments :reader format-arguments))
@@ -125,8 +147,9 @@ and NIL NAME and TYPE components"
   (:report (lambda (c s)
 	     (format s "Erred while invoking ~A on ~A"
 		     (error-operation c) (error-component c)))))
-(define-condition compile-failed (operation-error) ())
-(define-condition compile-warned (operation-error) ())
+(define-condition compile-error (operation-error) ())
+(define-condition compile-failed (compile-error) ())
+(define-condition compile-warned (compile-error) ())
 
 (defclass component ()
   ((name :type string :accessor component-name :initarg :name :documentation
@@ -566,19 +589,23 @@ system."))
 		:initform *compile-file-warnings-behaviour*)
    (on-failure :initarg :on-failure :accessor operation-on-failure
 	       :initform *compile-file-failure-behaviour*)))
-   
+
+(defmethod perform :before ((operation compile-op) (c source-file))
+  (setf (component-property c 'last-compiled) nil))
+
+(defmethod perform :after ((operation compile-op) (c source-file))
+  (setf (component-property c 'last-compiled)
+	(file-write-date (car (output-files operation c)))))
 
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
 (defmethod perform ((operation compile-op) (c cl-source-file))
   (let ((source-file (component-pathname c))
 	(output-file (car (output-files operation c))))
-    (setf (component-property c 'last-compiled) nil)
     (multiple-value-bind (output warnings-p failure-p)
 	(compile-file source-file
 		      :output-file output-file)
       (declare (ignore output))
-      (setf (component-property c 'last-compiled) (file-write-date output-file))
       (when warnings-p
 	(case (operation-on-warnings operation)
 	  (:warn (warn "COMPILE-FILE warned while performing ~A on ~A"
@@ -590,7 +617,9 @@ system."))
 	  (:warn (warn "COMPILE-FILE failed while performing ~A on ~A"
 		       c operation))
 	  (:error (error 'compile-failed :component c :operation operation))
-	  (:ignore nil))))))
+	  (:ignore nil)))
+      (unless output
+	(error 'compile-error :component c :operation operation)))))
 
 (defmethod output-files ((operation compile-op) (c cl-source-file))
   (list (compile-file-pathname (component-pathname c))))
@@ -605,26 +634,15 @@ system."))
 
 (defclass load-op (operation) ())
 
+(defmethod perform :after ((o load-op) (c source-file))
+  (let ((output-files (output-files co c)))
+    (setf (component-property c 'last-loaded) 
+	  (file-write-date (car output-files)))))
+
 (defmethod perform ((o load-op) (c cl-source-file))
   (let* ((co (make-sub-operation o 'compile-op))
 	(output-files (output-files co c)))
-    (setf (component-property c 'last-loaded) 
-	  (if (some #'not (map 'list #'load output-files))
-	      nil
-	      (file-write-date (car output-files))))))
-
-;;; >>>> Added KMR 8/02
-;;; Add load-source-op for cl-source-file as documented in README
-(defclass load-source-op (operation) ())
-(defmethod perform ((o load-source-op) (c cl-source-file))
-  (let* ((output-files (output-files o c)))
-    (setf (component-property c 'last-loaded) 
-	  (if (some #'not (map 'list #'load output-files))
-	      nil
-	      (file-write-date (car output-files))))))
-(defmethod output-files ((operation load-source-op) (c component))
-  (list (component-pathname c)))
-;;; <<<< End KMR
+    (mapcar #'load output-files)))
 
 (defmethod perform ((operation load-op) (c static-file))
   nil)
@@ -648,6 +666,20 @@ system."))
 	     (component-property c 'last-loaded)))
       nil t))
 
+;;; load-source-op
+
+(defclass load-source-op (operation) ())
+
+(defmethod perform ((o load-source-op) (c cl-source-file))
+  (load (component-pathname c)))
+
+;;; morally dubious, this
+(defmethod perform :after ((o load-source-op) (c source-file))
+  (setf (component-property c 'last-loaded) 
+	(file-write-date (component-pathname c))))
+
+;;; TODO: operation-done-p for load-source-op, what _should_ the answer be?
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -657,7 +689,8 @@ system."))
   (let ((op (apply #'make-instance operation-class
 		   :original-initargs args args))
 	(system (if (typep system 'component) system (find-system system))))
-    (traverse op system 'perform)))
+    (with-compilation-unit ()
+      (traverse op system 'perform))))
 
 (defun oos (&rest args)
   "Alias of OPERATE function"
