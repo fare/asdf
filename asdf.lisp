@@ -447,23 +447,6 @@ default constituent type.
 	       (create-instance-for-component c :file i nil)))
 	 value)))
 
-#|
-(defun add-dependency (component our-op their-op them)
-  (let ((method
-	 ;; tacky, but if you dont have the MOP, what can you do?
-	 (eval `(defmethod depends-on list ((operation ,our-op)
-					    (component (eql ,component)))
-		 (mapcar (lambda (X) (list (quote ,their-op) (
-		 (cons (quote ,their-op) (quote ,them))))))
-    (pushnew method (slot-value component 'inline-methods))))
-
-(defmethod process-option ((c component) (option (eql :in-order-to)) value)
-  (loop for rest on value by #'cddr
-	do (add-dependency c (first rest) (car (second rest))
-			   (cdr (second rest)))))
-
-|#
-
 ;;; optional extras
 
 ;;; run-shell-command functions for other lisp implementations will be
@@ -485,6 +468,5 @@ default constituent type.
 (defmethod process-option ((c component) (option (eql :source-pathname)) value)
   (list :pathname value))
 
-;;; mk not-very-compatibility
 (defmethod process-option ((c component) (option (eql :depends-on)) value)
-  nil)
+  (list :in-order-to `((compile-system (load-system ,@value)))))
