@@ -1,0 +1,19 @@
+rSource: cl-asdf
+Section: devel
+Priority: optional
+Maintainer: Kevin M. Rosenberg <kmr@debian.org>
+Build-Depends-Indep: debhelper (>> 4.0.0)
+Standards-Version: 3.5.6.1
+
+Package: cl-asdf
+Architecture: all
+Depends: ${shlibs:Depends}, cmucl-normal | lisp-compiler
+Recommends: common-lisp-controller
+Description: Another System Definition Facility
+ asdf provides a "make" type functions for Common Lisp packages. It
+ provides compilation and loading features for complex Lisp systems
+ with multiple modules and files. It is similar in concept to, but
+ with features different from, "defsystem" which is included in the
+ common-lisp-controller package. Unlike defsystem3 in CLC, asdf is
+ object-oriented and extensible.
+

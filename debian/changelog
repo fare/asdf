@@ -1,0 +1,12 @@
+cl-asdf (0.0+cvs.2002.08.15-2) unstable; urgency=low
+
+  * Expand description in control file.
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Sat, 17 Aug 2002 14:25:33 -0600
+
+cl-asdf (0.0+cvs.2002.08.15-1) unstable; urgency=low
+
+  * Initial Release (closes: 157009)
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Fri, 16 Aug 2002 23:14:49 -0600
+

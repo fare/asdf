@@ -1,0 +1,14 @@
+Debian Package cl-asdf
+----------------------
+
+This package was created for Debian by Kevin M. Rosenberg
+<kmr@debian.org> in Aug 2002.  The URL for asdf is
+http://www.telent.net/cliki/asdf. The README file has details
+about the use of asdf.
+
+To load asdf into your Lisp system, give the command
+(load "/usr/share/common-lisp/source/asdf/asdf.lisp")
+
+Additionally, there is an optional module that you can load
+with the command
+(load "/usr/share/common-lisp/source/asdf/wild-modules.lisp")
