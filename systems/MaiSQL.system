@@ -5,7 +5,7 @@
 ;;;; MaiSQL.system --- System definition for MaiSQL
 ;;;; 
 ;;;; Checkout Tag: $Name:  $
-;;;; $Id: MaiSQL.system,v 1.1 2001/08/01 17:52:50 dan_b Exp $
+;;;; $Id: MaiSQL.system,v 1.1.1.1 2001/08/01 17:52:50 dan_b Exp $
 
 #+CLISP
 (in-package "USER")
