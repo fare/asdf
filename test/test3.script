@@ -6,7 +6,7 @@
 (in-package :asdf)
 (handler-case 
     (asdf:oos 'asdf:load-op 'test3)
-  (missing-dependency (c)
+  (asdf:missing-dependency (c)
     (format t "first test failed as expected: - ~%~A~%" c))
   (:no-error (c) (error "should have failed, oops")))
 (pushnew :f1 *features*)
