@@ -1,3 +1,9 @@
+cl-asdf (1.81-1) unstable; urgency=low
+
+  * New upstream
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Tue, 30 Dec 2003 12:12:38 -0700
+
 cl-asdf (1.80-1) unstable; urgency=low
 
   * New upstream
