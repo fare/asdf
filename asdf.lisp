@@ -740,4 +740,4 @@ output to *trace-output*.  Returns the shell's exit code."
       (list  "-c" command)
       :input nil :output *trace-output*))))
 
-
+(pushnew :asdf *features*)
