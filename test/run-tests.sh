@@ -4,10 +4,12 @@
 # - read lisp forms one at a time from standard input
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
+#LISP="/usr/local/bin/lisp -batch "
 LISP="sbcl --noprogrammer"
 
 # file extension that $LISP uses for compiled files
 FASL=fasl
+#FASL=axpf
 
 rm *.$FASL || true
 for i in *.script; 
