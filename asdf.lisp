@@ -15,6 +15,8 @@
 	   
 	   #:component #:module #:source-file 
 	   #:c-source-file #:cl-source-file #:java-source-file
+	   #:static-file
+	   #:source-file-type
 	   #:module			; components
 	   #:unix-dso
 	   
@@ -193,10 +195,7 @@ system."))
 					 (component-system component))))))
 
 (defclass static-file (source-file) ())
-(defclass html-file (static-file) ())
-(defmethod source-file-type ((c html-file) (s module)) "html")
 (defmethod source-file-type ((c static-file) (s module)) nil)
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; operations
