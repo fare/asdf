@@ -55,18 +55,18 @@
 		    :defaults dir))))
 
 (defmethod perform :after ((operation compile-system) (dso unix-dso))
-	   (let ((dso-name (unix-name (car (output-files operation dso)))))
-	     (if (zerop
-		  (run-shell-command
-		   "gcc -shared -o ~S ~{~S ~}"
-		   dso-name
-		   (mapcar #'unix-name
-			   (mapcan (lambda (c)
-				     (output-files operation c))
-				   (module-components dso)))))
-		 #+sbcl (sb-sys::load-1-foreign dso-name)
-		 #+cmu (system::load-object-file filename)
-		 (error 'operation-error :operation operation :component dso))))
+  (let ((dso-name (unix-name (car (output-files operation dso)))))
+    (if (zerop
+	 (run-shell-command
+	  "gcc -shared -o ~S ~{~S ~}"
+	  dso-name
+	  (mapcar #'unix-name
+		  (mapcan (lambda (c)
+			    (output-files operation c))
+			  (module-components dso)))))
+	#+sbcl (sb-sys::load-1-foreign dso-name)
+	#+cmu (system::load-object-file filename)
+	(error 'operation-error :operation operation :component dso))))
 
 ;;; if this goes into the standard asdf, it could reasonably be extended
 ;;; to allow cflags to be set somehow
