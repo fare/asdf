@@ -421,7 +421,7 @@ system."))
       ;;
       ;; asdf:component is explicitly here to be shadowed later on.
       `(let ((component (or (cdr (gethash ,name *defined-systems*))
-		    (make-instance 'module :name ,name  ))))
+			    (make-instance 'module :name ,name  ))))
 	(setf (gethash ,name *defined-systems*) (cons 0 component))
 	(let (,@bindings) ; yes, I know this is the same as let ,bindings
 	  (reinitialize-instance component :name ,name ,@initargs))))))
