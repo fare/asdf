@@ -23,9 +23,9 @@ set -e
 
 case "$1" in
     configure)
-	#if [ -x /usr/sbin/clc-reregister-all-impl ]; then
-	#    /usr/sbin/clc-reregister-all-impl
-	#fi
+	if [ -x /usr/sbin/clc-reregister-all-impl ]; then
+	    /usr/sbin/clc-reregister-all-impl
+	fi
 	;;
     abort-upgrade|abort-remove|abort-deconfigure)
 	;;
