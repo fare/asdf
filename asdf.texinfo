@@ -1,6 +1,6 @@
 \input texinfo          @c -*- texinfo -*-
 @c %**start of header
-@setfilename asdf.texinfo
+@setfilename asdf.info
 @settitle asdf Manual
 @c %**end of header
 
