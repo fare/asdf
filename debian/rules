@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 # GNU copyright 1997 to 1999 by Joey Hess.
 
-# This is the debhelper compatibility version to use.
+# This is the dbhelper compatibility version to use.
 export DH_COMPAT=4
 
 pkg=cl-asdf
@@ -41,9 +41,10 @@ install: build
 	dh_installdirs
 
 	# Add here commands to install the package into debian/asdf.
-	dh_installdirs -p $(pkg) $(asdf-files) $(doc-dir) 
+	dh_installdirs -p $(pkg) $(asdf-files) $(doc-dir)/examples
 	dh_install -p $(pkg) asdf.lisp wild-modules.lisp $(asdf-files)
-	dh_install -p $(pkg) test $(doc-dir)
+	chmod +x test/run-tests.sh
+	dh_install -p $(pkg) test/* $(doc-dir)/examples
 	dh_installdirs -p $(pkg-cclan) $(clc-systems) $(cclan-files)
 	dh_install -p $(pkg-cclan) cclan-package.lisp cclan.lisp cclan.asd $(cclan-files)
 	dh_link -p $(pkg-cclan) $(cclan-files)/cclan.asd $(clc-systems)/cclan.asd
