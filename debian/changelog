@@ -2,7 +2,7 @@ cl-asdf (1.42-1) unstable; urgency=low
 
   * Add 'reregister-common-lisp-implementations' call to cl-asdf.postinst
 
- --
+ -- Kevin M. Rosenberg <kmr@debian.org>  Sat, 14 Sep 2002 11:59:58 -0600
 
 cl-asdf (1.42) unstable; urgency=low
 
