@@ -1,3 +1,9 @@
+cl-asdf (1.69) unstable; urgency=low
+
+  * Add check-component-values function with partial checking of components
+
+ -- Kevin M. Rosenberg <kmr@debian.org>  Tue,  6 May 2003 08:26:11 -0600
+
 cl-asdf (1.68) unstable; urgency=low
 
   * New upstream with 'asdf:test-op 

@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.68 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.69 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -89,7 +89,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.68 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.69 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -889,6 +889,7 @@ Returns the new tree (which probably shares structure with the old one)"
 	      depends-on serial in-order-to
 	      ;; list ends
 	      &allow-other-keys) options
+    (check-component-input type name depends-on components)
     (let* ((other-args (remove-keys
 			'(components pathname default-component-class
 			  perform explain output-files operation-done-p
@@ -942,6 +943,16 @@ Returns the new tree (which probably shares structure with the old one)"
 			  ,@body))
 		  (component-inline-methods ret))))
       ret)))
+
+(defun check-component-input (type name depends-on components)
+  "A partial test of the values of a component."
+  (unless (listp depends-on)
+    (error
+     ":depends-on must be a list.~&The value for ~(~A~) ~A is ~W" type name depends-on))
+  (unless (and (listp components) (listp (car components)))
+    (error
+     ":components must be NIL or a list of lists.~&The value for ~(~A~) ~A is ~W"
+     type name components)))
 
 
 (defun resolve-symlinks (path)
