@@ -118,6 +118,15 @@ properties
 This chapter describes how to use asdf to compile and load ready-made
 Lisp programs and libraries.
 
+@section Downloading asdf
+
+Some Lisp implementations (such as SBCL and OpenMCL) some with asdf
+included already, so there is no need to download it separately.
+Consult your Lisp system's documentation.  If you need to download
+asdf and install it by hand, the canonical source is the cCLan CVS
+repository at
+@url{http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/}.
+
 @section Setting up asdf
 
 The single file @file{asdf.lisp} is all you need to use asdf normally.
@@ -144,7 +153,7 @@ init file, for example:
 
 @section Setting up a system to be loaded
 
-To compile and load a system, you need to ensure that a symlink to its
+To compile and load a system, you need to ensure that a symbolic link to its
 system definition is in one of the directories in
 @code{*central-registry*}@footnote{It is possible to customize the
 system definition file search.  That's considered advanced use, and
@@ -200,9 +209,15 @@ more practical to use a static @code{defsystem} form.  This section
 begins with an example of a system definition, then gives the full
 grammar of @code{defsystem}.
 
-Let's look at a simple system:
+Let's look at a simple system.  This is a complete file that would
+usually be saved as @file{hello-lisp.asd}:
 
 @lisp
+(defpackage hello-lisp-system
+  (:use :common-lisp :asdf))
+
+(in-package :hello-lisp-system)
+
 (defsystem "hello-lisp"
     :description "hello-lisp: a sample Lisp system."
     :version "0.2"
@@ -216,9 +231,20 @@ Let's look at a simple system:
 Some notes about this example:
 
 @itemize
+
 @item
-This form defines a system named "hello-lisp" that contains three
-source files: @file{packages}, @file{macros} and @file{hello}.
+The file starts with @code{defpackage} and @code{in-package} forms to
+make and use a package expressly for defining this system in.  This
+package is named by taking the system name and suffixing
+@code{-system} - note that it is @emph{not} the same package as you
+will use for the application code.
+
+This is not absolutely required by asdf, but helps avoid namespace
+pollution and so is considered good form. 
+
+@item
+The defsystem form defines a system named "hello-lisp" that contains
+three source files: @file{packages}, @file{macros} and @file{hello}.
 
 @item
 The file @file{macros} depends on @file{packages} (presumably because
@@ -231,7 +257,7 @@ file @file{hello}.
 
 @item
 The files are located in the same directory as the file with the
-system definition.  asdf resolves symlinks before loading the system
+system definition.  asdf resolves symbolic links before loading the system
 definition file and stores its location in the resulting
 system@footnote{It is possible, though almost never necessary, to
 override this behaviour.}.  This is a good thing because the user can
@@ -1118,11 +1144,13 @@ However, our architecture for extensibility better exploits CL
 language features (and is documented), and we intend to be portable
 rather than just widely-ported.  No slight on the mk-defsystem authors
 and maintainers is intended here; that implementation has the
-unenviable task of supporting non-ANSI implementations, which I
-propose to ignore.
+unenviable task of supporting pre-ANSI implementations, which is 
+no longer necessary.
 
 The surface defsystem syntax of asdf is more-or-less compatible with
-mk-defsystem
+mk-defsystem, except that we do not support the @code{source-foo} and
+@code{binary-foo} prefixes for separating source and binary files, and 
+we advise the removal of all options to specify pathnames.
 
 The mk-defsystem code for topologically sorting a module's dependency
 list was very useful.
