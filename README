@@ -1,4 +1,4 @@
-$Id: README,v 1.21 2002/06/19 18:38:52 dan_b Exp $         -*- Text -*-
+$Id: README,v 1.22 2002/08/23 20:54:08 kevinrosenberg Exp $         -*- Text -*-
 
 
 asdf: another system definition facility          
@@ -388,8 +388,10 @@ so too
 
 **** load-source-op
 
-Sometimes systems have knotty dependencies which require that sources
-are loaded before they can be compiled.  This is how you do that.
+This method will load the source for the files in a module even if the
+source files have been compiled. Systems sometimes have knotty
+dependencies which require that sources are loaded before they can be
+compiled.  This is how you do that.
 
 If you are creating a component type, you need to implement this
 operation - at least, where meaningful.
