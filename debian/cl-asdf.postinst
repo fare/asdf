@@ -23,7 +23,7 @@ set -e
 
 case "$1" in
     configure)
-	/usr/bin/reregister-common-lisp-implementions
+	/usr/sbin/reregister-common-lisp-implementations
 	;;
     abort-upgrade|abort-remove|abort-deconfigure)
 	;;
