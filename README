@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.5 2001/08/06 01:10:05 dan_b Exp $
+$Id: README,v 1.6 2001/08/06 12:51:02 dan_b Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -351,8 +351,11 @@ with symbols and depend on :case :common to map them into customary case.
 *** shortcut to setting up dependencies using :serial, :parallel
   options.
 *** split into native syntax and mixin for mk- syntax extras
-*** reintroduce :depends-on or some other succint form of dependency 
-  specification
+
+** compiler/loader options
+
+verbosity, proclamations, etc.  would be nice to be able to override
+or supplement this per-component as well
 
 ** the :pathname argument is misnamed
 
@@ -366,8 +369,10 @@ like a pathname, we shouldn't fool the user into thinking it is one
 ** reuse the same scratch package whenever a system is reloaded from disk
 ** defsystem syntax for EQL methods
 ** versions
-** traverse
+** operation instantiation in traverse sucks 
 
-this operation instantiation thing sucks somewhat, as we don't
-transfer arguments in any meaningful way.  if compile calls load calls
-compile, how do we access the original proclamations?
+we don't transfer arguments from one op to the next in any meaningful
+way.  if compile calls load calls compile, how do we access the
+original proclamations?
+
+** test suite, insofar as it makes sense
