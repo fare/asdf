@@ -214,8 +214,10 @@
 ;;; for our purposes.  And CLISP doesn't have non-standard method
 ;;; combinations, so let's keep it simple and aspire to portability
 
-(defmethod traverse ((operation operation) (c component) function)
-  ; dependencies
+;;; we enforce that function is a symbol to allow us to specialize on
+;;; (eql 'perform) and (eql 'explain) for :before and :after
+(defmethod traverse ((operation operation) (c component) (function symbol))
+  ;; dependencies
   (if (component-visiting-p operation c)
       (error 'circular-dependency :components (list c)))
   (setf (visiting-component operation c) t)
@@ -283,10 +285,7 @@
       (when (and warnings-p (operation-fail-on-warning-p operation))
 	(error 'compile-warned :component c :operation operation))
       (when (and failure-p (operation-fail-on-error-p operation))
-	(error 'compile-failed :component c :operation operation))
-      ;; now load the file.  this is a hack which will go away when we
-      ;; work out dependencies properly
-      (load output))))
+	(error 'compile-failed :component c :operation operation)))))
 
 (defmethod output-files ((operation compile-system) (c cl-source-file))
   (list (compile-file-pathname (component-pathname c))))
@@ -393,20 +392,27 @@
 ;;; syntax
 
 (defmacro defsystem (name &body options)
-  (let* ((name (if (symbolp name) (symbol-name name) name))
-	 (args `(:name ,name (process-option-list m (quote ,options)))))
-    ;; this macro is called (sic) during executing of find-system, so
-    ;; we had better not call find-system recursively
-    `(let ((m (or (cdr (gethash ,name *defined-systems*))
-		  (make-instance 'module :name ,name  ))))
-      (setf (gethash ,name *defined-systems*) (cons 0 m))
-      (apply #'reinitialize-instance m  ,@args))))
+  (let ((name (if (symbolp name) (symbol-name name) name)))
+    (multiple-value-bind (initargs bindings)
+        (process-option-list options)
+      ;; this macro is called (sic) during executing of find-system, so
+      ;; we had better not call find-system recursively
+      ;;
+      ;; asdf:component is explicitly here to be shadowed later on.
+      `(let ((component (or (cdr (gethash ,name *defined-systems*))
+		    (make-instance 'module :name ,name  ))))
+	(setf (gethash ,name *defined-systems*) (cons 0 component))
+	(let (,@bindings) ; yes, I know this is the same as let ,bindings
+	  (reinitialize-instance component :name ,name ,@initargs))))))
 
-(defmethod process-option-list ((c component) options)
+(defmethod process-option-list (options)
   (loop for (name value) on options by #'cddr
-	append (process-option c name value)))
+        for (i b) = (multiple-value-list (process-option name value))
+	append i into initargs
+        if b append b into bindings
+        finally (return (values initargs bindings))))
 
-(defmethod process-option ((c component) option  value)
+(defmethod process-option (option  value)
   (list option value))
 
 
@@ -418,34 +424,43 @@ created.  If a type is not provided, it will default to the parent's
 default constituent type.
 |#
 
-(defun create-instance-for-component (parent-component keyword name args)
-  (let* ((name-bits (split name 2 '(#\.)))
-	 (name (car name-bits))
-	 (extension (second name-bits))
-	 (class
-	  (cond ((eq keyword :file)
-		 (if extension
-		     (cdr (assoc extension *known-extensions* :test 'equal))
-		     (module-default-component-class parent-component)))
-		((eq keyword :module) 'module)
-		(t (intern (symbol-name keyword) *package*)))))
-    (let ((instance (or (find-component parent-component name)
-			(make-instance class :name name))))
-      (mapc (lambda (x) (remove-method (car x) (cdr x)))
-	    (slot-value instance 'inline-methods))
-      (apply #'reinitialize-instance
-	     instance
-	     :name name (process-option-list instance args))
-      instance)))
+(defun create-instance-for-component (keyword name args)
+  (multiple-value-bind (initargs bindings)
+      (process-option-list args)
+    `(let* ((name-bits (split ,name 2 '(#\.)))
+           (name (car name-bits))
+           (extension (second name-bits))
+           (class
+            (cond ((eq ,keyword :file)
+                   (if extension
+                       (cdr (assoc extension *known-extensions* :test 'equal))
+                       (module-default-component-class m)))
+                  ((eq ,keyword :module) 'module)
+                  (t (intern (symbol-name ,keyword) *package*)))))
+      ;; here's where we use asdf:component. This is probably a
+      ;; documentable feature of the implementation (`option
+      ;; processing may use asdf:component to refer to the parent
+      ;; thingy; and MUST bind asdf:component to the current thingy
+      ;; before doing recursive processing').
+      (let ((component (or (find-component component name)
+			   (make-instance class :name name))))
+	(let (,@bindings)
+	  (reinitialize-instance component :name name ,@initargs)
+	  component)))))
 
-(defmethod process-option ((c component) (option (eql :components)) value)
-  (list :components
-	(mapcar
-	 (lambda (i)
-	   (if (consp i)
-	       (create-instance-for-component c (first i) (second i) (cddr i))
-	       (create-instance-for-component c :file i nil)))
-	 value)))
+(defmethod process-option ((option (eql :components)) value)
+  ;; we don't want to shadow asdf::cs
+  (let ((cs (gensym "CS")))
+    (values
+     (list :components cs)
+     (list (list cs
+		 (list* 'list
+			(mapcar
+			 (lambda (i)
+			   (if (consp i)
+			       (create-instance-for-component (first i) (second i) (cddr i))
+			       (create-instance-for-component :file i nil)))
+			 value)))))))
 
 ;;; optional extras
 
@@ -464,9 +479,53 @@ default constituent type.
       (list  "-c" command)
       :input nil :output *trace-output*))))
 
+(defmethod process-option ((option (eql :perform)) value)
+  (destructuring-bind
+	(op-specializer combination (op c) &body body)
+      value
+    (values
+     nil
+     `((#:ignore
+	(defmethod perform ,combination ((,op ,op-specializer) (,c (eql component)))
+	  ,@body))))))
+
+(defmethod process-option ((option (eql :explain)) value)
+  (destructuring-bind
+	(op-specializer combination (op c) &body body)
+      value
+    (values
+     nil
+     `((#:ignore
+	(defmethod explain ,combination ((,op ,op-specializer) (,c (eql component)))
+	  ,@body))))))
+
 ;;; mk-compatibility
-(defmethod process-option ((c component) (option (eql :source-pathname)) value)
+(defmethod process-option ((option (eql :source-pathname)) value)
   (list :pathname value))
 
-(defmethod process-option ((c component) (option (eql :depends-on)) value)
+(defmethod process-option ((option (eql :depends-on)) value)
   (list :in-order-to `((compile-system (load-system ,@value)))))
+
+;;; initially-do (and finally-do) may need to be moved out of
+;;; mk-compatibility (or maybe renamed first...)
+(defmethod process-option ((option (eql :initially-do)) value)
+  (let ((op (gensym "OPERATION"))
+	(c (gensym "COMPONENT"))
+	(f (gensym "FUNCTION")))
+    (values
+     nil ; no initargs needed -- functionality is in the method.
+     `((#:ignore
+	;; look, ma! No explicit coercion or compilation needed! Also
+	;; note that we are using the asdf:component thing.
+	(defmethod traverse :before ((,op compile-system) (,c (eql component)) (,f (eql 'perform)))
+	  ,value))))))
+		  
+(defmethod process-option ((option (eql :finally-do)) value)
+  (let ((op (gensym "OPERATION"))
+	(c (gensym "COMPONENT"))
+	(f (gensym "FUNCTION")))
+    (values
+     nil ; no initargs needed
+     `((#:ignore
+	(defmethod traverse :after ((,op load-system) (,c (eql component)) (,f (eql 'perform)))
+	  ,value))))))

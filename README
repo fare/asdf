@@ -1,6 +1,6 @@
 asdf: another system definition facility                 -*- Text -*-
 
-$Id: README,v 1.6 2001/08/06 12:51:02 dan_b Exp $
+$Id: README,v 1.7 2001/08/20 12:36:13 crhodes Exp $
 
 This system definition utility talks in terms of 'components' and
 'operations'.
@@ -275,10 +275,10 @@ mk-defsystem syntax
 We extend the defsystem syntax to allow for eql-specialised methods on
 components -
 
-  (:module "foo" (:components "bar" "baz" "quux")
-	         (:perform compile-system :after (op c)
+  :module "foo" :components ("bar" "baz" "quux")
+	         :perform (compile-system :after (op c)
 			   (do-something c))
-		 (:explain compile-system :after (op c)
+		 :explain (compile-system :after (op c)
 			   (explain-something c))
 
 has the effect of
@@ -288,7 +288,13 @@ has the effect of
 (defmethod explain :after ((op compile-system) (c (eql ...)))
 	   (explain-something c))
 
-where ... is the component in question
+where ... is the component in question; note that while :before
+methods are also supported by this, they may not do what you want them
+do (a :before method on perform ((op compile-system) (c (eql ...)))
+will run after all the dependencies and sub-components have been
+processed, but before the component in question has been
+compiled). The mk-alike :initially-do and :finally-do may be what you
+are looking for.
 
 ** shorthand for source-file components
 
