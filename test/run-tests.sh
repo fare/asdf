@@ -25,12 +25,12 @@ set -e
 
 if type sbcl 
 then 
-  do_tests "sbcl --userinit /dev/null --noprogrammer" fasl 
+  do_tests "sbcl --userinit /dev/null --sysinit /dev/null --noprogrammer" fasl 
 fi
 
 if [ -x /usr/bin/lisp ]
 then 
-  do_tests "/usr/bin/lisp -batch" x86f
+  do_tests "/usr/bin/lisp -batch -noinit" x86f
 fi
 
 if [ -x /usr/bin/clisp ]

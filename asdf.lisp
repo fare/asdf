@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.75 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.76 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -72,13 +72,21 @@
 	   
 	   #:component-depends-on
 
+	   #:system-description
+	   #:system-long-description
+	   #:system-author
+	   #:system-maintainer
+	   #:system-license
+	   
 	   #:operation-on-warnings
 	   #:operation-on-failure
 	   
 	   ;#:*component-parent-pathname* 
+	   #:*system-definition-search-functions*
 	   #:*central-registry*		; variables
 	   #:*compile-file-warnings-behaviour*
 	   #:*compile-file-failure-behaviour*
+	   #:*asdf-revision*
 	   
 	   #:operation-error #:compile-failed #:compile-warned #:compile-error
 	   #:system-definition-error 
@@ -94,7 +102,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.75 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.76 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -251,22 +259,21 @@ and NIL NAME and TYPE components"
 (defgeneric component-property (component property))
 
 (defmethod component-property ((c component) property)
-  (cdr (assoc property (slot-value c 'properties))))
+  (cdr (assoc property (slot-value c 'properties) :test #'equal)))
 
 (defgeneric (setf component-property) (new-value component property))
 
 (defmethod (setf component-property) (new-value (c component) property)
-  (let ((a (assoc property (slot-value c 'properties))))
+  (let ((a (assoc property (slot-value c 'properties) :test #'equal)))
     (if a
 	(setf (cdr a) new-value)
 	(setf (slot-value c 'properties)
 	      (acons property new-value (slot-value c 'properties))))))
 
-
-
 (defclass system (module)
   ((description :accessor system-description :initarg :description)
-   (long-description :accessor long-description :initarg :long-description)
+   (long-description
+    :accessor system-long-description :initarg :long-description)
    (author :accessor system-author :initarg :author)
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence)))
@@ -841,7 +848,7 @@ system."))
 				   :pathname
 				   (or ,pathname
 				       (pathname-sans-name+type
-					(resolve-symlinks *load-truename*))
+					(resolve-symlinks  *load-truename*))
 				       *default-pathname-defaults*)
 				   ',component-options))))))
   
