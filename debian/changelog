@@ -1,3 +1,33 @@
+cl-asdf (1.86-5) unstable; urgency=low
+
+  * Fixed duplicate components patch to better handle reloading
+    defsystem files. Now works again with McClim. Closes: #310640
+  * Corrected dependencies. 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 25 May 2005 07:27:35 +0200
+
+cl-asdf (1.86-4) unstable; urgency=low
+
+  * My release script stripped the patch. So this should really contain the
+    patch. Damn. 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 10 May 2005 14:17:51 +0200
+
+cl-asdf (1.86-3) unstable; urgency=low
+
+  * Now checks if components names are unique Closes: #304972, #304970
+  * Fix dependency on common-lisp-controller  Closes: #308385
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 10 May 2005 07:50:25 +0200
+
+cl-asdf (1.86-2) unstable; urgency=low
+
+  * New maintainer. (Closes: #297349: O: cl-asdf -- Another System
+    Definition Facility)
+  * Adopted by Peter Van Eynde
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue,  1 Mar 2005 10:11:55 +0100
+
 cl-asdf (1.86-1) unstable; urgency=low
 
   * New upstream
