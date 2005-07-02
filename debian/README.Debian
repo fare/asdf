@@ -12,3 +12,7 @@ To load asdf into your Lisp system, give the command
 Additionally, there is an optional module that you can load
 with the command
 (load "/usr/share/common-lisp/source/asdf/wild-modules.lisp")
+
+This package is build using darcs-buildpackage and the darcs archives can be
+downloaded from http://people.debian.org/~pvaneynd/repository/
+
