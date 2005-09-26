@@ -1,10 +1,12 @@
-cl-asdf (1.87-1) unstable; urgency=low
+cl-asdf (1.87-1) UNRELEASED; urgency=low
 
   * Noticed that I actually increased the version with the CVS commit
   * Updated the standards version
-  * Remove the prepare build stuff, build through darcs 
+  * Remove the prepare build stuff, build through darcs
+  * Improve duplicate names test: use equal instead of equalp.
+    From a comment from Faré.
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Fri,  1 Jul 2005 14:02:58 +0200
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 22 Sep 2005 12:52:31 +0200
 
 cl-asdf (1.86-5) unstable; urgency=low
 

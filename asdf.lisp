@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.87 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.88 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -109,7 +109,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.87 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.88 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -974,7 +974,7 @@ Returns the new tree (which probably shares structure with the old one)"
 		      do (push (component-name c) *serial-depends-on*))))
 
 	;; check for duplicate names
-	(let ((name-hash (make-hash-table :test #'equalp)))
+	(let ((name-hash (make-hash-table :test #'equal)))
 	  (loop for c in (module-components ret)
 		do
 		(if (gethash (component-name c)
