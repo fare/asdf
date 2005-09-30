@@ -68,6 +68,8 @@ binary-arch: build install
 	dh_installinfo
 #	dh_undocumented
 	dh_installchangelogs ChangeLog
+	find debian/cl-asdf -name CVS -print0 | xargs -0t rm -rf || true
+	find debian/cl-asdf -name .cvsignore -print0 | xargs -0t rm -f || true
 	dh_link
 	dh_strip
 	dh_compress

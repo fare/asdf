@@ -1,4 +1,4 @@
-cl-asdf (1.87-1) UNRELEASED; urgency=low
+cl-asdf (1.88-1) unstable; urgency=low
 
   * Noticed that I actually increased the version with the CVS commit
   * Updated the standards version
