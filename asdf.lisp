@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.88 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.89 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -109,7 +109,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.88 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.89 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -930,10 +930,11 @@ Returns the new tree (which probably shares structure with the old one)"
 	      ;; remove-keys form.  important to keep them in sync
 	      components pathname default-component-class
 	      perform explain output-files operation-done-p
+	      weakly-depends-on
 	      depends-on serial in-order-to
 	      ;; list ends
 	      &allow-other-keys) options
-    (check-component-input type name depends-on components in-order-to)
+    (check-component-input type name weakly-depends-on depends-on components in-order-to)
 
     (when (and parent
 	     (find-component parent name)
@@ -946,14 +947,17 @@ Returns the new tree (which probably shares structure with the old one)"
     (let* ((other-args (remove-keys
 			'(components pathname default-component-class
 			  perform explain output-files operation-done-p
+			  weakly-depends-on
 			  depends-on serial in-order-to)
 			rest))
 	   (ret
 	    (or (find-component parent name)
 		(make-instance (class-for-type parent type)))))
+      (when weakly-depends-on
+	(setf depends-on (append depends-on (remove-if (complement #'find-system) weakly-depends-on))))
       (when (boundp '*serial-depends-on*)
 	(setf depends-on
-	      (concatenate 'list *serial-depends-on* depends-on)))
+	      (concatenate 'list *serial-depends-on* depends-on)))      
       (apply #'reinitialize-instance
 	     ret
 	     :name (coerce-name name)
@@ -1009,11 +1013,15 @@ Returns the new tree (which probably shares structure with the old one)"
 		  (component-inline-methods ret))))
       ret)))
 
-(defun check-component-input (type name depends-on components in-order-to)
+(defun check-component-input (type name weakly-depends-on depends-on components in-order-to)
   "A partial test of the values of a component."
+  (when weakly-depends-on (warn "We got one! XXXXX"))
   (unless (listp depends-on)
     (sysdef-error-component ":depends-on must be a list."
 			    type name depends-on))
+  (unless (listp weakly-depends-on)
+    (sysdef-error-component ":weakly-depends-on must be a list."
+			    type name weakly-depends-on))
   (unless (listp components)
     (sysdef-error-component ":components must be NIL or a list of components."
 			    type name components))
