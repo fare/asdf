@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.90 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.91 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -109,7 +109,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.90 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.91 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -759,11 +759,6 @@ system."))
 (defmethod component-depends-on ((operation load-op) (c component))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
-
-(defmethod asdf:perform :after ((operation load-op) (s system))
-  "After a system is loaded by ASDF, push ASDF-SYSTEMNAME onto *features*
-This enables easy use of #+asdf-systemname and friends"
-  (pushnew (intern (format nil "ASDF-~A" (string-upcase (component-name s))) :keyword) cl:*features*))
 
 ;;; load-source-op
 
