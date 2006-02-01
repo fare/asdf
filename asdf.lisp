@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.91 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.92 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -109,7 +109,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.91 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.92 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -1115,10 +1115,17 @@ output to *verbose-out*.  Returns the shell's exit code."
 	  (asdf:operate 'asdf:load-op name)
 	  t))))
 
-  (pushnew
-   '(merge-pathnames "systems/"
-     (truename (sb-ext:posix-getenv "SBCL_HOME")))
-   *central-registry*)
+  (defun contrib-sysdef-search (system)
+    (let* ((name (coerce-name system))
+           (home (truename (sb-ext:posix-getenv "SBCL_HOME")))
+           (contrib (merge-pathnames
+                     (make-pathname :directory `(:relative ,name)
+                                    :name name
+                                    :type "asd"
+                                    :case :local
+                                    :version :newest)
+                     home)))
+      (probe-file contrib)))
   
   (pushnew
    '(merge-pathnames "site-systems/"
@@ -1130,6 +1137,7 @@ output to *verbose-out*.  Returns the shell's exit code."
      (user-homedir-pathname))
    *central-registry*)
   
-  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*))
+  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*)
+  (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
 
 (provide 'asdf)
