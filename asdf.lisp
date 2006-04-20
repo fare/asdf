@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.93 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.94 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -109,7 +109,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.93 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.94 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -442,7 +442,10 @@ system."))
 (defmethod component-relative-pathname ((component source-file))
   (let ((relative-pathname (slot-value component 'relative-pathname)))
     (if relative-pathname
-        relative-pathname
+        (merge-pathnames 
+         relative-pathname
+         (make-pathname 
+          :type (source-file-type component (component-system component))))
         (let* ((*default-pathname-defaults* 
                 (component-parent-pathname component))
                (name-type
