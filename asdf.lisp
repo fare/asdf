@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.95 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.96 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -109,7 +109,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.95 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.96 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -1076,14 +1076,15 @@ Returns the new tree (which probably shares structure with the old one)"
 (defun run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
-output to *verbose-out*.  Returns the shell's exit code."
+output to *VERBOSE-OUT*.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
     (format *verbose-out* "; $ ~A~%" command)
     #+sbcl
-    (sb-impl::process-exit-code
+    (sb-ext:process-exit-code
      (sb-ext:run-program  
-      "/bin/sh"
+      #+win32 "sh" #-win32 "/bin/sh"
       (list  "-c" command)
+      #+win32 #+win32 :search t
       :input nil :output *verbose-out*))
     
     #+(or cmu scl)
