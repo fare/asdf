@@ -1,0 +1,16 @@
+;;; -*- Lisp -*-
+(load "../asdf")
+(setf asdf:*central-registry* '(*default-pathname-defaults*))
+
+(asdf:operate 'asdf:load-op 'test-force)
+(defvar file1-date (file-write-date (compile-file-pathname "file1")))
+
+;; unforced, date should stay same
+(sleep 1)
+(asdf:operate 'asdf:load-op 'test-force)
+(assert (= (file-write-date (compile-file-pathname "file1")) file1-date))
+
+;; forced, it should be later
+(sleep 1)
+(asdf:operate 'asdf:load-op 'test-force :force t)
+(assert (> (file-write-date (compile-file-pathname "file1")) file1-date))
