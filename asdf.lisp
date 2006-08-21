@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.100 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.101 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -112,7 +112,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.100 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.101 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -946,11 +946,16 @@ system."))
   
 
 (defun class-for-type (parent type)
-  (let ((class 
-	 (find-class
-	  (or (find-symbol (symbol-name type) *package*)
-	      (find-symbol (symbol-name type) #.(package-name *package*)))
-	  nil)))
+  (let* ((extra-symbols (list (find-symbol (symbol-name type) *package*)
+                              (find-symbol (symbol-name type) 
+                                           #.(package-name *package*))))
+         (class (dolist (symbol (if (keywordp type)
+                                    extra-symbols
+                                    (cons type extra-symbols)))
+                  (when (and symbol 
+                             (find-class symbol nil)
+                             (subtypep symbol 'component))
+                    (return (find-class symbol))))))
     (or class
 	(and (eq type :file)
 	     (or (module-default-component-class parent)

@@ -35,5 +35,5 @@ fi
 
 if [ -x /usr/bin/clisp ]
 then 
-  do_tests "/usr/bin/clisp -norc -ansi -I " fas
+  do_tests "/usr/bin/clisp -norc -ansi -I - " fas
 fi

@@ -1,0 +1,10 @@
+(in-package :cl-user)
+(load "../asdf")
+
+(defun module () 1)
+
+(load "test-package.asd")
+
+(defclass module () ())
+
+(load "test-package.asd")
