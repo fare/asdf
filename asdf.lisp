@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.102 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.103 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -112,7 +112,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.102 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.103 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -872,7 +872,7 @@ system."))
   (let* ((op (apply #'make-instance operation-class
 		    :original-initargs args
 		    args))
-	 (*verbose-out* (if verbose *trace-output* (make-broadcast-stream)))
+	 (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
 	 (system (if (typep system 'component) system (find-system system))))
     (unless (version-satisfies system version)
       (error 'missing-component :requires system :version version))

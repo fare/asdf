@@ -188,6 +188,11 @@ evaluating the following form in your Lisp implementation:
 (asdf:operate 'asdf:load-op '@var{foo})
 @end example
 
+Output from asdf and asdf extensions are supposed to be sent to the CL
+stream @code{*standard-output*}, and so rebinding that stream around
+calls to @code{asdf:operate} should redirect all output from asdf
+operations.
+
 That's all you need to know to use asdf to load systems written by
 others.  The rest of this manual deals with writing system
 definitions for Lisp software you write yourself.
@@ -204,6 +209,7 @@ software.
 * The defsystem form::          
 * A more involved example::     
 * The defsystem grammar::       
+* Other code in .asd files::
 @end menu
 
 @node  The defsystem form, A more involved example, Defining systems with defsystem, Defining systems with defsystem
@@ -316,7 +322,7 @@ them to -- a @code{:before} method on perform @code{((op compile-op) (c
 have been processed, but before the component in question has been
 compiled.
 
-@node  The defsystem grammar,  , A more involved example, Defining systems with defsystem
+@node  The defsystem grammar,  Other code in .asd files, A more involved example, Defining systems with defsystem
 @comment  node-name,  next,  previous,  up
 @section The defsystem grammar
 
@@ -409,6 +415,23 @@ unbound (so that a developer can evaluate a @code{defsystem} form from
 within an editor without clobbering its source location)
 @end itemize
 
+@node Other code in .asd files, , The defsystem grammar, Defining systems with defsystem
+@section Other code in .asd files
+
+Files containing defsystem forms are regular Lisp files that are
+executed by @code{load}.  Consequently, you can put whatever Lisp code
+you like into these files (e.g., code that examines the compile-time
+environment and adds appropriate features to @code{*features*}).
+However, some conventions should be followed, so that users can
+control certain details of execution of the Lisp in .asd files:
+
+@itemize
+@item
+Any informative output (other than warnings and errors, which are the
+condition system's to dispose of) should be sent to the standard CL
+stream @code{*standard-output*}, so that users can easily control the
+disposition of output from asdf operations.
+@end itemize
 
 
 @node The object model of asdf, Error handling, Defining systems with defsystem, Top
@@ -593,6 +616,9 @@ where to put its files, because the user is allowed to override
 @item @code{operation-done-p}, if you don't like the default one
 
 @end itemize
+
+Operations that print output should send that output to the standard
+CL stream @code{*standard-output*}, as the Lisp compiler and loader do.
 
 @node Components,  , Operations, The object model of asdf
 @comment  node-name,  next,  previous,  up
