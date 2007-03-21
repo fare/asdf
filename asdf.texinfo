@@ -69,6 +69,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * The object model of asdf::    
 * Error handling::              
 * Compilation error and warning handling::  
+* Miscellaneous additional functionality::
 * Getting the latest version::  
 * TODO list::                   
 * missing bits in implementation::  
@@ -987,7 +988,7 @@ Operations may go wrong (for example when source files contain
 errors).  These are signalled using generalised instances of
 @code{OPERATION-ERROR}.
 
-@node  Compilation error and warning handling, Getting the latest version, Error handling, Top
+@node  Compilation error and warning handling, Miscellaneous additional functionality, Error handling, Top
 @comment  node-name,  next,  previous,  up
 @chapter Compilation error and warning handling
 @vindex *compile-file-warnings-behaviour*
@@ -999,7 +1000,39 @@ variables @code{*compile-file-warnings-behaviour*} and
 such events. The valid values for these variables are @code{:error},
 @code{:warn}, and @code{:ignore}.
 
-@node Getting the latest version, TODO list, Compilation error and warning handling, Top
+@node  Miscellaneous additional functionality, Getting the latest version, Compilation error and warning handling, Top
+@comment  node-name,  next,  previous,  up
+@chapter Additional Functionality
+
+ASDF includes several additional features that are generally 
+useful for system definition and development. These include:
+
+@enumerate
+@item
+system-relative-pathname 
+
+It's often handy to locate a file relative to some system. The system-relative-pathname function meets this need. It takes two arguments: the name of a system and a relative pathname. It returns a pathname built from the 
+location of the system's source file and the relative pathname. For example
+
+@lisp
+> (asdf:system-relative-pathname 'cl-ppcre "regex.data")
+#P"/repository/other/cl-ppcre/regex.data"
+@end lisp
+
+@item
+hyperdocumentation
+
+to be documented
+
+@item 
+hyperdoc
+
+to be documented
+
+@end enumerate
+
+
+@node Getting the latest version, TODO list, Miscellaneous additional functionality, Top
 @comment  node-name,  next,  previous,  up
 @chapter Getting the latest version
 

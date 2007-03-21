@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.106 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.107 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -13,7 +13,7 @@
 ;;; is the latest development version, whereas the revision tagged
 ;;; RELEASE may be slightly older but is considered `stable'
 
-;;; Copyright (c) 2001-2003 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2007 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -79,7 +79,9 @@
 	   #:system-maintainer
 	   #:system-license
 	   #:system-licence
-	   
+	   #:system-source-file
+	   #:system-relative-pathname 
+
 	   #:operation-on-warnings
 	   #:operation-on-failure
 	   
@@ -112,7 +114,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.106 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.107 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -122,6 +124,7 @@
 						    :junk-allowed t)))))
 
 (defvar *compile-file-warnings-behaviour* :warn)
+
 (defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
 
 (defvar *verbose-out* nil)
@@ -876,11 +879,14 @@ system."))
   (preference-file-for-system/operation (find-system system t) operation))
 
 (defmethod preference-file-for-system/operation ((s system) (operation t))
-  (merge-pathnames
-   (make-pathname :name (component-name s)
-                  :type "lisp"
-                  :directory '(:relative ".asdf"))
-   (truename (user-homedir-pathname))))
+  (let ((*default-pathname-defaults* 
+	 (make-pathname :name nil :type nil 
+			:defaults *default-pathname-defaults*)))
+     (merge-pathnames
+      (make-pathname :name (component-name s)
+		     :type "lisp"
+		     :directory '(:relative ".asdf"))
+      (truename (user-homedir-pathname)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
@@ -1189,6 +1195,28 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
 (defun hyperdoc (name doc-type)
   (hyperdocumentation (symbol-package name) name doc-type))
+
+(defun system-source-file (system-name)
+  (let ((system (asdf:find-system system-name)))
+    (make-pathname 
+     :type "asd"
+     :name (asdf:component-name system)
+     :defaults (asdf:component-relative-pathname system))))
+
+(defun system-source-directory (system-name)
+  (make-pathname :name nil
+                 :type nil
+                 :defaults (system-source-file system-name)))
+
+(defun system-relative-pathname (system pathname &key name type)
+  (let ((directory (pathname-directory pathname)))
+    (when (eq (car directory) :absolute)
+      (setf (car directory) :relative))
+    (merge-pathnames
+     (make-pathname :name (or name (pathname-name pathname))
+                    :type (or type (pathname-type pathname))
+                    :directory directory)
+     (system-source-directory system))))
 
 
 (pushnew :asdf *features*)

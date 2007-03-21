@@ -1,5 +1,7 @@
 #!/bin/sh
 
+sok=1
+
 do_tests() {
 rm *.$2 || true
 ( cd .. && echo '(compile-file "asdf")' |$1  )
@@ -10,10 +12,11 @@ do
     echo "Using $1, $i passed" >&2
   else
     echo "Using $1, $i failed" >&2
+    sok=0
     exit 1
   fi
 done
-echo "Using $1, all tests apparently successful" >&2
+echo "Using $1, all tests apparently successful ($sok)" >&2
 }
 
 # do_tests {lisp invocation} {fasl extension}
