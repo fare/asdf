@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.107 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.108 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -108,13 +108,14 @@
 	   )
   (:use :cl))
 
+
 #+nil
 (error "The author of this file habitually uses #+nil to comment out forms.  But don't worry, it was unlikely to work in the New Implementation of Lisp anyway")
 
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.107 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.108 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -128,6 +129,9 @@
 (defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
 
 (defvar *verbose-out* nil)
+
+(defparameter +asdf-methods+
+  '(perform explain output-files operation-done-p))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility stuff
@@ -1022,6 +1026,7 @@ Returns the new tree (which probably shares structure with the old one)"
 (defvar *serial-depends-on*)
 
 (defun parse-component-form (parent options)
+
   (destructuring-bind
 	(type name &rest rest &key
 	      ;; the following list of keywords is reproduced below in the
@@ -1032,6 +1037,7 @@ Returns the new tree (which probably shares structure with the old one)"
 	      depends-on serial in-order-to
 	      ;; list ends
 	      &allow-other-keys) options
+    (declare (ignorable perform explain output-files operation-done-p)) 
     (check-component-input type name weakly-depends-on depends-on components in-order-to)
 
     (when (and parent
@@ -1094,22 +1100,29 @@ Returns the new tree (which probably shares structure with the old one)"
 	       (load-op (load-op ,@depends-on))))
 	    (slot-value ret 'do-first) `((compile-op (load-op ,@depends-on))))
       
-      (loop for (n v) in `((perform ,perform) (explain ,explain)
-			   (output-files ,output-files)
-			   (operation-done-p ,operation-done-p))
-	    do (map 'nil
-		    ;; this is inefficient as most of the stored
-		    ;; methods will not be for this particular gf n
-		    ;; But this is hardly performance-critical
-		    (lambda (m) (remove-method (symbol-function n) m))
-		    (component-inline-methods ret))
-	    when v
-	    do (destructuring-bind (op qual (o c) &body body) v
-		 (pushnew
-		  (eval `(defmethod ,n ,qual ((,o ,op) (,c (eql ,ret)))
-			  ,@body))
-		  (component-inline-methods ret))))
+      (%remove-component-inline-methods ret rest)
+
       ret)))
+
+(defun %remove-component-inline-methods (ret rest)
+  (loop for name in +asdf-methods+
+     do (map 'nil
+	     ;; this is inefficient as most of the stored
+	     ;; methods will not be for this particular gf n
+	     ;; But this is hardly performance-critical
+	     (lambda (m)
+	       (remove-method (symbol-function name) m))
+	     (component-inline-methods ret)))
+  ;; clear methods, then add the new ones
+  (setf (component-inline-methods ret) nil)
+  (loop for name in +asdf-methods+
+     for v = (getf rest (intern (symbol-name name) :keyword))
+     when v do
+     (destructuring-bind (op qual (o c) &body body) v
+       (pushnew
+	(eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
+			  ,@body))
+	(component-inline-methods ret)))))
 
 (defun check-component-input (type name weakly-depends-on depends-on components in-order-to)
   "A partial test of the values of a component."
