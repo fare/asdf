@@ -4,19 +4,38 @@ sok=1
 
 do_tests() {
 rm *.$2 || true
-( cd .. && echo '(compile-file "asdf")' |$1  )
-for i in *.script; 
-do 
-  rm *.$2 || true
-  if $1 < $i ;then
-    echo "Using $1, $i passed" >&2
-  else
-    echo "Using $1, $i failed" >&2
-    sok=0
-    exit 1
-  fi
-done
-echo "Using $1, all tests apparently successful ($sok)" >&2
+( cd .. && echo '(load "test/compile-asdf.lisp")' | $1  )
+if [ $? -eq 0 ] ; then
+    test_count=0
+    test_pass=0
+    test_fail=0
+    failed_list=""
+    for i in *.script; 
+    do 
+      echo "Testing: $i" >&2
+      test_count=`expr "$test_count" + 1`
+      rm *.$2 || true
+      if $1 < $i ;then
+        echo "Using $1, $i passed" >&2
+	test_pass=`expr "$test_pass" + 1`
+      else
+        echo "Using $1, $i failed" >&2
+	test_fail=`expr "$test_fail" + 1`
+	failed_list="$failed_list $i"
+        sok=0
+      fi
+    done
+    echo >&2
+    echo "Using $1" >&2
+    echo "Ran $test_count tests: " >&2
+    echo "  $test_pass passing and $test_fail failing" >&2
+    if [ $test_fail -eq 0 ] ; then
+	echo "all tests apparently successful" >&2
+    else
+	echo "failing test(s): $failed_list" >&2
+    fi
+    echo >&2
+fi
 }
 
 # do_tests {lisp invocation} {fasl extension}
@@ -24,19 +43,43 @@ echo "Using $1, all tests apparently successful ($sok)" >&2
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
 
+# terminate on error
 set -e
 
-if type sbcl 
-then 
-  do_tests "sbcl --userinit /dev/null --sysinit /dev/null --noprogrammer" fasl 
+lisp=$1
+if [ -z $1 ] ; then
+    lisp="sbcl"
 fi
 
-if [ -x /usr/bin/lisp ]
-then 
-  do_tests "/usr/bin/lisp -batch -noinit" x86f
+if [ "$lisp" = "sbcl" ] ; then 
+    if type sbcl ; then
+      fasl_ext="fasl"
+      command="sbcl --userinit /dev/null --sysinit /dev/null --noprogrammer"
+    fi
+elif [ "$lisp" = "clisp" ] ; then
+    if type clisp ; then
+	fasl_ext="fas"
+	command=`where clisp`
+	command="$command -norc -ansi -I - "
+    fi
+elif [ "$lisp" = "allegro" ] ; then
+    if type alisp ; then
+	fasl_ext="fasl"
+	command="alisp -q --batch "
+    fi
 fi
 
-if [ -x /usr/bin/clisp ]
-then 
-  do_tests "/usr/bin/clisp -norc -ansi -I - " fas
+
+#if [ -x /usr/bin/lisp ]
+#then 
+#  do_tests "/usr/bin/lisp -batch -noinit" x86f
+#fi
+
+
+if [ -z "$command" ] ; then
+    echo "Error: don't know how to run Lisp named $lisp"
+else
+    echo $command
+    do_tests "$command" $fasl_ext
 fi
+ 

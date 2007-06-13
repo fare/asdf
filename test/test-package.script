@@ -1,10 +1,14 @@
 (in-package :cl-user)
+;;; -*- Lisp -*-
+(load "script-support")
 (load "../asdf")
+(exit-on-error 
 
-(defun module () 1)
+ (defun module () 1)
 
-(load "test-package.asd")
+ (load "test-package.asd")
 
-(defclass module () ())
+ (defclass module () ())
 
-(load "test-package.asd")
+ (load "test-package.asd")
+)
