@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.108 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.109 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -115,7 +115,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.108 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.109 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -798,6 +798,10 @@ system."))
 
 (defmethod output-files ((operation compile-op) (c static-file))
   nil)
+
+(defmethod input-files ((op compile-op) (c static-file))
+  nil)
+
 
 ;;; load-op
 

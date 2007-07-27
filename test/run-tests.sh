@@ -1,5 +1,12 @@
 #!/bin/sh
 
+
+if [ -z "$2" ]; then
+    scripts="*.script"
+else
+    scripts="$2"
+fi
+
 sok=1
 
 do_tests() {
@@ -10,7 +17,7 @@ if [ $? -eq 0 ] ; then
     test_pass=0
     test_fail=0
     failed_list=""
-    for i in *.script; 
+    for i in $scripts ; 
     do 
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
@@ -66,6 +73,11 @@ elif [ "$lisp" = "allegro" ] ; then
     if type alisp ; then
 	fasl_ext="fasl"
 	command="alisp -q --batch "
+    fi
+elif [ "$lisp" = "allegromodern" ] ; then
+    if type mlisp ; then
+	fasl_ext="fasl"
+	command="mlisp -q --batch "
     fi
 fi
 
