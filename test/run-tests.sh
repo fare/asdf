@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# do_tests {lisp invocation} {fasl extension}
+# - read lisp forms one at a time from standard input
+# - quit with exit status 0 on getting eof
+# - quit with exit status >0 if an unhandled error occurs
+
 
 if [ -z "$2" ]; then
     scripts="*.script"
@@ -44,11 +49,6 @@ if [ $? -eq 0 ] ; then
     echo >&2
 fi
 }
-
-# do_tests {lisp invocation} {fasl extension}
-# - read lisp forms one at a time from standard input
-# - quit with exit status 0 on getting eof
-# - quit with exit status >0 if an unhandled error occurs
 
 # terminate on error
 set -e

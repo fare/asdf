@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.109 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.110 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -115,7 +115,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.109 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.110 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -899,6 +899,20 @@ system."))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
 
+(defvar *operate-docstring* 
+  "Operate does three things:
+
+1. It creates an instance of `operation-class` using any keyword parameters 
+as initargs. 
+2. It finds the  asdf-system specified by `system` (possibly loading 
+it from disk).
+3. It then calls `traverse` with the operation and system as arguments
+
+The traverse operation is wrapped in `with-compilation-unit` and error  
+handling code. If a `version` argument is supplied, then operate also 
+ensures that the system found satisfies it using the `version-satisfies`
+method.")
+
 (defun operate (operation-class system &rest args &key (verbose t) version 
                                 &allow-other-keys)
   (let* ((op (apply #'make-instance operation-class
@@ -932,9 +946,17 @@ system."))
 			  (get-universal-time))
 		    (return)))))))))
 
-(defun oos (&rest args)
-  "Alias of OPERATE function"
-  (apply #'operate args))
+(setf (documentation 'operate 'function)
+      *operate-docstring*)
+
+(defun oos (operation-class system &rest args &key force (verbose t) version)
+  (declare (ignore force verbose version))
+  (apply #'operate operation-class system args))
+
+(setf (documentation 'oos 'function)
+      (format nil 
+             "Short for _operate on system_ and an alias for the `operate` function. ~&~&~a"
+      *operate-docstring*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; syntax
@@ -981,7 +1003,8 @@ system."))
 (defun class-for-type (parent type)
   (let* ((extra-symbols (list (find-symbol (symbol-name type) *package*)
                               (find-symbol (symbol-name type) 
-                                           (package-name #.*package*))))
+                                           (load-time-value
+					    (package-name :asdf)))))
          (class (dolist (symbol (if (keywordp type)
                                     extra-symbols
                                     (cons type extra-symbols)))
