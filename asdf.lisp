@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.110 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.111 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -115,7 +115,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.110 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.111 $")
 			       (colon (or (position #\: v) -1))
 			       (dot (position #\. v)))
 			  (and v colon dot 
@@ -971,33 +971,38 @@ method.")
     (aux key arglist)))
 
 (defmacro defsystem (name &body options)
-  (destructuring-bind (&key pathname (class 'system) &allow-other-keys) options
+  (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
+			    &allow-other-keys)
+      options
     (let ((component-options (remove-keyword :class options)))
       `(progn
-	;; system must be registered before we parse the body, otherwise
-	;; we recur when trying to find an existing system of the same name
-	;; to reuse options (e.g. pathname) from
-	(let ((s (system-registered-p ',name)))
-	  (cond ((and s (eq (type-of (cdr s)) ',class))
-		 (setf (car s) (get-universal-time)))
-		(s
-		 #+clisp
-		 (sysdef-error "Cannot redefine the existing system ~A with a different class" s)
-		 #-clisp
-		 (change-class (cdr s) ',class))
-		(t
-		 (register-system (quote ,name)
-				  (make-instance ',class :name ',name)))))
-	(parse-component-form nil (apply
-				   #'list
-				   :module (coerce-name ',name)
-				   :pathname
-				   (or ,pathname
-				       (when *load-truename*
-					 (pathname-sans-name+type
-					  (resolve-symlinks  *load-truename*)))
-				       *default-pathname-defaults*)
-				   ',component-options))))))
+	 ;; system must be registered before we parse the body, otherwise
+	 ;; we recur when trying to find an existing system of the same name
+	 ;; to reuse options (e.g. pathname) from
+	 (let ((s (system-registered-p ',name)))
+	   (cond ((and s (eq (type-of (cdr s)) ',class))
+		  (setf (car s) (get-universal-time)))
+		 (s
+		  #+clisp
+		  (sysdef-error "Cannot redefine the existing system ~A with a different class" s)
+		  #-clisp
+		  (change-class (cdr s) ',class))
+		 (t
+		  (register-system (quote ,name)
+				   (make-instance ',class :name ',name)))))
+	 (parse-component-form nil (apply
+				    #'list
+				    :module (coerce-name ',name)
+				    :pathname
+				    ;; to avoid a note about unreachable code
+				    ,(if pathname-arg-p
+					 pathname
+					 `(or (when *load-truename*
+						(pathname-sans-name+type
+						 (resolve-symlinks 
+						  *load-truename*)))
+					      *default-pathname-defaults*))
+				    ',component-options))))))
   
 
 (defun class-for-type (parent type)
