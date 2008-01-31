@@ -1,0 +1,1342 @@
+2007-12-14  gwking <gwking>
+
+	* asdf.lisp: Applied patch from Luis Oliveira to prevent unnecessary
+	unreachable code warnings under SBCL when using the :pathname
+	argument in defsystem.
+
+2007-09-27  gwking <gwking>
+
+	* asdf.lisp, test/run-tests.sh: Adds documentation to oos and
+	operate. Also fixes the #. evaluation of *package* (thanks to Peter
+	Van Eynde).
+
+2007-07-27  gwking <gwking>
+
+	* asdf.lisp, test/compile-asdf.lisp, test/run-tests.sh,
+	test/script-support.lisp, test/static-and-serial.asd,
+	test/test-static-and-serial.script: 2007-07-26 10:55
+	gwking@metabang.com
+
+2007-06-13  gwking <gwking>
+
+	* test/run-tests.sh, test/test-force.script,
+	test/test-package.script, test/test-preferences-1.script,
+	test/test-version.script, test/test1.script, test/test2.script,
+	test/test3.script, test/test4.script, test/wild-module.script: 
+	Reworked asdf tests to make them more robust and perhaps more
+	flexible too.
+
+2007-06-13  gwking <gwking>
+
+	* asdf.lisp: Removes inline component methods more carefully (and, I
+	believe, correctly!). Helps keep LispWorks happy.
+
+2007-06-02  gwking <gwking>
+
+	* asdf.texinfo: Updated version dates in the texinfo file
+
+2007-03-21  gwking <gwking>
+
+	* asdf.lisp, asdf.texinfo, test/run-tests.sh: main change is the
+	addition of system-relative-pathname function. This takes a system
+	name and a partial pathname and combines them to return a new
+	pathname _relative_ to the system. This is exported and lightly
+	documented.  this patch also updates
+	preference-file-for-system/operation in an effort to prevent it from
+	being confused by *default-pathname-defaults* that include a
+	specific name and type.
+
+2007-02-14  gwking <gwking>
+
+	* asdf.lisp: Minor patch in class-for-type that evaluates only
+	*package* at read time rather than (package-name *package*); this
+	keeps case sensitive Lisps happy all the time and keeps case
+	insensitive lisps happily insensitive.
+
+2007-02-06  gwking <gwking>
+
+	* asdf.lisp: A patch from Richard Kreuter that allows pathname
+	defaulting to work better with *load-truename* and
+	*default-pathname-defaults*; this makes it easier to work with
+	defsystems in the REPL.
+
+2007-01-23  gwking <gwking>
+
+	* asdf.lisp: add a better docstring for component-depends-on (via
+	#lisp and Robert Goldman)
+
+2007-01-21  gwking <gwking>
+
+	* asdf.lisp, asdf.texinfo: ASDF now sends output to
+	*standard-output* (thanks to Richard M. Kreuter).
+
+2006-11-07  crhodes <crhodes>
+
+	* asdf.lisp: Slightly better SBCL_HOME treatement for SBCL.
+
+2006-08-21  crhodes <crhodes>
+
+	* README, asdf.lisp, test/run-tests.sh, test/test-package.asd,
+	test/test-package.script: Be a little bit more defensive about
+	looking up classes for component types.  It seems regrettably common
+	for system authors, despite the documentation, to place their system
+	in CL-USER, where the user can quite legitimately add symbols.
+	Adjust the lookup code in CLASS-FOR-TYPE to ignore symbols not
+	naming subclasses of ASDF:COMPONENT, and also to try the symbol
+	itself first if it's not a keyword.  Also adjust the documentation
+	slightly to make this slightly clearer.  Add test files, and make
+	the clisp test-harness work for me.
+
+2006-07-06  gwking <gwking>
+
+	* asdf.lisp, test/test-preferences-1.lisp,
+	test/test-preferences-1.script, test/test-preferences-system-1.asd,
+	test/test-preferences-system-load.lisp,
+	test/test-preferences-system-test.lisp: Added load-preferences and
+	preference-file-for-system/operation. Specialized them so that
+	preferences are found in ~/.asdf/<name-of-system>.lisp by default
+	and are loaded on either a load-op or a load-source-op. Refactored
+	load-op and load-source-op to both be subclasses of basic-load-op to
+	facilitate this.  Added test case in test directory.  Still need to
+	add to documentation of ASDF and will once I figure out where such a
+	beast truely lives.
+
+2006-06-16  gwking <gwking>
+
+	* asdf.lisp: now allows license / licence initargs and
+	system-license / system-licence accessors
+
+2006-05-30  gwking <gwking>
+
+	* asdf.lisp, test/test-force.asd, test/test-force.script: Added
+	&allow-other-keys to operate. Added test/test-force to test that
+	forcing a system works (at least in a simple case).
+
+2006-05-14  demoss <demoss>
+
+	* asdf.lisp, test/test-version.script, test/wild-module.asd: OOS
+	:VERSION support. Thanks to Robert P. Goldman.
+
+2006-04-20  crhodes <crhodes>
+
+	* asdf.lisp: run-shell-command for sbcl/win32
+
+2006-04-20  crhodes <crhodes>
+
+	* asdf.lisp: A bit more robustness in the FILE-WRITE-DATE
+	department.  This version is still subject to filesystem races (say,
+	between probe-file and file-write-date) but they're a lot less
+	likely.  Attempt to do the "right" thing if an input file has gone
+	missing.
+
+2006-04-20  crhodes <crhodes>
+
+	* asdf.lisp: Merge in system-component-type when given a :pathname
+	argument
+
+2006-03-21  crhodes <crhodes>
+
+	* asdf.lisp: Fixes  * don't create a package with gensym.  Instead
+	try creating   packages with different names until one succeeds; *
+	delete the scratch package when we're finished with it * if the user
+	has requested a pathname for a component, don't try to   construct
+	the default one; it probably won't work.
+
+2006-02-01  crhodes <crhodes>
+
+	* asdf.lisp: Alter the #+(sbcl sbcl-hooks-require) section to allow
+	contrib loading on Windows.  No changes outside that specific
+	section.
+
+2005-12-16  demoss <demoss>
+
+	* asdf.lisp: Rolled back push :asdf-foo-system
+
+2005-12-07  nhabedi <nhabedi>
+
+	* asdf.lisp: Push :ASDF-SYSTEMNAME (Alan Shields)
+
+2005-12-07  nhabedi <nhabedi>
+
+	* asdf.lisp: Added :WEAKLY-DEPENDS (Alan Shields)
+
+2005-09-30  pvaneynd <pvaneynd>
+
+	* debian/changelog, debian/rules: remove CVS cruft
+
+2005-09-26  pvaneynd <pvaneynd>
+
+	* asdf.lisp, debian/changelog, debian/rules: improved duplicate test
+	by using equal
+
+2005-07-02  pvaneynd <pvaneynd>
+
+	* debian/README.Debian: note use of darcs-buildpackage
+
+2005-07-01  pvaneynd <pvaneynd>
+
+	* debian/changelog, debian/control, debian/prepare-build.sh: commit
+	for debian release 1.87-1
+
+2005-05-25  pvaneynd <pvaneynd>
+
+	* debian/changelog, debian/postinst: also rebuild lisp images after
+	install
+
+2005-05-25  pvaneynd <pvaneynd>
+
+	* asdf.lisp, debian/changelog, debian/control,
+	debian/prepare-build.sh, debian/rules:   * Fixed duplicate components patch to better handle reloading
+	  defsystem files. Now works again with McClim. Closes: #310640   *
+	  Corrected dependencies.
+
+2004-08-18  demoss <demoss>
+
+	* asdf.texinfo: Add the necessary Texinfo magic so that install-info
+	can be used with the manual.
+
+2004-08-18  demoss <demoss>
+
+	* asdf.texinfo: Minor fix to the texinfo documentation, so that
+	makeinfo won't overwrite the original .texinfo.
+
+2004-08-05  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/control: Automated commit for Debian
+	build of asdf
+
+2004-07-19  crhodes <crhodes>
+
+	* README, asdf.lisp: export condition readers ERROR-COMPONENT and
+	ERROR-OPERATION
+
+2004-05-16  dan_b <dan_b>
+
+	* README, asdf.lisp, asdf.texinfo, test-mail: Patches for ECL,
+	courtesy of Juan Jose Garcia Ripoll  * "ECL cannot externalize
+	packages in compiled files. In other words, compiled files cannot
+	have package objects as literal constants. Things like
+	LOAD-TIME-VALUE, or saving the package name and afterwards looking
+	for the package is all right. This only affects your uses of
+	#.*package* somewhere in the code."  * Also an appropriate
+	run-shell-command implementation
+
+2004-05-12  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: new debian package
+
+2004-05-05  nhabedi <nhabedi>
+
+	* asdf.lisp: replace :cormanlisp with :broken-fasl-loader
+
+2004-05-05  crhodes <crhodes>
+
+	* asdf.lisp: Remove FORMATTER workaround for clisp-2.32, because
+	clisp-2.33 broke the workaround, and the clisp developers have the
+	aim of making asdf work "out of the box" for their 2.34 release --
+	and I'd hate for them to target the workarounded version rather than
+	the one that's idiomatic.
+
+2004-05-05  nhabedi <nhabedi>
+
+	* asdf.lisp: patches for Corman Lisp
+
+2004-03-12  dan_b <dan_b>
+
+	* asdf.texinfo: Added brief 'downloading' section  Added
+	defpackage/in-package forms to the example defsystem  Some
+	non-exhaustive notes on the differences with mk-defsystem
+
+2004-03-12  dan_b <dan_b>
+
+	* asdf.texinfo: as downloaded from http://constantly.at/lisp/
+
+2003-12-30  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automated commit for Debian build of asdf
+
+2003-12-21  dan_b <dan_b>
+
+	* asdf.lisp: remove overly strict slot type from component
+
+2003-12-05  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automated commit for Debian build of asdf
+
+2003-12-01  dan_b <dan_b>
+
+	* README, asdf-install.lisp, asdf.lisp: export input-files and
+	component-system: reported by Walter Pelissero
+
+2003-11-11  kevinrosenberg <kevinrosenberg>
+
+	* debian/control: Automated commit for debian_version_1_79-1
+
+2003-11-11  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automated commit for Debian build of asdf
+
+2003-10-17  crhodes <crhodes>
+
+	* asdf.lisp: PROVIDE asdf.  I'm fairly sure I want to do this,
+	despite PROVIDE's deprecation, because (a) I want to undeprecate it;
+	(b) its effect is trivially reimplementable even if it vanishes; (c)
+	it will shortly become the right thing to do in sbcl.
+
+2003-10-09  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automated commit for Debian build of asdf
+
+2003-10-09  dan_b <dan_b>
+
+	* asdf.lisp: Don't assign *verbose-out* statically: it gets us into
+	trouble if asdf is saved in a core.  When the core is reloaded, the
+	stream is not attached to anything interesting.
+
+2003-08-12  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, wild-modules.lisp: don't export wild-module
+	symbol
+
+2003-08-05  kevinrosenberg <kevinrosenberg>
+
+	* README: [no log message]
+
+2003-07-18  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_77_1-1
+
+2003-07-18  kevinrosenberg <kevinrosenberg>
+
+	* cclan.lisp: conditionalize sb-unix function
+
+2003-07-17  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_77-1
+
+2003-07-17  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/control, debian/rules: Automatic commit
+	for debian_version_1_77
+
+2003-07-17  crhodes <crhodes>
+
+	* asdf.lisp: Fix the remaining FORMAT bogosities * make the "warned
+	while..." and "failed while..." arguments go the   right way round *
+	use pretty printing (and the FORMATTER trick to keep CLISP happy)
+	Tidy up the RESTARTs * new names, exported (RETRY and ACCEPT) *
+	descriptions of the restarts for the debugger * set
+	COMPONENT-OPERATION-TIMES in the ACCEPT restart
+
+2003-07-10  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_76
+
+2003-07-10  dan_b <dan_b>
+
+	* asdf.lisp, test/run-tests.sh: Various fixes  - Export SYSTEM-*
+	accessors, per Stig Sandø request - Change the CONPONENT-PROPERTY
+	alist to use a #'EQUAL test, per request ditto - Export
+	*ASDF-REVISION* - Export *SYSTEM-DEFINITION-SEARCH-FUNCTIONS*, per
+	request from Christian Ohler
+
+2003-06-12  dan_b <dan_b>
+
+	* asdf-install.lisp: Patch from Nikodemus Siivola:   1. Ensures that
+	filename gets pushed to *temporary-files* even if     download
+	bombs.   2. Doesn't try to delete non-existent temp-files, which can
+	now happen due     to no 1.
+
+2003-06-09  dan_b <dan_b>
+
+	* asdf-install.lisp: make it work for package names <7 characters
+	long
+
+2003-06-09  dan_b <dan_b>
+
+	* asdf-install.lisp: asdf-install now accepts HTTP URLs as well as
+	package names/filenames
+
+2003-06-07  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/compat, debian/rules: [no log message]
+
+2003-06-05  dan_b <dan_b>
+
+	* cclan.lisp: name_version not name-version  Makes it easier to
+	extract the version if the name has hyphens in it already
+
+2003-06-05  dan_b <dan_b>
+
+	* asdf-install.lisp, cclan-package.lisp, cclan.asd, cclan.lisp: 
+	Deleted obsolete Debian packaging stuff, in case anyone tries to use
+	it.  If it was useful for anything, it's still in cvs history  New
+	function cclan:write-package is a 1.5-stop function to do all the
+	packaging stuff given a cvs repository.  (.5?  Doesn't do gpg
+	signing on its own, because asdf:run-shell-sommand doesn't work for
+	commands that need input)
+
+2003-06-04  dan_b <dan_b>
+
+	* asdf-install.lisp: Now loads a configuration file ~/.asdf-install
+	, in which the user may override the default cclan node, http proxy,
+	or whatever
+
+2003-06-04  dan_b <dan_b>
+
+	* asdf-install.lisp: First draft of a cclan automatic download tool,
+	currently rather sbcl-specific.  Indirects through :(package ...)
+	links on cliki pages to download locations, which may be on cclan
+	nodes or elsewhere on the net.  Requires tar and gpg, but no
+	dependencies on Lisp packages other than what's included in SBCL
+	contrib
+
+2003-06-03  dan_b <dan_b>
+
+	* README, asdf.lisp: make SBCL require hook a lot quieter, by
+	muffling style-warnings when loading files and turning off asdf
+	verbosity
+
+2003-06-03  dan_b <dan_b>
+
+	* asdf.lisp: Introduce a new :verbose switch to OPERATE (defaults T,
+	specifying NIL turns off all/most non-error output from ASDF)
+
+2003-05-28  kevinrosenberg <kevinrosenberg>
+
+	* README, asdf.lisp, debian/changelog: Export
+	*compile-file-{errors,warnings}-behavior* Document these variables
+	in the README
+
+2003-05-27  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_73
+
+2003-05-27  kevinrosenberg <kevinrosenberg>
+
+	* README, debian/changelog: Add information on changing the handling
+	of compiler warnings. (Should this variable be exported?)
+
+2003-05-20  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/control: Automatic commit for
+	debian_version_1_72
+
+2003-05-19  crhodes <crhodes>
+
+	* asdf.lisp: Remove call to PROVIDE from #+(and sbcl
+	sbcl-hooks-require) section.  It becomes the responsibility of
+	individual systems in sbcl's contrib/ to call provide.  No change
+	for any other environment.
+
+2003-05-13  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_71
+
+2003-05-13  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: Fix typo in check-componennt-inputs
+
+2003-05-06  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: 1.70:     - Signal a generalized
+	instance of system-definition-error     - Add another check to
+	check-component-inputs     - Fix check for :components value
+
+2003-05-06  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: Add check-component-input with
+	partial input tests
+
+2003-03-19  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_68
+
+2003-03-19  dan_b <dan_b>
+
+	* asdf.lisp: introduce test-op as outlined on cclan-list
+
+2003-03-19  dan_b <dan_b>
+
+	* asdf.lisp: patch for use in sbcl: delay evaluation of
+	*central-registry* components so that asdf in a dumped core is
+	useful
+
+2003-03-17  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/control: Automatic commit for
+	debian_version_1_66
+
+2003-03-17  dan_b <dan_b>
+
+	* README: remove bad whitespace in code example.  Thanks to "jtra"
+	for reporting this
+
+2003-03-17  dan_b <dan_b>
+
+	* asdf.lisp: Bug fix: When we get to a file that needs
+	recompilation, usually we set :forced on operation-ancestor, to
+	ensure that subsequent components are rebuilt.  However, touching a
+	random file in db-sockets is not usually a convincing reason to
+	rebuild all of araneida and all of cliki, so when we do this
+	cross-system leap, we remove the parent link  Unfortunately, that
+	breaks the what-have-we-done-so-far information, which is also kept
+	in the ancestor operation.  So, let's not do that any more.
+	Compilations will be slower than intended, but faster than the
+	infinite circular compilation behaviour that users of 1.65 observed
+
+
+2003-03-16  dan_b <dan_b>
+
+	* asdf.lisp: *asdf-revision changes to work with cvs co -kv option
+
+2003-03-16  dan_b <dan_b>
+
+	* asdf.lisp: support experimental hyperdoc protocol
+
+2003-03-16  dan_b <dan_b>
+
+	* README, asdf.lisp: Fix component-relative-pathname so that it
+	merges the correct type in if unsupplied  Shuffle some definitions
+	around to reduce 'not defined yet' complaints  Changes to :force
+	option on operations -   ':force t' is no longer passed onto
+	dependent systems  ':force (system1 system2 ...systemn)' is a list
+	of system names to be forced  ':force :all' is the original
+	force-everything-recursively behaviour
+
+2003-03-07  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: fix changelog entry
+
+2003-03-07  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Auto commit for Debian build
+
+2003-03-07  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_62
+
+2003-03-07  crhodes <crhodes>
+
+	* asdf.lisp: Fix complete braino in sbcl-specific logic
+	(".sbcl/systems/", not ".sbcl/systems", duh)
+
+2003-03-04  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: Incorporate patch for
+	'load-source-op. This may benefit from some rewriting, but this code
+	clearly works better than the existing stub code.
+
+2003-03-03  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_60-1
+
+2003-03-03  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: add two paths from sbcl's asdf version
+
+2003-02-24  dan_b <dan_b>
+
+	* systems/README: cruft removal
+
+2003-02-14  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_59-1
+
+2003-02-13  crhodes <crhodes>
+
+	* asdf.lisp: Make messages that asdf prints slightly nicer, by using
+	pretty-printer justification routines.  Sucky thing I: CLISP
+	dislikes calls to FORMAT with pretty-print format strings.
+	Bizarrely, though, it accepts calls to FORMATTER with the same
+	format strings.  So use FORMATTER everywhere to keep clisp happy.
+	Sucky thing II: CMUCL can't do ENOUGH-NAMESTRING, because it has
+	this weird ~UNSPECIFIC~ thing in its *DEFAULT-PATHNAME-DEFAULTS*.
+	So don't use ENOUGH-NAMESTRING, even though it's crying out for it.
+
+
+2003-02-09  kevinrosenberg <kevinrosenberg>
+
+	* debian/cl-asdf.postinst, debian/postinst: Auto commit for Debian
+	build
+
+2003-02-09  kevinrosenberg <kevinrosenberg>
+
+	* debian/postinst: Automatic commit for debian_version_1_58-1
+
+2003-02-09  kevinrosenberg <kevinrosenberg>
+
+	* debian/rules: Auto commit for Debian build
+
+2003-02-09  kevinrosenberg <kevinrosenberg>
+
+	* test/run-tests.sh: remove bashism so that ash/dash shells are
+	happy
+
+2003-02-09  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_58-1
+
+2003-02-08  dan_b <dan_b>
+
+	* README, asdf.lisp, test/wild-module.script, wild-modules.lisp: 
+	Make the :serial switch actually do something (useful for CLX
+	systems)  Some glue that won't affect too many people but that lets
+	ASDF cleanly hook the extensible PROVIDE/REQUIRE mechanism in
+	upcoming SBCL 0.7.13  Fix wild-modules to not object when we call
+	(setf (module-components)) on a new or about-to-be-reinitialised
+	module.  We need to be able to do this to get the weeds out, so it
+	should be legal
+
+2003-02-04  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Automatic commit for debian_version_1_57-1
+
+2003-02-04  dan_b <dan_b>
+
+	* README, asdf.lisp, test/test1.script: Rationalise the
+	system-definition-finding machinery a bit. *central-registry* no
+	longer takes functions (that feature was broken anyway), but a new
+	list *system-definition-search-functions* does.  Its default content
+	is a single function designator for sysdef-central-registry-search,
+	which does the *central-registry* search  Update documentation to
+	match  Fix test1.script to call the preferred OPERATE instead of OOS
+	Update documentation to describe COMPONENT-PROPERTY method
+
+2003-01-28  dan_b <dan_b>
+
+	* asdf.lisp: Francois-Rene Rideau reports that Genera gets upset
+	with our print-object specialisation on (stream stream), because
+	STREAM is not a class.  The workaround is harmless anyway: just
+	remove the specialisation
+
+2002-12-15  kevinrosenberg <kevinrosenberg>
+
+	* debian/control: [no log message]
+
+2002-12-09  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/cl-cclan.postinst,
+	debian/cl-cclan.prerm, debian/compat, debian/control: new deb pkg
+
+2002-12-09  dan_b <dan_b>
+
+	* asdf.lisp: experimental!  checked in for kmr to test dependency
+	issues
+
+2002-12-02  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/control, debian/copyright: new debian pkg
+
+
+2002-12-02  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: minor code cleanup
+
+2002-11-23  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: clean resolve-symlinks function
+
+2002-11-19  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/control: new deb pkg for internal testing
+
+
+2002-11-18  dan_b <dan_b>
+
+	* asdf.lisp: mostly untested fixes for more nearly correct
+	dependency checking.  Use caution when upgrading
+
+2002-11-12  dan_b <dan_b>
+
+	* README, asdf.lisp: More frobbing of TRAVERSE  - now it takes two
+	arguments not three  - and returns (operation . component) pairs  -
+	which don't include pruned-ops  Sorted out some load-op methods to
+	use input-files instead of faking their own compile-ops just to find
+	out what the input files are
+
+2002-11-08  kevinrosenberg <kevinrosenberg>
+
+	* debian/control: remove load-compile-op from .asd file
+
+2002-11-08  dan_b <dan_b>
+
+	* README, asdf.lisp, test/test1.script: shouldn't do global
+	proclamations, that's bad karma (reported by Gary Byers)  modules
+	maybe now can have no components (Matthew Danish, SF bug id 625738)
+	(added an :initform nil, haven't actually tested)  significant
+	reworking to handle recompilation of dependencies properly  - use of
+	component properties for last-compiled/last-loaded is gone  - new
+	internal gf INPUT-FILES (COMPONENT OPERATION)  - TRAVERSE doesn't
+	actually perform anything, but it now has a defined    return value:
+	a list of the ops and components that need doing.    OPERATE loops
+	over answers from TRAVERSE  - intended to have no user-visible
+	effects, but ICBW!    May break existing systems!  - still doesn't
+	do cross-module dependencies properly, sigh.  but we're    closer  -
+	default output-files method now returns NIL instead of causing an
+	error
+
+2002-10-12  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/postinst: debian packaging changes to
+	postinst
+
+2002-09-27  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: new deb pkg
+
+2002-09-25  kevinrosenberg <kevinrosenberg>
+
+	* debian/cl-asdf.postinst, debian/postinst: [no log message]
+
+2002-09-20  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: new deb pkg
+
+2002-09-20  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: fix allegro's run-shell-command
+
+2002-09-20  dan_b <dan_b>
+
+	* asdf.lisp: one copy of the run-shell-command format call and
+	docstring, please
+
+2002-09-20  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: return numeric exit status for
+	openmcl's run-shell-command
+
+2002-09-20  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: add run-shell-command for openmcl
+
+2002-09-20  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: new debian package release
+
+2002-09-20  dan_b <dan_b>
+
+	* asdf.lisp, cclan.lisp, test/run-tests.sh, test/test2.script,
+	test/test3.script: changes to run on clisp (tested with debian
+	2.28-1)
+
+2002-09-18  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: [no log message]
+
+2002-09-18  kevinrosenberg <kevinrosenberg>
+
+	* cclan.asd, debian/changelog, debian/rules: Auto commit for Debian
+	build
+
+2002-09-17  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: Add resolve-symlinks to get
+	"truename" of a system
+
+2002-09-17  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: Added directory creation for
+	compilation output files
+
+2002-09-16  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/cl-asdf.postinst: [no log message]
+
+2002-09-15  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/cl-asdf.postinst, debian/control: Auto
+	commit for Debian build
+
+2002-09-14  kevinrosenberg <kevinrosenberg>
+
+	* debian/cl-asdf.postinst: fix typos
+
+2002-09-14  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: Auto commit for Debian build
+
+2002-09-14  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/cl-asdf.postinst, debian/postrm,
+	debian/preinst, debian/prerm: add
+	reregister-common-lisp-implementations
+
+2002-09-14  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: current deb pkg
+
+2002-09-13  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: update version #
+
+2002-09-13  dan_b <dan_b>
+
+	* asdf.lisp: fix MCL "unused variables" warnings.  Thanks to John
+	DeSoi
+
+2002-09-13  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp, debian/changelog: remove kludge
+
+2002-09-13  dan_b <dan_b>
+
+	* asdf.lisp: death to LPNs!  revert change to
+	system-definition-pathname that was causing lossage when used with
+	physical pathnames
+
+2002-09-12  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: sync with deb pkg
+
+2002-09-12  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: Kludge in :version to get CLC LPN to work with CMUCL.
+	This may be a temporary change if a bug in CMUCL's handling of LPN's
+	is found when :version is :newest
+
+2002-09-11  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/cl-cclan.postinst, debian/cl-cclan.prerm: 
+	new deb package
+
+2002-09-09  dan_b <dan_b>
+
+	* asdf.lisp, test/file1.lisp, test/file3.lisp: Now works in Scieneer
+	Common Lisp (patch thanks to Douglas Thomas Crosher)
+
+2002-09-06  kevinrosenberg <kevinrosenberg>
+
+	* debian/control: [no log message]
+
+2002-08-30  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: oops -- reversing auto-commit
+
+2002-08-30  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: Auto commit for Debian build
+
+2002-08-29  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/cl-cclan.postinst, debian/cl-cclan.prerm: 
+	update for current debian page
+
+2002-08-28  dan_b <dan_b>
+
+	* README: note existence of cclan-commits list
+
+2002-08-28  dan_b <dan_b>
+
+	* test-mail: 3
+
+2002-08-28  dan_b <dan_b>
+
+	* test-mail: 2
+
+2002-08-28  dan_b <dan_b>
+
+	* test-mail: 1
+
+2002-08-28  dan_b <dan_b>
+
+	* README: "how do I create a system definition where all the source
+	files have a .cl extension?"
+
+2002-08-28  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog: update changelog with new version
+
+2002-08-28  dan_b <dan_b>
+
+	* asdf.lisp: oops, doubleplus.  why don't i have test cases that
+	catch this stuff
+
+2002-08-28  dan_b <dan_b>
+
+	* asdf.lisp: *asdf-revision* is a new special variable.  It's a list
+	(1 31) or similar which corresponds to the CVS revision of asdf.lisp
+	- compile-file errors  The default behaviour for coping with
+	compile-file errors has changed:   (defvar
+	*compile-file-warnings-behaviour* :warn) -(defvar
+	*compile-file-failure-behaviour* :error) +(defvar
+	*compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)  Most
+	lisp implementations (all that I know of except for sbcl) stop and
+	enter the debugger for catastrophic errors in file compilation. SBCL
+	otoh has a much finer warning/style-warning distinction and should
+	not ever return failure-p unless for a catastrophic error  Fix
+	printing of system-definition-error in CMUCL (thanks to Bob Rogers)
+	Moved a lot of messing around with 'last-compiled and 'last-loaded
+	properties into :before and :after methods on source-file so that
+	"don't reload if already loaded" works for new source file types
+	that users create  There is a new operation load-source-op based on
+	Kevin Rosenberg's implementation of same.  I'm not altogether sure
+	yet how this should interact with 'last-compiled and 'last-loaded:
+	suggestions welcomed  OPERATE now does the operation inside a
+	WITH-COMPILATION-UNIT form, to reduce noise from the compiler about
+	forward definitions.  Courtesy of Bob Rogers
+
+2002-08-28  dan_b <dan_b>
+
+	* README: TODO stuff mostly
+
+2002-08-27  kevinrosenberg <kevinrosenberg>
+
+	* debian/make-debian.sh: remove unneccessary file
+
+2002-08-26  kevinrosenberg <kevinrosenberg>
+
+	* debian/cl-cclan.postinst, debian/cl-cclan.prerm: [no log message]
+
+2002-08-26  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/cl-cclan.postinst,
+	debian/cl-cclan.prerm, debian/control: Auto commit for Debian build
+
+
+2002-08-26  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: #:module was exported twice -- fixed. Export #:system
+
+2002-08-23  kevinrosenberg <kevinrosenberg>
+
+	* README, cclan.asd: update load-source-op documentatio
+
+2002-08-22  kevinrosenberg <kevinrosenberg>
+
+	* debian/changelog, debian/control, debian/rules: updates to package
+	cclan
+
+2002-08-18  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: Add load-source-op as documented in README, mark code
+	changes by KMR
+
+2002-08-18  kevinrosenberg <kevinrosenberg>
+
+	* asdf.lisp: Add run-shell-command for Allegro and Lispworks
+
+2002-08-18  kevinrosenberg <kevinrosenberg>
+
+	* debian/README.Debian, debian/changelog, debian/control,
+	debian/copyright, debian/docs, debian/make-debian.sh,
+	debian/postinst, debian/postrm, debian/preinst, debian/prerm,
+	debian/rules: Add debian directory
+
+2002-07-04  dan_b <dan_b>
+
+	* asdf.lisp: insert copyright notice and "where to get a canonical
+	copy" blurb.  export component-property
+
+2002-06-19  dan_b <dan_b>
+
+	* README: doc fixes
+
+2002-06-19  dan_b <dan_b>
+
+	* asdf.lisp: Patches from Brian Seitz ("Another load patch") and
+	David Lichteblau ("asdf:defsystem class bug")
+
+2002-06-08  rjain <rjain>
+
+	* test/wild-module.asd, test/wild-module.script, wild-modules.lisp: 
+	wild-pathname-based modules for asdf. (:wild-module "name" :pathname
+	"foo/*.bar" :component-class 'bar-file), e.g.
+
+2002-06-08  dan_b <dan_b>
+
+	* README, asdf.lisp: Fix O(N^something_horrid) operation in
+	dependency checking  Merge compiler warning cleanups from Miles Egan
+	in mail message-id <20020607203531.GE9363@pixar.com>  Add elementary
+	CVS instructions to README file
+
+2002-05-20  dan_b <dan_b>
+
+	* LICENCE, asdf.lisp, test/test3.asd, test/test4.script: avoid
+	reloading files that have already been loaded into the image.  based
+	on a patch by Brian Seitz
+
+2002-05-20  dan_b <dan_b>
+
+	* asdf.lisp: Component names in dependencies need to be coerced to
+	canonical strings before the dependency is looked for  This patch
+	does the coercion at lookup time even though it would be better done
+	earlier, because the in-order-to syntax is insanely complicated.  In
+	a future version we may lose and/or dependencies; it's not as if
+	anyone understands them anyway
+
+2002-05-03  dan_b <dan_b>
+
+	* asdf.lisp: WARN requires a SIMPLE-WARNING if anything, and
+	COMPILE-FAILED isn't.  Jyst print a string
+
+2002-05-03  dan_b <dan_b>
+
+	* asdf.lisp: *features*
+
+2002-05-03  dan_b <dan_b>
+
+	* systems/MaiSQL-MySQL.system, systems/MaiSQL.system,
+	systems/XML.system, systems/araneida.system, systems/cliki.system,
+	systems/clorb.system, systems/dan-barlow.system,
+	systems/db-sockets.system, systems/dhttp.system,
+	systems/http-server.system, systems/imap.system,
+	systems/istr.system, systems/maisql-mysql.system,
+	systems/maisql.system, systems/net-telent-date.system,
+	systems/net-telent-pcre.system, systems/rinaldo.system,
+	systems/telentweb.system, systems/todo.system, systems/xml.system,
+	systems/xmltools.system: lose the dross
+
+2002-05-02  dan_b <dan_b>
+
+	* asdf.lisp: less harsh default for
+	*compile-file-warnings-behaviour*
+
+2002-04-30  dan_b <dan_b>
+
+	* README, asdf.lisp, cclan.lisp, systems/db-sockets.system: Several
+	changes  * If some component of *central-registry* is a function or
+	a symbol for   which fboundp returns true, it will be funcalled with
+	the system name   string as an argument, and should return a
+	directory in which to look   for the system definition.  This allows
+	much more flexibility in   the location of .asd files  * New
+	component type 'system' is functionally identical to module, but
+	has attributes for author name, licence, description etc, which can
+	be used by programs that make platform packages  * Much shuffling of
+	parts of the file so that it compiles without any   warnings about
+	forward declarations  * The behaviour when compile-file returns
+	non-NIL in its secondary   values (failure-p and warnings-p) can now
+	be customized: new   compile-op initargs :on-warnings and
+	:on-failure take values   (or :warn :error :ignore).  If
+	unspecified, these default to
+	*compile-file-{failure,warnings}-behaviour*  * A new 'properties'
+	attribute to component which can be used to   communicate extra
+	optional information between system authors and   platform package
+	creation programs
+
+2002-03-11  crhodes <crhodes>
+
+	* cclan.lisp: Debian package building
+
+2002-03-11  crhodes <crhodes>
+
+	* asdf.lisp: remove :class option from reinitialize-instance call
+
+2002-03-11  crhodes <crhodes>
+
+	* cclan.lisp: README.cCLan-install generation, and the start of .deb
+	building mechanism
+
+2002-03-11  crhodes <crhodes>
+
+	* asdf.lisp: Export static file and source-file-type
+
+2002-03-06  dan_b <dan_b>
+
+	* LICENCE, LICENSE: MIT License
+
+2002-03-06  dan_b <dan_b>
+
+	* README: simple setup example
+
+2002-03-06  dan_b <dan_b>
+
+	* cclan-package.lisp, cclan.lisp: new exported functions
+	all-components, cvs-tag
+
+2002-03-06  dan_b <dan_b>
+
+	* asdf.lisp: added html-file as a static-file subclass
+
+2002-03-06  dan_b <dan_b>
+
+	* cclan.asd: in-package
+
+2002-03-06  dan_b <dan_b>
+
+	* cclan-package.lisp, cclan.asd: syntactic legality is a good thing
+
+
+2002-03-06  dan_b <dan_b>
+
+	* asdf.lisp: component gains a slot:  +   (parent :initarg :parent
+	:initform nil :reader component-parent) relevant other changes to
+	accomodate and take advantage of this lose the *known-extensions*
+	completely; we don't need a reversable mapping any more (we were
+	only using the reverse half.  replaced with a nice sensible gf
+	+(defgeneric source-file-type (component system)) new static-file
+	component that does nothing oos rewnamed to operate component name
+	-> pathname case conversion issues finally specified  (defun
+	system-definition-pathname (system) break out the appropriate bit
+	from find-system defsystem gets a new 'class' option so that systems
+	can be subclassed. presently this is only specialised on in
+	component-file-type, but more gfs will appear later I expect
+
+2002-03-06  dan_b <dan_b>
+
+	* README: new 'getting started' sedction at front sorted out the
+	component case slop
+
+2002-03-06  dan_b <dan_b>
+
+	* cclan-package.lisp, cclan.asd, cclan.lisp: tools which will be
+	useful for cclan package creators
+
+2002-02-28  rjain <rjain>
+
+	* test/test3.script: qualified missing-dependency with the asdf
+	package so that it is found properly when *package* doesn't :use
+	:asdf.
+
+2002-02-28  dan_b <dan_b>
+
+	* test/run-tests.sh: test with both available implementations
+	without having to edit this file.  patches for other CL
+	implementations gratefully accepted
+
+2002-02-28  dan_b <dan_b>
+
+	* asdf.lisp:  -(define-condition system-definition-error (error))
+	 +(define-condition system-definition-error (error) ()) fix for
+	 syntax error in probably any implementation other than cmucl.
+	 Thanks to John M Adams for pointing this out lose the special
+	 variables for tracking visited nodes; keep this data in the
+	 operation instead  +(defmethod operation-ancestor ((operation
+	 operation))  +  "Recursively chase the operation's parent pointer
+	 until we get to the head of the tree"  +(defun make-sub-operation
+	 (o type) use this when creating new operations so that they inherit
+	 initargs appropriately from their parent
+
+2002-02-28  dan_b <dan_b>
+
+	* README: initarg handling in oos +** proclamations probably aren't
+
+
+2002-02-22  dan_b <dan_b>
+
+	* test/run-tests.sh: make it work with CMUCL too
+
+2002-02-22  dan_b <dan_b>
+
+	* asdf.lisp:  -  (:use "CL"))  +  (:use :cl)) may help people with odd read/print
+	 case (or ACL "modern" mode users)  -    "telent:asdf;systems;"))  +
+	 #+nil "telent:asdf;systems;")) clisp objects to this fix pathname
+	 merging in internal-find-system so it works with CMUCL's rather odd
+	 *default-pathname-defaults* add a run-shell-command dfefintion for
+	 cmucl
+
+2002-02-20  dan_b <dan_b>
+
+	* test/test2.script: <Krystof> dan_b: your test2.script looks fishy
+	<Krystof> You're not looking at test2b3 anywhere
+
+2002-02-20  dan_b <dan_b>
+
+	* test/run-tests.sh: la la la
+
+2002-02-20  dan_b <dan_b>
+
+	* asdf.lisp: rejigged the condition hierarchy slightly  -(defmethod
+	component-depends-on ((operation load-op) (c source-file))
+	+(defmethod component-depends-on ((operation load-op) (c component))
+	+(defun internal-find-system (name) does everything find-system
+	does, but returns nil instead of raising an error.
+
+2002-02-20  dan_b <dan_b>
+
+	* README: .system -> .asd
+
+2002-02-20  dan_b <dan_b>
+
+	* test/file1.lisp, test/file2.lisp, test/file3.lisp,
+	test/file4.lisp, test/run-tests.sh, test/test1.asd,
+	test/test1.script, test/test2.asd, test/test2.script,
+	test/test2a.asd, test/test2b1.asd, test/test2b2.asd,
+	test/test2b3.asd, test/test3.asd, test/test3.script: new test files
+
+
+2002-02-20  dan_b <dan_b>
+
+	* asdf.lisp: version-satisfies is not just a method not an operation
+	-		   (destructuring-bind (ignore name version-object)  +
+	(destructuring-bind (ignore name version-object) dep oops  -
+	:case :common :name name :type "SYSTEM"  +			   :case :common :name
+	name :type "ASD" and everywhere else that we found   (defun
+	class-for-type (parent type)  -  (let ((class (find-class (intern
+	(symbol-name type) *package*) nil)))  +  (let ((class (find-class  +
+	(or (find-symbol (symbol-name type) *package*)  +		    (find-symbol
+	(symbol-name type) #.*package*)) nil))) fix for system definitions
+	in packages that don't use ASDF
+
+2002-02-19  dan_b <dan_b>
+
+	* asdf.lisp:   (defclass module (component)  +   (if-component-dep-fails
+	  :initform :fail  +(defgeneric find-component (module name
+	  &optional version) though presently it ignores the extra arg major
+	  dependency rewrite to allow for and/or dependencies and
+	  specification of versions compile-and-load-op is dead we reuse old
+	  components when processing a defsystem form that we've already
+	  seen once.  this means that eql-specialized methods will continue
+	  to work and also that we can implement the pathname defaulting
+	  properly (it doesn't work yet)
+
+2002-02-19  dan_b <dan_b>
+
+	* README: new stuff describing  - tetsing implementation features -
+	version dependencies (doesn't yet work) - and/or dependencies
+	(likewise, nonfunctional)  proposed asdf system standard moved onto
+	a cliki page
+
+2002-02-14  dan_b <dan_b>
+
+	* README: kludge for outline-mode
+
+2002-02-14  dan_b <dan_b>
+
+	* README: clc lite
+
+2002-02-14  dan_b <dan_b>
+
+	* asdf.lisp: component class  -   (pathname :initarg :pathname)))  +
+	(relative-pathname :initarg :pathname))) component-pathname,
+	component-relative-pathname changed to actually work (defmethod
+	print-object ((c component) stream) is suffering strangely, but that
+	might just be me.  try re-enabling this and see if itworks for you
+	(defmethod perform ((o load-op) (c cl-source-file))  -    (mapc nil
+	#'load (output-files co c))))  +    (map nil #'load (output-files co
+	c)))) oops  load-op and compile-and-load-op are actually the same
+	thing (at least for CL files).  need to choose a name ...
+
+2002-02-14  dan_b <dan_b>
+
+	* systems/db-sockets.system: s/-system/-op/
+
+2002-02-14  dan_b <dan_b>
+
+	* asdf.lisp: s/{compile,load}-system/{compile,load}-op/ defsystem
+	parsing basically totally rewritten.  diffs unmeaningful, so UTSL
+
+2002-02-14  dan_b <dan_b>
+
+	* README: add compile-and-load-op, load-source-op ops
+
+2002-02-12  dan_b <dan_b>
+
+	* README: finding the source code
+
+2002-02-12  dan_b <dan_b>
+
+	* README: beginnings of a semi-formal defsystem syntax description
+
+2002-02-11  dan_b <dan_b>
+
+	* README, asdf.lisp: Please ignore this commit
+
+2001-12-04  crhodes <crhodes>
+
+	* asdf.lisp: added some docstrings
+
+2001-12-04  crhodes <crhodes>
+
+	* asdf.lisp: Clean up string-unix-common-casify
+
+2001-12-04  crhodes <crhodes>
+
+	* asdf.lisp: Fix for punctuation in unix-string-common-casify
+
+2001-12-04  crhodes <crhodes>
+
+	* asdf.lisp: Commit of my sources on general principles
+
+2001-08-20  crhodes <crhodes>
+
+	* README, asdf.lisp: Made process-option-list run at macroexpand
+	time (the current component is anaphorically captured as
+	asdf:component). Implemented :perform and :explain defsystem
+	arguments as in (slightly adjusted) README Also added :initially-do
+	and :finally-do mk-compatibility options
+
+2001-08-06  dan_b <dan_b>
+
+	* systems/db-sockets.system: copile and load on a dso can now be
+	separate operations  +(defmethod perform ((operation load-system) (c
+	c-source-file)) does nothing but must exist fixed dependencies to
+	reflect reality after having played with them a lot for testing
+
+2001-08-06  dan_b <dan_b>
+
+	* asdf.lisp:   (defmethod process-option ((c component) (option (eql
+	  :depends-on)) value) for mk-compatibility
+
+2001-08-06  dan_b <dan_b>
+
+	* README: TODO: +** compiler/loader options +** operation
+	instantiation in traverse sucks
+
+2001-08-06  dan_b <dan_b>
+
+	* systems/db-sockets.system: add minimal (and probably also
+	insufficient) set of :in-order-to args to see if the dependency
+	chasing actually works
+
+2001-08-06  dan_b <dan_b>
+
+	* asdf.lisp:  +(define-condition missing-dependency (system-definition-error)  -
+	 (depends-on :initform nil  +   (in-order-to :initform nil :initarg
+	 :in-order-to)   +   ;; the defsystem syntax allows us to define EQL
+	 methods with our  +   ;; components.  We must keep track of them
+	 all so we can get rid of  +   ;; them if need be when the defsystem
+	 form is re-evaluated  (although note that we don't yet parse the
+	 necessary syntax, but the infrastructure is ready when we do)
+	 +(defvar *visited-nodes* nil)  +(defvar *visiting-nodes* nil) and
+	 logical equivalents in operation slots go away.    (defmethod
+	 visit-component ((o operation) (c component))   (defmethod
+	 component-visited-p ((o operation) (c component))   (defmethod
+	 (setf visiting-component) (new-value (o operation) (c component))
+	 (defmethod component-visiting-p ((o operation) (c component)) all
+	 get updated to use new variables  +(defmethod component-depends-on
+	 ((o operation) (c component)) looks up dependencies from
+	 :depends-on slot reintroduce circularity check.  also rewrote the
+	 dependency traversing to introduce new operations as and when it
+	 needs to  +(defmethod component-depends-on ((operation load-system)
+	 (c component)) depends on compile-system  -
+	 (create-instance-for-component c :file (second i) nil)))  +
+	 (create-instance-for-component c :file i nil))) oops.  thanks csr
+
+2001-08-06  dan_b <dan_b>
+
+	* README: Rewrote the section on dependencies.  Dependencies are now
+	between (operation component) pairs, not just components.
+
+2001-08-03  dan_b <dan_b>
+
+	* systems/db-sockets.system: whitespace
+
+2001-08-03  dan_b <dan_b>
+
+	* asdf.lisp: package exports: a reasonable list created white space,
+	commentary
+
+2001-08-03  dan_b <dan_b>
+
+	* README: package exports: a reasonable list created
+
+2001-08-03  dan_b <dan_b>
+
+	* README: dependencies, version 2
+
+2001-08-02  dan_b <dan_b>
+
+	* README:  a component represents a source file, or a  -collection of source
+	 files.  +collection of components.  "We extend the defsystem syntax
+	 to allow for eql-specialised methods on modules": updated to fit
+	 current operation abstraction  symbols vs strings: Warn the user
+	 that they should either use keywords or be careful with the package
+	 that they evaluate defsystem forms in  the :pathname argument is
+	 misnamed
+
+2001-08-01  dan_b <dan_b>
+
+	* Initial revision
+
