@@ -1,7 +1,8 @@
 Source: cl-asdf
 Section: devel
 Priority: optional
-Maintainer: Peter Van Eynde <pvaneynd@debian.org>
+Maintainer: Debian Common Lisp Team <pkg-common-lisp-devel@lists.alioth.debian.org>
+Uploaders: Peter Van Eynde <pvaneynd@debian.org>
 Build-Depends: debhelper (>> 4.0.0)
 Build-Depends-Indep: cvs2cl, texinfo,texlive-extra-utils, texlive, texlive-generic-recommended, dh-lisp
 Standards-Version: 3.7.3.0
