@@ -1,10 +1,114 @@
-cl-asdf (1.88-1) unstable; urgency=low
+cl-asdf (1.111-1) unstable; urgency=low
+
+  * New upstream release.
+  * Updated standard version without real changes
+  * Corrected Vcs-Bzr field
+  * Move to using dh-lisp
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 29 Dec 2007 00:02:26 +0100
+
+cl-asdf (1.109-2) unstable; urgency=low
+
+  * stop trying to dump the package, use the package name instead.
+    (Closes: #436129)
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 27 Sep 2007 05:42:20 +0200
+
+cl-asdf (1.109-1) unstable; urgency=low
+
+  * New upstream. Major changes:
+     + main change is the addition of system-relative-pathname function. This takes a
+       system name and a partial pathname and combines them to return a new pathname
+       _relative_ to the system. This is exported and lightly documented.
+     + this patch also updates preference-file-for-system/operation in an effort
+       to prevent it from being confused by *default-pathname-defaults* that include
+       a specific name and type.
+     + Removes inline component methods more carefully (and, I believe, correctly!). Helps keep LispWorks happy.
+     + Reworked asdf tests to make them more robust and perhaps more flexible too.
+  * Now use texlive to build. 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sun, 16 Sep 2007 14:45:57 +0200
+
+cl-asdf (1.107-1) unstable; urgency=low
+
+  * New upstream release, adding the system-relative-pathname
+    function.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sun, 08 Apr 2007 23:05:18 +0200
+
+cl-asdf (1.106-1) experimental; urgency=low
+
+  * New upstream. Major changes:
+
+      + Minor patch in class-for-type that evaluates only *package* at read
+   time rather than (package-name *package*); this keeps case sensitive Lisps
+   happy all the time and keeps case insensitive lisps happily insensitive.
+  
+      + A patch from Richard Kreuter that allows pathname defaulting to work
+   better with *load-truename* and *default-pathname-defaults*; this makes it
+   easier to work with defsystems in the REPL.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 14 Mar 2007 09:18:25 +0100
+
+cl-asdf (1.104-1) experimental; urgency=low
+
+  * Added XS-X-Vcs-Darcs header
+  * modified S-X-Vcs-Darcs to XS-Vcs-Darcs field
+  * New upstream. Major changes:
+     + add a better docstring for component-depends-on (via #lisp and Robert
+     Goldman)
+     + ASDF now sends output to *standard-output* (thanks to Richard M.
+     Kreuter).
+     + Slightly better SBCL_HOME treatement for SBCL.
+  * upload to experimental during the freeze
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue,  6 Feb 2007 08:21:06 +0100
+
+cl-asdf (1.101-1) unstable; urgency=low
+
+  * New upstream version.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 20 Sep 2006 07:08:57 +0200
+
+cl-asdf (1.99-3) unstable; urgency=low
+
+  * Added tetex-bin to Build-Depends-Indep (Closes: #379532)
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 24 Jul 2006 19:34:49 +0200
+
+cl-asdf (1.99-2) unstable; urgency=low
+
+  * Move asdf.info files from sbcl to this package.
+  * move texinfo to BuildDependsIndep
+  * we build something build-indep 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Fri, 30 Jun 2006 23:18:40 +0200
+
+icl-asdf (1.99-1) unstable; urgency=low
+
+  * New upstream.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 19 Jun 2006 05:28:12 +0200
+
+cil-asdf (1.97-1) unstable; urgency=low
+
+  * New upstream release
+  * Moved debhelper to build-depeneds
+  * increased standards-version without real changes.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 20 May 2006 19:28:58 +0200
+
+
+cl-asdf (1.89-1) unstable; urgency=low
 
   * Noticed that I actually increased the version with the CVS commit
   * Updated the standards version
   * Remove the prepare build stuff, build through darcs
   * Improve duplicate names test: use equal instead of equalp.
     From a comment from Faré.
+  * Remove CVS cruft
+  * Seperate CVS version of asdf.lisp from version of package. The tag
+    is not the version of the package
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 22 Sep 2005 12:52:31 +0200
 
