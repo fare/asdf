@@ -4,8 +4,11 @@ cl-asdf (1.111-1) unstable; urgency=low
   * Updated standard version without real changes
   * Corrected Vcs-Bzr field
   * Move to using dh-lisp
+  * Fixed Vcs-Git field
+  * Changed to group maintanance
+  * recreated upstream changelog with git2cl
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 29 Dec 2007 00:02:26 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 31 Jan 2008 05:17:50 +0100
 
 cl-asdf (1.109-2) unstable; urgency=low
 
