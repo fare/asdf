@@ -1,4 +1,4 @@
-$Id: README,v 1.39 2006/08/21 10:52:32 crhodes Exp $         -*- Text -*-
+README,v 1.39 2006/08/21 10:52:32 crhodes Exp         -*- Text -*-
 
 The canonical documentation for asdf is in the file asdf.texinfo.  
 The significant overlap between this file and that will one day be
