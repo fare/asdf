@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.113 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.114 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -502,7 +502,7 @@ system."))
   (cons (class-name (class-of o)) c))
 
 (defgeneric operation-ancestor (operation)
-  (:documentation  
+  (:documentation
    "Recursively chase the operation's parent pointer until we get to
 the head of the tree"))
 
@@ -666,7 +666,7 @@ the head of the tree"))
                                   ;; in-order-to slot with canonicalized
                                   ;; names instead of coercing this late
                                   (coerce-name required-c) required-v)
-                                 (error 'missing-dependency 
+                                 (error 'missing-dependency
                                         :required-by c
                                         :version required-v
                                         :requires required-c)))
@@ -675,9 +675,9 @@ the head of the tree"))
              (do-dep (op dep)
                (cond ((eq op 'feature)
                       (or (member (car dep) *features*)
-                          (error 'missing-dependency 
+                          (error 'missing-dependency
                                  :required-by c
-                                 :requires (car dep) 
+                                 :requires (car dep)
                                  :version nil)))
                      (t
                       (dolist (d dep)
@@ -866,13 +866,13 @@ the head of the tree"))
   nil)
 
 (defgeneric load-preferences (system operation)
-  (:documentation 
+  (:documentation
    "Called to load system preferences after <perform operation
 system>. Typical uses are to set parameters that don't exist until
 after the system has been loaded."))
 
 (defgeneric preference-file-for-system/operation (system operation)
-  (:documentation 
+  (:documentation
    "Returns the pathname of the preference file for this system.
 Called by 'load-preferences to determine what file to load."))
 
@@ -1290,7 +1290,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
   (defun contrib-sysdef-search (system)
     (let ((home (sb-ext:posix-getenv "SBCL_HOME")))
-      (when home
+      (when (and home (not (string= home "")))
         (let* ((name (coerce-name system))
                (home (truename home))
                (contrib (merge-pathnames
@@ -1304,7 +1304,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
   (pushnew
    '(let ((home (sb-ext:posix-getenv "SBCL_HOME")))
-      (when home
+      (when (and home (not (string= home "")))
         (merge-pathnames "site-systems/" (truename home))))
    *central-registry*)
 
