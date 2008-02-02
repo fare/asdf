@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  1.111
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.113 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
