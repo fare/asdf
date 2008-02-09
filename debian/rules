@@ -30,25 +30,25 @@ binary-arch: build
 
 # Build architecture-independent files here.
 binary-indep: build
-	dh_testdir
-	dh_testroot
-	dh_clean -k
-	chmod +x test/run-tests.sh
-	dh_installdirs
-	dh_install
-	dh_lisp
-	dh_installdocs
-	dh_installexamples
-	dh_installchangelogs ChangeLog
-	dh_link --verbose
-	dh_strip
-	dh_compress
-	dh_fixperms
-	dh_installdeb
-	dh_shlibdeps
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+	dh_testdir -i
+	dh_testroot -i
+	dh_clean -k -i
+	chmod +x test/run-tests.sh 
+	dh_installdirs -i
+	dh_install -i
+	dh_lisp -i
+	dh_installdocs -i
+	dh_installexamples -i
+	dh_installchangelogs ChangeLog 
+	dh_link --verbose -i
+	dh_strip -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_shlibdeps -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
 
 source diff:                                                                  
 	@echo >&2 'source and diff are obsolete - use dpkg-source -b'; false

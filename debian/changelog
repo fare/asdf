@@ -7,8 +7,9 @@ cl-asdf (1.111-1) unstable; urgency=low
   * Fixed Vcs-Git field
   * Changed to group maintanance
   * recreated upstream changelog with git2cl
+  * Changed directory, so we depend on a newer clc 
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 31 Jan 2008 05:17:50 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 09 Feb 2008 10:07:21 +0100
 
 cl-asdf (1.109-2) unstable; urgency=low
 
