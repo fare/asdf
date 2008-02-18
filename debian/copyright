@@ -7,6 +7,10 @@ It was downloaded from SourceForge CVS server with the below commands:
     cvs -z3 -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan \
          co asdf
 
+The debian related changes and files are licensed according to the GPL-v2, see
+/usr/share/common-licenses/GPL-2
+
+
 Upstream Authors: Dan Barlow <dan@telent.net> & Contributors
 
 Copyright:
@@ -14,7 +18,7 @@ Copyright:
 (This is the MIT / X Consortium license as taken from 
  http://www.opensource.org/licenses/mit-license.html)
 
-Copyright (c) 2001, 2002 Daniel Barlow and contributors
+Copyright (c) 2001-2007 Daniel Barlow and contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
