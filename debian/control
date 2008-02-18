@@ -6,6 +6,7 @@ Uploaders: Peter Van Eynde <pvaneynd@debian.org>
 Build-Depends: debhelper (>> 4.0.0)
 Build-Depends-Indep: cvs2cl, texinfo,texlive-extra-utils, texlive, texlive-generic-recommended, dh-lisp
 Standards-Version: 3.7.3.0
+Homepage: http://common-lisp.net/project/asdf/
 Vcs-Git: http://git.debian.org/git/pkg-common-lisp/cl-asdf.git
 
 Package: cl-asdf
