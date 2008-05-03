@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.115 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.116 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -116,7 +116,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.115 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.116 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -797,6 +797,26 @@ the head of the tree"))
   #-:broken-fasl-loader (list (compile-file-pathname (component-pathname c)))
   #+:broken-fasl-loader (list (component-pathname c)))
 
+(defmethod perform :around ((o compile-op) (c cl-source-file))
+  (let ((state :initial))
+    (loop until (or (eq state :success)
+		    (eq state :failure)) do
+	 (case state
+	   (:recompiled
+	    (setf state :failure)
+	    (call-next-method)
+	    (setf state :success))
+	   (:failed-compile
+	    (setf state :recompiled)
+	    (perform (make-instance 'asdf:compile-op) c))
+	   (t
+	    (with-simple-restart 
+		(:try-recompiling "Try recompiling ~a"
+				  (component-name c))
+	      (setf state :failed-compile)
+	      (call-next-method)
+	      (setf state :success)))))))
+
 (defmethod perform ((operation compile-op) (c static-file))
   nil)
 
@@ -816,8 +836,49 @@ the head of the tree"))
 (defmethod perform ((o load-op) (c cl-source-file))
   (mapcar #'load (input-files o c)))
 
+(defmethod perform :around ((o load-op) (c cl-source-file))
+  (let ((state :initial))
+    (loop until (or (eq state :success)
+		    (eq state :failure)) do
+	 (case state
+	   (:recompiled
+	    (setf state :failure)
+	    (call-next-method)
+	    (setf state :success))
+	   (:failed-load
+	    (setf state :recompiled)
+	    (perform (make-instance 'asdf:compile-op) c))
+	   (t
+	    (with-simple-restart 
+		(:try-recompiling "Recompile ~a and try loading it again"
+				  (component-name c))
+	      (setf state :failed-load)
+	      (call-next-method)
+	      (setf state :success)))))))
+
+(defmethod perform :around ((o compile-op) (c cl-source-file))
+  (let ((state :initial))
+    (loop until (or (eq state :success)
+		    (eq state :failure)) do
+	 (case state
+	   (:recompiled
+	    (setf state :failure)
+	    (call-next-method)
+	    (setf state :success))
+	   (:failed-compile
+	    (setf state :recompiled)
+	    (perform (make-instance 'asdf:compile-op) c))
+	   (t
+	    (with-simple-restart 
+		(:try-recompiling "Try recompiling ~a"
+				  (component-name c))
+	      (setf state :failed-compile)
+	      (call-next-method)
+	      (setf state :success)))))))
+
 (defmethod perform ((operation load-op) (c static-file))
   nil)
+
 (defmethod operation-done-p ((operation load-op) (c static-file))
   t)
 
