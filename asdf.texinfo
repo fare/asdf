@@ -1026,16 +1026,6 @@ location of the system's source file and the relative pathname. For example
 #P"/repository/other/cl-ppcre/regex.data"
 @end lisp
 
-@item
-hyperdocumentation
-
-to be documented
-
-@item 
-hyperdoc
-
-to be documented
-
 @end enumerate
 
 

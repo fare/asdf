@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.117 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.118 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -40,7 +40,6 @@
 (defpackage #:asdf
   (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
            #:system-definition-pathname #:find-component ; miscellaneous
-           #:hyperdocumentation #:hyperdoc
 
            #:compile-op #:load-op #:load-source-op #:test-system-version
            #:test-op
@@ -117,7 +116,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.117 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.118 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -1291,14 +1290,6 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     #-(or openmcl clisp lispworks allegro scl cmu sbcl ecl)
     (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
     ))
-
-
-(defgeneric hyperdocumentation (package name doc-type))
-(defmethod hyperdocumentation ((package symbol) name doc-type)
-  (hyperdocumentation (find-package package) name doc-type))
-
-(defun hyperdoc (name doc-type)
-  (hyperdocumentation (symbol-package name) name doc-type))
 
 (defun system-source-file (system-name)
   (let ((system (asdf:find-system system-name)))
