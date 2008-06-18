@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.118 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.119 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -13,7 +13,7 @@
 ;;; is the latest development version, whereas the revision tagged
 ;;; RELEASE may be slightly older but is considered `stable'
 
-;;; Copyright (c) 2001-2007 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2008 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -41,7 +41,7 @@
   (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
            #:system-definition-pathname #:find-component ; miscellaneous
 
-           #:compile-op #:load-op #:load-source-op #:test-system-version
+           #:compile-op #:load-op #:load-source-op 
            #:test-op
            #:operation		 ; operations
            #:feature		 ; sort-of operation
@@ -116,7 +116,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.118 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.119 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -537,14 +537,14 @@ the head of the tree"))
                   :parent o :original-initargs args args)))))
 
 
+(defgeneric component-visited-p (operation component))
+
 (defgeneric visit-component (operation component data))
 
 (defmethod visit-component ((o operation) (c component) data)
   (unless (component-visited-p o c)
     (push (cons (node-for o c) data)
           (operation-visited-nodes (operation-ancestor o)))))
-
-(defgeneric component-visited-p (operation component))
 
 (defmethod component-visited-p ((o operation) (c component))
   (assoc (node-for o c)
