@@ -1,0 +1,19 @@
+;;; -*- Lisp -*-
+
+;;; make sure we get a missing-component error
+
+(load "script-support")
+(load "../asdf")
+(in-package #:common-lisp-user)
+
+(exit-on-error 
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (handler-case 
+     (asdf:oos 'asdf:load-op 'system-does-not-exist)
+   (asdf:missing-component-of-version (c)
+     (error "Should not have gotten 'missing-component-of-version, dang"))
+   (asdf:missing-component (c)
+     (format t "got missing-component as expected: - ~%~A~%" c))
+   (:no-error (c) (error "should have failed, oops"))))
+
+

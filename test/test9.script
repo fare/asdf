@@ -1,0 +1,20 @@
+;;; -*- Lisp -*-
+
+;;; make sure we get a missing-component-of-version error
+
+(load "script-support")
+(load "../asdf")
+(in-package #:common-lisp-user)
+
+(exit-on-error 
+ (setf asdf:*central-registry* nil)
+ (load (merge-pathnames "test9-1.asd"))
+ (load (merge-pathnames "test9-2.asd"))
+ (handler-case 
+     (asdf:oos 'asdf:load-op 'test9-1)
+   (asdf:missing-component-of-version (c)
+     (format t "got missing-component-of-version as expected: - ~%~A~%" c))
+   (:no-error (c) (error "should have failed, oops"))))
+
+
+

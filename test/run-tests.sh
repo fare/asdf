@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# do_tests {lisp invocation} {fasl extension}
+# do_tests {lisp invocation} {scripts-regex}
 # - read lisp forms one at a time from standard input
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
