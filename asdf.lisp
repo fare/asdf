@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.119 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.120 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -95,7 +95,9 @@
            #:error-component #:error-operation
            #:system-definition-error
            #:missing-component
+	   #:missing-component-of-version
            #:missing-dependency
+           #:missing-dependency-of-version
            #:circular-dependency        ; errors
            #:duplicate-names
 
@@ -116,7 +118,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.119 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.120 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -179,11 +181,17 @@ and NIL NAME and TYPE components"
 
 (define-condition missing-component (system-definition-error)
   ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)
-   (version :initform nil :reader missing-version :initarg :version)
    (parent :initform nil :reader missing-parent :initarg :parent)))
+
+(define-condition missing-component-of-version (missing-component)
+  ((version :initform nil :reader missing-version :initarg :version)))
 
 (define-condition missing-dependency (missing-component)
   ((required-by :initarg :required-by :reader missing-required-by)))
+
+(define-condition missing-dependency-of-version (missing-dependency
+						 missing-component-of-version)
+  ())
 
 (define-condition operation-error (error)
   ((component :reader error-component :initarg :component)
@@ -229,13 +237,19 @@ and NIL NAME and TYPE components"
 ;;;; methods: components
 
 (defmethod print-object ((c missing-component) s)
-  (format s "~@<component ~S not found~
-             ~@[ or does not match version ~A~]~
+   (format s "~@<component ~S not found~
              ~@[ in ~A~]~@:>"
           (missing-requires c)
-          (missing-version c)
           (when (missing-parent c)
             (component-name (missing-parent c)))))
+
+(defmethod print-object ((c missing-component-of-version) s)
+  (format s "~@<component ~S does not match version ~A~
+              ~@[ in ~A~]~@:>"
+           (missing-requires c)
+           (missing-version c)
+	   (when (missing-parent c)
+	     (component-name (missing-parent c)))))
 
 (defgeneric component-system (component)
   (:documentation "Find the top-level system containing COMPONENT"))
@@ -671,10 +685,14 @@ the head of the tree"))
                                   ;; in-order-to slot with canonicalized
                                   ;; names instead of coercing this late
                                   (coerce-name required-c) required-v)
-                                 (error 'missing-dependency
-                                        :required-by c
-                                        :version required-v
-                                        :requires required-c)))
+				 (if required-v
+				     (error 'missing-dependency-of-version
+					    :required-by c
+					    :version required-v
+					    :requires required-c)
+				     (error 'missing-dependency
+					    :required-by c
+					    :requires required-c))))
                       (op (make-sub-operation c operation dep-c required-op)))
                  (traverse op dep-c)))
              (do-dep (op dep)
@@ -981,7 +999,7 @@ method.")
          (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
          (system (if (typep system 'component) system (find-system system))))
     (unless (version-satisfies system version)
-      (error 'missing-component :requires system :version version))
+      (error 'missing-component-of-version :requires system :version version))
     (let ((steps (traverse op system)))
       (with-compilation-unit ()
         (loop for (op . component) in steps do

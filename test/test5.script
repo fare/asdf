@@ -1,4 +1,7 @@
 ;;; -*- Lisp -*-
+
+;;; test :load-only-p support
+
 (load "script-support")
 (load "../asdf")
 (exit-on-error 
