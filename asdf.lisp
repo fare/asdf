@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.120 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.121 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -118,7 +118,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.120 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.121 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -1322,7 +1322,8 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
                  :defaults (system-source-file system-name)))
 
 (defun system-relative-pathname (system pathname &key name type)
-  (let ((directory (pathname-directory pathname)))
+  ;; you're not allowed to muck with the return value of pathname-X
+  (let ((directory (copy-list (pathname-directory pathname))))
     (when (eq (car directory) :absolute)
       (setf (car directory) :relative))
     (merge-pathnames
@@ -1330,7 +1331,6 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
                     :type (or type (pathname-type pathname))
                     :directory directory)
      (system-source-directory system))))
-
 
 (pushnew :asdf *features*)
 
