@@ -6,10 +6,20 @@
 # - quit with exit status >0 if an unhandled error occurs
 
 
+if [ x"$1" = "xhelp" ]; then
+    echo "$0 [lisp invocation] [scripts-regex]"
+    echo " - read lisp forms one at a time from matching scripts"
+    echo " - quit with exit status 0 on getting eof"
+    echo " - quit with exit status >0 if an unhandled error occurs"
+    echo " you need to supply the .script in the second argument"
+    echo " lisps include sbcl, clisp, allegro and allegromodern"
+    exit -1
+fi
+
 if [ -z "$2" ]; then
     scripts="*.script"
 else
-    scripts="$2"
+    scripts="$2.script"
 fi
 
 sok=1
@@ -27,7 +37,7 @@ if [ $? -eq 0 ] ; then
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm *.$2 || true
-      if $1 < $i ;then
+      if  $1 < $i ; then
         echo "Using $1, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else

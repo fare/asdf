@@ -1,0 +1,29 @@
+;;; -*- Lisp -*-
+
+;;; test asdf:try-recompiling restart
+
+(load "script-support")
+(load "../asdf")
+(exit-on-error 
+ (asdf:run-shell-command "rm -f ~A"
+			 (namestring 
+			  (compile-file-pathname "try-recompiling-1")))
+ (defvar *caught-error* nil)
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (handler-bind ((error (lambda (c) 
+			 (setf *caught-error* t)
+			 (multiple-value-bind (name mode)
+			     (find-symbol
+			      (symbol-name 'try-recompiling)
+			      :asdf)
+			   (assert (eq mode :external))
+			   (let ((restart (find-restart name c)))
+			     #+(or)
+			     ;; debug
+			     (print (list c restart (compute-restarts c)))
+			     (when restart
+			       (invoke-restart restart)))))))
+   (asdf:oos 'asdf:load-op 'try-recompiling-1))
+ (assert *caught-error*)
+ )
+

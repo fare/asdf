@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.121 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.122 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -101,6 +101,7 @@
            #:circular-dependency        ; errors
            #:duplicate-names
 
+	   #:try-recompiling
            #:retry
            #:accept                     ; restarts
 	   )
@@ -118,7 +119,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.121 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.122 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -854,7 +855,7 @@ the head of the tree"))
 	    (perform (make-instance 'asdf:compile-op) c))
 	   (t
 	    (with-simple-restart 
-		(:try-recompiling "Recompile ~a and try loading it again"
+		(try-recompiling "Recompile ~a and try loading it again"
 				  (component-name c))
 	      (setf state :failed-load)
 	      (call-next-method)
@@ -874,7 +875,7 @@ the head of the tree"))
 	    (perform (make-instance 'asdf:compile-op) c))
 	   (t
 	    (with-simple-restart 
-		(:try-recompiling "Try recompiling ~a"
+		(try-recompiling "Try recompiling ~a"
 				  (component-name c))
 	      (setf state :failed-compile)
 	      (call-next-method)
