@@ -17,7 +17,7 @@
  ;; recompiled
  (sleep 1) ; mtime has 1-second granularity, so pause here for fast machines
 
- (asdf::run-shell-command "rm ~A"
+ (asdf::run-shell-command "rm -f ~A"
 			  (namestring (compile-file-pathname "file2")))
  (asdf:operate 'asdf:load-op 'test1)
  (assert (= file1-date (file-write-date (compile-file-pathname "file1"))))

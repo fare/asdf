@@ -19,13 +19,13 @@ fi
 if [ -z "$2" ]; then
     scripts="*.script"
 else
-    scripts="$2.script"
+    scripts="$2"
 fi
 
 sok=1
 
 do_tests() {
-rm *.$2 || true
+rm -f *.$2 || true
 ( cd .. && echo '(load "test/compile-asdf.lisp")' | $1  )
 if [ $? -eq 0 ] ; then
     test_count=0
@@ -36,7 +36,7 @@ if [ $? -eq 0 ] ; then
     do 
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
-      rm *.$2 || true
+      rm -f *.$2 || true
       if  $1 < $i ; then
         echo "Using $1, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
@@ -76,7 +76,7 @@ if [ "$lisp" = "sbcl" ] ; then
 elif [ "$lisp" = "clisp" ] ; then
     if type clisp ; then
 	fasl_ext="fas"
-	command=`where clisp`
+	command=`which clisp`
 	command="$command -norc -ansi -I - "
     fi
 elif [ "$lisp" = "allegro" ] ; then

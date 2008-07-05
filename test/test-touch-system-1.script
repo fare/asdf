@@ -1,0 +1,25 @@
+;;; -*- Lisp -*-
+
+;;; test system def reloading if touched
+;;; system that can be found using *system-definition-search-functions*
+
+(load "script-support")
+(load "../asdf")
+(exit-on-error 
+ (flet ((system-load-time (name)
+	  (let ((data (asdf::system-registered-p name)))
+	    (when data
+	      (car data)))))
+   (setf asdf:*central-registry* '(*default-pathname-defaults*))
+   (asdf:find-system :test1)
+   (let ((date1 (system-load-time :test1))
+	 (file (namestring (merge-pathnames "test1.asd"))))
+     (assert date1)
+     (assert file)
+     (sleep 1)
+     (asdf:run-shell-command "touch ~a" file)
+     (asdf:find-system :test1)
+     (let ((date2 (system-load-time :test1)))
+       (assert date2)
+       (assert (> date2 date1))))))
+

@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.122 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.123 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -119,7 +119,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.122 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.123 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -371,8 +371,13 @@ and NIL NAME and TYPE components"
   '(sysdef-central-registry-search))
 
 (defun system-definition-pathname (system)
-  (some (lambda (x) (funcall x system))
-        *system-definition-search-functions*))
+  (let ((system-name (coerce-name system)))
+    (or
+     (some (lambda (x) (funcall x system-name))
+	   *system-definition-search-functions*)
+     (let ((system-pair (gethash system-name *defined-systems*)))
+       (and system-pair
+	    (system-source-file (cdr system-pair)))))))
 
 (defvar *central-registry*
   '(*default-pathname-defaults*
@@ -701,8 +706,7 @@ the head of the tree"))
                       (or (member (car dep) *features*)
                           (error 'missing-dependency
                                  :required-by c
-                                 :requires (car dep)
-                                 :version nil)))
+                                 :requires (car dep))))
                      (t
                       (dolist (d dep)
                         (cond ((consp d)
@@ -1310,13 +1314,21 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
     ))
 
-(defun system-source-file (system-name)
-  (let ((system (asdf:find-system system-name)))
-    (make-pathname
-     :type "asd"
-     :name (asdf:component-name system)
-     :defaults (asdf:component-relative-pathname system))))
+(defgeneric system-source-file (system)
+  (:documentation "Return the source file in which system is defined."))
 
+(defmethod system-source-file ((system-name t))
+  (system-source-file (find-system system-name)))
+
+(defmethod system-source-file ((system system))
+  (let ((pn (and (slot-boundp system 'relative-pathname)
+		 (make-pathname
+		  :type "asd"
+		  :name (asdf:component-name system)
+		  :defaults (asdf:component-relative-pathname system)))))
+    (when pn
+      (probe-file pn))))
+ 
 (defun system-source-directory (system-name)
   (make-pathname :name nil
                  :type nil

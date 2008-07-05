@@ -5,7 +5,7 @@
 (load "../asdf")
 (in-package :asdf)
 (cl-user::exit-on-error 
- (asdf:run-shell-command "rm ~A ~A"
+ (asdf:run-shell-command "rm -f ~A ~A"
 			 (namestring (compile-file-pathname "file1"))
 			 (namestring (compile-file-pathname "file2")))
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
@@ -18,7 +18,7 @@
  (asdf:oos 'asdf:load-op 'test3)
  (assert (probe-file (compile-file-pathname "file1")))
  (assert (not (probe-file (compile-file-pathname "file2"))))
- (run-shell-command "rm ~A" (namestring (compile-file-pathname "file1")))
+ (run-shell-command "rm -f ~A" (namestring (compile-file-pathname "file1")))
  (setf *features* (cons :f2 (cdr *features*)))
  (asdf:oos 'asdf:load-op 'test3)
  (assert (probe-file (compile-file-pathname "file2")))
