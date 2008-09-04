@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.123 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.124 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -119,7 +119,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.123 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.124 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -375,7 +375,7 @@ and NIL NAME and TYPE components"
     (or
      (some (lambda (x) (funcall x system-name))
 	   *system-definition-search-functions*)
-     (let ((system-pair (gethash system-name *defined-systems*)))
+     (let ((system-pair (system-registered-p system-name)))
        (and system-pair
 	    (system-source-file (cdr system-pair)))))))
 
@@ -407,7 +407,7 @@ and NIL NAME and TYPE components"
 
 (defun find-system (name &optional (error-p t))
   (let* ((name (coerce-name name))
-         (in-memory (gethash name *defined-systems*))
+         (in-memory (system-registered-p name))
          (on-disk (system-definition-pathname name)))
     (when (and on-disk
                (or (not in-memory)
@@ -424,7 +424,7 @@ and NIL NAME and TYPE components"
                 *package*)
                (load on-disk))
           (delete-package package))))
-    (let ((in-memory (gethash name *defined-systems*)))
+    (let ((in-memory (system-registered-p name)))
       (if in-memory
           (progn (if on-disk (setf (car in-memory) (file-write-date on-disk)))
                  (cdr in-memory))
@@ -432,11 +432,12 @@ and NIL NAME and TYPE components"
 
 (defun register-system (name system)
   (format *verbose-out* "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
-  (setf (gethash (coerce-name  name) *defined-systems*)
+  (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
 
 (defun system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; finding components
