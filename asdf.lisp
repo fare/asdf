@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.124 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.125 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -119,7 +119,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.124 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.125 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -589,7 +589,7 @@ the head of the tree"))
 (defgeneric component-visiting-p (operation component))
 
 (defmethod component-visiting-p ((o operation) (c component))
-  (let ((node (cons o c)))
+  (let ((node (node-for o c)))
     (member node (operation-visiting-nodes (operation-ancestor o))
             :test 'equal)))
 
