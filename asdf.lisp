@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.125 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.126 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -119,7 +119,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.125 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.126 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -898,6 +898,10 @@ the head of the tree"))
 (defmethod component-depends-on ((operation load-op) (c component))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
+
+(defmethod operation-done-p ((operation test-op) (c system))
+  "Testing a system is _never_ done."
+  nil)
 
 ;;; load-source-op
 
