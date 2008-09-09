@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.127 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.128 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -104,6 +104,9 @@
 	   #:try-recompiling
            #:retry
            #:accept                     ; restarts
+
+           #:standard-asdf-method-combination
+           #:around                     ; protocol assistants
 	   )
   ;; preference loading - to be expunged
   (:export
@@ -119,7 +122,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.127 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.128 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -518,11 +521,43 @@ system."))
   ;; empty method to disable initarg validity checking
   )
 
-(defgeneric perform (operation component))
-(defgeneric operation-done-p (operation component))
-(defgeneric explain (operation component))
-(defgeneric output-files (operation component))
-(defgeneric input-files (operation component))
+(define-method-combination standard-asdf-method-combination ()
+  ((around-asdf (around))
+   (around (:around))
+   (before (:before))
+   (primary () :required t)
+   (after (:after)))
+  (flet ((call-methods (methods)
+           (mapcar #'(lambda (method)
+                       `(call-method ,method))
+                   methods)))
+    (let* ((form (if (or before after (rest primary))
+                     `(multiple-value-prog1
+                          (progn ,@(call-methods before)
+                                 (call-method ,(first primary)
+                                              ,(rest primary)))
+                        ,@(call-methods (reverse after)))
+                     `(call-method ,(first primary))))
+           (standard-form (if around
+                              `(call-method ,(first around)
+                                            (,@(rest around)
+                                               (make-method ,form)))
+                              form)))
+      (if around-asdf
+          `(call-method ,(first around-asdf)
+                        (,@(rest around-asdf) (make-method ,standard-form)))
+          standard-form))))
+
+(defgeneric perform (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric operation-done-p (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric explain (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric output-files (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric input-files (operation component)
+  (:method-combination standard-asdf-method-combination))
 
 (defun node-for (o c)
   (cons (class-name (class-of o)) c))
@@ -846,7 +881,7 @@ the head of the tree"))
 (defmethod perform ((o load-op) (c cl-source-file))
   (mapcar #'load (input-files o c)))
 
-(defmethod perform :around ((o load-op) (c cl-source-file))
+(defmethod perform around ((o load-op) (c cl-source-file))
   (let ((state :initial))
     (loop until (or (eq state :success)
 		    (eq state :failure)) do
@@ -866,7 +901,7 @@ the head of the tree"))
 	      (call-next-method)
 	      (setf state :success)))))))
 
-(defmethod perform :around ((o compile-op) (c cl-source-file))
+(defmethod perform around ((o compile-op) (c cl-source-file))
   (let ((state :initial))
     (loop until (or (eq state :success)
 		    (eq state :failure)) do
