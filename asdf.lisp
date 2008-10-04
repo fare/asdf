@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.128 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.129 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -108,10 +108,6 @@
            #:standard-asdf-method-combination
            #:around                     ; protocol assistants
 	   )
-  ;; preference loading - to be expunged
-  (:export
-   #:preference-file-for-system/operation
-   #:load-preferences)
   (:use :cl))
 
 
@@ -122,7 +118,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.128 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.129 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -130,11 +126,6 @@
                                                       :junk-allowed t)
                                      (parse-integer v :start (1+ dot)
                                                       :junk-allowed t)))))
-
-(defvar *load-preference-files* nil
-  "If true, then preference files will be loaded.
-
-This variable will be removed August 2008.")
 
 (defvar *compile-file-warnings-behaviour* :warn)
 
@@ -761,44 +752,52 @@ the head of the tree"))
           (error 'circular-dependency :components (list c)))
       (setf (visiting-component operation c) t)
       (loop for (required-op . deps) in (component-depends-on operation c)
-            do (do-dep required-op deps))
-      ;; constituent bits
-      (let ((module-ops
-             (when (typep c 'module)
-               (let ((at-least-one nil)
-                     (forced nil)
-                     (error nil))
-                 (loop for kid in (module-components c)
-                       do (handler-case
-                              (appendf forced (traverse operation kid ))
-                            (missing-dependency (condition)
-                              (if (eq (module-if-component-dep-fails c) :fail)
-                                  (error condition))
-                              (setf error condition))
-                            (:no-error (c)
-                              (declare (ignore c))
-                              (setf at-least-one t))))
-                 (when (and (eq (module-if-component-dep-fails c) :try-next)
-                            (not at-least-one))
-                   (error error))
-                 forced))))
-        ;; now the thing itself
-        (when (or forced module-ops
-                  (not (operation-done-p operation c))
-                  (let ((f (operation-forced (operation-ancestor operation))))
-                    (and f (or (not (consp f))
-                               (member (component-name
-                                        (operation-ancestor operation))
-                                       (mapcar #'coerce-name f)
-                                       :test #'string=)))))
-          (let ((do-first (cdr (assoc (class-name (class-of operation))
-                                      (slot-value c 'do-first)))))
-            (loop for (required-op . deps) in do-first
-                  do (do-dep required-op deps)))
-          (setf forced (append (delete 'pruned-op forced :key #'car)
-                               (delete 'pruned-op module-ops :key #'car)
-                               (list (cons operation c))))))
-      (setf (visiting-component operation c) nil)
+	 do (do-dep required-op deps))
+      (unwind-protect
+	   (progn
+	     (loop for (required-op . deps) in 
+		  (component-depends-on operation c)
+		do (do-dep required-op deps))
+	     ;; constituent bits
+	     (let ((module-ops
+		    (when (typep c 'module)
+		      (let ((at-least-one nil)
+			    (forced nil)
+			    (error nil))
+			(loop for kid in (module-components c)
+			   do (handler-case
+				  (appendf forced (traverse operation kid ))
+				(missing-dependency (condition)
+				  (if (eq (module-if-component-dep-fails c) 
+					  :fail)
+				      (error condition))
+				  (setf error condition))
+				(:no-error (c)
+				  (declare (ignore c))
+				  (setf at-least-one t))))
+			(when (and (eq (module-if-component-dep-fails c)
+				       :try-next)
+				   (not at-least-one))
+			  (error error))
+			forced))))
+	       ;; now the thing itself
+	       (when (or forced module-ops
+			 (not (operation-done-p operation c))
+			 (let ((f (operation-forced 
+				   (operation-ancestor operation))))
+			   (and f (or (not (consp f))
+				      (member (component-name
+					       (operation-ancestor operation))
+					      (mapcar #'coerce-name f)
+					      :test #'string=)))))
+		 (let ((do-first (cdr (assoc (class-name (class-of operation))
+					     (slot-value c 'do-first)))))
+		   (loop for (required-op . deps) in do-first
+		      do (do-dep required-op deps)))
+		 (setf forced (append (delete 'pruned-op forced :key #'car)
+				      (delete 'pruned-op module-ops :key #'car)
+				      (list (cons operation c)))))))
+	(setf (visiting-component operation c) nil))
       (visit-component operation c (and forced t))
       forced)))
 
@@ -829,9 +828,7 @@ the head of the tree"))
 
 (defmethod perform :after ((operation operation) (c component))
   (setf (gethash (type-of operation) (component-operation-times c))
-        (get-universal-time))
-  (when *load-preference-files*
-    (load-preferences c operation)))
+        (get-universal-time)))
 
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
@@ -974,50 +971,6 @@ the head of the tree"))
 (defmethod operation-done-p ((operation test-op) (c system))
   "Testing a system is _never_ done."
   nil)
-
-(defgeneric load-preferences (system operation)
-  (:documentation
-   "Deprecated - will be removed August 2008
-
-Called to load system preferences after <perform operation
-system>. Typical uses are to set parameters that don't exist until
-after the system has been loaded."))
-
-(defgeneric preference-file-for-system/operation (system operation)
-  (:documentation
-   "Deprecated - will be removed August 2008
-
-Returns the pathname of the preference file for this system.
-Called by 'load-preferences to determine what file to load."))
-
-(defmethod load-preferences ((s t) (operation t))
-  ;; do nothing
-  (values))
-
-(defmethod load-preferences ((s system) (operation basic-load-op))
-  (let* ((*package* (find-package :common-lisp))
-         (file (probe-file (preference-file-for-system/operation s operation))))
-    (when file
-      (when *verbose-out*
-        (format *verbose-out*
-                "~&~@<; ~@;loading preferences for ~A/~(~A~) from ~A~@:>~%"
-                (component-name s)
-                (type-of operation) file))
-      (load file))))
-
-(defmethod preference-file-for-system/operation ((system t) (operation t))
-  ;; cope with anything other than systems
-  (preference-file-for-system/operation (find-system system t) operation))
-
-(defmethod preference-file-for-system/operation ((s system) (operation t))
-  (let ((*default-pathname-defaults*
-         (make-pathname :name nil :type nil
-                        :defaults *default-pathname-defaults*)))
-     (merge-pathnames
-      (make-pathname :name (component-name s)
-                     :type "lisp"
-                     :directory '(:relative ".asdf"))
-      (truename (user-homedir-pathname)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
