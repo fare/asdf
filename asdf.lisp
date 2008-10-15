@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.129 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.130 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -118,7 +118,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.129 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.130 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -751,8 +751,6 @@ the head of the tree"))
       (if (component-visiting-p operation c)
           (error 'circular-dependency :components (list c)))
       (setf (visiting-component operation c) t)
-      (loop for (required-op . deps) in (component-depends-on operation c)
-	 do (do-dep required-op deps))
       (unwind-protect
 	   (progn
 	     (loop for (required-op . deps) in 
