@@ -1,0 +1,28 @@
+;;; -*- Lisp -*-
+
+;;; test asdf:try-recompiling restart
+
+(load "script-support")
+(load "../asdf")
+;(trace asdf::find-component)
+(exit-on-error 
+ (when (probe-file "try-reloading-dependency.asd")
+   (asdf:run-shell-command "rm -f ~A"
+			   (namestring "try-reloading-dependency.asd")))
+ (defvar *caught-error* nil)
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (setf asdf::*defined-systems* (asdf::make-defined-systems-table))
+ (handler-bind ((error (lambda (c) 
+			 (setf *caught-error* t)
+			 (asdf:run-shell-command
+			  "cp try-reloading-dependency.hidden try-reloading-dependency.asd")
+			 (multiple-value-bind (name mode)
+			     (find-symbol (symbol-name 'retry) :asdf)
+			   (assert (eq mode :external))
+			   (let ((restart (find-restart name c)))
+			     (assert restart)
+			     (when restart (invoke-restart restart)))))))
+   (asdf:oos 'asdf:load-op 'try-reloading-1))
+ (assert *caught-error*)
+ )
+

@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility.  $Revision: 1.130 $
+;;; This is asdf: Another System Definition Facility.  $Revision: 1.131 $
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <cclan-list@lists.sf.net>.  But note first that the canonical
@@ -118,7 +118,7 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "$Revision: 1.130 $")
+(defvar *asdf-revision* (let* ((v "$Revision: 1.131 $")
                                (colon (or (position #\: v) -1))
                                (dot (position #\. v)))
                           (and v colon dot
@@ -350,7 +350,11 @@ and NIL NAME and TYPE components"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; finding systems
 
-(defvar *defined-systems* (make-hash-table :test 'equal))
+(defun make-defined-systems-table ()
+  (make-hash-table :test 'equal))
+
+(defvar *defined-systems* (make-defined-systems-table))
+
 (defun coerce-name (name)
   (typecase name
     (component (component-name name))
@@ -711,7 +715,7 @@ the head of the tree"))
 (defgeneric traverse (operation component))
 (defmethod traverse ((operation operation) (c component))
   (let ((forced nil))
-    (labels ((do-one-dep (required-op required-c required-v)
+    (labels ((%do-one-dep (required-op required-c required-v)
                (let* ((dep-c (or (find-component
                                   (component-parent c)
                                   ;; XXX tacky.  really we should build the
@@ -728,6 +732,26 @@ the head of the tree"))
 					    :requires required-c))))
                       (op (make-sub-operation c operation dep-c required-op)))
                  (traverse op dep-c)))
+	     (do-one-dep (required-op required-c required-v)
+               (loop
+		  (restart-case
+		      (return (%do-one-dep required-op required-c required-v))
+		    (retry ()
+		      :report (lambda (s)
+				(format s "~@<Retry loading component ~S.~@:>"
+					required-c))
+		      :test
+		      (lambda (c)
+#|
+			(print (list :c1 c (typep c 'missing-dependency)))
+			(when (typep c 'missing-dependency)
+			  (print (list :c2 (missing-requires c) required-c 
+				       (equalp (missing-requires c)
+					       required-c))))
+|#
+			(and (typep c 'missing-dependency)
+			     (equalp (missing-requires c)
+				     required-c)))))))
              (do-dep (op dep)
                (cond ((eq op 'feature)
                       (or (member (car dep) *features*)
@@ -737,11 +761,22 @@ the head of the tree"))
                      (t
                       (dolist (d dep)
                         (cond ((consp d)
-                               (assert (string-equal
-                                        (symbol-name (first d))
-                                        "VERSION"))
-                               (appendf forced
-                                        (do-one-dep op (second d) (third d))))
+			       (cond ((string-equal
+				       (symbol-name (first d))
+				       "VERSION")
+				      (appendf 
+				       forced
+				       (do-one-dep op (second d) (third d))))
+				     ((and (string-equal
+					    (symbol-name (first d))
+					    "FEATURE")
+					   (find (second d) *features*
+						 :test 'string-equal))
+				      (appendf 
+				       forced
+				       (do-one-dep op (second d) (third d))))
+				     (t
+				      (error "Dependencies must be (:version <version>), (:feature <feature>), or a name"))))
                               (t
                                (appendf forced (do-one-dep op d nil)))))))))
       (aif (component-visited-p operation c)
@@ -755,7 +790,7 @@ the head of the tree"))
 	   (progn
 	     (loop for (required-op . deps) in 
 		  (component-depends-on operation c)
-		do (do-dep required-op deps))
+		  do (do-dep required-op deps))
 	     ;; constituent bits
 	     (let ((module-ops
 		    (when (typep c 'module)
