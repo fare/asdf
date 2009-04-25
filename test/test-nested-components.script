@@ -1,0 +1,68 @@
+;;; -*- Lisp -*-
+
+;;; check that added nesting via modules doesn't confuse ASDF
+
+(load "script-support")
+(load "../asdf")
+(in-package #:common-lisp-user)
+
+(exit-on-error 
+ (setf asdf:*central-registry* nil)
+ (load (merge-pathnames "test-nested-components-1.asd"))
+ (print 
+  (list
+   :a
+   (asdf::traverse (make-instance 'asdf:compile-op)
+		   (asdf:find-system 'test-nested-components-a))
+   (asdf::traverse (make-instance 'asdf:compile-op)
+		   (asdf:find-system 'test-nested-components-b))
+   :x
+   (asdf::traverse (make-instance 'asdf:compile-op)
+		   (asdf:find-system 'db-agraph-preflight))
+   (asdf::traverse (make-instance 'asdf:compile-op)
+		   (asdf:find-system 'db-agraph-preflight-2))
+   ))
+
+#|
+
+ (asdf:oos 'asdf:compile-op 'test-nested-components-a)
+ (asdf:oos 'asdf:compile-op 'test-nested-components-b)
+
+ (print 
+  (list
+   (asdf::traverse (make-instance 'asdf:load-op)
+		   (asdf:find-system 'test-nested-components-a))
+   (asdf::traverse (make-instance 'asdf:load-op)
+		   (asdf:find-system 'test-nested-components-b))))
+
+|#
+
+)
+
+
+
+
+
+#|
+(((#<ASDF:COMPILE-OP NIL {11DEB619}>
+   . #<ASDF:CL-SOURCE-FILE "preflight" {11B7B951}>)
+  (#<ASDF:COMPILE-OP NIL {11DEB619}>
+   . #<ASDF:MODULE "preflight-checks" {11B799A9}>)
+  (#<ASDF:COMPILE-OP NIL {11DEB619}>
+   . #<ASDF:SYSTEM "test-nested-components-a" {11AEDD59}>)
+  (#<ASDF:LOAD-OP NIL {11D04FE9}>
+   . #<ASDF:CL-SOURCE-FILE "preflight" {11B7B951}>)
+  (#<ASDF:LOAD-OP NIL {11D04FE9}>
+   . #<ASDF:MODULE "preflight-checks" {11B799A9}>)
+  (#<ASDF:LOAD-OP NIL {11D04FE9}>
+   . #<ASDF:SYSTEM "test-nested-components-a" {11AEDD59}>))
+ 
+ ((#<ASDF:COMPILE-OP NIL {11E4D9B1}>
+   . #<ASDF:CL-SOURCE-FILE "preflight" {11C94B89}>)
+  (#<ASDF:COMPILE-OP NIL {11E4D9B1}>
+   . #<ASDF:SYSTEM "test-nested-components-b" {11C92819}>)
+  (#<ASDF:LOAD-OP NIL {11E4A911}>
+   . #<ASDF:CL-SOURCE-FILE "preflight" {11C94B89}>)
+  (#<ASDF:LOAD-OP NIL {11E4A911}>
+   . #<ASDF:SYSTEM "test-nested-components-b" {11C92819}>)))
+|#
