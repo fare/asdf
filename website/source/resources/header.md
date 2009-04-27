@@ -1,7 +1,11 @@
 {include shared-header.md}
 
 <div class="header">
-	<span class="logo"><a href="http://www.metabang.com/" title="metabang.com"><img src="http://common-lisp.net/project/cl-containers/shared/metabang-2.png" title="metabang.com" width="100" alt="Metabang Logo" /></a></span>
+	<span class="logo">
+	  <a href="http://common-lisp.net/project/asdf" title="ASDF Homepage">
+	  <img src="lisp-logo120x80.png" title="ASDF homepage" width="100" alt="Lisp Lizzard" />
+	  </a>
+	</span>
 
 ## ASDF
 

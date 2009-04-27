@@ -3,6 +3,7 @@
 {set-property html yes}
 {set-property author "Gary Warren King"}
 {set-property title "ASDF - Another System Definition Facility"}
+{set-property style-sheet "style.css"}
 
   [user-guide]: user-guide.html
   [Overview]: overview.html
