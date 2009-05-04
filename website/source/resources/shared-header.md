@@ -6,8 +6,13 @@
 {set-property style-sheet "style.css"}
 
   [user-guide]: user-guide.html
+  [tutorial]: user-guide.html
+  [manual]: manual.html
   [Overview]: overview.html
   [FAQ]: faq.html
 
+ [asdf-devel]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel
+ [asdf-announce]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce
 
  [asdf.lisp]: http://common-lisp.net/project/asdf
+ [tarball]: http://common-lisp.net/project/asdf/asdf.tar.gz

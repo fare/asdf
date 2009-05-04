@@ -6,8 +6,8 @@ body {
 	font-size: medium;	background-color: #3aa244;	color:#ffffff;
 	border: solid #417b39 4px;
 	padding: 1mm 1mm 1mm 1em;
-}.footer {	font-size: small;	font-style: italic;	background-color: #346632;	color:#ffffff;     border-top: 2px solid;
-     border-bottom: 2px solid;
+}#footer {	font-size: small;	font-style: italic;	background-color: #346632;    border-top: 2px solid;
+    border-bottom: 2px solid;
 	border-color: #417b39;
 	padding-top: 2mm;
 	padding-bottom: 2mm;
@@ -16,15 +16,16 @@ body {
 	height: 04mm;
 }
 
-.footer-text {
-	color: #000000;
-    padding-top: 3em;
-	padding-bottom: 2em;
-	padding-right: 1em;
-	text-align: right;
+#footer #timestamp {
+	float: right;
+}
+
+#footer .copyright {
 	display: block;
-}.footer a:link {	font-weight:bold;	color:#ffffff;	text-decoration:underline;}.footer a:visited {	font-weight:bold;	color:#ffffff; 	text-decoration:underline;}.footer a:hover { 	font-weight:bold; 	color:#002244; 	text-decoration:underline;
-		 }
+	padding-top: 0.1em;
+	margin-top: 0.1em;
+}#footer a:link {	font-weight:bold;	text-decoration:underline;}#footer a:visited {	font-weight:bold;	text-decoration:underline;}#footer a:hover { 	font-weight:bold; 	color:#002244; 	text-decoration:underline;
+}
 
 .system-links {
 	width: 14%;

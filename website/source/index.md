@@ -5,7 +5,7 @@
   * [Mailing Lists][]
   * [Getting it][]
   * [Changelog][]
-  * [System Tests][tr]
+  {remark "* [System Tests][tr]"}
 </div>
 
 <div class="system-description">
@@ -16,13 +16,14 @@ ASDF is
 
 * *A*nother *S*ystem *D*efinition *F*acility.
 
-* A way to describe how your source files are organized: what depends on which and when.
+* A way to describe how your source files are organized: what
+  depends on which and when.
 
-* A defacto-standard in need of some tender loving care.
+* A de-facto standard in need of some tender loving care.
 
-For details, you can read the [tutorial][], browse the
-[manual][], or just look further down this page to grab the
-source code.
+For details, you can read the [tutorial][],
+browse the [manual][], or just look further down
+this page to grab the source code.
 
 <a id="mailing-lists"></a>
 
@@ -39,35 +40,31 @@ Thought they may lag behind the version here, ASDF comes
 bundled with most Lisps. To get the greatest and latest, you
 can:
 
-* download [asdf.lisp][],
+{remark * download [asdf.lisp][],}
 * download the [tarball][] to get all bells and whistles,
 * pull the latest from our git repository
 
-        git FOO http://common-lisp.net/project/asdf
+        git clone http://common-lisp.net/project/asdf/asdf.git
 
-* use [ASDF-install][] to update yourself
+{remark * use [ASDF-install][] to update yourself }
+
+### Contributing
+
+We're still working out the details. For now, send email to
+gwking@metabang.com or the project [mailing-list][asdf-devel]
+with questions or patches.
 
     
 <a id="news"></a>
 
 ### What is happening
 
-### Contributing
+ * Sunday; May 3, 2009 - moving towards git and Common-Lisp.net
 
 
-
-2.  Please explain to us the working pattern for ASDF + git.  E.g., I
-occasionally submit a small patch or two to Carsten Dominik's org-mode,
-and I am happy that he has clearly explained the git-usage pattern.  For
-that project, you pull from Carsten, branch, develop new code, create a
-patch, submit to Carsten and, if all goes well, it goes into Carsten's
-master repo.  Is this a workable pattern for ASDF?  If not, do you have
-something different in mind?  git is such a flexible tool that (at least
-to me) saying we're going to move to git doesn't tell me how we're going
-to work as a community.
 
 </div>
-{include footer.md}
+{include resources/footer.md}
 </div>
 
 
