@@ -1,4 +1,5 @@
 ;;; $Format:%H$
+;;; $Format:%d$
 ;;; This is asdf: Another System Definition Facility. Revision: @@VERSION@@ 
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
