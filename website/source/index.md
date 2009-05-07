@@ -40,7 +40,7 @@ Thought they may lag behind the version here, ASDF comes
 bundled with most Lisps. To get the greatest and latest, you
 can:
 
-{remark * download [asdf.lisp][],}
+* download just the source for [asdf.lisp][],
 * download the [tarball][] to get all bells and whistles,
 * pull the latest from our git repository
 

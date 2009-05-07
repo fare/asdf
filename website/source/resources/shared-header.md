@@ -14,5 +14,8 @@
  [asdf-devel]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel
  [asdf-announce]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce
 
- [asdf.lisp]: http://common-lisp.net/project/asdf
+ [asdf.lisp]: http://common-lisp.net/project/asdf/asdf.lisp
  [tarball]: http://common-lisp.net/project/asdf/asdf.tar.gz
+
+ [contributors]: contributors.html
+ 
