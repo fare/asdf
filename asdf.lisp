@@ -42,7 +42,7 @@
   (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
            #:system-definition-pathname #:find-component ; miscellaneous
 
-           #:compile-op #:load-op #:load-source-op 
+           #:compile-op #:load-op #:load-source-op
            #:test-op
            #:operation		 ; operations
            #:feature		 ; sort-of operation
@@ -749,7 +749,7 @@ the head of the tree"))
 #|
 			(print (list :c1 c (typep c 'missing-dependency)))
 			(when (typep c 'missing-dependency)
-			  (print (list :c2 (missing-requires c) required-c 
+			  (print (list :c2 (missing-requires c) required-c
 				       (equalp (missing-requires c)
 					       required-c))))
 |#
@@ -768,7 +768,7 @@ the head of the tree"))
 			       (cond ((string-equal
 				       (symbol-name (first d))
 				       "VERSION")
-				      (appendf 
+				      (appendf
 				       forced
 				       (do-one-dep op (second d) (third d))))
 				     ((and (string-equal
@@ -776,7 +776,7 @@ the head of the tree"))
 					    "FEATURE")
 					   (find (second d) *features*
 						 :test 'string-equal))
-				      (appendf 
+				      (appendf
 				       forced
 				       (do-one-dep op (second d) (third d))))
 				     (t
@@ -792,7 +792,7 @@ the head of the tree"))
       (setf (visiting-component operation c) t)
       (unwind-protect
 	   (progn
-	     (loop for (required-op . deps) in 
+	     (loop for (required-op . deps) in
 		  (component-depends-on operation c)
 		  do (do-dep required-op deps))
 	     ;; constituent bits
@@ -805,7 +805,7 @@ the head of the tree"))
 			   do (handler-case
 				  (appendf forced (traverse operation kid ))
 				(missing-dependency (condition)
-				  (if (eq (module-if-component-dep-fails c) 
+				  (if (eq (module-if-component-dep-fails c)
 					  :fail)
 				      (error condition))
 				  (setf error condition))
@@ -820,7 +820,7 @@ the head of the tree"))
 	       ;; now the thing itself
 	       (when (or forced module-ops
 			 (not (operation-done-p operation c))
-			 (let ((f (operation-forced 
+			 (let ((f (operation-forced
 				   (operation-ancestor operation))))
 			   (and f (or (not (consp f))
 				      (member (component-name
@@ -928,7 +928,7 @@ the head of the tree"))
 	    (setf state :recompiled)
 	    (perform (make-instance 'asdf:compile-op) c))
 	   (t
-	    (with-simple-restart 
+	    (with-simple-restart
 		(try-recompiling "Recompile ~a and try loading it again"
 				  (component-name c))
 	      (setf state :failed-load)
@@ -948,7 +948,7 @@ the head of the tree"))
 	    (setf state :recompiled)
 	    (perform (make-instance 'asdf:compile-op) c))
 	   (t
-	    (with-simple-restart 
+	    (with-simple-restart
 		(try-recompiling "Try recompiling ~a"
 				  (component-name c))
 	      (setf state :failed-compile)
@@ -1358,7 +1358,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 		  :defaults (asdf:component-relative-pathname system)))))
     (when pn
       (probe-file pn))))
- 
+
 (defun system-source-directory (system-name)
   (make-pathname :name nil
                  :type nil
