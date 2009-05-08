@@ -36,7 +36,7 @@ this page to grab the source code.
 
 ### Where is it
 
-Thought they may lag behind the version here, ASDF comes
+Though they may lag behind the version here, ASDF comes
 bundled with most Lisps. To get the greatest and latest, you
 can:
 
