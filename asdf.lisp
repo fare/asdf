@@ -1,21 +1,20 @@
-;;; $Format:%H$
-;;; $Format:%d$
 ;;; This is asdf: Another System Definition Facility. Revision: @@VERSION@@ 
+;;; hash - $Format:%H$
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
-;;; <cclan-list@lists.sf.net>.  But note first that the canonical
-;;; source for asdf is presently the cCLan CVS repository at
-;;; <URL:http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/>
+;;; <asdf-devel@common-lisp.net>.  But note first that the canonical
+;;; source for asdf is presently on common-lisp.net at
+;;; <URL:http://common-lisp.net/project/asdf/>
 ;;;
 ;;; If you obtained this copy from anywhere else, and you experience
 ;;; trouble using it, or find bugs, you may want to check at the
 ;;; location above for a more recent version (and for documentation
 ;;; and test files, if your copy came without them) before reporting
-;;; bugs.  There are usually two "supported" revisions - the CVS HEAD
+;;; bugs.  There are usually two "supported" revisions - the git HEAD
 ;;; is the latest development version, whereas the revision tagged
 ;;; RELEASE may be slightly older but is considered `stable'
 
-;;; Copyright (c) 2001-2008 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2009 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -120,14 +119,17 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* (let* ((v "@@VERSION@@")
-                               (colon (or (position #\: v) -1))
-                               (dot (position #\. v)))
-                          (and v colon dot
-                               (list (parse-integer v :start (1+ colon)
-                                                      :junk-allowed t)
-                                     (parse-integer v :start (1+ dot)
-                                                      :junk-allowed t)))))
+(defvar *asdf-revision*
+  (let* ((v "$Format:%d$")
+	 (to-find "tags/")
+	 (tags (or (search to-find v :test #'char=) -1)))
+    (when (and v tags)
+      (let ((dot (position #\. v :start tags)))
+	(when dot
+	  (list (parse-integer v :start (+ tags (length to-find))
+			       :junk-allowed t)
+		(parse-integer v :start (1+ dot)
+			       :junk-allowed t)))))))
 
 (defvar *compile-file-warnings-behaviour* :warn)
 
