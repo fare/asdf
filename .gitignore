@@ -4,6 +4,7 @@ common-lisp.net
 .vcs
 GNUmakefile
 init-lisp.lisp
+website/changelog.xml
 
 moptilities.tar.gz
 website/output/
