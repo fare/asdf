@@ -1300,9 +1300,9 @@ Returns the new tree (which probably shares structure with the old one)"
 ;;; is ambiguous, send a bug report
 
 (defun run-shell-command (control-string &rest args)
-  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
+  "Interpolate `args` into `control-string` as if by `format`, and
 synchronously execute the result using a Bourne-compatible shell, with
-output to *VERBOSE-OUT*.  Returns the shell's exit code."
+output to `*verbose-out*`.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
     (format *verbose-out* "; $ ~A~%" command)
     #+sbcl
@@ -1321,7 +1321,15 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
       :input nil :output *verbose-out*))
 
     #+allegro
-    (excl:run-shell-command command :input nil :output *verbose-out*)
+    (multiple-value-bind (stdout stderr exit-code)
+        (excl.osi:command-output 
+	 (format nil "~a -c ~a" #+mswindows "sh" #-mswindows "/bin/sh" command)
+	 :input nil :whole t
+	 #+mswindows :show-window #+mswindows :hide)
+      (format *verbose-out* "~{~&; ~a~%~}~%" stderr)
+      (format *verbose-out* "~{~&; ~a~%~}~%" stdout)
+      exit-code)
+
 
     #+lispworks
     (system:call-system-showing-output
@@ -1338,8 +1346,10 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
                 (ccl:run-program "/bin/sh" (list "-c" command)
                                  :input nil :output *verbose-out*
                                  :wait t)))
+
     #+ecl ;; courtesy of Juan Jose Garcia Ripoll
     (si:system command)
+
     #-(or openmcl clisp lispworks allegro scl cmu sbcl ecl)
     (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
     ))
