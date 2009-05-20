@@ -122,7 +122,7 @@
 (defvar *asdf-revision*
   (let* ((v "$Format:%d$")
 	 (to-find "tags/")
-	 (tags (or (search to-find v :test #'char=) -1)))
+	 (tags (search to-find v :test #'char=)))
     (when (and v tags)
       (let ((dot (position #\. v :start tags)))
 	(when dot
@@ -366,6 +366,10 @@ and NIL NAME and TYPE components"
     (string name)
     (t (sysdef-error "~@<invalid component designator ~A~@:>" name))))
 
+(defun system-registered-p (name)
+  (gethash (coerce-name name) *defined-systems*))
+
+
 ;;; for the sake of keeping things reasonably neat, we adopt a
 ;;; convention that functions in this list are prefixed SYSDEF-
 
@@ -436,9 +440,6 @@ and NIL NAME and TYPE components"
   (format *verbose-out* "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
-
-(defun system-registered-p (name)
-  (gethash (coerce-name name) *defined-systems*))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -1169,6 +1170,47 @@ Returns the new tree (which probably shares structure with the old one)"
 
 (defvar *serial-depends-on*)
 
+(defun sysdef-error-component (msg type name value)
+  (sysdef-error (concatenate 'string msg
+                             "~&The value specified for ~(~A~) ~A is ~W")
+                type name value))
+
+(defun check-component-input (type name weakly-depends-on depends-on components in-order-to)
+  "A partial test of the values of a component."
+  (when weakly-depends-on (warn "We got one! XXXXX"))
+  (unless (listp depends-on)
+    (sysdef-error-component ":depends-on must be a list."
+                            type name depends-on))
+  (unless (listp weakly-depends-on)
+    (sysdef-error-component ":weakly-depends-on must be a list."
+                            type name weakly-depends-on))
+  (unless (listp components)
+    (sysdef-error-component ":components must be NIL or a list of components."
+                            type name components))
+  (unless (and (listp in-order-to) (listp (car in-order-to)))
+    (sysdef-error-component ":in-order-to must be NIL or a list of components."
+                            type name in-order-to)))
+
+(defun %remove-component-inline-methods (ret rest)
+  (loop for name in +asdf-methods+
+        do (map 'nil
+                ;; this is inefficient as most of the stored
+                ;; methods will not be for this particular gf n
+                ;; But this is hardly performance-critical
+                (lambda (m)
+                  (remove-method (symbol-function name) m))
+                (component-inline-methods ret)))
+  ;; clear methods, then add the new ones
+  (setf (component-inline-methods ret) nil)
+  (loop for name in +asdf-methods+
+        for v = (getf rest (intern (symbol-name name) :keyword))
+        when v do
+        (destructuring-bind (op qual (o c) &body body) v
+          (pushnew
+           (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
+                             ,@body))
+           (component-inline-methods ret)))))
+
 (defun parse-component-form (parent options)
 
   (destructuring-bind
@@ -1247,47 +1289,6 @@ Returns the new tree (which probably shares structure with the old one)"
 
       ret)))
 
-(defun %remove-component-inline-methods (ret rest)
-  (loop for name in +asdf-methods+
-        do (map 'nil
-                ;; this is inefficient as most of the stored
-                ;; methods will not be for this particular gf n
-                ;; But this is hardly performance-critical
-                (lambda (m)
-                  (remove-method (symbol-function name) m))
-                (component-inline-methods ret)))
-  ;; clear methods, then add the new ones
-  (setf (component-inline-methods ret) nil)
-  (loop for name in +asdf-methods+
-        for v = (getf rest (intern (symbol-name name) :keyword))
-        when v do
-        (destructuring-bind (op qual (o c) &body body) v
-          (pushnew
-           (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
-                             ,@body))
-           (component-inline-methods ret)))))
-
-(defun check-component-input (type name weakly-depends-on depends-on components in-order-to)
-  "A partial test of the values of a component."
-  (when weakly-depends-on (warn "We got one! XXXXX"))
-  (unless (listp depends-on)
-    (sysdef-error-component ":depends-on must be a list."
-                            type name depends-on))
-  (unless (listp weakly-depends-on)
-    (sysdef-error-component ":weakly-depends-on must be a list."
-                            type name weakly-depends-on))
-  (unless (listp components)
-    (sysdef-error-component ":components must be NIL or a list of components."
-                            type name components))
-  (unless (and (listp in-order-to) (listp (car in-order-to)))
-    (sysdef-error-component ":in-order-to must be NIL or a list of components."
-                            type name in-order-to)))
-
-(defun sysdef-error-component (msg type name value)
-  (sysdef-error (concatenate 'string msg
-                             "~&The value specified for ~(~A~) ~A is ~W")
-                type name value))
-
 (defun resolve-symlinks (path)
   #-allegro (truename path)
   #+allegro (excl:pathname-resolve-symbolic-links path)
@@ -1321,15 +1322,15 @@ output to `*verbose-out*`.  Returns the shell's exit code."
       :input nil :output *verbose-out*))
 
     #+allegro
+    ;;?? will fail if command has embedded quotes
     (multiple-value-bind (stdout stderr exit-code)
         (excl.osi:command-output 
-	 (format nil "~a -c ~a" #+mswindows "sh" #-mswindows "/bin/sh" command)
+	 (format nil "~a -c \"~a\"" #+mswindows "sh" #-mswindows "/bin/sh" command)
 	 :input nil :whole t
 	 #+mswindows :show-window #+mswindows :hide)
       (format *verbose-out* "~{~&; ~a~%~}~%" stderr)
       (format *verbose-out* "~{~&; ~a~%~}~%" stdout)
       exit-code)
-
 
     #+lispworks
     (system:call-system-showing-output
