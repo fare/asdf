@@ -1029,7 +1029,9 @@ method.")
 
 (defun operate (operation-class system &rest args &key (verbose t) version
                 &allow-other-keys)
-  (let* ((op (apply #'make-instance operation-class
+  (let* ((*package* *package*)
+         (*readtable* *readtable*)
+         (op (apply #'make-instance operation-class
                     :original-initargs args
                     args))
          (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
