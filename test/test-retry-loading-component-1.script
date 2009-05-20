@@ -5,6 +5,9 @@
 (load "script-support")
 (load "../asdf")
 ;(trace asdf::find-component)
+;(trace asdf:run-shell-command asdf:oos asdf:perform asdf:operate)
+;#+allegro
+;(trace excl.osi:command-output)
 (exit-on-error 
  (when (probe-file "try-reloading-dependency.asd")
    (asdf:run-shell-command "rm -f ~A"
@@ -13,12 +16,13 @@
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (setf asdf::*defined-systems* (asdf::make-defined-systems-table))
  (handler-bind ((error (lambda (c) 
+			 (format t "~&Caught error ~s" c)
 			 (setf *caught-error* t)
 			 (asdf:run-shell-command
 			  "cp try-reloading-dependency.hidden try-reloading-dependency.asd")
 			 (multiple-value-bind (name mode)
 			     (find-symbol (symbol-name 'retry) :asdf)
-			   (assert (eq mode :external))
+			   (assert (eq mode :external) nil "Mode of ~s was not external" name)
 			   (let ((restart (find-restart name c)))
 			     (assert restart)
 			     (when restart (invoke-restart restart)))))))

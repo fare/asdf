@@ -20,6 +20,7 @@
      (asdf:run-shell-command "touch ~a" file)
      (asdf:find-system :test1)
      (let ((date2 (system-load-time :test1)))
+       (print (list date1 date2))
        (assert date2)
        (assert (> date2 date1))))))
 
