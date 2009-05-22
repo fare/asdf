@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility. Revision: @@VERSION@@ 
+;;; This is asdf: Another System Definition Facility. 
 ;;; hash - $Format:%H$
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
@@ -120,16 +120,25 @@
 (in-package #:asdf)
 
 (defvar *asdf-revision*
+  ;; find first tag that looks like /tags/[0-9]*\.[0-9]*. E.g., /tags/1.34
+  ;; return nil or a list of the major and minor version numbers
   (let* ((v "$Format:%d$")
 	 (to-find "tags/")
-	 (tags (search to-find v :test #'char=)))
-    (when (and v tags)
-      (let ((dot (position #\. v :start tags)))
-	(when dot
-	  (list (parse-integer v :start (+ tags (length to-find))
-			       :junk-allowed t)
-		(parse-integer v :start (1+ dot)
-			       :junk-allowed t)))))))
+	 (start 0))
+    (when v
+      (loop for tag-start = (search to-find v :test #'char= :start2 start)
+	 while tag-start do
+	 (when tag-start
+	   (let ((dot (position #\. v :start tag-start))
+		 (space (position #\space v :start tag-start)))
+	     (when (and dot (or (not space) (< dot space)))
+	       ;; success
+	       (return
+		 (list (parse-integer v :start (+ tag-start (length to-find))
+				      :junk-allowed t)
+		       (parse-integer v :start (1+ dot)
+				      :junk-allowed t))))
+	     (setf start (1+ tag-start))))))))
 
 (defvar *compile-file-warnings-behaviour* :warn)
 
