@@ -1324,11 +1324,12 @@ output to `*verbose-out*`.  Returns the shell's exit code."
       :input nil :output *verbose-out*))
 
     #+allegro
-    ;;?? will fail if command has embedded quotes
+    ;; will this fail if command has embedded quotes - it seems to work
     (multiple-value-bind (stdout stderr exit-code)
         (excl.osi:command-output 
-	 (format nil "~a -c \"~a\"" #+mswindows "sh" #-mswindows "/bin/sh" command)
-	 :input nil :whole t
+	 (format nil "~a -c \"~a\"" 
+		 #+mswindows "sh" #-mswindows "/bin/sh" command)
+	 :input nil :whole nil
 	 #+mswindows :show-window #+mswindows :hide)
       (format *verbose-out* "~{~&; ~a~%~}~%" stderr)
       (format *verbose-out* "~{~&; ~a~%~}~%" stdout)
