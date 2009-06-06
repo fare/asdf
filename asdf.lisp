@@ -41,7 +41,7 @@
 (defpackage #:asdf
   (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
            #:system-definition-pathname #:find-component ; miscellaneous
-
+	   #:system-compile #:system-load #:system-test
            #:compile-op #:load-op #:load-source-op
            #:test-op
            #:operation		 ; operations
@@ -162,6 +162,11 @@ and NIL NAME and TYPE components"
 
 (define-modify-macro appendf (&rest args)
   append "Append onto list")
+
+(defun asdf-message (format-string &rest format-args)
+  (declare (dynamic-extent format-args))
+  (apply #'format *verbose-out* format-string format-args))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; classes, condiitons
@@ -395,9 +400,17 @@ and NIL NAME and TYPE components"
 	    (system-source-file (cdr system-pair)))))))
 
 (defvar *central-registry*
-  '(*default-pathname-defaults*
-    #+nil "/home/dan/src/sourceforge/cclan/asdf/systems/"
-    #+nil "telent:asdf;systems;"))
+  '(*default-pathname-defaults*)
+"A list of 'system directory designators' ASDF uses to find systems.
+
+A 'system directory designator' is a pathname or a function 
+which evaluates to a pathname. For example:
+
+    (setf asdf:*central-registry*
+          (list '*default-pathname-defaults*
+                #p\"/home/me/cl/systems/\"
+                #p\"/usr/share/common-lisp/systems/\"))
+")
 
 (defun sysdef-central-registry-search (system)
   (let ((name (coerce-name system)))
@@ -430,8 +443,7 @@ and NIL NAME and TYPE components"
       (let ((package (make-temporary-package)))
         (unwind-protect
              (let ((*package* package))
-               (format
-                *verbose-out*
+	       (asdf-message
                 "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
                 ;; FIXME: This wants to be (ENOUGH-NAMESTRING
                 ;; ON-DISK), but CMUCL barfs on that.
@@ -446,7 +458,7 @@ and NIL NAME and TYPE components"
           (if error-p (error 'missing-component :requires name))))))
 
 (defun register-system (name system)
-  (format *verbose-out* "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
+  (asdf-message "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
 
@@ -859,7 +871,7 @@ the head of the tree"))
   nil)
 
 (defmethod explain ((operation operation) (component component))
-  (format *verbose-out* "~&;;; ~A on ~A~%" operation component))
+  (asdf-message "~&;;; ~A on ~A~%" operation component))
 
 ;;; compile-op
 
@@ -1022,22 +1034,9 @@ the head of the tree"))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
 
-(defvar *operate-docstring*
-  "Operate does three things:
-
-1. It creates an instance of `operation-class` using any keyword parameters
-as initargs.
-2. It finds the  asdf-system specified by `system` (possibly loading
-it from disk).
-3. It then calls `traverse` with the operation and system as arguments
-
-The traverse operation is wrapped in `with-compilation-unit` and error
-handling code. If a `version` argument is supplied, then operate also
-ensures that the system found satisfies it using the `version-satisfies`
-method.")
-
-(defun operate (operation-class system &rest args &key (verbose t) version
+(defun operate (operation-class system &rest args &key (verbose t) version force
                 &allow-other-keys)
+  (declare (ignore force))
   (let* ((*package* *package*)
          (*readtable* *readtable*)
          (op (apply #'make-instance operation-class
@@ -1070,17 +1069,45 @@ method.")
                              (get-universal-time))
                        (return)))))))))
 
-(setf (documentation 'operate 'function)
-      *operate-docstring*)
-
-(defun oos (operation-class system &rest args &key force (verbose t) version)
+(defun oos (operation-class system &rest args &key force (verbose t) version
+	    &allow-other-keys)
   (declare (ignore force verbose version))
   (apply #'operate operation-class system args))
 
-(setf (documentation 'oos 'function)
-      (format nil
-              "Short for _operate on system_ and an alias for the `operate` function. ~&~&~a"
-              *operate-docstring*))
+(let ((operate-docstring
+  "Operate does three things:
+
+1. It creates an instance of `operation-class` using any keyword parameters
+as initargs.
+2. It finds the  asdf-system specified by `system` (possibly loading
+it from disk).
+3. It then calls `traverse` with the operation and system as arguments
+
+The traverse operation is wrapped in `with-compilation-unit` and error
+handling code. If a `version` argument is supplied, then operate also
+ensures that the system found satisfies it using the `version-satisfies`
+method."))
+  (setf (documentation 'oos 'function)
+	(format nil
+		"Short for _operate on system_ and an alias for the [operate][] function. ~&~&~a"
+		operate-docstring))
+  (setf (documentation 'operate 'function)
+	operate-docstring))
+
+(defun system-load (system &rest args &key force (verbose t) version)
+  "Shorthand for `(operate 'asdf:load-op system)`. See [operate][] for details."
+  (declare (ignore force verbose version))
+  (apply #'operate 'load-op system args))
+
+(defun system-compile (system &rest args &key force (verbose t) version)
+  "Shorthand for `(operate 'asdf:compile-op system)`. See [operate][] for details."
+  (declare (ignore force verbose version))
+  (apply #'operate 'compile-op system args))
+
+(defun system-test (system &rest args &key force (verbose t) version)
+  "Shorthand for `(operate 'asdf:test-op system)`. See [operate][] for details."
+  (declare (ignore force verbose version))
+  (apply #'operate 'test-op system args))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; syntax
@@ -1316,7 +1343,7 @@ Returns the new tree (which probably shares structure with the old one)"
 synchronously execute the result using a Bourne-compatible shell, with
 output to `*verbose-out*`.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
-    (format *verbose-out* "; $ ~A~%" command)
+    (asdf-message "; $ ~A~%" command)
     #+sbcl
     (sb-ext:process-exit-code
      (sb-ext:run-program
