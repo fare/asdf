@@ -118,30 +118,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>66</integer>
+				<integer>55</integer>
 				<key>line</key>
-				<integer>7</integer>
+				<integer>11</integer>
 			</dict>
-			<key>columnSelection</key>
-			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
-			<key>selectFrom</key>
-			<dict>
-				<key>column</key>
-				<integer>80</integer>
-				<key>line</key>
-				<integer>7</integer>
-			</dict>
-			<key>selectTo</key>
-			<dict>
-				<key>column</key>
-				<integer>66</integer>
-				<key>line</key>
-				<integer>7</integer>
-			</dict>
 		</dict>
 		<key>source/resources/header.md</key>
 		<dict>
@@ -176,7 +160,7 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>59</integer>
+				<integer>0</integer>
 				<key>line</key>
 				<integer>16</integer>
 			</dict>
@@ -261,6 +245,8 @@
 		<string>source/manual.md</string>
 		<string>source/style.css</string>
 		<string>source/resources/shared-header.md</string>
+		<string>source/resources/header.md</string>
+		<string>source/resources/navigation.md</string>
 		<string>source/index.md</string>
 		<string>source/contributors.md</string>
 		<string>source/resources/footer.md</string>

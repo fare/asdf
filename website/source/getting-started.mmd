@@ -13,8 +13,8 @@ Simple Lisp programs are defined in a single file; to use
 them, you load the file and go. More complicated systems,
 however, are made up of many files (and possibly depend on
 other systems made up of their own files). Using these
-requires loading the sub-systems and files in the right order
-- an error-prone and tedious task.
+requires loading the sub-systems and files in the right 
+order -- an error-prone and tedious task.
 
 ASDF is *a*nother *s*ystem *d*efinition *f*acility: a tool
 for describing the sub-systems and files that comprise a
@@ -82,7 +82,7 @@ You can load system definition files by hand:
     (load "/path/to/my/system/my-system.asd")
 
 or you can tell ASDF where to look to find them using the
-[*central-registry*][*central-registry*] parameter.
+[`*central-registry*`][*central-registry*] parameter.
 
 {docs *central-registry*}
 

@@ -2,202 +2,27 @@
 
 # ASDF Manual
 
-## Table of Contents
+# Table of Contents
 
-  * [asdf: another system definition facility][1]
-  * [1 Using asdf to load systems][2]
+{table-of-contents :start 2 :depth 3}
 
-    * [1.1 Downloading asdf][2]
-    * [1.2 Setting up asdf][2]
-    * [1.3 Setting up a system to be loaded][2]
-    * [1.4 Loading a system][2]
+## Introduction
 
-  * [2 Defining systems with defsystem][3]
+ASDF is *a*nother *s*ystem *d*efinition *f*acility: a tool
+for describing the sub-systems and files that comprise a
+system and for operating on these components in the right
+order so that they can be compiled, loaded, tested, etc.
 
-    * [2.1 The defsystem form][4]
-    * [2.2 A more involved example][5]
-    * [2.3 The defsystem grammar][6]
+ASDF presents two faces: one for system implementors who need
+to be able to describe their systems using ASDF and one for
+Lisp programmers and users who want to use those systems.
+See the [getting started][getting-started] guide to learn how to use ASDF to load system. This document describes how to write your own system defintions for ASDF.
 
-      * [2.3.1 Serial dependencies][6]
-      * [2.3.2 Source location][6]
-
-    * [2.4 Other code in .asd files][7]
-
-  * [3 The object model of asdf][8]
-
-    * [3.1 Operations][9]
-
-      * [3.1.1 Predefined operations of asdf][10]
-      * [3.1.2 Creating new operations][11]
-
-    * [3.2 Components][12]
-
-      * [3.2.1 Common attributes of components][13]
-
-        * [3.2.1.1 Name][13]
-        * [3.2.1.2 Version identifier][13]
-        * [3.2.1.3 Required features][13]
-        * [3.2.1.4 Dependencies][13]
-        * [3.2.1.5 pathname][13]
-        * [3.2.1.6 properties][13]
-
-      * [3.2.2 Pre-defined subclasses of component][14]
-      * [3.2.3 Creating new component types][15]
-
-  * [4 Error handling][16]
-  * [5 Compilation error and warning handling][17]
-  * [6 Additional Functionality][18]
-  * [7 Getting the latest version][19]
-  * [8 TODO list][20]
-  * [9 missing bits in implementation][21]
-  * [10 Inspiration][22]
-
-    * [10.1 mk-defsystem (defsystem-3.x)][22]
-    * [10.2 defsystem-4 proposal][22]
-    * [10.3 kmp's "The Description of Large Systems", MIT AI Memu 801][22]
-
-  * [Concept Index][23]
-  * [Function and Class Index][24]
-  * [Variable Index][25]
-
-* * *
-
-Next: [Using asdf to load systems][2], Previous: [(dir)][26], Up: [(dir)][26]
-
-## asdf: another system definition facility
-
-This manual describes asdf, a system definition facility for Common Lisp programs and libraries. 
-
-asdf Copyright (C) 2001-2007 Daniel Barlow and contributors 
-
-This manual Copyright (C) 2001-2007 Daniel Barlow and contributors 
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions: 
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software. 
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. 
-
-  * [Using asdf to load systems][2]
-  * [Defining systems with defsystem][3]
-  * [The object model of asdf][8]
-  * [Error handling][16]
-  * [Compilation error and warning handling][17]
-  * [Miscellaneous additional functionality][18]
-  * [Getting the latest version][19]
-  * [TODO list][20]
-  * [missing bits in implementation][21]
-  * [Inspiration][22]
-  * [Concept Index][23]
-  * [Function and Class Index][24]
-  * [Variable Index][25]
-
---- The Detailed Node Listing --- 
-
-Defining systems with defsystem 
-
-  * [The defsystem form][4]
-  * [A more involved example][5]
-  * [The defsystem grammar][6]
-
-The object model of asdf 
-
-  * [Operations][9]
-  * [Components][12]
-
-Operations 
-
-  * [Predefined operations of asdf][10]
-  * [Creating new operations][11]
-
-Components 
-
-  * [Common attributes of components][13]
-  * [Pre-defined subclasses of component][14]
-  * [Creating new component types][15]
-
-properties 
-
-  * [Pre-defined subclasses of component][14]
-  * [Creating new component types][15]
-
-* * *
-
-Next: [Defining systems with defsystem][3], Previous: [Top][1], Up: [Top][1]
-
-## 1 Using asdf to load systems
-
-This chapter describes how to use asdf to compile and load ready-made Lisp programs and libraries. 
-
-### 1.1 Downloading asdf
-
-Some Lisp implementations (such as SBCL and OpenMCL) come with asdf included already, so you don't need to download it separately. Consult your Lisp system's documentation. If you need to download asdf and install it by hand, the canonical source is the cCLan CVS repository at [http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/][27]. 
-
-### 1.2 Setting up asdf
-
-The single file asdf.lisp is all you need to use asdf normally. Once you load it in a running Lisp, you're ready to use asdf. For maximum convenience you might want to have asdf loaded whenever you start your Lisp implementation, for example by loading it from the startup script or dumping a custom core - check your Lisp implementation's manual for details. 
-
-The variable `asdf:*central-registry*` is a list of "system
-directory designators"{footnote "When we say 'directory'
-here, we mean 'designator for a pathname with a supplied
-DIRECTORY component'."}. A system directory designator is a
-form which will be evaluated whenever a system is to be
-found, and must evaluate to a directory to look in. You might
-want to set or augment `*central-registry*` in your Lisp init
-file, for example:
-
-         (setf asdf:*central-registry*
-           (list* '*default-pathname-defaults*
-                  #p"/home/me/cl/systems/"
-                  #p"/usr/share/common-lisp/systems/"
-                  asdf:*central-registry*))
-
-
-### 1.3 Setting up a system to be loaded
-
-To compile and load a system, you need to ensure that a
-symbolic link to its system definition is in one of the
-directories in `*central-registry*`{footnote "It is possible
-to customize the system definition file search. That's
-considered advanced use, and covered later: search forward
-for `*system-definition-search-functions*`. See [Defining
-systems with defsystem][3]."}.
-
-For example, if `#p"/home/me/cl/systems/"` (note the trailing slash) is a member of `*central-registry*`, you would set up a system foo that is stored in a directory /home/me/src/foo/ for loading with asdf with the following commands at the shell (this has to be done only once): 
-    
-         $ cd /home/me/cl/systems/
-         $ ln -s ~/src/foo/foo.asd .
-    
-
-### 1.4 Loading a system
-
-The system foo is loaded (and compiled, if necessary) by evaluating the following form in your Lisp implementation: 
-    
-         (asdf:operate 'asdf:load-op 'foo)
-    
-
-Output from asdf and asdf extensions are supposed to be sent to the CL stream `*standard-output*`, and so rebinding that stream around calls to `asdf:operate` should redirect all output from asdf operations. 
-
-That's all you need to know to use asdf to load systems written by others. The rest of this manual deals with writing system definitions for Lisp software you write yourself. 
-
-* * *
-
-Next: [The object model of asdf][8], Previous: [Using asdf to load systems][2], Up: [Top][1]
-
-## 2 Defining systems with defsystem
+##  Defining systems with defsystem
 
 This chapter describes how to use asdf to define systems and develop software. 
 
-  * [The defsystem form][4]
-  * [A more involved example][5]
-  * [The defsystem grammar][6]
-  * [Other code in .asd files][7]
-
-* * *
-
-Next: [A more involved example][5], Previous: [Defining systems with defsystem][3], Up: [Defining systems with defsystem][3]
-
-### 2.1 The defsystem form
+###  The defsystem form
 
 Systems can be constructed programmatically by instantiating components using make-instance. Most of the time, however, it is much more practical to use a static `defsystem` form. This section begins with an example of a system definition, then gives the full grammar of `defsystem`. 
 
@@ -244,11 +69,8 @@ This is not absolutely required by asdf, but helps avoid namespace pollution and
     move the system sources without having to edit the system
     definition.
 
-* * *
 
-Next: [The defsystem grammar][6], Previous: [The defsystem form][4], Up: [Defining systems with defsystem][3]
-
-### 2.2 A more involved example
+###  A more involved example
 
 Let's illustrate some more involved uses of `defsystem` via a slightly convoluted example: 
     
@@ -281,11 +103,8 @@ has the effect of
 
 where `...` is the component in question; note that although this also supports `:before` methods, they may not do what you want them to - a `:before` method on perform `((op compile-op) (c (eql ...)))` will run after all the dependencies and sub-components have been processed, but before the component in question has been compiled. 
 
-* * *
 
-Next: [Other code in .asd files][7], Previous: [A more involved example][5], Up: [Defining systems with defsystem][3]
-
-### 2.3 The defsystem grammar
+###  The defsystem grammar
     
     system-definition := ( defsystem system-designator {option}* )
     
@@ -321,7 +140,7 @@ Next: [Other code in .asd files][7], Previous: [A more involved example][5], Up:
                           |  symbol
     
 
-#### 2.3.1 Serial dependencies
+####  Serial dependencies
 
 If the `:serial t` option is specified for a module, asdf will add dependencies for each each child component, on all the children textually preceding it. This is done as if by `:depends-on`. 
     
@@ -336,7 +155,7 @@ is equivalent to
          	     (:file "c" :depends-on ("a" "b")))
     
 
-#### 2.3.2 Source location
+####  Source location
 
 The `:pathname` option is optional in all cases for systems defined via `defsystem`, and in the usual case the user is recommended not to supply it. 
 
@@ -360,30 +179,20 @@ If a system is being redefined, the top-level pathname will be
 
 Previous: [The defsystem grammar][6], Up: [Defining systems with defsystem][3]
 
-### 2.4 Other code in .asd files
+###  Other code in .asd files
 
 Files containing defsystem forms are regular Lisp files that are executed by `load`. Consequently, you can put whatever Lisp code you like into these files (e.g., code that examines the compile-time environment and adds appropriate features to `*features*`). However, some conventions should be followed, so that users can control certain details of execution of the Lisp in .asd files: 
 
   * Any informative output (other than warnings and errors, which are the condition system's to dispose of) should be sent to the standard CL stream `*standard-output*`, so that users can easily control the disposition of output from asdf operations. 
 
-* * *
-
-Next: [Error handling][16], Previous: [Defining systems with defsystem][3], Up: [Top][1]
-
-## 3 The object model of asdf
+##  The object model of asdf
 
 asdf is designed in an object-oriented way from the ground up. Both a system's structure and the operations that can be performed on systems follow a protocol. asdf is extensible to new operations and to new component types. This allows the addition of behaviours: for example, a new component could be added for Java JAR archives, and methods specialised on `compile-op` added for it that would accomplish the relevant actions. 
 
 This chapter deals with _components_, the building blocks of a system, and _operations_, the actions that can be performed on a system. 
 
-  * [Operations][9]
-  * [Components][12]
 
-* * *
-
-Next: [Components][12], Previous: [The object model of asdf][8], Up: [The object model of asdf][8]
-
-### 3.1 Operations
+###  Operations
 
 An operation object of the appropriate type is instantiated whenever the user wants to do something with a system like 
 
@@ -407,14 +216,8 @@ Operations are invoked on systems via `operate`.
 > 
 > The initargs are passed to the `make-instance` call when creating the operation object. Note that dependencies may cause the operation to invoke other operations on the system or its components: the new operations will be created with the same initargs as the original one. 
 
-  * [Predefined operations of asdf][10]
-  * [Creating new operations][11]
 
-* * *
-
-Next: [Creating new operations][11], Previous: [Operations][9], Up: [Operations][9]
-
-#### 3.1.1 Predefined operations of asdf
+####  Predefined operations of asdf
 
 All the operations described in this section are in the `asdf` package. They are invoked via the `operate` generic function. 
     
@@ -469,11 +272,8 @@ All the operations described in this section are in the `asdf` package. They are
 
 > An instance of `feature-dependent-op` will ignore any components which have a `features` attribute, unless the feature combination it designates is satisfied by `*features*`. This operation is not intended to be instantiated directly, but other operations may inherit from it. 
 
-* * *
 
-Previous: [Predefined operations of asdf][10], Up: [Operations][9]
-
-#### 3.1.2 Creating new operations
+####  Creating new operations
 
 asdf was designed to be extensible in an object-oriented fashion. To teach asdf new tricks, a programmer can implement the behaviour he wants by creating a subclass of `operation`. 
 
@@ -488,11 +288,8 @@ An operation must provide methods for the following generic functions when invok
 
 Operations that print output should send that output to the standard CL stream `*standard-output*`, as the Lisp compiler and loader do. 
 
-* * *
 
-Previous: [Operations][9], Up: [The object model of asdf][8]
-
-### 3.2 Components
+###  Components
 
 A component represents a source file or (recursively) a collection of components. A system is (roughly speaking) a top-level component that can be found via `find-system`. 
 
@@ -520,27 +317,27 @@ A system designator is a string or symbol and behaves just like any other compon
 
 Next: [Pre-defined subclasses of component][14], Previous: [Components][12], Up: [Components][12]
 
-#### 3.2.1 Common attributes of components
+####  Common attributes of components
 
 All components, regardless of type, have the following attributes. All attributes except `name` are optional. 
 
-##### 3.2.1.1 Name
+#####  Name
 
 A component name is a string or a symbol. If a symbol, its name is taken and lowercased. The name must be a suitable value for the `:name` initarg to `make-pathname` in whatever filesystem the system is to be found. 
 
 The lower-casing-symbols behaviour is unconventional, but was selected after some consideration. Observations suggest that the type of systems we want to support either have lowercase as customary case (Unix, Mac, windows) or silently convert lowercase to uppercase (lpns), so this makes more sense than attempting to use `:case :common` as argument to `make-pathname`, which is reported not to work on some implementations 
 
-##### 3.2.1.2 Version identifier
+#####  Version identifier
 
 This optional attribute is used by the test-system-version operation. See [Predefined operations of asdf][10]. For the default method of test-system-version, the version should be a string of intergers separated by dots, for example '1.0.11'. 
 
-##### 3.2.1.3 Required features
+#####  Required features
 
 Traditionally defsystem users have used reader conditionals to include or exclude specific per-implementation files. This means that any single implementation cannot read the entire system, which becomes a problem if it doesn't wish to compile it, but instead for example to create an archive file containing all the sources, as it will omit to process the system-dependent sources for other systems. 
 
 Each component in an asdf system may therefore specify features using the same syntax as #+ does, and it will (somehow) be ignored for certain operations unless the feature conditional is a member of `*features*`. 
 
-##### 3.2.1.4 Dependencies
+#####  Dependencies
 
 This attribute specifies dependencies of the component on its siblings. It is optional but often necessary. 
 
@@ -593,7 +390,7 @@ In asdf, the dependency information for a given component and operation can be q
 
 (If it weren't for CLISP, we'd be using a `LIST` method combination to do this transparently. But, we need to support CLISP. If you have the time for some CLISP hacking, I'm sure they'd welcome your fixes) 
 
-##### 3.2.1.5 pathname
+#####  pathname
 
 This attribute is optional and if absent will be inferred from the component's name, type (the subclass of source-file), and the location of its parent. 
 
@@ -622,7 +419,7 @@ The answer to the frequently asked question "how do I create a system definition
             "cl")
     
 
-##### 3.2.1.6 properties
+#####  properties
 
 This attribute is optional. 
 
@@ -637,7 +434,7 @@ Packaging systems often require information about files or systems in addition t
 
 Next: [Creating new component types][15], Previous: [Common attributes of components][13], Up: [Components][12]
 
-#### 3.2.2 Pre-defined subclasses of component
+####  Pre-defined subclasses of component
 
 -- Component: **source-file**  
 
@@ -677,7 +474,7 @@ Next: [Creating new component types][15], Previous: [Common attributes of compon
 
 Previous: [Pre-defined subclasses of component][14], Up: [Components][12]
 
-#### 3.2.3 Creating new component types
+####  Creating new component types
 
 New component types are defined by subclassing one of the existing component classes and specializing methods on the new component class. 
 
@@ -715,7 +512,7 @@ The new component type is used in a `defsystem` form in this way:
 
 Next: [Compilation error and warning handling][17], Previous: [The object model of asdf][8], Up: [Top][1]
 
-## 4 Error handling
+##  Error handling
 
 It is an error to define a system incorrectly: an implementation may detect this and signal a generalised instance of `SYSTEM-DEFINITION-ERROR`. 
 
@@ -725,7 +522,7 @@ Operations may go wrong (for example when source files contain errors). These ar
 
 Next: [Miscellaneous additional functionality][18], Previous: [Error handling][16], Up: [Top][1]
 
-## 5 Compilation error and warning handling
+##  Compilation error and warning handling
 
 ASDF checks for warnings and errors when a file is compiled. The variables `*compile-file-warnings-behaviour*` and `*compile-file-errors-behavior*` controls the handling of any such events. The valid values for these variables are `:error`, `:warn`, and `:ignore`. 
 
@@ -733,7 +530,7 @@ ASDF checks for warnings and errors when a file is compiled. The variables `*com
 
 Next: [Getting the latest version][19], Previous: [Compilation error and warning handling][17], Up: [Top][1]
 
-## 6 Additional Functionality
+##  Additional Functionality
 
 ASDF includes several additional features that are generally useful for system definition and development. These include: 
 
@@ -749,7 +546,7 @@ It's often handy to locate a file relative to some system. The system-relative-p
 
 Next: [TODO list][20], Previous: [Miscellaneous additional functionality][18], Up: [Top][1]
 
-## 7 Getting the latest version
+##  Getting the latest version
 
   1. Decide which version you want. HEAD is the newest version and usually OK, whereas RELEASE is for cautious people (e.g. who already have systems using asdf that they don't want broken), a slightly older version about which none of the HEAD users have complained. 
   2. Check it out from sourceforge cCLan CVS: 
@@ -772,7 +569,7 @@ For more CVS information, look at [http://sourceforge.net/cvs/?group_id=28536][3
 
 Next: [missing bits in implementation][21], Previous: [Getting the latest version][19], Up: [Top][1]
 
-## 8 TODO list
+##  TODO list
 
 * Outstanding spec questions, things to add 
 
@@ -815,7 +612,7 @@ This uses unexported symbols. What would be a nice interface for this functional
 
 Next: [Inspiration][22], Previous: [TODO list][20], Up: [Top][1]
 
-## 9 missing bits in implementation
+##  missing bits in implementation
 
 ** all of the above 
 
@@ -870,9 +667,9 @@ There's a difference between a module's dependencies (peers) and its components 
 
 Next: [Concept Index][23], Previous: [missing bits in implementation][21], Up: [Top][1]
 
-## 10 Inspiration
+##  Inspiration
 
-### 10.1 mk-defsystem (defsystem-3.x)
+###  mk-defsystem (defsystem-3.x)
 
 We aim to solve basically the same problems as mk-defsystem does. However, our architecture for extensibility better exploits CL language features (and is documented), and we intend to be portable rather than just widely-ported. No slight on the mk-defsystem authors and maintainers is intended here; that implementation has the unenviable task of supporting pre-ANSI implementations, which is no longer necessary. 
 
@@ -880,7 +677,7 @@ The surface defsystem syntax of asdf is more-or-less compatible with mk-defsyste
 
 The mk-defsystem code for topologically sorting a module's dependency list was very useful. 
 
-### 10.2 defsystem-4 proposal
+###  defsystem-4 proposal
 
 Marco and Peter's proposal for defsystem 4 served as the driver for many of the features in here. Notable differences are: 
 
@@ -896,7 +693,7 @@ A system has a given version which can be used to check dependencies, but that's
 
 The defsystem 4 proposal tends to look more at the external features, whereas this one centres on a protocol for system introspection. 
 
-### 10.3 kmp's "The Description of Large Systems", MIT AI Memu 801
+###  kmp's "The Description of Large Systems", MIT AI Memu 801
 
 Available in updated-for-CL form on the web at [http://world.std.com/~pitman/Papers/Large-Systems.html][33]
 
