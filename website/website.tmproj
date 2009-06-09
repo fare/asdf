@@ -3,18 +3,36 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>source/resources/shared-header.md</string>
+	<string>source/style.css</string>
 	<key>documents</key>
 	<array>
 		<dict>
 			<key>filename</key>
-			<string>source/manual.md</string>
+			<string>source/getting-started.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-05-04T14:55:25Z</date>
+			<date>2009-06-06T19:08:15Z</date>
+		</dict>
+		<dict>
+			<key>filename</key>
+			<string>source/index.mmd</string>
+		</dict>
+		<dict>
+			<key>filename</key>
+			<string>source/manual.mmd</string>
+			<key>lastUsed</key>
+			<date>2009-06-06T19:52:07Z</date>
+		</dict>
+		<dict>
+			<key>filename</key>
+			<string>source/user-guide.mmd</string>
+			<key>lastUsed</key>
+			<date>2009-06-06T19:06:09Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/glossary.md</string>
+			<key>lastUsed</key>
+			<date>2009-06-06T18:58:35Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -22,25 +40,23 @@
 		</dict>
 		<dict>
 			<key>filename</key>
-			<string>source/user-guide.md</string>
+			<string>source/copyright.md</string>
+			<key>lastUsed</key>
+			<date>2009-06-06T17:28:02Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/style.css</string>
 			<key>lastUsed</key>
-			<date>2009-05-04T15:00:57Z</date>
+			<date>2009-06-06T19:52:07Z</date>
+			<key>selected</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/contributors.md</string>
 			<key>lastUsed</key>
-			<date>2009-05-06T13:53:35Z</date>
-		</dict>
-		<dict>
-			<key>filename</key>
-			<string>source/index.md</string>
-			<key>lastUsed</key>
-			<date>2009-05-06T13:53:57Z</date>
+			<date>2009-06-06T17:26:46Z</date>
 		</dict>
 		<dict>
 			<key>expanded</key>
@@ -66,10 +82,70 @@
 				<key>line</key>
 				<integer>19</integer>
 			</dict>
+			<key>columnSelection</key>
+			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>0</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>25</integer>
+			</dict>
+		</dict>
+		<key>source/copyright.md</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>29</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>0</integer>
+		</dict>
+		<key>source/getting-started.mmd</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>29</integer>
+			</dict>
+			<key>columnSelection</key>
+			<false/>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>0</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>18</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>29</integer>
+			</dict>
 		</dict>
 		<key>source/glossary.md</key>
 		<dict>
@@ -85,42 +161,28 @@
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
 		</dict>
-		<key>source/index.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>6</integer>
-				<key>line</key>
-				<integer>38</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>28</integer>
-		</dict>
-		<key>source/manual.md</key>
+		<key>source/manual.mmd</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>1010</integer>
+				<integer>696</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
-			<integer>0</integer>
+			<integer>113</integer>
 			<key>firstVisibleLine</key>
-			<integer>990</integer>
+			<integer>675</integer>
 		</dict>
 		<key>source/resources/footer.md</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>55</integer>
+				<integer>0</integer>
 				<key>line</key>
-				<integer>11</integer>
+				<integer>13</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -160,9 +222,9 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>0</integer>
+				<integer>26</integer>
 				<key>line</key>
-				<integer>16</integer>
+				<integer>13</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -202,9 +264,9 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>0</integer>
+				<integer>14</integer>
 				<key>line</key>
-				<integer>0</integer>
+				<integer>3</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -225,29 +287,48 @@
 			<key>firstVisibleLine</key>
 			<integer>10</integer>
 		</dict>
-		<key>source/user-guide.md</key>
+		<key>source/user-guide.mmd</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>22</integer>
+				<integer>0</integer>
 				<key>line</key>
-				<integer>19</integer>
+				<integer>10</integer>
 			</dict>
+			<key>columnSelection</key>
+			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>9</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>10</integer>
+			</dict>
 		</dict>
 	</dict>
 	<key>openDocuments</key>
 	<array>
-		<string>source/manual.md</string>
 		<string>source/style.css</string>
 		<string>source/resources/shared-header.md</string>
+		<string>source/copyright.md</string>
 		<string>source/resources/header.md</string>
+		<string>source/glossary.md</string>
+		<string>source/getting-started.mmd</string>
+		<string>source/manual.mmd</string>
+		<string>source/user-guide.mmd</string>
 		<string>source/resources/navigation.md</string>
-		<string>source/index.md</string>
 		<string>source/contributors.md</string>
 		<string>source/resources/footer.md</string>
 	</array>
