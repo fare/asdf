@@ -41,7 +41,7 @@
 (defpackage #:asdf
   (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
            #:system-definition-pathname #:find-component ; miscellaneous
-	   #:system-compile #:system-load #:system-test
+	   #:compile-system #:load-system #:test-system
            #:compile-op #:load-op #:load-source-op
            #:test-op
            #:operation		 ; operations
@@ -735,8 +735,7 @@ the head of the tree"))
 ;;; So you look at this code and think "why isn't it a bunch of
 ;;; methods".  And the answer is, because standard method combination
 ;;; runs :before methods most->least-specific, which is back to front
-;;; for our purposes.  And CLISP doesn't have non-standard method
-;;; combinations, so let's keep it simple and aspire to portability
+;;; for our purposes.  
 
 (defgeneric traverse (operation component))
 (defmethod traverse ((operation operation) (c component))
@@ -1094,17 +1093,17 @@ method."))
   (setf (documentation 'operate 'function)
 	operate-docstring))
 
-(defun system-load (system &rest args &key force (verbose t) version)
+(defun load-system (system &rest args &key force (verbose t) version)
   "Shorthand for `(operate 'asdf:load-op system)`. See [operate][] for details."
   (declare (ignore force verbose version))
   (apply #'operate 'load-op system args))
 
-(defun system-compile (system &rest args &key force (verbose t) version)
+(defun compile-system (system &rest args &key force (verbose t) version)
   "Shorthand for `(operate 'asdf:compile-op system)`. See [operate][] for details."
   (declare (ignore force verbose version))
   (apply #'operate 'compile-op system args))
 
-(defun system-test (system &rest args &key force (verbose t) version)
+(defun test-system (system &rest args &key force (verbose t) version)
   "Shorthand for `(operate 'asdf:test-op system)`. See [operate][] for details."
   (declare (ignore force verbose version))
   (apply #'operate 'test-op system args))
@@ -1134,9 +1133,6 @@ method."))
            (cond ((and s (eq (type-of (cdr s)) ',class))
                   (setf (car s) (get-universal-time)))
                  (s
-                  #+clisp
-                  (sysdef-error "Cannot redefine the existing system ~A with a different class" s)
-                  #-clisp
                   (change-class (cdr s) ',class))
                  (t
                   (register-system (quote ,name)
@@ -1469,5 +1465,9 @@ output to `*verbose-out*`.  Returns the shell's exit code."
 
   (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*)
   (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
+
+(if *asdf-revision*
+    (asdf-message ";; ASDF, revision ~a" *asdf-revision*)
+    (asdf-message ";; ASDF, revision unknown; possibly a development version"))
 
 (provide 'asdf)

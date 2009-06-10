@@ -22,4 +22,6 @@
  [asdf.lisp]: http://common-lisp.net/project/asdf/asdf.lisp
  [tarball]: http://common-lisp.net/project/asdf/asdf.tar.gz
  
+ [kmp-large]: http://www.nhplace.com/kent/Papers/Large-Systems.html
+ 
  [hs-require]: 

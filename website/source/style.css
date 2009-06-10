@@ -192,7 +192,6 @@ a:hover {
 .documentation .name-and-args {
 	width: 80%;
 	float: left;
-	// font-variant: small-caps;
 }
 
 .documentation.contents {
@@ -220,7 +219,6 @@ a:hover {
 
 .documentation-arguments {
 	float: left;
-//	width: 350px;
 	font-style: italic;
 }
 
@@ -289,7 +287,7 @@ a:hover {
 
 .nav {
 	padding-left: 1em;
-	vertical-align: center;
+	vertical-align: middle;
 }
 
 pre {

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>source/style.css</string>
+	<string>source/manual.mmd</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -15,12 +15,16 @@
 		<dict>
 			<key>filename</key>
 			<string>source/index.mmd</string>
+			<key>lastUsed</key>
+			<date>2009-06-09T04:08:03Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/manual.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-06-06T19:52:07Z</date>
+			<date>2009-06-09T04:08:03Z</date>
+			<key>selected</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -48,9 +52,7 @@
 			<key>filename</key>
 			<string>source/style.css</string>
 			<key>lastUsed</key>
-			<date>2009-06-06T19:52:07Z</date>
-			<key>selected</key>
-			<true/>
+			<date>2009-06-09T03:40:11Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -161,6 +163,36 @@
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
 		</dict>
+		<key>source/index.mmd</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>43</integer>
+			</dict>
+			<key>columnSelection</key>
+			<false/>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>28</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>33</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>43</integer>
+			</dict>
+		</dict>
 		<key>source/manual.mmd</key>
 		<dict>
 			<key>caret</key>
@@ -168,21 +200,21 @@
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>696</integer>
+				<integer>751</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
-			<integer>113</integer>
+			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>675</integer>
+			<integer>723</integer>
 		</dict>
 		<key>source/resources/footer.md</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>0</integer>
+				<integer>58</integer>
 				<key>line</key>
-				<integer>13</integer>
+				<integer>1</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -194,9 +226,9 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>0</integer>
+				<integer>48</integer>
 				<key>line</key>
-				<integer>3</integer>
+				<integer>4</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -222,9 +254,9 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>26</integer>
+				<integer>67</integer>
 				<key>line</key>
-				<integer>13</integer>
+				<integer>24</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -321,6 +353,7 @@
 	<key>openDocuments</key>
 	<array>
 		<string>source/style.css</string>
+		<string>source/index.mmd</string>
 		<string>source/resources/shared-header.md</string>
 		<string>source/copyright.md</string>
 		<string>source/resources/header.md</string>
