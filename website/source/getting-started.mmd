@@ -22,8 +22,8 @@ system and for operating on these components in the right
 order so that they can be compiled, loaded, tested, etc.
 
 ASDF presents two faces: one for system implementors who need
-to be able to describe their systems using ASDF and one for
-Lisp programmers and users who want to use those systems.
+to be able to describe their systems and one for
+Lisp programmers who want to use those systems.
 This document describes ASDF for the second audience. If you
 want to build your own systems with ASDF, then you'll also
 want to read the ASDF [system definition guide][sys-guide].
@@ -51,7 +51,7 @@ Once you load it in a running Lisp, you're ready to go. For
 maximum convenience you will want to have ASDF loaded
 whenever you start your Lisp. check your 
 implementation's manual for details on how to load it from
-the startup script or creating a custom Lisp image.-
+the startup script or creating a custom Lisp image.
 
 ### Using
 
@@ -95,7 +95,7 @@ To use ASDF:
 * load `asdf.lisp` into your Lisp image,
 
 * make sure ASDF can find system definitions by loading them
-  yourself or setting up `asdf:*central-registry*`,
+  yourself or setting up [`asdf:*central-registry*`][*central-registry*],
 
 * use [operate][] to tell ASDF what you'd like to
   do to what systems (for simple operations, you can use

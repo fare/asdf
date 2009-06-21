@@ -4,6 +4,38 @@
 #+(or)
 (build-web-page "/repository/git/asdf/test/results/" "/tmp/x.html" :if-exists :supersede)
 
+(defun extract-summary (pathname stream)
+  (with-open-file (in pathname :direction :input
+		      :if-does-not-exist :error)
+    (let ((start nil))
+      (loop for line = (read-line in nil :eof)
+	 until (eq line :eof) do
+	 (when (and (> (length line) 5) (string-equal "-#---" (subseq line 0 5)))
+	   (setf start t))
+	 (when start
+	   (format stream "~&~a~%" line))))))
+
+(defun html-header (stream title style-sheet)
+  (format stream "~&<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
+        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">")
+  (format stream "~&<html>~&<head>")
+  (when title
+    (format stream "~&<title>~a</title>" title))
+  (when style-sheet 
+    (unless (search ".css" style-sheet)
+      (setf style-sheet (concatenate 'string style-sheet ".css")))
+    (format stream "~&<link type='text/css' href='~a' rel='stylesheet' />"
+	    style-sheet))
+  (format stream "~&</head>~&<body>"))
+
+(defun html-footer (stream)
+  (format stream "<div id=\"footer\">")
+  (format stream "~&generated on ~a"
+	  (format-date "%B %d, %Y" (get-universal-time)))
+  (format stream "</div>")
+  (format stream "~&</body></html>"))
+
+
 (defun build-web-page (input-directory output-file &key (if-exists :error)
 		       (title "ASDF test report") (style-sheet "styles.css"))
   (with-open-file (stream output-file
@@ -23,17 +55,6 @@
       (format stream "~&</pre>~%"))
     (html-footer stream)
     ))
-
-(defun extract-summary (pathname stream)
-  (with-open-file (in pathname :direction :input
-		      :if-does-not-exist :error)
-    (let ((start nil))
-      (loop for line = (read-line in nil :eof)
-	 until (eq line :eof) do
-	 (when (and (> (length line) 5) (string-equal "-#---" (subseq line 0 5)))
-	   (setf start t))
-	 (when start
-	   (format stream "~&~a~%" line))))))
 
 ;;; metatilities-base 
 ;;; because sometimes copy and paste is just too easy
@@ -63,6 +84,56 @@
 
 (defparameter +days-per-month+
   '(31 28 31 30 31 30 31 31 30 31 30 31))
+
+
+(defun days-in-month (month &optional leap-year?)
+  "Returns the number of days in the specified month. The month should be
+between 1 and 12."
+  (+ (nth (1- month) +days-per-month+) (if (and (= month 2) leap-year?) 1 0)))
+
+(defun leap-year-p (year)
+  "Returns t if the specified year is a leap year. I.e. if the year
+is divisible by four but not by 100 or if it is divisible by 400."
+  (or (and (= (mod year 4) 0)               ; logand is faster but less perspicuous
+           (not (= (mod year 100) 0)))
+      (= (mod year 400) 0)))
+
+(defun day-of-year (date)
+  "Returns the day of the year [1 to 366] of the specified date [which must be \(CL\) universal time format.]" 
+  (let ((leap-year? (leap-year-p (time-year date))))
+    (+ (loop for month from 1 to (1- (time-month date)) sum
+             (days-in-month month leap-year?))
+       (time-date date))))
+
+(defconstant +longer-format-index+ 0)
+(defconstant +shorter-format-index+ 1)
+
+(defparameter +month-output-list+
+  '(("January" "February" "March" "April" "May" "June" "July" "August" "September"
+     "October" "November" "December")
+    ("Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct" "Nov" "Dec")))
+
+(defparameter +dow-output-list
+  '(("Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" "Sunday")
+    ("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun")))
+
+(defun day->string (day-of-the-week &optional (format :long))
+  "Returns the name of `day-of-the-week`. The parameter should be a number between 0 and 6 where 0 represents Sunday and 6 repressents Saturday. The optional format argument can be either :long or :short. In the latter case, the return string will be of length three; in the former it will be the complete name of the appropriate day."
+  (check-type day-of-the-week (mod 7))
+  (check-type format (member :long :short))
+  (nth day-of-the-week 
+       (case format
+	 (:long (nth +longer-format-index+ +dow-output-list))
+	 (:short (nth +shorter-format-index+ +dow-output-list)))))
+
+(defun month->string (month &optional (format :long))
+  "Returns the name \(in English\) of the month. Format can be :long or :short."
+  (check-type month (integer 1 12))
+  (check-type format (member :long :short))
+  (nth (1- month) 
+       (case format
+	 (:long (nth +longer-format-index+ +month-output-list+))
+	 (:short (nth +shorter-format-index+ +month-output-list+)))))
 
 (defun format-date (format date &optional stream time-zone)
   "Formats universal dates using the same format specifiers as NSDateFormatter. The format is:
@@ -162,77 +233,7 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
 		  (error "Ouch - unknown formatter '%~c" char))))
 	      (t char)))))))
 
-
-(defun days-in-month (month &optional leap-year?)
-  "Returns the number of days in the specified month. The month should be
-between 1 and 12."
-  (+ (nth (1- month) +days-per-month+) (if (and (= month 2) leap-year?) 1 0)))
-
-(defun leap-year-p (year)
-  "Returns t if the specified year is a leap year. I.e. if the year
-is divisible by four but not by 100 or if it is divisible by 400."
-  (or (and (= (mod year 4) 0)               ; logand is faster but less perspicuous
-           (not (= (mod year 100) 0)))
-      (= (mod year 400) 0)))
-
-(defun day-of-year (date)
-  "Returns the day of the year [1 to 366] of the specified date [which must be \(CL\) universal time format.]" 
-  (let ((leap-year? (leap-year-p (time-year date))))
-    (+ (loop for month from 1 to (1- (time-month date)) sum
-             (days-in-month month leap-year?))
-       (time-date date))))
-
-(defconstant +longer-format-index+ 0)
-(defconstant +shorter-format-index+ 1)
-
-(defparameter +month-output-list+
-  '(("January" "February" "March" "April" "May" "June" "July" "August" "September"
-     "October" "November" "December")
-    ("Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct" "Nov" "Dec")))
-
-(defparameter +dow-output-list
-  '(("Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" "Sunday")
-    ("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun")))
-
-(defun day->string (day-of-the-week &optional (format :long))
-  "Returns the name of `day-of-the-week`. The parameter should be a number between 0 and 6 where 0 represents Sunday and 6 repressents Saturday. The optional format argument can be either :long or :short. In the latter case, the return string will be of length three; in the former it will be the complete name of the appropriate day."
-  (check-type day-of-the-week (mod 7))
-  (check-type format (member :long :short))
-  (nth day-of-the-week 
-       (case format
-	 (:long (nth +longer-format-index+ +dow-output-list))
-	 (:short (nth +shorter-format-index+ +dow-output-list)))))
-
-(defun month->string (month &optional (format :long))
-  "Returns the name \(in English\) of the month. Format can be :long or :short."
-  (check-type month (integer 1 12))
-  (check-type format (member :long :short))
-  (nth (1- month) 
-       (case format
-	 (:long (nth +longer-format-index+ +month-output-list+))
-	 (:short (nth +shorter-format-index+ +month-output-list+)))))
-
 ;;; metatilites-base
-
-(defun html-header (stream title style-sheet)
-  (format stream "~&<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
-        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">")
-  (format stream "~&<html>~&<head>")
-  (when title
-    (format stream "~&<title>~a</title>" title))
-  (when style-sheet 
-    (unless (search ".css" style-sheet)
-      (setf style-sheet (concatenate 'string style-sheet ".css")))
-    (format stream "~&<link type='text/css' href='~a' rel='stylesheet' />"
-	    style-sheet))
-  (format stream "~&</head>~&<body>"))
-
-(defun html-footer (stream)
-  (format stream "<div id=\"footer\">")
-  (format stream "~&generated on ~a"
-	  (format-date "%B %d, %Y" (get-universal-time)))
-  (format stream "</div>")
-  (format stream "~&</body></html>"))
 
 (let* ((*default-pathname-defaults* (make-pathname :name nil :type nil :defaults *load-truename*))
        (source (merge-pathnames

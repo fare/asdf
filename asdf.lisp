@@ -1,6 +1,10 @@
 ;;; This is asdf: Another System Definition Facility. 
 ;;; hash - $Format:%H$
 ;;;
+;;; Local Variables:
+;;; mode: lisp
+;;; End:
+;;;
 ;;; Feedback, bug reports, and patches are all welcome: please mail to
 ;;; <asdf-devel@common-lisp.net>.  But note first that the canonical
 ;;; source for asdf is presently on common-lisp.net at
@@ -1085,7 +1089,12 @@ it from disk).
 The traverse operation is wrapped in `with-compilation-unit` and error
 handling code. If a `version` argument is supplied, then operate also
 ensures that the system found satisfies it using the `version-satisfies`
-method."))
+method.
+
+Note that dependencies may cause the operation to invoke other
+operations on the system or its components: the new operations will be
+created with the same initargs as the original one.
+"))
   (setf (documentation 'oos 'function)
 	(format nil
 		"Short for _operate on system_ and an alias for the [operate][] function. ~&~&~a"

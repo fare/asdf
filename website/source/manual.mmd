@@ -15,11 +15,11 @@ system and for operating on these components in the right
 order so that they can be compiled, loaded, tested, etc.
 
 ASDF presents two faces: one for system implementors who need
-to be able to describe their systems using ASDF and one for
-Lisp programmers and users who want to use those systems. See
+to be able to describe their systems and one for
+Lisp programmers who want to use those systems. See
 the [getting started][getting-started] guide to learn how to
 use ASDF to load a system. This document describes how to
-write your own system definitions with ASDF.
+write your own system definitions for ASDF.
 
 ##  Defining systems with defsystem
 
@@ -30,12 +30,17 @@ develop software. First, some definitions:
   components. They range from individual files, to groups of
   files called modules, to entire sub-systems.
 
-* system - a group of files and sub-systems (components)
-  packaged into a coherent whole.
+* module - a component comprised of a group of components. A
+  module is smaller than a system but (usually) larger
+  than a single file.
 
 * operation - something done to a system. The most typical
-  operations are *compile*, *load*, and *test* but ASDF is
-  extensible so many others are possible.
+  operations are [*compile*][compile-system],
+  [*load*][load-system], and [*test*][test-system] but ASDF
+  is extensible so many others are possible.
+
+* system - a group of files, modules and sub-systems
+  (i.e., components) packaged into a coherent whole.
 
 ### The `defsystem` form
 
@@ -44,10 +49,11 @@ Systems are defined with the `defsystem` macro{footnote
 components using make-instance. Most of the time, however, it
 is much more practical to use `defsystem`."} This section
 begins with a simple example, then gives the full grammar of
-`defsystem`. Here is a complete system definition that file
-that should be saved as hello-lisp.asd{footnote "Though it
-can be extended, ASDF's standard system finding algorithms
-looks for a system named `foo` in a file named `foo.asd`."}:
+`defsystem`. Here is a complete system definition that should
+be saved in the file `hello-lisp.asd`{footnote
+"Though it can be changed, ASDF's standard system finding
+algorithms looks for a system named `foo` in a file named
+`foo.asd`."}:
 
     (defpackage hello-lisp-system (:use :common-lisp :asdf))
 
@@ -78,12 +84,13 @@ Some notes about this example:
     that contains three source files: packages, macros and
     hello.
 
-  * The `:depends-on` clauses tell ASDF that the file macros
-    depends on packages (presumably because the package it's
-    in is defined in packages), and the file hello depends on
-    macros (and hence, transitively on packages). This means
-    that ASDF will compile and load packages and macros
-    before starting the compilation of the file hello.
+  * The `:depends-on` clauses tell ASDF that the file
+    `macros` depends on `packages` (presumably because the
+    package it's in is defined in `packages`), and the file
+    `hello` depends on `macros` (and hence transitively on
+    `packages`). This means that ASDF will compile and load
+    `packages` and `macros` before starting the compilation
+    of the file `hello`.
 
   * The files are located in the same directory as the file
     with the system definition. ASDF resolves symbolic links
@@ -241,14 +248,15 @@ so that users can control certain details of execution of the
 Lisp in .asd files:
 
   * Any informative output (other than warnings and errors,
-    which are the condition system's to dispose of) should be
-    sent to the standard CL stream `*standard-output*`, so
-    that users can easily control the disposition of output
-    from ASDF operations.
+    which will be handled by the condition system) should be
+    sent to the Common Lisp stream
+    [`*standard-output*`][hs-standard-output], so that users
+    can easily control the disposition of output from ASDF
+    operations.
 
 ##  The object model of ASDF
 
-ASDF is object-oriented from the ground up. Both a system's
+ASDF is entirely object-oriented. Both a system's
 structure and the operations that can be performed on systems
 follow a protocol. ASDF is extensible to new operations and
 to new component types. This allows the addition of
@@ -264,13 +272,13 @@ on a system.
 ###  Operations
 
 An operation object of the appropriate type is instantiated
-whenever the user wants to do something with a system like
+whenever the user wants to do something with a system like:
 
-  * compile all its files 
+  * compile all its files, 
 
-  * load the files into a running lisp environment 
+  * load the files into a running lisp environment, 
 
-  * copy its source files somewhere else 
+  * copy its source files somewhere else. 
 
 Operations can be invoked directly, or examined to see what
 their effects would be without performing them. _FIXME:
@@ -282,13 +290,11 @@ this purpose (perhaps a list of visited nodes, for example)
 but primarily is a nice thing to specialise operation methods
 on and easier than having them all be EQL methods.
 
-Operations are invoked on systems via `operate`. 
+Operations are invoked on systems via `operate` or its
+synonym `oos`:
 
 {docs operate}
 {docs oos}
-
-`operate` invokes an operation on a system. `oos` is a
-synonym for `operate`.
 
 
 ####  Predefined operations of ASDF
@@ -454,7 +460,7 @@ implementations
 This optional attribute is used by the test-system-version
 operation. See [Predefined operations of ASDF][10]. For the
 default method of test-system-version, the version should be
-a string of intergers separated by dots, for example
+a string of integers separated by dots, for example
 '1.0.11'.
 
 #####  Required features
@@ -585,13 +591,11 @@ information to satisfy these systems. Sometimes the creator
 of an ASDF system may know the additional information and
 wish to provide it directly.
 
-(component-property component property-name) and associated
+`(component-property component property-name)` and associated
 setf method will allow the programmatic update of this
 information. Property names are compared as if by `EQL`, so
-use symbols or keywords or something.
+symbols or keywords are usually used for property names.
 
-  * [Pre-defined subclasses of component][14]
-  * [Creating new component types][15]
 
 ####  Pre-defined subclasses of component
 
@@ -942,7 +946,7 @@ Available in updated for Common Lisp form [on the web][kmp-large].
 In our implementation we borrow kmp's overall PROCESS-OPTIONS
 and concept to deal with creating component trees from
 defsystem surface syntax. [ this is not true right now,
-though it used to be and probably will be again soon ]
+though it used to be and probably will be again soon ].
 
 
 {remark ## Concept Index

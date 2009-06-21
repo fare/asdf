@@ -7,6 +7,12 @@ clnet_home      := "/project/asdf/public_html/"
 
 sourceDirectory := $(shell pwd)
 
+lisps = allegro allegromodern ccl clisp sbcl 
+
+ifndef lisp
+lisp := sbcl
+endif
+
 # website, tag, install
 
 install: archive-copy
@@ -39,4 +45,13 @@ clean: FORCE
 	     fi; \
 	done
 
+test: FORCE
+	@cd test; ./run-tests.sh $(lisp) $(test-regex)
+	echo "My foot is $?"
+
+test-all: FORCE
+	@for lisp in $(lisps); do \
+		make test lisp=$$lisp; \
+	done
+	sbcl --userinit /dev/null --sysinit /dev/null --load test/make-webpage.lisp --eval "(quit)"
 FORCE:

@@ -48,6 +48,7 @@ if [ $? -eq 0 ] ; then
       fi
     done
     echo >&2
+    echo "-#---------------------------------------" >&2
     echo "Using $1" >&2
     echo "Ran $test_count tests: " >&2
     echo "  $test_pass passing and $test_fail failing" >&2
@@ -56,6 +57,7 @@ if [ $? -eq 0 ] ; then
     else
 	echo "failing test(s): $failed_list" >&2
     fi
+    echo "-#---------------------------------------" >&2
     echo >&2
 fi
 }
@@ -71,7 +73,7 @@ fi
 if [ "$lisp" = "sbcl" ] ; then 
     if type sbcl ; then
       fasl_ext="fasl"
-      command="sbcl --userinit /dev/null --sysinit /dev/null --noprogrammer"
+      command="sbcl --userinit /dev/null --sysinit /dev/null --noinform --noprogrammer"
     fi
 elif [ "$lisp" = "clisp" ] ; then
     if type clisp ; then
@@ -89,6 +91,11 @@ elif [ "$lisp" = "allegromodern" ] ; then
 	fasl_ext="fasl"
 	command="mlisp -q --batch "
     fi
+elif [ "$lisp" = "ccl" ] ; then
+    if type ccl ; then
+	fasl_ext="fasl"
+	command="ccl --no-init --quiet --batch "
+    fi
 fi
 
 
@@ -99,9 +106,11 @@ fi
 
 
 if [ -z "$command" ] ; then
-    echo "Error: don't know how to run Lisp named $lisp"
+    echo "Error: cannot find or do not know how to run Lisp named $lisp"
 else
+    mkdir -p results
     echo $command
-    do_tests "$command" $fasl_ext
+    thedate=`date "+%Y-%m-%d"`
+    do_tests "$command" $fasl_ext 2>&1 | tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
 fi
  

@@ -14,7 +14,8 @@
   [sys-guide]: manual.html
   [getting-started]: getting-started.html
   [FAQ]: faq.html
-
+  [tests]: test-results.html
+  
  [asdf-devel]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel
  [asdf-announce]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce
 
@@ -24,4 +25,5 @@
  
  [kmp-large]: http://www.nhplace.com/kent/Papers/Large-Systems.html
  
- [hs-require]: 
+ [hs-require]: http://www.lispworks.com/documentation/HyperSpec/Body/f_provid.htm#require
+ [hs-standard-output]: http://www.lispworks.com/documentation/HyperSpec/Body/v_debug_.htm#STstandard-outputST
