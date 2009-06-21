@@ -93,7 +93,7 @@ elif [ "$lisp" = "allegromodern" ] ; then
     fi
 elif [ "$lisp" = "ccl" ] ; then
     if type ccl ; then
-	fasl_ext="fasl"
+	fasl_ext="dx32fsl"
 	command="ccl --no-init --quiet --batch "
     fi
 fi
