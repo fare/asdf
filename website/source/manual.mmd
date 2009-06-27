@@ -115,7 +115,7 @@ slightly convoluted example:
       :components 
       ((:module "foo"
         :components ((:file "bar")
-                     (:file"baz")
+                     (:file "baz")
                      (:file "quux"))
         :perform (compile-op :after (op c) (do-something c))
         :explain (compile-op :after (op c) (explain-something c)))
@@ -147,38 +147,42 @@ before the component in question has been compiled."}
     
     system-definition := ( defsystem system-designator {option}* )
     
-    option := :components component-list
-            | :pathname pathname
-            | :default-component-class
-            | :perform method-form 
-            | :explain method-form
-            | :output-files  method-form
-            | :operation-done-p method-form
-            | :depends-on ( {dependency-def}* ) 
-            | :serial [ t | nil ]
-            | :in-order-to ( {dependency}+ )
+    option         := :components component-list
+                    | :pathname pathname
+                    | :default-component-class
+                    | :perform method-form 
+                    | :explain method-form
+                    | :output-files  method-form
+                    | :operation-done-p method-form
+                    | :depends-on ( {dependency-def}* ) 
+                    | :serial [ t | nil ]
+                    | :in-order-to ( {dependency}+ )
     
     component-list := ( {component-def}* )
                     
-    component-def  := simple-component-name
+    component-def  := component-name
                     | ( component-type name {option}* )
     
     component-type := :module | :file 
                     | :system | other-component-type
     
-    dependency-def := simple-component-name
-                    | ( :feature name )
-                    | ( :version simple-component-name version-specifier)
+    dependency-def := component-name
+                    | ( :feature feature-name )
+                    | ( :version component-name version-specifier)
 
-    dependency  := (dependent-op {requirement}+)
-    requirement := (required-op {required-component}+)
-                 | (feature feature-name)
-    dependent-op := operation-name
-    required-op  := operation-name | feature
+    dependency     := ( dependent-op {requirement}+ )
+    requirement    := ( required-op {required-component}+ )
+                    | ( feature feature-name )
+    dependent-op   := operation-name
+    required-op    := operation-name
 
-    simple-component-name := string
-                          |  symbol
+    component-name := string
+                    | symbol
 
+    operation-name := symbol
+    feature-name   := symbol
+    
+    version-specifier := number[.number]*
 
 ####  Serial dependencies
 
