@@ -1247,7 +1247,7 @@ Returns the new tree (which probably shares structure with the old one)"
     (sysdef-error-component ":in-order-to must be NIL or a list of components."
                             type name in-order-to)))
 
-(defun %remove-component-inline-methods (ret rest)
+(defun %remove-component-inline-methods (component)
   (loop for name in +asdf-methods+
         do (map 'nil
                 ;; this is inefficient as most of the stored
@@ -1255,18 +1255,28 @@ Returns the new tree (which probably shares structure with the old one)"
                 ;; But this is hardly performance-critical
                 (lambda (m)
                   (remove-method (symbol-function name) m))
-                (component-inline-methods ret)))
+                (component-inline-methods component)))
   ;; clear methods, then add the new ones
-  (setf (component-inline-methods ret) nil)
-  (loop for name in +asdf-methods+
-        for v = (getf rest (intern (symbol-name name) :keyword))
-        when v do
-        (destructuring-bind (op qual (o c) &body body) v
-          (pushnew
-           (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
-                             ,@body))
-           (component-inline-methods ret)))))
+  (setf (component-inline-methods component) nil))
 
+(defun %define-component-inline-methods (ret rest)
+  (loop for name in +asdf-methods+ do
+       (let ((keyword (intern (symbol-name name) :keyword)))
+	 (loop for data = rest then (cddr data)
+	      while data
+	      for key = (first data) 
+	      for value = (second data) 
+	      when (eq key keyword) do
+	      (destructuring-bind (op qual (o c) &body body) value
+	      (pushnew
+		 (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
+				   ,@body))
+		 (component-inline-methods ret)))))))
+
+(defun %refresh-component-inline-methods (component rest)
+  (%remove-component-inline-methods component)
+  (%define-component-inline-methods component rest))
+  
 (defun parse-component-form (parent options)
 
   (destructuring-bind
@@ -1341,7 +1351,7 @@ Returns the new tree (which probably shares structure with the old one)"
                (load-op (load-op ,@depends-on))))
             (slot-value ret 'do-first) `((compile-op (load-op ,@depends-on))))
 
-      (%remove-component-inline-methods ret rest)
+      (%refresh-component-inline-methods ret rest)
 
       ret)))
 
