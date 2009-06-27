@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>source/manual.mmd</string>
+	<string>source/index.mmd</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -16,15 +16,15 @@
 			<key>filename</key>
 			<string>source/index.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-06-10T03:11:04Z</date>
+			<date>2009-06-21T20:13:19Z</date>
+			<key>selected</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/manual.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-06-16T03:23:40Z</date>
-			<key>selected</key>
-			<true/>
+			<date>2009-06-21T19:56:37Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -152,14 +152,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>21</integer>
+				<integer>24</integer>
 				<key>line</key>
-				<integer>4</integer>
+				<integer>7</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>39</integer>
+			<integer>0</integer>
 		</dict>
 		<key>source/manual.mmd</key>
 		<dict>
@@ -222,9 +222,9 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>109</integer>
+				<integer>8</integer>
 				<key>line</key>
-				<integer>27</integer>
+				<integer>16</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -322,6 +322,7 @@
 	<array>
 		<string>source/style.css</string>
 		<string>source/index.mmd</string>
+		<string>source/resources/ug-footer.md</string>
 		<string>source/resources/shared-header.md</string>
 		<string>source/copyright.md</string>
 		<string>source/resources/header.md</string>
@@ -336,6 +337,6 @@
 	<key>showFileHierarchyDrawer</key>
 	<true/>
 	<key>windowFrame</key>
-	<string>{{593, 218}, {578, 578}}</string>
+	<string>{{590, 218}, {578, 578}}</string>
 </dict>
 </plist>
