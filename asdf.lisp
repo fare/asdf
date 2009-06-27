@@ -85,6 +85,7 @@
            #:system-licence
            #:system-source-file
            #:system-relative-pathname
+	   #:map-systems
 
            #:operation-on-warnings
            #:operation-on-failure
@@ -387,6 +388,17 @@ and NIL NAME and TYPE components"
 (defun system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
 
+(defun map-systems (fn)
+  "Apply `fn` to each defined system.
+
+`fn` should be a function of one argument. It will be
+called with an object of type asdf:system."
+  (maphash (lambda (_ datum)
+	     (declare (ignore _))
+	     (destructuring-bind (_ . def) datum
+	       (declare (ignore _))
+	       (funcall fn def)))
+	   *defined-systems*))
 
 ;;; for the sake of keeping things reasonably neat, we adopt a
 ;;; convention that functions in this list are prefixed SYSDEF-
@@ -1070,7 +1082,8 @@ the head of the tree"))
                        (setf (gethash (type-of op)
                                       (component-operation-times component))
                              (get-universal-time))
-                       (return)))))))))
+                       (return)))))))
+    op))
 
 (defun oos (operation-class system &rest args &key force (verbose t) version
 	    &allow-other-keys)
