@@ -1,0 +1,9 @@
+#+xcvb
+(module
+ (:fullname "asdf"
+  :author ("Daniel Barlow and contributors")
+  :licence "MIT" ;; MIT-style license. See asdf.lisp
+  :description "ASDF"
+  :long-description "Another System Definition Facility."
+  :depends-on ("asdf")
+  :build-image nil))
