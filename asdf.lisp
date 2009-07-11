@@ -112,6 +112,8 @@
 	   #:try-recompiling
            #:retry
            #:accept                     ; restarts
+	   #:coerce-entry-to-directory
+	   #:remove-entry-from-registry
 
            #:standard-asdf-method-combination
            #:around                     ; protocol assistants
@@ -430,17 +432,68 @@ which evaluates to a pathname. For example:
                 #p\"/usr/share/common-lisp/systems/\"))
 ")
 
+(defun directory-pathname-p (pathname)
+  (and (member (pathname-name pathname) (list nil :unspecific))
+       (member (pathname-type pathname) (list nil :unspecific))))
+
+(defun pathname-name+type (pathname)
+  "Returns a new pathname consisting of only the name and type from 
+a non-wild pathname."
+  (make-pathname :name (pathname-name pathname)
+                 :type (pathname-type pathname)))
+
+(defun ensure-directory-pathname (pathname)
+  (if (directory-pathname-p pathname)
+      pathname
+      (make-pathname :defaults pathname
+		     :directory (append
+				 (pathname-directory pathname)
+				 (list (file-namestring pathname)))
+		     :name nil :type nil :version nil)))
+
 (defun sysdef-central-registry-search (system)
-  (let ((name (coerce-name system)))
+  (let ((name (coerce-name system))
+	(to-remove nil)
+	(to-replace nil))
     (block nil
-      (dolist (dir *central-registry*)
-        (let* ((defaults (eval dir))
-               (file (and defaults
-                          (make-pathname
-                           :defaults defaults :version :newest
-                           :name name :type "asd" :case :local))))
-          (if (and file (probe-file file))
-              (return file)))))))
+      (unwind-protect
+	   (dolist (dir *central-registry*)
+	     (let ((defaults (eval dir)))
+	       (cond ((directory-pathname-p defaults)
+		      (let ((file (and defaults
+				       (make-pathname
+					:defaults defaults :version :newest
+					:name name :type "asd" :case :local))))
+			(if (and file (probe-file file))
+			    (return file))))
+		     (t
+		      (restart-case 
+			  (let* ((*print-circle* nil)
+				 (message 
+				  (format nil 
+					  "~@<While searching for system `~a`: `~a` evaluated ~
+to `~a` which is not a directory.~@:>" 
+					  system dir defaults)))
+			    (error message))
+			(remove-entry-from-registry ()
+			    :report "Remove entry from *central-registry* and continue"
+			    (push dir to-remove))
+			(coerce-entry-to-directory ()
+			    :report (lambda (s)
+				      (format s "Coerce entry to ~a, replace ~a and continue."
+					      (ensure-directory-pathname defaults) dir))
+			    (push (cons dir (ensure-directory-pathname defaults)) to-replace)))))))
+	;; cleanup
+	(dolist (dir to-remove)
+	  (setf *central-registry* (remove dir *central-registry*)))
+	(dolist (pair to-replace)
+	  (let* ((current (car pair))
+		 (new (cdr pair))
+		 (position (position current *central-registry*)))
+	    (setf *central-registry*
+		  (append (subseq *central-registry* 0 position)
+			  (list new)
+			  (subseq *central-registry* (1+ position))))))))))
 
 (defun make-temporary-package ()
   (flet ((try (counter)
