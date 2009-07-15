@@ -440,14 +440,35 @@ which evaluates to a pathname. For example:
 ")
 
 (defun directory-pathname-p (pathname)
-  (and (member (pathname-name pathname) (list nil :unspecific))
-       (member (pathname-type pathname) (list nil :unspecific))))
+  "Does `pathname` represent a directory?
 
-(defun pathname-name+type (pathname)
-  "Returns a new pathname consisting of only the name and type from 
-a non-wild pathname."
-  (make-pathname :name (pathname-name pathname)
-                 :type (pathname-type pathname)))
+A directory-pathname is a pathname _without_ a filename. The three
+ways that the filename components can be missing are for it to be `nil`, 
+`:unspecific` or the empty string.
+
+Note that this does _not_ check to see that `pathname` points to an
+actually-existing directory."
+  (let ((null-components (list  nil :unspecific "")))
+    (flet ((check-one (x)
+	     (not (null (member (pathname-name pathname) null-components
+				:test 'equal)))))
+      (and (check-one (pathname-name pathname))
+	   (check-one (pathname-type pathname))))))
+
+#+(or)
+;;test
+;;?? move into testsuite sometime soon
+(every (lambda (p)
+	  (directory-pathname-p p))
+	(list 
+	 (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
+	 (make-pathname :name "." :type "" :directory '(:absolute "tmp"))
+	 (make-pathname :name nil :type "" :directory '(:absolute "tmp"))
+	 (make-pathname :name "" :directory '(:absolute "tmp"))
+	 (make-pathname :type :unspecific :directory '(:absolute "tmp"))
+	 (make-pathname :name :unspecific :directory '(:absolute "tmp"))
+	 (make-pathname :name :unspecific :directory '(:absolute "tmp"))
+	 ))
 
 (defun ensure-directory-pathname (pathname)
   (if (directory-pathname-p pathname)
