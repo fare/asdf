@@ -57,6 +57,6 @@ test-all: FORCE
 		make test lisp=$$lisp; \
 	done
 	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-		--eval "(write-test-pages)" --eval "(quit)"
+		--eval "(write-test-web-pages)" --eval "(quit)"
 
 FORCE:

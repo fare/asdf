@@ -267,13 +267,14 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
      (merge-pathnames (make-pathname :name "asdf" :type "lisp"))
      output)))
 
-(defun write-web-pages ()
-  (let* ((*default-pathname-defaults* (make-pathname :name nil :type nil :defaults *load-truename*))
+(defun write-test-web-pages ()
+  (let* ((*default-pathname-defaults* 
+	  (make-pathname :name nil :type nil :defaults *load-truename*))
 	 (source (merge-pathnames
 		  (make-pathname
 		   :directory '(:relative "results"))))
 	 (output (merge-pathnames (make-pathname 
-				   :directory '(:relative :back "website" "output")
+				   :directory '(:relative "website" "output")
 				   :name "test-results"
 				   :type "html"))))
     (print (list source output))
