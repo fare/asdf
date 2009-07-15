@@ -5,6 +5,8 @@ common-lisp.net
 init-lisp.lisp
 website/changelog.xml
 
+# We build these at various stages in the make process
+LICENSE
 website/output/
 test-results/
 lift-local.config

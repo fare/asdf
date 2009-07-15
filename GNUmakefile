@@ -18,6 +18,8 @@ endif
 install: archive-copy
 
 archive: FORCE
+	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
+		--eval "(rewrite-license)" --eval "(quit)"
 	bin/build-tarball.sh
 
 archive-copy: archive
@@ -53,5 +55,7 @@ test-all: FORCE
 	@for lisp in $(lisps); do \
 		make test lisp=$$lisp; \
 	done
-	sbcl --userinit /dev/null --sysinit /dev/null --load test/make-webpage.lisp --eval "(quit)"
+	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
+		--eval "(write-test-pages)" --eval "(quit)"
+
 FORCE:

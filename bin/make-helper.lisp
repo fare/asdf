@@ -1,60 +1,7 @@
 (in-package #:common-lisp-user)
-
   
 #+(or)
 (build-web-page "/repository/git/asdf/test/results/" "/tmp/x.html" :if-exists :supersede)
-
-(defun extract-summary (pathname stream)
-  (with-open-file (in pathname :direction :input
-		      :if-does-not-exist :error)
-    (let ((start nil))
-      (loop for line = (read-line in nil :eof)
-	 until (eq line :eof) do
-	 (when (and (> (length line) 5) (string-equal "-#---" (subseq line 0 5)))
-	   (setf start t))
-	 (when start
-	   (format stream "~&~a~%" line))))))
-
-(defun html-header (stream title style-sheet)
-  (format stream "~&<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
-        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">")
-  (format stream "~&<html>~&<head>")
-  (when title
-    (format stream "~&<title>~a</title>" title))
-  (when style-sheet 
-    (unless (search ".css" style-sheet)
-      (setf style-sheet (concatenate 'string style-sheet ".css")))
-    (format stream "~&<link type='text/css' href='~a' rel='stylesheet' />"
-	    style-sheet))
-  (format stream "~&</head>~&<body>"))
-
-(defun html-footer (stream)
-  (format stream "<div id=\"footer\">")
-  (format stream "~&generated on ~a"
-	  (format-date "%B %d, %Y" (get-universal-time)))
-  (format stream "</div>")
-  (format stream "~&</body></html>"))
-
-
-(defun build-web-page (input-directory output-file &key (if-exists :error)
-		       (title "ASDF test report") (style-sheet "styles.css"))
-  (with-open-file (stream output-file
-			  :direction :output
-			  :if-exists if-exists
-			  :if-does-not-exist :create)
-    (html-header stream title style-sheet)
-    (format stream "~&~%<h1>ASDF Test results</h1>~%")
-
-    (dolist (pathname (directory 
-		       (merge-pathnames (make-pathname :name :wild :type "text")
-					input-directory)))
-      (print pathname)
-      (format stream "~&~%<h2>~a</h2>~%" (pathname-name pathname))
-      (format stream "~&<pre>~%")
-      (extract-summary pathname stream)
-      (format stream "~&</pre>~%"))
-    (html-footer stream)
-    ))
 
 ;;; metatilities-base 
 ;;; because sometimes copy and paste is just too easy
@@ -235,13 +182,100 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
 
 ;;; metatilites-base
 
-(let* ((*default-pathname-defaults* (make-pathname :name nil :type nil :defaults *load-truename*))
-       (source (merge-pathnames
-		(make-pathname
-		 :directory '(:relative "results"))))
-       (output (merge-pathnames (make-pathname 
-				 :directory '(:relative :back "website" "output")
-				 :name "test-results"
-				 :type "html"))))
-  (print (list source output))
-  (build-web-page source output :if-exists :supersede))
+
+(defun extract-summary (pathname stream)
+  (with-open-file (in pathname :direction :input
+		      :if-does-not-exist :error)
+    (let ((start nil))
+      (loop for line = (read-line in nil :eof)
+	 until (eq line :eof) do
+	 (when (and (> (length line) 5) (string-equal "-#---" (subseq line 0 5)))
+	   (setf start t))
+	 (when start
+	   (format stream "~&~a~%" line))))))
+
+(defun html-header (stream title style-sheet)
+  (format stream "~&<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"
+        \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">")
+  (format stream "~&<html>~&<head>")
+  (when title
+    (format stream "~&<title>~a</title>" title))
+  (when style-sheet 
+    (unless (search ".css" style-sheet)
+      (setf style-sheet (concatenate 'string style-sheet ".css")))
+    (format stream "~&<link type='text/css' href='~a' rel='stylesheet' />"
+	    style-sheet))
+  (format stream "~&</head>~&<body>"))
+
+(defun html-footer (stream)
+  (format stream "<div id=\"footer\">")
+  (format stream "~&generated on ~a"
+	  (format-date "%B %d, %Y" (get-universal-time)))
+  (format stream "</div>")
+  (format stream "~&</body></html>"))
+
+
+(defun build-web-page (input-directory output-file &key (if-exists :error)
+		       (title "ASDF test report") (style-sheet "styles.css"))
+  (with-open-file (stream output-file
+			  :direction :output
+			  :if-exists if-exists
+			  :if-does-not-exist :create)
+    (html-header stream title style-sheet)
+    (format stream "~&~%<h1>ASDF Test results</h1>~%")
+
+    (dolist (pathname (directory 
+		       (merge-pathnames (make-pathname :name :wild :type "text")
+					input-directory)))
+      (print pathname)
+      (format stream "~&~%<h2>~a</h2>~%" (pathname-name pathname))
+      (format stream "~&<pre>~%")
+      (extract-summary pathname stream)
+      (format stream "~&</pre>~%"))
+    (html-footer stream)
+    ))
+
+(defun extract-license (input-pathname output-pathname)
+  (with-open-file (in input-pathname :direction :input
+		      :if-does-not-exist :error)
+    (with-open-file (out output-pathname
+			 :direction :output
+			 :if-does-not-exist :create
+			 :if-exists :error)
+      (let* ((state nil)
+	     (flag ";;; -- LICENSE")
+	     (flag-length (length flag)))
+	(loop for line = (read-line in nil :eof)
+	   until (eq line :eof) do
+	     (when (and (> (length line) flag-length) 
+			(string-equal flag (subseq line 0 flag-length)))
+	       (if (eq state :running) 
+		   (return)
+		   (setf state :starting)))
+	     (when (eq state :running)
+	       (format out "~&~a~%" (subseq line (min (length line) 4))))
+	     (when (eq state :starting)
+	       (setf state :running)))))))
+
+(defun rewrite-license ()
+  (let* ((*default-pathname-defaults* 
+	  (make-pathname :name nil :type nil :defaults *load-truename*))
+	 (output (merge-pathnames (make-pathname :name "LICENSE"))))
+    (when (probe-file output)
+      (delete-file output))
+    (extract-license 
+     (merge-pathnames (make-pathname :name "asdf" :type "lisp"))
+     output)))
+
+(defun write-web-pages ()
+  (let* ((*default-pathname-defaults* (make-pathname :name nil :type nil :defaults *load-truename*))
+	 (source (merge-pathnames
+		  (make-pathname
+		   :directory '(:relative "results"))))
+	 (output (merge-pathnames (make-pathname 
+				   :directory '(:relative :back "website" "output")
+				   :name "test-results"
+				   :type "html"))))
+    (print (list source output))
+    (build-web-page source output :if-exists :supersede)))
+

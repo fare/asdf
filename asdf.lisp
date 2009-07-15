@@ -18,6 +18,11 @@
 ;;; is the latest development version, whereas the revision tagged
 ;;; RELEASE may be slightly older but is considered `stable'
 
+;;; -- LICENSE START
+;;; (This is the MIT / X Consortium license as taken from 
+;;;  http://www.opensource.org/licenses/mit-license.html on or about
+;;;  Monday; July 13, 2009)
+;;;
 ;;; Copyright (c) 2001-2009 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
@@ -38,6 +43,8 @@
 ;;; LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 ;;; OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 ;;; WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+;;;
+;;; -- LICENSE END
 
 ;;; the problem with writing a defsystem replacement is bootstrapping:
 ;;; we can't use defsystem to compile it.  Hence, all in one file
@@ -498,7 +505,7 @@ to `~a` which is not a directory.~@:>"
 (defun make-temporary-package ()
   (flet ((try (counter)
            (ignore-errors
-             (make-package (format nil "ASDF~D" counter)
+             (make-package (format nil "~a~D" 'asdf counter)
                            :use '(:cl :asdf)))))
     (do* ((counter 0 (+ counter 1))
           (package (try counter) (try counter)))
