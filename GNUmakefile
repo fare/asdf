@@ -33,7 +33,7 @@ website-copy: FORCE
 	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
 
 clean_dirs = $(sourceDirectory)
-clean_extensions = fasl dfsl cfsl fasl fas lib
+clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl
 
 clean: FORCE
 	@for dir in $(clean_dirs); do \
