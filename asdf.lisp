@@ -448,12 +448,11 @@ ways that the filename components can be missing are for it to be `nil`,
 
 Note that this does _not_ check to see that `pathname` points to an
 actually-existing directory."
-  (let ((null-components (list  nil :unspecific "")))
-    (flet ((check-one (x)
-	     (not (null (member (pathname-name pathname) null-components
-				:test 'equal)))))
-      (and (check-one (pathname-name pathname))
-	   (check-one (pathname-type pathname))))))
+  (flet ((check-one (x)
+	   (not (null (member x '(nil :unspecific "")
+			      :test 'equal)))))
+    (and (check-one (pathname-name pathname))
+	 (check-one (pathname-type pathname)))))
 
 #+(or)
 ;;test
@@ -468,6 +467,7 @@ actually-existing directory."
 	 (make-pathname :type :unspecific :directory '(:absolute "tmp"))
 	 (make-pathname :name :unspecific :directory '(:absolute "tmp"))
 	 (make-pathname :name :unspecific :directory '(:absolute "tmp"))
+	 (make-pathname :type "" :directory '(:absolute "tmp"))
 	 ))
 
 (defun ensure-directory-pathname (pathname)
@@ -1314,9 +1314,9 @@ Returns the new tree (which probably shares structure with the old one)"
                              "~&The value specified for ~(~A~) ~A is ~W")
                 type name value))
 
-(defun check-component-input (type name weakly-depends-on depends-on components in-order-to)
+(defun check-component-input (type name weakly-depends-on 
+			      depends-on components in-order-to)
   "A partial test of the values of a component."
-  (when weakly-depends-on (warn "We got one! XXXXX"))
   (unless (listp depends-on)
     (sysdef-error-component ":depends-on must be a list."
                             type name depends-on))
