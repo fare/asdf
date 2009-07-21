@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>source/index.mmd</string>
+	<string>source/manual.mmd</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -16,15 +16,15 @@
 			<key>filename</key>
 			<string>source/index.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-06-21T20:13:19Z</date>
-			<key>selected</key>
-			<true/>
+			<date>2009-07-18T14:05:17Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/manual.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-06-21T19:56:37Z</date>
+			<date>2009-07-20T22:30:40Z</date>
+			<key>selected</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -152,28 +152,44 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>24</integer>
+				<integer>51</integer>
 				<key>line</key>
-				<integer>7</integer>
+				<integer>39</integer>
 			</dict>
+			<key>columnSelection</key>
+			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>0</integer>
+			<integer>28</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>63</integer>
+				<key>line</key>
+				<integer>39</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>51</integer>
+				<key>line</key>
+				<integer>39</integer>
+			</dict>
 		</dict>
 		<key>source/manual.mmd</key>
 		<dict>
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>55</integer>
+				<integer>0</integer>
 				<key>line</key>
-				<integer>948</integer>
+				<integer>348</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>978</integer>
+			<integer>322</integer>
 		</dict>
 		<key>source/resources/footer.md</key>
 		<dict>
@@ -222,14 +238,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>8</integer>
+				<integer>47</integer>
 				<key>line</key>
-				<integer>16</integer>
+				<integer>33</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>0</integer>
+			<integer>5</integer>
 		</dict>
 		<key>source/resources/ug-footer.md</key>
 		<dict>

@@ -156,6 +156,7 @@ before the component in question has been compiled."}
                     | :operation-done-p method-form
                     | :depends-on ( {dependency-def}* ) 
                     | :serial [ t | nil ]
+                    | :weakly-depends-on ( {dependency-def}* ) 
                     | :in-order-to ( {dependency}+ )
     
     component-list := ( {component-def}* )
@@ -199,6 +200,34 @@ is equivalent to
     :components ((:file "a")
                  (:file "b" :depends-on ("a"))
                  (:file "c" :depends-on ("a" "b")))
+
+{anchor section-weakly-depends-on}
+
+#### Weakly-depends-on
+
+The `weakly-depends-on` argument says of the component
+depended on "if this component can be found, then impose a
+dependency, otherwise ignore it." At the top level, this can
+be useful for allowing a system to take advantage of another
+system, if it is present. For example, a system might
+generate on-line documentation if a documentation generation
+system (like [TINAA][tinaa-project],
+[Albert][albert-project], etc.) was present. A system that
+does text matching might do only simple matching but weakly
+depend on a regular expression system and, if that system is
+installed, would be able to also do regular expression
+matching.
+
+##### Notes:
+
+* It's not entirely clear that this option is very
+  helpful at a level below the top-level. Since it uses
+  find-component, the behavior differs between top level and
+  lower level; perhaps that needs to be explained.
+
+* Presumably this will be most useful when complemented by
+  some conditional loading construct in the system that has
+  the dependency. What is that construct?
 
 ####  Source location
 
@@ -257,6 +286,64 @@ Lisp in .asd files:
     [`*standard-output*`][hs-standard-output], so that users
     can easily control the disposition of output from ASDF
     operations.
+
+## System dependencies
+
+**Warning**: As of July 20, 2009, this aspect of ASDF is in flux.
+We suggest not relying too heavily on the current syntax.
+
+There are several ways in which one system can depend on
+another:
+
+* simple dependency (the default)
+* `weak` dependency (using [`:weakly-depends-on`][weakly-depends-on])
+* `contingent` dependency (not currently implemented)
+
+ [weakly-depends-on]: #section-weakly-depends-on 
+ 
+The following tables illustrate how these dependencies work:
+
+#### Simple
+
+<table caption="Simple">
+<tr><th><th colspan="2">component status</th><th rowspan="2" valign="top">effect</th></tr>
+<tr><th>expression</th><th>component a</th><th>component/feature b</th></tr>
+
+<tr><td>a (:depends-on (:b))</td><td style="text-align:center">present</td><td style="text-align:center">present</td><td>(operate b), (operate a)</td>
+<tr><td>a (:depends-on (:b))</td><td style="text-align:center">present</td><td style="text-align:center">absent</td><td>error</td>
+<tr><td>a (:depends-on (:b))</td><td style="text-align:center">absent</td><td style="text-align:center">present</td><td>  error</td>
+<tr><td>a (:depends-on (:b))</td><td style="text-align:center">absent</td><td style="text-align:center">absent</td><td>   error</td></tr>
+</table>
+</p>
+
+
+#### `:weakly-depends-on`
+
+<table>
+<tr><th><th colspan="2">component status</th><th rowspan="2" valign="top">effect</th></tr>
+<tr><th>expression</th><th>component a</th><th>component/feature b</th></tr>
+
+<tr><td>a (:weakly-depends-on (:b))</td><td style="text-align:center">present</td><td style="text-align:center">present</td><td>  (operate b), (operate a)</td>
+<tr><td>a (:weakly-depends-on (:b))</td><td style="text-align:center">present</td><td style="text-align:center">absent</td><td>   (operate a)</td>
+<tr><td>a (:weakly-depends-on (:b))</td><td style="text-align:center">absent</td><td style="text-align:center">present</td><td>  error</td>
+<tr><td>a (:weakly-depends-on (:b))</td><td style="text-align:center">absent</td><td style="text-align:center">absent</td><td>   error</td></tr>
+</table>
+</p>
+
+#### Contingent
+
+<table>
+<tr><th><th colspan="2">component status</th><th rowspan="2" valign="top">effect</th></tr>
+<tr><th>expression</th><th>component a</th><th>component/feature b</th></tr>
+
+<tr><td>a (:contingent-on (:b))</td><td style="text-align:center">present</td><td style="text-align:center">present</td><td>  (operate b), (operate a)</td>
+<tr><td>a (:contingent-on (:b))</td><td style="text-align:center">present</td><td style="text-align:center">absent</td>
+<tr><td>a (:contingent-on (:b))</td><td style="text-align:center">absent</td><td style="text-align:center">present</td><td>  error</td>
+<tr><td>a (:contingent-on (:b))</td><td style="text-align:center">absent</td><td style="text-align:center">absent</td><td>   error</td></tr>
+</table>
+</p>
+<hr />
+
 
 ##  The object model of ASDF
 

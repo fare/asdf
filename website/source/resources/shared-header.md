@@ -28,3 +28,7 @@
  
  [hs-require]: http://www.lispworks.com/documentation/HyperSpec/Body/f_provid.htm#require
  [hs-standard-output]: http://www.lispworks.com/documentation/HyperSpec/Body/v_debug_.htm#STstandard-outputST
+ 
+ 
+ [tinaa-project]: http://common-lisp.net/project/tinaa/
+ [albert-project]: http://www.cliki.net/Albert/
