@@ -900,7 +900,7 @@ the head of the tree"))
 				       forced
 				       (do-one-dep op (second d) (third d))))
 				     (t
-				      (error "Dependencies must be (:version <version>), (:feature <feature>), or a name"))))
+				      (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature>), or a name" d))))
                               (t
                                (appendf forced (do-one-dep op d nil)))))))))
       (aif (component-visited-p operation c)
@@ -1128,6 +1128,10 @@ the head of the tree"))
 (defmethod operation-done-p ((operation test-op) (c system))
   "Testing a system is _never_ done."
   nil)
+
+(defmethod component-depends-on :around ((o test-op) (c system))
+  (cons `(load-op ,(component-name c)) (call-next-method)))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; invoking operations
@@ -1457,11 +1461,11 @@ output to `*verbose-out*`.  Returns the shell's exit code."
     (asdf-message "; $ ~A~%" command)
     #+sbcl
     (sb-ext:process-exit-code
-     (sb-ext:run-program
-      #+win32 "sh" #-win32 "/bin/sh"
-      (list  "-c" command)
-      #+win32 #+win32 :search t
-      :input nil :output *verbose-out*))
+     (apply #'sb-ext:run-program
+	    #+win32 "sh" #-win32 "/bin/sh"
+	    (list  "-c" command)
+	    :input nil :output *verbose-out*
+	    #+win32 '(:search t) #-win32 nil))
 
     #+(or cmu scl)
     (ext:process-exit-code

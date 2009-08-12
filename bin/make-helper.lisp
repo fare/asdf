@@ -1,7 +1,10 @@
 (in-package #:common-lisp-user)
-  
+
 #+(or)
 (build-web-page "/repository/git/asdf/test/results/" "/tmp/x.html" :if-exists :supersede)
+
+(defvar *make-helper-home* *load-truename*)  
+
 
 ;;; metatilities-base 
 ;;; because sometimes copy and paste is just too easy
@@ -259,22 +262,24 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
 
 (defun rewrite-license ()
   (let* ((*default-pathname-defaults* 
-	  (make-pathname :name nil :type nil :defaults *load-truename*))
-	 (output (merge-pathnames (make-pathname :name "LICENSE"))))
+	  (make-pathname :name nil :type nil :defaults *make-helper-home*))
+	 (output (merge-pathnames (make-pathname :name "LICENSE"
+	  :directory '(:relative :up)))))
     (when (probe-file output)
       (delete-file output))
     (extract-license 
-     (merge-pathnames (make-pathname :name "asdf" :type "lisp"))
+     (merge-pathnames (make-pathname :name "asdf" :type "lisp"
+      :directory '(:relative :up)))
      output)))
 
 (defun write-test-web-pages ()
   (let* ((*default-pathname-defaults* 
-	  (make-pathname :name nil :type nil :defaults *load-truename*))
+	  (make-pathname :name nil :type nil :defaults *make-helper-home*))
 	 (source (merge-pathnames
 		  (make-pathname
-		   :directory '(:relative "results"))))
+		   :directory '(:relative :up "test" "results"))))
 	 (output (merge-pathnames (make-pathname 
-				   :directory '(:relative "website" "output")
+				   :directory '(:relative :up "website" "output")
 				   :name "test-results"
 				   :type "html"))))
     (print (list source output))

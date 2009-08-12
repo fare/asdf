@@ -48,7 +48,8 @@
   :components 
   ((:file "preflight")))
 
-
+#|
 newer traverse always fails
 older traverse fails when db-agraph-preflight is evaluated, ok 
   when loaded or compiled 
+|#

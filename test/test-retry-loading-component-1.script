@@ -8,11 +8,11 @@
 ;(trace asdf:run-shell-command asdf:oos asdf:perform asdf:operate)
 ;#+allegro
 ;(trace excl.osi:command-output)
+(defvar *caught-error* nil)
 (exit-on-error 
  (when (probe-file "try-reloading-dependency.asd")
    (asdf:run-shell-command "rm -f ~A"
 			   (namestring "try-reloading-dependency.asd")))
- (defvar *caught-error* nil)
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (setf asdf::*defined-systems* (asdf::make-defined-systems-table))
  (handler-bind ((error (lambda (c) 
