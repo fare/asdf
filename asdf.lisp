@@ -165,6 +165,104 @@
 (defparameter +asdf-methods+
   '(perform explain output-files operation-done-p))
 
+(define-method-combination standard-asdf-method-combination ()
+  ((around-asdf (around))
+   (around (:around))
+   (before (:before))
+   (primary () :required t)
+   (after (:after)))
+  (flet ((call-methods (methods)
+           (mapcar #'(lambda (method)
+                       `(call-method ,method))
+                   methods)))
+    (let* ((form (if (or before after (rest primary))
+                     `(multiple-value-prog1
+                          (progn ,@(call-methods before)
+                                 (call-method ,(first primary)
+                                              ,(rest primary)))
+                        ,@(call-methods (reverse after)))
+                     `(call-method ,(first primary))))
+           (standard-form (if around
+                              `(call-method ,(first around)
+                                            (,@(rest around)
+                                               (make-method ,form)))
+                              form)))
+      (if around-asdf
+          `(call-method ,(first around-asdf)
+                        (,@(rest around-asdf) (make-method ,standard-form)))
+          standard-form))))
+
+(defgeneric perform (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric operation-done-p (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric explain (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric output-files (operation component)
+  (:method-combination standard-asdf-method-combination))
+(defgeneric input-files (operation component)
+  (:method-combination standard-asdf-method-combination))
+
+(defgeneric system-source-file (system)
+  (:documentation "Return the source file in which system is defined."))
+
+(defgeneric component-system (component)
+  (:documentation "Find the top-level system containing COMPONENT"))
+
+(defgeneric component-pathname (component)
+  (:documentation "Extracts the pathname applicable for a particular component."))
+
+(defgeneric component-relative-pathname (component)
+  (:documentation "Extracts the relative pathname applicable for a particular component."))
+
+(defgeneric component-property (component property))
+
+(defgeneric (setf component-property) (new-value component property))
+
+(defgeneric version-satisfies (component version))
+
+(defgeneric find-component (module name &optional version)
+  (:documentation "Finds the component with name NAME present in the
+MODULE module; if MODULE is nil, then the component is assumed to be a
+system."))
+
+(defgeneric source-file-type (component system))
+
+(defgeneric operation-ancestor (operation)
+  (:documentation
+   "Recursively chase the operation's parent pointer until we get to
+the head of the tree"))
+
+(defgeneric component-visited-p (operation component))
+
+(defgeneric visit-component (operation component data))
+
+(defgeneric (setf visiting-component) (new-value operation component))
+
+(defgeneric component-visiting-p (operation component))
+
+(defgeneric component-depends-on (operation component)
+  (:documentation
+   "Returns a list of dependencies needed by the component to perform
+    the operation.  A dependency has one of the following forms:
+
+      (<operation> <component>*), where <operation> is a class
+        designator and each <component> is a component
+        designator, which means that the component depends on
+        <operation> having been performed on each <component>; or
+
+      (FEATURE <feature>), which means that the component depends
+        on <feature>'s presence in *FEATURES*.
+
+    Methods specialized on subclasses of existing component types
+    should usually append the results of CALL-NEXT-METHOD to the
+    list."))
+
+(defgeneric component-self-dependencies (operation component))
+
+(defgeneric traverse (operation component))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; utility stuff
 
@@ -280,9 +378,6 @@ and NIL NAME and TYPE components"
 	   (when (missing-parent c)
 	     (component-name (missing-parent c)))))
 
-(defgeneric component-system (component)
-  (:documentation "Find the top-level system containing COMPONENT"))
-
 (defmethod component-system ((component component))
   (aif (component-parent component)
        (component-system it)
@@ -303,16 +398,10 @@ and NIL NAME and TYPE components"
    (default-component-class :accessor module-default-component-class
      :initform 'cl-source-file :initarg :default-component-class)))
 
-(defgeneric component-pathname (component)
-  (:documentation "Extracts the pathname applicable for a particular component."))
-
 (defun component-parent-pathname (component)
   (aif (component-parent component)
        (component-pathname it)
        *default-pathname-defaults*))
-
-(defgeneric component-relative-pathname (component)
-  (:documentation "Extracts the relative pathname applicable for a particular component."))
 
 (defmethod component-relative-pathname ((component module))
   (or (slot-value component 'relative-pathname)
@@ -324,12 +413,8 @@ and NIL NAME and TYPE components"
   (let ((*default-pathname-defaults* (component-parent-pathname component)))
     (merge-pathnames (component-relative-pathname component))))
 
-(defgeneric component-property (component property))
-
 (defmethod component-property ((c component) property)
   (cdr (assoc property (slot-value c 'properties) :test #'equal)))
-
-(defgeneric (setf component-property) (new-value component property))
 
 (defmethod (setf component-property) (new-value (c component) property)
   (let ((a (assoc property (slot-value c 'properties) :test #'equal)))
@@ -345,7 +430,9 @@ and NIL NAME and TYPE components"
    (author :accessor system-author :initarg :author)
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
-            :accessor system-license :initarg :license)))
+            :accessor system-license :initarg :license)
+   (source-file :reader system-source-file :initarg :source-file
+		:writer %set-system-source-file)))
 
 ;;; version-satisfies
 
@@ -362,8 +449,6 @@ and NIL NAME and TYPE components"
          (incf words)
          (unless end (return list))
          (setf start (1+ end)))))))
-
-(defgeneric version-satisfies (component version))
 
 (defmethod version-satisfies ((c component) version)
   (unless (and version (slot-boundp c 'version))
@@ -565,11 +650,6 @@ to `~a` which is not a directory.~@:>"
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; finding components
 
-(defgeneric find-component (module name &optional version)
-  (:documentation "Finds the component with name NAME present in the
-MODULE module; if MODULE is nil, then the component is assumed to be a
-system."))
-
 (defmethod find-component ((module module) name &optional version)
   (if (slot-boundp module 'components)
       (let ((m (find name (module-components module)
@@ -593,7 +673,6 @@ system."))
 (defclass doc-file (static-file) ())
 (defclass html-file (doc-file) ())
 
-(defgeneric source-file-type (component system))
 (defmethod source-file-type ((c cl-source-file) (s module)) "lisp")
 (defmethod source-file-type ((c c-source-file) (s module)) "c")
 (defmethod source-file-type ((c java-source-file) (s module)) "java")
@@ -641,51 +720,8 @@ system."))
   ;; empty method to disable initarg validity checking
   )
 
-(define-method-combination standard-asdf-method-combination ()
-  ((around-asdf (around))
-   (around (:around))
-   (before (:before))
-   (primary () :required t)
-   (after (:after)))
-  (flet ((call-methods (methods)
-           (mapcar #'(lambda (method)
-                       `(call-method ,method))
-                   methods)))
-    (let* ((form (if (or before after (rest primary))
-                     `(multiple-value-prog1
-                          (progn ,@(call-methods before)
-                                 (call-method ,(first primary)
-                                              ,(rest primary)))
-                        ,@(call-methods (reverse after)))
-                     `(call-method ,(first primary))))
-           (standard-form (if around
-                              `(call-method ,(first around)
-                                            (,@(rest around)
-                                               (make-method ,form)))
-                              form)))
-      (if around-asdf
-          `(call-method ,(first around-asdf)
-                        (,@(rest around-asdf) (make-method ,standard-form)))
-          standard-form))))
-
-(defgeneric perform (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric operation-done-p (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric explain (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric output-files (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric input-files (operation component)
-  (:method-combination standard-asdf-method-combination))
-
 (defun node-for (o c)
   (cons (class-name (class-of o)) c))
-
-(defgeneric operation-ancestor (operation)
-  (:documentation
-   "Recursively chase the operation's parent pointer until we get to
-the head of the tree"))
 
 (defmethod operation-ancestor ((operation operation))
   (aif (operation-parent operation)
@@ -713,10 +749,6 @@ the head of the tree"))
                   :parent o :original-initargs args args)))))
 
 
-(defgeneric component-visited-p (operation component))
-
-(defgeneric visit-component (operation component data))
-
 (defmethod visit-component ((o operation) (c component) data)
   (unless (component-visited-p o c)
     (push (cons (node-for o c) data)
@@ -726,8 +758,6 @@ the head of the tree"))
   (assoc (node-for o c)
          (operation-visited-nodes (operation-ancestor o))
          :test 'equal))
-
-(defgeneric (setf visiting-component) (new-value operation component))
 
 (defmethod (setf visiting-component) (new-value operation component)
   ;; MCL complains about unused lexical variables
@@ -741,29 +771,10 @@ the head of the tree"))
         (setf (operation-visiting-nodes a)
               (remove node  (operation-visiting-nodes a) :test 'equal)))))
 
-(defgeneric component-visiting-p (operation component))
-
 (defmethod component-visiting-p ((o operation) (c component))
   (let ((node (node-for o c)))
     (member node (operation-visiting-nodes (operation-ancestor o))
             :test 'equal)))
-
-(defgeneric component-depends-on (operation component)
-  (:documentation
-   "Returns a list of dependencies needed by the component to perform
-    the operation.  A dependency has one of the following forms:
-
-      (<operation> <component>*), where <operation> is a class
-        designator and each <component> is a component
-        designator, which means that the component depends on
-        <operation> having been performed on each <component>; or
-
-      (FEATURE <feature>), which means that the component depends
-        on <feature>'s presence in *FEATURES*.
-
-    Methods specialized on subclasses of existing component types
-    should usually append the results of CALL-NEXT-METHOD to the
-    list."))
 
 (defmethod component-depends-on ((op-spec symbol) (c component))
   (component-depends-on (make-instance op-spec) c))
@@ -771,8 +782,6 @@ the head of the tree"))
 (defmethod component-depends-on ((o operation) (c component))
   (cdr (assoc (class-name (class-of o))
               (slot-value c 'in-order-to))))
-
-(defgeneric component-self-dependencies (operation component))
 
 (defmethod component-self-dependencies ((o operation) (c component))
   (let ((all-deps (component-depends-on o c)))
@@ -836,7 +845,6 @@ the head of the tree"))
 ;;; runs :before methods most->least-specific, which is back to front
 ;;; for our purposes.  
 
-(defgeneric traverse (operation component))
 (defmethod traverse ((operation operation) (c component))
   (let ((forced nil))
     (labels ((%do-one-dep (required-op required-c required-v)
@@ -1245,7 +1253,9 @@ created with the same initargs as the original one.
                   (change-class (cdr s) ',class))
                  (t
                   (register-system (quote ,name)
-                                   (make-instance ',class :name ',name)))))
+                                   (make-instance ',class :name ',name))))
+           (%set-system-source-file *load-truename* 
+				    (cdr (system-registered-p ',name))))
          (parse-component-form nil (apply
                                     #'list
                                     :module (coerce-name ',name)
@@ -1509,20 +1519,8 @@ output to `*verbose-out*`.  Returns the shell's exit code."
     (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
     ))
 
-(defgeneric system-source-file (system)
-  (:documentation "Return the source file in which system is defined."))
-
 (defmethod system-source-file ((system-name t))
   (system-source-file (find-system system-name)))
-
-(defmethod system-source-file ((system system))
-  (let ((pn (and (slot-boundp system 'relative-pathname)
-		 (make-pathname
-		  :type "asd"
-		  :name (asdf:component-name system)
-		  :defaults (asdf:component-relative-pathname system)))))
-    (when pn
-      (probe-file pn))))
 
 (defun system-source-directory (system-name)
   (make-pathname :name nil
