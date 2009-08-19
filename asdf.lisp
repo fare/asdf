@@ -165,14 +165,6 @@
 (defparameter +asdf-methods+
   '(perform explain output-files operation-done-p))
 
-(setf (documentation 'standard-asdf-method-combination 
-		     'method-combination)
-      "This method combination is based on the standard method combination,
-but defines a new method-qualifier, `asdf:around`.  `asdf:around`
-methods will be run *around* any `:around` methods, so that the core
-protocol may employ around methods and those around methods will not
-be overridden by around methods added by a system developer.")
-
 (define-method-combination standard-asdf-method-combination ()
   ((around-asdf (around))
    (around (:around))
@@ -199,6 +191,14 @@ be overridden by around methods added by a system developer.")
           `(call-method ,(first around-asdf)
                         (,@(rest around-asdf) (make-method ,standard-form)))
           standard-form))))
+
+(setf (documentation 'standard-asdf-method-combination 
+		     'method-combination)
+      "This method combination is based on the standard method combination,
+but defines a new method-qualifier, `asdf:around`.  `asdf:around`
+methods will be run *around* any `:around` methods, so that the core
+protocol may employ around methods and those around methods will not
+be overridden by around methods added by a system developer.")
 
 (defgeneric perform (operation component)
   (:method-combination standard-asdf-method-combination))
