@@ -432,26 +432,23 @@ that.
 If you are creating a component type, you need to implement
 this operation - at least, where meaningful.
 
--- Operation: **test-system-version** &key minimum  
+-- Operation: **test-op**
 
+This operation should test the specified component. ASDF does
+not (currently) provide a method for returning a value from
+the test-op (or any other operation), so the implementor must
+ensure that executing `test-op` has the side effect
+of printing useful information about the tests to the CL
+stream `*standard-output*`.
 
-Asks the system whether it satisfies a version requirement.
+The default method for `test-op` does nothing, and will have
+to be overridden, but invoking `test-op` on a component for
+which nothing is defined will be a simple no-op.
 
-The default method accepts a string, which is expected to
-contain of a number of integers separated by #\. characters.
-The method is not recursive. The component satisfies the
-version dependency if it has the same major number as
-required and each of its sub-versions is greater than or
-equal to the sub-version number required.
+The default dependency for `test-op` on a system is to
+require `load-op` on that system.
 
--- Operation: **feature-dependent-op**  
-
-An instance of `feature-dependent-op` will ignore any
-components which have a `features` attribute, unless the
-feature combination it designates is satisfied by
-`*features*`. This operation is not intended to be
-instantiated directly, but other operations may inherit from
-it.
+The default method for `operation-done-p` for `test-op` is to return `nil` regardless of component because tests should usually be run whether or not they have been run previously.
 
 
 ####  Creating new operations

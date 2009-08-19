@@ -165,6 +165,14 @@
 (defparameter +asdf-methods+
   '(perform explain output-files operation-done-p))
 
+(setf (documentation 'standard-asdf-method-combination 
+		     'method-combination)
+      "This method combination is based on the standard method combination,
+but defines a new method-qualifier, `asdf:around`.  `asdf:around`
+methods will be run *around* any `:around` methods, so that the core
+protocol may employ around methods and those around methods will not
+be overridden by around methods added by a system developer.")
+
 (define-method-combination standard-asdf-method-combination ()
   ((around-asdf (around))
    (around (:around))
@@ -260,7 +268,13 @@ the head of the tree"))
 
 (defgeneric component-self-dependencies (operation component))
 
-(defgeneric traverse (operation component))
+(defgeneric traverse (operation component)
+  (:documentation 
+"Generate and return a plan for performing `operation` on `component`.
+
+The plan returned is a list of dotted-pairs. Each pair is the `cons`
+of ASDF operation object and a `component` object. The pairs will be 
+processed in order by `operate`."))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
