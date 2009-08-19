@@ -492,13 +492,13 @@ actually-existing directory."
                         (let* ((file (make-pathname
                                       :defaults defaults :version :newest
                                       :name name :type "asd" :case :local))
-                               #+win32
+                               #+(or win32 windows)
                                (shortcut (make-pathname
                                           :defaults defaults :version :newest
                                           :name name :type "asd.lnk" :case :local)))
                           (when (probe-file file)
                             (return file))
-                          #+win32
+                          #+(or win32 windows)
                           (when (probe-file shortcut)
                             (let ((target (parse-windows-shortcut shortcut)))
                               (when target
