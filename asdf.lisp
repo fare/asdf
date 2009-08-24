@@ -105,6 +105,7 @@
            #:*compile-file-warnings-behaviour*
            #:*compile-file-failure-behaviour*
            #:*asdf-revision*
+	   #:*resolve-symlinks*
 
            #:operation-error #:compile-failed #:compile-warned #:compile-error
            #:error-component #:error-operation
@@ -155,6 +156,11 @@
 		       (parse-integer v :start (1+ dot)
 				      :junk-allowed t))))
 	     (setf start (1+ tag-start))))))))
+
+(defvar *resolve-symlinks* t
+  "Determine whether or not ASDF resolves symlinks when defining systems.
+
+Defaults to `t`.")
 
 (defvar *compile-file-warnings-behaviour* :warn)
 
@@ -586,30 +592,31 @@ actually-existing directory."
       (unwind-protect
 	   (dolist (dir *central-registry*)
 	     (let ((defaults (eval dir)))
-	       (cond ((directory-pathname-p defaults)
-		      (let ((file (and defaults
-				       (make-pathname
-					:defaults defaults :version :newest
-					:name name :type "asd" :case :local))))
-			(if (and file (probe-file file))
-			    (return file))))
-		     (t
-		      (restart-case 
-			  (let* ((*print-circle* nil)
-				 (message 
-				  (format nil 
-					  "~@<While searching for system `~a`: `~a` evaluated ~
+	       (when defaults
+		 (cond ((directory-pathname-p defaults)
+			(let ((file (and defaults
+					 (make-pathname
+					  :defaults defaults :version :newest
+					  :name name :type "asd" :case :local))))
+			  (if (and file (probe-file file))
+			      (return file))))
+		       (t
+			(restart-case 
+			    (let* ((*print-circle* nil)
+				   (message 
+				    (format nil 
+					    "~@<While searching for system `~a`: `~a` evaluated ~
 to `~a` which is not a directory.~@:>" 
-					  system dir defaults)))
-			    (error message))
-			(remove-entry-from-registry ()
+					    system dir defaults)))
+			      (error message))
+			  (remove-entry-from-registry ()
 			    :report "Remove entry from *central-registry* and continue"
 			    (push dir to-remove))
-			(coerce-entry-to-directory ()
+			  (coerce-entry-to-directory ()
 			    :report (lambda (s)
 				      (format s "Coerce entry to ~a, replace ~a and continue."
 					      (ensure-directory-pathname defaults) dir))
-			    (push (cons dir (ensure-directory-pathname defaults)) to-replace)))))))
+			    (push (cons dir (ensure-directory-pathname defaults)) to-replace))))))))
 	;; cleanup
 	(dolist (dir to-remove)
 	  (setf *central-registry* (remove dir *central-registry*)))
@@ -1251,6 +1258,27 @@ created with the same initargs as the original one.
                                                  key (cddr arglist))))))))
     (aux key arglist)))
 
+
+(defun determine-system-pathname (pathname pathname-supplied-p)
+  ;; called from the defsystem macro.
+  ;; the pathname of a system is either
+  ;; 1. the one supplied, 
+  ;; 2. derived from the *load-truename* (see below), or
+  ;; 3. taken from *default-pathname-defaults*
+  ;;
+  ;; if using *load-truename*, then we also deal with whether or not
+  ;; to resolve symbolic links. If not resolving symlinks, then we use
+  ;; *load-pathname* instead of *load-truename* since in some
+  ;; implementations, the latter has *already resolved it.
+  (or (and pathname-supplied-p pathname)
+      (when *load-truename*
+	(pathname-sans-name+type 
+	 (if *resolve-symlinks*
+	     #-allegro (truename *load-truename*)
+	     #+allegro (excl:pathname-resolve-symbolic-links *load-truename*)
+	     *load-pathname*)))
+      *default-pathname-defaults*))
+
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
                             &allow-other-keys)
@@ -1270,19 +1298,13 @@ created with the same initargs as the original one.
                                    (make-instance ',class :name ',name))))
            (%set-system-source-file *load-truename* 
 				    (cdr (system-registered-p ',name))))
-         (parse-component-form nil (apply
-                                    #'list
-                                    :module (coerce-name ',name)
-                                    :pathname
-                                    ;; to avoid a note about unreachable code
-                                    ,(if pathname-arg-p
-                                         pathname
-                                         `(or (when *load-truename*
-                                                (pathname-sans-name+type
-                                                 (resolve-symlinks
-                                                  *load-truename*)))
-                                              *default-pathname-defaults*))
-                                    ',component-options))))))
+         (parse-component-form 
+	  nil (apply
+	       #'list
+	       :module (coerce-name ',name)
+	       :pathname
+	       ,(determine-system-pathname pathname pathname-arg-p)
+	       ',component-options))))))
 
 
 (defun class-for-type (parent type)
@@ -1465,11 +1487,6 @@ Returns the new tree (which probably shares structure with the old one)"
       (%refresh-component-inline-methods ret rest)
 
       ret)))
-
-(defun resolve-symlinks (path)
-  #-allegro (truename path)
-  #+allegro (excl:pathname-resolve-symbolic-links path)
-  )
 
 ;;; optional extras
 

@@ -22,7 +22,7 @@
 			<key>filename</key>
 			<string>source/manual.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-07-20T22:30:40Z</date>
+			<date>2009-08-19T12:45:27Z</date>
 			<key>selected</key>
 			<true/>
 		</dict>
@@ -184,12 +184,12 @@
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>348</integer>
+				<integer>451</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>322</integer>
+			<integer>434</integer>
 		</dict>
 		<key>source/resources/footer.md</key>
 		<dict>
@@ -353,6 +353,6 @@
 	<key>showFileHierarchyDrawer</key>
 	<true/>
 	<key>windowFrame</key>
-	<string>{{590, 218}, {578, 578}}</string>
+	<string>{{590, 200}, {578, 578}}</string>
 </dict>
 </plist>
