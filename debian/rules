@@ -32,7 +32,7 @@ binary-arch: build
 binary-indep: build
 	dh_testdir -i
 	dh_testroot -i
-	dh_clean -k -i
+	dh_prep -i
 	chmod +x test/run-tests.sh 
 	dh_installdirs -i
 	dh_install -i
