@@ -158,7 +158,8 @@ before the component in question has been compiled."}
                     | :serial [ t | nil ]
                     | :weakly-depends-on ( {dependency-def}* ) 
                     | :in-order-to ( {dependency}+ )
-    
+                    | :class symbol
+
     component-list := ( {component-def}* )
                     
     component-def  := component-name
