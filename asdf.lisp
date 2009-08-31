@@ -532,7 +532,7 @@ called with an object of type asdf:system."
 	    (system-source-file (cdr system-pair)))))))
 
 (defvar *central-registry*
-  '(*default-pathname-defaults*)
+  `((directory-namestring *default-pathname-defaults*))
 "A list of 'system directory designators' ASDF uses to find systems.
 
 A 'system directory designator' is a pathname or a function 
