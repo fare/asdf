@@ -3,6 +3,7 @@ cl-asdf (1:20090819-1) unstable; urgency=low
   * New upstream, New homepage and new upstream repository.
   * changed section to lisp
   * now using debhelper v7
+  * added debian/README.building
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 25 Aug 2009 23:03:28 +0200
 
