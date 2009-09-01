@@ -8,8 +8,9 @@ cl-asdf (1:20090819-1) unstable; urgency=low
   * remove upstream ChangeLog
   * added dummy watch file
   * added ${misc:Depends} to cl-asdf Depends
+  * Updated Standards-Version no real changes
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 01 Sep 2009 08:19:01 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 01 Sep 2009 08:19:35 +0100
 
 cl-asdf (1.111-1) unstable; urgency=low
 

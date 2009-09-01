@@ -5,7 +5,7 @@ Maintainer: Debian Common Lisp Team <pkg-common-lisp-devel@lists.alioth.debian.o
 Uploaders: Peter Van Eynde <pvaneynd@debian.org>
 Build-Depends: debhelper (>> 7)
 Build-Depends-Indep: texinfo,texlive-extra-utils, texlive, texlive-generic-recommended, dh-lisp
-Standards-Version: 3.7.3.0
+Standards-Version: 3.8.3
 Homepage: http://common-lisp.net/project/asdf/
 Vcs-Git: http://git.debian.org/git/pkg-common-lisp/cl-asdf.git
 
