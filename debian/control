@@ -14,6 +14,7 @@ Architecture: all
 Recommends: common-lisp-controller, sbcl | lisp-compiler
 Replaces: sbcl-common (<= 1:0.9.13.0-2)
 Conflicts: sbcl-common (<= 1:0.9.13.0-2), common-lisp-controller (<< 6.13)
+Depends: ${misc:Depends}
 Description: Another System Definition Facility
  asdf provides a "make" type functions for Common Lisp packages. It
  provides compilation and loading features for complex Lisp systems
