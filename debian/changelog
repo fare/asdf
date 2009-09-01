@@ -4,8 +4,9 @@ cl-asdf (1:20090819-1) unstable; urgency=low
   * changed section to lisp
   * now using debhelper v7
   * added debian/README.building
+  * remove cvs2cl from dependencies
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 25 Aug 2009 23:03:28 +0200
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 01 Sep 2009 07:40:23 +0100
 
 cl-asdf (1.111-1) unstable; urgency=low
 
