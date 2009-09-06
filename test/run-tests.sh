@@ -84,12 +84,12 @@ elif [ "$lisp" = "clisp" ] ; then
 elif [ "$lisp" = "allegro" ] ; then
     if type alisp ; then
 	fasl_ext="fasl"
-	command="alisp -q --batch "
+	command="alisp -q -batch "
     fi
 elif [ "$lisp" = "allegromodern" ] ; then
     if type mlisp ; then
 	fasl_ext="fasl"
-	command="mlisp -q --batch "
+	command="mlisp -q -batch "
     fi
 elif [ "$lisp" = "ccl" ] ; then
     if type ccl ; then

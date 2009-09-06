@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 (load "script-support")
 (load "../asdf")
-(exit-on-error 
+(quit-on-error 
 
  (load "../asdf")
  (load "../wild-modules")

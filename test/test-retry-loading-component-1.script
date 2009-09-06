@@ -9,7 +9,7 @@
 ;#+allegro
 ;(trace excl.osi:command-output)
 (defvar *caught-error* nil)
-(exit-on-error 
+(quit-on-error 
  (when (probe-file "try-reloading-dependency.asd")
    (asdf:run-shell-command "rm -f ~A"
 			   (namestring "try-reloading-dependency.asd")))

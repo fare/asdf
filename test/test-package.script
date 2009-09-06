@@ -2,7 +2,7 @@
 ;;; -*- Lisp -*-
 (load "script-support")
 (load "../asdf")
-(exit-on-error 
+(quit-on-error 
 
  (defun module () 1)
 

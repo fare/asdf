@@ -27,7 +27,7 @@
 
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
-(defmacro exit-on-error (&body body)
+(defmacro quit-on-error (&body body)
   `(handler-case 
       (progn ,@body
 	     (leave-lisp "Script succeeded" 0))

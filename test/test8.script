@@ -6,14 +6,17 @@
 (load "../asdf")
 (in-package #:common-lisp-user)
 
-(exit-on-error 
+(quit-on-error 
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (handler-case 
      (asdf:oos 'asdf:load-op 'system-does-not-exist)
    (asdf:missing-component-of-version (c)
+     (declare (ignore c))
      (error "Should not have gotten 'missing-component-of-version, dang"))
    (asdf:missing-component (c)
      (format t "got missing-component as expected: - ~%~A~%" c))
-   (:no-error (c) (error "should have failed, oops"))))
+   (:no-error (c)
+     (declare (ignore c))
+     (error "should have failed, oops"))))
 
 

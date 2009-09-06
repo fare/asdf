@@ -4,11 +4,12 @@
 
 (load "script-support")
 (load "../asdf")
-(exit-on-error 
+(defvar *caught-error* nil)
+
+(quit-on-error 
  (asdf:run-shell-command "rm -f ~A"
 			 (namestring 
 			  (compile-file-pathname "try-recompiling-1")))
- (defvar *caught-error* nil)
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (handler-bind ((error (lambda (c) 
 			 (setf *caught-error* t)

@@ -5,7 +5,7 @@
 
 (load "script-support")
 (load "../asdf")
-(exit-on-error 
+(quit-on-error 
  (flet ((system-load-time (name)
 	  (let ((data (asdf::system-registered-p name)))
 	    (when data

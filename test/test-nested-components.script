@@ -6,7 +6,7 @@
 (load "../asdf")
 (in-package #:common-lisp-user)
 
-(exit-on-error 
+(quit-on-error 
  (setf asdf:*central-registry* nil)
  (load (merge-pathnames "test-nested-components-1.asd"))
  (print 
