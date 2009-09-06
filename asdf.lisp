@@ -1405,8 +1405,8 @@ Returns the new tree (which probably shares structure with the old one)"
   (loop for name in +asdf-methods+ do
        (let ((keyword (intern (symbol-name name) :keyword)))
 	 (loop for data = rest then (cddr data)
-	      for key = (and data (first data))
-	      for value = (and data (second data))
+	      for key = (first data)
+	      for value = (second data)
               while data
 	      when (eq key keyword) do
 	      (destructuring-bind (op qual (o c) &body body) value
