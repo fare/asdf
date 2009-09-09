@@ -1267,6 +1267,10 @@ created with the same initargs as the original one.
                                                  key (cddr arglist))))))))
     (aux key arglist)))
 
+(defun resolve-symlinks (path)
+  #-allegro (truename path)
+  #+allegro (excl:pathname-resolve-symbolic-links path)
+  )
 
 (defun determine-system-pathname (pathname pathname-supplied-p)
   ;; called from the defsystem macro.
@@ -1283,8 +1287,7 @@ created with the same initargs as the original one.
       (when *load-truename*
 	(pathname-sans-name+type 
 	 (if *resolve-symlinks*
-	     #-allegro (truename *load-truename*)
-	     #+allegro (excl:pathname-resolve-symbolic-links *load-truename*)
+	     (resolve-symlinks *load-truename*)
 	     *load-pathname*)))
       *default-pathname-defaults*))
 
