@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>source/manual.mmd</string>
+	<string>source/git.mmd</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -20,11 +20,17 @@
 		</dict>
 		<dict>
 			<key>filename</key>
-			<string>source/manual.mmd</string>
+			<string>source/git.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-08-19T12:45:27Z</date>
+			<date>2009-09-09T14:31:15Z</date>
 			<key>selected</key>
 			<true/>
+		</dict>
+		<dict>
+			<key>filename</key>
+			<string>source/manual.mmd</string>
+			<key>lastUsed</key>
+			<date>2009-09-04T02:23:14Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -133,6 +139,20 @@
 			<key>firstVisibleLine</key>
 			<integer>81</integer>
 		</dict>
+		<key>source/git.mmd</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>2</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>0</integer>
+		</dict>
 		<key>source/glossary.md</key>
 		<dict>
 			<key>caret</key>
@@ -184,12 +204,12 @@
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>451</integer>
+				<integer>162</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>434</integer>
+			<integer>141</integer>
 		</dict>
 		<key>source/resources/footer.md</key>
 		<dict>
@@ -345,6 +365,7 @@
 		<string>source/glossary.md</string>
 		<string>source/getting-started.mmd</string>
 		<string>source/manual.mmd</string>
+		<string>source/git.mmd</string>
 		<string>source/user-guide.mmd</string>
 		<string>source/resources/navigation.md</string>
 		<string>source/contributors.md</string>
