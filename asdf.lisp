@@ -147,7 +147,7 @@
 
 (defvar *asdf-revision* 
   ;; the 1+ hair is to ensure that we don't do an inadvertant find and replace
-  (subseq "REVISION:1."))))
+  (subseq "REVISION:1.365"))))
   
 
 (defvar *resolve-symlinks* t
