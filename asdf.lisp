@@ -145,7 +145,10 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* "REVISION:_asdf_revision")
+(defvar *asdf-revision* 
+  ;; the 1+ hair is to ensure that we don't do an inadvertant find and replace
+  (subseq "REVISION:1.366" (1+ (length "REVISION"))))
+  
 
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.

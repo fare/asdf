@@ -8,7 +8,6 @@ if [ "$branch" != "* master" ]; then
   echo "error: git branch is $branch, not master"
   exit -1
 fi 
-exit 0
 
 tag=`git describe --tag`
 if [ "$tag" == "" ]; then

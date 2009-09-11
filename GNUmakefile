@@ -17,7 +17,11 @@ endif
 
 install: archive-copy
 
+bump_revision: FORCE
+	bin/bump-revision-and-tag.sh
+
 archive: FORCE
+
 	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 		--eval "(rewrite-license)" --eval "(quit)"
 	bin/build-tarball.sh
