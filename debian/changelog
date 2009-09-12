@@ -1,3 +1,9 @@
+cl-asdf (1:20090819-3) unstable; urgency=low
+
+  * Fixed the loop construct again. (Closes: #546205) 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 12 Sep 2009 10:08:23 +0100
+
 cl-asdf (1:20090819-2) unstable; urgency=low
 
   * Fix the loop contruct. This makes ecl fail. (Closes: #545768)
