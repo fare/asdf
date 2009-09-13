@@ -16,6 +16,7 @@
  [FAQ]: faq.html
  [tests]: test-results.html
  [git-browse]: http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=summary
+ [git-resources]: git.html
   
  [asdf-devel]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel
  [asdf-announce]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce

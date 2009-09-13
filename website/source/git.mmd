@@ -1,17 +1,15 @@
 ## git recipes
 
-
+### sychronize with the central repository
  
- > Alternatively, would someone please provide simple recipes for dealing
- > with git?  It's really far more complex than CVS, and I don't see
- > obvious patterns of interaction to do simple things like restore
- > synchronization with the central repo.
+    # downloads the latest commits from CL.net
+    git fetch origin
 
- git fetch origin
-  downloads latest commits
- git reset --hard origin/master 
-  nukes all local changes, synchronizing with the remote repo
- 
+    # removes any local changes and synchronizes with 
+    # what we just downloaded from the remote repo
+    git reset --hard origin/master 
+
+
 ## git resources
 
 Here are a few links that might be helpful to people learning
