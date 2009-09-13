@@ -147,7 +147,7 @@
 
 (defvar *asdf-revision* 
   ;; the 1+ hair is to ensure that we don't do an inadvertant find and replace
-  (subseq "REVISION:1.365" (1+ (length "REVISION"))))
+  (subseq "REVISION:1.366" (1+ (length "REVISION"))))
   
 
 (defvar *resolve-symlinks* t
@@ -315,6 +315,21 @@ and NIL NAME and TYPE components"
   (declare (dynamic-extent format-args))
   (apply #'format *verbose-out* format-string format-args))
 
+(defun split-path-string (s &optional force-directory)
+  (check-type s string)
+  (let* ((components (split s nil "/"))
+         (last-comp (car (last components))))
+    (multiple-value-bind (relative components)
+        (if (equal (first components) "")
+          (values :absolute (cdr components))
+          (values :relative components))
+      (cond
+        ((equal last-comp "")
+         (values relative (butlast components) nil))
+        (force-directory
+         (values relative components nil))
+        (t
+         (values relative (butlast components) last-comp))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; classes, condiitons
@@ -440,9 +455,11 @@ and NIL NAME and TYPE components"
 
 (defmethod component-relative-pathname ((component module))
   (or (slot-value component 'relative-pathname)
-      (make-pathname
-       :directory `(:relative ,(component-name component))
-       :host (pathname-host (component-parent-pathname component)))))
+      (multiple-value-bind (relative path)
+	  (split-path-string (component-name component) t)
+        (make-pathname
+         :directory `(,relative ,@path)
+         :host (pathname-host (component-parent-pathname component))))))
 
 (defmethod component-pathname ((component component))
   (let ((*default-pathname-defaults* (component-parent-pathname component)))
@@ -725,20 +742,18 @@ to `~a` which is not a directory.~@:>"
 (defmethod source-file-type ((c static-file) (s module)) nil)
 
 (defmethod component-relative-pathname ((component source-file))
-  (let ((relative-pathname (slot-value component 'relative-pathname)))
-    (if relative-pathname
-        (merge-pathnames
+  (multiple-value-bind (relative path name)
+      (split-path-string (component-name component))
+    (let ((type (source-file-type component (component-system component)))
+          (relative-pathname (slot-value component 'relative-pathname))
+          (*default-pathname-defaults* (component-parent-pathname component)))
+      (if relative-pathname
+	(merge-pathnames
          relative-pathname
-         (make-pathname
-          :type (source-file-type component (component-system component))))
-        (let* ((*default-pathname-defaults*
-                (component-parent-pathname component))
-               (name-type
-                (make-pathname
-                 :name (component-name component)
-                 :type (source-file-type component
-                                         (component-system component)))))
-          name-type))))
+         (if type
+           (make-pathname :name name :type type)
+           name))
+        (make-pathname :directory `(,relative ,@path) :name name :type type)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; operations

@@ -31,7 +31,7 @@ bumped=`expr $minor + 1`
 new_version="$major.$bumped"
 
 cp asdf.lisp asdf.bak
-perl -pi -e "s/REVISION:.*\"/REVISION:$new_version\"/" asdf.lisp
+perl -pi -e "s/REVISION:[^\"]*\"/REVISION:$new_version\"/" asdf.lisp
 
 echo "Update reversion and commit"
 git add asdf.lisp
