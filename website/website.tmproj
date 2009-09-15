@@ -3,46 +3,46 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>source/git.mmd</string>
+	<string>source/glossary.md</string>
 	<key>documents</key>
 	<array>
 		<dict>
 			<key>filename</key>
 			<string>source/getting-started.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-06-16T03:15:03Z</date>
+			<date>2009-09-14T14:43:49Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/index.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-07-18T14:05:17Z</date>
+			<date>2009-09-13T18:47:21Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/git.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-09-09T14:31:15Z</date>
-			<key>selected</key>
-			<true/>
+			<date>2009-09-13T19:03:03Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/manual.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-09-04T02:23:14Z</date>
+			<date>2009-09-13T19:10:07Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/user-guide.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-06-06T19:06:09Z</date>
+			<date>2009-09-13T19:00:02Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>source/glossary.md</string>
 			<key>lastUsed</key>
-			<date>2009-06-06T18:58:35Z</date>
+			<date>2009-09-14T14:43:49Z</date>
+			<key>selected</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -125,20 +125,6 @@
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
 		</dict>
-		<key>source/getting-started.mmd</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>109</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>81</integer>
-		</dict>
 		<key>source/git.mmd</key>
 		<dict>
 			<key>caret</key>
@@ -146,7 +132,7 @@
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>2</integer>
+				<integer>10</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
@@ -172,30 +158,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>51</integer>
+				<integer>47</integer>
 				<key>line</key>
-				<integer>39</integer>
+				<integer>58</integer>
 			</dict>
-			<key>columnSelection</key>
-			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>28</integer>
-			<key>selectFrom</key>
-			<dict>
-				<key>column</key>
-				<integer>63</integer>
-				<key>line</key>
-				<integer>39</integer>
-			</dict>
-			<key>selectTo</key>
-			<dict>
-				<key>column</key>
-				<integer>51</integer>
-				<key>line</key>
-				<integer>39</integer>
-			</dict>
+			<integer>42</integer>
 		</dict>
 		<key>source/manual.mmd</key>
 		<dict>
@@ -204,12 +174,12 @@
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>162</integer>
+				<integer>0</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>141</integer>
+			<integer>59</integer>
 		</dict>
 		<key>source/resources/footer.md</key>
 		<dict>
@@ -258,14 +228,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>47</integer>
+				<integer>2</integer>
 				<key>line</key>
-				<integer>33</integer>
+				<integer>19</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>5</integer>
+			<integer>14</integer>
 		</dict>
 		<key>source/resources/ug-footer.md</key>
 		<dict>
@@ -330,28 +300,12 @@
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>10</integer>
+				<integer>8</integer>
 			</dict>
-			<key>columnSelection</key>
-			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
-			<key>selectFrom</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>9</integer>
-			</dict>
-			<key>selectTo</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>10</integer>
-			</dict>
 		</dict>
 	</dict>
 	<key>openDocuments</key>
@@ -363,7 +317,6 @@
 		<string>source/copyright.md</string>
 		<string>source/resources/header.md</string>
 		<string>source/glossary.md</string>
-		<string>source/getting-started.mmd</string>
 		<string>source/manual.mmd</string>
 		<string>source/git.mmd</string>
 		<string>source/user-guide.mmd</string>
@@ -374,6 +327,6 @@
 	<key>showFileHierarchyDrawer</key>
 	<true/>
 	<key>windowFrame</key>
-	<string>{{590, 200}, {578, 578}}</string>
+	<string>{{555, 123}, {578, 578}}</string>
 </dict>
 </plist>

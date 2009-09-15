@@ -53,8 +53,7 @@ clean: FORCE
 	done
 
 test: FORCE
-	@cd test; ./run-tests.sh $(lisp) $(test-regex)
-	echo "My foot is $?"
+	@cd test; make clean;./run-tests.sh $(lisp) $(test-regex)
 
 test-all: FORCE
 	@for lisp in $(lisps); do \
