@@ -133,7 +133,7 @@
 	   #:*include-per-user-information*
 	   #:*map-all-source-files*
 	   #:output-files-for-system-and-operation
-	   #:*place-binaries-in-implementation-specific-directories*
+	   #:*enable-asdf-binary-locations*
 	   #:implementation-specific-directory-name)
   (:use :cl))
 
@@ -630,13 +630,13 @@ actually-existing directory."
 					 (make-pathname
 					  :defaults defaults :version :newest
 					  :name name :type "asd" :case :local)))
-                               #+(or win32 windows)
+                               #+(and (or win32 windows) (not :clisp))
                                (shortcut (make-pathname
                                           :defaults defaults :version :newest
                                           :name name :type "asd.lnk" :case :local)))
 			  (if (and file (probe-file file))
 			      (return file))
-                          #+(or win32 windows)
+                          #+(and (or win32 windows) (not :clisp))
                           (when (probe-file shortcut)
                             (let ((target (parse-windows-shortcut shortcut)))
                               (when target
@@ -1628,7 +1628,7 @@ If true, compiled lisp files without an explicit mapping (see
 without an explicitly mapping will be placed in subdirectories of
 their sources.")
 
-(defparameter *place-binaries-in-implementation-specific-directories* nil
+(defparameter *enable-asdf-binary-locations* nil
   "
 If true, then compiled lisp files will be placed into a directory 
 computed from the Lisp version, Operating System and computer archetecture.
@@ -1726,7 +1726,7 @@ See [implementation-specific-directory-name][] for details.")
   "Return a name that can be used as a directory name that is
 unique to a Lisp implementation, Lisp implementation version,
 operating system, and hardware architecture."
-  (and *place-binaries-in-implementation-specific-directories*
+  (and *enable-asdf-binary-locations*
        (list 
 	(or *implementation-specific-directory-name*
 	    (setf *implementation-specific-directory-name*
