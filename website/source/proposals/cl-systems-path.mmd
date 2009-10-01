@@ -1,11 +1,12 @@
+
 # Proposal Summary
 
 These are independent but make the most sense if taken as a
 whole.
 
- * Specify new defaults for `*central-registry*`, 
+ * Specify new defaults for `*central-registry*`,
 
- * use an environment variable named `COMMON_LISP_PATH` to
+ * use an environment variable named `CL_SYSTEMS_PATH` to
    override ASDF's defaults,
 
  * use `*central-registry*` to find and load an ASDF
@@ -16,31 +17,57 @@ whole.
 
 ##  default value for *central-registry*
 
-COMMON_LISP_PATH environment variable with syntax like
+CL_SYSTEMS_PATH environment variable with syntax like
 
-    path[;path]*
+    path[:path]* (on *nix)
 
-This is used by ASDF to help build the default value for
-`*central-registry*`.
+or
+
+    path[;path]* (on Windows)
+
+I.e., path designators separated by an OS dependent marker
+(colons or semi-colons). This is used by ASDF to help build
+the default value for `*central-registry*`. Each `path` will
+be interpreted as follows:
+
+* a `!` will be replaced by the default value (see below) so
+  that it is easy to extend the path rather than just
+  replacing it.
+
+* empty ones will be removed from the list,
+
+* since these represent _directories_, trailing slashes will
+  be added if necessary,
+
+* if the last component is a `*` or `**` then sub-directories
+  of this path will be searched recursively either one level
+  deep (if `*`) or all the way down (if `**`).
 
 If not specified, `*central-registry*` defaults to (on
 *nix-like systems):
 
-    (list 
+    (list
       *default-pathname-defaults*
       (merge-pathnames
-        (make-pathname :directory '(:relative ".common-lisp")) 
+        (make-pathname :directory '(:relative ".common-lisp"))
                        (user-homedir-pathname)))
       (merge-pathnames
-        (make-pathname :directory '(:relative ".local" "share" "common-lisp")) 
+        (make-pathname :directory '(:relative ".local" "share"  
+"common-lisp"))
                        (user-homedir-pathname)))
-      (make-pathname :directory '(:absolute "usr" "local" "share" "common-lisp")) 
-      (make-pathname :directory '(:absolute "usr" "share" "common-lisp")) 
+      (make-pathname :directory '(:absolute "usr" "local" "share"  
+"common-lisp"))
+      (make-pathname :directory '(:absolute "usr" "share" "common- 
+lisp"))
       )
 
 
-(The last two would need to be different for Windows-based
-systems.)
+(On a windows system, the last two would be replaced by
+c:\common-lisp and c:\windows\common-lisp).
+
+Note that this list would be automatically filtered for any
+entries for which the moral equivalent of `(ignore-errors
+(truename x))` fails.
 
 ## modification for `sysdef-central-registry-search`
 
@@ -56,15 +83,14 @@ in all sub-directories of each entry.
 When ASDF starts, it will:
 
  1. setup `*central-registry*` using its own defaults and the
-`COMMON_LISP_PATH` environment variable.
+`CL_SYSTEMS_PATH` environment variable.
 
- 2. look for (and load if it is found) a file named
-`asdf-config.lisp` in each of these paths traversed in
-_reverse_ order (so that user settings take precedence overs
-system ones). Note that the ASDF package will exist when this
-file is read.
+ 2. look for and load the *first* file named
+`asdf-config.lisp` in each of these paths traversed in order
+(so that user settings take precedence over system ones).
+Note that the ASDF package will exist when this file is read.
 
-I.e., I'm suggesting that we go the "user settings overwrite
-system settings" route rather than the "if there are any user
-settings, then ignore the system settings" one.
+I.e., I'm suggesting "if there are any user settings, then
+ignore the system settings" one rather than the "user
+settings overwrite system settings".
 
