@@ -1,0 +1,70 @@
+# Proposal Summary
+
+These are independent but make the most sense if taken as a
+whole.
+
+ * Specify new defaults for `*central-registry*`, 
+
+ * use an environment variable named `COMMON_LISP_PATH` to
+   override ASDF's defaults,
+
+ * use `*central-registry*` to find and load an ASDF
+   configuration file (if present) and
+
+ * modify the default behavior of
+   `sysdef-central-registry-search` to search deeply.
+
+##  default value for *central-registry*
+
+COMMON_LISP_PATH environment variable with syntax like
+
+    path[;path]*
+
+This is used by ASDF to help build the default value for
+`*central-registry*`.
+
+If not specified, `*central-registry*` defaults to (on
+*nix-like systems):
+
+    (list 
+      *default-pathname-defaults*
+      (merge-pathnames
+        (make-pathname :directory '(:relative ".common-lisp")) 
+                       (user-homedir-pathname)))
+      (merge-pathnames
+        (make-pathname :directory '(:relative ".local" "share" "common-lisp")) 
+                       (user-homedir-pathname)))
+      (make-pathname :directory '(:absolute "usr" "local" "share" "common-lisp")) 
+      (make-pathname :directory '(:absolute "usr" "share" "common-lisp")) 
+      )
+
+
+(The last two would need to be different for Windows-based
+systems.)
+
+## modification for `sysdef-central-registry-search`
+
+Currently `sysdef-central-registry-search` searches in the
+top-level of each directory in `*central-registry*` to find
+systems. If we use the above, then a more useful approach
+would be to search in the top-level and in a sub-directory
+named `systems`. An even more useful approach would to search
+in all sub-directories of each entry.
+
+## configuration file
+
+When ASDF starts, it will:
+
+ 1. setup `*central-registry*` using its own defaults and the
+`COMMON_LISP_PATH` environment variable.
+
+ 2. look for (and load if it is found) a file named
+`asdf-config.lisp` in each of these paths traversed in
+_reverse_ order (so that user settings take precedence overs
+system ones). Note that the ASDF package will exist when this
+file is read.
+
+I.e., I'm suggesting that we go the "user settings overwrite
+system settings" route rather than the "if there are any user
+settings, then ignore the system settings" one.
+
