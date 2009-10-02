@@ -68,6 +68,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Defining systems with defsystem::  
 * The object model of asdf::    
 * Error handling::              
+* Controlling where ASDF saves compiled files::
+* Special variables::
 * Compilation error and warning handling::  
 * Miscellaneous additional functionality::
 * Getting the latest version::  
@@ -442,7 +444,7 @@ disposition of output from asdf operations.
 @end itemize
 
 
-@node The object model of asdf, Error handling, Defining systems with defsystem, Top
+@node The object model of asdf, Controlling where ASDF saves compiled files, Defining systems with defsystem, Top
 @comment  node-name,  next,  previous,  up
 @chapter The object model of asdf
 
@@ -981,7 +983,115 @@ The new component type is used in a @code{defsystem} form in this way:
     )
 @end lisp
 
-@node  Error handling, Compilation error and warning handling, The object model of asdf, Top
+@node Controlling where ASDF saves compiled files, Special variables, The object model of asdf, Top
+@comment  node-name,  next,  previous,  up
+@chapter Controlling where ASDF saves compiled files
+@cindex ASDF-binary-locations
+
+Each Common Lisp implementation has its own format for
+compiled files (fasls for short). If you use multiple
+implementations (or multiple versions of the same
+implementation), you'll soon find your source directories
+littered with various `DFSL`s, `FASL`s, `CFSL`s and so on.
+Worse yet, some implementations use the same file extension
+or change formats from version to version which means that
+you'll have to recompile binaries as you switch from one
+implementation to the next. 
+
+As of version 1.365, ASDF includes @emph{ASDF-binary-locations} to
+mitigate the problem. 
+
+@section Default locations
+@vindex *place-binaries-in-implementation-specific-directories*
+@vindex *centralize-lisp-binaries*
+@vindex *default-toplevel-directory*
+@vindex *include-per-user-information*
+@vindex *map-all-source-files*
+@vindex *source-to-target-mappings*
+@findex output-files-for-system-and-operation
+
+The default binary location for each Lisp implementation is a
+subdirectory of each source directory. To account for different Lisps,
+Operating Systems, Implementation versions, and so on, ASDF borrows code
+from SLIME to create reasonable custom directory names. Here are
+some examples:
+
+@itemize
+@item SBCL, version 1.0 on Mac OS X for intel: @code{sbcl-1.0-darwin-x86}
+ 
+@item Franz Allegro, version 8.0, ANSI Common Lisp:  @code{allegro-8.0a-macosx-x86}
+ 
+@item Franz Allegro, version 8.1, Modern (case sensitive) Common Lisp: @code{allegro-8.1m-macosx-x86}
+@end itemize
+ 
+If you want to keep compiled files out of the source tree entirely, use
+@code{*centralize-lisp-binaries*} to put compiled files into
+sub-directories of a single central location (see below).
+ 
+Here is a summary of the variables that control ASDF's source-to-binary mappings: 
+
+@itemize
+
+ @item @code{*place-binaries-in-implementation-specific-directories*}:
+    If false, then ASDF will place binaries in the same directory as the
+    source. If true, then ASDF will move the binaries using the rest of
+    the configuration. Defaults to @code{nil}.
+
+
+ @item @code{*centralize-lisp-binaries*}: If true, compiled lisp files
+    without an explicit mapping (see @code{*source-to-target-mappings*})
+    will be placed in subdirectories of
+    @code{*default-toplevel-directory*}. If false, then compiled lisp
+    files without an explicit mapping will be placed in subdirectories
+    of their sources. Defaults to @code{nil}.
+
+ @item @code{*default-toplevel-directory*}. If
+    @code{*centralize-lisp-binaries*} is true, then compiled lisp files
+    without an explicit mapping (see @code{*source-to-target-mappings*})
+    will be placed in subdirectories of
+    @code{*default-toplevel-directory*}.  Defaults to a sub-directory
+    named `.fasls` in the current user's home directory.
+
+ @item @code{*include-per-user-information*}. specifies whether or not
+    to include user information in the directory. Only used when
+    @code{*centralize-lisp-binaries*} is true. Defaults to @code{nil}.
+
+ @item @code{*map-all-source-files*}. If true, then all source files
+    will be mapped by ASDF. If @code{nil}, then only Common Lisp Source
+    Files (i.e., instances of cl-source-file or its subclasses) will
+    be. Defaults to @code{nil}.
+
+ @item @code{*source-to-target-mappings*}. This specifies mappings
+    from source to target. If the target is nil, then it
+    means to *not* map the source to anything. I.e., to leave
+    it as is. This has the effect of turning off
+    ASDF-Binary-Locations for the given source directory. The
+    default depends on the Lisp implementation.
+@end itemize
+
+These variables are used by
+@code{output-files-for-system-and-operation} to determine where to
+place a source file's binary. You can further customize asdf-binary-locations
+by writing additional methods on the generic function
+@code{output-files-for-system-and-operation}.
+
+@c See the [manual][binary-locations] for more details.
+
+@subsection Notes and Issues
+
+SBCL ships with several included ASDF libraries which used to confuse
+ABL because it would try to recompile the FASLs and then run into
+directory permission problems. ASDF knows about these and uses a mapping
+like @file{/usr/local/lib/sbcl} to @code{nil} so that the FASLs are not
+relocated.
+
+@node Special variables, Error handling, Controlling where ASDF saves compiled files, Top
+@comment  node-name,  next,  previous,  up
+@chapter Special variables
+
+
+
+@node  Error handling, Compilation error and warning handling, Special variables, Top
 @comment  node-name,  next,  previous,  up
 @chapter Error handling
 @findex SYSTEM-DEFINITION-ERROR
@@ -1032,6 +1142,8 @@ location of the system's source file and the relative pathname. For example
 @node Getting the latest version, TODO list, Miscellaneous additional functionality, Top
 @comment  node-name,  next,  previous,  up
 @chapter Getting the latest version
+
+@c FIXME:  Need to revise this to give information about the git repository.
 
 @enumerate
 @item
