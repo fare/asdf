@@ -58,12 +58,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 @ifnottex
 
-@node Top, Using asdf to load systems, (dir), (dir)
+@node Top, Introduction, (dir), (dir)
 @top asdf: another system definition facility
      
 @insertcopying
 
 @menu
+* Introduction::
 * Using asdf to load systems::  
 * Defining systems with defsystem::  
 * The object model of asdf::    
@@ -117,8 +118,24 @@ properties
 
 @c -------------------
 
+@node Introduction, Using asdf to load systems, Top, Top
+@comment  node-name,  next,  previous,  up
+@chapter Introduction
 
-@node  Using asdf to load systems, Defining systems with defsystem, Top, Top
+ASDF is Another System Definition Facility: a tool for describing the
+sub-systems and files that comprise a system and for operating on these
+components in the right order so that they can be compiled, loaded,
+tested, etc.
+
+ASDF presents two faces: one for system implementors who need to be able
+to describe their systems and one for Lisp programmers who want to use
+those systems. @xref{Using asdf to load systems,the getting started guide}, to learn how to use ASDF to
+load a system. @xref{Defining systems with defsystem}, to learn how to
+define a system of your own.  Later chapters describe the ASDF internals
+and how to extend ASDF.
+
+
+@node  Using asdf to load systems, Defining systems with defsystem, Introduction, Top
 @comment  node-name,  next,  previous,  up
 @chapter Using asdf to load systems
 @cindex system directory designator
@@ -130,7 +147,7 @@ Lisp programs and libraries.
 @section Downloading asdf
 
 Some Lisp implementations (such as SBCL and OpenMCL) come with asdf
-included already, so you don't need to download it separately.
+included already, so you don't need to download it separately.1
 Consult your Lisp system's documentation.  If you need to download
 asdf and install it by hand, the canonical source is the cCLan CVS
 repository at
@@ -325,7 +342,7 @@ them to -- a @code{:before} method on perform @code{((op compile-op) (c
 have been processed, but before the component in question has been
 compiled.
 
-@node  The defsystem grammar,  Other code in .asd files, A more involved example, Defining systems with defsystem
+@node  The defsystem grammar, Other code in .asd files, A more involved example, Defining systems with defsystem
 @comment  node-name,  next,  previous,  up
 @section The defsystem grammar
 
@@ -425,7 +442,7 @@ unbound (so that a developer can evaluate a @code{defsystem} form from
 within an editor without clobbering its source location)
 @end itemize
 
-@node Other code in .asd files, , The defsystem grammar, Defining systems with defsystem
+@node Other code in .asd files,  , The defsystem grammar, Defining systems with defsystem
 @section Other code in .asd files
 
 Files containing defsystem forms are regular Lisp files that are
