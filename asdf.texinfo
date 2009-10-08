@@ -166,7 +166,12 @@ function:
 Consult your Lisp implementation's documentation for details. If ASDF
 doesn't come bundled with your Lisp or if you want to make
 sure that you have the most recent version, then you'll want
-to download it from the @url{http://common-lisp.net/project/asdf/,asdf-home} website.
+to download it from the
+@url{http://common-lisp.net/project/asdf/,asdf-home} website.
+
+Note to SBCL users:  you are cautioned that installing ASDF yourself may
+break some SBCL contribs.  We are working to provide instructions for
+doing this safely.
 
 @section Loading ASDF
 
