@@ -255,7 +255,8 @@ evaluating the following form in your Lisp implementation:
 (asdf:load-system '@var{foo})
 @end example
 
-(In older versions of ASDF, you may need to use @code{asdf:oos}, instead.)
+(In older versions of ASDF, you may need to use @code{(asdf:oos
+'asdf:load-op 'foo)}, instead.)
 
 Output from asdf and asdf extensions are supposed to be sent to the CL
 stream @code{*standard-output*}, and so rebinding that stream around
