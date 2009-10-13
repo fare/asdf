@@ -396,10 +396,10 @@ slightly convoluted example:
   :version "1.0"
   :components ((:module "foo" :components ((:file "bar") (:file"baz") 
                                            (:file "quux"))
-	        :perform (compile-op :after (op c)
-			  (do-something c))
-		:explain (compile-op :after (op c)
-			  (explain-something c)))
+                :perform (compile-op :after (op c)
+                          (do-something c))
+                :explain (compile-op :after (op c)
+                          (explain-something c)))
                (:file "blah")))
 @end lisp
 
@@ -811,7 +811,7 @@ systems we want to support either have lowercase as customary case
 (Unix, Mac, windows) or silently convert lowercase to uppercase
 (lpns), so this makes more sense than attempting to use @code{:case
 :common} as argument to @code{make-pathname}, which is reported not to
-work on some implementations
+work on some implementations.
 
 @subsubsection Version identifier
 
@@ -821,6 +821,11 @@ test-system-version, the version should be a string of intergers
 separated by dots, for example @samp{1.0.11}.
 
 @subsubsection Required features
+
+@emph{FIXME:  This subsection seems to contradict the defsystem grammar
+subsection; which doesn't provide any obvious way to specify required
+features.  Furthermore, recent discussion on the asdf-devel mailing list
+suggests that the specification of required features may be broken.}
 
 Traditionally defsystem users have used reader conditionals to include
 or exclude specific per-implementation files.  This means that any
@@ -904,12 +909,12 @@ component)}, which returns a list
 @code{component-depends-on} can be subclassed for more specific
 component/operation types: these need to @code{(call-next-method)} and
 append the answer to their dependency, unless they have a good reason
-for completely overriding the default dependencies
+for completely overriding the default dependencies.
 
-(If it weren't for CLISP, we'd be using a @code{LIST} method
+If it weren't for CLISP, we'd be using @code{LIST} method
 combination to do this transparently.  But, we need to support CLISP.
 If you have the time for some CLISP hacking, I'm sure they'd welcome
-your fixes)
+your fixes.
 
 @subsubsection pathname
 
@@ -1226,6 +1231,8 @@ such events. The valid values for these variables are @code{:error},
 @comment  node-name,  next,  previous,  up
 @chapter Additional Functionality
 
+@emph{FIXME:  Add discussion of @code{run-shell-command}?  Others?}
+
 ASDF includes several additional features that are generally 
 useful for system definition and development. These include:
 
@@ -1248,7 +1255,7 @@ location of the system's source file and the relative pathname. For example
 @comment  node-name,  next,  previous,  up
 @chapter Getting the latest version
 
-@c FIXME:  Need to revise this to give information about the git repository.
+@emph{FIXME:  Need to revise this to give information about the git repository.}
 
 @enumerate
 @item
