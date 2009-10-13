@@ -144,6 +144,7 @@ and how to extend ASDF.
 @comment  node-name,  next,  previous,  up
 @chapter Using ASDF
 @vindex *central-registry*
+@cindex link farm
 @findex load-system
 @findex compile-system
 @findex test-system
@@ -220,6 +221,11 @@ commands at the shell:
 $ cd /home/me/cl/systems/
 $ ln -s ~/src/foo/foo.asd .
 @end example
+
+Previous versions of the ASDF manual suggested that users create a
+directory in their @code{*central-registry*} that would act as a ``link
+farm.''  However, this method may cause problems if you work on multiple
+lisp projects that contain different mixes of ASDF libraries.
 
 The variable @code{asdf:*central-registry*} is a list of ``system
 directory designators''@footnote{When we say ``directory'' here, we
