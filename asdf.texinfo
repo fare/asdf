@@ -682,42 +682,42 @@ the user in a way that is compatible with all of the various test
 libraries and test techniques in use in the community.
 @end deffn
 
-@deffn Operation test-system-version &key minimum
+@c @deffn Operation test-system-version &key minimum
 
-Asks the system whether it satisfies a version requirement.
+@c Asks the system whether it satisfies a version requirement.
 
-The default method accepts a string, which is expected to contain of a
-number of integers separated by #\. characters.  The method is not
-recursive.  The component satisfies the version dependency if it has
-the same major number as required and each of its sub-versions is
-greater than or equal to the sub-version number required.
+@c The default method accepts a string, which is expected to contain of a
+@c number of integers separated by #\. characters.  The method is not
+@c recursive.  The component satisfies the version dependency if it has
+@c the same major number as required and each of its sub-versions is
+@c greater than or equal to the sub-version number required.
 
-@lisp
-(defun version-satisfies (x y)
-  (labels ((bigger (x y)
-	     (cond ((not y) t)
-		   ((not x) nil)
-		   ((> (car x) (car y)) t)
-		   ((= (car x) (car y))
-		    (bigger (cdr x) (cdr y))))))
-    (and (= (car x) (car y))
-	 (or (not (cdr y)) (bigger (cdr x) (cdr y))))))
-@end lisp
+@c @lisp
+@c (defun version-satisfies (x y)
+@c   (labels ((bigger (x y)
+@c 	     (cond ((not y) t)
+@c 		   ((not x) nil)
+@c 		   ((> (car x) (car y)) t)
+@c 		   ((= (car x) (car y))
+@c 		    (bigger (cdr x) (cdr y))))))
+@c     (and (= (car x) (car y))
+@c 	 (or (not (cdr y)) (bigger (cdr x) (cdr y))))))
+@c @end lisp
 
-If that doesn't work for your system, you can override it.  I hope
-you have as much fun writing the new method as @verb{|#lisp|} did
-reimplementing this one.
-@end deffn
+@c If that doesn't work for your system, you can override it.  I hope
+@c you have as much fun writing the new method as @verb{|#lisp|} did
+@c reimplementing this one.
+@c @end deffn
 
-@deffn Operation feature-dependent-op
+@c @deffn Operation feature-dependent-op
 
-An instance of @code{feature-dependent-op} will ignore any components
-which have a @code{features} attribute, unless the feature combination
-it designates is satisfied by @code{*features*}.  This operation is
-not intended to be instantiated directly, but other operations may
-inherit from it.
+@c An instance of @code{feature-dependent-op} will ignore any components
+@c which have a @code{features} attribute, unless the feature combination
+@c it designates is satisfied by @code{*features*}.  This operation is
+@c not intended to be instantiated directly, but other operations may
+@c inherit from it.
 
-@end deffn
+@c @end deffn
 
 @node  Creating new operations,  , Predefined operations of asdf, Operations
 @comment  node-name,  next,  previous,  up
