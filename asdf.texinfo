@@ -174,6 +174,9 @@ Note to SBCL users:  you are cautioned that installing ASDF yourself may
 break some SBCL contribs.  We are working to provide instructions for
 doing this safely.
 
+If you want to get the latest and greatest version of ASDF from its VCS
+repository, @xref{Getting the latest version}.
+
 @section Loading ASDF
 
 If your CL implementation does @emph{not} provide ASDF through the
@@ -1110,12 +1113,6 @@ As of version 1.365, ASDF includes @emph{ASDF-binary-locations} to
 mitigate the problem. 
 
 @section Default locations
-@vindex *enable-asdf-binary-locations*
-@vindex *centralize-lisp-binaries*
-@vindex *default-toplevel-directory*
-@vindex *include-per-user-information*
-@vindex *map-all-source-files*
-@vindex *source-to-target-mappings*
 @findex output-files-for-system-and-operation
 
 The default binary location for each Lisp implementation is a
@@ -1140,44 +1137,51 @@ Here is a summary of the variables that control ASDF's source-to-binary
 mappings.  All of them are in the ASDF package, so must be set
 @emph{after} loading ASDF.
 
-@itemize
-
- @item @code{*enable-asdf-binary-locations*}:
-    If false, then ASDF will place binaries in the same directory as the
+@defvar *enable-asdf-binary-locations*
+   If false, then ASDF will place binaries in the same directory as the
     source. If true, then ASDF will move the binaries using the rest of
     the configuration. Defaults to @code{nil}.
+@end defvar
 
-
- @item @code{*centralize-lisp-binaries*}: If true, compiled lisp files
+ @defvar *centralize-lisp-binaries*
+ If true, compiled lisp files
     without an explicit mapping (see @code{*source-to-target-mappings*})
     will be placed in subdirectories of
     @code{*default-toplevel-directory*}. If false, then compiled lisp
     files without an explicit mapping will be placed in subdirectories
     of their sources. Defaults to @code{nil}.
+@end defvar
 
- @item @code{*default-toplevel-directory*}. If
+ @defvar *default-toplevel-directory*
+ If
     @code{*centralize-lisp-binaries*} is true, then compiled lisp files
     without an explicit mapping (see @code{*source-to-target-mappings*})
     will be placed in subdirectories of
     @code{*default-toplevel-directory*}.  Defaults to a sub-directory
     named `.fasls` in the current user's home directory.
+@end defvar
 
- @item @code{*include-per-user-information*}. specifies whether or not
+ @defvar *include-per-user-information*
+ specifies whether or not
     to include user information in the directory. Only used when
     @code{*centralize-lisp-binaries*} is true. Defaults to @code{nil}.
+@end defvar
 
- @item @code{*map-all-source-files*}. If true, then all source files
+ @defvar *map-all-source-files*
+ If true, then all source files
     will be mapped by ASDF. If @code{nil}, then only Common Lisp Source
     Files (i.e., instances of cl-source-file or its subclasses) will
     be. Defaults to @code{nil}.
+@end defvar
 
- @item @code{*source-to-target-mappings*}. This specifies mappings
+ @defvar *source-to-target-mappings*
+ This specifies mappings
     from source to target. If the target is nil, then it
     means to *not* map the source to anything. I.e., to leave
     it as is. This has the effect of turning off
     ASDF-Binary-Locations for the given source directory. The
     default depends on the Lisp implementation.
-@end itemize
+@end defvar
 
 These variables are used by
 @code{output-files-for-system-and-operation} to determine where to
@@ -1257,38 +1261,19 @@ location of the system's source file and the relative pathname. For example
 
 @emph{FIXME:  Need to revise this to give information about the git repository.}
 
-@enumerate
-@item
 Decide which version you want.  HEAD is the newest version and
 usually OK, whereas RELEASE is for cautious people (e.g. who already
 have systems using asdf that they don't want broken), a slightly older
-version about which none of the HEAD users have complained.
+version about which none of the HEAD users have complained.  
+There is also a STABLE version, which is earlier than release.
 
-@item
-Check it out from sourceforge cCLan CVS:
+You may get the ASDF source repository using git:
+@kbd{git clone http://common-lisp.net/project/asdf/asdf.git}
 
-@kbd{cvs -d:pserver:anonymous@@cvs.cclan.sourceforge.net:/cvsroot/cclan login}
+You will find the above referenced tags in this repository.
 
-(no password: just press @key{Enter})
- 
-@kbd{cvs -z3 -d:pserver:anonymous@@cvs.cclan.sourceforge.net:/cvsroot/cclan co -r RELEASE asdf}
-
-or for the bleeding edge, instead
-
-@kbd{cvs -z3 -d:pserver:anonymous@@cvs.cclan.sourceforge.net:/cvsroot/cclan co -A asdf}
-
-@end enumerate
-
-If you are tracking the bleeding edge, you may want to subscribe to
-the cclan-commits mailing list (see
-@url{http://sourceforge.net/mail/?group_id=28536}) to receive commit
-messages and diffs whenever changes are made.
-
-For more CVS information, look at
-@url{http://sourceforge.net/cvs/?group_id=28536}.
-
-
-
+Discussion of ASDF development is conducted on the mailing list
+@kbd{asdf-devel@@common-lisp.net}.
 
 @node  TODO list, missing bits in implementation, Getting the latest version, Top
 @comment  node-name,  next,  previous,  up
