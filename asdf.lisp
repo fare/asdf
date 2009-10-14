@@ -135,8 +135,21 @@
 	   #:output-files-for-system-and-operation
 	   #:*enable-asdf-binary-locations*
 	   #:implementation-specific-directory-name)
+  (:intern #:coerce-name
+	   #:system-registered-p
+	   #:asdf-message
+	   #:resolve-symlinks
+	   #:pathname-sans-name+type)
   (:use :cl))
 
+(defpackage #:asdf-extensions
+  (:use #:common-lisp #:asdf)
+  (:import-from #:asdf
+		#:coerce-name
+		#:system-registered-p
+		#:asdf-message
+		#:resolve-symlinks
+		#:pathname-sans-name+type))
 
 #+nil
 (error "The author of this file habitually uses #+nil to comment out ~
@@ -741,6 +754,7 @@ to `~a` which is not a directory.~@:>"
 (defmethod source-file-type ((c html-file) (s module)) "html")
 (defmethod source-file-type ((c static-file) (s module)) nil)
 
+#+(or)
 (defmethod component-relative-pathname ((component source-file))
   (multiple-value-bind (relative path name)
       (split-path-string (component-name component))
@@ -754,6 +768,18 @@ to `~a` which is not a directory.~@:>"
            (make-pathname :name name :type type)
            name))
         (make-pathname :directory `(,relative ,@path) :name name :type type)))))
+
+
+(defmethod component-relative-pathname ((component source-file))
+  (multiple-value-bind (relative path name)
+      (split-path-string (component-name component))
+    (let ((type (source-file-type component (component-system component)))
+          (relative-pathname (slot-value component 'relative-pathname)))
+      (merge-pathnames
+       (or relative-pathname (make-pathname :directory `(,relative ,@path)))
+       (if type
+           (make-pathname :name name :type type)
+           name)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; operations
@@ -1872,6 +1898,30 @@ applied by the plain `*source-to-target-mappings*`."
 	  (setf result (logior result (ash (read-byte s) (* 8 i)))))
     result))
 
+(defun parse-file-location-info (s)
+  (let ((start (file-position s))
+	(total-length (read-little-endian s))
+	(end-of-header (read-little-endian s))
+	(fli-flags (read-little-endian s))
+	(local-volume-offset (read-little-endian s))
+	(local-offset (read-little-endian s))
+	(network-volume-offset (read-little-endian s))
+	(remaining-offset (read-little-endian s)))
+    (declare (ignore total-length end-of-header local-volume-offset))
+    (unless (zerop fli-flags)
+      (cond
+	((logbitp 0 fli-flags)
+	  (file-position s (+ start local-offset)))
+	((logbitp 1 fli-flags)
+	  (file-position s (+ start
+			      network-volume-offset
+			      #x14))))
+      (concatenate 'string
+	(read-null-terminated-string s)
+	(progn
+	  (file-position s (+ start remaining-offset))
+	  (read-null-terminated-string s))))))
+
 (defun parse-windows-shortcut (pathname)
   (with-open-file (s pathname :element-type '(unsigned-byte 8))
     (handler-case
@@ -1901,31 +1951,6 @@ applied by the plain `*source-to-target-mappings*`."
 		    (map 'string #'code-char buffer)))))))
       (end-of-file ()
 	nil))))
-
-(defun parse-file-location-info (s)
-  (let ((start (file-position s))
-	(total-length (read-little-endian s))
-	(end-of-header (read-little-endian s))
-	(fli-flags (read-little-endian s))
-	(local-volume-offset (read-little-endian s))
-	(local-offset (read-little-endian s))
-	(network-volume-offset (read-little-endian s))
-	(remaining-offset (read-little-endian s)))
-    (declare (ignore total-length end-of-header local-volume-offset))
-    (unless (zerop fli-flags)
-      (cond
-	((logbitp 0 fli-flags)
-	  (file-position s (+ start local-offset)))
-	((logbitp 1 fli-flags)
-	  (file-position s (+ start
-			      network-volume-offset
-			      #x14))))
-      (concatenate 'string
-	(read-null-terminated-string s)
-	(progn
-	  (file-position s (+ start remaining-offset))
-	  (read-null-terminated-string s))))))
-
 
 (pushnew :asdf *features*)
 

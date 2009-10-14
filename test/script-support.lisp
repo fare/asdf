@@ -30,7 +30,7 @@
 (defmacro quit-on-error (&body body)
   `(handler-case 
       (progn ,@body
-	     (leave-lisp "Script succeeded" 0))
+	     (leave-lisp "~&Script succeeded~%" 0))
     (error (c)
       (format *error-output* "~a" c)
-      (leave-lisp "Script failed" 1))))
+      (leave-lisp "~&Script failed~%" 1))))

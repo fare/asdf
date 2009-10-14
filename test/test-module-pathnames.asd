@@ -7,5 +7,6 @@
 	    :components
 	    ((:file "file1")
 	     (:file "level2/file2")
+	     (:static-file "level2/static.file")
 	     (:static-file "test-tmp.cl")))))
 

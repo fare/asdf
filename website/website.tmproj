@@ -3,14 +3,16 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>source/glossary.md</string>
+	<string>source/getting-started.mmd</string>
 	<key>documents</key>
 	<array>
 		<dict>
 			<key>filename</key>
 			<string>source/getting-started.mmd</string>
 			<key>lastUsed</key>
-			<date>2009-09-14T14:43:49Z</date>
+			<date>2009-09-27T12:25:04Z</date>
+			<key>selected</key>
+			<true/>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -40,9 +42,7 @@
 			<key>filename</key>
 			<string>source/glossary.md</string>
 			<key>lastUsed</key>
-			<date>2009-09-14T14:43:49Z</date>
-			<key>selected</key>
-			<true/>
+			<date>2009-09-27T12:25:04Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -124,6 +124,20 @@
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
+		</dict>
+		<key>source/getting-started.mmd</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>0</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>106</integer>
 		</dict>
 		<key>source/git.mmd</key>
 		<dict>
@@ -317,6 +331,7 @@
 		<string>source/copyright.md</string>
 		<string>source/resources/header.md</string>
 		<string>source/glossary.md</string>
+		<string>source/getting-started.mmd</string>
 		<string>source/manual.mmd</string>
 		<string>source/git.mmd</string>
 		<string>source/user-guide.mmd</string>
