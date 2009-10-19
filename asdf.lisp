@@ -692,13 +692,21 @@ to `~a` which is not a directory.~@:>"
           (package (try counter) (try counter)))
          (package package))))
 
+(defun safe-file-write-date (pathname)
+           ;; if FILE-WRITE-DATE returns NIL, it's possible that the
+           ;; user or some other agent has deleted an input file.  If
+           ;; that's the case, well, that's not good, but as long as
+           ;; the operation is otherwise considered to be done we
+           ;; could continue and survive.
+  (or (file-write-date pathname) 0))
+
 (defun find-system (name &optional (error-p t))
   (let* ((name (coerce-name name))
          (in-memory (system-registered-p name))
          (on-disk (system-definition-pathname name)))
     (when (and on-disk
                (or (not in-memory)
-                   (< (car in-memory) (file-write-date on-disk))))
+                   (< (car in-memory) (safe-file-write-date on-disk))))
       (let ((package (make-temporary-package)))
         (unwind-protect
              (let ((*package* package))
@@ -712,7 +720,8 @@ to `~a` which is not a directory.~@:>"
           (delete-package package))))
     (let ((in-memory (system-registered-p name)))
       (if in-memory
-          (progn (if on-disk (setf (car in-memory) (file-write-date on-disk)))
+          (progn (if on-disk (setf (car in-memory) 
+				   (safe-file-write-date on-disk)))
                  (cdr in-memory))
           (if error-p (error 'missing-component :requires name))))))
 
@@ -892,12 +901,7 @@ to `~a` which is not a directory.~@:>"
 
 (defmethod operation-done-p ((o operation) (c component))
   (flet ((fwd-or-return-t (file)
-           ;; if FILE-WRITE-DATE returns NIL, it's possible that the
-           ;; user or some other agent has deleted an input file.  If
-           ;; that's the case, well, that's not good, but as long as
-           ;; the operation is otherwise considered to be done we
-           ;; could continue and survive.
-           (let ((date (file-write-date file)))
+           (let ((date (safe-file-write-date file)))
              (cond
                (date)
                (t
@@ -923,7 +927,7 @@ to `~a` which is not a directory.~@:>"
             (t
              (and
               (every #'probe-file out-files)
-              (> (apply #'min (mapcar #'file-write-date out-files))
+              (> (apply #'min (mapcar #'safe-file-write-date out-files))
                  (apply #'max (mapcar #'fwd-or-return-t in-files)))))))))
 
 ;;; So you look at this code and think "why isn't it a bunch of
@@ -1210,7 +1214,7 @@ to `~a` which is not a directory.~@:>"
 
 (defmethod operation-done-p ((o load-source-op) (c source-file))
   (if (or (not (component-property c 'last-loaded-as-source))
-          (> (file-write-date (component-pathname c))
+          (> (safe-file-write-date (component-pathname c))
              (component-property c 'last-loaded-as-source)))
       nil t))
 
@@ -1340,7 +1344,7 @@ created with the same initargs as the original one.
   ;; *load-pathname* instead of *load-truename* since in some
   ;; implementations, the latter has *already resolved it.
   (or (and pathname-supplied-p pathname)
-      (when *load-truename*
+      (when *load-pathname*
 	(pathname-sans-name+type 
 	 (if *resolve-symlinks*
 	     (resolve-symlinks *load-truename*)
