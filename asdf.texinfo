@@ -1002,7 +1002,7 @@ As of version 1.365, ASDF includes @emph{ASDF-binary-locations} to
 mitigate the problem.
 
 @section Default locations
-@vindex *place-binaries-in-implementation-specific-directories*
+@vindex *enable-asdf-binary-locations*
 @vindex *centralize-lisp-binaries*
 @vindex *default-toplevel-directory*
 @vindex *include-per-user-information*
@@ -1028,11 +1028,13 @@ If you want to keep compiled files out of the source tree entirely, use
 @code{*centralize-lisp-binaries*} to put compiled files into
 sub-directories of a single central location (see below).
 
-Here is a summary of the variables that control ASDF's source-to-binary mappings:
+Here is a summary of the variables that control ASDF's source-to-binary
+mappings.  All of them are in the ASDF package, so must be set
+@emph{after} loading ASDF.
 
 @itemize
 
- @item @code{*place-binaries-in-implementation-specific-directories*}:
+ @item @code{*enable-asdf-binary-locations*}:
     If false, then ASDF will place binaries in the same directory as the
     source. If true, then ASDF will move the binaries using the rest of
     the configuration. Defaults to @code{nil}.
