@@ -18,6 +18,7 @@ asdf Copyright @copyright{} 2001-2007 Daniel Barlow and contributors
 
 This manual Copyright @copyright{} 2001-2007 Daniel Barlow and
 contributors
+This manual revised @copyright{} 2009 Robert P. Goldman
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
