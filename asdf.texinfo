@@ -279,6 +279,15 @@ beyond compiling, loading and testing.
 Reminder: before ASDF can operate on a system, however, it must be able
 to find and load that system's definition.
 
+@section Placement of compiled files
+
+By default, ASDF will place the compiled files it creates in the same
+directory as the source files.  This works for most simple use cases.
+However, if you use multiple Common Lisp implementations, or for some
+other reason need to place your compiled files elsewhere, you will want
+to enable ASDF-BINARY-LOCATIONS.  @xref{Controlling where ASDF saves
+compiled files}.
+
 @section Summary
 
 To use ASDF:
