@@ -67,12 +67,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @menu
 * Introduction::
 * Using asdf to load systems::  
-* Defining systems with defsystem::  
-* The object model of asdf::    
+* Defining systems with defsystem::
+* The object model of asdf::
 * Controlling where ASDF saves compiled files::
-* Special variables::
-* Error handling::              
-* Compilation error and warning handling::  
+* Error handling::
+* Compilation error and warning handling::
 * Miscellaneous additional functionality::
 * Getting the latest version::  
 * TODO list::                   
@@ -1119,7 +1118,7 @@ The new component type is used in a @code{defsystem} form in this way:
     )
 @end lisp
 
-@node Controlling where ASDF saves compiled files, Special variables, The object model of asdf, Top
+@node Controlling where ASDF saves compiled files, Error handling, The object model of asdf, Top
 @comment  node-name,  next,  previous,  up
 @chapter Controlling where ASDF saves compiled files
 @cindex ASDF-binary-locations
@@ -1224,13 +1223,7 @@ directory permission problems. ASDF knows about these and uses a mapping
 like @file{/usr/local/lib/sbcl} to @code{nil} so that the FASLs are not
 relocated.
 
-@node Special variables, Error handling, Controlling where ASDF saves compiled files, Top
-@comment  node-name,  next,  previous,  up
-@chapter Special variables
-
-
-
-@node  Error handling, Compilation error and warning handling, Special variables, Top
+@node  Error handling, Compilation error and warning handling, Controlling where ASDF saves compiled files, Top
 @comment  node-name,  next,  previous,  up
 @chapter Error handling
 @findex SYSTEM-DEFINITION-ERROR
