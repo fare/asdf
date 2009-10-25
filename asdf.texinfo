@@ -68,9 +68,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Using asdf to load systems::  
 * Defining systems with defsystem::  
 * The object model of asdf::    
-* Error handling::              
 * Controlling where ASDF saves compiled files::
 * Special variables::
+* Error handling::              
 * Compilation error and warning handling::  
 * Miscellaneous additional functionality::
 * Getting the latest version::  
@@ -84,11 +84,16 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @detailmenu
  --- The Detailed Node Listing ---
 
+Using ASDF
+
+@c * Installing ASDF::
+
 Defining systems with defsystem
 
 * The defsystem form::          
 * A more involved example::     
 * The defsystem grammar::       
+* Other code in .asd files::
 
 The object model of asdf
 
@@ -137,23 +142,37 @@ and how to extend ASDF.
 
 @node  Using asdf to load systems, Defining systems with defsystem, Introduction, Top
 @comment  node-name,  next,  previous,  up
-@chapter Using asdf to load systems
-@cindex system directory designator
+@chapter Using ASDF
 @vindex *central-registry*
+@findex load-system
+@findex compile-system
+@findex test-system
+@cindex system directory designator
+@findex operate
+@findex oos
 
-This chapter describes how to use asdf to compile and load ready-made
-Lisp programs and libraries.
+@c @menu
+@c * Installing ASDF::
+@c @end menu
 
-@section Downloading asdf
+@section Installing ASDF
 
-Some Lisp implementations (such as SBCL and OpenMCL) come with asdf
-included already, so you don't need to download it separately.1
-Consult your Lisp system's documentation.  If you need to download
-asdf and install it by hand, the canonical source is the cCLan CVS
-repository at
-@url{http://cvs.sourceforge.net/cgi-bin/viewcvs.cgi/cclan/asdf/}.
+Many Lisp implementations include a copy of ASDF. You can
+usually load this copy using Common-Lisp's @code{require}
+function:
 
-@section Setting up asdf
+@kbd{(require 'asdf)}
+
+Consult your Lisp implementation's documentation for details. If ASDF
+doesn't come bundled with your Lisp or if you want to make
+sure that you have the most recent version, then you'll want
+to download it from the @url{http://common-lisp.net/project/asdf/,asdf-home} website.
+
+@section Loading ASDF
+
+If your CL implementation does @emph{not} provide ASDF through the
+@code{require} feature, then you need to download ASDF and load it
+yourself.
 
 The single file @file{asdf.lisp} is all you need to use asdf normally.
 Once you load it in a running Lisp, you're ready to use asdf.  For
@@ -161,6 +180,41 @@ maximum convenience you might want to have asdf loaded whenever you
 start your Lisp implementation, for example by loading it from the
 startup script or dumping a custom core -- check your Lisp
 implementation's manual for details.
+
+@section Setting up a system to be loaded
+
+To compile and load a system, you need to ensure that its
+system definition can be found in one of the directories in
+@code{*central-registry*}@footnote{It is possible to customize the
+system definition file search.  That's considered advanced use, and
+covered later: search forward for
+@code{*system-definition-search-functions*}.  @xref{Defining systems
+with defsystem}.}.
+
+There are two ways that you can make a system definition findable
+through @code{*central-registry*}.  One is to simply insert into
+@code{*central-registry*} an entry that specifies the pathname of for
+the directory containing the system definition file (a file whose name
+is of the form @code{*.asd}).
+For example, if we had a
+system @var{foo} that is stored in a directory
+@file{/home/me/src/foo/}, containing  @file{/home/me/src/foo/}, we could
+make the foo system asdf-operable by doing @kbd{(push
+"/home/me/src/foo/" asdf:*central-registry*)}.
+
+ASDF will also properly handle the case where the
+@code{*central-registry*} points to a directory containing a
+@emph{symbolic link} to the system definition file.
+
+For example, if @code{#p"/home/me/cl/systems/"} (note the trailing
+slash) is a member of @code{*central-registry*}, you could set up the
+system @var{foo} for loading with asdf with the following
+commands at the shell:
+
+@example
+$ cd /home/me/cl/systems/
+$ ln -s ~/src/foo/foo.asd .
+@end example
 
 The variable @code{asdf:*central-registry*} is a list of ``system
 directory designators''@footnote{When we say ``directory'' here, we
@@ -178,44 +232,64 @@ to a directory to look in.  You might want to set or augment
          asdf:*central-registry*))
 @end lisp
 
-@section Setting up a system to be loaded
-
-To compile and load a system, you need to ensure that a symbolic link to its
-system definition is in one of the directories in
-@code{*central-registry*}@footnote{It is possible to customize the
-system definition file search.  That's considered advanced use, and
-covered later: search forward for
-@code{*system-definition-search-functions*}.  @xref{Defining systems
-with defsystem}.}.
-
-For example, if @code{#p"/home/me/cl/systems/"} (note the trailing
-slash) is a member of @code{*central-registry*}, you would set up a
-system @var{foo} that is stored in a directory
-@file{/home/me/src/foo/} for loading with asdf with the following
-commands at the shell (this has to be done only once):
-
-@example
-$ cd /home/me/cl/systems/
-$ ln -s ~/src/foo/foo.asd .
-@end example
-
 @section Loading a system
+
+@c{FIXME:  Add Gary's material about loading system definitions by hand.}
+@c{FIXME:  Introduce ASDF-binary-locations.}
 
 The system @var{foo} is loaded (and compiled, if necessary) by
 evaluating the following form in your Lisp implementation:
 
 @example
-(asdf:operate 'asdf:load-op '@var{foo})
+(asdf:load-system '@var{foo})
 @end example
+
+(In older versions of ASDF, you may need to use @code{asdf:oos}, instead.)
 
 Output from asdf and asdf extensions are supposed to be sent to the CL
 stream @code{*standard-output*}, and so rebinding that stream around
 calls to @code{asdf:operate} should redirect all output from asdf
 operations.
 
+ASDF provides three commands for the most common system
+operations: @code{load-system}, @code{compile-system} or @code{test-system}.
+
+Because ASDF is an extensible system for defining
+@emph{operations} on @emph{components} also provides a generic
+function: @code{operate} (which is usually abbreviated by
+@code{oos}). You'll use @code{oos} whenever you want to do something
+beyond compiling, loading and testing.
+
+Reminder: before ASDF can operate on a system, however, it must be able
+to find and load that system's definition.
+
+@section Summary
+
+To use ASDF:
+
+@itemize
+@item
+load @file{asdf.lisp} into your Lisp image, either through
+@code{require} or @code{load}.
+
+@item
+make sure ASDF can find system definitions by loading them
+yourself or setting up @code{*central-registry*}.
+
+@item
+use @code{operate} (or shorthand @code{oos})
+to tell ASDF what you'd like to do to what systems.
+For simple operations, you can use @code{load-system}, @code{compile-system} or @code{test-system}
+instead.
+
+@end itemize
+
+@section Moving on
+
 That's all you need to know to use asdf to load systems written by
 others.  The rest of this manual deals with writing system
-definitions for Lisp software you write yourself.
+definitions for Lisp software you write yourself, including how to
+extend ASDF to define new operation and component types.
 
 @node   Defining systems with defsystem, The object model of asdf, Using asdf to load systems, Top
 @comment  node-name,  next,  previous,  up
