@@ -667,6 +667,21 @@ If you are creating a component type, you need to implement this
 operation - at least, where meaningful.
 @end deffn
 
+@deffn Operation test-op
+
+This operation will perform some tests on the module.  The default
+method will do nothing.  The default dependency is to require
+@code{load-op} to be performed on the module first.  The default
+@code{operation-done-p} is that the operation is @emph{never} done ---
+we assume that if you invoke the @code{test-op}, you want to test the
+system, even if you have already done so.
+
+The results of this operation are not defined by ASDF.  It has proven
+difficult to define how the test operation should signal its results to
+the user in a way that is compatible with all of the various test
+libraries and test techniques in use in the community.
+@end deffn
+
 @deffn Operation test-system-version &key minimum
 
 Asks the system whether it satisfies a version requirement.
