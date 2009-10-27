@@ -14,8 +14,9 @@
           (level1 (submodule system "sources/level1"))
           (static (submodule level1 "level2/static.file"))
           (test-tmp (submodule level1 "test-tmp.cl")))
-     (assert (equal (pathname-foo (asdf:component-relative-pathname test-tmp))
-                    '((:relative) "test-tmp" "cl"))
+     (assert (member (pathname-foo (asdf:component-relative-pathname test-tmp))
+                     '(((:relative) "test-tmp" "cl")
+                       (nil "test-tmp" "cl")) :test 'equal)
              nil
              "Didn't get the name of test-tmp.cl right")
      (assert (equal

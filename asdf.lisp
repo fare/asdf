@@ -763,32 +763,20 @@ to `~a` which is not a directory.~@:>"
 (defmethod source-file-type ((c html-file) (s module)) "html")
 (defmethod source-file-type ((c static-file) (s module)) nil)
 
-#+(or)
-(defmethod component-relative-pathname ((component source-file))
-  (multiple-value-bind (relative path name)
-      (split-path-string (component-name component))
-    (let ((type (source-file-type component (component-system component)))
-          (relative-pathname (slot-value component 'relative-pathname))
-          (*default-pathname-defaults* (component-parent-pathname component)))
-      (if relative-pathname
-	(merge-pathnames
-         relative-pathname
-         (if type
-           (make-pathname :name name :type type)
-           name))
-        (make-pathname :directory `(,relative ,@path) :name name :type type)))))
-
+(defun merge-component-relative-pathname (pathname name type)
+  (multiple-value-bind (relative path filename)
+      (split-path-string name)
+  (merge-pathnames
+   (or pathname (make-pathname :directory `(,relative ,@path)))
+   (if type
+       (make-pathname :name filename :type type)
+       filename))))
 
 (defmethod component-relative-pathname ((component source-file))
-  (multiple-value-bind (relative path name)
-      (split-path-string (component-name component))
-    (let ((type (source-file-type component (component-system component)))
-          (relative-pathname (slot-value component 'relative-pathname)))
-      (merge-pathnames
-       (or relative-pathname (make-pathname :directory `(,relative ,@path)))
-       (if type
-           (make-pathname :name name :type type)
-           name)))))
+  (merge-component-relative-pathname
+   (slot-value component 'relative-pathname)
+   (component-name component)
+   (source-file-type component (component-system component))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; operations
