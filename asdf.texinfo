@@ -1480,7 +1480,7 @@ whereas this one centres on a protocol for system introspection.
 @section kmp's ``The Description of Large Systems'', MIT AI Memu 801
 
 Available in updated-for-CL form on the web at 
-@url{http://world.std.com/~pitman/Papers/Large-Systems.html}
+@url{http://nhplace.com/kent/Papers/Large-Systems.html}
 
 In our implementation we borrow kmp's overall PROCESS-OPTIONS and
 concept to deal with creating component trees from defsystem surface
