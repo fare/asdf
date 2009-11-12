@@ -3,6 +3,9 @@
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
 
+#+common-lisp-controller
+(setf common-lisp-controller:*redirect-fasl-files-to-cache* nil)
+
 ;;; code adapted from cl-launch (any errors in transcription are mine!)
 ;; http://www.cliki.net/cl-launch
 (defun leave-lisp (message return)

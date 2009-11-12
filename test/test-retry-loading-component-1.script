@@ -25,6 +25,7 @@
 			   (assert (eq mode :external) nil "Mode of ~s was not external" name)
 			   (let ((restart (find-restart name c)))
 			     (assert restart)
+                             (format t "~&restart: ~S~&" restart)
 			     (when restart (invoke-restart restart)))))))
    (asdf:oos 'asdf:load-op 'try-reloading-1))
  (assert *caught-error*)

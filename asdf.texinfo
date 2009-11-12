@@ -65,14 +65,15 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @insertcopying
 
 @menu
-* Introduction::                
+
+* Introduction::
 * Using asdf to load systems::  
-* Defining systems with defsystem::  
-* The object model of asdf::    
-* Controlling where ASDF saves compiled files::  
-* Error handling::              
-* Compilation error and warning handling::  
-* Miscellaneous additional functionality::  
+* Defining systems with defsystem::
+* The object model of asdf::
+* Controlling where ASDF saves compiled files::
+* Error handling::
+* Compilation error and warning handling::
+* Miscellaneous additional functionality::
 * Getting the latest version::  
 * TODO list::                   
 * missing bits in implementation::  
@@ -86,14 +87,15 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 Using ASDF
 
-@c * Installing ASDF::             
+@c * Installing ASDF::
 
 Defining systems with defsystem
 
 * The defsystem form::          
 * A more involved example::     
 * The defsystem grammar::       
-* Other code in .asd files::    
+* Other code in .asd files::
+
 
 The object model of asdf
 
@@ -153,14 +155,14 @@ and how to extend ASDF.
 @findex oos
 
 @c @menu
-@c * Installing ASDF::             
+@c * Installing ASDF::
 @c @end menu
 
 @section Installing ASDF
 
 Many Lisp implementations include a copy of ASDF. You can
 usually load this copy using Common-Lisp's @code{require}
-function: 
+function:
 
 @kbd{(require 'asdf)}
 
@@ -201,10 +203,10 @@ covered later: search forward for
 with defsystem}.}.
 
 There are two ways that you can make a system definition findable
-through @code{*central-registry*}.  One is to simply insert into 
+through @code{*central-registry*}.  One is to simply insert into
 @code{*central-registry*} an entry that specifies the pathname of for
 the directory containing the system definition file (a file whose name
-is of the form @code{*.asd}).  
+is of the form @code{*.asd}).
 For example, if we had a
 system @var{foo} that is stored in a directory
 @file{/home/me/src/foo/}, containing  @file{/home/me/src/foo/}, we could
@@ -292,15 +294,15 @@ compiled files}.
 To use ASDF:
 
 @itemize
-@item 
+@item
 load @file{asdf.lisp} into your Lisp image, either through
 @code{require} or @code{load}.
 
-@item 
+@item
 make sure ASDF can find system definitions by loading them
 yourself or setting up @code{*central-registry*}.
 
-@item 
+@item
 use @code{operate} (or shorthand @code{oos})
 to tell ASDF what you'd like to do to what systems.
 For simple operations, you can use @code{load-system}, @code{compile-system} or @code{test-system}
@@ -308,7 +310,7 @@ instead.
 
 @end itemize
 
-@section Moving on 
+@section Moving on
 
 That's all you need to know to use asdf to load systems written by
 others.  The rest of this manual deals with writing system
@@ -1131,10 +1133,10 @@ littered with various `DFSL`s, `FASL`s, `CFSL`s and so on.
 Worse yet, some implementations use the same file extension
 or change formats from version to version which means that
 you'll have to recompile binaries as you switch from one
-implementation to the next. 
+implementation to the next.
 
 As of version 1.365, ASDF includes @emph{ASDF-binary-locations} to
-mitigate the problem. 
+mitigate the problem.
 
 @section Default locations
 @findex output-files-for-system-and-operation
@@ -1147,16 +1149,16 @@ some examples:
 
 @itemize
 @item SBCL, version 1.0 on Mac OS X for intel: @code{sbcl-1.0-darwin-x86}
- 
+
 @item Franz Allegro, version 8.0, ANSI Common Lisp:  @code{allegro-8.0a-macosx-x86}
- 
+
 @item Franz Allegro, version 8.1, Modern (case sensitive) Common Lisp: @code{allegro-8.1m-macosx-x86}
 @end itemize
- 
+
 If you want to keep compiled files out of the source tree entirely, use
 @code{*centralize-lisp-binaries*} to put compiled files into
 sub-directories of a single central location (see below).
- 
+
 Here is a summary of the variables that control ASDF's source-to-binary
 mappings.  All of them are in the ASDF package, so must be set
 @emph{after} loading ASDF.
@@ -1282,7 +1284,8 @@ location of the system's source file and the relative pathname. For example
 Decide which version you want.  HEAD is the newest version and
 usually OK, whereas RELEASE is for cautious people (e.g. who already
 have systems using asdf that they don't want broken), a slightly older
-version about which none of the HEAD users have complained.  
+version about which none of the HEAD users have complained.
+
 There is also a STABLE version, which is earlier than release.
 
 You may get the ASDF source repository using git:
