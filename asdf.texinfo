@@ -479,6 +479,9 @@ required-op := operation-name | feature
 
 simple-component-name := string
                       |  symbol
+
+method-form := (operation-name qual lambda-list &rest body)
+qual := method qualifier
 @end verbatim
 
 @subsection Serial dependencies
