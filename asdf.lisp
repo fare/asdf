@@ -158,6 +158,9 @@
 
 (in-package #:asdf)
 
+;;;; -------------------------------------------------------------------------
+;;;; User-visible parameters
+;;;;
 (defvar *asdf-revision*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
   (subseq "REVISION:1.370" (1+ (length "REVISION"))))
@@ -345,6 +348,20 @@ and NIL NAME and TYPE components"
   (declare (dynamic-extent format-args))
   (apply #'format *verbose-out* format-string format-args))
 
+;;; with apologies to christophe rhodes ...
+(defun split (string &optional max (ws '(#\Space #\Tab)))
+  (flet ((is-ws (char) (find char ws)))
+    (nreverse
+     (let ((list nil) (start 0) (words 0) end)
+       (loop
+         (when (and max (>= words (1- max)))
+           (return (cons (subseq string start) list)))
+         (setf end (position-if #'is-ws string :start start))
+         (push (subseq string start end) list)
+         (incf words)
+         (unless end (return list))
+         (setf start (1+ end)))))))
+
 (defun split-path-string (s &optional force-directory)
   (check-type s string)
   (let* ((components (split s nil "/"))
@@ -361,8 +378,30 @@ and NIL NAME and TYPE components"
         (t
          (values relative (butlast components) last-comp))))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; syntax
+
+(defun remove-keys (key-names args)
+  (loop for (name val) on args by #'cddr
+        unless (member (symbol-name name) key-names
+                       :key #'symbol-name :test 'equal)
+        append (list name val)))
+
+(defun remove-keyword (key arglist)
+  (labels ((aux (key arglist)
+             (cond ((null arglist) nil)
+                   ((eq key (car arglist)) (cddr arglist))
+                   (t (cons (car arglist) (cons (cadr arglist)
+                                                (remove-keyword
+                                                 key (cddr arglist))))))))
+    (aux key arglist)))
+
+(defun resolve-symlinks (path)
+  #-allegro (truename path)
+  #+allegro (excl:pathname-resolve-symbolic-links path))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; classes, condiitons
+;; classes, conditions
 
 (define-condition system-definition-error (error) ()
   ;; [this use of :report should be redundant, but unfortunately it's not.
@@ -519,20 +558,6 @@ and NIL NAME and TYPE components"
 		:writer %set-system-source-file)))
 
 ;;; version-satisfies
-
-;;; with apologies to christophe rhodes ...
-(defun split (string &optional max (ws '(#\Space #\Tab)))
-  (flet ((is-ws (char) (find char ws)))
-    (nreverse
-     (let ((list nil) (start 0) (words 0) end)
-       (loop
-         (when (and max (>= words (1- max)))
-           (return (cons (subseq string start) list)))
-         (setf end (position-if #'is-ws string :start start))
-         (push (subseq string start end) list)
-         (incf words)
-         (unless end (return list))
-         (setf start (1+ end)))))))
 
 (defmethod version-satisfies ((c component) version)
   (unless (and version (slot-boundp c 'version))
@@ -1324,23 +1349,6 @@ created with the same initargs as the original one.
   (declare (ignore force verbose version))
   (apply #'operate 'test-op system args))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; syntax
-
-(defun remove-keyword (key arglist)
-  (labels ((aux (key arglist)
-             (cond ((null arglist) nil)
-                   ((eq key (car arglist)) (cddr arglist))
-                   (t (cons (car arglist) (cons (cadr arglist)
-                                                (remove-keyword
-                                                 key (cddr arglist))))))))
-    (aux key arglist)))
-
-(defun resolve-symlinks (path)
-  #-allegro (truename path)
-  #+allegro (excl:pathname-resolve-symbolic-links path)
-  )
-
 (defun determine-system-pathname (pathname pathname-supplied-p)
   ;; called from the defsystem macro.
   ;; the pathname of a system is either
@@ -1431,12 +1439,6 @@ Returns the new tree (which probably shares structure with the old one)"
                   (maybe-add-tree new-tree (car op-tree) (car op) c))))))
     new-tree))
 
-
-(defun remove-keys (key-names args)
-  (loop for ( name val ) on args by #'cddr
-        unless (member (symbol-name name) key-names
-                       :key #'symbol-name :test 'equal)
-        append (list name val)))
 
 (defvar *serial-depends-on*)
 
@@ -1569,11 +1571,14 @@ Returns the new tree (which probably shares structure with the old one)"
 
       ret)))
 
-;;; optional extras
-
-;;; run-shell-command functions for other lisp implementations will be
-;;; gratefully accepted, if they do the same thing.  If the docstring
-;;; is ambiguous, send a bug report
+;;;; ---------------------------------------------------------------------------
+;;;; run-shell-command
+;;;;
+;;;; run-shell-command functions for other lisp implementations will be
+;;;; gratefully accepted, if they do the same thing.
+;;;; If the docstring is ambiguous, send a bug report
+;;;;
+;;;; XXX fare: This probably doesn't belong here. Does anyone rely on it?
 
 (defun run-shell-command (control-string &rest args)
   "Interpolate `args` into `control-string` as if by `format`, and
@@ -1631,6 +1636,9 @@ output to `*verbose-out*`.  Returns the shell's exit code."
     (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
     ))
 
+;;;; ---------------------------------------------------------------------------
+;;;; system-relative-pathname
+
 (defmethod system-source-file ((system-name t))
   (system-source-file (find-system system-name)))
 
@@ -1640,14 +1648,13 @@ output to `*verbose-out*`.  Returns the shell's exit code."
                  :defaults (system-source-file system-name)))
 
 (defun system-relative-pathname (system pathname &key name type)
-  ;; you're not allowed to muck with the return value of pathname-X
-  (let ((directory (copy-list (pathname-directory pathname))))
-    (when (eq (car directory) :absolute)
-      (setf (car directory) :relative))
+  (let ((directory (pathname-directory pathname)))    
     (merge-pathnames
      (make-pathname :name (or name (pathname-name pathname))
                     :type (or type (pathname-type pathname))
-                    :directory directory)
+                    :directory (if (eq (car directory) :absolute)
+                                   (cons :relative (cdr directory))
+                                   directory))
      (system-source-directory system))))
 
 ;;; ---------------------------------------------------------------------------
@@ -1965,8 +1972,6 @@ applied by the plain `*source-to-target-mappings*`."
       (end-of-file ()
 	nil))))
 
-(pushnew :asdf *features*)
-
 ;;;; -----------------------------------------------------------------
 ;;;; SBCL hook into REQUIRE
 ;;;;
@@ -2031,6 +2036,8 @@ applied by the plain `*source-to-target-mappings*`."
 ;;;; Done!
 (when *load-verbose*
   (asdf-message ";; ASDF, revision ~a" *asdf-revision*))
+
+(pushnew :asdf *features*)
 
 (provide :asdf)
 
