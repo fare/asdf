@@ -224,7 +224,7 @@
      (if monolithic 'monolithic-fasl-op 'fasl-op))
     ((:program)
      'program-op)))
-    
+
 
 (defun make-build (system &rest args &key (monolithic nil) (type :fasl)
                    &allow-other-keys)

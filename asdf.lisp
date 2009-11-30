@@ -1,4 +1,4 @@
-;;; This is asdf: Another System Definition Facility. 
+;;; This is asdf: Another System Definition Facility.
 ;;; hash - $Format:%H$
 ;;;
 ;;; Local Variables:
@@ -19,7 +19,7 @@
 ;;; RELEASE may be slightly older but is considered `stable'
 
 ;;; -- LICENSE START
-;;; (This is the MIT / X Consortium license as taken from 
+;;; (This is the MIT / X Consortium license as taken from
 ;;;  http://www.opensource.org/licenses/mit-license.html on or about
 ;;;  Monday; July 13, 2009)
 ;;;
@@ -126,7 +126,7 @@
 
            #:standard-asdf-method-combination
            #:around                     ; protocol assistants
-	   
+
 	   #:*source-to-target-mappings*
 	   #:*default-toplevel-directory*
 	   #:*centralize-lisp-binaries*
@@ -158,10 +158,10 @@
 
 (in-package #:asdf)
 
-(defvar *asdf-revision* 
+(defvar *asdf-revision*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
   (subseq "REVISION:1.369" (1+ (length "REVISION"))))
-  
+
 
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.
@@ -204,7 +204,7 @@ Defaults to `t`.")
                         (,@(rest around-asdf) (make-method ,standard-form)))
           standard-form))))
 
-(setf (documentation 'standard-asdf-method-combination 
+(setf (documentation 'standard-asdf-method-combination
 		     'method-combination)
       "This method combination is based on the standard method combination,
 but defines a new method-qualifier, `asdf:around`.  `asdf:around`
@@ -281,15 +281,15 @@ the head of the tree"))
 (defgeneric component-self-dependencies (operation component))
 
 (defgeneric traverse (operation component)
-  (:documentation 
+  (:documentation
 "Generate and return a plan for performing `operation` on `component`.
 
 The plan returned is a list of dotted-pairs. Each pair is the `cons`
-of ASDF operation object and a `component` object. The pairs will be 
+of ASDF operation object and a `component` object. The pairs will be
 processed in order by `operate`."))
 
 (defgeneric output-files-using-mappings (source possible-paths path-mappings)
-  (:documentation 
+  (:documentation
 "Use the variable \\*source-to-target-mappings\\* to find
 an output path for the source. The algorithm transforms each
 entry in possible-paths as follows: If there is a mapping
@@ -421,7 +421,7 @@ and NIL NAME and TYPE components"
           (call-next-method c nil) (missing-required-by c)))
 
 (defun sysdef-error (format &rest arguments)
-  (error 'formatted-system-definition-error :format-control 
+  (error 'formatted-system-definition-error :format-control
 	 format :format-arguments arguments))
 
 ;;;; methods: components
@@ -580,7 +580,7 @@ called with an object of type asdf:system."
   `((directory-namestring *default-pathname-defaults*))
 "A list of 'system directory designators' ASDF uses to find systems.
 
-A 'system directory designator' is a pathname or a function 
+A 'system directory designator' is a pathname or a function
 which evaluates to a pathname. For example:
 
     (setf asdf:*central-registry*
@@ -593,7 +593,7 @@ which evaluates to a pathname. For example:
   "Does `pathname` represent a directory?
 
 A directory-pathname is a pathname _without_ a filename. The three
-ways that the filename components can be missing are for it to be `nil`, 
+ways that the filename components can be missing are for it to be `nil`,
 `:unspecific` or the empty string.
 
 Note that this does _not_ check to see that `pathname` points to an
@@ -609,7 +609,7 @@ actually-existing directory."
 ;;?? move into testsuite sometime soon
 (every (lambda (p)
 	  (directory-pathname-p p))
-	(list 
+	(list
 	 (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
 	 (make-pathname :name "." :type "" :directory '(:absolute "tmp"))
 	 (make-pathname :name nil :type "" :directory '(:absolute "tmp"))
@@ -655,12 +655,12 @@ actually-existing directory."
                               (when target
                                 (return (pathname target)))))))
 		       (t
-			(restart-case 
+			(restart-case
 			    (let* ((*print-circle* nil)
-				   (message 
-				    (format nil 
+				   (message
+				    (format nil
 					    "~@<While searching for system `~a`: `~a` evaluated ~
-to `~a` which is not a directory.~@:>" 
+to `~a` which is not a directory.~@:>"
 					    system dir defaults)))
 			      (error message))
 			  (remove-entry-from-registry ()
@@ -720,7 +720,7 @@ to `~a` which is not a directory.~@:>"
           (delete-package package))))
     (let ((in-memory (system-registered-p name)))
       (if in-memory
-          (progn (if on-disk (setf (car in-memory) 
+          (progn (if on-disk (setf (car in-memory)
 				   (safe-file-write-date on-disk)))
                  (cdr in-memory))
           (if error-p (error 'missing-component :requires name))))))
@@ -921,7 +921,7 @@ to `~a` which is not a directory.~@:>"
 ;;; So you look at this code and think "why isn't it a bunch of
 ;;; methods".  And the answer is, because standard method combination
 ;;; runs :before methods most->least-specific, which is back to front
-;;; for our purposes.  
+;;; for our purposes.
 
 (defmethod traverse ((operation operation) (c component))
   (let ((forced nil))
@@ -1325,7 +1325,7 @@ created with the same initargs as the original one.
 (defun determine-system-pathname (pathname pathname-supplied-p)
   ;; called from the defsystem macro.
   ;; the pathname of a system is either
-  ;; 1. the one supplied, 
+  ;; 1. the one supplied,
   ;; 2. derived from the *load-truename* (see below), or
   ;; 3. taken from *default-pathname-defaults*
   ;;
@@ -1335,7 +1335,7 @@ created with the same initargs as the original one.
   ;; implementations, the latter has *already resolved it.
   (or (and pathname-supplied-p pathname)
       (when *load-pathname*
-	(pathname-sans-name+type 
+	(pathname-sans-name+type
 	 (if *resolve-symlinks*
 	     (resolve-symlinks *load-truename*)
 	     *load-pathname*)))
@@ -1358,9 +1358,9 @@ created with the same initargs as the original one.
                  (t
                   (register-system (quote ,name)
                                    (make-instance ',class :name ',name))))
-           (%set-system-source-file *load-truename* 
+           (%set-system-source-file *load-truename*
 				    (cdr (system-registered-p ',name))))
-         (parse-component-form 
+         (parse-component-form
 	  nil (apply
 	       #'list
 	       :module (coerce-name ',name)
@@ -1426,7 +1426,7 @@ Returns the new tree (which probably shares structure with the old one)"
                              "~&The value specified for ~(~A~) ~A is ~W")
                 type name value))
 
-(defun check-component-input (type name weakly-depends-on 
+(defun check-component-input (type name weakly-depends-on
 			      depends-on components in-order-to)
   "A partial test of the values of a component."
   (unless (listp depends-on)
@@ -1471,7 +1471,7 @@ Returns the new tree (which probably shares structure with the old one)"
 (defun %refresh-component-inline-methods (component rest)
   (%remove-component-inline-methods component)
   (%define-component-inline-methods component rest))
-  
+
 (defun parse-component-form (parent options)
 
   (destructuring-bind
@@ -1580,8 +1580,8 @@ output to `*verbose-out*`.  Returns the shell's exit code."
     #+allegro
     ;; will this fail if command has embedded quotes - it seems to work
     (multiple-value-bind (stdout stderr exit-code)
-        (excl.osi:command-output 
-	 (format nil "~a -c \"~a\"" 
+        (excl.osi:command-output
+	 (format nil "~a -c \"~a\""
 		 #+mswindows "sh" #-mswindows "/bin/sh" command)
 	 :input nil :whole nil
 	 #+mswindows :show-window #+mswindows :hide)
@@ -1650,7 +1650,7 @@ their sources.")
 
 (defparameter *enable-asdf-binary-locations* nil
   "
-If true, then compiled lisp files will be placed into a directory 
+If true, then compiled lisp files will be placed into a directory
 computed from the Lisp version, Operating System and computer archetecture.
 See [implementation-specific-directory-name][] for details.")
 
@@ -1669,7 +1669,7 @@ See [implementation-specific-directory-name][] for details.")
   nil
   "If true, then all subclasses of source-file will have their output locations mapped by ASDF-Binary-Locations. If nil (the default), then only subclasses of cl-source-file will be mapped.")
 
-(defvar *source-to-target-mappings* 
+(defvar *source-to-target-mappings*
   #-sbcl
   nil
   #+sbcl
@@ -1677,7 +1677,7 @@ See [implementation-specific-directory-name][] for details.")
   "The \\*source-to-target-mappings\\* variable specifies mappings from source to target. If the target is nil, then it means to not map the source to anything. I.e., to leave it as is. This has the effect of turning off ASDF-Binary-Locations for the given source directory. Examples:
 
     ;; compile everything in .../src and below into .../cmucl
-    '((\"/nfs/home/compbio/d95-bli/share/common-lisp/src/\" 
+    '((\"/nfs/home/compbio/d95-bli/share/common-lisp/src/\"
        \"/nfs/home/compbio/d95-bli/lib/common-lisp/cmucl/\"))
 
     ;; leave SBCL innards alone (SBCL specific)
@@ -1696,25 +1696,25 @@ See [implementation-specific-directory-name][] for details.")
     :linux :unix))
 
 (defparameter *architecture-features*
-  '(:amd64 (:x86-64 :x86_64 :x8664-target) :i686 :i586 :pentium3 
+  '(:amd64 (:x86-64 :x86_64 :x8664-target) :i686 :i586 :pentium3
     :i486 (:i386 :pc386 :iapx386) (:x86 :x8632-target) :pentium4
     :hppa64 :hppa :ppc64 :ppc32 :powerpc :ppc :sparc64 :sparc))
 
 ;; note to gwking: this is in slime, system-check, and system-check-server too
 (defun lisp-version-string ()
-  #+cmu       (substitute #\- #\/ 
-			  (substitute #\_ #\Space 
+  #+cmu       (substitute #\- #\/
+			  (substitute #\_ #\Space
 				      (lisp-implementation-version)))
   #+scl       (lisp-implementation-version)
   #+sbcl      (lisp-implementation-version)
   #+ecl       (reduce (lambda (x str) (substitute #\_ str x))
-		      '(#\Space #\: #\( #\)) 
+		      '(#\Space #\: #\( #\))
 		      :initial-value (lisp-implementation-version))
   #+gcl       (let ((s (lisp-implementation-version))) (subseq s 4))
   #+openmcl   (format nil "~d.~d~@[-~d~]"
-                      ccl::*openmcl-major-version* 
+                      ccl::*openmcl-major-version*
                       ccl::*openmcl-minor-version*
-                      #+ppc64-target 64 
+                      #+ppc64-target 64
                       #-ppc64-target nil)
   #+lispworks (format nil "~A~@[~A~]"
                       (lisp-implementation-version)
@@ -1725,7 +1725,7 @@ See [implementation-specific-directory-name][] for details.")
 					; ANSI vs MoDeRn
 		      ;; thanks to Robert Goldman and Charley Cox for
 		      ;; an improvement to my hack
-		      (if (eq excl:*current-case-mode* 
+		      (if (eq excl:*current-case-mode*
 			      :case-sensitive-lower) "M" "A")
 		      ;; Note if not using International ACL
 		      ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
@@ -1747,10 +1747,10 @@ See [implementation-specific-directory-name][] for details.")
 unique to a Lisp implementation, Lisp implementation version,
 operating system, and hardware architecture."
   (and *enable-asdf-binary-locations*
-       (list 
+       (list
 	(or *implementation-specific-directory-name*
 	    (setf *implementation-specific-directory-name*
-		  (labels 
+		  (labels
 		      ((fp (thing)
 			 (etypecase thing
 			   (symbol
@@ -1770,7 +1770,7 @@ operating system, and hardware architecture."
 			       (t (apply #'warn fstring args)
 				  "unknown"))))
 		    (let ((lisp (maybe-warn (first-of *implementation-features*)
-					    "No implementation feature found in ~a." 
+					    "No implementation feature found in ~a."
 					    *implementation-features*))
 			  (os   (maybe-warn (first-of *os-features*)
 					    "No os feature found in ~a." *os-features*))
@@ -1815,23 +1815,23 @@ applied by the plain `*source-to-target-mappings*`."
    source possible-paths (source-to-target-resolved-mappings)))
 
 (defmethod output-files-using-mappings (source possible-paths path-mappings)
-  (mapcar 
-   (lambda (path) 
-     (loop for (from to) in path-mappings 
-	when (pathname-prefix-p from source) 
-	do (return 
+  (mapcar
+   (lambda (path)
+     (loop for (from to) in path-mappings
+	when (pathname-prefix-p from source)
+	do (return
 	     (if to
-		 (merge-pathnames 
-		  (make-pathname :type (pathname-type path)) 
-		  (merge-pathnames (enough-namestring source from) 
+		 (merge-pathnames
+		  (make-pathname :type (pathname-type path))
+		  (merge-pathnames (enough-namestring source from)
 				   to))
 		 path))
-		  
+
 	finally
-	  (return 
-	    ;; Instead of just returning the path when we 
-	    ;; don't find a mapping, we stick stuff into 
-	    ;; the appropriate binary directory based on 
+	  (return
+	    ;; Instead of just returning the path when we
+	    ;; don't find a mapping, we stick stuff into
+	    ;; the appropriate binary directory based on
 	    ;; the implementation
 	    (if *centralize-lisp-binaries*
 		(merge-pathnames
@@ -1847,23 +1847,23 @@ applied by the plain `*source-to-target-mappings*`."
 			       ,@(rest (pathname-directory path)))
 		  :defaults path)
 		 *default-toplevel-directory*)
-		(make-pathname 
+		(make-pathname
 		 :type (pathname-type path)
 		 :directory (append
 			     (pathname-directory path)
 			     (implementation-specific-directory-name))
-		 :defaults path))))) 
+		 :defaults path)))))
 	  possible-paths))
 
-(defmethod output-files 
-    :around ((operation compile-op) (component source-file)) 
+(defmethod output-files
+    :around ((operation compile-op) (component source-file))
   (if (or *map-all-source-files*
-	    (typecase component 
+	    (typecase component
 	      (cl-source-file t)
 	      (t nil)))
-    (let ((source (component-pathname component )) 
-	  (paths (call-next-method))) 
-      (output-files-for-system-and-operation 
+    (let ((source (component-pathname component ))
+	  (paths (call-next-method)))
+      (output-files-for-system-and-operation
        (component-system component) operation component source paths))
     (call-next-method)))
 

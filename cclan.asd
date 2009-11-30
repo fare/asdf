@@ -1,4 +1,4 @@
-;;; -*- Lisp -*- 
+;;; -*- Lisp -*-
 (defpackage :cclan-system (:use #:cl #:asdf))
 (in-package :cclan-system)
 

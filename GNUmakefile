@@ -7,7 +7,7 @@ clnet_home      := "/project/asdf/public_html/"
 
 sourceDirectory := $(shell pwd)
 
-lisps = allegro allegromodern ccl clisp sbcl 
+lisps = allegro allegromodern ccl clisp sbcl
 
 ifndef lisp
 lisp := sbcl

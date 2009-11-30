@@ -13,7 +13,7 @@
 @copying
 This manual describes asdf, a system definition facility for Common
 Lisp programs and libraries.
-     
+
 asdf Copyright @copyright{} 2001-2007 Daniel Barlow and contributors
 
 This manual Copyright @copyright{} 2001-2007 Daniel Barlow and
@@ -45,13 +45,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 @titlepage
 @title asdf: another system definition facility
-     
+
 @c The following two commands start the copyright page.
 @page
 @vskip 0pt plus 1filll
 @insertcopying
 @end titlepage
-     
+
 @c Output the table of contents at the beginning.
 @contents
 
@@ -61,25 +61,25 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 @node Top, Introduction, (dir), (dir)
 @top asdf: another system definition facility
-     
+
 @insertcopying
 
 @menu
 * Introduction::
-* Using asdf to load systems::  
+* Using asdf to load systems::
 * Defining systems with defsystem::
 * The object model of asdf::
 * Controlling where ASDF saves compiled files::
 * Error handling::
 * Compilation error and warning handling::
 * Miscellaneous additional functionality::
-* Getting the latest version::  
-* TODO list::                   
-* missing bits in implementation::  
-* Inspiration::                 
-* Concept Index::               
-* Function and Class Index::    
-* Variable Index::              
+* Getting the latest version::
+* TODO list::
+* missing bits in implementation::
+* Inspiration::
+* Concept Index::
+* Function and Class Index::
+* Variable Index::
 
 @detailmenu
  --- The Detailed Node Listing ---
@@ -90,31 +90,31 @@ Using ASDF
 
 Defining systems with defsystem
 
-* The defsystem form::          
-* A more involved example::     
-* The defsystem grammar::       
+* The defsystem form::
+* A more involved example::
+* The defsystem grammar::
 * Other code in .asd files::
 
 The object model of asdf
 
-* Operations::                  
-* Components::                  
+* Operations::
+* Components::
 
 Operations
 
-* Predefined operations of asdf::  
-* Creating new operations::     
+* Predefined operations of asdf::
+* Creating new operations::
 
 Components
 
-* Common attributes of components::  
-* Pre-defined subclasses of component::  
-* Creating new component types::  
+* Common attributes of components::
+* Pre-defined subclasses of component::
+* Creating new component types::
 
 properties
 
-* Pre-defined subclasses of component::  
-* Creating new component types::  
+* Pre-defined subclasses of component::
+* Creating new component types::
 
 @end detailmenu
 @end menu
@@ -324,9 +324,9 @@ software.
 
 
 @menu
-* The defsystem form::          
-* A more involved example::     
-* The defsystem grammar::       
+* The defsystem form::
+* A more involved example::
+* The defsystem grammar::
 * Other code in .asd files::
 @end menu
 
@@ -371,7 +371,7 @@ package is named by taking the system name and suffixing
 will use for the application code.
 
 This is not absolutely required by asdf, but helps avoid namespace
-pollution and so is considered good form. 
+pollution and so is considered good form.
 
 @item
 The defsystem form defines a system named "hello-lisp" that contains
@@ -406,7 +406,7 @@ slightly convoluted example:
 @lisp
 (defsystem "foo"
   :version "1.0"
-  :components ((:module "foo" :components ((:file "bar") (:file"baz") 
+  :components ((:module "foo" :components ((:file "bar") (:file"baz")
                                            (:file "quux"))
                 :perform (compile-op :after (op c)
                           (do-something c))
@@ -450,16 +450,16 @@ system-definition := ( defsystem system-designator {option}* )
 option := :components component-list
         | :pathname pathname
         | :default-component-class
-        | :perform method-form 
+        | :perform method-form
         | :explain method-form
 	| :output-files  method-form
         | :operation-done-p method-form
-        | :depends-on ( {dependency-def}* ) 
+        | :depends-on ( {dependency-def}* )
 	| :serial [ t | nil ]
         | :in-order-to ( {dependency}+ )
 
 component-list := ( {component-def}* )
-                
+
 component-def  := simple-component-name
                 | ( component-type name {option}* )
 
@@ -493,7 +493,7 @@ textually preceding it.  This is done as if by @code{:depends-on}.
 is equivalent to
 
 @lisp
-:components ((:file "a") 
+:components ((:file "a")
 	     (:file "b" :depends-on ("a"))
 	     (:file "c" :depends-on ("a" "b")))
 @end lisp
@@ -578,8 +578,8 @@ system.
 
 
 @menu
-* Operations::                  
-* Components::                  
+* Operations::
+* Components::
 @end menu
 
 @node  Operations, Components, The object model of asdf, The object model of asdf
@@ -625,8 +625,8 @@ operations will be created with the same initargs as the original one.
 @end deffn
 
 @menu
-* Predefined operations of asdf::  
-* Creating new operations::     
+* Predefined operations of asdf::
+* Creating new operations::
 @end menu
 
 @node Predefined operations of asdf, Creating new operations, Operations, Operations
@@ -813,9 +813,9 @@ appropriate system.  Hence, it is strongly advised to define a system
 
 
 @menu
-* Common attributes of components::  
-* Pre-defined subclasses of component::  
-* Creating new component types::  
+* Common attributes of components::
+* Pre-defined subclasses of component::
+* Creating new component types::
 @end menu
 
 @node  Common attributes of components, Pre-defined subclasses of component, Components, Components
@@ -917,7 +917,7 @@ and using a @code{:depends-on} argument to say that @var{b} depends on
 @var{a} @emph{actually} means that
 
 @verbatim
-  (compile b) depends on (load a) 
+  (compile b) depends on (load a)
 @end verbatim
 
 This is insufficient for e.g. the McCLIM system, which requires that
@@ -973,7 +973,7 @@ system) does additional processing to set the filesystem location of
 the top component in that system.  This is detailed
 elsewhere, @xref{Defining systems with defsystem}.
 
-The answer to the frequently asked question "how do I create a system 
+The answer to the frequently asked question "how do I create a system
 definition where all the source files have a .cl extension" is thus
 
 @lisp
@@ -998,8 +998,8 @@ Property names are compared as if by @code{EQL}, so use symbols or
 keywords or something.
 
 @menu
-* Pre-defined subclasses of component::  
-* Creating new component types::  
+* Pre-defined subclasses of component::
+* Creating new component types::
 @end menu
 
 @node Pre-defined subclasses of component, Creating new component types, Common attributes of components, Components
@@ -1009,7 +1009,7 @@ keywords or something.
 @deffn Component source-file
 
 A source file is any file that the system does not know how to
-generate from other components of the system. 
+generate from other components of the system.
 
 Note that this is not necessarily the same thing as ``a file
 containing data that is typically fed to a compiler''.  If a file is
@@ -1255,14 +1255,14 @@ such events. The valid values for these variables are @code{:error},
 
 @emph{FIXME:  Add discussion of @code{run-shell-command}?  Others?}
 
-ASDF includes several additional features that are generally 
+ASDF includes several additional features that are generally
 useful for system definition and development. These include:
 
 @enumerate
 @item
-system-relative-pathname 
+system-relative-pathname
 
-It's often handy to locate a file relative to some system. The system-relative-pathname function meets this need. It takes two arguments: the name of a system and a relative pathname. It returns a pathname built from the 
+It's often handy to locate a file relative to some system. The system-relative-pathname function meets this need. It takes two arguments: the name of a system and a relative pathname. It returns a pathname built from the
 location of the system's source file and the relative pathname. For example
 
 @lisp
@@ -1407,7 +1407,7 @@ that's not reflected in the dependency graph.
 Other possible interface: have a 'revert' function akin to 'make clean'
 
 @lisp
-(asdf:revert 'asdf:compile-op 'araneida) 
+(asdf:revert 'asdf:compile-op 'araneida)
 @end lisp
 
 would delete any files produced by 'compile-op 'araneida.  Of course, it
@@ -1434,12 +1434,12 @@ However, our architecture for extensibility better exploits CL
 language features (and is documented), and we intend to be portable
 rather than just widely-ported.  No slight on the mk-defsystem authors
 and maintainers is intended here; that implementation has the
-unenviable task of supporting pre-ANSI implementations, which is 
+unenviable task of supporting pre-ANSI implementations, which is
 no longer necessary.
 
 The surface defsystem syntax of asdf is more-or-less compatible with
 mk-defsystem, except that we do not support the @code{source-foo} and
-@code{binary-foo} prefixes for separating source and binary files, and 
+@code{binary-foo} prefixes for separating source and binary files, and
 we advise the removal of all options to specify pathnames.
 
 The mk-defsystem code for topologically sorting a module's dependency
@@ -1453,7 +1453,7 @@ many of the features in here.  Notable differences are:
 @itemize
 @item
 We don't specify output files or output file extensions as part of the
-system.  
+system.
 
 If you want to find out what files an operation would create, ask the
 operation.
@@ -1465,7 +1465,7 @@ If you want to compile in a particular package, use an in-package form
 in that file (ilisp / SLIME will like you more if you do this anyway)
 
 @item
-There is no proposal here that defsystem does version control.  
+There is no proposal here that defsystem does version control.
 
 A system has a given version which can be used to check dependencies,
 but that's all.
@@ -1476,7 +1476,7 @@ whereas this one centres on a protocol for system introspection.
 
 @section kmp's ``The Description of Large Systems'', MIT AI Memu 801
 
-Available in updated-for-CL form on the web at 
+Available in updated-for-CL form on the web at
 @url{http://world.std.com/~pitman/Papers/Large-Systems.html}
 
 In our implementation we borrow kmp's overall PROCESS-OPTIONS and
@@ -1490,17 +1490,17 @@ probably will be again soon ]
 
 @node Concept Index, Function and Class Index, Inspiration, Top
 @unnumbered Concept Index
-     
+
 @printindex cp
 
 @node Function and Class Index, Variable Index, Concept Index, Top
 @unnumbered Function and Class Index
-     
+
 @printindex fn
 
 @node Variable Index,  , Function and Class Index, Top
 @unnumbered Variable Index
-     
+
 @printindex vr
 
 

@@ -96,7 +96,7 @@ an immediate concern
   (:report (lambda (c s)
 	     (format s "Cannot verify package signature:  ~A"
 		     (signature-error-cause c)))))
-	     
+
 (defun url-host (url)
   (assert (string-equal url "http://" :end1 7))
   (let* ((port-start (position #\: url :start 7))
@@ -145,7 +145,7 @@ an immediate concern
 	(block got
 	  (loop
 	   (destructuring-bind (response headers stream) (url-connection url)
-	     (unless (member response '(301 302))	       
+	     (unless (member response '(301 302))
 	       (return-from got (list response headers stream)))
 	     (close stream)
 	     (setf url (cdr (assoc :location headers))))))
@@ -163,7 +163,7 @@ an immediate concern
 				     :element-type
 				     (stream-element-type stream)  )))
 		(read-sequence buf stream)
-		(write-sequence buf o)) 
+		(write-sequence buf o))
 	      (sb-executable:copy-stream stream o))))
       (close stream)
       (terpri)
@@ -205,11 +205,11 @@ an immediate concern
 		     'download-error :url  (concatenate 'string url ".asc")
 		     :response response)))
       (close stream))))
-	
-    
 
 
-(defun where ()  
+
+
+(defun where ()
   (format t "Install where?~%")
   (loop for (source system name) in *locations*
 	for i from 1
@@ -259,7 +259,7 @@ an immediate concern
      (make-pathname
       :name (subseq p (if pos-slash (1+ pos-slash) 0) pos-dot)
       :type "asdf-install-tmp"))))
-		     
+
 
 
 (defun run (&optional (packages (cdr *posix-argv*)))

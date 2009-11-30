@@ -4,13 +4,13 @@
 ;;;; asdf itself, but extend it in various ways useful for maintainers
 ;;;; of new-style cCLan packages
 
-;;;; The public interface consists of the functions whose symbols are 
+;;;; The public interface consists of the functions whose symbols are
 ;;;; exported from the package
 
 ;;;; This file does not contain references to asdf internals - or
 ;;;; shouldn't, anyway.  Send bug reports
 
-    
+
 (defun mapappend (function list)
   (let ((f (coerce function 'function)))
     (loop for i in list append (funcall f i))))
@@ -29,7 +29,7 @@
   (let* ((system (find-system system))
 	 (version (component-version system)))
     (format nil "release_~A"  (substitute #\_ #\. version))))
-  
+
 (defun cvs-tag (system)
   (let* ((system (find-system system))
 	 (directory (component-pathname system)))
