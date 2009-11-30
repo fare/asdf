@@ -160,8 +160,7 @@
 
 (defvar *asdf-revision*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "REVISION:1.369" (1+ (length "REVISION"))))
-
+  (subseq "REVISION:1.370" (1+ (length "REVISION"))))
 
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.
@@ -176,6 +175,24 @@ Defaults to `t`.")
 
 (defparameter +asdf-methods+
   '(perform explain output-files operation-done-p))
+
+;;;; -------------------------------------------------------------------------
+;;;; Cleanups before hot-upgrade.
+;;;; Things to do in case we're upgrading from a previous version of ASDF.
+;;;; See https://bugs.launchpad.net/asdf/+bug/485687
+;;;; * fmakunbound functions that once (in previous version of ASDF)
+;;;;   were simple DEFUNs but now are generic functions.
+;;;; * define methods on UPDATE-INSTANCE-FOR-REDEFINED-CLASS
+;;;;   for each of the classes we define that has changed incompatibly.
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (fmakunbound 'system-source-file)
+  #+ecl
+  (when (find-class 'compile-op nil)
+    (defmethod update-instance-for-redefined-class :after
+        ((c compile-op) added deleted plist &key)
+      (format *trace-output* "~&UI4RC:a ~S~%" (list c added deleted plist))
+      (let ((system-p (getf plist 'system-p)))
+        (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p))))))
 
 (define-method-combination standard-asdf-method-combination ()
   ((around-asdf (around))
@@ -396,9 +413,11 @@ and NIL NAME and TYPE components"
   ((name :accessor component-name :initarg :name :documentation
          "Component name: designator for a string composed of portable pathname characters")
    (version :accessor component-version :initarg :version)
-   (in-order-to :initform nil :initarg :in-order-to)
+   (in-order-to :initform nil :initarg :in-order-to
+                :accessor component-in-order-to)
    ;; XXX crap name
-   (do-first :initform nil :initarg :do-first)
+   (do-first :initform nil :initarg :do-first
+             :accessor component-do-first)
    ;; methods defined using the "inline" style inside a defsystem form:
    ;; need to store them somewhere so we can delete them when the system
    ;; is re-evaluated
@@ -407,7 +426,7 @@ and NIL NAME and TYPE components"
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
    (relative-pathname :initarg :pathname)
-   (operation-times :initform (make-hash-table )
+   (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
    ;; XXX we should provide some atomic interface for updating the
    ;; component properties
@@ -864,7 +883,7 @@ to `~a` which is not a directory.~@:>"
 
 (defmethod component-depends-on ((o operation) (c component))
   (cdr (assoc (class-name (class-of o))
-              (slot-value c 'in-order-to))))
+              (component-in-order-to c))))
 
 (defmethod component-self-dependencies ((o operation) (c component))
   (let ((all-deps (component-depends-on o c)))
@@ -1034,7 +1053,7 @@ to `~a` which is not a directory.~@:>"
 					      (mapcar #'coerce-name f)
 					      :test #'string=)))))
 		 (let ((do-first (cdr (assoc (class-name (class-of operation))
-					     (slot-value c 'do-first)))))
+                                             (component-do-first c)))))
 		   (loop for (required-op . deps) in do-first
 		      do (do-dep required-op deps)))
 		 (setf forced (append (delete 'pruned-op forced :key #'car)
@@ -1195,7 +1214,7 @@ to `~a` which is not a directory.~@:>"
 ;;; FIXME: we simply copy load-op's dependencies.  this is Just Not Right.
 (defmethod component-depends-on ((o load-source-op) (c component))
   (let ((what-would-load-op-do (cdr (assoc 'load-op
-                                           (slot-value c 'in-order-to)))))
+                                           (component-in-order-to c)))))
     (mapcar (lambda (dep)
               (if (eq (car dep) 'load-op)
                   (cons 'load-source-op (cdr dep))
@@ -1539,12 +1558,12 @@ Returns the new tree (which probably shares structure with the old one)"
                                    name-hash)
                           t)))))
 
-      (setf (slot-value ret 'in-order-to)
+      (setf (component-in-order-to ret)
             (union-of-dependencies
              in-order-to
              `((compile-op (compile-op ,@depends-on))
                (load-op (load-op ,@depends-on))))
-            (slot-value ret 'do-first) `((compile-op (load-op ,@depends-on))))
+            (component-do-first ret) `((compile-op (load-op ,@depends-on))))
 
       (%refresh-component-inline-methods ret rest)
 
@@ -1948,12 +1967,10 @@ applied by the plain `*source-to-target-mappings*`."
 
 (pushnew :asdf *features*)
 
+;;;; -----------------------------------------------------------------
+;;;; SBCL hook into REQUIRE
+;;;;
 #+sbcl
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (when (sb-ext:posix-getenv "SBCL_BUILDING_CONTRIB")
-    (pushnew :sbcl-hooks-require *features*)))
-
-#+(and sbcl sbcl-hooks-require)
 (progn
   (defun module-provide-asdf (name)
     (handler-bind ((style-warning #'muffle-warning))
@@ -1991,23 +2008,30 @@ applied by the plain `*source-to-target-mappings*`."
   (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*)
   (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
 
-(if *asdf-revision*
-    (asdf-message ";; ASDF, revision ~a" *asdf-revision*)
-    (asdf-message ";; ASDF, revision unknown; possibly a development version"))
+;;;; -----------------------------------------------------------------
+;;;; TODO: Read Configuration.
+;;;; See https://bugs.launchpad.net/asdf/+bug/485918
 
-(provide 'asdf)
+;;;; TODO: add protocols for re-searching a loaded system in the registry,
+;;;; for invalidating registry entries, etc.
+;;;; See https://bugs.launchpad.net/asdf/+bug/485687
 
+;;;; -------------------------------------------------------------------------
+;;;; Cleanups after hot-upgrade.
+;;;; Things to do in case we're upgrading from a previous version of ASDF.
+;;;; See https://bugs.launchpad.net/asdf/+bug/485687
+;;;;
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  #+ecl ;; Support upgrade from before ECL went to 1.369
+  (when (fboundp 'compile-op-system-p)
+    (defmethod compile-op-system-p ((op compile-op))
+      (getf :system-p (compile-op-flags op)))))
 
-#+(or)
-;;?? ignore -- so how will ABL get "installed"
-;; should be unnecessary with newer versions of ASDF
-;; load customizations
-(eval-when (:load-toplevel :execute)
-  (let* ((*package* (find-package :common-lisp)))
-    (load
-     (merge-pathnames
-      (make-pathname :name "asdf-binary-locations"
-		     :type "lisp"
-		     :directory '(:relative ".asdf"))
-      (truename (user-homedir-pathname)))
-     :if-does-not-exist nil)))
+;;;; -----------------------------------------------------------------
+;;;; Done!
+(when *load-verbose*
+  (asdf-message ";; ASDF, revision ~a" *asdf-revision*))
+
+(provide :asdf)
+
+;;;; The End.
