@@ -1064,7 +1064,8 @@ to `~a` which is not a directory.~@:>"
    (on-warnings :initarg :on-warnings :accessor operation-on-warnings
                 :initform *compile-file-warnings-behaviour*)
    (on-failure :initarg :on-failure :accessor operation-on-failure
-               :initform *compile-file-failure-behaviour*)))
+               :initform *compile-file-failure-behaviour*)
+   (flags :initarg :system-p :accessor compile-op-flags :initform nil)))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
   (map nil #'ensure-directories-exist (output-files operation c)))
@@ -1080,7 +1081,8 @@ to `~a` which is not a directory.~@:>"
   (let ((source-file (component-pathname c))
         (output-file (car (output-files operation c))))
     (multiple-value-bind (output warnings-p failure-p)
-        (compile-file source-file :output-file output-file)
+        (apply #'compile-file source-file :output-file output-file
+               (compile-op-flags operation))
       (when warnings-p
         (case (operation-on-warnings operation)
           (:warn (warn
