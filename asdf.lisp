@@ -197,6 +197,9 @@ Defaults to `t`.")
       (let ((system-p (getf plist 'system-p)))
         (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p))))))
 
+;;;; -------------------------------------------------------------------------
+;;;; CLOS magic for asdf:around methods
+
 (define-method-combination standard-asdf-method-combination ()
   ((around-asdf (around))
    (around (:around))
@@ -231,6 +234,9 @@ but defines a new method-qualifier, `asdf:around`.  `asdf:around`
 methods will be run *around* any `:around` methods, so that the core
 protocol may employ around methods and those around methods will not
 be overridden by around methods added by a system developer.")
+
+;;;; -------------------------------------------------------------------------
+;;;; ASDF Interface, in terms of generic functions.
 
 (defgeneric perform (operation component)
   (:method-combination standard-asdf-method-combination))
@@ -330,8 +336,8 @@ mapping is to place the output in subdirectories of
 structure will mirror that of the source."))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; utility stuff
+;;;; -------------------------------------------------------------------------
+;;;; General Purpose Utilities
 
 (defmacro aif (test then &optional else)
   `(let ((it ,test)) (if it ,then ,else)))
@@ -378,9 +384,6 @@ and NIL NAME and TYPE components"
         (t
          (values relative (butlast components) last-comp))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; syntax
-
 (defun remove-keys (key-names args)
   (loop for (name val) on args by #'cddr
         unless (member (symbol-name name) key-names
@@ -400,8 +403,8 @@ and NIL NAME and TYPE components"
   #-allegro (truename path)
   #+allegro (excl:pathname-resolve-symbolic-links path))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; classes, conditions
+;;;; -------------------------------------------------------------------------
+;;;; Classes, Conditions
 
 (define-condition system-definition-error (error) ()
   ;; [this use of :report should be redundant, but unfortunately it's not.
@@ -557,7 +560,8 @@ and NIL NAME and TYPE components"
    (source-file :reader system-source-file :initarg :source-file
 		:writer %set-system-source-file)))
 
-;;; version-satisfies
+;;;; -------------------------------------------------------------------------
+;;;; version-satisfies
 
 (defmethod version-satisfies ((c component) version)
   (unless (and version (slot-boundp c 'version))
@@ -575,8 +579,8 @@ and NIL NAME and TYPE components"
       (and (= (car x) (car y))
            (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; finding systems
+;;;; -------------------------------------------------------------------------
+;;;; Finding systems
 
 (defun make-defined-systems-table ()
   (make-hash-table :test 'equal))
@@ -647,22 +651,6 @@ actually-existing directory."
 			      :test 'equal)))))
     (and (check-one (pathname-name pathname))
 	 (check-one (pathname-type pathname)))))
-
-#+(or)
-;;test
-;;?? move into testsuite sometime soon
-(every (lambda (p)
-	  (directory-pathname-p p))
-	(list
-	 (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
-	 (make-pathname :name "." :type "" :directory '(:absolute "tmp"))
-	 (make-pathname :name nil :type "" :directory '(:absolute "tmp"))
-	 (make-pathname :name "" :directory '(:absolute "tmp"))
-	 (make-pathname :type :unspecific :directory '(:absolute "tmp"))
-	 (make-pathname :name :unspecific :directory '(:absolute "tmp"))
-	 (make-pathname :name :unspecific :directory '(:absolute "tmp"))
-	 (make-pathname :type "" :directory '(:absolute "tmp"))
-	 ))
 
 (defun ensure-directory-pathname (pathname)
   (if (directory-pathname-p pathname)
@@ -775,8 +763,8 @@ to `~a` which is not a directory.~@:>"
         (cons (get-universal-time) system)))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; finding components
+;;;; -------------------------------------------------------------------------
+;;;; Finding components
 
 (defmethod find-component ((module module) name &optional version)
   (if (slot-boundp module 'components)
@@ -822,10 +810,10 @@ to `~a` which is not a directory.~@:>"
    (component-name component)
    (source-file-type component (component-system component))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; operations
+;;;; -------------------------------------------------------------------------
+;;;; Operations
 
-;;; one of these is instantiated whenever (operate ) is called
+;;; one of these is instantiated whenever #'operate is called
 
 (defclass operation ()
   ((forced :initform nil :initarg :force :accessor operation-forced)
@@ -1101,7 +1089,8 @@ to `~a` which is not a directory.~@:>"
 (defmethod explain ((operation operation) (component component))
   (asdf-message "~&;;; ~A on ~A~%" operation component))
 
-;;; compile-op
+;;;; -------------------------------------------------------------------------
+;;;; compile-op
 
 (defclass compile-op (operation)
   ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
@@ -1158,7 +1147,8 @@ to `~a` which is not a directory.~@:>"
   nil)
 
 
-;;; load-op
+;;;; -------------------------------------------------------------------------
+;;;; load-op
 
 (defclass basic-load-op (operation) ())
 
@@ -1220,7 +1210,8 @@ to `~a` which is not a directory.~@:>"
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
 
-;;; load-source-op
+;;;; -------------------------------------------------------------------------
+;;;; load-source-op
 
 (defclass load-source-op (basic-load-op) ())
 
@@ -1252,6 +1243,10 @@ to `~a` which is not a directory.~@:>"
              (component-property c 'last-loaded-as-source)))
       nil t))
 
+
+;;;; -------------------------------------------------------------------------
+;;;; test-op
+
 (defclass test-op (operation) ())
 
 (defmethod perform ((operation test-op) (c component))
@@ -1265,8 +1260,8 @@ to `~a` which is not a directory.~@:>"
   (cons `(load-op ,(component-name c)) (call-next-method)))
 
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; invoking operations
+;;;; -------------------------------------------------------------------------
+;;;; Invoking Operations
 
 (defun operate (operation-class system &rest args &key (verbose t) version force
                 &allow-other-keys)
@@ -1348,6 +1343,9 @@ created with the same initargs as the original one.
   "Shorthand for `(operate 'asdf:test-op system)`. See [operate][] for details."
   (declare (ignore force verbose version))
   (apply #'operate 'test-op system args))
+
+;;;; -------------------------------------------------------------------------
+;;;; Defsystem
 
 (defun determine-system-pathname (pathname pathname-supplied-p)
   ;; called from the defsystem macro.
@@ -1576,9 +1574,13 @@ Returns the new tree (which probably shares structure with the old one)"
 ;;;;
 ;;;; run-shell-command functions for other lisp implementations will be
 ;;;; gratefully accepted, if they do the same thing.
-;;;; If the docstring is ambiguous, send a bug report
+;;;; If the docstring is ambiguous, send a bug report.
 ;;;;
-;;;; XXX fare: This probably doesn't belong here. Does anyone rely on it?
+;;;; We probably should move this functionality to its own system and deprecate
+;;;; use of it from the asdf package. However, this would break unspecified
+;;;; existing software, so until a clear alternative exists, we can't deprecate
+;;;; it, and even after it's been deprecated, we will support it for a few
+;;;; years so everyone has time to migrate away from it. -- fare 2009-12-01
 
 (defun run-shell-command (control-string &rest args)
   "Interpolate `args` into `control-string` as if by `format`, and
@@ -1633,7 +1635,7 @@ output to `*verbose-out*`.  Returns the shell's exit code."
     (si:system command)
 
     #-(or openmcl clisp lispworks allegro scl cmu sbcl ecl)
-    (error "RUN-SHELL-PROGRAM not implemented for this Lisp")
+    (error "RUN-SHELL-COMMAND not implemented for this Lisp")
     ))
 
 ;;;; ---------------------------------------------------------------------------
@@ -1648,7 +1650,7 @@ output to `*verbose-out*`.  Returns the shell's exit code."
                  :defaults (system-source-file system-name)))
 
 (defun system-relative-pathname (system pathname &key name type)
-  (let ((directory (pathname-directory pathname)))    
+  (let ((directory (pathname-directory pathname)))
     (merge-pathnames
      (make-pathname :name (or name (pathname-name pathname))
                     :type (or type (pathname-type pathname))
@@ -2026,6 +2028,7 @@ applied by the plain `*source-to-target-mappings*`."
 ;;;; Things to do in case we're upgrading from a previous version of ASDF.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;;;
+;;;; TODO: debug why it's not enough to upgrade from ECL <= 9.11.1
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #+ecl ;; Support upgrade from before ECL went to 1.369
   (when (fboundp 'compile-op-system-p)
