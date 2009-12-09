@@ -163,7 +163,7 @@
 ;;;;
 (defvar *asdf-revision*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "REVISION:1.370" (1+ (length "REVISION"))))
+  (subseq "REVISION:1.372" (1+ (length "REVISION"))))
 
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.
