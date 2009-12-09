@@ -1,0 +1,26 @@
+;;; -*- Lisp -*-
+(load "script-support")
+(load "../asdf")
+(in-package :asdf)
+(cl-user::quit-on-error
+
+(assert
+ (every #'directory-pathname-p
+  (list
+   (make-pathname :name nil :type "" :directory '(:absolute "tmp"))
+   (make-pathname :name "" :directory '(:absolute "tmp"))
+   (make-pathname :type "" :directory '(:absolute "tmp"))
+;; CLHS 19.2.2.2.3 says we can't portably specify :unspecific here,
+;; and some implementations will enforce it.
+;;   (make-pathname :type :unspecific :directory '(:absolute "tmp"))
+;;   (make-pathname :name :unspecific :directory '(:absolute "tmp"))
+;;   (make-pathname :name :unspecific :directory '(:absolute "tmp"))
+   )))
+(assert
+ (every (complement #'directory-pathname-p)
+  (list
+   (make-pathname :name "foo" :type nil :directory '(:absolute "tmp"))
+   (make-pathname :name nil :type "bar" :directory '(:absolute "tmp"))
+   (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
+   (make-pathname :name "." :type "" :directory '(:absolute "tmp")))))
+)
