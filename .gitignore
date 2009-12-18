@@ -12,6 +12,7 @@ test/results/
 LICENSE
 website/output/
 test-results/
+tmp/
 lift-local.config
 *.dribble
 *.fasl
