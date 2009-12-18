@@ -25,34 +25,34 @@
              nil
              "Didn't get the name of static.file right"))) 
  (assert (find-package :test-package) nil
-	 "package test-package not found")
+         "package test-package not found")
  (assert (find-symbol (symbol-name '*file-tmp*) :test-package) nil
-	 "symbol `*file-tmp*` not found")
+         "symbol `*file-tmp*` not found")
  (assert (symbol-value (find-symbol (symbol-name '*file-tmp*) :test-package))
-	 nil "symbol `*file-tmp*` has wrong value")
+         nil "symbol `*file-tmp*` has wrong value")
 
 #| ; must be adapted to ABL
  (assert (probe-file (merge-pathnames 
-		      (make-pathname 
-		       :name "file1"
-		       :type (pathname-type (compile-file-pathname "x"))
-		       :directory '(:relative "sources" "level1"))))
-	 nil "compiled file not found")
+                      (make-pathname 
+                       :name "file1"
+                       :type (pathname-type (compile-file-pathname "x"))
+                       :directory '(:relative "sources" "level1"))))
+         nil "compiled file not found")
 |#
 
  (assert (find-symbol (symbol-name '*file-tmp2*) :test-package) nil
-	 "symbol `*file-tmp2*` not found")
+         "symbol `*file-tmp2*` not found")
  (assert (symbol-value (find-symbol (symbol-name '*file-tmp2*) :test-package))
-	 nil "symbol `*file-tmp2*` has wrong value")
+         nil "symbol `*file-tmp2*` has wrong value")
 
 #| ; must be adapted to ABL
 
  (assert (probe-file (merge-pathnames 
-		      (make-pathname 
-		       :name "file2"
-		       :type (pathname-type (compile-file-pathname "x"))
-		       :directory '(:relative "sources" "level1" "level2"))))
-	 nil "compiled file not found")
+                      (make-pathname 
+                       :name "file2"
+                       :type (pathname-type (compile-file-pathname "x"))
+                       :directory '(:relative "sources" "level1" "level2"))))
+         nil "compiled file not found")
 |#
 
 )

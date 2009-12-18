@@ -7,13 +7,13 @@
 (load "../asdf")
 (quit-on-error 
  (flet ((system-load-time (name)
-	  (let ((data (asdf::system-registered-p name)))
-	    (when data
-	      (car data)))))
+          (let ((data (asdf::system-registered-p name)))
+            (when data
+              (car data)))))
    (setf asdf:*central-registry* '(*default-pathname-defaults*))
    (asdf:find-system :test1)
    (let ((date1 (system-load-time :test1))
-	 (file (namestring (merge-pathnames "test1.asd"))))
+         (file (namestring (merge-pathnames "test1.asd"))))
      (assert date1)
      (assert file)
      (sleep 1)

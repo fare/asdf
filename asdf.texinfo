@@ -418,19 +418,19 @@ slightly convoluted example:
 The method-form tokens need explaining: essentially, this part:
 
 @lisp
-	        :perform (compile-op :after (op c)
-			  (do-something c))
-		:explain (compile-op :after (op c)
-			  (explain-something c))
+                :perform (compile-op :after (op c)
+                          (do-something c))
+                :explain (compile-op :after (op c)
+                          (explain-something c))
 @end lisp
 
 has the effect of
 
 @lisp
 (defmethod perform :after ((op compile-op) (c (eql ...)))
-	   (do-something c))
+           (do-something c))
 (defmethod explain :after ((op compile-op) (c (eql ...)))
-	   (explain-something c))
+           (explain-something c))
 @end lisp
 
 where @code{...} is the component in question; note that although this
@@ -452,10 +452,10 @@ option := :components component-list
         | :default-component-class
         | :perform method-form
         | :explain method-form
-	| :output-files  method-form
+        | :output-files  method-form
         | :operation-done-p method-form
         | :depends-on ( {dependency-def}* )
-	| :serial [ t | nil ]
+        | :serial [ t | nil ]
         | :in-order-to ( {dependency}+ )
 
 component-list := ( {component-def}* )
@@ -497,8 +497,8 @@ is equivalent to
 
 @lisp
 :components ((:file "a")
-	     (:file "b" :depends-on ("a"))
-	     (:file "c" :depends-on ("a" "b")))
+             (:file "b" :depends-on ("a"))
+             (:file "c" :depends-on ("a" "b")))
 @end lisp
 
 
@@ -706,13 +706,13 @@ libraries and test techniques in use in the community.
 @c @lisp
 @c (defun version-satisfies (x y)
 @c   (labels ((bigger (x y)
-@c 	     (cond ((not y) t)
-@c 		   ((not x) nil)
-@c 		   ((> (car x) (car y)) t)
-@c 		   ((= (car x) (car y))
-@c 		    (bigger (cdr x) (cdr y))))))
+@c           (cond ((not y) t)
+@c                 ((not x) nil)
+@c                 ((> (car x) (car y)) t)
+@c                 ((= (car x) (car y))
+@c                  (bigger (cdr x) (cdr y))))))
 @c     (and (= (car x) (car y))
-@c 	 (or (not (cdr y)) (bigger (cdr x) (cdr y))))))
+@c       (or (not (cdr y)) (bigger (cdr x) (cdr y))))))
 @c @end lisp
 
 @c If that doesn't work for your system, you can override it.  I hope
@@ -883,7 +883,7 @@ initargs for the component, you can say
 
 @lisp
 :in-order-to ((compile-op (load-op "a" "b") (compile-op "c"))
-	      (load-op (load-op "foo")))
+              (load-op (load-op "foo")))
 @end lisp
 
 This means the following things:
@@ -1381,7 +1381,7 @@ so should be.
 
 *** Propagation of the :force option.  ``I notice that
 
-	(oos 'compile-op :araneida :force t)
+        (oos 'compile-op :araneida :force t)
 
 also forces compilation of every other system the :araneida system
 depends on.  This is rarely useful to me; usually, when I want to force
