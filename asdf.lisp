@@ -585,7 +585,12 @@ and NIL NAME and TYPE components"
 (defun make-defined-systems-table ()
   (make-hash-table :test 'equal))
 
-(defvar *defined-systems* (make-defined-systems-table))
+(defvar *defined-systems* (make-defined-systems-table)
+  "This is a hash table whose keys are strings, being the
+names of the systems, and whose values are pairs, the first
+element of which is a universal-time indicating when the
+system definition was last updated, and the second element
+of which is a system object.")
 
 (defun coerce-name (name)
   (typecase name
