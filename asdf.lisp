@@ -161,7 +161,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
 ;;;;
-(defvar *asdf-revision*
+(defparameter *asdf-revision*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
   (subseq "REVISION:1.373" (1+ (length "REVISION"))))
 
