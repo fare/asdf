@@ -74,6 +74,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Compilation error and warning handling::
 * Miscellaneous additional functionality::
 * Getting the latest version::
+* FAQ::
 * TODO list::
 * missing bits in implementation::
 * Inspiration::
@@ -1276,7 +1277,7 @@ location of the system's source file and the relative pathname. For example
 @end enumerate
 
 
-@node Getting the latest version, TODO list, Miscellaneous additional functionality, Top
+@node Getting the latest version, FAQ, Miscellaneous additional functionality, Top
 @comment  node-name,  next,  previous,  up
 @chapter Getting the latest version
 
@@ -1296,8 +1297,42 @@ You will find the above referenced tags in this repository.
 Discussion of ASDF development is conducted on the mailing list
 @kbd{asdf-devel@@common-lisp.net}.
 
-@node  TODO list, missing bits in implementation, Getting the latest version, Top
+@node FAQ, TODO list, missing bits in implementation, Getting the latest version, Top
 @comment  node-name,  next,  previous,  up
+@chapter FAQ
+
+
+@itemize
+@item ``My Common Lisp implementation comes with an outdated version of ASDF. What to do?''
+
+@item ``How can I cater for unit-testing in my system?''
+
+ASDF provides a predefined test operation, @code{test-op}.
+@xref{Predefined operations of asdf}.  The test operation, however, is
+largely left to the system definer to specify.  @code{test-op} has been
+a topic of considerable discussion on the asdf-devel mailing list, and
+on the launchpad bug-tracker.
+
+@item ``How can I cater for documentation generation in my system?''
+
+The ASDF developers are currently working to add a @code{doc-op} to the
+set of predefined ASDF operations (@pxref{Predefined operations of
+asdf}).  See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
+
+@item ``How can I customize where fasl files are stored?''
+
+@xref{Controlling where ASDF saves compiled files}.
+
+@item ``How can I maintain non-Lisp (e.g. C) source files?''
+
+@item  Where do I report a bug?
+
+ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
+
+@end itemize
+
+@node  TODO list, missing bits in implementation, FAQ, Top
+comment  node-name,  next,  previous,  up
 @chapter TODO list
 
 * Outstanding spec questions, things to add
