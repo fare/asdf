@@ -13,14 +13,14 @@
   (list
    :a
    (asdf::traverse (make-instance 'asdf:compile-op)
-		   (asdf:find-system 'test-nested-components-a))
+                   (asdf:find-system 'test-nested-components-a))
    (asdf::traverse (make-instance 'asdf:compile-op)
-		   (asdf:find-system 'test-nested-components-b))
+                   (asdf:find-system 'test-nested-components-b))
    :x
    (asdf::traverse (make-instance 'asdf:compile-op)
-		   (asdf:find-system 'db-agraph-preflight))
+                   (asdf:find-system 'db-agraph-preflight))
    (asdf::traverse (make-instance 'asdf:compile-op)
-		   (asdf:find-system 'db-agraph-preflight-2))
+                   (asdf:find-system 'db-agraph-preflight-2))
    ))
 
 #|
@@ -31,9 +31,9 @@
  (print 
   (list
    (asdf::traverse (make-instance 'asdf:load-op)
-		   (asdf:find-system 'test-nested-components-a))
+                   (asdf:find-system 'test-nested-components-a))
    (asdf::traverse (make-instance 'asdf:load-op)
-		   (asdf:find-system 'test-nested-components-b))))
+                   (asdf:find-system 'test-nested-components-b))))
 
 |#
 

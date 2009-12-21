@@ -27,14 +27,14 @@
 
 (defun cvs-tag-name (system)
   (let* ((system (find-system system))
-	 (version (component-version system)))
+         (version (component-version system)))
     (format nil "release_~A"  (substitute #\_ #\. version))))
 
 (defun cvs-tag (system)
   (let* ((system (find-system system))
-	 (directory (component-pathname system)))
+         (directory (component-pathname system)))
     (run-shell-command "cd ~A && cvs tag -F ~A"
-		       (namestring directory)  (cvs-tag-name system))))
+                       (namestring directory)  (cvs-tag-name system))))
 
 
 (defun write-readme-file (stream suggested-registry system-name)
@@ -56,42 +56,42 @@ at your own peril.~%" suggested-registry suggested-registry system-name suggeste
 
 (defun write-package (system)
   (let* ((parent-dir
-	  (parse-namestring
-	   (format nil "/tmp/~A.~A/"
-		   #+sbcl (sb-unix:unix-getpid)
-		   #-sbcl (random 1000000)
-		   (get-internal-run-time))))
-	 (system (find-system system))
-	 (sub-dir-name
-	  (format nil "~A_~A"
-		  (component-name system) (component-version system)))
-	 (cvsroot-file
-	  (merge-pathnames "CVS/Root" (component-pathname system)))
-	 (old-pwd *default-pathname-defaults*)
-	 (*default-pathname-defaults* parent-dir))
+          (parse-namestring
+           (format nil "/tmp/~A.~A/"
+                   #+sbcl (sb-unix:unix-getpid)
+                   #-sbcl (random 1000000)
+                   (get-internal-run-time))))
+         (system (find-system system))
+         (sub-dir-name
+          (format nil "~A_~A"
+                  (component-name system) (component-version system)))
+         (cvsroot-file
+          (merge-pathnames "CVS/Root" (component-pathname system)))
+         (old-pwd *default-pathname-defaults*)
+         (*default-pathname-defaults* parent-dir))
     (ensure-directories-exist parent-dir)
     (cvs-tag system)
     (and
      (zerop (asdf:run-shell-command
-	     "cd ~A && cvs -d `cat ~A` checkout -d ~A -r ~A -kv ~A"
-	     (namestring parent-dir)
-	     (namestring cvsroot-file)
-	     sub-dir-name
-	     (cvs-tag-name system)
-	     (component-name system)))
+             "cd ~A && cvs -d `cat ~A` checkout -d ~A -r ~A -kv ~A"
+             (namestring parent-dir)
+             (namestring cvsroot-file)
+             sub-dir-name
+             (cvs-tag-name system)
+             (component-name system)))
      (with-open-file (o (format nil "~A/INSTALL.asdf" sub-dir-name)
-			:direction :output)
+                        :direction :output)
        (write-readme-file o "$HOME/lisp/systems/" (component-name system))
        t)
      (zerop (asdf:run-shell-command "cd ~A && tar cf ~A~A.tar ~A"
-				    (namestring parent-dir)
-				    (namestring old-pwd) sub-dir-name
-				    sub-dir-name))
+                                    (namestring parent-dir)
+                                    (namestring old-pwd) sub-dir-name
+                                    sub-dir-name))
      (zerop (asdf:run-shell-command
-	     "gzip -f9  ~A~A.tar"
-	     (namestring old-pwd) sub-dir-name))
+             "gzip -f9  ~A~A.tar"
+             (namestring old-pwd) sub-dir-name))
      (format t "Now run~%  gpg -b -a  ~A~A.tar.gz~%in a shell with a tty"
-	     (namestring old-pwd) sub-dir-name))))
+             (namestring old-pwd) sub-dir-name))))
 
 (defun class-name-of (x)
   (class-name (class-of x)))

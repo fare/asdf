@@ -10,8 +10,8 @@
 (exit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (defmethod asdf:preference-file-for-system/operation 
- 	   ((system (eql (asdf:find-system 'test1))) operation)
-  (merge-pathnames (make-pathname :name "test1" :type "preferences")))	   
+           ((system (eql (asdf:find-system 'test1))) operation)
+  (merge-pathnames (make-pathname :name "test1" :type "preferences")))     
  (asdf:operate 'asdf:load-op 'test1)
  (assert (null *test6*)))
 

@@ -33,7 +33,7 @@
   ;; Note how we use OUTPUT-FILES to find the binary locations
   ;; This allows the user to override the names.
   (let* ((input (output-files o c))
-	 (output (compile-file-pathname (first input) :type :fasl)))
+         (output (compile-file-pathname (first input) :type :fasl)))
     (c:build-fasl output :lisp-files (remove "fas" input :key #'pathname-type :test #'string=))))
 
 (defmethod perform ((o load-op) (c cl-source-file))
@@ -83,11 +83,11 @@
   ((type :initform :program)))
 
 (defmethod initialize-instance :after ((instance bundle-op) &rest initargs
-				       &key (name-suffix nil name-suffix-p)
-				       &allow-other-keys)
+                                       &key (name-suffix nil name-suffix-p)
+                                       &allow-other-keys)
   (unless name-suffix-p
     (setf (slot-value instance 'name-suffix)
-	  (if (bundle-op-monolithic-p instance) "-mono" "")))
+          (if (bundle-op-monolithic-p instance) "-mono" "")))
   (when (typep instance 'monolithic-bundle-op)
     (destructuring-bind (&rest original-initargs
                          &key prologue-code epilogue-code &allow-other-keys)
@@ -97,8 +97,8 @@
             (monolithic-op-prologue-code instance) prologue-code
             (monolithic-op-epilogue-code instance) epilogue-code)))
   (setf (bundle-op-build-args instance)
-	(remove-keys '(type monolithic name-suffix)
-		     (slot-value instance 'original-initargs))))
+        (remove-keys '(type monolithic name-suffix)
+                     (slot-value instance 'original-initargs))))
 
 (defvar *force-load-p* nil)
 
@@ -114,12 +114,12 @@
          (tree (traverse (make-instance 'load-op) system)))
     (append
      (loop for (op . component) in tree
-	when (and (typep op 'load-op)
-		  (typep component filter-type)
-		  (or (not filter-system) (eq (component-system component) filter-system)))
-	collect (progn
-		  (when (eq component system) (setf include-self nil))
-		  (cons operation component)))
+        when (and (typep op 'load-op)
+                  (typep component filter-type)
+                  (or (not filter-system) (eq (component-system component) filter-system)))
+        collect (progn
+                  (when (eq component system) (setf include-self nil))
+                  (cons operation component)))
      (and include-self (list (cons operation system))))))
 
 ;;;
@@ -150,8 +150,8 @@
 ;;;
 (defmethod bundle-sub-operations ((o lib-op) c)
   (gather-components 'compile-op c
-		     :filter-system (and (not (bundle-op-monolithic-p o)) c)
-		     :filter-type '(not system)))
+                     :filter-system (and (not (bundle-op-monolithic-p o)) c)
+                     :filter-type '(not system)))
 ;;;
 ;;; SHARED LIBRARIES
 ;;;
@@ -173,7 +173,7 @@
   (loop for (op . dep) in (bundle-sub-operations o c)
      when (typep dep 'system)
      collect (list (class-name (class-of op))
-		   (component-name dep))))
+                   (component-name dep))))
 
 (defmethod component-depends-on ((o lib-op) (c system))
   (list (list 'compile-op (component-name c))))
@@ -187,9 +187,9 @@
 
 (defmethod output-files ((o bundle-op) (c system))
   (let ((name (concatenate 'base-string (component-name c)
-			   (slot-value o 'name-suffix))))
+                           (slot-value o 'name-suffix))))
     (list (merge-pathnames (compile-file-pathname name :type (bundle-op-type o))
-			   (component-relative-pathname c)))))
+                           (component-relative-pathname c)))))
 
 (defmethod output-files ((o fasl-op) (c system))
   (loop for file in (call-next-method)
@@ -203,10 +203,10 @@
 
 (defmethod perform ((o bundle-op) (c system))
   (let* ((object-files (remove "fas" (input-files o c) :key #'pathname-type :test #'string=))
-	 (output (output-files o c)))
+         (output (output-files o c)))
     (ensure-directories-exist (first output))
     (apply #'c::builder (bundle-op-type o) (first output) :lisp-files object-files
-	   (append (bundle-op-build-args o)
+           (append (bundle-op-build-args o)
                    (when (and (typep o 'monolithic-bundle-op)
                               (monolithic-op-prologue-code o))
                      `(:prologue-code ,(monolithic-op-prologue-code o)))
@@ -229,8 +229,8 @@
 (defun make-build (system &rest args &key (monolithic nil) (type :fasl)
                    &allow-other-keys)
   (apply #'operate (select-operation monolithic type)
-	 system
-	 (remove-keys '(monolithic type) args)))
+         system
+         (remove-keys '(monolithic type) args)))
 
 ;;;
 ;;; LOAD-FASL-OP
