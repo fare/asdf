@@ -7,7 +7,7 @@ clnet_home      := "/project/asdf/public_html/"
 
 sourceDirectory := $(shell pwd)
 
-lisps = allegro allegromodern ccl clisp sbcl 
+lisps = allegro allegromodern ccl clisp sbcl
 
 ifndef lisp
 lisp := sbcl
@@ -17,7 +17,11 @@ endif
 
 install: archive-copy
 
+bump_revision: FORCE
+	bin/bump-revision-and-tag.sh
+
 archive: FORCE
+
 	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 		--eval "(rewrite-license)" --eval "(quit)"
 	bin/build-tarball.sh
@@ -27,6 +31,7 @@ archive-copy: archive
 	bin/link-tarball.sh $(clnet_home) $(user)
 	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
 	git push cl.net
+	git push --tags cl.net
 
 website-copy: FORCE
 	bin/rsync-cp.sh website/output/ $(webhome_private)
@@ -49,8 +54,7 @@ clean: FORCE
 	done
 
 test: FORCE
-	@cd test; ./run-tests.sh $(lisp) $(test-regex)
-	echo "My foot is $?"
+	@cd test; make clean;./run-tests.sh $(lisp) $(test-regex)
 
 test-all: FORCE
 	@for lisp in $(lisps); do \

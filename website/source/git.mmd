@@ -1,0 +1,45 @@
+## git recipes
+
+### sychronize with the central repository
+ 
+    # downloads the latest commits from CL.net
+    git fetch origin
+
+    # removes any local changes and synchronizes with 
+    # what we just downloaded from the remote repo
+    git reset --hard origin/master 
+
+
+## git resources
+
+Here are a few links that might be helpful to people learning
+git. Its culturally different than CVS; but once you learn
+it, there's no turning back. The ability to experiment with
+local branches, back up, rewrite history, and only publish
+the sanitized history is quite liberating.
+
+* http://progit.org/book/ (recommended)
+* http://tomayko.com/writings/the-thing-about-git
+* http://git-scm.com/documentation
+* http://www.kernel.org/pub/software/scm/git/docs/gittutorial.html
+* http://www.kernel.org/pub/software/scm/git/docs/everyday.html
+* http://www.kernel.org/pub/software/scm/git/docs/user-manual.html
+
+My suggestions
+
+*  always have `gitk --all` loaded for the repo you're working on
+
+* update (not reload) `gitk` after modifying any branches or
+  tags; this leaves the old objects displayed
+
+* `git reset --hard $OLDSHA1` can clean many messes, letting
+  you try again.
+
+* reload gitk to hide deleted branches you're comfortable
+  with losing
+
+* learn by playing around with local clones of a larger
+  repository
+
+* install some of the git contribs, especially
+  git-completion.bash and git-new-workdir

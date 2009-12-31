@@ -23,15 +23,15 @@
 (in-package #:common-lisp-user)
 
 (defpackage #:test-nested-components.system
-	    (:use #:common-lisp #:asdf))
+            (:use #:common-lisp #:asdf))
 
 (in-package #:test-nested-components.system)
 
 (defsystem test-nested-components-a
   :components 
   ((:module "nested-components"
-	    :pathname ""
-	    :components ((:file "test-nested-1")))))
+            :pathname ""
+            :components ((:file "test-nested-1")))))
 
 (defsystem test-nested-components-b
   :pathname ""
@@ -41,7 +41,7 @@
 (defsystem db-agraph-preflight
   :components 
   ((:module "preflight-checks"
-	    :components ((:file "preflight")))))
+            :components ((:file "preflight")))))
 
 (defsystem db-agraph-preflight-2
   :pathname "preflight-checks"

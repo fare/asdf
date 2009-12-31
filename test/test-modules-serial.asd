@@ -3,13 +3,13 @@
   :serial t
   :components
   ((:module "a"
-	    :serial t
- 	    :pathname "."
-	    :components
-	    ((:file "file1")
-	     (:file "file2")))
+            :serial t
+            :pathname "."
+            :components
+            ((:file "file1")
+             (:file "file2")))
    (:module "b"
-	    :pathname "b"
-	    :components
-	    ((:file "file3")))))
+            :pathname "b"
+            :components
+            ((:file "file3")))))
 

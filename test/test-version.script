@@ -8,7 +8,7 @@
 
 (in-package :test-version-system)
 
-(cl-user::exit-on-error 
+(cl-user::quit-on-error 
  (defsystem :versioned-system-1
    :pathname #.*default-pathname-defaults*
    :version "1.0")
@@ -22,8 +22,8 @@
    :version "1.2")
 
  (flet ((test (name v &optional (true t))
-	  (or (eq true (asdf::version-satisfies (find-system name) v))
-	      (error "no satisfaction: ~S version ~A not ~A" name v true))))
+          (or (eq true (asdf::version-satisfies (find-system name) v))
+              (error "no satisfaction: ~S version ~A not ~A" name v true))))
    (test :versioned-system-1 "1.0")
    (test :versioned-system-2 "1.0")
    (test :versioned-system-3 "2.0" nil))

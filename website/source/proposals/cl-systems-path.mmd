@@ -1,0 +1,96 @@
+
+# Proposal Summary
+
+These are independent but make the most sense if taken as a
+whole.
+
+ * Specify new defaults for `*central-registry*`,
+
+ * use an environment variable named `CL_SYSTEMS_PATH` to
+   override ASDF's defaults,
+
+ * use `*central-registry*` to find and load an ASDF
+   configuration file (if present) and
+
+ * modify the default behavior of
+   `sysdef-central-registry-search` to search deeply.
+
+##  default value for *central-registry*
+
+CL_SYSTEMS_PATH environment variable with syntax like
+
+    path[:path]* (on *nix)
+
+or
+
+    path[;path]* (on Windows)
+
+I.e., path designators separated by an OS dependent marker
+(colons or semi-colons). This is used by ASDF to help build
+the default value for `*central-registry*`. Each `path` will
+be interpreted as follows:
+
+* a `!` will be replaced by the default value (see below) so
+  that it is easy to extend the path rather than just
+  replacing it.
+
+* empty ones will be removed from the list,
+
+* since these represent _directories_, trailing slashes will
+  be added if necessary,
+
+* if the last component is a `*` or `**` then sub-directories
+  of this path will be searched recursively either one level
+  deep (if `*`) or all the way down (if `**`).
+
+If not specified, `*central-registry*` defaults to (on
+*nix-like systems):
+
+    (list
+      *default-pathname-defaults*
+      (merge-pathnames
+        (make-pathname :directory '(:relative ".common-lisp"))
+                       (user-homedir-pathname)))
+      (merge-pathnames
+        (make-pathname :directory '(:relative ".local" "share"  
+"common-lisp"))
+                       (user-homedir-pathname)))
+      (make-pathname :directory '(:absolute "usr" "local" "share"  
+"common-lisp"))
+      (make-pathname :directory '(:absolute "usr" "share" "common- 
+lisp"))
+      )
+
+
+(On a windows system, the last two would be replaced by
+c:\common-lisp and c:\windows\common-lisp).
+
+Note that this list would be automatically filtered for any
+entries for which the moral equivalent of `(ignore-errors
+(truename x))` fails.
+
+## modification for `sysdef-central-registry-search`
+
+Currently `sysdef-central-registry-search` searches in the
+top-level of each directory in `*central-registry*` to find
+systems. If we use the above, then a more useful approach
+would be to search in the top-level and in a sub-directory
+named `systems`. An even more useful approach would to search
+in all sub-directories of each entry.
+
+## configuration file
+
+When ASDF starts, it will:
+
+ 1. setup `*central-registry*` using its own defaults and the
+`CL_SYSTEMS_PATH` environment variable.
+
+ 2. look for and load the *first* file named
+`asdf-config.lisp` in each of these paths traversed in order
+(so that user settings take precedence over system ones).
+Note that the ASDF package will exist when this file is read.
+
+I.e., I'm suggesting "if there are any user settings, then
+ignore the system settings" one rather than the "user
+settings overwrite system settings".
+

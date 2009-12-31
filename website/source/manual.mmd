@@ -158,7 +158,8 @@ before the component in question has been compiled."}
                     | :serial [ t | nil ]
                     | :weakly-depends-on ( {dependency-def}* ) 
                     | :in-order-to ( {dependency}+ )
-    
+                    | :class symbol
+
     component-list := ( {component-def}* )
                     
     component-def  := component-name
@@ -790,6 +791,49 @@ way:
           ...
          )
 
+{anchor binary-locations}
+
+## Controlling where ASDF saves compiled files
+
+ASDF includes code to control where the binaries files are places. The location depends on the the Common Lisp implementation and platform. The getting-started guides summaries the variables that control the mapping. The details for each variable can be found below:
+
+#### Customization
+
+{anchor centralize-lisp-binaries}
+
+{docs *centralize-lisp-binaries*}
+
+{docs *default-toplevel-directory*}
+
+{docs *include-per-user-information*}
+
+{docs *map-all-source-files*}
+
+{docs *enable-asdf-binary-locations*}
+
+{docs *source-to-target-mappings*}
+
+{docs implementation-specific-directory-name}
+
+{docs output-files-for-system-and-operation}
+
+### Notes and Issues
+
+ * SBCL ships with several included ASDF libraries which used to confuse ABL because it would try to recompile the `FASL`s and then run into directory permission problems. ASDF knows about these and uses a mapping like `/usr/local/lib/sbcl` to `nil` so that the `FASL`s are not relocated. 
+
+## Special variables
+
+{docs *asdf-revision*}
+
+{docs *central-registry*}
+
+{docs *compile-file-warnings-behaviour*}
+
+{docs *compile-file-failure-behaviour*}
+
+{docs *resolve-symlinks*}
+
+{docs *system-definition-search-functions*}
 
 ##  Error handling
 

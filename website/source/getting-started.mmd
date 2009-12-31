@@ -88,6 +88,83 @@ or you can tell ASDF where to look to find them using the
 
 You'll need to set this variable up to match your system setup and will probably want to include it in your Lisp's startup script.
 
+## Controlling where ASDF saves compiled files
+
+Each Common Lisp implementation has its own format for
+compiled files (fasls for short). If you use multiple
+implementations (or multiple versions of the same
+implementation), you'll soon find your source directories
+littered with various `DFSL`s, `FASL`s, `CFSL`s and so on.
+Worse yet, some implementations use the same file extension
+or change formats from version to version which means that
+you'll have to recompile binaries as you switch from one
+implementation to the next. 
+
+As of version 1.365, ASDF includes [ASDF-binary-locations][asdf-binary-locations] to mitigate the problem. 
+ 
+#### Default Locations
+
+The default binary location for each Lisp implementation is a subdirectory of each source directory. To account for different Lisps, Operating Systems, Implementation versions, and so on, ASDF borrows code from [SLIME][] to create reasonable custom directory names. Here are some examples:
+
+ * SBCL, version 1.0 on Mac OS X for intel: sbcl-1.0-darwin-x86
+ 
+ * Franz Allegro, version 8.0, ANSI Common Lisp:  allegro-8.0a-macosx-x86
+ 
+ * Franz Allegro, version 8.1, Modern (case sensitive) Common Lisp: allegro-8.1m-macosx-x86
+ 
+If you want to keep `FASL` files out of source tree entirely \*centralize-lisp-binaries\*  to put compiled files into sub-directories of a single central location (see 
+
+ [cbl]: #centralize-lisp-binaries
+ 
+Here is a summary of the variables that control ASDF's source-to-binary mappings: 
+
+  * \*enable-asdf-binary-locations\*:
+    If false, then ASDF will place binaries in the same
+    directory as the source. If true, then ASDF will move the
+    binaries using the rest of the configuration. Defaults to
+    `nil`.
+
+  * \*centralize-lisp-binaries\*: If true, compiled lisp
+    files without an explicit mapping (see
+    \*source-to-target-mappings\*) will be placed in
+    subdirectories of \*default-toplevel-directory\*. If
+    false, then compiled lisp files without an explicit
+    mapping will be placed in subdirectories of their
+    sources. Defaults to `nil`.
+
+  * \*default-toplevel-directory\*. If
+    \*centralize-lisp-binaries\* is true, then compiled lisp
+    files without an explicit mapping (see
+    \*source-to-target-mappings\*) will be placed in
+    subdirectories of \*default-toplevel-directory\*.
+    Defaults to a sub-directory named `.fasls` in the current
+    user's home directory.
+
+  * \*include-per-user-information\*. specifies whether or
+    not to include user information in the directory. Only
+    used when \*centralize-lisp-binaries\* is true. Defaults
+    to `nil`.
+
+  * \*map-all-source-files\*. If true, then all source files
+    will be mapped by ASDF. If `nil`, then only Common
+    Lisp Source Files (i.e., instances of cl-source-file or
+    its subclasses) will be. Defaults to `nil`.
+
+  * \*source-to-target-mappings\*. This specifies mappings
+    from source to target. If the target is nil, then it
+    means to *not* map the source to anything. I.e., to leave
+    it as is. This has the effect of turning off
+    ASDF-Binary-Locations for the given source directory. The
+    default depends on the Lisp implementation.
+
+These variables are used by
+`output-files-for-system-and-operation` to determine where to
+place a source file's binary. You can further customize ABL
+by writing additional methods on the generic function
+`output-files-for-system-and-operation`.
+
+See the [manual][binary-locations] for more details.
+
 ## Summary
 
 To use ASDF:
