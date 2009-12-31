@@ -1,4 +1,4 @@
-cl-asdf (1:20091221-1) UNRELEASED; urgency=low
+cl-asdf (1:20091221-1) unstable; urgency=low
 
   * New upstream, version 1.374
 
