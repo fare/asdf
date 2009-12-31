@@ -1,3 +1,9 @@
+cl-asdf (1:20091221-2) UNRELEASED; urgency=low
+
+  * open for changes
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 31 Dec 2009 10:13:47 +0100
+
 cl-asdf (1:20091221-1) unstable; urgency=low
 
   * New upstream, version 1.374
