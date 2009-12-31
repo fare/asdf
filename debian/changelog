@@ -1,3 +1,9 @@
+cl-asdf (1:20091221-1) UNRELEASED; urgency=low
+
+  * New upstream, version 1.374
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 31 Dec 2009 08:36:15 +0100
+
 cl-asdf (1:20090819-3) unstable; urgency=low
 
   * Fixed the loop construct again. (Closes: #546205) 
