@@ -2229,15 +2229,11 @@ by PATHNAME-AS-DIRECTORY."
         dir
         (concatenate 'string dir "/"))))
 
-(defun recurse-directory (directory &optional (exclusions *default-exclusions*) undetect)
+(defun recurse-directory (directory &optional (exclusions *default-exclusions*))
   (declare (ignorable exclusions))
-  (let* ((f (directory (merge-pathnames
-                        (if undetect
-                          #P"**/*.*"
-                          (progn
-                            #+(or asdf sbcl) #P"**/*.asd"
-                            #+xcvb #P"**/*.xcvb"))
-                        directory)))
+  (let* ((f (directory (merge-pathnames #P"**/*.asd" directory)
+                       #+sbcl #+sbcl :resolve-symlinks nil
+                       #+clisp #+clisp :circle t))
          (dirs (remove-duplicates (mapcar #'pathname-directory f) :test #'equal)))
     (loop
      :for dir :in dirs
