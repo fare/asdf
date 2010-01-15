@@ -2177,21 +2177,6 @@ applied by the plain `*source-to-target-mappings*`."
 (defun expand-search-path (path)
   (mapcar #'pathname (expand-search-path-string path)))
 
-;; from cl-fad:fad.lisp
-(defun component-present-p (value)
-  "Helper function for DIRECTORY-PATHNAME-P which checks whether VALUE
-is neither NIL nor the keyword :UNSPECIFIC."
-  (and value (not (eql value :unspecific))))
-
-(defun directory-pathname-p (pathspec)
-  "Returns NIL if PATHSPEC \(a pathname designator) does not designate
-a directory, PATHSPEC otherwise.  It is irrelevant whether file or
-directory designated by PATHSPEC does actually exist."
-  (and 
-    (not (component-present-p (pathname-name pathspec)))
-    (not (component-present-p (pathname-type pathspec)))
-    pathspec))
-
 (defun pathname-as-directory (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to directory
 form."
