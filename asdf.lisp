@@ -2339,6 +2339,8 @@ with a different configuration, so the configuration would be re-read then."
       ((:tree)
        (destructuring-bind (pathname) rest
          (collect-asd-subdirectories pathname :collect collect)))
+      ((:exclude)
+       (setf *default-exclusions* rest))
       ((:default-registry)
        (default-registry))
       ((:inherit-configuration)
