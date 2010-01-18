@@ -433,16 +433,21 @@ and NIL NAME and TYPE components"
 
 (defun ensure-directory-pathname (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to directory form."
-  (let ((pathname (pathname pathspec)))
-    (when (wild-pathname-p pathname)
-      (error "Can't reliably convert wild pathnames."))
-    (if (directory-pathname-p pathname)
-        pathname
-        (make-pathname :directory (append (or (pathname-directory pathname)
-                                              (list :relative))
-                                          (list (file-namestring pathname)))
-                       :name nil :type nil :version nil
-                       :defaults pathname))))
+  (cond
+   ((stringp pathspec)
+    (pathname (concatenate 'string pathspec "/")))
+   ((not (pathnamep pathspec))
+    (error "Invalid pathname designator ~S" pathspec))
+   ((wild-pathname-p pathspec)
+    (error "Can't reliably convert wild pathnames."))
+   ((directory-pathname-p pathspec)
+    pathspec)
+   (t
+    (make-pathname :directory (append (or (pathname-directory pathspec)
+                                          (list :relative))
+                                      (list (file-namestring pathspec)))
+                   :name nil :type nil :version nil
+                   :defaults pathspec))))
 
 (defun file-exists-p (pathname)
   #+(or sbcl lispworks openmcl)
@@ -480,8 +485,21 @@ by ENSURE-DIRECTORY-PATHNAME."
          (directory-pathname-p result)
          result)))
 
-(defun every-string-p (x)
-  (every #'stringp x))
+(defun length=n-p (x n) ;is it that (= (length x) n) ?
+  (check-type n (integer 0 *))
+  (loop
+    :for l = x :then (cdr l)
+    :for i :downfrom n :do
+    (cond
+      ((zerop i) (return (null l)))
+      ((not (consp l)) (return nil)))))
+
+(defun ends-with (s suffix)
+  (check-type s string)
+  (check-type suffix string)
+  (let ((start (- (length s) (length suffix))))
+    (and (<= 0 start)
+         (string-equal s suffix :start1 start))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Classes, Conditions
@@ -1788,7 +1806,7 @@ See [implementation-specific-directory-name][] for details.")
   #-sbcl
   nil
   #+sbcl
-  (list (list (princ-to-string (sb-ext:posix-getenv "SBCL_HOME")) nil))
+  (list (list (princ-to-string (getenv "SBCL_HOME")) nil))
   "The \\*source-to-target-mappings\\* variable specifies mappings from source to target. If the target is nil, then it means to not map the source to anything. I.e., to leave it as is. This has the effect of turning off ASDF-Binary-Locations for the given source directory. Examples:
 
     ;; compile everything in .../src and below into .../cmucl
@@ -2075,7 +2093,7 @@ applied by the plain `*source-to-target-mappings*`."
           t))))
 
   (defun contrib-sysdef-search (system)
-    (let ((home (sb-ext:posix-getenv "SBCL_HOME")))
+    (let ((home (getenv "SBCL_HOME")))
       (when (and home (not (string= home "")))
         (let* ((name (coerce-name system))
                (home (truename home))
@@ -2089,7 +2107,7 @@ applied by the plain `*source-to-target-mappings*`."
           (probe-file contrib)))))
 
   (pushnew
-   '(let ((home (sb-ext:posix-getenv "SBCL_HOME")))
+   '(let ((home (getenv "SBCL_HOME")))
       (when (and home (not (string= home "")))
         (merge-pathnames "site-systems/" (truename home))))
    *central-registry*)
@@ -2165,223 +2183,174 @@ with a different configuration, so the configuration would be re-read then."
                          (when target
                            (return (pathname target))))))))))))))
 
-;; from xcvb/search-path
-(defun expand-search-path-string (string &optional (previous-path (source-registry)))
-  (cond
-    ((or (null string) (equal string ""))
-     previous-path)
-    ((stringp string)
-     (loop
-	 :with path = ()
-	 :with start = 0
-	 :with end = (length string)
-	 :for i = (or (position #\: string :start start) end) :do
-	 (let ((s (subseq string start i)))
-	   (cond
-	     ((equal "" s) ; empty element
-	      nil)
-	     ((equal "!" s) ; previous path
-	      (setf path (append (reverse previous-path) path)))
-	     (t
-	      (push s path))))
-	 (setf start (1+ i))
-	 (when (>= start end) (return (nreverse path)))))))
-
-(defun expand-search-path (path)
-  (mapcar #'pathname (expand-search-path-string path)))
-
-(defgeneric extract-registry-paths (type) (:documentation ""))
-
-(defmethod extract-registry-paths ((type (eql 'files)))
-  (let ((base "source-registry.conf")
-        (dirs (list (merge-pathnames ".config/common-lisp/" (user-homedir-pathname))
-                    (pathname "/etc/common-lisp/"))))
-    (loop :for dir :in dirs :collect
-          (merge-pathnames base dir))))
-
-(defmethod extract-registry-paths ((type (eql 'environment)))
-  (let ((source-path (getenv "CL_SOURCE_REGISTRY")))
-    (when source-path
-      (expand-search-path source-path))))
-
-(defmethod extract-registry-paths ((type (eql 'command-line)))
-  nil)
-
-(defun directive-validator (directive)
-  (ecase (first directive)
-    ((:include) #'file-exists-p)
-    ((:directory :tree) #'directory-exists-p)
-    ((:exclude) #'every-string-p)
-    ((:default-registry
-      :inherit-configuration
-      :ignore-inherited-configuration) nil)))
-
-(defun ensure-directory-trailing-slash (directory)
-  (let ((dir (if (stringp directory) directory (namestring directory))))
-    (if (char= #\/ (aref dir (- (length dir) 1)))
-        dir
-        (concatenate 'string dir "/"))))
-
-(defun recurse-directory (directory &optional (exclusions *default-exclusions*))
-  (declare (ignorable exclusions))
-  (let* ((f (directory (merge-pathnames #P"**/*.asd" directory)
-                       #+sbcl #+sbcl :resolve-symlinks nil
-                       #+clisp #+clisp :circle t))
-         (dirs (remove-duplicates (mapcar #'pathname-directory f) :test #'equal)))
-    (loop
-     :for dir :in dirs
-     :for d = (namestring (make-pathname :directory dir))
-     :unless (loop :for exclusion :in exclusions :when (search exclusion d) :return t)
-     :collect d)))
-
 (defun read-file-forms (file)
   (with-open-file (in file)
     (loop :with eof = (list nil)
      :for form = (read in nil eof)
-     :and form-count :from 0
      :until (eq form eof)
-     :collect form :into forms
-     :finally (return (values forms form-count)))))
+     :collect form)))
 
-;; (define-condition malformed-init-file-error (error))
+(defun validate-source-registry-directive (directive)
+  (or
+   (destructuring-bind (kw &rest rest) directive
+     (case kw
+       ((:include :directory :tree)
+        (and (length=n-p rest 1)
+             (typep (car rest) '(or pathname string))))
+       ((:exclude)
+        (every #'stringp rest))
+       ((:default-registry :inherit-configuration :ignore-inherited-configuration)
+        (null rest))))
+   (error "Invalid directive ~S~%" directive)))
 
-(defun validate-directive (directive)
-  (let ((fn (directive-validator directive)))
-    (destructuring-bind (type &rest rest)
-        directive
-      (if (and (keywordp type)
-               (not (null rest)))
-           (loop :for dir :in rest
-                 :when (null (funcall fn dir))
-                 :do (error "~A: Invalid value for directive ~S~%" dir (first directive)))))))
+(defun validate-source-registry-form (form)
+  (unless (and (consp form) (eq (car form) :source-registry))
+    (error "Error: Form is not a source registry ~S~%" form))
+  (loop :with inherit = 0
+        :for directive :in (cdr form) :do
+        (unless (consp directive)
+          (error "invalid directive ~S" directive))
+        (when (member (car directive)
+                      '(:inherit-configuration :ignore-inherited-configuration))
+          (incf inherit))
+        (validate-source-registry-directive directive)
+        :finally
+        (unless (= inherit 1)
+          (error "One and only one of :inherit-configuration or :ignore-inherited-configuration is required")))
+  form)
 
-(defun validate-file (file)
-  (multiple-value-bind (registry count)
-      (read-file-forms file)
-    (cond ((> count 1)
-           (error "~A:~%Exceeds maximum allowable expression: 1" file))
-          ((< (length (first registry)) 2)
-           (error "Error: Invalid top-level registry~%"))
-          ((= count 1)
-           (destructuring-bind (((top &rest rest)) c)
-               (list registry count)
-             (declare (ignore c))
-             (when (not (eql top :source-registry))
-               (error "~A: ~A:~%Invalid top-level directive~%" file top))
-             (let ((accept-present (find :inherit-configuration
-                                         rest :key #'first))
-                   (ignore-present (find :ignore-inherited-configuration
-                                         rest :key #'first)))
-               (when (and accept-present ignore-present)
-                 (error "~A:~%Both ~S and ~S~%cannot exist in the same file.~%"
-                        file
-                        :inherit-configuration
-                        :ignore-inherited-configuration))
-               (unless (or accept-present ignore-present)
-                 (error "~A:~%One of ~S or ~S~%directives not found.~%"
-                        file
-                        :inherit-configuration
-                        :ignore-inherited-configuration)))
-             (loop :for dir :in rest
-                :do (validate-directive dir))))
-          (t (error "Error: Unhandled condition")))))
+(defun validate-source-registry-file (file)
+  (let ((forms (read-file-forms file)))
+    (unless (length=n-p forms 1)
+      (error "Only and only one form allowed for source registry. Got: ~S~%" forms))
+    (validate-source-registry-form (car forms))))
 
-(defun acquire-paths (path &optional recurse)
-  (when (directory-exists-p path)
-    (let ((p (ensure-directory-trailing-slash path)))
-      (if recurse
-          (recurse-directory p)
-        (list p)))))
+(defun parse-source-registry-string (string)
+  (cond
+    ((or (null string) (equal string ""))
+     '(:source-registry :inherit-configuration))
+    ((not (stringp string))
+     (error "environment string isn't: ~S" string))
+    ((eql (char string 0) #\()
+     (validate-source-registry-form (read-from-string string)))
+    (t
+     (loop
+      :with inherit = nil
+      :with directives = ()
+      :with start = 0
+      :with end = (length string)
+      :for i = (or (position #\: string :start start) end) :do
+      (let ((s (subseq string start i)))
+        (cond
+         ((equal "" s) ; empty element
+          nil)
+         ((equal "!" s) ; inherit
+          (when inherit
+            (error "only one inherited configuration allowed: ~S" string))
+          (setf inherit t)
+          (push '(:inherit-configuration) directives))
+         ((ends-with s "//")
+          (push `(:tree ,(subseq s 0 (1- (length s)))) directives))
+         (t
+          (push `(:directory ,s) directives)))
+         (setf start (1+ i))
+         (when (>= start end)
+           (unless inherit
+             (push '(:ignore-inherited-configuration) directives))
+           (return `(:source-registry ,(nreverse directives)))))))))
 
-;; TODO: remove duplicates, but won't it be expensive to have duplicates
-;; removed everytime a new item is to be added?
-(defun add-path-to-source-registry (path &optional recurse)
-  (let* ((dirs (acquire-paths path recurse))
-         ;; (file (when (file-exists-p path) path))
-         ;; (paths (or dirs file))
-         (paths dirs))
-    (when paths
-      (setf (source-registry)
-            (append (source-registry) paths))
-      (source-registry))))
+(defun collect-asd-subdirectories (directory &key (exclude *default-exclusions*) collect)
+  (let* ((files (directory (merge-pathnames #P"**/*.asd" directory)
+                       #+sbcl #+sbcl :resolve-symlinks nil
+                       #+clisp #+clisp :circle t))
+         (dirs (remove-duplicates (mapcar #'pathname-sans-name+type files) :test #'equal)))
+    (loop
+     :for dir :in dirs
+     :unless (loop :for x :in exclude
+                   :thereis (find x (pathname-directory dir) :test #'equal))
+     :do (funcall collect dir))))
 
-(defun add-paths-to-source-registry (paths &optional recurse)
-  (loop
-   :for path :in paths
-   :collect (add-path-to-source-registry path recurse)))
+(defparameter *default-source-registries*
+  '(process-environment-source-registry
+    process-user-source-registry
+    process-system-source-registry
+    process-default-source-registry))
 
-(defun collect-path (path &optional recurse)
-  (let* ((dirs (acquire-paths path recurse))
-         ;; (file (when (file-exists-p path) path))
-         ;; (p (or dir file)
-         (paths dirs))
-    (when paths
-      paths)))
+(defun source-registry-under (directory)
+  (merge-pathnames "common-lisp/source-registry.conf" directory))
+(defun user-source-registry-pathname ()
+  (source-registry-under (merge-pathnames ".config/" (user-homedir-pathname))))
+(defun system-source-registry-pathname ()
+  (source-registry-under "/etc/"))
 
-(defun collect-paths (paths &optional recurse)
-  (loop
-   :for path :in paths
-   :nconc (collect-path path recurse)))
+(defun process-environment-source-registry (&key inherit collect)
+  (process-source-registry (getenv "CL_SOURCE_REGISTRY")
+                           :inherit inherit :collect collect))
+(defun process-user-source-registry (&key inherit collect)
+  (process-source-registry (user-source-registry-pathname)
+                           :inherit inherit :collect collect))
+(defun process-system-source-registry (&key inherit collect)
+  (process-source-registry (system-source-registry-pathname)
+                           :inherit inherit :collect collect))
+(defun process-default-source-registry (&key inherit collect)
+  (declare (ignore inherit collect))
+  nil)
 
-(defun read-directive (directive)
-  (cond ((stringp directive)
-         (read-from-string directive))
-        ((consp directive)
-         directive)
-        (t (error "Error: Unhandled condition."))))
+(defgeneric process-source-registry (spec &key inherit collect))
+(defmethod process-source-registry ((pathname pathname) &key inherit collect)
+  (if (probe-file pathname)
+    (process-source-registry (validate-source-registry-file pathname)
+                             :inherit inherit :collect collect)
+    (inherit-source-registry inherit :collect collect)))
+(defmethod process-source-registry ((string string) &key inherit collect)
+  (process-source-registry (parse-source-registry-string string)
+                           :inherit inherit :collect collect))
+(defmethod process-source-registry ((x null) &key inherit collect)
+  (inherit-source-registry inherit :collect collect))
 
-;; If X is a CONS, parse it as a SEXP in the configuration DSL, and
-;; extend or override inheritted configuration.  If X is a STRING,
-;; first parse it into a SEXP with READ (Alternate proposal: parse
-;; some shell-friendly text representation).  The inheritted
-;; configuration is provided in optional argument inherit, itself a
-;; function that returns the previous configuration, with NIL
-;; designating the default of #'ensure-source-registry.  Internally,
-;; initialize-source-registry-configuration can use this with a series
-;; of functions for inheritted configuration.
-(defun process-source-registry (directive &optional (inherit #'source-registry))
-  (declare (ignorable inherit))
-  (let ((reg (funcall inherit))
-        (dir (read-directive directive)))
-    (declare (ignorable reg))
-    (when dir
-      (destructuring-bind (type &rest rest)
-          dir
-        (ecase type
-          ((:include)
-           (process-source-registry-paths rest))
-          ((:directory)
-           (collect-paths rest))
-          ((:tree)
-           (collect-paths rest t))
-          ((:default-registry)
-           (default-registry))
-          ((:inherit-configuration)
-           (when reg
-             (collect-paths reg)))
-          ((:ignore-inherited-configuration)
-           nil))))))
+(defun make-collector ()
+  (let ((acc ()))
+    (values (lambda (x) (push x acc))
+            (lambda () (reverse acc)))))
 
-(defun process-source-registry-path (path)
-  (when (probe-file path)
-    (validate-file path)
-    (loop :for entry :in (cdar (read-file-forms path))
-      :nconc (process-source-registry entry))))
+(defmethod process-source-registry ((form cons) &key inherit collect)
+  (multiple-value-bind (collect result)
+      (if collect
+          (values collect (constantly nil))
+        (make-collector))
+    (let ((*default-exclusions* *default-exclusions*))
+      (dolist (directive (cdr (validate-source-registry-form form)))
+        (process-source-registry-directive directive :inherit inherit :collect collect)))
+    (funcall result)))
 
-(defun process-source-registry-paths (paths)
-  (loop :for path :in paths
-    :nconc (process-source-registry-path path)))
+(defun inherit-source-registry (inherit &key collect)
+  (when inherit
+    (funcall (first inherit) :collect collect :inherit (rest inherit))))
+
+(defun process-source-registry-directive (directive &key inherit collect)
+  (destructuring-bind (kw &rest rest) directive
+    (ecase kw
+      ((:include)
+       (destructuring-bind (pathname) rest
+         (process-source-registry (pathname pathname) :inherit inherit :collect collect)))
+      ((:directory)
+       (destructuring-bind (pathname) rest
+         (funcall collect (ensure-directory-pathname pathname))))
+      ((:tree)
+       (destructuring-bind (pathname) rest
+         (collect-asd-subdirectories pathname :collect collect)))
+      ((:default-registry)
+       (default-registry))
+      ((:inherit-configuration)
+       (inherit-source-registry inherit :collect collect))
+      ((:ignore-inherited-configuration)
+       nil))))
 
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.
 (defun initialize-source-registry ()
-  (let* ((sources (or (extract-registry-paths 'command-line)
-                      (extract-registry-paths 'environment)
-                      (extract-registry-paths 'files)))
-         (registry (process-source-registry-paths sources)))
-    (when registry
-      (setf (source-registry) (remove-duplicates registry :test #'equal)))
-    (source-registry)))
+  (setf (source-registry)
+        (inherit-source-registry *default-source-registries*)))
 
 ;; checks an initial variable to see whether the state is initialized
 ;; or cleared. In the former case, return current configuration; in
