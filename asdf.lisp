@@ -137,7 +137,12 @@
            #:*map-all-source-files*
            #:output-files-for-system-and-operation
            #:*enable-asdf-binary-locations*
-           #:implementation-specific-directory-name)
+           #:implementation-specific-directory-name
+
+           #:initialize-source-registry
+           #:clear-source-registry
+           #:ensure-source-registry
+           #:process-source-registry)
   (:intern #:coerce-name
            #:getenv
            #:system-registered-p
@@ -426,6 +431,57 @@ and NIL NAME and TYPE components"
   #+ecl
   (si:getenv x))
 
+(defun ensure-directory-pathname (pathspec)
+  "Converts the non-wild pathname designator PATHSPEC to directory form."
+  (let ((pathname (pathname pathspec)))
+    (when (wild-pathname-p pathname)
+      (error "Can't reliably convert wild pathnames."))
+    (if (directory-pathname-p pathname)
+        pathname
+        (make-pathname :directory (append (or (pathname-directory pathname)
+                                              (list :relative))
+                                          (list (file-namestring pathname)))
+                       :name nil :type nil :version nil
+                       :defaults pathname))))
+
+(defun file-exists-p (pathname)
+  #+(or sbcl lispworks openmcl)
+  (probe-file pathname)
+
+  #+(or allegro cmu)
+  (or (probe-file (ensure-directory-pathname pathname))
+      (probe-file pathname))
+
+  #+clisp
+  (or (ignore-errors
+        (probe-file (pathname-as-file pathname)))
+      (ignore-errors
+        (let ((directory-form (ensure-directory-pathname pathname)))
+          (when (ext:probe-directory directory-form)
+            directory-form))))
+
+  #-(or sbcl cmu lispworks openmcl allegro clisp)
+  (error "list-directory not implemented"))
+
+(defun directory-exists-p (pathspec)
+  "Checks whether the file named by the pathname designator PATHSPEC
+exists and if it is a directory.  Returns its truename if this is the
+case, NIL otherwise.  The truename is returned in directory form as if
+by ENSURE-DIRECTORY-PATHNAME."
+  #+:allegro
+  (and (excl:probe-directory pathspec)
+       (ensure-directory-pathname (truename pathspec)))
+  #+:lispworks
+  (and (lw:file-directory-p pathspec)
+       (ensure-directory-pathname (truename pathspec)))
+  #-(or :allegro :lispworks)
+  (let ((result (file-exists-p pathspec)))
+    (and result
+         (directory-pathname-p result)
+         result)))
+
+(defun every-string-p (x)
+  (every #'stringp x))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Classes, Conditions
@@ -688,15 +744,6 @@ actually-existing directory."
                               :test 'equal)))))
     (and (check-one (pathname-name pathname))
          (check-one (pathname-type pathname)))))
-
-(defun ensure-directory-pathname (pathname)
-  (if (directory-pathname-p pathname)
-      pathname
-      (make-pathname :defaults pathname
-                     :directory (append
-                                 (pathname-directory pathname)
-                                 (list (file-namestring pathname)))
-                     :name nil :type nil :version nil)))
 
 (defun sysdef-central-registry-search (system)
   (let ((name (coerce-name system))
@@ -2143,60 +2190,6 @@ with a different configuration, so the configuration would be re-read then."
 (defun expand-search-path (path)
   (mapcar #'pathname (expand-search-path-string path)))
 
-(defun pathname-as-directory (pathspec)
-  "Converts the non-wild pathname designator PATHSPEC to directory
-form."
-  (let ((pathname (pathname pathspec)))
-    (when (wild-pathname-p pathname)
-      (error "Can't reliably convert wild pathnames."))
-    (cond ((not (directory-pathname-p pathspec))
-           (make-pathname :directory (append (or (pathname-directory pathname)
-                                                 (list :relative))
-                                             (list (file-namestring pathname)))
-                          :name nil
-                          :type nil
-                          :defaults pathname))
-          (t pathname))))
-
-(defun file-exists-p (pathname)
-  #+(or sbcl lispworks openmcl)
-  (probe-file pathname)
-
-  #+(or allegro cmu)
-  (or (probe-file (pathname-as-directory pathname))
-      (probe-file pathname))
-
-  #+clisp
-  (or (ignore-errors
-        (probe-file (pathname-as-file pathname)))
-      (ignore-errors
-        (let ((directory-form (pathname-as-directory pathname)))
-          (when (ext:probe-directory directory-form)
-            directory-form))))
-
-  #-(or sbcl cmu lispworks openmcl allegro clisp)
-  (error "list-directory not implemented"))
-
-(defun directory-exists-p (pathspec)
-  "Checks whether the file named by the pathname designator PATHSPEC
-exists and if it is a directory.  Returns its truename if this is the
-case, NIL otherwise.  The truename is returned in directory form as if
-by PATHNAME-AS-DIRECTORY."
-  #+:allegro
-  (and (excl:probe-directory pathspec)
-       (pathname-as-directory (truename pathspec)))
-  #+:lispworks
-  (and (lw:file-directory-p pathspec)
-       (pathname-as-directory (truename pathspec)))
-  #-(or :allegro :lispworks)
-  (let ((result (file-exists-p pathspec)))
-    (and result
-         (directory-pathname-p result)
-         result)))
-
-(defun every-string-p (x)
-  (every #'stringp x))
-
 (defgeneric extract-registry-paths (type) (:documentation ""))
 
 (defmethod extract-registry-paths ((type (eql 'files)))
@@ -2220,7 +2213,7 @@ by PATHNAME-AS-DIRECTORY."
     ((:directory :tree) #'directory-exists-p)
     ((:exclude) #'every-string-p)
     ((:default-registry
-      :accept-inherited-configuration
+      :inherit-configuration
       :ignore-inherited-configuration) nil)))
 
 (defun ensure-directory-trailing-slash (directory)
@@ -2241,7 +2234,7 @@ by PATHNAME-AS-DIRECTORY."
      :unless (loop :for exclusion :in exclusions :when (search exclusion d) :return t)
      :collect d)))
 
-(defun read-file (file)
+(defun read-file-forms (file)
   (with-open-file (in file)
     (loop :with eof = (list nil)
      :for form = (read in nil eof)
@@ -2264,7 +2257,7 @@ by PATHNAME-AS-DIRECTORY."
 
 (defun validate-file (file)
   (multiple-value-bind (registry count)
-      (read-file file)
+      (read-file-forms file)
     (cond ((> count 1)
            (error "~A:~%Exceeds maximum allowable expression: 1" file))
           ((< (length (first registry)) 2)
@@ -2275,19 +2268,19 @@ by PATHNAME-AS-DIRECTORY."
              (declare (ignore c))
              (when (not (eql top :source-registry))
                (error "~A: ~A:~%Invalid top-level directive~%" file top))
-             (let ((accept-present (find :accept-inherited-configuration
+             (let ((accept-present (find :inherit-configuration
                                          rest :key #'first))
                    (ignore-present (find :ignore-inherited-configuration
                                          rest :key #'first)))
                (when (and accept-present ignore-present)
                  (error "~A:~%Both ~S and ~S~%cannot exist in the same file.~%"
                         file
-                        :accept-inherited-configuration
+                        :inherit-configuration
                         :ignore-inherited-configuration))
                (unless (or accept-present ignore-present)
                  (error "~A:~%One of ~S or ~S~%directives not found.~%"
                         file
-                        :accept-inherited-configuration
+                        :inherit-configuration
                         :ignore-inherited-configuration)))
              (loop :for dir :in rest
                 :do (validate-directive dir))))
@@ -2363,7 +2356,7 @@ by PATHNAME-AS-DIRECTORY."
            (collect-paths rest t))
           ((:default-registry)
            (default-registry))
-          ((:accept-inherited-configuration)
+          ((:inherit-configuration)
            (when reg
              (collect-paths reg)))
           ((:ignore-inherited-configuration)
@@ -2372,19 +2365,12 @@ by PATHNAME-AS-DIRECTORY."
 (defun process-source-registry-path (path)
   (when (probe-file path)
     (validate-file path)
-    (multiple-value-bind (registry count)
-        (read-file path)
-      (destructuring-bind (((top &rest rest)) c)
-          (list registry count)
-        (declare (ignore c)
-                 (ignorable top))
-        (loop
-          :for reg :in rest
-          :nconc (process-source-registry reg))))))
+    (loop :for entry :in (cdar (read-file-forms path))
+      :nconc (process-source-registry entry))))
 
 (defun process-source-registry-paths (paths)
   (loop :for path :in paths
-        :nconc (process-source-registry-path path)))
+    :nconc (process-source-registry-path path)))
 
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.

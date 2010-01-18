@@ -1,0 +1,210 @@
+General Idea
+============
+
+The general idea is that in configuration files such as
+	/etc/common-lisp/source-registry.conf
+	~/.config/common-lisp/source-registry.conf
+will be a SEXP in a trival domain-specific language
+to specify a search path.
+
+Backwards Compatibility
+=======================
+
+Now comes the issue of backwards compatibility with the current
+asdf:*central-registry* that currently has to be manually configured
+by users or supplemental layer (e.g. common-lisp-controller).
+
+My proposal is that there would be a new (private) variable
+	common-lisp-configuration::*source-registry*
+that would store a parsed version of the configuration
+as an undocumented opaque data-structure
+(except for the private use of ASDF and XCVB),
+only accessible through API functions and said DSL.
+One magic directive in that DSL, present by default in the configuration,
+	:default-registry
+would hook into the implementation defaults, which would include
+the searching of asdf:*central-registry* until it is eventually removed.
+Uses of asdf:*central-registry* would be deprecated,
+but still supported for many years to come for backwards compatibility.
+
+The same DSL could be recognized by ASDF, XCVB, and any other future
+build system for Common Lisp.
+
+Alternatives I considered and rejected included:
+
+1- Keep asdf:*central-registry* as the master with its current semantics,
+   and somehow the configuration parser expands the new configuration
+   language into a expanded series of directories of subdirectories to
+   lookup, pre-recursing through specified hierarchies. This is kludgy,
+   and leaves little space of future cleanups and extensions.
+
+2- Keep asdf:*central-registry* remains the master but extend its semantics
+   in completely new ways, so that new kinds of entries may be implemented
+   as a recursive search, etc. This seems somewhat backwards.
+
+3- Completely remove asdf:*central-registry* and break backwards compatibility.
+   Hopefully this will happen in a few years after everyone migrate to
+   a better ASDF and/or to XCVB, but it would be very bad to do it now.
+
+4- Replace asdf:*central-registry* by a symbol-macro with appropriate magic
+   when you dereference it or setf it. Only the new variable with new
+   semantics is handled by the new search procedure.
+
+
+Configuration DSL
+=================
+
+Here is the grammar of the SEXP DSL I am considering for configuration:
+
+;; A configuration is single SEXP starting with keyword :source-registry
+;; followed by a list of directives.
+CONFIGURATION := (:source-registry DIRECTIVE ...)
+
+;; A directive is one of the following:
+DIRECTIVE :=
+    ;; add a single directory to be scanned (no recursion)
+    (:directory DIRECTORY-PATHNAME-DESIGNATOR) |
+
+    ;; add a directory hierarchy, recursing but excluding specified patterns
+    (:tree DIRECTORY-PATHNAME-DESIGNATOR &key exclude) |
+
+    ;; override the default defaults for exclusion patterns
+    (:exclude-subdirectories PATTERN ...) |
+
+    ;; splice the parsed contents of another config file
+    (:include-configuration REGULAR-FILE-PATHNAME-DESIGNATOR) |
+
+    ;; Your configuration expression MUST have contain exactly one of these:
+    (:inherit-configuration) | ; splices contents of inherited configuration
+    (:ignore-inherited-configuration) ; drop contents of inherited configuration
+
+    ;; This directive specifies that some default must be spliced.
+    (:default-registry)
+
+PATTERN := a string without wildcards, that will be matched exactly
+	against the name of a subdirectory.
+
+
+Configuration Files
+===================
+
+Following a suggestion by Stelian, the configuration should be read in
+this order, each configuration containing an expression that may extend
+or override the previous configuration:
+	file /etc/common-lisp/source-registry.conf
+        file ~/.config/common-lisp/source-registry.conf
+        environment variable CL_SOURCE_REGISTRY
+        some implementation- or application- specific command-line argument.
+
+Equivalently (since the DSL doesn't allow for uncontrolled side-effects),
+the outermost configuration only would be parsed,
+and recursing to previous configurations would only happen
+if and when specified.
+
+This also leaves the question of whether environment variable and
+command-line arguments should take the same SEXP syntax (to be READ),
+or whether they should have some more shell-friendly textual
+representation of the same information. Allowing for a different
+representation is probably more work for marginally more feature,
+and I don't recommend it. So, in the end, the same SEXP syntax
+for shell variables and command-line arguments.
+
+
+Configuration API
+=================
+
+This API is exported from package COMMON-LISP-CONFIGURATION.
+
+(initialize-source-registry)
+   will read the configuration and initialize all internal variables,
+   and return the new configuration.
+
+(clear-source-registry)
+   undoes any initialization. You might want to call that before you
+   dump an image that would be resumed with a different configuration,
+   and return an empty configuration.
+   Also will have a hook that allows clients will use to clear any cache
+   that depends on this configuration.
+
+(ensure-source-registry)
+   checks an initial variable to see whether the state is initialized
+   or cleared. In the former case, return current configuration;
+   in the latter, initialize.
+   ASDF will call this function at the start of (asdf:find-system).
+
+(process-source-registry X &optional inherit)
+   If X is a CONS, parse it as a SEXP in the configuration DSL,
+   and extend or override inheritted configuration.
+   If X is a STRING, first parse it into a SEXP with READ
+   (Alternate proposal: parse some shell-friendly text representation).
+   The inheritted configuration is provided in optional argument inherit,
+   itself a function that returns the previous configuration, with NIL
+   designating the default of #'ensure-source-registry-configuration.
+   Internally, initialize-source-registry-configuration can use this
+   with a series of functions for inheritted configuration.
+
+
+Search Algorithm
+================
+
+* When a system is searched for, entries are processed in order.
+
+* If a given entry has exactly one match, the search stops successfully.
+  If a given entry contains no match, it is skipped.
+  If a given entry contains multiple matches, an error is thrown.
+
+* This later case does not change the semantics of ASDF in the case
+  where no recursion takes place, and ensures no undetected insanity
+  happens in the case where recursion is specified. XCVB has tested
+  this model, with success I believe.
+
+* When an entry is first processed, the implementation may cache
+  the contents of the directory (i.e. all files that may match anything.)
+  until the cache is explicitly flushed (see below).
+
+
+Cache flushing
+==============
+
+* The cache is flushed when function
+  (asdf:clear-system-search-cache)
+  is called.
+
+* When the configuration is (re)loaded, the cache is flushed.
+
+
+Questioned Niceties
+===================
+
+I've been suggested the below features, but have rejected them,
+for the sake of keeping ASDF no more complex than strictly necessary.
+
+* More syntactic sugar: synonyms for the configuration directives, such as
+  (:add-directory X) for (:directory X), or (:add-directory-hierarchy X)
+  or (:add-directory X :recurse t) for (:tree X).
+
+* The possibility to register individual files instead of directories.
+
+* Integrate Xach Beane's tilde expander into the parser,
+  or something similar that is shell-friendly or shell-compatible.
+  I'd rather keep ASDF minimal. But maybe this precisely keeps it
+  minimal by removing the need for evaluated entries that ASDF has?
+  i.e. uses of USER-HOMEDIR-PATHNAME and $SBCL_HOME
+  Hopefully, these are already superseded by the :default-registry
+
+* We may allow a shell-friendly colon-separated text-based syntax
+  for environment variables and command-line arguments.
+  If we only accept directories, not files, then all provided strings should
+  be considered with implicit / at the end before being parsed by
+  parse-namestring or such. An explicit // (as in TEXINPUTS) or /**
+  (as in zsh or some (non-standard) CL pathname extensions, but
+  requiring painful quotes from the shell) could specify recursion.
+
+
+Additional Notes
+================
+
+With this specification, we can share configuration between ASDF and XCVB,
+and maintain reasonable backwards compatibility in ASDF.
+
+ -- Francois-Rene Rideau <fare@tunes.org>, Sun, 17 Jan 2010 15:53:31 -0500
