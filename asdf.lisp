@@ -2121,9 +2121,8 @@ applied by the plain `*source-to-target-mappings*`."
   (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
 
 ;;;; -----------------------------------------------------------------
-;;;; TODO: Read Configuration.
+;;;; Source Registry Configuration. See README.source-registry
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485918
-
 ;;;; TODO: add protocols for re-searching a loaded system in the registry,
 ;;;; for invalidating registry entries, etc.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
@@ -2154,8 +2153,6 @@ applied by the plain `*source-to-target-mappings*`."
   "Undoes any initialization of the source registry.
 You might want to call that before you dump an image that would be resumed
 with a different configuration, so the configuration would be re-read then."
-  ;; TODO: in the future, have a hook that clients will use to clear any cache
-  ;; that depends on this configuration.
   (setf *source-registry* '())
   (values))
 
@@ -2242,9 +2239,7 @@ with a different configuration, so the configuration would be re-read then."
       :for i = (or (position #\: string :start start) end) :do
       (let ((s (subseq string start i)))
         (cond
-         ((equal "" s) ; empty element
-          nil)
-         ((equal "!" s) ; inherit
+         ((equal "" s) ; empty element: inherit
           (when inherit
             (error "only one inherited configuration allowed: ~S" string))
           (setf inherit t)
@@ -2297,15 +2292,21 @@ with a different configuration, so the configuration would be re-read then."
   nil)
 
 (defgeneric process-source-registry (spec &key inherit collect))
-(defmethod process-source-registry ((pathname pathname) &key inherit collect)
+(defmethod process-source-registry ((pathname pathname) &key
+                                    (inherit *default-source-registries*)
+                                    collect)
   (if (probe-file pathname)
     (process-source-registry (validate-source-registry-file pathname)
                              :inherit inherit :collect collect)
     (inherit-source-registry inherit :collect collect)))
-(defmethod process-source-registry ((string string) &key inherit collect)
+(defmethod process-source-registry ((string string) &key
+                                    (inherit *default-source-registries*)
+                                    collect)
   (process-source-registry (parse-source-registry-string string)
                            :inherit inherit :collect collect))
-(defmethod process-source-registry ((x null) &key inherit collect)
+(defmethod process-source-registry ((x null) &key
+                                    (inherit *default-source-registries*)
+                                    collect)
   (inherit-source-registry inherit :collect collect))
 
 (defun make-collector ()
@@ -2313,7 +2314,9 @@ with a different configuration, so the configuration would be re-read then."
     (values (lambda (x) (push x acc))
             (lambda () (reverse acc)))))
 
-(defmethod process-source-registry ((form cons) &key inherit collect)
+(defmethod process-source-registry ((form cons) &key
+                                    (inherit *default-source-registries*)
+                                    collect)
   (multiple-value-bind (collect result)
       (if collect
           (values collect (constantly nil))
