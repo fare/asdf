@@ -449,42 +449,6 @@ and NIL NAME and TYPE components"
                    :name nil :type nil :version nil
                    :defaults pathspec))))
 
-(defun file-exists-p (pathname)
-  #+(or sbcl lispworks openmcl)
-  (probe-file pathname)
-
-  #+(or allegro cmu)
-  (or (probe-file (ensure-directory-pathname pathname))
-      (probe-file pathname))
-
-  #+clisp
-  (or (ignore-errors
-        (probe-file (pathname-as-file pathname)))
-      (ignore-errors
-        (let ((directory-form (ensure-directory-pathname pathname)))
-          (when (ext:probe-directory directory-form)
-            directory-form))))
-
-  #-(or sbcl cmu lispworks openmcl allegro clisp)
-  (error "list-directory not implemented"))
-
-(defun directory-exists-p (pathspec)
-  "Checks whether the file named by the pathname designator PATHSPEC
-exists and if it is a directory.  Returns its truename if this is the
-case, NIL otherwise.  The truename is returned in directory form as if
-by ENSURE-DIRECTORY-PATHNAME."
-  #+:allegro
-  (and (excl:probe-directory pathspec)
-       (ensure-directory-pathname (truename pathspec)))
-  #+:lispworks
-  (and (lw:file-directory-p pathspec)
-       (ensure-directory-pathname (truename pathspec)))
-  #-(or :allegro :lispworks)
-  (let ((result (file-exists-p pathspec)))
-    (and result
-         (directory-pathname-p result)
-         result)))
-
 (defun length=n-p (x n) ;is it that (= (length x) n) ?
   (check-type n (integer 0 *))
   (loop
@@ -2121,11 +2085,8 @@ applied by the plain `*source-to-target-mappings*`."
   (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
 
 ;;;; -----------------------------------------------------------------
-;;;; Source Registry Configuration. See README.source-registry
-;;;; See https://bugs.launchpad.net/asdf/+bug/485918
-;;;; TODO: add protocols for re-searching a loaded system in the registry,
-;;;; for invalidating registry entries, etc.
-;;;; See https://bugs.launchpad.net/asdf/+bug/485687
+;;;; Source Registry Configuration, by Francois-Rene Rideau
+;;;; See README.source-registry and https://bugs.launchpad.net/asdf/+bug/485918
 
 (pushnew 'sysdef-source-registry-search *system-definition-search-functions*)
 
