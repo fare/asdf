@@ -74,6 +74,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Compilation error and warning handling::
 * Miscellaneous additional functionality::
 * Getting the latest version::
+* FAQ::
 * TODO list::
 * missing bits in implementation::
 * Inspiration::
@@ -610,7 +611,7 @@ is a nice thing to specialise operation methods on and easier than
 having them all be EQL methods.
 
 Operations are invoked on systems via @code{operate}.
-
+@anchor{operate}
 @deffn {Generic function} operate operation system &rest initargs
 @deffnx {Generic function} oos operation system &rest initargs
 @code{operate} invokes @var{operation} on @var{system}.  @code{oos}
@@ -678,6 +679,7 @@ If you are creating a component type, you need to implement this
 operation - at least, where meaningful.
 @end deffn
 
+@anchor{test-op}
 @deffn Operation test-op
 
 This operation will perform some tests on the module.  The default
@@ -1276,7 +1278,7 @@ location of the system's source file and the relative pathname. For example
 @end enumerate
 
 
-@node Getting the latest version, TODO list, Miscellaneous additional functionality, Top
+@node Getting the latest version, FAQ, Miscellaneous additional functionality, Top
 @comment  node-name,  next,  previous,  up
 @chapter Getting the latest version
 
@@ -1296,8 +1298,108 @@ You will find the above referenced tags in this repository.
 Discussion of ASDF development is conducted on the mailing list
 @kbd{asdf-devel@@common-lisp.net}.
 
-@node  TODO list, missing bits in implementation, Getting the latest version, Top
+@node FAQ, TODO list, missing bits in implementation, Getting the latest version, Top
 @comment  node-name,  next,  previous,  up
+@chapter FAQ
+
+
+@itemize
+@item ``My Common Lisp implementation comes with an outdated version of ASDF. What to do?''
+
+More up-to-date versions of ASDF are distributed with an @file{asdf.asd}
+file, and @emph{should} load cleanly on top of older versions.  So you
+should be able to load this definition file (or add its pathname to your
+@code{asdf:*central-registry*} variable), and then do:
+@example
+(asdf:oos 'asdf:load-op :asdf)
+@end example
+
+If this does not work, it is a bug, and you should report it
+(@pxref{FAQ, report-bugs, Where do I report a bug}).
+
+
+@item ``How can I cater for unit-testing in my system?''
+
+ASDF provides a predefined test operation, @code{test-op}.
+@xref{Predefined operations of asdf, test-op}.
+The test operation, however, is largely left to the system definer to specify.
+@code{test-op} has been
+a topic of considerable discussion on the asdf-devel mailing list, and
+on the launchpad bug-tracker.
+
+Here are some guidelines:
+
+@itemize
+@item
+For a given system, @var{foo}, you will want to define a corresponding
+test system, such as @var{foo-test}.  The reason that you will want this
+separate system is that ASDF does not out of the box supply components
+that are conditionally loaded.  So if you want to have source files
+(with the test definitions) that will not be loaded except when testing,
+they should be put elsewhere.
+
+@item
+The @var{foo-test} system can be defined in an asd file of its own or
+together with @var{foo}.  An aesthetic preference against cluttering up
+the filesystem with extra asd files should be balanced against the
+question of whether one might want to directly load @var{foo-test}.
+Typically one would not want to do this except in early stages of
+debugging.
+
+@item
+Record that testing is implemented by @var{foo-test}.  For example:
+@example
+(defsystem @var{foo}
+   :in-order-to ((test-op (test-op @var{foo-test})))
+   ....)
+
+(defsystem @var{foo-test}
+   :depends-on (@var{foo} @var{my-test-library} ...)
+   ....)
+@end example
+@end itemize
+
+This procedure will allow you to support users who do not wish to
+install your test framework.
+
+One oddity of ASDF is that @code{operate} (@pxref{Operations,operate})
+does not return a value.  So in current versions of ASDF there is no
+reliable programmatic means of determining whether or not a set of tests
+has passed, or which tests have failed.  The user must simply read the
+console output.  This limitation has been the subject of much
+discussion.
+
+item ``How can I cater for documentation generation in my system?''
+
+The ASDF developers are currently working to add a @code{doc-op} to the
+set of predefined ASDF operations (@pxref{Predefined operations of
+asdf}).  See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
+
+@item ``How can I customize where fasl files are stored?''
+
+@xref{Controlling where ASDF saves compiled files}.
+
+Note that in the past there was an add-on to ASDF called
+ASDF-binary-locations, developed by Gary King.  That add-on has been
+merged into ASDF proper.
+
+Note that use of asdf-binary-locations can interfere with one aspect of
+your systems --- if your system uses @code{*load-truename*} to find
+files (e.g., if you have some data files stored with your program), then
+the relocation that this ASDF customization performs is likely to
+interfere.
+
+@item ``How can I maintain non-Lisp (e.g. C) source files?''
+
+@anchor{report-bugs}
+@item  Where do I report a bug?
+
+ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
+
+@end itemize
+
+@node  TODO list, missing bits in implementation, FAQ, Top
+comment  node-name,  next,  previous,  up
 @chapter TODO list
 
 * Outstanding spec questions, things to add
