@@ -1,6 +1,6 @@
-cl-asdf (1:20091221-2) UNRELEASED; urgency=low
+cl-asdf (2:1.375-1~rc1) UNRELEASED; urgency=low
 
-  * open for changes
+  * new upstream, back to version numbers.
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 31 Dec 2009 10:13:47 +0100
 
