@@ -21,3 +21,4 @@ lift-local.config
 *.fas 
 *.lib
 *.o
+*.*fsl
