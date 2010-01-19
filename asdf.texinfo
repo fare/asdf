@@ -1298,7 +1298,7 @@ You will find the above referenced tags in this repository.
 Discussion of ASDF development is conducted on the mailing list
 @kbd{asdf-devel@@common-lisp.net}.
 
-@node FAQ, TODO list, missing bits in implementation, Getting the latest version, Top
+@node FAQ, TODO list, Getting the latest version, Top
 @comment  node-name,  next,  previous,  up
 @chapter FAQ
 
