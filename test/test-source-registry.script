@@ -1,0 +1,96 @@
+(load "script-support")
+(load "../asdf")
+
+;; TODO:
+;; - test for conditions
+
+(defpackage :test-source-registry
+  (:use #:cl #:asdf))
+
+(in-package :test-source-registry)
+
+(defun getenv (x)
+  #+sbcl
+  (sb-posix:getenv x))
+
+(defun setenv (x v)
+  #+sbcl
+  (sb-posix:putenv
+   (concatenate 'string x "=" v)))
+
+(defmacro with-gensyms ((&rest names) &body body)
+  `(let ,(loop for n in names collect `(,n (gensym)))
+     ,@body))
+
+(defmacro with-env-var ((key value) &rest rest)
+  (with-gensyms (key-save)
+    `(let ((,key-save ,(getenv key)))
+       (unwind-protect
+            (progn
+              (setenv ,key ,value)
+              ,@rest)
+         (progn
+           (setenv ,key ,key-save))))))
+
+(defun make-temporary-directory ()
+  (let ((str (with-output-to-string (s)
+               (sb-ext:run-program "mktemp" '("-d") :search t :output s))))
+    (concatenate 'string
+                 (string-trim '(#\newline) str) "/")))
+
+(defvar *base-directory* (make-temporary-directory))
+
+(defun home-directory (&optional (base *base-directory*))
+  (let ((s (namestring (user-homedir-pathname))))
+    (merge-pathnames (subseq s 1 (length s)) base)))
+(defun system-directory (&optional (base *base-directory*))
+  (merge-pathnames "etc/" base))
+(defun tmp-directory (&optional (base *base-directory*))
+  (merge-pathnames "tmp/" base))
+
+(defun home-source-registry ()
+  (source-registry-under (merge-pathnames ".config/" (home-directory))))
+(defun system-source-registry ()
+  (source-registry-under (system-directory)))
+
+
+(defvar *asd-temp-path-1*
+  (merge-temp-under (tmp-directory))
+(defvar *system-source-registry-config*
+  `(:source-registry
+    (:inherit-configuration)
+    (:tree ,*asd-temp-path-1*)))
+(defvar *asd-temp-path-2*
+  (namestring (tmp-directory)))
+(defvar *home-source-registry-config*
+  `(:source-registry
+    (:inhert-configuration)
+    (:directory ,(namestring (tmp-directory)))))
+
+(defun write-registry-file (file contents)
+  (with-open-file (out file
+                       :direction :output
+                       :if-exists :supersede)
+    (with-standard-io-syntax 
+      (format out "~S" contents))))
+(defun write-system-source-registry-config ()
+  (write-registry-file (system-source-registry)
+                       *system-source-registry-config*))
+(defun write-home-source-registry-config ()
+  (write-registry-file (home-source-registry)
+                       *home-source-registry-config*))
+
+(defun merge-temp-under (path)
+  (namestring
+   (merge-pathnames
+    (let ((s (string-downcase
+              (prin1-to-string (gentemp)))))
+      (concatenate 'string s "/"))
+    path)))
+
+;; test environment variable
+
+;; test files
+
+(cl-user::quit-on-error
+ ...)
