@@ -23,7 +23,7 @@
 ;;;  http://www.opensource.org/licenses/mit-license.html on or about
 ;;;  Monday; July 13, 2009)
 ;;;
-;;; Copyright (c) 2001-2009 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2010 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -395,19 +395,15 @@ and NIL NAME and TYPE components"
          (values relative (butlast components) last-comp))))))
 
 (defun remove-keys (key-names args)
-  (loop for (name val) on args by #'cddr
-        unless (member (symbol-name name) key-names
-                       :key #'symbol-name :test 'equal)
-        append (list name val)))
+  (loop :for (name val) :on args :by #'cddr
+    :unless (member (symbol-name name) key-names
+                    :key #'symbol-name :test 'equal)
+    :append (list name val)))
 
-(defun remove-keyword (key arglist)
-  (labels ((aux (key arglist)
-             (cond ((null arglist) nil)
-                   ((eq key (car arglist)) (cddr arglist))
-                   (t (cons (car arglist) (cons (cadr arglist)
-                                                (remove-keyword
-                                                 key (cddr arglist))))))))
-    (aux key arglist)))
+(defun remove-keyword (key args)
+  (loop :for (k v) :on args :by #'cddr
+    :unless (eq k key)
+    :append (list k v)))
 
 (defun resolve-symlinks (path)
   #-allegro (truename path)
@@ -1099,26 +1095,26 @@ to `~a` which is not a directory.~@:>"
       (setf (visiting-component operation c) t)
       (unwind-protect
            (progn
-             (loop for (required-op . deps) in
-                  (component-depends-on operation c)
-                  do (do-dep required-op deps))
+             (loop :for (required-op . deps) :in
+               (component-depends-on operation c)
+               :do (do-dep required-op deps))
              ;; constituent bits
              (let ((module-ops
                     (when (typep c 'module)
                       (let ((at-least-one nil)
                             (forced nil)
                             (error nil))
-                        (loop for kid in (module-components c)
-                           do (handler-case
-                                  (appendf forced (traverse operation kid ))
-                                (missing-dependency (condition)
-                                  (if (eq (module-if-component-dep-fails c)
-                                          :fail)
-                                      (error condition))
-                                  (setf error condition))
-                                (:no-error (c)
-                                  (declare (ignore c))
-                                  (setf at-least-one t))))
+                        (dolist (kid (module-components c))
+                          (handler-case
+                              (appendf forced (traverse operation kid ))
+                            (missing-dependency (condition)
+                              (if (eq (module-if-component-dep-fails c)
+                                      :fail)
+                                  (error condition))
+                              (setf error condition))
+                            (:no-error (c)
+                              (declare (ignore c))
+                              (setf at-least-one t))))
                         (when (and (eq (module-if-component-dep-fails c)
                                        :try-next)
                                    (not at-least-one))
@@ -1136,8 +1132,8 @@ to `~a` which is not a directory.~@:>"
                                               :test #'string=)))))
                  (let ((do-first (cdr (assoc (class-name (class-of operation))
                                              (component-do-first c)))))
-                   (loop for (required-op . deps) in do-first
-                      do (do-dep required-op deps)))
+                   (loop :for (required-op . deps) :in do-first
+                     :do (do-dep required-op deps)))
                  (setf forced (append (delete 'pruned-op forced :key #'car)
                                       (delete 'pruned-op module-ops :key #'car)
                                       (list (cons operation c)))))))
@@ -1228,8 +1224,8 @@ to `~a` which is not a directory.~@:>"
 
 (defmethod perform around ((o load-op) (c cl-source-file))
   (let ((state :initial))
-    (loop until (or (eq state :success)
-                    (eq state :failure)) do
+    (loop :until (or (eq state :success)
+                     (eq state :failure)) :do
          (case state
            (:recompiled
             (setf state :failure)
@@ -1248,8 +1244,8 @@ to `~a` which is not a directory.~@:>"
 
 (defmethod perform around ((o compile-op) (c cl-source-file))
   (let ((state :initial))
-    (loop until (or (eq state :success)
-                    (eq state :failure)) do
+    (loop :until (or (eq state :success)
+                     (eq state :failure)) :do
          (case state
            (:recompiled
             (setf state :failure)
@@ -1346,26 +1342,26 @@ to `~a` which is not a directory.~@:>"
       (error 'missing-component-of-version :requires system :version version))
     (let ((steps (traverse op system)))
       (with-compilation-unit ()
-        (loop for (op . component) in steps do
-                 (loop
-                   (restart-case
-                       (progn (perform op component)
-                              (return))
-                     (retry ()
-                       :report
-                       (lambda (s)
-                         (format s "~@<Retry performing ~S on ~S.~@:>"
-                                 op component)))
-                     (accept ()
-                       :report
-                       (lambda (s)
-                         (format s "~@<Continue, treating ~S on ~S as ~
+        (loop :for (op . component) :in steps :do
+          (loop
+            (restart-case
+                (progn (perform op component)
+                       (return))
+              (retry ()
+                :report
+                (lambda (s)
+                  (format s "~@<Retry performing ~S on ~S.~@:>"
+                          op component)))
+              (accept ()
+                :report
+                (lambda (s)
+                  (format s "~@<Continue, treating ~S on ~S as ~
                                    having been successful.~@:>"
-                                 op component))
-                       (setf (gethash (type-of op)
-                                      (component-operation-times component))
-                             (get-universal-time))
-                       (return)))))))
+                          op component))
+                (setf (gethash (type-of op)
+                               (component-operation-times component))
+                      (get-universal-time))
+                (return)))))))
     op))
 
 (defun oos (operation-class system &rest args &key force (verbose t) version
@@ -1531,30 +1527,30 @@ Returns the new tree (which probably shares structure with the old one)"
                             type name in-order-to)))
 
 (defun %remove-component-inline-methods (component)
-  (loop for name in +asdf-methods+
-        do (map 'nil
-                ;; this is inefficient as most of the stored
-                ;; methods will not be for this particular gf n
-                ;; But this is hardly performance-critical
-                (lambda (m)
-                  (remove-method (symbol-function name) m))
-                (component-inline-methods component)))
+  (dolist (name +asdf-methods+)
+    (map ()
+         ;; this is inefficient as most of the stored
+         ;; methods will not be for this particular gf n
+         ;; But this is hardly performance-critical
+         (lambda (m)
+           (remove-method (symbol-function name) m))
+         (component-inline-methods component)))
   ;; clear methods, then add the new ones
   (setf (component-inline-methods component) nil))
 
 (defun %define-component-inline-methods (ret rest)
-  (loop for name in +asdf-methods+ do
-       (let ((keyword (intern (symbol-name name) :keyword)))
-         (loop for data = rest then (cddr data)
-              for key = (first data)
-              for value = (second data)
-              while data
-              when (eq key keyword) do
-              (destructuring-bind (op qual (o c) &body body) value
-              (pushnew
-                 (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
-                                   ,@body))
-                 (component-inline-methods ret)))))))
+  (dolist (name +asdf-methods+)
+    (let ((keyword (intern (symbol-name name) :keyword)))
+      (loop :for data = rest :then (cddr data)
+        :for key = (first data)
+        :for value = (second data)
+        :while data
+        :when (eq key keyword) :do
+        (destructuring-bind (op qual (o c) &body body) value
+          (pushnew
+           (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
+                             ,@body))
+           (component-inline-methods ret)))))))
 
 (defun %refresh-component-inline-methods (component rest)
   (%remove-component-inline-methods component)
@@ -1609,23 +1605,22 @@ Returns the new tree (which probably shares structure with the old one)"
                        (module-default-component-class parent))))
         (let ((*serial-depends-on* nil))
           (setf (module-components ret)
-                (loop for c-form in components
-                      for c = (parse-component-form ret c-form)
-                      collect c
-                      if serial
-                      do (push (component-name c) *serial-depends-on*))))
+                (loop :for c-form :in components
+                  :for c = (parse-component-form ret c-form)
+                  :collect c
+                  :if serial
+                  :do (push (component-name c) *serial-depends-on*))))
 
         ;; check for duplicate names
         (let ((name-hash (make-hash-table :test #'equal)))
-          (loop for c in (module-components ret)
-                do
-                (if (gethash (component-name c)
-                             name-hash)
-                    (error 'duplicate-names
-                           :name (component-name c))
-                    (setf (gethash (component-name c)
-                                   name-hash)
-                          t)))))
+          (loop :for c in (module-components ret) :do
+            (if (gethash (component-name c)
+                         name-hash)
+                (error 'duplicate-names
+                       :name (component-name c))
+                (setf (gethash (component-name c)
+                               name-hash)
+                      t)))))
 
       (setf (component-in-order-to ret)
             (union-of-dependencies
@@ -1860,8 +1855,8 @@ operating system, and hardware architecture."
                               (let ((feature (find subf *features*)))
                                 (when feature (return-from fp (first thing))))))))
                        (first-of (features)
-                         (loop for f in features
-                            when (fp f) return it))
+                         (loop :for f :in features
+                           :when (fp f) :return :it))
                        (maybe-warn (value fstring &rest args)
                          (cond (value)
                                (t (apply #'warn fstring args)
@@ -1898,12 +1893,11 @@ follow that.  For example, if SBCL is installed under a symlink, and
 SBCL_HOME is set through that symlink, the default rule above
 preventing SBCL contribs from being mapped elsewhere will not be
 applied by the plain `*source-to-target-mappings*`."
-  (loop for mapping in asdf:*source-to-target-mappings*
-        for (source target) = mapping
-        for true-source = (and source (resolve-symlinks source))
-        if (equal source true-source)
-          collect mapping
-        else append (list mapping (list true-source target))))
+  (loop :for mapping :in asdf:*source-to-target-mappings*
+    :for (source target) = mapping
+    :for true-source = (and source (resolve-symlinks source))
+    :if (equal source true-source) :collect mapping
+    :else :append (list mapping (list true-source target))))
 
 (defmethod output-files-for-system-and-operation
            ((system system) operation component source possible-paths)
@@ -1914,43 +1908,42 @@ applied by the plain `*source-to-target-mappings*`."
 (defmethod output-files-using-mappings (source possible-paths path-mappings)
   (mapcar
    (lambda (path)
-     (loop for (from to) in path-mappings
-        when (pathname-prefix-p from source)
-        do (return
-             (if to
-                 (merge-pathnames
-                  (make-pathname :type (pathname-type path))
-                  (merge-pathnames (enough-namestring source from)
-                                   to))
-                 path))
-
-        finally
-          (return
-            ;; Instead of just returning the path when we
-            ;; don't find a mapping, we stick stuff into
-            ;; the appropriate binary directory based on
-            ;; the implementation
-            (if *centralize-lisp-binaries*
-                (merge-pathnames
-                 (make-pathname
-                  :type (pathname-type path)
-                  :directory `(:relative
-                               ,@(cond ((eq *include-per-user-information* t)
-                                        (cdr (pathname-directory
-                                              (user-homedir-pathname))))
-                                       ((not (null *include-per-user-information*))
-                                        (list *include-per-user-information*)))
-                               ,@(implementation-specific-directory-name)
-                               ,@(rest (pathname-directory path)))
-                  :defaults path)
-                 *default-toplevel-directory*)
-                (make-pathname
-                 :type (pathname-type path)
-                 :directory (append
-                             (pathname-directory path)
-                             (implementation-specific-directory-name))
-                 :defaults path)))))
-          possible-paths))
+     (loop :for (from to) :in path-mappings
+       :when (pathname-prefix-p from source)
+       :return
+       (if to
+           (merge-pathnames
+            (make-pathname :type (pathname-type path))
+            (merge-pathnames (enough-namestring source from)
+                             to))
+           path)
+       :finally
+       (return
+         ;; Instead of just returning the path when we
+         ;; don't find a mapping, we stick stuff into
+         ;; the appropriate binary directory based on
+         ;; the implementation
+         (if *centralize-lisp-binaries*
+             (merge-pathnames
+              (make-pathname
+               :type (pathname-type path)
+               :directory `(:relative
+                            ,@(cond ((eq *include-per-user-information* t)
+                                     (cdr (pathname-directory
+                                           (user-homedir-pathname))))
+                                    ((not (null *include-per-user-information*))
+                                     (list *include-per-user-information*)))
+                            ,@(implementation-specific-directory-name)
+                            ,@(rest (pathname-directory path)))
+               :defaults path)
+              *default-toplevel-directory*)
+             (make-pathname
+              :type (pathname-type path)
+              :directory (append
+                          (pathname-directory path)
+                          (implementation-specific-directory-name))
+              :defaults path)))))
+   possible-paths))
 
 (defmethod output-files
     :around ((operation compile-op) (component source-file))
@@ -1976,18 +1969,14 @@ applied by the plain `*source-to-target-mappings*`."
 
 (defun read-null-terminated-string (s)
   (with-output-to-string (out)
-    (loop
-        for code = (read-byte s)
-        until (zerop code)
-        do (write-char (code-char code) out))))
+    (loop :for code = (read-byte s)
+      :until (zerop code)
+      :do (write-char (code-char code) out))))
 
 (defun read-little-endian (s &optional (bytes 4))
-  (let ((result 0))
-    (loop
-        for i from 0 below bytes
-        do
-          (setf result (logior result (ash (read-byte s) (* 8 i)))))
-    result))
+  (loop
+    :for i :from 0 :below bytes
+    :sum (ash (read-byte s) (* 8 i))))
 
 (defun parse-file-location-info (s)
   (let ((start (file-position s))
@@ -2144,7 +2133,9 @@ with a different configuration, so the configuration would be re-read then."
     (validate-source-registry-form (car forms))))
 
 (defun validate-source-registry-directory (directory)
-  (let ((files (sort (directory (merge-pathnames "*.*" directory)
+  (let ((files (sort (directory (merge-pathnames
+                                 (make-pathname :name :wild :type :wild)
+                                 directory)
                                 #+sbcl :resolve-symlinks #+sbcl nil)
                      #'string< :key #'namestring)))
     `(:source-registry
@@ -2182,7 +2173,7 @@ with a different configuration, so the configuration would be re-read then."
          (when (>= start end)
            (unless inherit
              (push '(:ignore-inherited-configuration) directives))
-           (return `(:source-registry ,(nreverse directives)))))))))
+           (return `(:source-registry ,@(nreverse directives)))))))))
 
 (defun collect-asd-subdirectories (directory &key (exclude *default-exclusions*) collect)
   (let* ((files (directory (merge-pathnames #P"**/*.asd" directory)
