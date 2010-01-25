@@ -26,11 +26,21 @@ Configurations specify paths where to find system files.
      if it exists.
 
   4- The source registry will be configured from
+     user configuration directory
+	``~/.config/common-lisp/source-registry.conf.d/``
+     if it exists.
+
+  5- The source registry will be configured from
      system configuration file
 	``/etc/common-lisp/source-registry.conf``
      if it exists.
 
-  5- The source registry will be configured from a default configuration,
+  6- The source registry will be configured from
+     system configuration file
+	``/etc/common-lisp/source-registry.conf.d/``
+     if it exists.
+
+  7- The source registry will be configured from a default configuration,
      which allows for implementation-specific software to be searched.
      (See below `Backward Compatibility`_).
 
@@ -44,16 +54,17 @@ Backward Compatibility
 ======================
 
 For backward compatibility, ASDF will fall back to its old ways
+of searching for ``.asd`` files in the directories specified in
+``asdf:*central-registry*``
 if it fails to find a configuration for the source registry, or
 if it fails to find a requested system in the configured source registry.
 This new mechanism will therefore not affect you if you don't use it,
 but will take precedence over the old mechanism if you do use it.
 
-For the record, with the old mechanism, ASDF will first look
-(on SBCL only) for a matching system in the implementation-specific
-``contrib`` directory. Then (on all implementations) it will look
-at your ``asdf:*central-registry*`` and search in the directories
-specified there.
+Moreover, when using SBCL, now as before, ASDF will first look
+for a matching system in the implementation-specific ``contrib`` directory.
+This allows for some magic implementation-provided systems
+to be loaded specially in a version that matches your implementation.
 
 
 Configuration DSL
@@ -79,7 +90,8 @@ DIRECTIVE :=
     ;; splice the parsed contents of another config file
     (:include REGULAR-FILE-PATHNAME-DESIGNATOR) |
 
-    ;; Your configuration expression MUST contain exactly one of either of these:
+    ;; Your configuration expression MUST contain
+    ;; exactly one of either of these:
     (:inherit-configuration) | ; splices contents of inherited configuration
     (:ignore-inherited-configuration) ; drop contents of inherited configuration
 
@@ -87,8 +99,27 @@ DIRECTIVE :=
     (:default-registry)
 
 PATTERN := a string without wildcards, that will be matched exactly
-	against the name of a any subdirectory in the directory component of a path.
-        e.g. "_darcs" will match #p"/foo/bar/_darcs/src/bar.asd"
+	against the name of a any subdirectory in the directory component
+        of a path. e.g. "_darcs" will match #p"/foo/bar/_darcs/src/bar.asd"
+
+
+Configuration Directories
+=========================
+
+Configuration directories consist in files each contains
+a list of directives without any enclosing ``(:source-registry ...)`` form.
+The files will be sorted by namestring as if by #'string< and
+the lists of directives of these files with be concatenated in order.
+An implicit ``:inherit-configuration`` will be included
+at the end of the list.
+
+This allows for packaging software with has file granularity
+(e.g. Debian's ``dpkg`` or some future version of ``clbuild``)
+to easily include configuration information about distributed software.
+
+Directories may be included by specifying a directory pathname
+or namestring in an ``:include`` directive, e.g.::
+	(:include "/foo/bar/")
 
 
 Shell-friendly syntax for configuration
@@ -104,17 +135,20 @@ as ``:`` (colon) separated list of paths, where
   * each entry is a directory to add to the search path.
 
   * if the entry ends with a double slash ``//``
-    then it instead indicates a tree in the subdirectories of which to recurse.
+    then it instead indicates a tree in the subdirectories
+    of which to recurse.
 
   * if the entry is the empty string (which may only appear once),
-    then it indicates that the inherited configuration should be spliced there.
+    then it indicates that the inherited configuration should be
+    spliced there.
 
 
 Search Algorithm
 ================
 
 In case that isn't clear, the semantics of the configuration is that
-when searching for a system of a given name, directives are processed in order.
+when searching for a system of a given name,
+directives are processed in order.
 
 When looking in a directory, if the system is found, the search succeeds,
 otherwise it continues.
@@ -135,15 +169,16 @@ Include statements cause the search to recurse with the path specifications
 from the file specified.
 
 An inherit-configuration statement cause the search to recurse with the path
-specifications from the next configuration (see section Configurations_ above).
+specifications from the next configuration
+(see section Configurations_ above).
 
 
 Caching Results
 ===============
 
 The implementation is allowed to either eagerly compute the information
-from the configurations and file system, or to lazily re-compute it every time,
-or to cache any part of it as it goes.
+from the configurations and file system, or to lazily re-compute it
+every time, or to cache any part of it as it goes.
 To explicitly flush any information cached by the system, use the API below.
 
 
@@ -163,8 +198,9 @@ and for XCVB the corresponding functions are in package XCVB.
    You might want to call that before you
    dump an image that would be resumed with a different configuration,
    and return an empty configuration.
-   Note that this does not include clearing information about systems defined
-   in the current image, only about where to look for systems not yet defined.
+   Note that this does not include clearing information about
+   systems defined in the current image, only about
+   where to look for systems not yet defined.
 
 (ensure-source-registry)
    checks whether a source registry has been initialized.
@@ -177,12 +213,15 @@ and for XCVB the corresponding functions are in package XCVB.
 (process-source-registry X &key inherit collect)
    If X is a CONS, parse it as a SEXP in the configuration DSL,
    and extend or override inheritted configuration.
-   If X is a STRING, first parse it into a SEXP as for the CL_SOURCE_REGISTRY
+   If X is a STRING, first parse it into a SEXP
+   as for the CL_SOURCE_REGISTRY
    environment variable (see above) then process it.
    If X is a PATHNAME, read the file as a single SEXP and process it.
    The inheritted configuration is provided in keyword argument inherit,
-   itself a list of functions that take inherit and collect keyword arguments
-   and defaulting to a list of functions that implements the default behavior.
+   itself a list of functions that take inherit
+   and collect keyword arguments
+   and defaulting to a list of functions
+   that implements the default behavior.
 
 
 Future
@@ -214,7 +253,8 @@ Alternatives I considered and rejected included:
    in completely new ways, so that new kinds of entries may be implemented
    as a recursive search, etc. This seems somewhat backwards.
 
-3- Completely remove asdf:*central-registry* and break backwards compatibility.
+3- Completely remove asdf:*central-registry*
+   and break backwards compatibility.
    Hopefully this will happen in a few years after everyone migrate to
    a better ASDF and/or to XCVB, but it would be very bad to do it now.
 
@@ -254,4 +294,4 @@ Thanks to Rommel Martinez for the initial implementation attempt.
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
- -- Francois-Rene Rideau <fare@tunes.org>, Mon, 18 Jan 2010 14:12:57 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>, Sun, 24 Jan 2010 20:54:19 -0500
