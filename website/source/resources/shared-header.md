@@ -1,4 +1,4 @@
-{include shared-links.md}
+{include "shared-links.md"}
 
 {set-property html yes}
 {set-property author "the ASDF group"}
@@ -17,19 +17,19 @@
  [tests]: test-results.html
  [git-browse]: http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=summary
  [git-resources]: git.html
-  
+
  [asdf-devel]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel
  [asdf-announce]: http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce
 
  [asdf-home]: http://common-lisp.net/project/asdf/
  [asdf.lisp]: http://common-lisp.net/project/asdf/asdf.lisp
  [tarball]: http://common-lisp.net/project/asdf/asdf.tar.gz
- 
+
  [kmp-large]: http://www.nhplace.com/kent/Papers/Large-Systems.html
- 
+
  [hs-require]: http://www.lispworks.com/documentation/HyperSpec/Body/f_provid.htm#require
  [hs-standard-output]: http://www.lispworks.com/documentation/HyperSpec/Body/v_debug_.htm#STstandard-outputST
- 
- 
+
+
  [tinaa-project]: http://common-lisp.net/project/tinaa/
  [albert-project]: http://www.cliki.net/Albert/

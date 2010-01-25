@@ -1,10 +1,10 @@
-{include resources/header.md}
+{include "resources/header.md"}
 
 <div class="contents">
 
 ### Copyright
 
-ASDF Copyright (C) 2001-2009 Daniel Barlow and contributors 
+ASDF Copyright (C) 2001-2009 Daniel Barlow and contributors
 
 This website Copyright (C) 2001-2009 Daniel Barlow and
 contributors
@@ -34,7 +34,5 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 </div>
 
 </div>
-{include resources/footer.md}
+{include "resources/footer.md"}
 </div>
-
-

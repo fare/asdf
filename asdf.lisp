@@ -2044,47 +2044,6 @@ applied by the plain `*source-to-target-mappings*`."
         nil))))
 
 ;;;; -----------------------------------------------------------------
-;;;; SBCL hook into REQUIRE
-;;;;
-#+sbcl
-(progn
-  (defun module-provide-asdf (name)
-    (handler-bind ((style-warning #'muffle-warning))
-      (let* ((*verbose-out* (make-broadcast-stream))
-             (system (asdf:find-system name nil)))
-        (when system
-          (asdf:operate 'asdf:load-op name)
-          t))))
-
-  (defun contrib-sysdef-search (system)
-    (let ((home (getenv "SBCL_HOME")))
-      (when (and home (not (string= home "")))
-        (let* ((name (coerce-name system))
-               (home (truename home))
-               (contrib (merge-pathnames
-                         (make-pathname :directory `(:relative ,name)
-                                        :name name
-                                        :type "asd"
-                                        :case :local
-                                        :version :newest)
-                         home)))
-          (probe-file contrib)))))
-
-  (pushnew
-   '(let ((home (getenv "SBCL_HOME")))
-      (when (and home (not (string= home "")))
-        (merge-pathnames "site-systems/" (truename home))))
-   *central-registry*)
-
-  (pushnew
-   '(merge-pathnames ".sbcl/systems/"
-     (user-homedir-pathname))
-   *central-registry*)
-
-  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*)
-  (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
-
-;;;; -----------------------------------------------------------------
 ;;;; Source Registry Configuration, by Francois-Rene Rideau
 ;;;; See README.source-registry and https://bugs.launchpad.net/asdf/+bug/485918
 
@@ -2183,6 +2142,15 @@ with a different configuration, so the configuration would be re-read then."
       (error "Only and only one form allowed for source registry. Got: ~S~%" forms))
     (validate-source-registry-form (car forms))))
 
+(defun validate-source-registry-directory (directory)
+  (let ((files (sort (directory (merge-pathnames "*.*" directory)
+                                #+sbcl :resolve-symlinks #+sbcl nil)
+                     #'string< :key #'namestring)))
+    `(:source-registry
+      ,@(loop :for x :in files :append
+          (mapcar #'validate-source-registry-directive (read-file-forms file)))
+      (:inherit-configuration))))
+
 (defun parse-source-registry-string (string)
   (cond
     ((or (null string) (equal string ""))
@@ -2232,12 +2200,22 @@ with a different configuration, so the configuration would be re-read then."
     process-system-source-registry
     process-default-source-registry))
 
+(defun user-configuration-pathname ()
+  (merge-pathnames ".config/" (user-homedir-pathname)))
+(defun system-configuration-pathname ()
+  #p"/etc/")
 (defun source-registry-under (directory)
   (merge-pathnames "common-lisp/source-registry.conf" directory))
 (defun user-source-registry-pathname ()
-  (source-registry-under (merge-pathnames ".config/" (user-homedir-pathname))))
+  (source-registry-under (user-configuration-pathname)))
 (defun system-source-registry-pathname ()
-  (source-registry-under "/etc/"))
+  (source-registry-under (system-configuration-pathname)))
+(defun source-registry-directory-under (directory)
+  (merge-pathnames "common-lisp/source-registry.conf.d/" directory))
+(defun user-source-registry-directory-pathname ()
+  (source-registry-directory-under (user-configuration-pathname)))
+(defun system-source-registry-directory-pathname ()
+  (source-registry-directory-under (system-configuration-pathname)))
 
 (defun process-environment-source-registry (&key inherit collect)
   (process-source-registry (getenv "CL_SOURCE_REGISTRY")
@@ -2256,10 +2234,14 @@ with a different configuration, so the configuration would be re-read then."
 (defmethod process-source-registry ((pathname pathname) &key
                                     (inherit *default-source-registries*)
                                     collect)
-  (if (probe-file pathname)
-    (process-source-registry (validate-source-registry-file pathname)
-                             :inherit inherit :collect collect)
-    (inherit-source-registry inherit :collect collect)))
+  (cond
+    ((directory-pathname-p pathname)
+     (process-source-registry (validate-source-registry-directory pathname)))
+    ((probe-file pathname)
+     (process-source-registry (validate-source-registry-file pathname)
+                              :inherit inherit :collect collect))
+    (t
+     (inherit-source-registry inherit :collect collect))))
 (defmethod process-source-registry ((string string) &key
                                     (inherit *default-source-registries*)
                                     collect)
@@ -2326,6 +2308,47 @@ with a different configuration, so the configuration would be re-read then."
   (if (source-registry-initialized-p)
       (source-registry)
       (initialize-source-registry)))
+
+;;;; -----------------------------------------------------------------
+;;;; SBCL hook into REQUIRE
+;;;;
+#+sbcl
+(progn
+  (defun module-provide-asdf (name)
+    (handler-bind ((style-warning #'muffle-warning))
+      (let* ((*verbose-out* (make-broadcast-stream))
+             (system (asdf:find-system name nil)))
+        (when system
+          (asdf:operate 'asdf:load-op name)
+          t))))
+
+  (defun contrib-sysdef-search (system)
+    (let ((home (getenv "SBCL_HOME")))
+      (when (and home (not (string= home "")))
+        (let* ((name (coerce-name system))
+               (home (truename home))
+               (contrib (merge-pathnames
+                         (make-pathname :directory `(:relative ,name)
+                                        :name name
+                                        :type "asd"
+                                        :case :local
+                                        :version :newest)
+                         home)))
+          (probe-file contrib)))))
+
+  (pushnew
+   '(let ((home (getenv "SBCL_HOME")))
+      (when (and home (not (string= home "")))
+        (merge-pathnames "site-systems/" (truename home))))
+   *central-registry*)
+
+  (pushnew
+   '(merge-pathnames ".sbcl/systems/"
+     (user-homedir-pathname))
+   *central-registry*)
+
+  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*)
+  (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups after hot-upgrade.
