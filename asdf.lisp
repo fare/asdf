@@ -2108,7 +2108,7 @@ with a different configuration, so the configuration would be re-read then."
      :collect form)))
 
 (defun validate-source-registry-directive (directive)
-  (or
+  (unless
    (destructuring-bind (kw &rest rest) directive
      (case kw
        ((:include :directory :tree)
@@ -2118,7 +2118,8 @@ with a different configuration, so the configuration would be re-read then."
         (every #'stringp rest))
        ((:default-registry :inherit-configuration :ignore-inherited-configuration)
         (null rest))))
-   (error "Invalid directive ~S~%" directive)))
+   (error "Invalid directive ~S~%" directive))
+  directive)
 
 (defun validate-source-registry-form (form)
   (unless (and (consp form) (eq (car form) :source-registry))
@@ -2147,14 +2148,14 @@ with a different configuration, so the configuration would be re-read then."
                                 #+sbcl :resolve-symlinks #+sbcl nil)
                      #'string< :key #'namestring)))
     `(:source-registry
-      ,@(loop :for x :in files :append
+      ,@(loop :for file :in files :append
           (mapcar #'validate-source-registry-directive (read-file-forms file)))
       (:inherit-configuration))))
 
 (defun parse-source-registry-string (string)
   (cond
     ((or (null string) (equal string ""))
-     '(:source-registry :inherit-configuration))
+     '(:source-registry (:inherit-configuration)))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
     ((eql (char string 0) #\()
@@ -2236,7 +2237,8 @@ with a different configuration, so the configuration would be re-read then."
                                     collect)
   (cond
     ((directory-pathname-p pathname)
-     (process-source-registry (validate-source-registry-directory pathname)))
+     (process-source-registry (validate-source-registry-directory pathname)
+                              :inherit inherit :collect collect))
     ((probe-file pathname)
      (process-source-registry (validate-source-registry-file pathname)
                               :inherit inherit :collect collect))
