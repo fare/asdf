@@ -1,14 +1,14 @@
-{include resources/header.md}
+{include "resources/header.md"}
 
 <div class="contents">
 
 ### Contributors
 
 * crhodes - Christophe Rhodes <csr21@cantab.net>
-* dan_b - Daniel Barlow 
+* dan_b - Daniel Barlow
 * demoss - Nikodemus Siivola <nikodemus@random-state.net>
 * gwking - Gary King <gwking@metabang.com>
-* kevinrosenberg - Kevin Rosenberg 
+* kevinrosenberg - Kevin Rosenberg
 * nhabedi - Edi Weitz
 * pvaneynd - Peter Van Eynde
 * rjain - Rahul Jain
@@ -19,7 +19,7 @@
 </div>
 
 </div>
-{include resources/footer.md}
+{include "resources/footer.md"}
 </div>
 
 
