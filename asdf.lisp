@@ -2129,7 +2129,7 @@ with a different configuration, so the configuration would be re-read then."
 (defun validate-source-registry-file (file)
   (let ((forms (read-file-forms file)))
     (unless (length=n-p forms 1)
-      (error "Only and only one form allowed for source registry. Got: ~S~%" forms))
+      (error "One and only one form allowed for source registry. Got: ~S~%" forms))
     (validate-source-registry-form (car forms))))
 
 (defun validate-source-registry-directory (directory)
