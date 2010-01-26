@@ -36,7 +36,7 @@ Configurations specify paths where to find system files.
      if it exists.
 
   6- The source registry will be configured from
-     system configuration file
+     system configuration directory
 	``/etc/common-lisp/source-registry.conf.d/``
      if it exists.
 
