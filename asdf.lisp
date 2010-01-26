@@ -109,6 +109,9 @@
            #:*resolve-symlinks*
 
            #:operation-error #:compile-failed #:compile-warned #:compile-error
+           #:error-name
+           #:error-pathname
+           #:missing-definition
            #:error-component #:error-operation
            #:system-definition-error
            #:missing-component
@@ -163,7 +166,7 @@
 ;;;;
 (defparameter *asdf-revision*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "REVISION:1.374" (1+ (length "REVISION"))))
+  (subseq "REVISION:1.375" (1+ (length "REVISION"))))
 
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.
@@ -420,6 +423,14 @@ and NIL NAME and TYPE components"
    (format-arguments :initarg :format-arguments :reader format-arguments))
   (:report (lambda (c s)
              (apply #'format s (format-control c) (format-arguments c)))))
+
+(define-condition missing-definition (system-definition-error)
+  ((name :initarg :name :reader error-name)
+   (pathname :initarg :pathname :reader error-pathname))
+  (:report (lambda (c s)
+             (format s "~@<Definition search function returned a wrong pathname ~A ~
+                           in search of a definition for system ~A.~@:>"
+                     (error-pathname c) (error-name c)))))
 
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components :reader circular-dependency-components)))
@@ -749,14 +760,17 @@ to `~a` which is not a directory.~@:>"
                    (< (car in-memory) (safe-file-write-date on-disk))))
       (let ((package (make-temporary-package)))
         (unwind-protect
-             (let ((*package* package))
-               (asdf-message
-                "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
-                ;; FIXME: This wants to be (ENOUGH-NAMESTRING
-                ;; ON-DISK), but CMUCL barfs on that.
-                on-disk
-                *package*)
-               (load on-disk))
+             (with-open-file (asd on-disk :if-does-not-exist nil)
+               (if asd
+                   (let ((*package* package))
+                     (asdf-message
+                      "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
+                      ;; FIXME: This wants to be (ENOUGH-NAMESTRING
+                      ;; ON-DISK), but CMUCL barfs on that.
+                      on-disk
+                      *package*)
+                     (load asd))
+                   (error 'missing-definition :name name :pathname on-disk)))
           (delete-package package))))
     (let ((in-memory (system-registered-p name)))
       (if in-memory
