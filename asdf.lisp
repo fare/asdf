@@ -105,8 +105,9 @@
            #:*central-registry*         ; variables
            #:*compile-file-warnings-behaviour*
            #:*compile-file-failure-behaviour*
-           #:*asdf-revision*
            #:*resolve-symlinks*
+
+           #:asdf-version
 
            #:operation-error #:compile-failed #:compile-warned #:compile-error
            #:error-name
@@ -171,9 +172,12 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
 ;;;;
-(defparameter *asdf-revision*
+(defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "REVISION:1.500" (1+ (length "REVISION"))))
+  (subseq "VERSION:1.500" (1+ (length "VERSION"))))
+
+(defun asdf-version ()
+  *asdf-version*)
 
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.
@@ -2133,10 +2137,11 @@ with a different configuration, so the configuration would be re-read then."
     (validate-source-registry-form (car forms))))
 
 (defun validate-source-registry-directory (directory)
-  (let ((files (sort (directory (merge-pathnames
-                                 (make-pathname :name :wild :type :wild)
-                                 directory)
-                                #+sbcl :resolve-symlinks #+sbcl nil)
+  (let ((files (sort (ignore-errors
+                       (directory (merge-pathnames
+                                   (make-pathname :name :wild :type :wild)
+                                   directory)
+                                  #+sbcl :resolve-symlinks #+sbcl nil))
                      #'string< :key #'namestring)))
     `(:source-registry
       ,@(loop :for file :in files :append
@@ -2176,9 +2181,10 @@ with a different configuration, so the configuration would be re-read then."
            (return `(:source-registry ,@(nreverse directives)))))))))
 
 (defun collect-asd-subdirectories (directory &key (exclude *default-exclusions*) collect)
-  (let* ((files (directory (merge-pathnames #P"**/*.asd" directory)
-                       #+sbcl #+sbcl :resolve-symlinks nil
-                       #+clisp #+clisp :circle t))
+  (let* ((files (ignore-errors
+                  (directory (merge-pathnames #P"**/*.asd" directory)
+                             #+sbcl #+sbcl :resolve-symlinks nil
+                             #+clisp #+clisp :circle t)))
          (dirs (remove-duplicates (mapcar #'pathname-sans-name+type files) :test #'equal)))
     (loop
      :for dir :in dirs
@@ -2358,9 +2364,10 @@ with a different configuration, so the configuration would be re-read then."
 ;;;; -----------------------------------------------------------------
 ;;;; Done!
 (when *load-verbose*
-  (asdf-message ";; ASDF, revision ~a" *asdf-revision*))
+  (asdf-message ";; ASDF, version ~a" (asdf-version)))
 
 (pushnew :asdf *features*)
+;;(pushnew :asdf2 *features*) ;; do that when we reach version 2
 
 (provide :asdf)
 
