@@ -22,3 +22,4 @@ lift-local.config
 *.lib
 *.o
 *.*fsl
+*.bak
