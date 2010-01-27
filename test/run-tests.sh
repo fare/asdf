@@ -5,6 +5,7 @@
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
 
+export CL_SOURCE_REGISTRY=$PWD
 
 if [ x"$1" = "xhelp" ]; then
     echo "$0 [lisp invocation] [scripts-regex]"
