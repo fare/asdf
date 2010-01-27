@@ -107,8 +107,8 @@ fi
 #fi
 
 create_asds () {
-    mkdir -p tmp/{dir1,dir2/{dir3,dir4}}
-    for i in `find tmp | sed -e '1d'`; do touch "$i"/test.asd; done
+    mkdir -p tmp/{conf.d,dir1,dir2/{dir3,dir4}}
+    for i in `find tmp | sed -e '1d;/conf.d/d'`; do touch "$i"/test.asd; done
 }
 
 clean_up () {

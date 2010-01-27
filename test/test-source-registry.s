@@ -16,8 +16,24 @@
 (defvar *test-directory*
   (pathname->directory (getenv "TEST_DIR")))
 
+(defvar *test-conf-directory*
+  (merge-pathnames "conf.d/" *test-directory*))
+
 (defun under-test-directory (path &optional (defaults *test-directory*))
   (merge-pathnames path defaults))
+
+(defun create-conf-files (&optional (path *test-conf-directory*))
+  (let ((v `(("conf1.conf"
+              ((:directory ,(namestring (under-test-directory "dir1/")))))
+             ("conf2.conf"
+              ((:tree ,(namestring (under-test-directory "dir2/"))))))))
+    (loop
+     :for (file contents) :in v :do
+     (with-open-file (out file
+                          :direction :output
+                          :if-exists :supersede)
+       (with-standard-io-syntax
+         (format out "~{~S~}" contents))))))
 
 (defvar *test-config-1*
   `(:source-registry
@@ -37,6 +53,7 @@
     test-something-3))
 
 (cl-user::quit-on-error
+ (create-conf-files)
  (assert (equal (process-source-registry
                  (getenv "CL_SOURCE_REGISTRY"))
                 *test-expect-1*))
