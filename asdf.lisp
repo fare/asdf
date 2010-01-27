@@ -2051,7 +2051,9 @@ applied by the plain `*source-to-target-mappings*`."
 (defun default-registry ()
   ())
 
-(defvar *source-registry* ())
+(defvar *source-registry* ()
+  "Either NIL (for uninitialized), or a list of one element,
+said element itself being a list of directory pathnames where to look for .asd files")
 
 (defun source-registry ()
   (car *source-registry*))
