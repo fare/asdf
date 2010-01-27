@@ -5,7 +5,8 @@
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
 
-export CL_SOURCE_REGISTRY=$PWD
+export TEST_DIR="$PWD/tmp/"
+export CL_SOURCE_REGISTRY="$TEST_DIR/dir1/:$TEST_DIR/dir2//"
 
 if [ x"$1" = "xhelp" ]; then
     echo "$0 [lisp invocation] [scripts-regex]"
@@ -104,6 +105,15 @@ fi
 #then 
 #  do_tests "/usr/bin/lisp -batch -noinit" x86f
 #fi
+
+create_asds () {
+    mkdir -p tmp/{dir1,dir2/{dir3,dir4}}
+    for i in `find tmp | sed -e '1d'`; do touch "$i"/test.asd; done
+}
+
+clean_up () {
+    rm -rf tmp
+}
 
 
 if [ -z "$command" ] ; then
