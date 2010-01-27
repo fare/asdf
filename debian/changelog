@@ -1,8 +1,8 @@
-cl-asdf (2:1.375-1~rc1) UNRELEASED; urgency=low
+cl-asdf (2:1.501-1~rc1) UNRELEASED; urgency=low
 
   * new upstream, back to version numbers.
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 31 Dec 2009 10:13:47 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 27 Jan 2010 22:10:13 +0100
 
 cl-asdf (1:20091221-1) unstable; urgency=low
 
