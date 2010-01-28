@@ -5,8 +5,7 @@
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
 
-export TEST_DIR="$PWD/tmp/"
-export CL_SOURCE_REGISTRY="$TEST_DIR/dir1/:$TEST_DIR/dir2//"
+export CL_SOURCE_REGISTRY="$PWD"
 
 if [ x"$1" = "xhelp" ]; then
     echo "$0 [lisp invocation] [scripts-regex]"
@@ -107,21 +106,24 @@ fi
 #fi
 
 create_asds () {
-    mkdir -p tmp/{dir1,dir2/{dir3,dir4}}
-    for i in `find tmp | sed -e '1d'`; do touch "$i"/test.asd; done
+    mkdir -p {conf.d,dir1,dir2/{dir3,dir4}}
+    for i in dir1 dir2; do touch "$i"/test.asd; done
+    for i in dir3 dir4; do (cd dir2/$i; touch test.asd); done
 }
 
 clean_up () {
-    rm -rf tmp
+    rm -rf {conf.d,dir?}
 }
 
 
 if [ -z "$command" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 else
+    create_asds
     mkdir -p results
     echo $command
     thedate=`date "+%Y-%m-%d"`
     do_tests "$command" $fasl_ext 2>&1 | tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
+    clean_up
 fi
  
