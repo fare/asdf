@@ -1,26 +1,22 @@
 (load "script-support")
 (load "../asdf")
 
-;; TODO:
-;; - test for directories
-;; - test for correct chaining of inheritance
-
-(defun pathname->directory (pathname)
-  (make-pathname
-   :directory (append (pathname-directory pathname)
-                      (list (file-namestring pathname)))
-   :name nil
-   :type nil
-   :defaults (pathname pathname)))
-
 (defvar *test-directory*
-  (pathname->directory (getenv "TEST_DIR")))
+  (ensure-directory-pathname
+   (getenv "PWD")))
 
 (defvar *test-conf-directory*
-  (merge-pathnames "conf.d/" *test-directory*))
+  (merge-pathnames "conf.d/" (getenv "PWD")))
 
 (defun under-test-directory (path &optional (defaults *test-directory*))
   (merge-pathnames path defaults))
+
+(defun ensure-recursive-directory (path)
+  (concatenate 
+   'string
+   (namestring
+    (ensure-directory-pathname path))
+   "/"))
 
 (defun create-conf-files (&optional (path *test-conf-directory*))
   (let ((v `(("conf1.conf"
@@ -29,7 +25,7 @@
               ((:tree ,(namestring (under-test-directory "dir2/"))))))))
     (loop
      :for (file contents) :in v :do
-     (with-open-file (out file
+     (with-open-file (out (merge-pathnames file path)
                           :direction :output
                           :if-exists :supersede)
        (with-standard-io-syntax
@@ -37,29 +33,50 @@
 
 (defvar *test-config-1*
   `(:source-registry
-    (:directory ,(namestring (under-test-directory "dir1/")))
-    (:tree ,(namestring (under-test-directory "dir2/")))
+    (:tree ,(getenv "PWD"))
     (:ignore-inherited-configuration)))
 
 (defvar *test-expect-1*
-  (loop
-   :for dir
-   :in '("dir1/" "dir2/dir3/" "dir2/dir4/" "dir2/")
-   :collect (merge-pathnames dir *test-directory*)))
+  (append
+   (loop
+    :for dir
+    :in '("dir1/" "dir2/dir3/" "dir2/dir4/" "dir2/")
+    :collect (merge-pathnames dir *test-directory*))
+   (list *test-directory*)))
 
 (defvar *test-source-registries*
   '(test-environment-source-registry
-    test-something-2
+    test-environment-source-registry-recursive
     test-something-3))
+
+(defun test-environment-source-registry ()
+  (process-source-registry (getenv "CL_SOURCE_REGISTRY")
+                           :inherit *test-source-registries*))
+
+(defun test-environment-source-registry-recursive ()
+  (process-source-registry
+   (ensure-recursive-directory
+    (getenv "CL_SOURCE_REGISTRY"))
+   :inherit *test-source-registries*))
+
+(defun test-directory-source-registry
+    (&optional (directory *test-conf-directory*))
+  (process-source-registry
+   (validate-source-registry-directory directory)))
+
+(defun test-something-3 () nil)
 
 (cl-user::quit-on-error
  (create-conf-files)
- (assert (equal (process-source-registry
-                 (getenv "CL_SOURCE_REGISTRY"))
-                *test-expect-1*))
- (assert (equal (process-source-registry
-                 *test-config-1*)
-                *test-expect-1*))
+ (assert (every #'pathname (test-environment-source-registry)))
+ (assert (every #'pathname (test-environment-source-registry-recursive)))
+ (assert (equal (test-directory-source-registry) *test-expect-1*))
+
+ ;; FIXME:
+ ;; (assert (equal (process-source-registry
+ ;;                 *test-config-1*)
+ ;;                *test-expect-1*))
+
  ;; FIXME: add more tests
  ;; (assert (equal ...))
  )
