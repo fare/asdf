@@ -816,7 +816,7 @@ to `~a` which is not a directory.~@:>"
                       ;; ON-DISK), but CMUCL barfs on that.
                       on-disk
                       *package*)
-                     (load asd))
+                     (load on-disk))
                    (error 'missing-definition :name name :pathname on-disk)))
           (delete-package package))))
     (let ((in-memory (system-registered-p name)))
