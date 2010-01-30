@@ -174,7 +174,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.501" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.502" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -816,7 +816,7 @@ to `~a` which is not a directory.~@:>"
                       ;; ON-DISK), but CMUCL barfs on that.
                       on-disk
                       *package*)
-                     (load asd))
+                     (load on-disk))
                    (error 'missing-definition :name name :pathname on-disk)))
           (delete-package package))))
     (let ((in-memory (system-registered-p name)))
@@ -1110,7 +1110,7 @@ to `~a` which is not a directory.~@:>"
                             (error nil))
                         (dolist (kid (module-components c))
                           (handler-case
-                              (appendf forced (traverse operation kid ))
+                              (appendf forced (traverse operation kid))
                             (missing-dependency (condition)
                               (if (eq (module-if-component-dep-fails c)
                                       :fail)
@@ -1736,9 +1736,8 @@ output to `*verbose-out*`.  Returns the shell's exit code."
 ;;; ---------------------------------------------------------------------------
 ;;; Portions of this code were once from SWANK / SLIME
 
-(defparameter *centralize-lisp-binaries*
-  nil "
-If true, compiled lisp files without an explicit mapping (see
+(defparameter *centralize-lisp-binaries* nil
+  "If true, compiled lisp files without an explicit mapping (see
 \\*source-to-target-mappings\\*) will be placed in subdirectories of
 \\*default-toplevel-directory\\*. If false, then compiled lisp files
 without an explicitly mapping will be placed in subdirectories of
@@ -1753,7 +1752,7 @@ See [implementation-specific-directory-name][] for details.")
 
 (defparameter *default-toplevel-directory*
   (merge-pathnames
-   (make-pathname :directory '(:relative ".fasls"))
+   (make-pathname :directory '(:relative ".cache" "common-lisp"))
    (truename (user-homedir-pathname)))
   "If \\*centralize-lisp-binaries\\* is true, then compiled lisp files without an explicit mapping \(see \\*source-to-target-mappings\\*\) will be placed in subdirectories of \\*default-toplevel-directory\\*.")
 
@@ -1955,7 +1954,7 @@ applied by the plain `*source-to-target-mappings*`."
             (typecase component
               (cl-source-file t)
               (t nil)))
-    (let ((source (component-pathname component ))
+    (let ((source (component-pathname component))
           (paths (call-next-method)))
       (output-files-for-system-and-operation
        (component-system component) operation component source paths))
@@ -2197,7 +2196,9 @@ with a different configuration, so the configuration would be re-read then."
 (defparameter *default-source-registries*
   '(process-environment-source-registry
     process-user-source-registry
+    process-user-source-registry-directory
     process-system-source-registry
+    process-system-source-registry-directory
     process-default-source-registry))
 
 (defun user-configuration-pathname ()
@@ -2223,8 +2224,14 @@ with a different configuration, so the configuration would be re-read then."
 (defun process-user-source-registry (&key inherit collect)
   (process-source-registry (user-source-registry-pathname)
                            :inherit inherit :collect collect))
+(defun process-user-source-registry-directory (&key inherit collect)
+  (process-source-registry (user-source-registry-directory-pathname)
+                           :inherit inherit :collect collect))
 (defun process-system-source-registry (&key inherit collect)
   (process-source-registry (system-source-registry-pathname)
+                           :inherit inherit :collect collect))
+(defun process-system-source-registry-directory (&key inherit collect)
+  (process-source-registry (system-source-registry-directory-pathname)
                            :inherit inherit :collect collect))
 (defun process-default-source-registry (&key inherit collect)
   (declare (ignore inherit collect))
