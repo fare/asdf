@@ -71,39 +71,47 @@ if [ -z $1 ] ; then
     lisp="sbcl"
 fi
 
-if [ "$lisp" = "sbcl" ] ; then 
+case "$lisp" in
+  sbcl)
     if type sbcl ; then
       fasl_ext="fasl"
       command="sbcl --userinit /dev/null --sysinit /dev/null --noinform --noprogrammer"
-    fi
-elif [ "$lisp" = "clisp" ] ; then
+    fi ;;
+  clisp)
     if type clisp ; then
 	fasl_ext="fas"
 	command=`which clisp`
 	command="$command -norc -ansi -I - "
-    fi
-elif [ "$lisp" = "allegro" ] ; then
+    fi ;;
+  allegro)
     if type alisp ; then
 	fasl_ext="fasl"
 	command="alisp -q -batch "
-    fi
-elif [ "$lisp" = "allegromodern" ] ; then
+    fi ;;
+  allegromodern)
     if type mlisp ; then
 	fasl_ext="fasl"
 	command="mlisp -q -batch "
-    fi
-elif [ "$lisp" = "ccl" ] ; then
+    fi ;;
+  ccl)
     if type ccl ; then
-	fasl_ext="dx32fsl"
+        case `uname -s` in
+          Linux) fasl_os=lx ;;
+          Darwin) fasl_os=dx ;;
+        esac
+        case `uname -m` in
+          x86_64|ppc64) fasl_bits=64 ;;
+          i?86|ppc) fasl_bits=32 ;;
+        esac
+        fasl_ext="${fasl_os}${fasl_bits}fsl"
 	command="ccl --no-init --quiet --batch "
-    fi
-fi
-
-
-#if [ -x /usr/bin/lisp ]
-#then 
-#  do_tests "/usr/bin/lisp -batch -noinit" x86f
-#fi
+    fi ;;
+  cmucl)
+    if type lisp ; then
+	fasl_ext="x86f"
+	command="lisp -batch -noinit"
+    fi ;;
+esac
 
 create_asds () {
     mkdir -p {conf.d,dir1,dir2/{dir3,dir4}}
