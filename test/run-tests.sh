@@ -5,7 +5,7 @@
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
 
-export CL_SOURCE_REGISTRY=$PWD
+export CL_SOURCE_REGISTRY="$PWD"
 
 if [ x"$1" = "xhelp" ]; then
     echo "$0 [lisp invocation] [scripts-regex]"
@@ -71,47 +71,67 @@ if [ -z $1 ] ; then
     lisp="sbcl"
 fi
 
-if [ "$lisp" = "sbcl" ] ; then 
+case "$lisp" in
+  sbcl)
     if type sbcl ; then
       fasl_ext="fasl"
       command="sbcl --userinit /dev/null --sysinit /dev/null --noinform --noprogrammer"
-    fi
-elif [ "$lisp" = "clisp" ] ; then
+    fi ;;
+  clisp)
     if type clisp ; then
 	fasl_ext="fas"
 	command=`which clisp`
 	command="$command -norc -ansi -I - "
-    fi
-elif [ "$lisp" = "allegro" ] ; then
+    fi ;;
+  allegro)
     if type alisp ; then
 	fasl_ext="fasl"
 	command="alisp -q -batch "
-    fi
-elif [ "$lisp" = "allegromodern" ] ; then
+    fi ;;
+  allegromodern)
     if type mlisp ; then
 	fasl_ext="fasl"
 	command="mlisp -q -batch "
-    fi
-elif [ "$lisp" = "ccl" ] ; then
+    fi ;;
+  ccl)
     if type ccl ; then
-	fasl_ext="dx32fsl"
+        case `uname -s` in
+          Linux) fasl_os=lx ;;
+          Darwin) fasl_os=dx ;;
+        esac
+        case `uname -m` in
+          x86_64|ppc64) fasl_bits=64 ;;
+          i?86|ppc) fasl_bits=32 ;;
+        esac
+        fasl_ext="${fasl_os}${fasl_bits}fsl"
 	command="ccl --no-init --quiet --batch "
-    fi
-fi
+    fi ;;
+  cmucl)
+    if type lisp ; then
+	fasl_ext="x86f"
+	command="lisp -batch -noinit"
+    fi ;;
+esac
 
+create_asds () {
+    mkdir -p {conf.d,dir1,dir2/{dir3,dir4}}
+    for i in dir1 dir2; do touch "$i"/test.asd; done
+    for i in dir3 dir4; do (cd dir2/$i; touch test.asd); done
+}
 
-#if [ -x /usr/bin/lisp ]
-#then 
-#  do_tests "/usr/bin/lisp -batch -noinit" x86f
-#fi
+clean_up () {
+    rm -rf {conf.d,dir?}
+}
 
 
 if [ -z "$command" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 else
+    create_asds
     mkdir -p results
     echo $command
     thedate=`date "+%Y-%m-%d"`
     do_tests "$command" $fasl_ext 2>&1 | tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
+    clean_up
 fi
  
