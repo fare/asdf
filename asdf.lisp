@@ -2196,7 +2196,9 @@ with a different configuration, so the configuration would be re-read then."
 (defparameter *default-source-registries*
   '(process-environment-source-registry
     process-user-source-registry
+    process-user-source-registry-directory
     process-system-source-registry
+    process-system-source-registry-directory
     process-default-source-registry))
 
 (defun user-configuration-pathname ()
@@ -2222,8 +2224,14 @@ with a different configuration, so the configuration would be re-read then."
 (defun process-user-source-registry (&key inherit collect)
   (process-source-registry (user-source-registry-pathname)
                            :inherit inherit :collect collect))
+(defun process-user-source-registry-directory (&key inherit collect)
+  (process-source-registry (user-source-registry-directory-pathname)
+                           :inherit inherit :collect collect))
 (defun process-system-source-registry (&key inherit collect)
   (process-source-registry (system-source-registry-pathname)
+                           :inherit inherit :collect collect))
+(defun process-system-source-registry-directory (&key inherit collect)
+  (process-source-registry (system-source-registry-directory-pathname)
                            :inherit inherit :collect collect))
 (defun process-default-source-registry (&key inherit collect)
   (declare (ignore inherit collect))
