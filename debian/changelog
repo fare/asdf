@@ -1,11 +1,11 @@
-cl-asdf (2:1.501-1~rc1) UNRELEASED; urgency=low
+cl-asdf (2:1.502-1~rc1) UNRELEASED; urgency=low
 
   * new upstream, back to version numbers.
   * added /etc/common-lisp/source-registry.conf.d/ directory
   * Added README's to documentation
   * it's debian/*.dirs not debian/*.dir\!
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 28 Jan 2010 07:39:05 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 30 Jan 2010 22:58:38 +0100
 
 cl-asdf (1:20091221-1) unstable; urgency=low
 
