@@ -1728,11 +1728,10 @@ output to `*verbose-out*`.  Returns the shell's exit code."
      (system-source-directory system))))
 
 ;;; ---------------------------------------------------------------------------
-;;; asdf-binary-locations
+;;; asdf-output-locations
 ;;;
-;;; this bit of code was stolen from Bjorn Lindberg and then it grew!
-;;; see http://www.cliki.net/asdf%20binary%20locations
-;;; and http://groups.google.com/group/comp.lang.lisp/msg/bd5ea9d2008ab9fd
+;;; this code is heavily inspired from asdf-binary-locations,
+;;; common-lisp-controller and cl-launch.
 ;;; ---------------------------------------------------------------------------
 ;;; Portions of this code were once from SWANK / SLIME
 
@@ -2202,17 +2201,17 @@ with a different configuration, so the configuration would be re-read then."
     process-default-source-registry))
 
 (defun user-configuration-pathname ()
-  (merge-pathnames ".config/" (user-homedir-pathname)))
+  (merge-pathnames #p".config/" (user-homedir-pathname)))
 (defun system-configuration-pathname ()
   #p"/etc/")
 (defun source-registry-under (directory)
-  (merge-pathnames "common-lisp/source-registry.conf" directory))
+  (merge-pathnames #p"common-lisp/source-registry.conf" directory))
 (defun user-source-registry-pathname ()
   (source-registry-under (user-configuration-pathname)))
 (defun system-source-registry-pathname ()
   (source-registry-under (system-configuration-pathname)))
 (defun source-registry-directory-under (directory)
-  (merge-pathnames "common-lisp/source-registry.conf.d/" directory))
+  (merge-pathnames #p"common-lisp/source-registry.conf.d/" directory))
 (defun user-source-registry-directory-pathname ()
   (source-registry-directory-under (user-configuration-pathname)))
 (defun system-source-registry-directory-pathname ()

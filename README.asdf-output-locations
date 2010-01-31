@@ -1,0 +1,248 @@
+=====================
+ASDF Output Locations
+=====================
+
+This file specifies how ASDF stores "binary" outputs for its operations,
+typically Lisp FASL files, but also any other files
+that may be generated, e.g. C files and executables from CFFI-GROVEL.
+
+Configurations
+==============
+
+Configurations specify mappings from source locations to binary locations.
+
+  1- An application may explicitly initialize the binary-locations
+     configuration using the `Configuration API`_ below,
+     in which case this takes precedence.
+     It may itself compute this configuration from the command-line,
+     from a script, from its own configuration file, etc.
+
+  2- The source registry will be configured from
+     the environment variable ``ASDF_OUTPUT_LOCATIONS`` if it exists.
+
+  3- The source registry will be configured from
+     user configuration file
+	``~/.config/common-lisp/asdf-output-locations.conf``
+     if it exists.
+
+  4- The source registry will be configured from
+     user configuration directory
+	``~/.config/common-lisp/asdf-output-locations.conf.d/``
+     if it exists.
+
+  5- The source registry will be configured from
+     system configuration file
+	``/etc/common-lisp/asdf-output-locations.conf``
+     if it exists.
+
+  6- The source registry will be configured from
+     system configuration directory
+	``/etc/common-lisp/asdf-output-locations.conf.d/``
+     if it exists.
+
+Each of these configurations is specified as a SEXP
+in a trival domain-specific language (defined below).
+Additionally, a more shell-friendly syntax is available
+for the environment variable (defined yet below).
+
+Each of these configurations is only used if the previous
+configuration explicitly or implicitly specifies that it
+includes its inherited configuration.
+
+Additionally, some implementation-specific directories
+may be automatically added to whatever mappings are specified
+in configuration files, no matter if the last one inherits or not.
+
+
+Backward Compatibility
+======================
+
+We purposefully do not provide backward compatibility with earlier versions of
+asdf-binary-locations (8 Sept 2009),
+common-lisp-controller (6.17) or
+cl-launch (2.35),
+each of which had similar general capabilities.
+
+Future versions of same packages (if any)
+will hopefully use the new ASDF API as defined below.
+
+Indeed, few people use and customize these packages;
+these people are experts who can trivially adapt to the new configuration.
+Other people will experience software that "just works".
+
+
+Configuration DSL
+=================
+
+Here is the grammar of the SEXP DSL for asdf-output-locations configuration:
+
+;; A configuration is single SEXP starting with keyword :source-registry
+;; followed by a list of directives.
+CONFIGURATION := (:asdf-output-locations DIRECTIVE ...)
+
+;; A directive is one of the following:
+DIRECTIVE :=
+    ;; add a single directory to be scanned (no recursion)
+    (:map DIRECTORY-DESIGNATOR DIRECTORY-DESIGNATOR) |
+
+    (:include PATHNAME-DESIGNATOR)
+
+    ;; Your configuration expression MUST contain
+    ;; exactly one of either of these:
+    (:inherit-configuration) | ; splices contents of inherited configuration
+    (:ignore-inherited-configuration) ; drop contents of inherited configuration
+
+DIRECTORY-DESIGNATOR :=
+    ABSOLUTE-COMPONENT-DESIGNATOR |
+    (ABSOLUTE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...)
+
+ABSOLUTE-COMPONENT-DESIGNATOR :=
+    STRING ;; namestring (directory is assumed, better be absolute or bust)
+    PATHNAME ;; pathname (better be an absolute directory or bust)
+    :HOME ;; designates the user-homedir-pathname ~/
+    :USER-CACHE ;; designates the default location for the user cache
+    :SYSTEM-CACHE ;; designates the default location for the system cache
+    :ROOT ;; the root of the filesystem hierarchy
+
+RELATIVE-COMPONENT-DESIGNATOR :=
+    STRING ;; namestring (directory is assumed)
+    PATHNAME ;; pathname (better be a directory or bust)
+    :IMPLEMENTATION ;; a directory based on implementation, e.g. sbcl-1.0.32.30-linux-x86-64
+
+Relative components better be either relative
+or subdirectories of the path before them, or bust.
+
+You may use #+features to customize the configuration file.
+
+Include statements cause the search to recurse with the path specifications
+from the file specified.
+
+An inherit-configuration statement cause the search to recurse with the path
+specifications from the next configuration
+(see section Configurations_ above).
+
+
+Configuration Directories
+=========================
+
+Configuration directories consist in files each contains
+a list of directives without any enclosing ``(:asdf-binary-locations ...)`` form.
+The files will be sorted by namestring as if by #'string< and
+the lists of directives of these files with be concatenated in order.
+An implicit ``:inherit-configuration`` will be included
+at the end of the list.
+
+This allows for packaging software that has file granularity
+(e.g. Debian's ``dpkg`` or some future version of ``clbuild``)
+to easily include configuration information about distributed software.
+
+Directories may be included by specifying a directory pathname
+or namestring in an ``:include`` directive, e.g.::
+	(:include "/foo/bar/")
+
+
+Shell-friendly syntax for configuration
+=======================================
+
+When considering environment variable ``ASDF_OUTPUT_LOCATIONS``
+ASDF will skip to next configuration if it's an empty string.
+It will ``READ`` the string as a SEXP in the DSL
+if it begins with a paren ``(``
+and it will be interpreted as a colon-separated list of directories.
+Directories should come in pairs, each pair indicating a :map directive.
+
+The magic ``!`` entry indicates the splicing of inherited configuration
+rather than one of entry in a mapping pair.
+
+
+Semantics of Output Location Mappings
+=====================================
+
+From the specified configuration, a list of mappings is extracted
+in a straightforward way:
+mappings are collected in order, recursing through
+included or inherited configuration as specified.
+To this list is prepended some implementation-specific mappings,
+and is appended a global default.
+
+The list is then compiled to a mapping table as follows:
+for each entry, in order, resolve the first designated directory
+into an actual directory pathname for source locations.
+If no mapping was specified yet for that location,
+resolve the second designated directory to an output location directory
+add a mapping to the table mapping the source location to the output location,
+and add another mapping from the output location to itself
+(unless a mapping already exists for the output location).
+
+Based on the table, a mapping function is defined,
+mapping source pathnames to output pathnames:
+given a source pathname, locate the longest matching prefix
+in the source column of the mapping table.
+Replace that prefix by the corresponding output column
+in the same row of the table, and return the result.
+If no match is found, return the source pathname.
+(A global default mapping the filesystem root to itself
+may ensure that there will always be a match,
+with same fall-through semantics).
+
+Caching Results
+===============
+
+The implementation is allowed to either eagerly compute the information
+from the configurations and file system, or to lazily re-compute it
+every time, or to cache any part of it as it goes.
+To explicitly flush any information cached by the system, use the API below.
+
+
+Output location API
+===================
+
+The specified functions are exported from package ASDF.
+
+(initialize-output-locations)
+   will read the configuration and initialize all internal variables.
+
+(clear-output-locations)
+   undoes any output location configuration
+   and clears any cache for the mapping algorithm.
+   You might want to call that before you
+   dump an image that would be resumed with a different configuration,
+   and return an empty configuration.
+   Note that this does not include clearing information about
+   systems defined in the current image, only about
+   where to look for systems not yet defined.
+
+(ensure-output-locations)
+   checks whether output locations have been initialized.
+   If not, initialize them.
+   This function will be called before any attempt to operate on a system.
+   If your application wants to override the provided defaults,
+   it will have to use the below function process-output-locations.
+
+(process-output-locations X &key inherit collect)
+   If X is a CONS, parse it as a SEXP in the configuration DSL,
+   and extend or override inheritted configuration.
+   If X is a STRING, first parse it into a SEXP
+   as for the ASDF_OUTPUT_LOCATIONS
+   environment variable (see above) then process it.
+   If X is a PATHNAME, read the file as a single SEXP and process it.
+   The inheritted configuration is provided in keyword argument inherit,
+   itself a list of functions that take inherit
+   and collect keyword arguments
+   and defaulting to a list of functions
+   that implements the default behavior.
+
+(translate-output-locations PATHNAME)
+   Applies the configured output location translations to PATHNAME
+   (calls ensure-output-locations for the locations).
+
+Credits
+=======
+
+Thanks a lot to Bjorn Lindberg and Gary King for ASDF-Binary-Locations,
+and to Peter van Eynde for Common Lisp Controller.
+
+All bad design ideas and implementation bugs are to mine, not theirs.
+But so are good design ideas and elegant implementation tricks.
+
+ -- Francois-Rene Rideau <fare@tunes.org>

@@ -49,6 +49,15 @@ in a trival domain-specific language (defined below).
 Additionally, a more shell-friendly syntax is available
 for the environment variable (defined yet below).
 
+Each of these configurations is only used if the previous
+configuration explicitly or implicitly specifies that it
+includes its inherited configuration.
+
+Additionally, some implementation-specific directories
+may be automatically prepended to whatever directories are specified
+in configuration files, no matter if the last one inherits or not.
+
+
 
 Backward Compatibility
 ======================
@@ -113,7 +122,7 @@ the lists of directives of these files with be concatenated in order.
 An implicit ``:inherit-configuration`` will be included
 at the end of the list.
 
-This allows for packaging software with has file granularity
+This allows for packaging software that has file granularity
 (e.g. Debian's ``dpkg`` or some future version of ``clbuild``)
 to easily include configuration information about distributed software.
 
@@ -294,4 +303,4 @@ Thanks to Rommel Martinez for the initial implementation attempt.
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
- -- Francois-Rene Rideau <fare@tunes.org>, Sun, 24 Jan 2010 20:54:19 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>, Sun, 31 Jan 2010 14:27:55 -0500
