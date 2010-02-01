@@ -5,8 +5,9 @@ cl-asdf (2:1.502-1) unstable; urgency=low
   * Added README's to documentation
   * it's debian/*.dirs not debian/*.dir\!
   * Updated standard version, no real changes
+  * Added lintian overrides for cl-cclan
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 01 Feb 2010 07:19:17 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 01 Feb 2010 07:31:06 +0100
 
 cl-asdf (1:20091221-1) unstable; urgency=low
 
