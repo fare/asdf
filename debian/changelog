@@ -4,8 +4,9 @@ cl-asdf (2:1.502-1) unstable; urgency=low
   * added /etc/common-lisp/source-registry.conf.d/ directory
   * Added README's to documentation
   * it's debian/*.dirs not debian/*.dir\!
+  * Updated standard version, no real changes
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 30 Jan 2010 22:58:38 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 01 Feb 2010 07:19:17 +0100
 
 cl-asdf (1:20091221-1) unstable; urgency=low
 
