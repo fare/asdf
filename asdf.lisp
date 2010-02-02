@@ -1,5 +1,4 @@
 ;;; This is asdf: Another System Definition Facility.
-;;; hash - $Format:%H$
 ;;;
 ;;; Local Variables:
 ;;; mode: lisp
@@ -131,14 +130,10 @@
            #:standard-asdf-method-combination
            #:around                     ; protocol assistants
 
-           #:*source-to-target-mappings*
-           #:*default-toplevel-directory*
-           #:*centralize-lisp-binaries*
-           #:*include-per-user-information*
-           #:*map-all-source-files*
-           #:output-files-for-system-and-operation
-           #:*enable-asdf-binary-locations*
-           #:implementation-specific-directory-name
+           #:initialize-output-translations
+           #:clear-output-translations
+           #:ensure-output-translations
+           #:apply-output-translations
 
            #:initialize-source-registry
            #:clear-source-registry
@@ -202,7 +197,9 @@ Defaults to `t`.")
 ;;;; * define methods on UPDATE-INSTANCE-FOR-REDEFINED-CLASS
 ;;;;   for each of the classes we define that has changed incompatibly.
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (fmakunbound 'system-source-file)
+  (when (and (fboundp 'system-source-file)
+             (not (typep (fdefinition 'system-source-file) 'generic-function)))
+    (fmakunbound 'system-source-file))
   #+ecl
   (when (find-class 'compile-op nil)
     (defmethod update-instance-for-redefined-class :after
@@ -358,7 +355,7 @@ structure will mirror that of the source."))
 
 (defun pathname-sans-name+type (pathname)
   "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
-and NIL NAME and TYPE components"
+and NIL NAME and TYPE components" ;;; what about VERSION???
   (make-pathname :name nil :type nil :defaults pathname))
 
 (define-modify-macro appendf (&rest args)
@@ -449,6 +446,9 @@ and NIL NAME and TYPE components"
                    :name nil :type nil :version nil
                    :defaults pathspec))))
 
+(defun absolute-pathname-p (pathspec)
+  (eq :absolute (car (pathname-directory (pathname pathspec)))))
+
 (defun length=n-p (x n) ;is it that (= (length x) n) ?
   (check-type n (integer 0 *))
   (loop
@@ -464,6 +464,72 @@ and NIL NAME and TYPE components"
   (let ((start (- (length s) (length suffix))))
     (and (<= 0 start)
          (string-equal s suffix :start1 start))))
+
+(defun make-collector ()
+  (let ((acc ()))
+    (values (lambda (x) (push x acc))
+            (lambda () (reverse acc)))))
+
+(defun read-file-forms (file)
+  (with-open-file (in file)
+    (loop :with eof = (list nil)
+     :for form = (read in nil eof)
+     :until (eq form eof)
+     :collect form)))
+
+#-windows
+(progn
+#+clisp (defun get-uid () (linux:getuid))
+#+sbcl (defun get-uid () (sb-unix:unix-getuid))
+#+cmu (defun get-uid () (unix:unix-getuid))
+#+ecl (defun get-uid () (ffi:c-inline () () :int "getuid()" :one-liner t))
+#+allegro (defun get-uid () (excl.osi:getuid))
+#-(or cmu sbcl clisp allegro ecl)
+(defun get-uid ()
+  (let ((uid-string
+         (with-output-to-string (asdf::*VERBOSE-OUT*)
+           (asdf:run-shell-command "id -ur"))))
+    (with-input-from-string (stream uid-string)
+      (read-line stream)
+      (handler-case (parse-integer (read-line stream))
+        (error () (error "Unable to find out user ID")))))))
+
+(defun truenamize (p)
+  "Resolve as much of a pathname as possible"
+  (block :t
+    (setf p (translate-logical-pathname (merge-pathnames p)))
+    (ignore-errors (return-from :t (truename p)))
+    (let ((host (pathname-host p))
+          (device (pathname-device p))
+          (directory (pathname-directory p)))
+      (when (or (atom directory) (not (eq :absolute (car directory))))
+        (return-from :t p))
+      (let ((sofar (ignore-errors
+                     (truename (make-pathname :host host :device device
+                                              :directory '(:absolute))))))
+        (unless sofar (return-from :t p))
+        (loop :for component :in (cdr directory)
+          :for rest :on (cdr directory)
+          :for more = (ignore-errors
+                        (truename
+                         (merge-pathnames
+                          (make-pathname :directory `(:relative ,component))
+                          sofar))) :do
+          (if more
+              (setf sofar more)
+              (return-from :t
+                (merge-pathnames
+                 (make-pathname :host nil :device nil
+                                :directory `(:relative ,@rest)
+                                :defaults p)
+                 sofar)))
+          :finally
+          (return-from :t
+            (merge-pathnames
+             (make-pathname :host nil :device nil
+                            :directory nil
+                            :defaults p)
+             sofar)))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Classes, Conditions
@@ -1717,247 +1783,443 @@ output to `*verbose-out*`.  Returns the shell's exit code."
                  :type nil
                  :defaults (system-source-file system-name)))
 
+(defun relativize-directory (directory)
+  (if (eq (car directory) :absolute)
+      (cons :relative (cdr directory))
+      directory))
+
+(defun relativize-pathname-directory (pathspec)
+  (let ((p (pathname pathspec)))
+    (make-pathname
+     :directory (relativize-directory (pathname-directory p))
+     :defaults p)))
+
 (defun system-relative-pathname (system pathname &key name type)
   (let ((directory (pathname-directory pathname)))
     (merge-pathnames
      (make-pathname :name (or name (pathname-name pathname))
                     :type (or type (pathname-type pathname))
-                    :directory (if (eq (car directory) :absolute)
-                                   (cons :relative (cdr directory))
-                                   directory))
+                    :directory (relativize-directory directory))
      (system-source-directory system))))
 
+
 ;;; ---------------------------------------------------------------------------
-;;; asdf-output-locations
+;;; implementation-identifier
 ;;;
-;;; this code is heavily inspired from asdf-binary-locations,
-;;; common-lisp-controller and cl-launch.
-;;; ---------------------------------------------------------------------------
-;;; Portions of this code were once from SWANK / SLIME
-
-(defparameter *centralize-lisp-binaries* nil
-  "If true, compiled lisp files without an explicit mapping (see
-\\*source-to-target-mappings\\*) will be placed in subdirectories of
-\\*default-toplevel-directory\\*. If false, then compiled lisp files
-without an explicitly mapping will be placed in subdirectories of
-their sources.")
-
-(defparameter *enable-asdf-binary-locations* nil
-  "
-If true, then compiled lisp files will be placed into a directory
-computed from the Lisp version, Operating System and computer archetecture.
-See [implementation-specific-directory-name][] for details.")
-
-
-(defparameter *default-toplevel-directory*
-  (merge-pathnames
-   (make-pathname :directory '(:relative ".cache" "common-lisp"))
-   (truename (user-homedir-pathname)))
-  "If \\*centralize-lisp-binaries\\* is true, then compiled lisp files without an explicit mapping \(see \\*source-to-target-mappings\\*\) will be placed in subdirectories of \\*default-toplevel-directory\\*.")
-
-(defparameter *include-per-user-information*
-  nil
-  "When \\*centralize-lisp-binaries\\* is true this variable controls whether or not to customize the output directory based on the current user. It can be nil, t or a string. If it is nil \(the default\), then no additional information will be added to the output directory. If it is t, then the user's name \(as taken from the return value of #'user-homedir-pathname\) will be included into the centralized path (just before the lisp-implementation directory). Finally, if \\*include-per-user-information\\* is a string, then this string will be included in the output-directory.")
-
-(defparameter *map-all-source-files*
-  nil
-  "If true, then all subclasses of source-file will have their output locations mapped by ASDF-Binary-Locations. If nil (the default), then only subclasses of cl-source-file will be mapped.")
-
-(defvar *source-to-target-mappings*
-  #-sbcl
-  nil
-  #+sbcl
-  (list (list (princ-to-string (getenv "SBCL_HOME")) nil))
-  "The \\*source-to-target-mappings\\* variable specifies mappings from source to target. If the target is nil, then it means to not map the source to anything. I.e., to leave it as is. This has the effect of turning off ASDF-Binary-Locations for the given source directory. Examples:
-
-    ;; compile everything in .../src and below into .../cmucl
-    '((\"/nfs/home/compbio/d95-bli/share/common-lisp/src/\"
-       \"/nfs/home/compbio/d95-bli/lib/common-lisp/cmucl/\"))
-
-    ;; leave SBCL innards alone (SBCL specific)
-    (list (list (princ-to-string (sb-ext:posix-getenv \"SBCL_HOME\")) nil))
-")
+;;; produce a string to identify current implementation.
+;;; Initially stolen from SLIME's SWANK, hacked since.
 
 (defparameter *implementation-features*
-  '(:allegro :lispworks :sbcl :ccl :openmcl :cmu :clisp
+  '(:allegro :lispworks :sbcl :clozure :digitool :cmu :clisp
     :corman :cormanlisp :armedbear :gcl :ecl :scl))
 
 (defparameter *os-features*
-  '(:windows :mswindows :win32 :mingw32
-    :solaris :sunos
+  '((:windows :mswindows :win32 :mingw32)
+    (:solaris :sunos)
     :macosx :darwin :apple
     :freebsd :netbsd :openbsd :bsd
     :linux :unix))
 
 (defparameter *architecture-features*
-  '(:amd64 (:x86-64 :x86_64 :x8664-target) :i686 :i586 :pentium3
-    :i486 (:i386 :pc386 :iapx386) (:x86 :x8632-target) :pentium4
-    :hppa64 :hppa :ppc64 :ppc32 :powerpc :ppc :sparc64 :sparc))
+  '((:x86-64 :amd64 :x86_64 :x8664-target)
+    (:x86 :i686 :i586 :pentium3 :i486 :i386 :pc386 :iapx386 :x8632-target :pentium4)
+    :hppa64 :hppa :ppc64 (:ppc32 :ppc :powerpc) :sparc64 :sparc))
 
-;; note to gwking: this is in slime, system-check, and system-check-server too
 (defun lisp-version-string ()
-  #+cmu       (substitute #\- #\/
-                          (substitute #\_ #\Space
-                                      (lisp-implementation-version)))
-  #+scl       (lisp-implementation-version)
-  #+sbcl      (lisp-implementation-version)
-  #+ecl       (reduce (lambda (x str) (substitute #\_ str x))
-                      '(#\Space #\: #\( #\))
-                      :initial-value (lisp-implementation-version))
-  #+gcl       (let ((s (lisp-implementation-version))) (subseq s 4))
-  #+openmcl   (format nil "~d.~d~@[-~d~]"
+  (let ((s (lisp-implementation-version)))
+    (declare (ignorable s))
+    #+(or scl sbcl ecl armedbear cormanlisp mcl) s
+    #+cmu (substitute #\- #\/ s)
+    #+clozure (format nil "~d.~d~@[-~d~]"
                       ccl::*openmcl-major-version*
                       ccl::*openmcl-minor-version*
                       #+ppc64-target 64
                       #-ppc64-target nil)
-  #+lispworks (format nil "~A~@[~A~]"
-                      (lisp-implementation-version)
-                      (when (member :lispworks-64bit *features*) "-64bit"))
-  #+allegro   (format nil
+    #+lispworks (format nil "~A~@[~A~]" s
+                        (when (member :lispworks-64bit *features*) "-64bit"))
+    #+allegro (format nil
                       "~A~A~A~A"
                       excl::*common-lisp-version-number*
-                                        ; ANSI vs MoDeRn
-                      ;; thanks to Robert Goldman and Charley Cox for
-                      ;; an improvement to my hack
+                      ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
                       (if (eq excl:*current-case-mode*
                               :case-sensitive-lower) "M" "A")
                       ;; Note if not using International ACL
                       ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
                       (excl:ics-target-case
-                        (:-ics "8")
-                        (:+ics ""))
+                       (:-ics "8")
+                       (:+ics ""))
                       (if (member :64bit *features*) "-64bit" ""))
-  #+clisp     (let ((s (lisp-implementation-version)))
-                (subseq s 0 (position #\space s)))
-  #+armedbear (lisp-implementation-version)
-  #+cormanlisp (lisp-implementation-version)
-  #+digitool   (subseq (lisp-implementation-version) 8))
+    #+(or clisp gcl) (subseq s 0 (position #\space s))
+    #+digitool (subseq s 8)))
 
+(defun first-feature (features)
+  (labels
+      ((fp (thing)
+         (etypecase thing
+           (symbol
+            (let ((feature (find thing *features*)))
+              (when feature (return-from fp feature))))
+           ;; allows features to be lists of which the first
+           ;; member is the "main name", the rest being aliases
+           (cons
+            (dolist (subf thing)
+              (when (find subf *features*) (return-from fp (first thing))))))
+         nil))
+    (loop :for f :in features
+      :when (fp f) :return :it)))
 
-(defparameter *implementation-specific-directory-name* nil)
+(defun implementation-type ()
+  (first-feature *implementation-features*))
 
-(defun implementation-specific-directory-name ()
-  "Return a name that can be used as a directory name that is
-unique to a Lisp implementation, Lisp implementation version,
-operating system, and hardware architecture."
-  (and *enable-asdf-binary-locations*
-       (list
-        (or *implementation-specific-directory-name*
-            (setf *implementation-specific-directory-name*
-                  (labels
-                      ((fp (thing)
-                         (etypecase thing
-                           (symbol
-                            (let ((feature (find thing *features*)))
-                              (when feature (return-from fp feature))))
-                           ;; allows features to be lists of which the first
-                           ;; member is the "main name", the rest being aliases
-                           (cons
-                            (dolist (subf thing)
-                              (let ((feature (find subf *features*)))
-                                (when feature (return-from fp (first thing))))))))
-                       (first-of (features)
-                         (loop :for f :in features
-                           :when (fp f) :return :it))
-                       (maybe-warn (value fstring &rest args)
-                         (cond (value)
-                               (t (apply #'warn fstring args)
-                                  "unknown"))))
-                    (let ((lisp (maybe-warn (first-of *implementation-features*)
-                                            "No implementation feature found in ~a."
-                                            *implementation-features*))
-                          (os   (maybe-warn (first-of *os-features*)
-                                            "No os feature found in ~a." *os-features*))
-                          (arch (maybe-warn (first-of *architecture-features*)
-                                            "No architecture feature found in ~a."
-                                            *architecture-features*))
-                          (version (maybe-warn (lisp-version-string)
-                                               "Don't know how to get Lisp ~
+(defun implementation-identifier ()
+  (labels
+      ((maybe-warn (value fstring &rest args)
+         (cond (value)
+               (t (apply #'warn fstring args)
+                  "unknown"))))
+    (let ((lisp (maybe-warn (implementation-type)
+                            "No implementation feature found in ~a."
+                            *implementation-features*))
+          (os   (maybe-warn (first-feature *os-features*)
+                            "No os feature found in ~a." *os-features*))
+          (arch (maybe-warn (first-feature *architecture-features*)
+                            "No architecture feature found in ~a."
+                            *architecture-features*))
+          (version (maybe-warn (lisp-version-string)
+                               "Don't know how to get Lisp ~
                                           implementation version.")))
-                      (format nil "~(~@{~a~^-~}~)" lisp version os arch))))))))
+      (substitute-if
+       #\_ (lambda (x) (find x " /:\\(){}[]$#`'\""))
+       (format nil "~(~@{~a~^-~}~)" lisp version os arch)))))
 
-(defun pathname-prefix-p (prefix pathname)
-  (let ((prefix-ns (namestring prefix))
-        (pathname-ns (namestring pathname)))
-    (= (length prefix-ns)
-       (mismatch prefix-ns pathname-ns))))
 
-(defgeneric output-files-for-system-and-operation
-  (system operation component source possible-paths)
-  (:documentation "Returns the directory where the componets output files should be placed. This may depends on the system, the operation and the component. The ASDF default input and outputs are provided in the source and possible-paths parameters."))
 
-(defun source-to-target-resolved-mappings ()
-  "Answer `*source-to-target-mappings*` with additional entries made
-by resolving sources that are symlinks.
+;;; ---------------------------------------------------------------------------
+;;; Generic support for configuration files
+(defun user-configuration-directory ()
+  (merge-pathnames #p".config/" (user-homedir-pathname)))
+(defun system-configuration-directory ()
+  #p"/etc/")
 
-As ASDF sometimes resolves symlinks to compute source paths, we must
-follow that.  For example, if SBCL is installed under a symlink, and
-SBCL_HOME is set through that symlink, the default rule above
-preventing SBCL contribs from being mapped elsewhere will not be
-applied by the plain `*source-to-target-mappings*`."
-  (loop :for mapping :in asdf:*source-to-target-mappings*
-    :for (source target) = mapping
-    :for true-source = (and source (resolve-symlinks source))
-    :if (equal source true-source) :collect mapping
-    :else :append (list mapping (list true-source target))))
+(defun configuration-inheritance-directive-p (x)
+  (let ((kw '(:inherit-configuration :ignore-inherited-configuration)))
+    (or (member x kw)
+        (and (length=n-p x 1) (member (car x) kw)))))
 
-(defmethod output-files-for-system-and-operation
-           ((system system) operation component source possible-paths)
-  (declare (ignore operation component))
-  (output-files-using-mappings
-   source possible-paths (source-to-target-resolved-mappings)))
+(defun validate-configuration-form (form tag directive-validator
+                                    &optional (description tag))
+  (unless (and (consp form) (eq (car form) tag))
+    (error "Error: Form doesn't specify ~A ~S~%" description form))
+  (loop :with inherit = 0
+    :for directive :in (cdr form) :do
+    (if (configuration-inheritance-directive-p directive)
+        (incf inherit)
+        (funcall directive-validator directive))
+    :finally
+    (unless (= inherit 1)
+      (error "One and only one of ~S or ~S is required"
+             :inherit-configuration :ignore-inherited-configuration)))
+  form)
 
-(defmethod output-files-using-mappings (source possible-paths path-mappings)
-  (mapcar
-   (lambda (path)
-     (loop :for (from to) :in path-mappings
-       :when (pathname-prefix-p from source)
-       :return
-       (if to
-           (merge-pathnames
-            (make-pathname :type (pathname-type path))
-            (merge-pathnames (enough-namestring source from)
-                             to))
-           path)
-       :finally
-       (return
-         ;; Instead of just returning the path when we
-         ;; don't find a mapping, we stick stuff into
-         ;; the appropriate binary directory based on
-         ;; the implementation
-         (if *centralize-lisp-binaries*
-             (merge-pathnames
-              (make-pathname
-               :type (pathname-type path)
-               :directory `(:relative
-                            ,@(cond ((eq *include-per-user-information* t)
-                                     (cdr (pathname-directory
-                                           (user-homedir-pathname))))
-                                    ((not (null *include-per-user-information*))
-                                     (list *include-per-user-information*)))
-                            ,@(implementation-specific-directory-name)
-                            ,@(rest (pathname-directory path)))
-               :defaults path)
-              *default-toplevel-directory*)
-             (make-pathname
-              :type (pathname-type path)
-              :directory (append
-                          (pathname-directory path)
-                          (implementation-specific-directory-name))
-              :defaults path)))))
-   possible-paths))
+(defun validate-configuration-file (file validator description)
+  (let ((forms (read-file-forms file)))
+    (unless (length=n-p forms 1)
+      (error "One and only one form allowed for ~A. Got: ~S~%" description forms))
+    (funcall validator (car forms))))
 
-(defmethod output-files
-    :around ((operation compile-op) (component source-file))
-  (if (or *map-all-source-files*
-            (typecase component
-              (cl-source-file t)
-              (t nil)))
-    (let ((source (component-pathname component))
-          (paths (call-next-method)))
-      (output-files-for-system-and-operation
-       (component-system component) operation component source paths))
-    (call-next-method)))
+(defun validate-configuration-directory (directory tag validator)
+  (let ((files (sort (ignore-errors
+                       (directory (merge-pathnames
+                                   (make-pathname :name :wild :type :wild)
+                                   directory)
+                                  #+sbcl :resolve-symlinks #+sbcl nil))
+                     #'string< :key #'namestring)))
+    `(,tag
+      ,@(loop :for file :in files :append
+          (mapcar validator (read-file-forms file)))
+      :inherit-configuration)))
+
+
+;;; ---------------------------------------------------------------------------
+;;; asdf-output-translations
+;;;
+;;; this code is heavily inspired from
+;;; asdf-binary-translations, common-lisp-controller and cl-launch.
+;;; ---------------------------------------------------------------------------
+
+(defvar *output-translations* ()
+  "Either NIL (for uninitialized), or a list of one element,
+said element itself being a sorted list of mappings.
+Each mapping is a pair of a source pathname and destination pathname,
+and the order is by decreasing length of namestring of the source pathname.")
+
+(defvar *user-cache* '(:home ".cache" "common-lisp" :implementation))
+(defvar *system-cache* '(:root "var" "cache" "common-lisp" :uid :implementation))
+
+(defun output-translations ()
+  (car *output-translations*))
+
+(defun (setf output-translations) (x)
+  (setf *output-translations*
+        (list
+         (stable-sort (copy-list x) #'>
+                      :key (lambda (x) (length (pathname-directory (car x))))))))
+
+(defun output-translations-initialized-p ()
+  (and *output-translations* t))
+
+(defun clear-output-translations ()
+  "Undoes any initialization of the output translations.
+You might want to call that before you dump an image that would be resumed
+with a different configuration, so the configuration would be re-read then."
+  (setf *output-translations* '())
+  (values))
+
+(defun resolve-location (x)
+  (if (atom x)
+      (resolve-absolute-location-component x nil)
+      (loop :with path = (resolve-absolute-location-component (car x) t)
+        :for (component . morep) :on (cdr x)
+        :do (setf path (resolve-relative-location-component path component morep))
+        :finally (return path))))
+
+(defun resolve-absolute-location-component (x morep)
+  (let* ((r
+          (etypecase x
+            (pathname x)
+            (string (ensure-directory-pathname x))
+            ((eql :home) (user-homedir-pathname))
+            ((eql :user-cache) (resolve-location *user-cache*))
+            ((eql :system-cache) (resolve-location *system-cache*))
+            ((eql :current-directory) (truenamize *default-pathname-defaults*))
+            ((eql :root) (make-pathname :directory '(:absolute)))))
+         (s (if (or (pathnamep x) morep)
+                r
+                (wilden r))))
+    (unless (absolute-pathname-p s)
+      (error "Not an absolute pathname ~S" s))
+    s))
+
+(defun resolve-relative-location-component (super x morep)
+  (let* ((r (etypecase x
+              (pathname x)
+              (string x)
+              ((eql :current-directory)
+               (relativize-pathname-directory
+                (truenamize *default-pathname-defaults*)))
+              ((eql :implementation) (implementation-identifier))
+              ((eql :implementation-type) (implementation-type))
+              ((eql :uid) (princ-to-string (get-uid)))))
+         (d (if (pathnamep x) r (ensure-directory-pathname r)))
+         (s (if (or (pathnamep x) morep) d (wilden d))))
+    (when (and (absolute-pathname-p s) (not (pathname-match-p s (wilden super))))
+      (error "pathname ~S is not relative to ~S" s super))
+    (merge-pathnames s super)))
+
+(defparameter *wild-path*
+  (make-pathname :directory '(:relative :wild-inferiors)
+                 :name :wild :type :wild :version nil))
+
+(defun wilden (path)
+  (merge-pathnames *wild-path* path))
+
+(defun location-designator-p (x)
+  (flet ((componentp (c) (typep c '(or string pathname keyword))))
+    (or (componentp x) (and (consp x) (every #'componentp x)))))
+
+(defun validate-output-translations-directive (directive)
+  (unless
+      (or (member directive '(:inherit-configuration
+                              :ignore-inherited-configuration
+                              :enable-user-cache :disable-cache))
+          (and (consp directive)
+               (or (and (length=n-p directive 2)
+                        (or (and (eq (first directive) :include)
+                                 (typep (second directive) '(or string pathname)))
+                            (and (location-designator-p (first directive))
+                                 (or (location-designator-p (second directive))
+                                     (null (second directive))))))
+                   (and (length=n-p directive 1)
+                        (location-designator-p (first directive))))))
+    (error "Invalid directive ~S~%" directive))
+  directive)
+
+(defun validate-output-translations-form (form)
+  (validate-configuration-form
+   form
+   :output-translations
+   'validate-output-translations-directive
+   "output translations"))
+
+(defun validate-output-translations-file (file)
+  (validate-configuration-file
+   file 'validate-output-translations-form "output translations"))
+
+(defun validate-output-translations-directory (directory)
+  (validate-configuration-directory
+   directory :output-translations 'validate-output-translations-directive))
+
+(defun parse-output-translations-string (string)
+  (cond
+    ((or (null string) (equal string ""))
+     '(:output-translations :inherit-configuration))
+    ((not (stringp string))
+     (error "environment string isn't: ~S" string))
+    ((eql (char string 0) #\()
+     (validate-output-translations-form (read-from-string string)))
+    (t
+     (loop
+      :with inherit = nil
+      :with directives = ()
+      :with start = 0
+      :with end = (length string)
+      :with source = nil
+      :for i = (or (position #\: string :start start) end) :do
+      (let ((s (subseq string start i)))
+        (cond
+          (source
+           (push (list source (if (equal "" s) nil s)) directives)
+           (setf source nil))
+          ((equal "" s)
+           (when inherit
+             (error "only one inherited configuration allowed: ~S" string))
+           (setf inherit t)
+           (push ':inherit-configuration directives))
+          (t
+           (setf source s)))
+        (setf start (1+ i))
+        (when (>= start end)
+          (when source
+            (error "Uneven number of components in source to destination mapping ~S" string))
+          (unless inherit
+            (push ':ignore-inherited-configuration directives))
+          (return `(:output-translations ,@(nreverse directives)))))))))
+
+(defparameter *default-output-translations*
+  '(implementation-output-translations
+    user-output-translations-pathname
+    user-output-translations-directory-pathname
+    system-output-translations-pathname
+    system-output-translations-directory-pathname))
+
+(defparameter *implementation-output-translations*
+  `(:output-translations
+   ;; If clozure had any precompiled ASDF system, we'd use that:
+   ; #+clozure (,(ccl::ccl-directory) ())
+   ;; SBCL *does* have precompiled ASDF system, so we use this:
+   #+sbcl (,(getenv "SBCL_HOME") ())
+   ;; All-import, here is where we want user stuff to be:
+   :inherit-configuration
+   ;; If we want to enable the user cache by default, here would be the place:
+   :enable-user-cache
+   ))
+
+(defun implementation-output-translations ()
+  *implementation-output-translations*)
+
+(defparameter *output-translations-file* #p"common-lisp/asdf-output-translations.conf")
+(defparameter *output-translations-directory* #p"common-lisp/asdf-output-translations.conf.d/")
+
+(defun user-output-translations-pathname ()
+  (merge-pathnames *output-translations-file* (user-configuration-directory)))
+(defun system-output-translations-pathname ()
+  (merge-pathnames *output-translations-file* (system-configuration-directory)))
+(defun user-output-translations-directory-pathname ()
+  (merge-pathnames *output-translations-directory* (user-configuration-directory)))
+(defun system-output-translations-directory-pathname ()
+  (merge-pathnames *output-translations-directory* (system-configuration-directory)))
+(defun environment-output-translations ()
+  (getenv "ASDF_OUTPUT_TRANSLATIONS"))
+
+(defgeneric process-output-translations (spec &key inherit collect))
+(defmethod process-output-translations ((x symbol) &key
+                                        (inherit *default-output-translations*)
+                                        collect)
+  (process-output-translations (funcall x) :inherit inherit :collect collect))
+(defmethod process-output-translations ((pathname pathname) &key
+                                        (inherit *default-output-translations*)
+                                        collect)
+  (cond
+    ((directory-pathname-p pathname)
+     (process-output-translations (validate-output-translations-directory pathname)
+                                  :inherit inherit :collect collect))
+    ((probe-file pathname)
+     (process-output-translations (validate-output-translations-file pathname)
+                                  :inherit inherit :collect collect))
+    (t
+     (inherit-output-translations inherit :collect collect))))
+(defmethod process-output-translations ((string string) &key
+                                        (inherit *default-output-translations*)
+                                        collect)
+  (process-output-translations (parse-output-translations-string string)
+                               :inherit inherit :collect collect))
+(defmethod process-output-translations ((x null) &key
+                                    (inherit *default-output-translations*)
+                                    collect)
+  (inherit-output-translations inherit :collect collect))
+
+(defmethod process-output-translations ((form cons) &key
+                                        (inherit *default-output-translations*)
+                                        collect)
+  (multiple-value-bind (collect result)
+      (if collect
+          (values collect (constantly nil))
+          (make-collector))
+    (dolist (directive (cdr (validate-output-translations-form form)))
+      (process-output-translations-directive directive :inherit inherit :collect collect))
+    (funcall result)))
+
+(defun inherit-output-translations (inherit &key collect)
+  (when inherit
+    (process-output-translations (first inherit) :collect collect :inherit (rest inherit))))
+
+(defun process-output-translations-directive (directive &key inherit collect)
+  (if (atom directive)
+      (ecase directive
+        ((:enable-user-cache)
+         (process-output-translations-directive '(:root :user-cache) :collect collect))
+        ((:disable-cache)
+         (process-output-translations-directive '(:root :root) :collect collect))
+        ((:inherit-configuration)
+         (inherit-output-translations inherit :collect collect))
+        ((:ignore-inherited-configuration)
+         nil))
+      (let ((src (first directive))
+            (dst (second directive)))
+        (if (eq src :include)
+            (process-output-translations (pathname dst) :inherit nil :collect collect)
+            (let* ((trusrc (truenamize (resolve-location src)))
+                   (trudst (if dst (resolve-location dst) trusrc)))
+              (funcall collect (list trusrc trudst)))))))
+
+;; Will read the configuration and initialize all internal variables,
+;; and return the new configuration.
+(defun initialize-output-translations
+    (&optional (translations *default-output-translations*))
+  (setf (output-translations)
+        (inherit-output-translations translations)))
+
+;; checks an initial variable to see whether the state is initialized
+;; or cleared. In the former case, return current configuration; in
+;; the latter, initialize.  ASDF will call this function at the start
+;; of (asdf:find-system).
+(defun ensure-output-translations ()
+  (if (output-translations-initialized-p)
+      (output-translations)
+      (initialize-output-translations)))
+
+(defmethod apply-output-translations (path)
+  (ensure-output-translations)
+  (setf path (truenamize path))
+  (loop :for (source destination) :in (car *output-translations*)
+    :when (pathname-match-p path source)
+    :return (translate-pathname path source destination)
+    :finally (return path)))
+
+(defmethod output-files :around ((op operation) (c component))
+  "Method to rewrite output files to fasl-root"
+  (mapcar #'apply-output-translations (call-next-method)))
+
 
 ;;;; -----------------------------------------------------------------
 ;;;; Windows shortcut support.  Based on:
@@ -2093,65 +2355,36 @@ with a different configuration, so the configuration would be re-read then."
                          (when target
                            (return (pathname target))))))))))))))
 
-(defun read-file-forms (file)
-  (with-open-file (in file)
-    (loop :with eof = (list nil)
-     :for form = (read in nil eof)
-     :until (eq form eof)
-     :collect form)))
-
 (defun validate-source-registry-directive (directive)
   (unless
-   (destructuring-bind (kw &rest rest) directive
-     (case kw
-       ((:include :directory :tree)
-        (and (length=n-p rest 1)
-             (typep (car rest) '(or pathname string))))
-       ((:exclude)
-        (every #'stringp rest))
-       ((:default-registry :inherit-configuration :ignore-inherited-configuration)
-        (null rest))))
-   (error "Invalid directive ~S~%" directive))
+      (or (member directive '(:default-registry (:default-registry)) :test 'equal)
+          (destructuring-bind (kw &rest rest) directive
+            (case kw
+              ((:include :directory :tree)
+               (and (length=n-p rest 1)
+                    (typep (car rest) '(or pathname string))))
+              ((:exclude)
+               (every #'stringp rest))
+              (null rest))))
+    (error "Invalid directive ~S~%" directive))
   directive)
 
 (defun validate-source-registry-form (form)
-  (unless (and (consp form) (eq (car form) :source-registry))
-    (error "Error: Form is not a source registry ~S~%" form))
-  (loop :with inherit = 0
-        :for directive :in (cdr form) :do
-        (unless (consp directive)
-          (error "invalid directive ~S" directive))
-        (when (member (car directive)
-                      '(:inherit-configuration :ignore-inherited-configuration))
-          (incf inherit))
-        (validate-source-registry-directive directive)
-        :finally
-        (unless (= inherit 1)
-          (error "One and only one of :inherit-configuration or :ignore-inherited-configuration is required")))
-  form)
+  (validate-configuration-form
+   form :source-registry 'validate-source-registry-directive "a source registry"))
 
 (defun validate-source-registry-file (file)
-  (let ((forms (read-file-forms file)))
-    (unless (length=n-p forms 1)
-      (error "One and only one form allowed for source registry. Got: ~S~%" forms))
-    (validate-source-registry-form (car forms))))
+  (validate-configuration-file
+   file 'validate-source-registry-form "a source registry"))
 
 (defun validate-source-registry-directory (directory)
-  (let ((files (sort (ignore-errors
-                       (directory (merge-pathnames
-                                   (make-pathname :name :wild :type :wild)
-                                   directory)
-                                  #+sbcl :resolve-symlinks #+sbcl nil))
-                     #'string< :key #'namestring)))
-    `(:source-registry
-      ,@(loop :for file :in files :append
-          (mapcar #'validate-source-registry-directive (read-file-forms file)))
-      (:inherit-configuration))))
+  (validate-configuration-directory
+   directory :source-registry 'validate-source-registry-directive))
 
 (defun parse-source-registry-string (string)
   (cond
     ((or (null string) (equal string ""))
-     '(:source-registry (:inherit-configuration)))
+     '(:source-registry :inherit-configuration))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
     ((eql (char string 0) #\()
@@ -2169,7 +2402,7 @@ with a different configuration, so the configuration would be re-read then."
           (when inherit
             (error "only one inherited configuration allowed: ~S" string))
           (setf inherit t)
-          (push '(:inherit-configuration) directives))
+          (push ':inherit-configuration directives))
          ((ends-with s "//")
           (push `(:tree ,(subseq s 0 (1- (length s)))) directives))
          (t
@@ -2193,50 +2426,31 @@ with a different configuration, so the configuration would be re-read then."
      :do (funcall collect dir))))
 
 (defparameter *default-source-registries*
-  '(process-environment-source-registry
-    process-user-source-registry
-    process-user-source-registry-directory
-    process-system-source-registry
-    process-system-source-registry-directory
-    process-default-source-registry))
+  '(environment-source-registry
+    user-source-registry
+    user-source-registry-directory
+    system-source-registry
+    system-source-registry-directory))
 
-(defun user-configuration-pathname ()
-  (merge-pathnames #p".config/" (user-homedir-pathname)))
-(defun system-configuration-pathname ()
-  #p"/etc/")
-(defun source-registry-under (directory)
-  (merge-pathnames #p"common-lisp/source-registry.conf" directory))
+(defparameter *source-registry-file* #p"common-lisp/source-registry.conf")
+(defparameter *source-registry-directory* #p"common-lisp/source-registry.conf.d/")
+
 (defun user-source-registry-pathname ()
-  (source-registry-under (user-configuration-pathname)))
+  (merge-pathnames *source-registry-file* (user-configuration-directory)))
 (defun system-source-registry-pathname ()
-  (source-registry-under (system-configuration-pathname)))
-(defun source-registry-directory-under (directory)
-  (merge-pathnames #p"common-lisp/source-registry.conf.d/" directory))
+  (merge-pathnames *source-registry-file* (system-configuration-directory)))
 (defun user-source-registry-directory-pathname ()
-  (source-registry-directory-under (user-configuration-pathname)))
+  (merge-pathnames *source-registry-directory* (user-configuration-directory)))
 (defun system-source-registry-directory-pathname ()
-  (source-registry-directory-under (system-configuration-pathname)))
-
-(defun process-environment-source-registry (&key inherit collect)
-  (process-source-registry (getenv "CL_SOURCE_REGISTRY")
-                           :inherit inherit :collect collect))
-(defun process-user-source-registry (&key inherit collect)
-  (process-source-registry (user-source-registry-pathname)
-                           :inherit inherit :collect collect))
-(defun process-user-source-registry-directory (&key inherit collect)
-  (process-source-registry (user-source-registry-directory-pathname)
-                           :inherit inherit :collect collect))
-(defun process-system-source-registry (&key inherit collect)
-  (process-source-registry (system-source-registry-pathname)
-                           :inherit inherit :collect collect))
-(defun process-system-source-registry-directory (&key inherit collect)
-  (process-source-registry (system-source-registry-directory-pathname)
-                           :inherit inherit :collect collect))
-(defun process-default-source-registry (&key inherit collect)
-  (declare (ignore inherit collect))
-  nil)
+  (merge-pathnames *source-registry-directory* (system-configuration-directory)))
+(defun environment-source-registry ()
+  (getenv "CL_SOURCE_REGISTRY"))
 
 (defgeneric process-source-registry (spec &key inherit collect))
+(defmethod process-source-registry ((x symbol) &key
+                                    (inherit *default-source-registries*)
+                                    collect)
+  (process-source-registry (funcall x) :inherit inherit :collect collect))
 (defmethod process-source-registry ((pathname pathname) &key
                                     (inherit *default-source-registries*)
                                     collect)
@@ -2259,11 +2473,6 @@ with a different configuration, so the configuration would be re-read then."
                                     collect)
   (inherit-source-registry inherit :collect collect))
 
-(defun make-collector ()
-  (let ((acc ()))
-    (values (lambda (x) (push x acc))
-            (lambda () (reverse acc)))))
-
 (defmethod process-source-registry ((form cons) &key
                                     (inherit *default-source-registries*)
                                     collect)
@@ -2278,14 +2487,14 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun inherit-source-registry (inherit &key collect)
   (when inherit
-    (funcall (first inherit) :collect collect :inherit (rest inherit))))
+    (process-source-registry (first inherit) :collect collect :inherit (rest inherit))))
 
 (defun process-source-registry-directive (directive &key inherit collect)
-  (destructuring-bind (kw &rest rest) directive
+  (destructuring-bind (kw &rest rest) (if (consp directive) directive (list directive))
     (ecase kw
       ((:include)
        (destructuring-bind (pathname) rest
-         (process-source-registry (pathname pathname) :inherit inherit :collect collect)))
+         (process-source-registry (pathname pathname) :inherit nil :collect collect)))
       ((:directory)
        (destructuring-bind (pathname) rest
          (funcall collect (ensure-directory-pathname pathname))))

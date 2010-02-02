@@ -101,11 +101,11 @@ DIRECTIVE :=
 
     ;; Your configuration expression MUST contain
     ;; exactly one of either of these:
-    (:inherit-configuration) | ; splices contents of inherited configuration
-    (:ignore-inherited-configuration) ; drop contents of inherited configuration
+    :inherit-configuration | ; splices contents of inherited configuration
+    :ignore-inherited-configuration | ; drop contents of inherited configuration
 
     ;; This directive specifies that some default must be spliced.
-    (:default-registry)
+    :default-registry
 
 PATTERN := a string without wildcards, that will be matched exactly
 	against the name of a any subdirectory in the directory component
@@ -303,4 +303,4 @@ Thanks to Rommel Martinez for the initial implementation attempt.
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
- -- Francois-Rene Rideau <fare@tunes.org>, Sun, 31 Jan 2010 14:27:55 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>, Mon,  1 Feb 2010 22:49:09 -0500
