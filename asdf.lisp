@@ -1,13 +1,9 @@
 ;;; This is asdf: Another System Definition Facility.
 ;;;
-;;; Local Variables:
-;;; mode: lisp
-;;; End:
-;;;
-;;; Feedback, bug reports, and patches are all welcome: please mail to
-;;; <asdf-devel@common-lisp.net>.  But note first that the canonical
-;;; source for asdf is presently on common-lisp.net at
-;;; <URL:http://common-lisp.net/project/asdf/>
+;;; Feedback, bug reports, and patches are all welcome:
+;;; please mail to <asdf-devel@common-lisp.net>.
+;;; Note first that the canonical source for asdf is presently
+;;; <URL:http://common-lisp.net/project/asdf/>.
 ;;;
 ;;; If you obtained this copy from anywhere else, and you experience
 ;;; trouble using it, or find bugs, you may want to check at the
@@ -169,7 +165,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.590" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.591" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -2435,13 +2431,13 @@ with a different configuration, so the configuration would be re-read then."
 (defparameter *source-registry-file* #p"common-lisp/source-registry.conf")
 (defparameter *source-registry-directory* #p"common-lisp/source-registry.conf.d/")
 
-(defun user-source-registry-pathname ()
+(defun user-source-registry ()
   (merge-pathnames *source-registry-file* (user-configuration-directory)))
-(defun system-source-registry-pathname ()
+(defun system-source-registry ()
   (merge-pathnames *source-registry-file* (system-configuration-directory)))
-(defun user-source-registry-directory-pathname ()
+(defun user-source-registry-directory ()
   (merge-pathnames *source-registry-directory* (user-configuration-directory)))
-(defun system-source-registry-directory-pathname ()
+(defun system-source-registry-directory ()
   (merge-pathnames *source-registry-directory* (system-configuration-directory)))
 (defun environment-source-registry ()
   (getenv "CL_SOURCE_REGISTRY"))
@@ -2588,4 +2584,6 @@ with a different configuration, so the configuration would be re-read then."
 
 (provide :asdf)
 
-;;;; The End.
+;;; Local Variables:
+;;; mode: lisp
+;;; End:

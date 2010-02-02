@@ -123,7 +123,7 @@ DIRECTORY-DESIGNATOR :=
     (ABSOLUTE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...)
 
 ABSOLUTE-COMPONENT-DESIGNATOR :=
-    STRING | ;; namestring (directory is assumed, better be absolute or bust, **/*.*.* added)
+    STRING | ;; namestring (directory is assumed, better be absolute or bust, ``/**/*.*`` added)
     PATHNAME | ;; pathname (better be an absolute directory or bust)
     :HOME | ;; designates the user-homedir-pathname ~/
     :USER-CACHE | ;; designates the default location for the user cache
@@ -132,7 +132,7 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
     :CURRENT-DIRECTORY ;; the current directory
 
 RELATIVE-COMPONENT-DESIGNATOR :=
-    STRING | ;; namestring, directory is assumed. If the last component, **/*.*.* is added
+    STRING | ;; namestring, directory is assumed. If the last component, ``/**/*.*`` is added
     PATHNAME | ;; pathname unless last component, directory is assumed.
     :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.32.30-linux-x86-64
     :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
@@ -143,24 +143,30 @@ RELATIVE-COMPONENT-DESIGNATOR :=
 Relative components better be either relative
 or subdirectories of the path before them, or bust.
 
-You may use #+features to customize the configuration file.
+The last component, if not a pathname, is notionally completed by ``/**/*.*``.
+You can specify more fine-grained patterns by using a pathname object,
+e.g. ``#p"some/path/**/foo*/bar-*.fasl"``
 
-The second designator of a mapping may be NIL, indicating that files are not mapped
+You may use ``#+features`` to customize the configuration file.
+
+The second designator of a mapping may be ``NIL``, indicating that files are not mapped
 to anything but themselves (same as if the second designator was the same as the first).
 
-Include statements cause the search to recurse with the path specifications
+``:include`` statements cause the search to recurse with the path specifications
 from the file specified.
 
-An :inherit-configuration statement cause the search to recurse with the path
+An ``:inherit-configuration`` statement cause the search to recurse with the path
 specifications from the next configuration
 (see section Configurations_ above).
 
-:enable-user-cache is the same as (:root :user-cache).
-:disable-cache is the same as (:root :root).
-:user-cache uses the contents of variable asdf::*output-translations-user-cache*
-which by default is the same as using (:home ".cache" "common-lisp" :implementation).
-:system-cache uses the contents of variable asdf::*output-translations-system-cache*
-which by default is the same as the user-cache.
+:enable-user-cache is the same as ``(:root :user-cache)``.
+:disable-cache is the same as ``(:root :root)``.
+:user-cache uses the contents of variable ``asdf::*user-cache*``
+which by default is the same as using
+``(:home ".cache" "common-lisp" :implementation)``.
+:system-cache uses the contents of variable ``asdf::*system-cache*``
+which by default is the same as using
+``(:root "var" "cache" "common-lisp" :uid :implementation-type)``
 
 
 Configuration Directories
@@ -168,7 +174,7 @@ Configuration Directories
 
 Configuration directories consist in files each contains
 a list of directives without any enclosing ``(:asdf-output-translations ...)`` form.
-The files will be sorted by namestring as if by #'string< and
+The files will be sorted by namestring as if by ``#'string<`` and
 the lists of directives of these files with be concatenated in order.
 An implicit ``:inherit-configuration`` will be included
 at the end of the list.
@@ -260,22 +266,10 @@ The specified functions are exported from package ASDF.
    If your application wants to override the provided defaults,
    it will have to use the below function process-output-translations.
 
-(process-output-translations X &key inherit collect)
-   If X is a CONS, parse it as a SEXP in the configuration DSL,
-   and extend or override inheritted configuration.
-   If X is a STRING, first parse it into a SEXP
-   as for the ASDF_OUTPUT_TRANSLATIONS
-   environment variable (see above) then process it.
-   If X is a PATHNAME, read the file as a single SEXP and process it.
-   The inheritted configuration is provided in keyword argument inherit,
-   itself a list of functions that take inherit
-   and collect keyword arguments
-   and defaulting to a list of functions
-   that implements the default behavior.
-
-(translate-output-translations PATHNAME)
+(apply-output-translations PATHNAME)
    Applies the configured output location translations to PATHNAME
    (calls ensure-output-translations for the translations).
+
 
 Credits
 =======
@@ -287,3 +281,8 @@ All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
  -- Francois-Rene Rideau <fare@tunes.org>
+
+..
+  ;;; Local Variables:
+  ;;; mode: rst
+  ;;; End:
