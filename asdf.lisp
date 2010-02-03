@@ -53,7 +53,7 @@
     (when asdf
       (let ((sym (find-symbol "*ASDF-REVISION*" asdf)))
         (when sym
-          (unexport sym)
+          (unexport sym asdf)
           (unintern sym))))))
 
 (defpackage #:asdf
@@ -175,7 +175,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.593" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.594" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
