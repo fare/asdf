@@ -50,6 +50,13 @@
 
 (declaim (optimize (speed 1) (debug 3) (safety 3)))
 
+;;;; -------------------------------------------------------------------------
+;;;; Cleanups in case of hot-upgrade.
+;;;; Things to do in case we're upgrading from a previous version of ASDF.
+;;;; See https://bugs.launchpad.net/asdf/+bug/485687
+;;;; These must come *before* the defpackage form.
+;;;; See more at the end of the file.
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (let ((asdf (find-package :asdf)))
     (when asdf
@@ -179,7 +186,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.595" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.596" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -2255,7 +2262,6 @@ with a different configuration, so the configuration would be re-read then."
 ;;;;
 ;;;; Jesse Hager: The Windows Shortcut File Format.
 ;;;; http://www.wotsit.org/list.asp?fc=13
-;;;; -----------------------------------------------------------------
 
 (defparameter *link-initial-dword* 76)
 (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
@@ -2605,7 +2611,12 @@ with a different configuration, so the configuration would be re-read then."
   #+ecl ;; Support upgrade from before ECL went to 1.369
   (when (fboundp 'compile-op-system-p)
     (defmethod compile-op-system-p ((op compile-op))
-      (getf :system-p (compile-op-flags op)))))
+      (getf :system-p (compile-op-flags op)))
+    (defmethod initialize-instance :after ((op compile-op)
+                                           &rest initargs
+                                           &key system-p &allow-other-keys)
+      (declare (ignorable initargs))
+      (when system-p (appendf (compile-op-flags op) (list :system-p system-p))))))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Done!
