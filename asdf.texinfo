@@ -1284,8 +1284,6 @@ location of the system's source file and the relative pathname. For example
 @comment  node-name,  next,  previous,  up
 @chapter Getting the latest version
 
-@emph{FIXME:  Need to revise this to give information about the git repository.}
-
 Decide which version you want.  HEAD is the newest version and
 usually OK, whereas RELEASE is for cautious people (e.g. who already
 have systems using asdf that they don't want broken), a slightly older
@@ -1397,6 +1395,51 @@ interfere.
 @item  Where do I report a bug?
 
 ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
+
+@item ``I want to put my module's files at the top level.  How do I do this?''
+
+By default, the files contained in an asdf module go in a subdirectory
+with the same name as the module.  However, this can be overridden by
+adding a @code{:pathname} argument to the module description.  For
+example, here is how it is done in the spatial-trees ASDF system
+definition:
+
+@example
+(asdf:defsystem :spatial-trees
+  :components
+  ((:module base
+            :pathname #.(make-pathname :directory '(:relative))
+            :components
+            ((:file "package")
+             (:file "basedefs" :depends-on ("package"))
+             (:file "rectangles" :depends-on ("package"))))
+   (:module tree-impls
+            :depends-on (base)
+            :pathname #.(make-pathname :directory '(:relative))
+            :components
+            ((:file "r-trees")
+             (:file "greene-trees" :depends-on ("r-trees"))
+             (:file "rstar-trees" :depends-on ("r-trees"))
+             (:file "rplus-trees" :depends-on ("r-trees"))
+             (:file "x-trees" :depends-on ("r-trees" "rstar-trees"))))
+   (:module viz
+            :depends-on (base)
+            :pathname #.(make-pathname :directory '(:relative))
+            :components
+            ((:static-file "spatial-tree-viz"
+                           :pathname #p"spatial-tree-viz.lisp")))
+   (:module tests
+            :depends-on (base)
+            :pathname #.(make-pathname :directory '(:relative))
+            :components
+            ((:static-file "spatial-tree-test"
+                           :pathname #p"spatial-tree-test.lisp")))
+   (:static-file "LICENCE")
+   (:static-file "TODO")))
+@end example
+
+All of the files in the @code{tree-impls} module are at the top level,
+instead of in a @code{tree-impls/} subdirectory.
 
 @end itemize
 
