@@ -41,10 +41,18 @@
 ;;;
 ;;; -- LICENSE END
 
-;;; the problem with writing a defsystem replacement is bootstrapping:
-;;; we can't use defsystem to compile it.  Hence, all in one file
+;;; The problem with writing a defsystem replacement is bootstrapping:
+;;; we can't use defsystem to compile it.  Hence, all in one file.
 
 #+xcvb (module ())
+
+(cl:in-package :cl-user)
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (let ((sym (find-symbol "*ASDF-REVISION*" :asdf)))
+    (when sym
+      (unexport sym)
+      (unintern sym))))
 
 (defpackage #:asdf
   (:documentation "Another System Definition Facility")
@@ -165,7 +173,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.591" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.592" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
