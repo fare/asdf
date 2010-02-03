@@ -16,31 +16,11 @@
 ;;;
 ;;; COMPILE-OP / LOAD-OP
 ;;;
-;;; We change these operations to produce both FASL files and the
+;;; In ECL, these operations produce both FASL files and the
 ;;; object files that they are built from. Having both of them allows
 ;;; us to later on reuse the object files for bundles, libraries,
 ;;; standalone executables, etc.
 ;;;
-
-(defmethod initialize-instance :after ((instance compile-op) &key &allow-other-keys)
-  (setf (slot-value instance 'flags) '(:system-p t)))
-
-(defmethod output-files ((o compile-op) (c cl-source-file))
-  (list (compile-file-pathname (component-pathname c) :type :object)
-        (compile-file-pathname (component-pathname c) :type :fasl)))
-
-(defmethod perform :after ((o compile-op) (c cl-source-file))
-  ;; Note how we use OUTPUT-FILES to find the binary locations
-  ;; This allows the user to override the names.
-  (let* ((input (output-files o c))
-         (output (compile-file-pathname (first input) :type :fasl)))
-    (c:build-fasl output :lisp-files (remove "fas" input :key #'pathname-type :test #'string=))))
-
-(defmethod perform ((o load-op) (c cl-source-file))
-  (loop for i in (input-files o c)
-       unless (string= (pathname-type i) "fas")
-       collect (let ((output (compile-file-pathname i)))
-                 (load output))))
 
 ;;;
 ;;; BUNDLE-OP

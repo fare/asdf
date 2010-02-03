@@ -48,6 +48,8 @@
 
 (cl:in-package :cl-user)
 
+(declaim (optimize (speed 1) (debug 3) (safety 3)))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (let ((asdf (find-package :asdf)))
     (when asdf
@@ -55,6 +57,8 @@
         (when sym
           (unexport sym asdf)
           (unintern sym))))))
+
+#+ecl (require 'cmp)
 
 (defpackage #:asdf
   (:documentation "Another System Definition Facility")
@@ -175,7 +179,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.594" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.595" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -1239,10 +1243,19 @@ to `~a` which is not a directory.~@:>"
                 :initform *compile-file-warnings-behaviour*)
    (on-failure :initarg :on-failure :accessor operation-on-failure
                :initform *compile-file-failure-behaviour*)
-   (flags :initarg :system-p :accessor compile-op-flags :initform nil)))
+   (flags :initarg :flags :accessor compile-op-flags
+          :initform #-ecl nil #+ecl '(:system-p t))))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
   (map nil #'ensure-directories-exist (output-files operation c)))
+
+#+ecl
+(defmethod perform :after ((o compile-op) (c cl-source-file))
+  ;; Note how we use OUTPUT-FILES to find the binary locations
+  ;; This allows the user to override the names.
+  (let* ((input (output-files o c))
+         (output (compile-file-pathname (first input) :type :fasl)))
+    (c:build-fasl output :lisp-files (remove "fas" input :key #'pathname-type :test #'string=))))
 
 (defmethod perform :after ((operation operation) (c component))
   (setf (gethash (type-of operation) (component-operation-times c))
@@ -1275,7 +1288,10 @@ to `~a` which is not a directory.~@:>"
         (error 'compile-error :component c :operation operation)))))
 
 (defmethod output-files ((operation compile-op) (c cl-source-file))
-  #-:broken-fasl-loader (list (compile-file-pathname (component-pathname c)))
+  #-:broken-fasl-loader
+  (list #-ecl (compile-file-pathname (component-pathname c))
+        #+ecl (compile-file-pathname (component-pathname c) :type :object)
+        #+ecl (compile-file-pathname (component-pathname c) :type :fasl))
   #+:broken-fasl-loader (list (component-pathname c)))
 
 (defmethod perform ((operation compile-op) (c static-file))
@@ -1296,7 +1312,11 @@ to `~a` which is not a directory.~@:>"
 (defclass load-op (basic-load-op) ())
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  (mapcar #'load (input-files o c)))
+  #-ecl (mapcar #'load (input-files o c))
+  #+ecl (loop :for i :in (input-files o c)
+          :unless (string= (pathname-type i) "fas")
+          :collect (let ((output (compile-file-pathname i)))
+                     (load output))))
 
 (defmethod perform around ((o load-op) (c cl-source-file))
   (let ((state :initial))
@@ -1981,32 +2001,33 @@ with a different configuration, so the configuration would be re-read then."
   (setf *output-translations* '())
   (values))
 
-(defun resolve-location (x)
+(defun resolve-location (x &optional wildenp)
   (if (atom x)
-      (resolve-absolute-location-component x nil)
-      (loop :with path = (resolve-absolute-location-component (car x) t)
+      (resolve-absolute-location-component x wildenp)
+      (loop :with path = (resolve-absolute-location-component (car x) nil)
         :for (component . morep) :on (cdr x)
-        :do (setf path (resolve-relative-location-component path component morep))
+        :do (setf path (resolve-relative-location-component
+                        path component (and wildenp (not morep))))
         :finally (return path))))
 
-(defun resolve-absolute-location-component (x morep)
+(defun resolve-absolute-location-component (x wildenp)
   (let* ((r
           (etypecase x
             (pathname x)
             (string (ensure-directory-pathname x))
             ((eql :home) (user-homedir-pathname))
-            ((eql :user-cache) (resolve-location *user-cache*))
-            ((eql :system-cache) (resolve-location *system-cache*))
+            ((eql :user-cache) (resolve-location *user-cache* nil))
+            ((eql :system-cache) (resolve-location *system-cache* nil))
             ((eql :current-directory) (truenamize *default-pathname-defaults*))
             ((eql :root) (make-pathname :directory '(:absolute)))))
-         (s (if (or (pathnamep x) morep)
-                r
-                (wilden r))))
+         (s (if (and wildenp (not (pathnamep x)))
+                (wilden r)
+                r)))
     (unless (absolute-pathname-p s)
       (error "Not an absolute pathname ~S" s))
     s))
 
-(defun resolve-relative-location-component (super x morep)
+(defun resolve-relative-location-component (super x &optional wildenp)
   (let* ((r (etypecase x
               (pathname x)
               (string x)
@@ -2017,7 +2038,9 @@ with a different configuration, so the configuration would be re-read then."
               ((eql :implementation-type) (implementation-type))
               ((eql :uid) (princ-to-string (get-uid)))))
          (d (if (pathnamep x) r (ensure-directory-pathname r)))
-         (s (if (or (pathnamep x) morep) d (wilden d))))
+         (s (if (and wildenp (not (pathnamep x)))
+                (wilden d)
+                d)))
     (when (and (absolute-pathname-p s) (not (pathname-match-p s (wilden super))))
       (error "pathname ~S is not relative to ~S" s super))
     (merge-pathnames s super)))
@@ -2194,8 +2217,8 @@ with a different configuration, so the configuration would be re-read then."
             (dst (second directive)))
         (if (eq src :include)
             (process-output-translations (pathname dst) :inherit nil :collect collect)
-            (let* ((trusrc (truenamize (resolve-location src)))
-                   (trudst (if dst (resolve-location dst) trusrc)))
+            (let* ((trusrc (truenamize (resolve-location src t)))
+                   (trudst (if dst (resolve-location dst t) trusrc)))
               (funcall collect (list trusrc trudst)))))))
 
 ;; Will read the configuration and initialize all internal variables,
