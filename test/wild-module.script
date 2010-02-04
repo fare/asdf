@@ -2,7 +2,6 @@
 (load "script-support")
 (load (compile-file-pathname "../asdf"))
 (quit-on-error
-
  (load (compile-file-pathname "../asdf"))
  (load "../wild-modules")
 
