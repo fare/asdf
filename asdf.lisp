@@ -880,7 +880,11 @@ to `~a` which is not a directory.~@:>"
            ;; that's the case, well, that's not good, but as long as
            ;; the operation is otherwise considered to be done we
            ;; could continue and survive.
-  (or (file-write-date pathname) 0))
+  (or (file-write-date pathname)
+      (progn
+        (warn "Missing FILE-WRITE-DATE for ~S: treating it as zero."
+              pathname)
+        0)))
 
 (defun find-system (name &optional (error-p t))
   (let* ((name (coerce-name name))
@@ -1073,35 +1077,26 @@ to `~a` which is not a directory.~@:>"
 (defmethod input-files ((operation operation) (c module)) nil)
 
 (defmethod operation-done-p ((o operation) (c component))
-  (flet ((fwd-or-return-t (file)
-           (let ((date (safe-file-write-date file)))
-             (cond
-               (date)
-               (t
-                (warn "~@<Missing FILE-WRITE-DATE for ~S: treating ~
-                       operation ~S on component ~S as done.~@:>"
-                      file o c)
-                (return-from operation-done-p t))))))
-    (let ((out-files (output-files o c))
-          (in-files (input-files o c)))
-      (cond ((and (not in-files) (not out-files))
-             ;; arbitrary decision: an operation that uses nothing to
-             ;; produce nothing probably isn't doing much
-             t)
-            ((not out-files)
-             (let ((op-done
-                    (gethash (type-of o)
-                             (component-operation-times c))))
-               (and op-done
-                    (>= op-done
-                        (apply #'max
-                               (mapcar #'fwd-or-return-t in-files))))))
-            ((not in-files) nil)
-            (t
-             (and
-              (every #'probe-file out-files)
-              (> (apply #'min (mapcar #'safe-file-write-date out-files))
-                 (apply #'max (mapcar #'fwd-or-return-t in-files)))))))))
+  (let ((out-files (output-files o c))
+        (in-files (input-files o c)))
+    (cond ((and (not in-files) (not out-files))
+           ;; arbitrary decision: an operation that uses nothing to
+           ;; produce nothing probably isn't doing much
+           t)
+          ((not out-files)
+           (let ((op-done
+                  (gethash (type-of o)
+                           (component-operation-times c))))
+             (and op-done
+                  (>= op-done
+                      (apply #'max
+                             (mapcar #'safe-file-write-date in-files))))))
+          ((not in-files) nil)
+          (t
+           (and
+            (every #'probe-file out-files)
+            (> (apply #'min (mapcar #'safe-file-write-date out-files))
+               (apply #'max (mapcar #'safe-file-write-date in-files))))))))
 
 ;;; So you look at this code and think "why isn't it a bunch of
 ;;; methods".  And the answer is, because standard method combination
