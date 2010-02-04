@@ -2,20 +2,20 @@
 #+(or f1 f2)
     (error "This test cannot run if :f1 or :f2 are on *features*")
 (load "script-support")
-(load "../asdf")
+(load (compile-file-pathname "../asdf"))
 (in-package :asdf)
-(cl-user::quit-on-error 
+(cl-user::quit-on-error
  (let ((fasl1 (compile-file-pathname (merge-pathnames "file1")))
        (fasl2 (compile-file-pathname (merge-pathnames "file2"))))
      (asdf:run-shell-command "rm -f ~A ~A"
                              (namestring fasl1)
                              (namestring fasl2))
      (setf asdf:*central-registry* '(*default-pathname-defaults*))
-     (handler-case 
+     (handler-case
          (asdf:oos 'asdf:load-op 'test3)
        (asdf:missing-dependency (c)
          (format t "first test failed as expected: - ~%~A~%" c))
-       (:no-error (c) 
+       (:no-error (c)
          (declare (ignore c))
          (error "should have failed, oops")))
      (pushnew :f1 *features*)

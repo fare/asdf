@@ -1,9 +1,9 @@
 ;;; -*- Lisp -*-
 ;;; -*- Lisp -*-
 (load "script-support")
-(load "../asdf")
+(load (compile-file-pathname "../asdf"))
 (in-package :asdf)
-(cl-user::quit-on-error 
+(cl-user::quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (assert (not (component-property (find-system 'test3) :foo)))
  (assert (equal (component-property (find-system 'test3) :prop1) "value"))
