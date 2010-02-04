@@ -12,7 +12,9 @@
              (compile-file "asdf.lisp"))
          (declare (ignore result))
          (cond (warnings-p
-                #-ecl ;;; ECL gives warnings that it shouldn't!
+                ;;; ECL gives warnings that it shouldn't!
+                #+ecl (leave-lisp "ASDF compiled with warnings. Please fix ECL." 0)
+                #-ecl
                 (leave-lisp "Testsuite failed: ASDF compiled with warnings" 1))
                (errors-p
                 (leave-lisp "Testsuite failed: ASDF compiled with ERRORS" 2))
@@ -20,3 +22,4 @@
                 (leave-lisp "ASDF compiled cleanly" 0)))))
       (t
        (leave-lisp "Testsuite failed: unable to find ASDF source" 3)))
+
