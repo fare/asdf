@@ -33,8 +33,8 @@ if [ $? -eq 0 ] ; then
     test_pass=0
     test_fail=0
     failed_list=""
-    for i in $scripts ; 
-    do 
+    for i in $scripts ;
+    do
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f *.$2 || true
@@ -134,4 +134,3 @@ else
     do_tests "$command" $fasl_ext 2>&1 | tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
     clean_up
 fi
- 

@@ -151,6 +151,7 @@
            #:clear-output-translations
            #:ensure-output-translations
            #:apply-output-translations
+           #:compile-file-pathname*
 
            #:initialize-source-registry
            #:clear-source-registry
@@ -186,7 +187,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.596" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.600" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -2244,7 +2245,7 @@ with a different configuration, so the configuration would be re-read then."
       (output-translations)
       (initialize-output-translations)))
 
-(defmethod apply-output-translations (path)
+(defun apply-output-translations (path)
   (ensure-output-translations)
   (setf path (truenamize path))
   (loop :for (source destination) :in (car *output-translations*)
@@ -2256,6 +2257,9 @@ with a different configuration, so the configuration would be re-read then."
   "Method to rewrite output files to fasl-root"
   (mapcar #'apply-output-translations (call-next-method)))
 
+(defun compile-file-pathname* (input-file &rest keys)
+  (apply-output-translations
+   (apply #'compile-file-pathname input-file keys)))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Windows shortcut support.  Based on:

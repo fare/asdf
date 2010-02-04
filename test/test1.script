@@ -1,38 +1,38 @@
 ;;; -*- Lisp -*-
 (load "script-support")
 (load "../asdf")
-(quit-on-error 
+
+(quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:operate 'asdf:load-op 'test1)
 
  ;; test that it compiled
- (defvar file1-date (file-write-date (compile-file-pathname "file1"))))
+ (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1")))))
 
-(quit-on-error 
- (assert (and file1-date (file-write-date (compile-file-pathname "file2")))))
+(quit-on-error
+ (assert (and file1-date (file-write-date (asdf:compile-file-pathname* "file2"))))))
 
 ;; and loaded
 (assert test-package::*file1*)
 
-(quit-on-error 
+(quit-on-error
  ;; now remove one output file and check that the other is _not_
  ;; recompiled
  (sleep 1) ; mtime has 1-second granularity, so pause here for fast machines
 
  (asdf::run-shell-command "rm -f ~A"
-                          (namestring (compile-file-pathname "file2")))
+                          (namestring (asdf:compile-file-pathname* "file2")))
  (asdf:operate 'asdf:load-op 'test1)
- (assert (= file1-date (file-write-date (compile-file-pathname "file1"))))
- (assert (file-write-date (compile-file-pathname "file2")))
+ (assert (= file1-date (file-write-date (asdf:compile-file-pathname* "file1"))))
+ (assert (file-write-date (asdf:compile-file-pathname* "file2")))
 
  ;; now touch file1 and check that file2 _is_ also recompiled
 
  ;; XXX run-shell-command loses if *default-pathname-defaults* is not the
  ;; unix cwd.  this is not a problem for run-tests.sh, but can be in general
 
- (let ((before (file-write-date (compile-file-pathname "file2"))))
+ (let ((before (file-write-date (asdf:compile-file-pathname* "file2"))))
    (asdf::run-shell-command "touch file1.lisp")
    (sleep 1)
    (asdf:operate 'asdf:load-op 'test1)
-   (assert (>  (file-write-date (compile-file-pathname "file2")) before)))
- )
+   (assert (>  (file-write-date (asdf:compile-file-pathname* "file2")) before))))

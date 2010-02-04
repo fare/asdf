@@ -3,9 +3,6 @@
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
 
-#+common-lisp-controller
-(setf common-lisp-controller:*redirect-fasl-files-to-cache* nil)
-
 ;;; code adapted from cl-launch (any errors in transcription are mine!)
 ;; http://www.cliki.net/cl-launch
 (defun leave-lisp (message return)
@@ -17,7 +14,7 @@
   (ext:quit return)
   #+(or cmu scl)
   (unix:unix-exit code)
-  #+ecl 
+  #+ecl
   (si:quit return)
   #+gcl
   (lisp:quit code)
@@ -31,7 +28,7 @@
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
 (defmacro quit-on-error (&body body)
-  `(handler-case 
+  `(handler-case
       (progn ,@body
              (leave-lisp "~&Script succeeded~%" 0))
     (error (c)
