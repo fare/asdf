@@ -187,7 +187,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.600" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.601" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -438,7 +438,7 @@ and NIL NAME and TYPE components" ;;; what about VERSION???
   #+cmu
   (cdr (assoc (intern x :keyword) ext:*environment-list*))
   #+lispworks
-  (lispworks:environment-xiable x)
+  (lispworks:environment-variable x)
   #+allegro
   (sys:getenv x)
   #+gcl
