@@ -63,7 +63,7 @@
       (let ((sym (find-symbol "*ASDF-REVISION*" asdf)))
         (when sym
           (unexport sym asdf)
-          (unintern sym))))))
+          (unintern sym asdf))))))
 
 #+ecl (require 'cmp)
 
@@ -187,7 +187,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.600" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.602" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -438,7 +438,7 @@ and NIL NAME and TYPE components" ;;; what about VERSION???
   #+cmu
   (cdr (assoc (intern x :keyword) ext:*environment-list*))
   #+lispworks
-  (lispworks:environment-xiable x)
+  (lispworks:environment-variable x)
   #+allegro
   (sys:getenv x)
   #+gcl
@@ -679,7 +679,7 @@ and NIL NAME and TYPE components" ;;; what about VERSION???
 (defun component-parent-pathname (component)
   (aif (component-parent component)
        (component-pathname it)
-       *default-pathname-defaults*))
+       (truename *default-pathname-defaults*)))
 
 (defmethod component-relative-pathname ((component module))
   (or (slot-value component 'relative-pathname)
@@ -690,8 +690,8 @@ and NIL NAME and TYPE components" ;;; what about VERSION???
          :host (pathname-host (component-parent-pathname component))))))
 
 (defmethod component-pathname ((component component))
-  (let ((*default-pathname-defaults* (component-parent-pathname component)))
-    (merge-pathnames (component-relative-pathname component))))
+  (merge-pathnames (component-relative-pathname component)
+                   (component-parent-pathname component)))
 
 (defmethod component-property ((c component) property)
   (cdr (assoc property (slot-value c 'properties) :test #'equal)))
@@ -935,6 +935,7 @@ to `~a` which is not a directory.~@:>"
 
 ;;; a component with no parent is a system
 (defmethod find-component ((module (eql nil)) name &optional version)
+  (declare (ignorable module))
   (let ((m (find-system name nil)))
     (if (and m (version-satisfies m version)) m)))
 
@@ -991,7 +992,7 @@ to `~a` which is not a directory.~@:>"
 (defmethod shared-initialize :after ((operation operation) slot-names
                                      &key force
                                      &allow-other-keys)
-  (declare (ignore slot-names force))
+  (declare (ignorable operation slot-names force))
   ;; empty method to disable initarg validity checking
   )
 
@@ -2191,8 +2192,8 @@ with a different configuration, so the configuration would be re-read then."
 (defmethod process-output-translations ((x null) &key
                                     (inherit *default-output-translations*)
                                     collect)
+  (declare (ignorable x))
   (inherit-output-translations inherit :collect collect))
-
 (defmethod process-output-translations ((form cons) &key
                                         (inherit *default-output-translations*)
                                         collect)
@@ -2508,8 +2509,8 @@ with a different configuration, so the configuration would be re-read then."
 (defmethod process-source-registry ((x null) &key
                                     (inherit *default-source-registries*)
                                     collect)
+  (declare (ignorable x))
   (inherit-source-registry inherit :collect collect))
-
 (defmethod process-source-registry ((form cons) &key
                                     (inherit *default-source-registries*)
                                     collect)

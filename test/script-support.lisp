@@ -28,9 +28,14 @@
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
 (defmacro quit-on-error (&body body)
-  `(handler-case
-      (progn ,@body
+  `(call-quitting-on-error (lambda () ,@body)))
+
+(defun call-quitting-on-error (thunk)
+  (handler-case
+      (progn (funcall thunk)
              (leave-lisp "~&Script succeeded~%" 0))
     (error (c)
       (format *error-output* "~a" c)
-      (leave-lisp "~&Script failed~%" 1))))
+      (if (ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
+          (break)
+          (leave-lisp "~&Script failed~%" 1)))))

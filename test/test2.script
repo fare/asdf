@@ -2,14 +2,16 @@
 (load "script-support")
 (load (compile-file-pathname "../asdf"))
 (quit-on-error
+ (format t "test2 1~%")
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
                                         ;(trace asdf::perform)
                                         ;(trace asdf::find-component)
                                         ;(trace asdf::traverse)
  (asdf:oos 'asdf:load-op 'test2b1)
- (assert (and (probe-file (asdf:compile-file-pathname* "file3"))
-              (probe-file (asdf:compile-file-pathname* "file4"))))
-
+ (format t "test2 2~%")
+ (assert (and (probe-file (asdf:compile-file-pathname* (truename "file3.lisp")))
+              (probe-file (asdf:compile-file-pathname* (truename "file4.lisp")))))
+ (format t "test2 3~%")
  (handler-case
      (asdf:oos 'asdf:load-op 'test2b2)
    (asdf:missing-dependency (c)
@@ -17,6 +19,7 @@
    (:no-error (c)
      (declare (ignore c))
      (error "should have failed, oops")))
+ (format t "test2 4~%")
  (handler-case
      (asdf:oos 'asdf:load-op 'test2b3)
    (asdf:missing-dependency (c)

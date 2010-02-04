@@ -4,7 +4,7 @@
 
 (load "script-support")
 (load "../asdf")
-(exit-on-error 
+(exit-on-error
  (asdf:run-shell-command "rm ~A ~A"
 			 (namestring (compile-file-pathname "file1"))
 			 (namestring (compile-file-pathname "file2")))

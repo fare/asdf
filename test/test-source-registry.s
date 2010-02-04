@@ -12,7 +12,7 @@
   (merge-pathnames path defaults))
 
 (defun ensure-recursive-directory (path)
-  (concatenate 
+  (concatenate
    'string
    (namestring
     (ensure-directory-pathname path))

@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-(asdf:defsystem test1   
+(asdf:defsystem test1
     :components ((:file "file2" :in-order-to ((compile-op (load-op "file1"))))
                  (:file "file1")))
 
