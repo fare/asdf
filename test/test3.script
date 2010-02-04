@@ -5,8 +5,8 @@
 (load "../asdf")
 (in-package :asdf)
 (cl-user::quit-on-error
- (let ((fasl1 (asdf:compile-file-pathname* (merge-pathnames "file1")))
-       (fasl2 (asdf:compile-file-pathname* (merge-pathnames "file2"))))
+ (let ((fasl1 (asdf:compile-file-pathname* (truename "file1.lisp")))
+       (fasl2 (asdf:compile-file-pathname* (truename "file2.lisp"))))
      (asdf:run-shell-command "rm -f ~A ~A"
                              (namestring fasl1)
                              (namestring fasl2))

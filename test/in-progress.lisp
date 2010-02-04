@@ -5,7 +5,7 @@
  (let ((*system-definition-search-functions*
         '(sysdef-central-registry-search))
        (*central-registry* (list "/tmp/ok-1/" "/tmp/bad" "/tmp/ok-2/")))
-   (handler-bind 
+   (handler-bind
        ((error (lambda (c)
                  (when (find-restart 'remove-entry-from-registry)
                    (invoke-restart 'remove-entry-from-registry)))))
@@ -19,7 +19,7 @@
  (let ((*system-definition-search-functions*
         '(sysdef-central-registry-search))
        (*central-registry* (list "/tmp/ok-1/" "/tmp/bad" "/tmp/ok-2/")))
-   (handler-bind 
+   (handler-bind
        ((error (lambda (c)
                  (when (find-restart 'coerce-entry-to-directory)
                    (invoke-restart 'coerce-entry-to-directory)))))

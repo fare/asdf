@@ -1,5 +1,5 @@
 #|
-make sure that serial t and static-files don't cause full rebuilds all 
+make sure that serial t and static-files don't cause full rebuilds all
 the time...
 |#
 

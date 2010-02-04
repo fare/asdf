@@ -6,15 +6,15 @@
 (load "../asdf")
 (in-package #:common-lisp-user)
 
-(quit-on-error 
+(quit-on-error
  (setf asdf:*central-registry* nil)
  (load (merge-pathnames "test9-1.asd"))
  (load (merge-pathnames "test9-2.asd"))
- (handler-case 
+ (handler-case
      (asdf:oos 'asdf:load-op 'test9-1)
    (asdf:missing-component-of-version (c)
      (format t "got missing-component-of-version as expected: - ~%~A~%" c))
-   (:no-error (c) 
+   (:no-error (c)
     (declare (ignore c))
     (error "should have failed, oops"))))
 

@@ -26,9 +26,11 @@ fi
 sok=1
 
 do_tests() {
-rm -f *.$2 || true
-( cd .. && echo '(load "test/compile-asdf.lisp")' | $1  )
-if [ $? -eq 0 ] ; then
+  command=$1 eval=$2 fasl_ext=$3
+  rm -f *.$fasl_ext ~/.cache/common-lisp/"`pwd`"/*.$fasl_ext || true
+  ( cd .. && $command $eval '(load "test/compile-asdf.lisp")' )
+  if [ $? -eq 0 ] ; then
+    echo "Compiled OK"
     test_count=0
     test_pass=0
     test_fail=0
@@ -37,12 +39,12 @@ if [ $? -eq 0 ] ; then
     do
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
-      rm -f *.$2 || true
-      if  $1 < $i ; then
-        echo "Using $1, $i passed" >&2
+      rm -f *.$fasl_ext ~/.cache/common-lisp/"`pwd`"/*.$fasl_ext || true
+      if $command $eval "(load \"$i\")" ; then
+        echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
-        echo "Using $1, $i failed" >&2
+        echo "Using $command, $i failed" >&2
 	test_fail=`expr "$test_fail" + 1`
 	failed_list="$failed_list $i"
         sok=0
@@ -50,7 +52,7 @@ if [ $? -eq 0 ] ; then
     done
     echo >&2
     echo "-#---------------------------------------" >&2
-    echo "Using $1" >&2
+    echo "Using $command" >&2
     echo "Ran $test_count tests: " >&2
     echo "  $test_pass passing and $test_fail failing" >&2
     if [ $test_fail -eq 0 ] ; then
@@ -60,7 +62,7 @@ if [ $? -eq 0 ] ; then
     fi
     echo "-#---------------------------------------" >&2
     echo >&2
-fi
+  fi
 }
 
 # terminate on error
@@ -75,23 +77,31 @@ case "$lisp" in
   sbcl)
     if type sbcl ; then
       fasl_ext="fasl"
-      command="sbcl --userinit /dev/null --sysinit /dev/null --noinform --noprogrammer"
+      command="sbcl --noinform --userinit /dev/null --sysinit /dev/null"
+      nodebug="--disable-debugger"
+      eval="--eval"
     fi ;;
   clisp)
     if type clisp ; then
 	fasl_ext="fas"
 	command=`which clisp`
-	command="$command -norc -ansi -I - "
+	command="$command -norc -ansi -I "
+        nodebug="-on-error exit"
+        eval="-x"
     fi ;;
   allegro)
     if type alisp ; then
 	fasl_ext="fasl"
-	command="alisp -q -batch "
+	command="alisp -q "
+        nodebug="-batch"
+        eval="-eval"
     fi ;;
   allegromodern)
     if type mlisp ; then
 	fasl_ext="fasl"
-	command="mlisp -q -batch "
+	command="mlisp -q"
+        nodebug="-batch"
+        eval="-eval"
     fi ;;
   ccl)
     if type ccl ; then
@@ -104,14 +114,29 @@ case "$lisp" in
           i?86|ppc) fasl_bits=32 ;;
         esac
         fasl_ext="${fasl_os}${fasl_bits}fsl"
-	command="ccl --no-init --quiet --batch "
+	command="ccl --no-init --quiet"
+        nodebug="--batch"
+        eval="--eval"
     fi ;;
   cmucl)
     if type lisp ; then
 	fasl_ext="x86f"
-	command="lisp -batch -noinit"
+	command="lisp -noinit"
+        nodebug="-batch"
+        eval="-eval"
+    fi ;;
+  ecl)
+    if type ecl ; then
+	fasl_ext="fas"
+	command=`which ecl`
+	command="$command -norc"
+        eval="-eval"
     fi ;;
 esac
+
+if [ -z "${DEBUG_ASDF_TEST}" ] ; then
+  command="$command $nodebug"
+fi
 
 create_asds () {
     mkdir -p {conf.d,dir1,dir2/{dir3,dir4}}
@@ -131,6 +156,7 @@ else
     mkdir -p results
     echo $command
     thedate=`date "+%Y-%m-%d"`
-    do_tests "$command" $fasl_ext 2>&1 | tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
+    do_tests "$command" "$eval" "$fasl_ext" 2>&1 | \
+	tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
     clean_up
 fi

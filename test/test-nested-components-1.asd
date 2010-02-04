@@ -28,28 +28,28 @@
 (in-package #:test-nested-components.system)
 
 (defsystem test-nested-components-a
-  :components 
+  :components
   ((:module "nested-components"
             :pathname ""
             :components ((:file "test-nested-1")))))
 
 (defsystem test-nested-components-b
   :pathname ""
-  :components 
+  :components
   ((:file "test-nested-1")))
 
 (defsystem db-agraph-preflight
-  :components 
+  :components
   ((:module "preflight-checks"
             :components ((:file "preflight")))))
 
 (defsystem db-agraph-preflight-2
   :pathname "preflight-checks"
-  :components 
+  :components
   ((:file "preflight")))
 
 #|
 newer traverse always fails
-older traverse fails when db-agraph-preflight is evaluated, ok 
-  when loaded or compiled 
+older traverse fails when db-agraph-preflight is evaluated, ok
+  when loaded or compiled
 |#
