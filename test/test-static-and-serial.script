@@ -5,7 +5,7 @@
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
 
  (asdf:operate 'asdf:load-op 'static-and-serial)
- (defvar file1-date (file-write-date (compile-file-pathname "file1"))))
+ (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1"))))
 
 (quit-on-error
  ;; cheat
@@ -14,5 +14,4 @@
  ;; date should stay same
  (sleep 1)
  (asdf:operate 'asdf:load-op 'static-and-serial)
- (assert (= (file-write-date (compile-file-pathname "file1")) file1-date))
- )
+ (assert (= (file-write-date (asdf:compile-file-pathname* "file1")) file1-date)))

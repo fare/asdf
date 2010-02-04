@@ -14,7 +14,7 @@
 This manual describes asdf, a system definition facility for Common
 Lisp programs and libraries.
 
-asdf Copyright @copyright{} 2001-2007 Daniel Barlow and contributors
+asdf Copyright @copyright{} 2001-2010 Daniel Barlow and contributors
 
 This manual Copyright @copyright{} 2001-2007 Daniel Barlow and
 contributors
@@ -1657,4 +1657,3 @@ probably will be again soon ]
 
 
 @bye
-

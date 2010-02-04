@@ -5,8 +5,8 @@
 (load (compile-file-pathname "../asdf"))
 (in-package :asdf)
 (cl-user::quit-on-error
- (let ((fasl1 (compile-file-pathname (merge-pathnames "file1")))
-       (fasl2 (compile-file-pathname (merge-pathnames "file2"))))
+ (let ((fasl1 (asdf:compile-file-pathname* (merge-pathnames "file1")))
+       (fasl2 (asdf:compile-file-pathname* (merge-pathnames "file2"))))
      (asdf:run-shell-command "rm -f ~A ~A"
                              (namestring fasl1)
                              (namestring fasl2))
@@ -26,5 +26,4 @@
      (setf *features* (cons :f2 (cdr *features*)))
      (asdf:oos 'asdf:load-op 'test3)
      (assert (probe-file fasl2))
-     (assert (not (probe-file fasl1)))
-     ))
+     (assert (not (probe-file fasl1)))))
