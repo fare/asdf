@@ -3,7 +3,7 @@
 ;;; test asdf:try-recompiling restart
 
 (load "script-support")
-(load "../asdf")
+(load (compile-file-pathname "../asdf"))
 ;(trace asdf::find-component)
 ;(trace asdf:run-shell-command asdf:oos asdf:perform asdf:operate)
 ;#+allegro

@@ -3,7 +3,7 @@
 ;;; check that added nesting via modules doesn't confuse ASDF
 
 (load "script-support")
-(load "../asdf")
+(load (compile-file-pathname "../asdf"))
 (in-package #:common-lisp-user)
 
 (quit-on-error
