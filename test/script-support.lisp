@@ -27,20 +27,13 @@
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
 
-
-(defparameter *asdf-test-debug*
-              (test-getenv "ASDF_DEBUG")
-  "Global variable initialized from ASDF_DEBUG environment variable.
-Controls whether errors are muffled and dumped to the shell.")
-
 (defmacro quit-on-error (&body body)
   `(call-quitting-on-error (lambda () ,@body)))
 
 (defun call-quitting-on-error (thunk)
-  "Unless the global *asdf-test-debug* is true,
-write a message and exit on an error.  If
-*asdf-test-debug* is true, enter the debugger
-as normal."
+  "Unless the environment variable DEBUG_ASDF_TEST
+is bound, write a message and exit on an error.  If
+*asdf-test-debug* is true, enter the debugger."
   (handler-case
       (progn (funcall thunk)
              (leave-lisp "~&Script succeeded~%" 0))
