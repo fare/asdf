@@ -6,13 +6,13 @@
 # - quit with exit status >0 if an unhandled error occurs
 
 export CL_SOURCE_REGISTRY="$PWD"
-export ASDF_DEBUG=
+export DEBUG_ASDF_TEST=
 
 while getopts "duh" OPTION
 do
     case OPTION in
         d)
-            ASDF_DEBUG = 1
+            DEBUG_ASDF_TEST = 1
             ;;
         u)
             usage
