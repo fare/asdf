@@ -6,15 +6,29 @@
 # - quit with exit status >0 if an unhandled error occurs
 
 export CL_SOURCE_REGISTRY="$PWD"
+export ASDF_DEBUG=
+
+while getopts "duh" OPTION
+do
+    case OPTION in
+        d)
+            ASDF_DEBUG = 1
+            ;;
+        u)
+            usage
+            exit 1
+            ;;
+        h)
+            usage
+            exit 1
+            ;;
+    esac
+done
+shift $(($OPTIND - 1))
 
 if [ x"$1" = "xhelp" ]; then
-    echo "$0 [lisp invocation] [scripts-regex]"
-    echo " - read lisp forms one at a time from matching scripts"
-    echo " - quit with exit status 0 on getting eof"
-    echo " - quit with exit status >0 if an unhandled error occurs"
-    echo " you need to supply the .script in the second argument"
-    echo " lisps include sbcl, clisp, allegro and allegromodern"
-    exit -1
+    usage
+    exit 1
 fi
 
 if [ -z "$2" ]; then
@@ -24,6 +38,18 @@ else
 fi
 
 sok=1
+
+usage () {
+    echo "$0 [lisp invocation] [scripts-regex]"
+    echo " - read lisp forms one at a time from matching scripts"
+    echo " - quit with exit status 0 on getting eof"
+    echo " - quit with exit status >0 if an unhandled error occurs"
+    echo " you need to supply the .script in the second argument"
+    echo " lisps include sbcl, clisp, allegro and allegromodern"
+    echo "OPTIONS:"
+    echo "    -d -- debug mode"
+    echo "    -u -h -- show this message."
+}
 
 do_tests() {
   command=$1 eval=$2 fasl_ext=$3
