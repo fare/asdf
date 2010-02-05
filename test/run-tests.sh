@@ -120,14 +120,14 @@ case "$lisp" in
 	fasl_ext="fasl"
 	command="alisp -q "
         nodebug="-batch"
-        eval="-eval"
+        eval="-e"
     fi ;;
   allegromodern)
     if type mlisp ; then
 	fasl_ext="fasl"
 	command="mlisp -q"
         nodebug="-batch"
-        eval="-eval"
+        eval="-e"
     fi ;;
   ccl)
     if type ccl ; then
