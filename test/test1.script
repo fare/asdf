@@ -7,15 +7,13 @@
  (asdf:operate 'asdf:load-op 'test1)
 
  ;; test that it compiled
- (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1"))))
+ (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1")))
 
-(quit-on-error
- (assert (and file1-date (file-write-date (asdf:compile-file-pathname* "file2")))))
+ (assert (and file1-date (file-write-date (asdf:compile-file-pathname* "file2"))))
 
-;; and loaded
-(assert test-package::*file1*)
+ ;; and loaded
+ (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
 
-(quit-on-error
  ;; now remove one output file and check that the other is _not_
  ;; recompiled
  (sleep 1) ; mtime has 1-second granularity, so pause here for fast machines
