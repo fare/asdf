@@ -187,7 +187,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.603" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.604" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
@@ -1143,9 +1143,10 @@ to `~a` which is not a directory.~@:>"
                                        (equalp (missing-requires c)
                                                required-c))))
 |#
-                        (and (typep c 'missing-dependency)
-                             (equalp (missing-requires c)
-                                     required-c)))))))
+                        (or (null c)
+                            (and (typep c 'missing-dependency)
+                                 (equalp (missing-requires c)
+                                         required-c))))))))
              (do-dep (op dep)
                (cond ((eq op 'feature)
                       (or (member (car dep) *features*)
