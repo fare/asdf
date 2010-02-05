@@ -1,18 +1,23 @@
 ;;; -*- Lisp -*-
 (load "script-support")
 (load (compile-file-pathname "../asdf"))
+
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
-
  (asdf:operate 'asdf:load-op 'test-force)
- (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1")))
 
- ;; unforced, date should stay same
- (sleep 1)
- (asdf:operate 'asdf:load-op 'test-force)
- (assert (= (file-write-date (asdf:compile-file-pathname* "file1")) file1-date))
+  (let* ((file1 (asdf:compile-file-pathname* (truename "file1.lisp")))
+         (file1-date (file-write-date file1)))
 
- ;; forced, it should be later
- (sleep 1)
- (asdf:operate 'asdf:load-op 'test-force :force t)
- (assert (> (file-write-date (asdf:compile-file-pathname* "file1")) file1-date)))
+    (assert file1)
+    (assert file1-date)
+
+    ;; unforced, date should stay same
+    (sleep 1)
+    (asdf:operate 'asdf:load-op 'test-force)
+    (assert (equal (file-write-date file1) file1-date))
+
+    ;; forced, it should be later
+    (sleep 1)
+    (asdf:operate 'asdf:load-op 'test-force :force t)
+    (assert (> (file-write-date file1) file1-date))))

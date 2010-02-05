@@ -34,11 +34,11 @@
   "Unless the environment variable DEBUG_ASDF_TEST
 is bound, write a message and exit on an error.  If
 *asdf-test-debug* is true, enter the debugger."
-  (handler-case
-      (progn (funcall thunk)
-             (leave-lisp "~&Script succeeded~%" 0))
-    (error (c)
-      (format *error-output* "~a" c)
-      (if (ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
-          (break)
-          (leave-lisp "~&Script failed~%" 1)))))
+  (handler-bind
+      ((error (lambda (c)
+                (format *error-output* "~a" c)
+                (if (ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
+                    (break)
+                    (leave-lisp "~&Script failed~%" 1)))))
+    (funcall thunk)
+    (leave-lisp "~&Script succeeded~%" 0)))

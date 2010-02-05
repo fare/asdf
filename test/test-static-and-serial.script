@@ -5,12 +5,11 @@
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
 
  (asdf:operate 'asdf:load-op 'static-and-serial)
- (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1")))
+ (let* ((file1 (asdf:compile-file-pathname* (truename "file1.lisp")))
+        (file1-date (file-write-date file1))
+        (asdf::*defined-systems* (make-hash-table :test 'equal))) ;; cheat
 
- ;; cheat
- (setf asdf::*defined-systems* (make-hash-table :test 'equal))
-
- ;; date should stay same
- (sleep 1)
- (asdf:operate 'asdf:load-op 'static-and-serial)
- (assert (= (file-write-date (asdf:compile-file-pathname* "file1")) file1-date)))
+   ;; date should stay same
+   (sleep 1)
+   (asdf:operate 'asdf:load-op 'static-and-serial)
+   (assert (= (file-write-date file1) file1-date))))
