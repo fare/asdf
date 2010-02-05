@@ -10,9 +10,9 @@ export DEBUG_ASDF_TEST=
 
 while getopts "duh" OPTION
 do
-    case OPTION in
+    case $OPTION in
         d)
-            DEBUG_ASDF_TEST = 1
+            DEBUG_ASDF_TEST=1
             ;;
         u)
             usage
