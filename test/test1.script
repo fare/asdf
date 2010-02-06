@@ -1,14 +1,14 @@
 ;;; -*- Lisp -*-
 (load "script-support")
-(load (compile-file-pathname "../asdf"))
+(load-asdf)
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:operate 'asdf:load-op 'test1)
 
  ;; test that it compiled
- (let* ((file1 (asdf:compile-file-pathname* (truename "file1.lisp")))
-        (file2 (asdf:compile-file-pathname* (truename "file2.lisp")))
+ (let* ((file1 (asdf:compile-file-pathname* "file1"))
+        (file2 (asdf:compile-file-pathname* "file2"))
         (file1-date (file-write-date file1)))
 
    (format t "~&test1 1: ~S ~S~%" file1 file1-date)

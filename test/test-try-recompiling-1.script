@@ -3,7 +3,7 @@
 ;;; test asdf:try-recompiling restart
 
 (load "script-support")
-(load (compile-file-pathname "../asdf"))
+(load-asdf)
 (defvar *caught-error* nil)
 
 (quit-on-error

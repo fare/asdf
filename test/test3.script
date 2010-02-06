@@ -2,7 +2,7 @@
 #+(or f1 f2)
     (error "This test cannot run if :f1 or :f2 are on *features*")
 (load "script-support")
-(load (compile-file-pathname "../asdf"))
+(load-asdf)
 (in-package :asdf)
 (cl-user::quit-on-error
  (let ((fasl1 (asdf:compile-file-pathname* (truename "file1.lisp")))

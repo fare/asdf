@@ -1,5 +1,9 @@
 (in-package #:common-lisp-user)
 
+(defvar *asdf-lisp* (truename (merge-pathnames "../asdf.lisp" *load-truename*)))
+(defvar *asdf-fasl* (compile-file-pathname (merge-pathnames "tmp/" *asdf-lisp*)))
+(defun load-asdf () (load *asdf-fasl*))
+
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
 

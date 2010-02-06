@@ -3,7 +3,7 @@
 ;;; make sure we get a missing-component error
 
 (load "script-support")
-(load (compile-file-pathname "../asdf"))
+(load-asdf)
 (in-package #:common-lisp-user)
 
 (quit-on-error

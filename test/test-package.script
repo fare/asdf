@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 (in-package :cl-user)
 (load "script-support")
-(load (compile-file-pathname "../asdf"))
+(load-asdf)
 (quit-on-error 
  (defun module () 1)
  (load "test-package.asd")

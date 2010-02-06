@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 ;;; -*- Lisp -*-
 (load "script-support")
-(load (compile-file-pathname "../asdf"))
+(load-asdf)
 (in-package :asdf)
 (cl-user::quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
