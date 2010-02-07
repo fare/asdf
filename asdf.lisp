@@ -308,9 +308,28 @@ system."))
    "Recursively chase the operation's parent pointer until we get to
 the head of the tree"))
 
-(defgeneric component-visited-p (operation component))
+(defgeneric component-visited-p (operation component)
+  (:documentation "Returns the value stored by a call to
+VISIT-COMPONENT, if that has been called, otherwise NIL.
+This value stored will be a cons cell, the first element
+of which is a computed key, so not interesting.  The
+CDR wil be the DATA value stored by VISIT-COMPONENT; recover
+it as \(cdr \(component-visited-p op c\)\).
+  There is no evidence that the DATA value is ever interesting.
+It is only consumed as a boolean, and the only call to VISIT-COMPONENT
+ensures that the DATA argument will always be a true value.  Suspect
+this was done in case someone mistakenly set DATA to NIL instead of
+removing the record."))
 
-(defgeneric visit-component (operation component data))
+(defgeneric visit-component (operation component data)
+  (:documentation "Record DATA as being associated with OPERATION
+and COMPONENT.  This is a side-effecting function:  the association
+will be recorded on the ROOT OPERATION \(OPERATION-ANCESTOR of the
+OPERATION\).
+  No evidence that DATA is ever interesting, beyond just being
+non-NIL.  Using the data field is probably very risky; if there is
+already a record for OPERATION X COMPONENT, DATA will be quietly
+discarded instead of recorded."))
 
 (defgeneric (setf visiting-component) (new-value operation component))
 
@@ -977,7 +996,11 @@ to `~a` which is not a directory.~@:>"
 ;;; one of these is instantiated whenever #'operate is called
 
 (defclass operation ()
-  ((forced :initform nil :initarg :force :accessor operation-forced)
+  (
+   ;; what is the TYPE of this slot?  seems like it should be boolean,
+   ;; but TRAVERSE checks to see if it's a list of component names...
+   ;; [2010/02/07:rpg]
+   (forced :initform nil :initarg :force :accessor operation-forced)
    (original-initargs :initform nil :initarg :original-initargs
                       :accessor operation-original-initargs)
    (visited-nodes :initform nil :accessor operation-visited-nodes)
@@ -1006,6 +1029,9 @@ to `~a` which is not a directory.~@:>"
 
 
 (defun make-sub-operation (c o dep-c dep-o)
+  "C is a component, O is an operation, DEP-C is another
+component, and DEP-O, confusingly enough, is an operation
+class NAME, not an operation."
   (let* ((args (copy-list (operation-original-initargs o)))
          (force-p (getf args :force)))
     ;; note explicit comparison with T: any other non-NIL force value
@@ -1108,8 +1134,10 @@ to `~a` which is not a directory.~@:>"
 ;;; for our purposes.
 
 (defmethod traverse ((operation operation) (c component))
-  (let ((forced nil))
+  (let ((forced nil))                   ;return value -- everyone side-effects onto this
     (labels ((%do-one-dep (required-op required-c required-v)
+               ;; returns a partial plan that results from performing required-op
+               ;; on required-c, possibly with a required-vERSION
                (let* ((dep-c (or (find-component
                                   (component-parent c)
                                   ;; XXX tacky.  really we should build the
@@ -1127,15 +1155,17 @@ to `~a` which is not a directory.~@:>"
                       (op (make-sub-operation c operation dep-c required-op)))
                  (traverse op dep-c)))
              (do-one-dep (required-op required-c required-v)
+               ;; this function is a thin, error-handling wrapper around
+               ;; %do-one-dep.  Returns a partial plan per that function.
                (loop
-                  (restart-case
-                      (return (%do-one-dep required-op required-c required-v))
-                    (retry ()
-                      :report (lambda (s)
-                                (format s "~@<Retry loading component ~S.~@:>"
-                                        required-c))
-                      :test
-                      (lambda (c)
+                 (restart-case
+                     (return (%do-one-dep required-op required-c required-v))
+                   (retry ()
+                     :report (lambda (s)
+                               (format s "~@<Retry loading component ~S.~@:>"
+                                       required-c))
+                     :test
+                     (lambda (c)
 #|
                         (print (list :c1 c (typep c 'missing-dependency)))
                         (when (typep c 'missing-dependency)
@@ -1143,11 +1173,17 @@ to `~a` which is not a directory.~@:>"
                                        (equalp (missing-requires c)
                                                required-c))))
 |#
-                        (or (null c)
-                            (and (typep c 'missing-dependency)
-                                 (equalp (missing-requires c)
-                                         required-c))))))))
+                       (or (null c)
+                           (and (typep c 'missing-dependency)
+                                (equalp (missing-requires c)
+                                        required-c))))))))
              (do-dep (op dep)
+               ;; type of arguments uncertain:  op seems to at least potentially be a
+               ;; symbol, rather than an operation
+               ;; dep is either a list of component names (?) or (we hope) a single
+               ;; component name.
+               ;; handle a single dependency, returns nothing of interest --- side-
+               ;; effects onto the FORCED variable, which is scoped over TRAVERSE
                (cond ((eq op 'feature)
                       (or (member (car dep) *features*)
                           (error 'missing-dependency
@@ -1155,6 +1191,10 @@ to `~a` which is not a directory.~@:>"
                                  :requires (car dep))))
                      (t
                       (dolist (d dep)
+                        ;; structured dependencies --- this parses keywords
+                        ;; the keywords could be broken out and cleanly (extensibly)
+                        ;; processed by EQL methods, but for the pervasive side-effecting
+                        ;; onto FORCED
                         (cond ((consp d)
                                (cond ((string-equal
                                        (symbol-name (first d))
@@ -1162,6 +1202,9 @@ to `~a` which is not a directory.~@:>"
                                       (appendf
                                        forced
                                        (do-one-dep op (second d) (third d))))
+                                     ;; this particular subform is not documented, indeed
+                                     ;; clashes with the documentation, since it assumes a
+                                     ;; third component
                                      ((and (string-equal
                                             (symbol-name (first d))
                                             "FEATURE")
@@ -1171,7 +1214,7 @@ to `~a` which is not a directory.~@:>"
                                        forced
                                        (do-one-dep op (second d) (third d))))
                                      (t
-                                      (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature>), or a name" d))))
+                                      (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name" d))))
                               (t
                                (appendf forced (do-one-dep op d nil)))))))))
       (aif (component-visited-p operation c)
@@ -1182,50 +1225,63 @@ to `~a` which is not a directory.~@:>"
           (error 'circular-dependency :components (list c)))
       (setf (visiting-component operation c) t)
       (unwind-protect
-           (progn
-             (loop :for (required-op . deps) :in
-               (component-depends-on operation c)
-               :do (do-dep required-op deps))
-             ;; constituent bits
-             (let ((module-ops
-                    (when (typep c 'module)
-                      (let ((at-least-one nil)
-                            (forced nil)
-                            (error nil))
-                        (dolist (kid (module-components c))
-                          (handler-case
-                              (appendf forced (traverse operation kid))
-                            (missing-dependency (condition)
-                              (if (eq (module-if-component-dep-fails c)
-                                      :fail)
-                                  (error condition))
-                              (setf error condition))
-                            (:no-error (c)
-                              (declare (ignore c))
-                              (setf at-least-one t))))
-                        (when (and (eq (module-if-component-dep-fails c)
-                                       :try-next)
-                                   (not at-least-one))
-                          (error error))
-                        forced))))
-               ;; now the thing itself
-               (when (or forced module-ops
-                         (not (operation-done-p operation c))
-                         (let ((f (operation-forced
-                                   (operation-ancestor operation))))
-                           (and f (or (not (consp f))
-                                      (member (component-name
-                                               (operation-ancestor operation))
-                                              (mapcar #'coerce-name f)
-                                              :test #'string=)))))
-                 (let ((do-first (cdr (assoc (class-name (class-of operation))
-                                             (component-do-first c)))))
-                   (loop :for (required-op . deps) :in do-first
-                     :do (do-dep required-op deps)))
-                 (setf forced (append (delete 'pruned-op forced :key #'car)
-                                      (delete 'pruned-op module-ops :key #'car)
-                                      (list (cons operation c)))))))
+          (progn
+            (loop :for (required-op . deps) :in
+                  (component-depends-on operation c)
+                  :do (do-dep required-op deps))
+            ;; constituent bits
+            (let ((module-ops
+                   (when (typep c 'module)
+                     (let ((at-least-one nil)
+                           ;; if the operation isn't done on the module
+                           ;; (some module dependency forces the operation),
+                           ;; then the operation must be done on the kids.
+                           (forced nil)
+                           (error nil))
+                       (dolist (kid (module-components c))
+                           (handler-case
+                               (appendf forced (traverse operation kid))
+                             (missing-dependency (condition)
+                               (if (eq (module-if-component-dep-fails c)
+                                       :fail)
+                                   (error condition))
+                               (setf error condition))
+                             (:no-error (c)
+                               (declare (ignore c))
+                               (setf at-least-one t))))
+                       (when (and (eq (module-if-component-dep-fails c)
+                                      :try-next)
+                                  (not at-least-one))
+                         (error error))
+                       forced))))
+              ;; now the thing itself
+              ;; we perform this if it's forced, or some of the components
+              ;; are done, or it's never been done before or ..
+              (when (or forced module-ops
+                        (not (operation-done-p operation c))
+                        (let ((f (operation-forced
+                                  (operation-ancestor operation))))
+                          ;; does anyone fully understand the following condition?
+                          ;; if so, please add a comment to explain it...
+                          (and f (or (not (consp f))
+                                     (member (component-name
+                                              (operation-ancestor operation))
+                                             (mapcar #'coerce-name f)
+                                             ;; this was string=, but for the benefit
+                                             ;; of mlisp, we use string-equal for this
+                                             ;; purpose.
+                                             :test #'string-equal)))))
+                (let ((do-first (cdr (assoc (class-name (class-of operation))
+                                            (component-do-first c)))))
+                  (loop :for (required-op . deps) :in do-first
+                        :do (do-dep required-op deps)))
+                (setf forced (append (delete 'pruned-op forced :key #'car)
+                                     (delete 'pruned-op module-ops :key #'car)
+                                     (list (cons operation c)))))))
         (setf (visiting-component operation c) nil))
+      ;; this form is kinda misleading here --- we're caching some information about
+      ;; the current subplan (forced) --- but we only ever treat this value as a
+      ;; boolean
       (visit-component operation c (and forced t))
       forced)))
 
