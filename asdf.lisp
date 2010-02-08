@@ -1,3 +1,4 @@
+;;; -*- mode: common-lisp; package: asdf; -*-
 ;;; This is asdf: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
@@ -205,6 +206,14 @@ Defaults to `t`.")
 
 (defparameter +asdf-methods+
   '(perform explain output-files operation-done-p))
+
+#+allegro
+(eval-when (:compile-toplevel)
+  (defparameter *acl-warn-save*
+                (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
+                  excl:*warn-on-nested-reader-conditionals*))
+  (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
+    (setf excl:*warn-on-nested-reader-conditionals* nil)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups before hot-upgrade.
@@ -2711,6 +2720,11 @@ with a different configuration, so the configuration would be re-read then."
 ;;;; Done!
 (when *load-verbose*
   (asdf-message ";; ASDF, version ~a" (asdf-version)))
+
+#+allegro
+(eval-when (:compile-toplevel)
+  (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
+    (setf excl:*warn-on-nested-reader-conditionals* *acl-warn-save*)))
 
 (pushnew :asdf *features*)
 ;;(pushnew :asdf2 *features*) ;; do that when we reach version 2
