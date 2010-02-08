@@ -1258,10 +1258,10 @@ recursive calls to traverse.")
       (unwind-protect
           (progn
             ;; first we check and do all the dependencies for the
-            ;; module.  Note that there is no information flow out of
-            ;; here, so there's no way for module dependencies to
-            ;; affect whether either the module itself, or its
-            ;; components are affected...
+            ;; module.  Operations planned in this loop will show up
+            ;; in the contents of the FORCED variable, and are consumed
+            ;; downstream (watch out for the shadowing FORCED variable
+            ;; around the DOLIST below!)
             (loop :for (required-op . deps) :in
                   (component-depends-on operation c)
                   :do (do-dep required-op deps))
