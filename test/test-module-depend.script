@@ -1,7 +1,6 @@
 ;;; -*- Lisp -*-
 (load "script-support")
-(load (compile-file-pathname "../asdf"))
-(trace asdf:operate)
+(load-asdf)
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
@@ -13,7 +12,7 @@
  (assert (and file1-date (file-write-date (asdf:compile-file-pathname* "file2"))))
 
  ;; and loaded
- (assert test-package::*file1*)
+ (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
 
 
  ;; now touch file1 and check that file2 _is_ also recompiled
