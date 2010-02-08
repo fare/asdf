@@ -315,11 +315,11 @@ This value stored will be a cons cell, the first element
 of which is a computed key, so not interesting.  The
 CDR wil be the DATA value stored by VISIT-COMPONENT; recover
 it as \(cdr \(component-visited-p op c\)\).
-  There is no evidence that the DATA value is ever interesting.
-It is only consumed as a boolean, and the only call to VISIT-COMPONENT
-ensures that the DATA argument will always be a true value.  Suspect
-this was done in case someone mistakenly set DATA to NIL instead of
-removing the record."))
+  In the current form of ASDF, the DATA value retrieved is
+effectively a boolean, indicating whether some operations are
+to be performed in order to do OPERATION X COMPONENT.  If the
+data value is NIL, the combination had been explored, but no
+operations needed to be performed."))
 
 (defgeneric visit-component (operation component data)
   (:documentation "Record DATA as being associated with OPERATION
@@ -1031,7 +1031,7 @@ to `~a` which is not a directory.~@:>"
 (defun make-sub-operation (c o dep-c dep-o)
   "C is a component, O is an operation, DEP-C is another
 component, and DEP-O, confusingly enough, is an operation
-class NAME, not an operation."
+class specifier, not an operation."
   (let* ((args (copy-list (operation-original-initargs o)))
          (force-p (getf args :force)))
     ;; note explicit comparison with T: any other non-NIL force value
@@ -1151,6 +1151,10 @@ class NAME, not an operation."
 ;;; runs :before methods most->least-specific, which is back to front
 ;;; for our purposes.
 
+(defvar *forcing* nil
+  "This dynamically-bound variable is used to force operations in
+recursive calls to traverse.")
+
 (defmethod traverse ((operation operation) (c component))
   (let ((forced nil))                   ;return value -- everyone side-effects onto this
     (labels ((%do-one-dep (required-op required-c required-v)
@@ -1244,6 +1248,11 @@ class NAME, not an operation."
       (setf (visiting-component operation c) t)
       (unwind-protect
           (progn
+            ;; first we check and do all the dependencies for the
+            ;; module.  Note that there is no information flow out of
+            ;; here, so there's no way for module dependencies to
+            ;; affect whether either the module itself, or its
+            ;; components are affected...
             (loop :for (required-op . deps) :in
                   (component-depends-on operation c)
                   :do (do-dep required-op deps))
@@ -1251,16 +1260,17 @@ class NAME, not an operation."
             (let ((module-ops
                    (when (typep c 'module)
                      (let ((at-least-one nil)
-                           ;; if the operation isn't done on the module
-                           ;; (some module dependency forces the operation),
-                           ;; then the operation must be done on the kids.
                            (forced nil)
+                           ;; this is set based on the results of the
+                           ;; dependencies.
+                           (must-operate forced)
                            (error nil))
                        (dolist (kid (module-components c))
                            (handler-case
-                               (appendf forced (traverse operation kid))
+                               (let ((*forcing* must-operate))
+                                 (appendf forced (traverse operation kid)))
                              (missing-dependency (condition)
-                               (if (eq (module-if-component-dep-fails c)
+                               (when (eq (module-if-component-dep-fails c)
                                        :fail)
                                    (error condition))
                                (setf error condition))
@@ -1273,9 +1283,11 @@ class NAME, not an operation."
                          (error error))
                        forced))))
               ;; now the thing itself
-              ;; we perform this if it's forced, or some of the components
-              ;; are done, or it's never been done before or ..
+              ;; the test here is a bit oddly written.  FORCED here doesn't
+              ;; mean that this operation is forced on this component, but that
+              ;; something upstream of this component has been forced.
               (when (or forced module-ops
+                        *forcing*
                         (not (operation-done-p operation c))
                         (let ((f (operation-forced
                                   (operation-ancestor operation))))
@@ -1297,9 +1309,6 @@ class NAME, not an operation."
                                      (delete 'pruned-op module-ops :key #'car)
                                      (list (cons operation c)))))))
         (setf (visiting-component operation c) nil))
-      ;; this form is kinda misleading here --- we're caching some information about
-      ;; the current subplan (forced) --- but we only ever treat this value as a
-      ;; boolean
       (visit-component operation c (and forced t))
       forced)))
 
