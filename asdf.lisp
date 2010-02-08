@@ -516,7 +516,7 @@ and NIL NAME and TYPE components" ;;; what about VERSION???
 
 #-windows
 (progn
-#+clisp (defun get-uid () (linux:getuid))
+#+clisp (defun get-uid () (posix:uid))
 #+sbcl (defun get-uid () (sb-unix:unix-getuid))
 #+cmu (defun get-uid () (unix:unix-getuid))
 #+ecl (defun get-uid () (ffi:c-inline () () :int "getuid()" :one-liner t))
