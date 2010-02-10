@@ -158,6 +158,13 @@ case "$lisp" in
 	command="$command -norc"
         eval="-eval"
     fi ;;
+  lispworks)
+    if type lispworks ; then
+	fasl_ext="ofasl"
+	command=`which ecl`
+	command="$command -siteinit - -init -"
+        eval="-eval"
+    fi ;;
 esac
 
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
