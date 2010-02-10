@@ -187,7 +187,7 @@
 ;;;;
 (defparameter *asdf-version*
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.605" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.606" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   *asdf-version*)
