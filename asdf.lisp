@@ -793,7 +793,7 @@ called with an object of type asdf:system."
 ;;; for the sake of keeping things reasonably neat, we adopt a
 ;;; convention that functions in this list are prefixed SYSDEF-
 
-(defvar *system-definition-search-functions*
+(defparameter *system-definition-search-functions*
   '(sysdef-central-registry-search))
 
 (defun system-definition-pathname (system)
