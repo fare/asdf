@@ -23,6 +23,9 @@
    (asdf::run-shell-command "touch file1.lisp")
    (sleep 1)
    (asdf:operate 'asdf:load-op 'test-module-depend)
-   (assert (>  (file-write-date (asdf:compile-file-pathname* "file2")) before))))
+   (assert (>  (file-write-date (asdf:compile-file-pathname* "file2")) before))
+   ;; does this properly go to the second level?
+   (assert (>  (file-write-date (asdf:compile-file-pathname* "file3")) before))
+   ))
 
 

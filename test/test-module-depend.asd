@@ -3,4 +3,9 @@
                (:module "quux"
                         :pathname #p""
                         :depends-on ("file1")
-                        :components ((:file "file2")))))
+                        :components ((:file "file2")
+                                     (:module "file3mod"
+                                              :pathname #p""
+                                              :components
+                                              ((:file "file3")))))))
+
