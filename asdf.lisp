@@ -1276,7 +1276,12 @@ recursive calls to traverse.")
                            ;; this is set based on the results of the
                            ;; dependencies and whether we are in the
                            ;; context of a *forcing* call...
-                           (must-operate (or *forcing* forced))
+                           (must-operate (or *forcing*
+                                             ;; inter-system dependencies do NOT trigger
+                                             ;; building components
+                                             (and
+                                              (not (typep c 'system)))
+                                             forced))
                            (error nil))
                        (dolist (kid (module-components c))
                            (handler-case
