@@ -1262,17 +1262,21 @@ recursive calls to traverse.")
             ;; in the contents of the FORCED variable, and are consumed
             ;; downstream (watch out for the shadowing FORCED variable
             ;; around the DOLIST below!)
-            (loop :for (required-op . deps) :in
-                  (component-depends-on operation c)
-                  :do (do-dep required-op deps))
+            (let ((*forcing* nil))
+              ;; upstream dependencies are never forced to happen just because
+              ;; the things that depend on them are....
+              (loop :for (required-op . deps) :in
+                                              (component-depends-on operation c)
+                    :do (do-dep required-op deps)))
             ;; constituent bits
             (let ((module-ops
                    (when (typep c 'module)
                      (let ((at-least-one nil)
                            (forced nil)
                            ;; this is set based on the results of the
-                           ;; dependencies.
-                           (must-operate forced)
+                           ;; dependencies and whether we are in the
+                           ;; context of a *forcing* call...
+                           (must-operate (or *forcing* forced))
                            (error nil))
                        (dolist (kid (module-components c))
                            (handler-case
