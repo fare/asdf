@@ -1108,25 +1108,43 @@ class NAME, not an operation."
 
 (defmethod operation-done-p ((o operation) (c component))
   (let ((out-files (output-files o c))
-        (in-files (input-files o c)))
-    (cond ((and (not in-files) (not out-files))
-           ;; arbitrary decision: an operation that uses nothing to
-           ;; produce nothing probably isn't doing much
-           t)
-          ((not out-files)
-           (let ((op-done
-                  (gethash (type-of o)
-                           (component-operation-times c))))
-             (and op-done
-                  (>= op-done
-                      (apply #'max
-                             (mapcar #'safe-file-write-date in-files))))))
-          ((not in-files) nil)
-          (t
-           (and
-            (every #'probe-file out-files)
-            (> (apply #'min (mapcar #'safe-file-write-date out-files))
-               (apply #'max (mapcar #'safe-file-write-date in-files))))))))
+        (in-files (input-files o c))
+        (op-time (gethash (type-of o) (component-operation-times c))))
+    (flet ((earliest-out ()
+             (reduce #'min (mapcar #'safe-file-write-date out-files)))
+           (latest-in ()
+             (reduce #'max (mapcar #'safe-file-write-date in-files))))
+      (cond
+        ((and (not in-files) (not out-files))
+         ;; arbitrary decision: an operation that uses nothing to
+         ;; produce nothing probably isn't doing much.
+         ;; e.g. operations on systems, modules that have no immediate action,
+         ;; but are only meaningful through traversed dependencies
+         t)
+        ((not out-files)
+         ;; an operation without output-files is probably meant
+         ;; for its side-effects in the current image,
+         ;; assumed to be idem-potent,
+         ;; e.g. LOAD-OP or LOAD-SOURCE-OP of some CL-SOURCE-FILE.
+         (and op-time
+              (>= op-time (latest-in))))
+        ((not in-files)
+         ;; an operation without output-files and no input-files
+         ;; is probably meant for its side-effects on the file-system,
+         ;; assumed to have to be done everytime.
+         ;; (I don't think there is any such case in ASDF unless extended)
+         nil)
+        (t
+         ;; an operation with both input and output files is assumed
+         ;; as computing the latter from the former,
+         ;; assumed to have been done if the latter are all older
+         ;; than the former.
+         ;; e.g. COMPILE-OP of some CL-SOURCE-FILE.
+         (and
+          (every #'probe-file in-files)
+          (every #'probe-file out-files)
+          (and (> (earliest-out) (latest-in)))))))))
+
 
 ;;; So you look at this code and think "why isn't it a bunch of
 ;;; methods".  And the answer is, because standard method combination
