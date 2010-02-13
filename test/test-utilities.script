@@ -23,4 +23,10 @@
    (make-pathname :name nil :type "bar" :directory '(:absolute "tmp"))
    (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
    (make-pathname :name "." :type "" :directory '(:absolute "tmp")))))
+(assert
+ (asdf::version-satisfies (asdf:asdf-version) (asdf:asdf-version)))
+(assert
+ (asdf::version-satisfies (asdf:asdf-version) "1.608"))
+(assert
+ (not (asdf::version-satisfies (asdf:asdf-version) "666")))
 )

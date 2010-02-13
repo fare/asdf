@@ -171,21 +171,18 @@ if [ -z "${DEBUG_ASDF_TEST}" ] ; then
   command="$command $nodebug"
 fi
 
-create_asds () {
-    mkdir -p {conf.d,dir1,dir2/{dir3,dir4}}
-    for i in dir1 dir2; do touch "$i"/test.asd; done
-    for i in dir3 dir4; do (cd dir2/$i; touch test.asd); done
+create_config () {
+    mkdir -p ../tmp/test-source-registry-conf.d ../tmp/test-asdf-output-translations-conf.d
 }
 
 clean_up () {
-    rm -rf {conf.d,dir?}
+    rm -rf ../tmp/test-source-registry-conf.d ../tmp/test-asdf-output-translations-conf.d
 }
-
 
 if [ -z "$command" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 else
-    create_asds
+    create_config
     mkdir -p results
     echo $command
     thedate=`date "+%Y-%m-%d"`
