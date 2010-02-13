@@ -49,7 +49,7 @@
 
 (cl:in-package :cl-user)
 
-(declaim (optimize (speed 1) (debug 3) (safety 3)))
+(declaim (optimize (speed 2) (debug 2) (safety 2)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups in case of hot-upgrade.
@@ -187,10 +187,16 @@
 ;;;; User-visible parameters
 ;;;;
 (defparameter *asdf-version*
+  ;; This parameter isn't actually user-visible
+  ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
   (subseq "VERSION:1.608" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
+  "Exported interface to the version of ASDF currently installed. A string.
+
+Not officially supported:
+you can compare this string with ASDF::VERSION-SATISFIES."
   *asdf-version*)
 
 (defvar *resolve-symlinks* t
@@ -208,7 +214,7 @@ Defaults to `t`.")
   '(perform explain output-files operation-done-p))
 
 #+allegro
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :execute)
   (defparameter *acl-warn-save*
                 (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
                   excl:*warn-on-nested-reader-conditionals*))
@@ -1280,8 +1286,8 @@ recursive calls to traverse.")
                                              ;; inter-system dependencies do NOT trigger
                                              ;; building components
                                              (and
-                                              (not (typep c 'system)))
-                                             forced))
+                                              (not (typep c 'system))
+                                              forced)))
                            (error nil))
                        (dolist (kid (module-components c))
                            (handler-case
@@ -2731,7 +2737,7 @@ with a different configuration, so the configuration would be re-read then."
   (asdf-message ";; ASDF, version ~a" (asdf-version)))
 
 #+allegro
-(eval-when (:compile-toplevel)
+(eval-when (:compile-toplevel :execute)
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
     (setf excl:*warn-on-nested-reader-conditionals* *acl-warn-save*)))
 
