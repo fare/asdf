@@ -49,7 +49,35 @@
 
 (cl:in-package :cl-user)
 
-(declaim (optimize (speed 2) (debug 2) (safety 2)))
+(declaim (optimize (speed 3) (debug 2) (safety 2)))
+
+#+ecl (require 'cmp)
+
+(defpackage #:asdf-utilities
+  (:nicknames :asdf-extensions)
+  (:use #:common-lisp)
+  (:export
+   #:absolute-pathname-p
+   #:aif
+   #:appendf
+   #:asdf-message
+   #:coerce-name
+   #:ends-with
+   #:ensure-directory-pathname
+   #:getenv
+   #:get-uid
+   #:length=n-p
+   #:make-collector
+   #:pathname-directory-pathname
+   #:pathname-sans-name+type ;; deprecated. Use pathname-directory-pathname
+   #:read-file-forms
+   #:remove-keys
+   #:remove-keyword
+   #:resolve-symlinks
+   #:split
+   #:split-path-string
+   #:system-registered-p
+   #:truenamize))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups in case of hot-upgrade.
@@ -59,17 +87,21 @@
 ;;;; See more at the end of the file.
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (let ((asdf (find-package :asdf)))
-    (when asdf
-      (let ((sym (find-symbol "*ASDF-REVISION*" asdf)))
-        (when sym
-          (unexport sym asdf)
-          (unintern sym asdf))))))
-
-#+ecl (require 'cmp)
+  (block nil
+    (let ((asdf (or (find-package :asdf) (return))))
+      (flet ((frob (name)
+               (let ((sym (find-symbol (string name) asdf)))
+                 (when sym
+                   (unexport sym asdf)
+                   (unintern sym asdf)))))
+        (frob '#:*asdf-revision*)
+        (do-external-symbols (sym (or (find-package :asdf-utilities) (return)))
+          (unless (eq sym (find-symbol (string sym) asdf))
+            (frob sym)))))))
 
 (defpackage #:asdf
   (:documentation "Another System Definition Facility")
+  (:use :common-lisp :asdf-utilities)
   (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
            #:system-definition-pathname #:find-component ; miscellaneous
            #:compile-system #:load-system #:test-system
@@ -154,27 +186,12 @@
            #:apply-output-translations
            #:compile-file-pathname*
 
+           #:*default-source-registries*
            #:initialize-source-registry
+           #:compute-source-registry
            #:clear-source-registry
            #:ensure-source-registry
-           #:process-source-registry)
-  (:intern #:coerce-name
-           #:getenv
-           #:system-registered-p
-           #:asdf-message
-           #:resolve-symlinks
-           #:pathname-sans-name+type)
-  (:use :cl))
-
-(defpackage #:asdf-extensions
-  (:use #:common-lisp #:asdf)
-  (:import-from #:asdf
-                #:coerce-name
-                #:getenv
-                #:system-registered-p
-                #:asdf-message
-                #:resolve-symlinks
-                #:pathname-sans-name+type))
+           #:process-source-registry))
 
 #+nil
 (error "The author of this file habitually uses #+nil to comment out ~
@@ -190,7 +207,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.609" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.620" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -233,6 +250,8 @@ Defaults to `t`.")
   (when (and (fboundp 'system-source-file)
              (not (typep (fdefinition 'system-source-file) 'generic-function)))
     (fmakunbound 'system-source-file))
+  (map () 'fmakunbound '(process-source-registry inherit-source-registry
+                         process-source-registry-directive))
   #+ecl
   (when (find-class 'compile-op nil)
     (defmethod update-instance-for-redefined-class :after
@@ -407,8 +426,16 @@ structure will mirror that of the source."))
 
 (defun pathname-sans-name+type (pathname)
   "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
-and NIL NAME and TYPE components" ;;; what about VERSION???
+and NIL NAME and TYPE components.
+Issue: doesn't override the VERSION component.
+
+Deprecated. Use PATHNAME-DIRECTORY-PATHNAME instead."
   (make-pathname :name nil :type nil :defaults pathname))
+
+(defun pathname-directory-pathname (pathname)
+  "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
+and NIL NAME, TYPE and VERSION components"
+  (make-pathname :name nil :type nil :version nil :defaults pathname))
 
 (define-modify-macro appendf (&rest args)
   append "Append onto list")
@@ -417,7 +444,7 @@ and NIL NAME and TYPE components" ;;; what about VERSION???
   (declare (dynamic-extent format-args))
   (apply #'format *verbose-out* format-string format-args))
 
-;;; with apologies to christophe rhodes ...
+;;; with apologies to Christophe Rhodes ...
 (defun split (string &optional max (ws '(#\Space #\Tab)))
   (flet ((is-ws (char) (find char ws)))
     (nreverse
@@ -1636,7 +1663,7 @@ created with the same initargs as the original one.
   ;; implementations, the latter has *already resolved it.
   (or (and pathname-supplied-p pathname)
       (when *load-pathname*
-        (pathname-sans-name+type
+        (pathname-directory-pathname
          (if *resolve-symlinks*
              (resolve-symlinks *load-truename*)
              *load-pathname*)))
@@ -2209,7 +2236,7 @@ with a different configuration, so the configuration would be re-read then."
      '(:output-translations :inherit-configuration))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
-    ((eql (char string 0) #\()
+    ((find (char string 0) "\"(")
      (validate-output-translations-form (read-from-string string)))
     (t
      (loop
@@ -2228,7 +2255,7 @@ with a different configuration, so the configuration would be re-read then."
            (when inherit
              (error "only one inherited configuration allowed: ~S" string))
            (setf inherit t)
-           (push ':inherit-configuration directives))
+           (push :inherit-configuration directives))
           (t
            (setf source s)))
         (setf start (1+ i))
@@ -2236,7 +2263,7 @@ with a different configuration, so the configuration would be re-read then."
           (when source
             (error "Uneven number of components in source to destination mapping ~S" string))
           (unless inherit
-            (push ':ignore-inherited-configuration directives))
+            (push :ignore-inherited-configuration directives))
           (return `(:output-translations ,@(nreverse directives)))))))))
 
 (defparameter *default-output-translations*
@@ -2535,7 +2562,7 @@ with a different configuration, so the configuration would be re-read then."
      '(:source-registry :inherit-configuration))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
-    ((eql (char string 0) #\()
+    ((eql (char string 0) "\"(")
      (validate-source-registry-form (read-from-string string)))
     (t
      (loop
@@ -2561,17 +2588,20 @@ with a different configuration, so the configuration would be re-read then."
              (push '(:ignore-inherited-configuration) directives))
            (return `(:source-registry ,@(nreverse directives)))))))))
 
-(defun collect-asd-subdirectories (directory &key (exclude *default-exclusions*) collect)
-  (let* ((files (ignore-errors
-                  (directory (merge-pathnames #P"**/*.asd" directory)
-                             #+sbcl #+sbcl :resolve-symlinks nil
-                             #+clisp #+clisp :circle t)))
-         (dirs (remove-duplicates (mapcar #'pathname-sans-name+type files) :test #'equal)))
-    (loop
-     :for dir :in dirs
-     :unless (loop :for x :in exclude
-                   :thereis (find x (pathname-directory dir) :test #'equal))
-     :do (funcall collect dir))))
+(defun register-asd-directory (directory &key recurse exclude collect)
+  (if (not recurse)
+      (funcall collect (ensure-directory-pathname directory))
+      (let* ((files (ignore-errors
+                      (directory (merge-pathnames #P"**/*.asd" directory)
+                                 #+sbcl #+sbcl :resolve-symlinks nil
+                                 #+clisp #+clisp :circle t)))
+             (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
+                                      :test #'equal)))
+        (loop
+          :for dir :in dirs
+          :unless (loop :for x :in exclude
+                    :thereis (find x (pathname-directory dir) :test #'equal))
+          :do (funcall collect dir)))))
 
 (defparameter *default-source-registries*
   '(environment-source-registry
@@ -2594,75 +2624,72 @@ with a different configuration, so the configuration would be re-read then."
 (defun environment-source-registry ()
   (getenv "CL_SOURCE_REGISTRY"))
 
-(defgeneric process-source-registry (spec &key inherit collect))
-(defmethod process-source-registry ((x symbol) &key
-                                    (inherit *default-source-registries*)
-                                    collect)
-  (process-source-registry (funcall x) :inherit inherit :collect collect))
-(defmethod process-source-registry ((pathname pathname) &key
-                                    (inherit *default-source-registries*)
-                                    collect)
+(defgeneric process-source-registry (spec &key inherit register))
+(defmethod process-source-registry ((x symbol) &key inherit register)
+  (process-source-registry (funcall x) :inherit inherit :register register))
+(defmethod process-source-registry ((pathname pathname) &key inherit register)
   (cond
     ((directory-pathname-p pathname)
      (process-source-registry (validate-source-registry-directory pathname)
-                              :inherit inherit :collect collect))
+                              :inherit inherit :register register))
     ((probe-file pathname)
      (process-source-registry (validate-source-registry-file pathname)
-                              :inherit inherit :collect collect))
+                              :inherit inherit :register register))
     (t
-     (inherit-source-registry inherit :collect collect))))
-(defmethod process-source-registry ((string string) &key
-                                    (inherit *default-source-registries*)
-                                    collect)
+     (inherit-source-registry inherit :register register))))
+(defmethod process-source-registry ((string string) &key inherit register)
   (process-source-registry (parse-source-registry-string string)
-                           :inherit inherit :collect collect))
-(defmethod process-source-registry ((x null) &key
-                                    (inherit *default-source-registries*)
-                                    collect)
+                           :inherit inherit :register register))
+(defmethod process-source-registry ((x null) &key inherit register)
   (declare (ignorable x))
-  (inherit-source-registry inherit :collect collect))
-(defmethod process-source-registry ((form cons) &key
-                                    (inherit *default-source-registries*)
-                                    collect)
-  (multiple-value-bind (collect result)
-      (if collect
-          (values collect (constantly nil))
-        (make-collector))
-    (let ((*default-exclusions* *default-exclusions*))
-      (dolist (directive (cdr (validate-source-registry-form form)))
-        (process-source-registry-directive directive :inherit inherit :collect collect)))
-    (funcall result)))
+  (inherit-source-registry inherit :register register))
+(defmethod process-source-registry ((form cons) &key inherit register)
+  (let ((*default-exclusions* *default-exclusions*))
+    (dolist (directive (cdr (validate-source-registry-form form)))
+      (process-source-registry-directive directive :inherit inherit :register register))))
 
-(defun inherit-source-registry (inherit &key collect)
+(defun inherit-source-registry (inherit &key register)
   (when inherit
-    (process-source-registry (first inherit) :collect collect :inherit (rest inherit))))
+    (process-source-registry (first inherit) :register register :inherit (rest inherit))))
 
-(defun process-source-registry-directive (directive &key inherit collect)
+(defun process-source-registry-directive (directive &key inherit register)
   (destructuring-bind (kw &rest rest) (if (consp directive) directive (list directive))
     (ecase kw
       ((:include)
        (destructuring-bind (pathname) rest
-         (process-source-registry (pathname pathname) :inherit nil :collect collect)))
+         (process-source-registry (pathname pathname) :inherit nil :register register)))
       ((:directory)
        (destructuring-bind (pathname) rest
-         (funcall collect (ensure-directory-pathname pathname))))
+         (funcall register pathname)))
       ((:tree)
        (destructuring-bind (pathname) rest
-         (collect-asd-subdirectories pathname :collect collect)))
+         (funcall register pathname :recurse t :exclude *default-exclusions*)))
       ((:exclude)
        (setf *default-exclusions* rest))
       ((:default-registry)
        (default-registry))
       ((:inherit-configuration)
-       (inherit-source-registry inherit :collect collect))
+       (inherit-source-registry inherit :register register))
       ((:ignore-inherited-configuration)
        nil))))
 
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.
-(defun initialize-source-registry ()
-  (setf (source-registry)
-        (inherit-source-registry *default-source-registries*)))
+(defun compute-source-registry (&optional parameter)
+  (multiple-value-bind (collect result) (make-collector)
+    (inherit-source-registry
+     (list*
+      parameter
+      *default-source-registries*)
+     :register
+     (lambda (directory &key recurse exclude)
+       (register-asd-directory
+        directory
+        :recurse recurse :exclude exclude :collect collect)))
+    (funcall result)))
+
+(defun initialize-source-registry (&optional parameter)
+  (setf (source-registry) (compute-source-registry parameter)))
 
 ;; checks an initial variable to see whether the state is initialized
 ;; or cleared. In the former case, return current configuration; in
