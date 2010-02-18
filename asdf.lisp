@@ -62,6 +62,7 @@
    #:appendf
    #:asdf-message
    #:coerce-name
+   #:directory-pathname-p
    #:ends-with
    #:ensure-directory-pathname
    #:getenv
@@ -507,6 +508,21 @@ and NIL NAME, TYPE and VERSION components"
   #+ecl
   (si:getenv x))
 
+(defun directory-pathname-p (pathname)
+  "Does `pathname` represent a directory?
+
+A directory-pathname is a pathname _without_ a filename. The three
+ways that the filename components can be missing are for it to be `nil`,
+`:unspecific` or the empty string.
+
+Note that this does _not_ check to see that `pathname` points to an
+actually-existing directory."
+  (flet ((check-one (x)
+           (not (null (member x '(nil :unspecific "")
+                              :test 'equal)))))
+    (and (check-one (pathname-name pathname))
+         (check-one (pathname-type pathname)))))
+
 (defun ensure-directory-pathname (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to directory form."
   (cond
@@ -859,21 +875,6 @@ which evaluates to a pathname. For example:
                 #p\"/home/me/cl/systems/\"
                 #p\"/usr/share/common-lisp/systems/\"))
 ")
-
-(defun directory-pathname-p (pathname)
-  "Does `pathname` represent a directory?
-
-A directory-pathname is a pathname _without_ a filename. The three
-ways that the filename components can be missing are for it to be `nil`,
-`:unspecific` or the empty string.
-
-Note that this does _not_ check to see that `pathname` points to an
-actually-existing directory."
-  (flet ((check-one (x)
-           (not (null (member x '(nil :unspecific "")
-                              :test 'equal)))))
-    (and (check-one (pathname-name pathname))
-         (check-one (pathname-type pathname)))))
 
 (defun sysdef-central-registry-search (system)
   (let ((name (coerce-name system))
@@ -2143,14 +2144,12 @@ with a different configuration, so the configuration would be re-read then."
   (setf *output-translations* '())
   (values))
 
-(defun resolve-location (x &optional wildenp)
-  (if (atom x)
-      (resolve-absolute-location-component x wildenp)
-      (loop :with path = (resolve-absolute-location-component (car x) nil)
-        :for (component . morep) :on (cdr x)
-        :do (setf path (resolve-relative-location-component
-                        path component (and wildenp (not morep))))
-        :finally (return path))))
+(defparameter *wild-path*
+  (make-pathname :directory '(:relative :wild-inferiors)
+                 :name :wild :type :wild :version nil))
+
+(defun wilden (path)
+  (merge-pathnames *wild-path* path))
 
 (defun resolve-absolute-location-component (x wildenp)
   (let* ((r
@@ -2187,12 +2186,14 @@ with a different configuration, so the configuration would be re-read then."
       (error "pathname ~S is not relative to ~S" s super))
     (merge-pathnames s super)))
 
-(defparameter *wild-path*
-  (make-pathname :directory '(:relative :wild-inferiors)
-                 :name :wild :type :wild :version nil))
-
-(defun wilden (path)
-  (merge-pathnames *wild-path* path))
+(defun resolve-location (x &optional wildenp)
+  (if (atom x)
+      (resolve-absolute-location-component x wildenp)
+      (loop :with path = (resolve-absolute-location-component (car x) nil)
+        :for (component . morep) :on (cdr x)
+        :do (setf path (resolve-relative-location-component
+                        path component (and wildenp (not morep))))
+        :finally (return path))))
 
 (defun location-designator-p (x)
   (flet ((componentp (c) (typep c '(or string pathname keyword))))
