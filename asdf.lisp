@@ -323,7 +323,11 @@ be overridden by around methods added by a system developer.")
   (:documentation "Extracts the pathname applicable for a particular component."))
 
 (defgeneric component-relative-pathname (component)
-  (:documentation "Extracts the relative pathname applicable for a particular component."))
+  (:documentation "Returns a pathname for the component argument intended to be
+interpreted relative to the pathname of that component's parent.
+Despite the function's name, the return value may be an absolute
+pathname, because an absolute pathname may be interpreted relative to
+another pathname in a degenerate way."))
 
 (defgeneric component-property (component property))
 
@@ -460,6 +464,17 @@ and NIL NAME, TYPE and VERSION components"
          (setf start (1+ end)))))))
 
 (defun split-path-string (s &optional force-directory)
+  "Splits the path string S, returning three values:
+A flag that is either :absolute or :relative, indicating
+   how the rest of the values are to be interpreted.
+A directory path --- a list of strings, suitable for
+   use with MAKE-PATHNAME when prepended with the flag
+   value.
+A filename with type extension, possibly NIL in the
+   case of a directory pathname.
+FORCE-DIRECTORY forces S to be interpreted as a directory
+pathname \(third return value will be NIL, final component
+of S will be treated as part of the directory path."
   (check-type s string)
   (let* ((components (split s nil "/"))
          (last-comp (car (last components))))
