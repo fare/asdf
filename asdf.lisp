@@ -208,7 +208,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.620" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.622" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -1028,10 +1028,15 @@ to `~a` which is not a directory.~@:>"
        filename))))
 
 (defmethod component-relative-pathname ((component source-file))
-  (merge-component-relative-pathname
-   (slot-value component 'relative-pathname)
-   (component-name component)
-   (source-file-type component (component-system component))))
+  ;; This binding of *default-pathname-defaults* is required notably because
+  ;; it will provide the default host to the above make-pathname, which may
+  ;; crucially matter to e.g. people somehow using logical-pathnames.
+  (let ((*default-pathname-defaults*
+         (component-pathname (component-parent component))))
+    (merge-component-relative-pathname
+     (slot-value component 'relative-pathname)
+     (component-name component)
+     (source-file-type component (component-system component)))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
