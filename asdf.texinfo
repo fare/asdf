@@ -463,8 +463,7 @@ option := :components component-list
 
 component-list := ( {component-def}* )
 
-component-def  := simple-component-name
-                | ( component-type name {option}* )
+component-def  := ( component-type name {option}* )
 
 component-type := :module | :file | :system | other-component-type
 
