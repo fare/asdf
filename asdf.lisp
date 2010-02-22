@@ -76,7 +76,7 @@
    #:remove-keyword
    #:resolve-symlinks
    #:split
-   #:split-path-string
+   #:component-name-to-pathname-components
    #:system-registered-p
    #:truenamize))
 
@@ -463,7 +463,7 @@ and NIL NAME, TYPE and VERSION components"
          (unless end (return list))
          (setf start (1+ end)))))))
 
-(defun split-path-string (s &optional force-directory)
+(defun component-name-to-pathname-components (s &optional force-directory)
   "Splits the path string S, returning three values:
 A flag that is either :absolute or :relative, indicating
    how the rest of the values are to be interpreted.
@@ -474,7 +474,11 @@ A filename with type extension, possibly NIL in the
    case of a directory pathname.
 FORCE-DIRECTORY forces S to be interpreted as a directory
 pathname \(third return value will be NIL, final component
-of S will be treated as part of the directory path."
+of S will be treated as part of the directory path.
+
+The intention of this function is to support structured component names,
+e.g., \(:file \"foo/bar\"\), which will be unpacked to relative
+pathnames."
   (check-type s string)
   (let* ((components (split s nil "/"))
          (last-comp (car (last components))))
@@ -784,7 +788,7 @@ actually-existing directory."
 (defmethod component-relative-pathname ((component module))
   (or (slot-value component 'relative-pathname)
       (multiple-value-bind (relative path)
-          (split-path-string (component-name component) t)
+          (component-name-to-pathname-components (component-name component) t)
         (make-pathname
          :directory `(,relative ,@path)
          :host (pathname-host (component-parent-pathname component))))))
@@ -1043,7 +1047,7 @@ to `~a` which is not a directory.~@:>"
 
 (defun merge-component-relative-pathname (pathname name type)
   (multiple-value-bind (relative path filename)
-      (split-path-string name)
+      (component-name-to-pathname-components name)
   (merge-pathnames
    (or pathname (make-pathname :directory `(,relative ,@path)))
    (if type
