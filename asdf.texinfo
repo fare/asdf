@@ -1436,21 +1436,26 @@ in the spatial-trees ASDF system definition:
    (:static-file "TODO")))
 @end example
 
+All of the files in the @code{tree-impls} module are at the top level,
+instead of in a @code{tree-impls/} subdirectory.
+
 Note that the argument to @code{:pathname} can be either a pathname object or a string.
 A pathname object can be constructed with the @code{#p"foo/bar/"} syntax,
-but this is discouraged because the results are not portable.
-It can only be portably constructed with such syntax as
+but this is discouraged because the results of parsing a namestring are not portable.
+A pathname can only be portably constructed with such syntax as
 @code{#.(make-pathname :directory '(:relative "foo" "bar"))},
 and similarly the current directory can only be portably specified as
-@code{#.(make-pathname :directory '(:relative "foo" "bar"))}.
-As of ASDF 1.623, however, you can portably use a string,
-which will be parsed as a @code{/}-separated path from the current directory,
+@code{#.(make-pathname :directory '(:relative))}.
+However, as of ASDF 1.624, you can portably use a string to denote a pathname.
+The string will be parsed as a @code{/}-separated path from the current directory,
 such that the empty string @code{""} denotes the current directory, and
 @code{"foo/bar"} (no trailing @code{/} required in the case of modules)
 portably denotes the same subdirectory as above.
-
-All of the files in the @code{tree-impls} module are at the top level,
-instead of in a @code{tree-impls/} subdirectory.
+When files are specified, the last @code{/}-separated component is interpreted
+either as the name component of a pathname
+(if the component class specifies a pathname type),
+or as a name component plus optional dot-separated type component
+(if the component class doesn't specifies a pathname type).
 
 @end itemize
 
