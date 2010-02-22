@@ -23,6 +23,18 @@
    (make-pathname :name nil :type "bar" :directory '(:absolute "tmp"))
    (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
    (make-pathname :name "." :type "" :directory '(:absolute "tmp")))))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "" t))
+               '(:relative nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "" nil))
+               '(:relative nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/" t))
+               '(:absolute nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/" nil))
+               '(:absolute nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" t))
+               '(:absolute ("aa" "ba") nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" nil))
+               '(:absolute ("aa") "ba")))
 (assert
  (asdf::version-satisfies (asdf:asdf-version) (asdf:asdf-version)))
 (assert

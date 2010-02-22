@@ -484,7 +484,9 @@ pathnames."
          (last-comp (car (last components))))
     (multiple-value-bind (relative components)
         (if (equal (first components) "")
-          (values :absolute (cdr components))
+            (if (and (plusp (length s)) (eql (char s 0) #\/))
+                (values :absolute (cdr components))
+                (values :relative nil))
           (values :relative components))
       (cond
         ((equal last-comp "")
@@ -786,12 +788,15 @@ actually-existing directory."
        (truename *default-pathname-defaults*)))
 
 (defmethod component-relative-pathname ((component module))
-  (or (slot-value component 'relative-pathname)
-      (multiple-value-bind (relative path)
-          (component-name-to-pathname-components (component-name component) t)
-        (make-pathname
-         :directory `(,relative ,@path)
-         :host (pathname-host (component-parent-pathname component))))))
+  (let ((specified-pathname (or (slot-value component 'relative-pathname)
+                                (component-name component))))
+    (if (pathnamep specified-pathname)
+        specified-pathname
+        (multiple-value-bind (relative path)
+            (component-name-to-pathname-components specified-pathname t)
+          (make-pathname
+           :directory `(,relative ,@path)
+           :host (pathname-host (component-parent-pathname component)))))))
 
 (defmethod component-pathname ((component component))
   (merge-pathnames (component-relative-pathname component)

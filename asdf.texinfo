@@ -455,7 +455,7 @@ option := :components component-list
         | :default-component-class
         | :perform method-form
         | :explain method-form
-        | :output-files  method-form
+        | :output-files method-form
         | :operation-done-p method-form
         | :depends-on ( {dependency-def}* )
         | :serial [ t | nil ]
@@ -1397,24 +1397,25 @@ ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
 
 @item ``I want to put my module's files at the top level.  How do I do this?''
 
-By default, the files contained in an asdf module go in a subdirectory
-with the same name as the module.  However, this can be overridden by
-adding a @code{:pathname} argument to the module description.  For
-example, here is how it is done in the spatial-trees ASDF system
-definition:
+By default, the files contained in an asdf module go
+in a subdirectory with the same name as the module.
+However, this can be overridden by adding a @code{:pathname} argument
+to the module description.
+For example, here is how it is done
+in the spatial-trees ASDF system definition:
 
 @example
 (asdf:defsystem :spatial-trees
   :components
   ((:module base
-            :pathname #.(make-pathname :directory '(:relative))
+            :pathname ""
             :components
             ((:file "package")
              (:file "basedefs" :depends-on ("package"))
              (:file "rectangles" :depends-on ("package"))))
    (:module tree-impls
             :depends-on (base)
-            :pathname #.(make-pathname :directory '(:relative))
+            :pathname ""
             :components
             ((:file "r-trees")
              (:file "greene-trees" :depends-on ("r-trees"))
@@ -1423,19 +1424,30 @@ definition:
              (:file "x-trees" :depends-on ("r-trees" "rstar-trees"))))
    (:module viz
             :depends-on (base)
-            :pathname #.(make-pathname :directory '(:relative))
+            :pathname ""
             :components
-            ((:static-file "spatial-tree-viz"
-                           :pathname #p"spatial-tree-viz.lisp")))
+            ((:static-file "spatial-tree-viz.lisp")))
    (:module tests
             :depends-on (base)
-            :pathname #.(make-pathname :directory '(:relative))
+            :pathname ""
             :components
-            ((:static-file "spatial-tree-test"
-                           :pathname #p"spatial-tree-test.lisp")))
+            ((:static-file "spatial-tree-test.lisp")))
    (:static-file "LICENCE")
    (:static-file "TODO")))
 @end example
+
+Note that the argument to @code{:pathname} can be either a pathname object or a string.
+A pathname object can be constructed with the @code{#p"foo/bar/"} syntax,
+but this is discouraged because the results are not portable.
+It can only be portably constructed with such syntax as
+@code{#.(make-pathname :directory '(:relative "foo" "bar"))},
+and similarly the current directory can only be portably specified as
+@code{#.(make-pathname :directory '(:relative "foo" "bar"))}.
+As of ASDF 1.623, however, you can portably use a string,
+which will be parsed as a @code{/}-separated path from the current directory,
+such that the empty string @code{""} denotes the current directory, and
+@code{"foo/bar"} (no trailing @code{/} required in the case of modules)
+portably denotes the same subdirectory as above.
 
 All of the files in the @code{tree-impls} module are at the top level,
 instead of in a @code{tree-impls/} subdirectory.
