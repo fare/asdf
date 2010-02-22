@@ -292,6 +292,15 @@ for the sake of keeping ASDF no more complex than strictly necessary.
   down a filesystem tree in the environment variable.
   It isn't that Lisp friendly either.
 
+TODO
+====
+
+* Integrate into the rest of the documentation.
+* Add examples
+* Add proper defaults.
+* Get inspired by the XDG base directory specification?
+ http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html
+
 
 Credits
 =======
@@ -303,4 +312,4 @@ Thanks to Rommel Martinez for the initial implementation attempt.
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
- -- Francois-Rene Rideau <fare@tunes.org>, Mon,  1 Feb 2010 22:49:09 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>, Mon, 22 Feb 2010 00:07:33 -0500
