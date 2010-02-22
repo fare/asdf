@@ -542,7 +542,15 @@ actually-existing directory."
   "Converts the non-wild pathname designator PATHSPEC to directory form."
   (cond
    ((stringp pathspec)
-    (pathname (concatenate 'string pathspec "/")))
+    (pathname
+     (let ((lastchar (aref pathspec (1- (length pathspec)))))
+       (cond ((or (eql lastchar #\;) (eql lastchar #\/)) pathspec)
+             ((find #\; pathspec)
+              (concatenate 'string pathspec ";"))
+             (t
+              ;; guess it's a string that's not a logical
+              ;; pathname string
+              (concatenate 'string pathspec "/"))))))
    ((not (pathnamep pathspec))
     (error "Invalid pathname designator ~S" pathspec))
    ((wild-pathname-p pathspec)
