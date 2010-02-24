@@ -53,146 +53,178 @@
 
 #+ecl (require 'cmp)
 
-(defpackage #:asdf-utilities
-  (:nicknames :asdf-extensions)
-  (:use #:common-lisp)
-  (:export
-   #:absolute-pathname-p
-   #:aif
-   #:appendf
-   #:asdf-message
-   #:coerce-name
-   #:directory-pathname-p
-   #:ends-with
-   #:ensure-directory-pathname
-   #:getenv
-   #:get-uid
-   #:length=n-p
-   #:make-collector
-   #:pathname-directory-pathname
-   #:pathname-sans-name+type ;; deprecated. Use pathname-directory-pathname
-   #:read-file-forms
-   #:remove-keys
-   #:remove-keyword
-   #:resolve-symlinks
-   #:split
-   #:component-name-to-pathname-components
-   #:system-registered-p
-   #:truenamize))
-
-;;;; -------------------------------------------------------------------------
-;;;; Cleanups in case of hot-upgrade.
-;;;; Things to do in case we're upgrading from a previous version of ASDF.
+;;;; Create packages in a way that is compatible with hot-upgrade.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
-;;;; These must come *before* the defpackage form.
 ;;;; See more at the end of the file.
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (block nil
-    (let ((asdf (or (find-package :asdf) (return))))
-      (flet ((frob (name)
-               (let ((sym (find-symbol (string name) asdf)))
-                 (when sym
-                   (unexport sym asdf)
-                   (unintern sym asdf)))))
-        (frob '#:*asdf-revision*)
-        (do-external-symbols (sym (or (find-package :asdf-utilities) (return)))
-          (unless (eq sym (find-symbol (string sym) asdf))
-            (frob sym)))))))
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (labels ((rename-away (package)
+             (loop :with name = (package-name package)
+               :for i :from 1 :for n = (format nil "~A.~D" name i)
+               :unless (find-package n) :do (rename-package package name)))
+           (ensure-exists (name nicknames)
+             (let* ((previous
+                     (remove-duplicates
+                      (remove-if
+                       #'null
+                       (mapcar #'find-package (cons name nicknames)))
+                      :from-end t)))
+               (cond
+                 (previous
+                  (map () #'rename-away (cdr previous))
+                  (rename-package (car previous) name nicknames)
+                  (car previous))
+                 (t
+                  (make-package name :nicknames nicknames)))))
+           (remove-symbol (symbol package)
+             (let ((sym (find-symbol (string symbol) package)))
+               (when sym
+                 (unexport sym package)
+                 (unintern sym package))))
+           (ensure-unintern (package symbols)
+             (dolist (sym symbols) (remove-symbol sym package)))
+           (ensure-use (package use)
+             (dolist (used use)
+               (do-external-symbols (sym used)
+                 (unless (eq sym (find-symbol (string sym) package))
+                   (remove-symbol sym package)))
+               (use-package used package)))
+           (ensure-export (package export)
+             (let ((syms (loop :for x :in export :collect
+                           (intern (string x) package))))
+               (do-external-symbols (sym package)
+                 (unless (member sym syms)
+                   (remove-symbol sym package)))
+               (dolist (sym syms)
+                 (export sym package))))
+           (ensure-package (name &key nicknames use export unintern)
+             (let* ((p (ensure-exists name nicknames)))
+               (ensure-use p use)
+               (ensure-unintern p unintern)
+               (ensure-export p export)
+               p)))
+    (ensure-package
+     ':asdf-utilities
+     :nicknames '(#:asdf-extensions)
+     :use '(#:common-lisp)
+     :export
+     '(#:absolute-pathname-p
+       #:aif
+       #:appendf
+       #:asdf-message
+       #:coerce-name
+       #:directory-pathname-p
+       #:ends-with
+       #:ensure-directory-pathname
+       #:getenv
+       #:get-uid
+       #:length=n-p
+       #:make-collector
+       #:pathname-directory-pathname
+       #:pathname-sans-name+type ;; deprecated. Use pathname-directory-pathname
+       #:read-file-forms
+       #:remove-keys
+       #:remove-keyword
+       #:resolve-symlinks
+       #:split
+       #:component-name-to-pathname-components
+       #:system-registered-p
+       #:truenamize))
+    (ensure-package
+     ':asdf
+     :use '(:common-lisp :asdf-utilities)
+     :unintern '(#:*asdf-revision*)
+     :export
+     '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
+       #:system-definition-pathname #:find-component ; miscellaneous
+       #:compile-system #:load-system #:test-system
+       #:compile-op #:load-op #:load-source-op
+       #:test-op
+       #:operation                 ; operations
+       #:feature                 ; sort-of operation
+       #:version                 ; metaphorically sort-of an operation
 
-(defpackage #:asdf
-  (:documentation "Another System Definition Facility")
-  (:use :common-lisp :asdf-utilities)
-  (:export #:defsystem #:oos #:operate #:find-system #:run-shell-command
-           #:system-definition-pathname #:find-component ; miscellaneous
-           #:compile-system #:load-system #:test-system
-           #:compile-op #:load-op #:load-source-op
-           #:test-op
-           #:operation                 ; operations
-           #:feature                 ; sort-of operation
-           #:version                 ; metaphorically sort-of an operation
+       #:input-files #:output-files #:perform ; operation methods
+       #:operation-done-p #:explain
 
-           #:input-files #:output-files #:perform ; operation methods
-           #:operation-done-p #:explain
+       #:component #:source-file
+       #:c-source-file #:cl-source-file #:java-source-file
+       #:static-file
+       #:doc-file
+       #:html-file
+       #:text-file
+       #:source-file-type
+       #:module                     ; components
+       #:system
+       #:unix-dso
 
-           #:component #:source-file
-           #:c-source-file #:cl-source-file #:java-source-file
-           #:static-file
-           #:doc-file
-           #:html-file
-           #:text-file
-           #:source-file-type
-           #:module                     ; components
-           #:system
-           #:unix-dso
+       #:module-components          ; component accessors
+       #:component-pathname
+       #:component-relative-pathname
+       #:component-name
+       #:component-version
+       #:component-parent
+       #:component-property
+       #:component-system
 
-           #:module-components          ; component accessors
-           #:component-pathname
-           #:component-relative-pathname
-           #:component-name
-           #:component-version
-           #:component-parent
-           #:component-property
-           #:component-system
+       #:component-depends-on
 
-           #:component-depends-on
+       #:system-description
+       #:system-long-description
+       #:system-author
+       #:system-maintainer
+       #:system-license
+       #:system-licence
+       #:system-source-file
+       #:system-relative-pathname
+       #:map-systems
 
-           #:system-description
-           #:system-long-description
-           #:system-author
-           #:system-maintainer
-           #:system-license
-           #:system-licence
-           #:system-source-file
-           #:system-relative-pathname
-           #:map-systems
-
-           #:operation-on-warnings
-           #:operation-on-failure
+       #:operation-on-warnings
+       #:operation-on-failure
 
                                         ;#:*component-parent-pathname*
-           #:*system-definition-search-functions*
-           #:*central-registry*         ; variables
-           #:*compile-file-warnings-behaviour*
-           #:*compile-file-failure-behaviour*
-           #:*resolve-symlinks*
+       #:*system-definition-search-functions*
+       #:*central-registry*         ; variables
+       #:*compile-file-warnings-behaviour*
+       #:*compile-file-failure-behaviour*
+       #:*resolve-symlinks*
 
-           #:asdf-version
+       #:asdf-version
 
-           #:operation-error #:compile-failed #:compile-warned #:compile-error
-           #:error-name
-           #:error-pathname
-           #:missing-definition
-           #:error-component #:error-operation
-           #:system-definition-error
-           #:missing-component
-           #:missing-component-of-version
-           #:missing-dependency
-           #:missing-dependency-of-version
-           #:circular-dependency        ; errors
-           #:duplicate-names
+       #:operation-error #:compile-failed #:compile-warned #:compile-error
+       #:error-name
+       #:error-pathname
+       #:missing-definition
+       #:error-component #:error-operation
+       #:system-definition-error
+       #:missing-component
+       #:missing-component-of-version
+       #:missing-dependency
+       #:missing-dependency-of-version
+       #:circular-dependency        ; errors
+       #:duplicate-names
 
-           #:try-recompiling
-           #:retry
-           #:accept                     ; restarts
-           #:coerce-entry-to-directory
-           #:remove-entry-from-registry
+       #:try-recompiling
+       #:retry
+       #:accept                     ; restarts
+       #:coerce-entry-to-directory
+       #:remove-entry-from-registry
 
-           #:standard-asdf-method-combination
-           #:around                     ; protocol assistants
+       #:standard-asdf-method-combination
+       #:around                     ; protocol assistants
 
-           #:initialize-output-translations
-           #:clear-output-translations
-           #:ensure-output-translations
-           #:apply-output-translations
-           #:compile-file-pathname*
+       #:initialize-output-translations
+       #:clear-output-translations
+       #:ensure-output-translations
+       #:apply-output-translations
+       #:compile-file-pathname*
 
-           #:*default-source-registries*
-           #:initialize-source-registry
-           #:compute-source-registry
-           #:clear-source-registry
-           #:ensure-source-registry
-           #:process-source-registry))
+       #:*default-source-registries*
+       #:initialize-source-registry
+       #:compute-source-registry
+       #:clear-source-registry
+       #:ensure-source-registry
+       #:process-source-registry))))
 
 #+nil
 (error "The author of this file habitually uses #+nil to comment out ~
