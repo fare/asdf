@@ -1997,6 +1997,8 @@ output to `*verbose-out*`.  Returns the shell's exit code."
     (system:call-system-showing-output
      command
      :shell-type "/bin/sh"
+     :prefix ""
+     :show-cmd nil
      :output-stream *verbose-out*)
 
     #+clisp                     ;XXX not exactly *verbose-out*, I know

@@ -2,8 +2,10 @@ cl-asdf (2:1.625-1) UNRELEASED; urgency=low
 
   * New upstream release. 
   * Added dh_installinfo for info files. (Closes: #560290)
+  * Incorporated run-shell-command patch for LispWorks. Thanks tianchun!
+    (Closes: #457919)
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 24 Feb 2010 21:34:25 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 24 Feb 2010 21:38:15 +0100
 
 cl-asdf (2:1.502-1) unstable; urgency=low
 
