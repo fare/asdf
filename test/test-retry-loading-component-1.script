@@ -3,31 +3,36 @@
 ;;; test asdf:try-recompiling restart
 
 (load "script-support")
-(load "../asdf")
+(load-asdf)
 ;(trace asdf::find-component)
 ;(trace asdf:run-shell-command asdf:oos asdf:perform asdf:operate)
 ;#+allegro
 ;(trace excl.osi:command-output)
 (defvar *caught-error* nil)
-(quit-on-error 
+(quit-on-error
+ ;;(format t "trlc1 1~%")
  (when (probe-file "try-reloading-dependency.asd")
    (asdf:run-shell-command "rm -f ~A"
                            (namestring "try-reloading-dependency.asd")))
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (setf asdf::*defined-systems* (asdf::make-defined-systems-table))
- (handler-bind ((error (lambda (c) 
+ ;;(format t "trlc1 2~%")
+ (handler-bind ((error (lambda (c)
                          (format t "~&Caught error ~s" c)
                          (setf *caught-error* t)
                          (asdf:run-shell-command
                           "cp try-reloading-dependency.hidden try-reloading-dependency.asd")
+                         ;;(format t "trlc1 5~%")
                          (multiple-value-bind (name mode)
                              (find-symbol (symbol-name 'retry) :asdf)
                            (assert (eq mode :external) nil "Mode of ~s was not external" name)
+                           ;;(format t "trlc1 6~%")
                            (let ((restart (find-restart name c)))
+                             ;;(format t "trlc1 7~%")
                              (assert restart)
                              (format t "~&restart: ~S~&" restart)
                              (when restart (invoke-restart restart)))))))
+   ;;(format t "trlc1 3~%")
    (asdf:oos 'asdf:load-op 'try-reloading-1))
- (assert *caught-error*)
- )
-
+ ;;(format t "trlc1 4~%")
+ (assert *caught-error*))

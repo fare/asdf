@@ -1,6 +1,6 @@
 system	 	:= "asdf"
 #user 		:= $(shell basename `echo "$home"`)
-user := "gking"
+user := "frideau"
 webhome_private := $(user)@common-lisp.net:/project/asdf/public_html/
 webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
@@ -38,7 +38,7 @@ website-copy: FORCE
 	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
 
 clean_dirs = $(sourceDirectory)
-clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl
+clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl o
 
 clean: FORCE
 	@for dir in $(clean_dirs); do \

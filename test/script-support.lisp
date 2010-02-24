@@ -1,10 +1,11 @@
 (in-package #:common-lisp-user)
 
+(defvar *asdf-lisp* (truename (merge-pathnames "../asdf.lisp" *load-truename*)))
+(defvar *asdf-fasl* (compile-file-pathname (merge-pathnames "tmp/" *asdf-lisp*)))
+(defun load-asdf () (load *asdf-fasl*))
+
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
-
-#+common-lisp-controller
-(setf common-lisp-controller:*redirect-fasl-files-to-cache* nil)
 
 ;;; code adapted from cl-launch (any errors in transcription are mine!)
 ;; http://www.cliki.net/cl-launch
@@ -17,7 +18,7 @@
   (ext:quit return)
   #+(or cmu scl)
   (unix:unix-exit code)
-  #+ecl 
+  #+ecl
   (si:quit return)
   #+gcl
   (lisp:quit code)
@@ -27,13 +28,21 @@
   (ccl::quit return)
   #+sbcl
   (sb-ext:quit :unix-status return)
-
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
+
 (defmacro quit-on-error (&body body)
-  `(handler-case 
-      (progn ,@body
-             (leave-lisp "~&Script succeeded~%" 0))
-    (error (c)
-      (format *error-output* "~a" c)
-      (leave-lisp "~&Script failed~%" 1))))
+  `(call-quitting-on-error (lambda () ,@body)))
+
+(defun call-quitting-on-error (thunk)
+  "Unless the environment variable DEBUG_ASDF_TEST
+is bound, write a message and exit on an error.  If
+*asdf-test-debug* is true, enter the debugger."
+  (handler-bind
+      ((error (lambda (c)
+                (format *error-output* "~a" c)
+                (if (ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
+                    (break)
+                    (leave-lisp "~&Script failed~%" 1)))))
+    (funcall thunk)
+    (leave-lisp "~&Script succeeded~%" 0)))

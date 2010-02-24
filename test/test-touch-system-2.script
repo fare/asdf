@@ -4,8 +4,8 @@
 ;;; system that canNOT be found using *system-definition-search-functions*
 
 (load "script-support")
-(load "../asdf")
-(quit-on-error 
+(load-asdf)
+(quit-on-error
  (flet ((system-load-time (name)
           (let ((data (asdf::system-registered-p name)))
             (when data

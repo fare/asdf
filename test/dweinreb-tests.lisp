@@ -15,7 +15,7 @@ http://ilc2009.scheming.org/
   (already-compiled :initarg :already-compiled :reader test-already-compiled)
   (expected :initarg :expected :reader test-expected)))
 
-(defmacro define-test (test-name system-name 
+(defmacro define-test (test-name system-name
                        &key operation-name already-compiled expected)
  `(progn
     (push ',test-name *all-tests*)
@@ -34,7 +34,7 @@ http://ilc2009.scheming.org/
 
 (defmethod asdf:operation-done-p ((o asdf:compile-op) (c test-file))
  (declare (ignorable o))
- (member (asdf:component-name c) (test-already-compiled *test*) 
+ (member (asdf:component-name c) (test-already-compiled *test*)
           :test #'string=))
 
 (defmethod asdf:operation-done-p ((o asdf:operation) (c test-file))
@@ -70,7 +70,7 @@ http://ilc2009.scheming.org/
                 (first steps) *steps*)))
      ;(format t "~2%STEPS: ~S~3%" *steps*)
      (dolist (expectation (test-expected *test*))
-        (destructuring-bind (op file &rest at) 
+        (destructuring-bind (op file &rest at)
             expectation
           ;(format t "~2%Expectation: ~S~3%" expectation)
           (check-type file string)
@@ -81,8 +81,8 @@ http://ilc2009.scheming.org/
                  (fail "~S was not ~A" file op)
                  (loop for (relationship file2) on at by #'cddr do
                    (check-type file2 string)
-                   (let* ((op2 (ecase relationship 
-                                 (:after-loading :loaded) 
+                   (let* ((op2 (ecase relationship
+                                 (:after-loading :loaded)
                                  (:after-compiling :compiled)))
                           (pos2 (position (cons op2 file2) *steps*
                                           :test #'equal)))
@@ -92,7 +92,7 @@ http://ilc2009.scheming.org/
                            ((< pos pos2)
                             (fail "Wrong order between ~A of ~S and ~A of ~S"
                                   op file op2 file2))))))))
-            (:did-not-compile 
+            (:did-not-compile
              (when (member (cons :compiled file) *steps*)
                (fail "~A compiled but should not have" file)))
             (:did-not-load
@@ -147,7 +147,7 @@ http://ilc2009.scheming.org/
  :operation-name asdf:load-op
  :already-compiled ()
  :expected ((:compiled "a" :after-compiling "g" :after-compiling "k"
-                        :after-compiling "h" :after-loading "g" 
+                        :after-compiling "h" :after-loading "g"
                         :after-loading "k" :after-loading "h")
              (:loaded "a" :after-compiling "a")
              (:compiled "b")
@@ -213,7 +213,7 @@ http://ilc2009.scheming.org/
 (asdf:defsystem system-5
  :components ((:test-file "a")
                (:test-file "b" :depends-on ("a")
-                               :in-order-to ((asdf:compile-op 
+                               :in-order-to ((asdf:compile-op
                                               (asdf:load-op "a"))))))
 
 (define-test test-5 system-5

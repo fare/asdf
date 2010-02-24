@@ -12,7 +12,6 @@ test/conf.d/
 test/dir1/
 test/dir2/
 
-
 # We build these at various stages in the make process
 LICENSE
 website/output/
@@ -21,9 +20,9 @@ tmp/
 lift-local.config
 *.dribble
 *.fasl
-*.dfsl 
-*.cfsl 
-*.fas 
+*.dfsl
+*.cfsl
+*.fas
 *.lib
 *.o
 *.*fsl

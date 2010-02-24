@@ -1,0 +1,65 @@
+;;; -*- Lisp -*-
+(load "script-support")
+(load-asdf)
+
+;;;---------------------------------------------------------------------------
+;;; Here's what we are trying to test.  Let us say we have a system X that
+;;; contains a file, "file1" and a module, "quux" that depends on file 1.  In
+;;; turn, "quux" contains "file2" which depends on loading another system, Y
+;;; (note that this dependency cannot be recorded using only the defsystem
+;;; grammar; we must use an ancillary method definition).  If we over-force
+;;; actions, then the recompiling of "file1" will force "quux" to be loaded,
+;;; forcing "file2" load and in turn forcing the reload and recompilation of Y.
+;;; If operations are done properly, a change to file1 will force recompilation
+;;; and reloading of "file2," but /not/ of system Y.
+;;;---------------------------------------------------------------------------
+
+
+(quit-on-error
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (asdf:operate 'asdf:load-op 'test-module-excessive-depend)
+
+ ;; test that it compiled
+ (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1")))
+ (defvar file2-date (file-write-date (asdf:compile-file-pathname* "file2")))
+ (defvar file3-date (file-write-date (asdf:compile-file-pathname* "file3")))
+
+ (unless (and file1-date file2-date file3-date)
+   (error "Failed to compile one of the three files that should be compiled for this test: ~{~a~}"
+          (mapcar #'cdr
+                  (remove-if #'car
+                             (pairlis (list file1-date file2-date file3-date)
+                                      '("file1" "file2" "file3"))))))
+
+ ;; and loaded
+ (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
+ (assert (eval (intern (symbol-name '#:*file3*) :test-package)))
+
+
+ ;; now touch file1 and check that file2 _is_ also recompiled
+ ;; but that file3 is _not_ recompiled.
+ ;; this will only work if the cross-module (intra-system)
+ ;; dependency bug is fixed and the excessive compilation bug is fixed.
+
+ (let ((before file2-date))
+   (asdf::run-shell-command "touch file1.lisp")
+   (sleep 1)
+   (let ((plan (asdf::traverse
+                (make-instance 'asdf:load-op)
+                (asdf:find-system 'test-module-excessive-depend)))
+         (file3-only (asdf:find-system 'file3-only)))
+;;;    (format t "~%Operation plan is:~%")
+;;;    (pprint plan)
+;;;    (format t "Target system is: ~a" file3-only)
+     (when (find file3-only plan :key #'cdr)
+       (error "Excessive operations on file3-only system.  Bad propagation of dependencies.")))
+   (asdf:operate 'asdf:load-op 'test-module-excessive-depend)
+   (assert (>  (file-write-date (asdf:compile-file-pathname* "file2")) before))
+   (assert (>  (file-write-date (asdf:compile-file-pathname* "file2")) before))
+   )
+ (unless (= (file-write-date (asdf:compile-file-pathname* "file3"))
+            file3-date)
+   (error "Excessive compilation of file3.lisp:  traverse bug."))
+ )
+
+
