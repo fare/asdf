@@ -1,8 +1,8 @@
-cl-asdf (2:1.502-2) UNRELEASED; urgency=low
+cl-asdf (2:1.625-1) UNRELEASED; urgency=low
 
-  * open for changes
+  * New upstream release. 
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 01 Feb 2010 08:28:54 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 24 Feb 2010 21:29:29 +0100
 
 cl-asdf (2:1.502-1) unstable; urgency=low
 
