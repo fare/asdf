@@ -1697,28 +1697,28 @@ created with the same initargs as the original one.
 "))
   (setf (documentation 'oos 'function)
         (format nil
-                "Short for _operate on system_ and an alias for the [operate][] function. ~&~&~a"
+                "Short for _operate on system_ and an alias for the OPERATE function. ~&~&~a"
                 operate-docstring))
   (setf (documentation 'operate 'function)
         operate-docstring))
 
 (defun load-system (system &rest args &key force (verbose t) version
                     &allow-other-keys)
-  "Shorthand for `(operate 'asdf:load-op system)`. See [operate][] for
+  "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
   (apply #'operate 'load-op system args))
 
 (defun compile-system (system &rest args &key force (verbose t) version
                        &allow-other-keys)
-  "Shorthand for `(operate 'asdf:compile-op system)`. See [operate][]
+  "Shorthand for `(operate 'asdf:compile-op system)`. See OPERATE
 for details."
   (declare (ignore force verbose version))
   (apply #'operate 'compile-op system args))
 
 (defun test-system (system &rest args &key force (verbose t) version
                     &allow-other-keys)
-  "Shorthand for `(operate 'asdf:test-op system)`. See [operate][] for
+  "Shorthand for `(operate 'asdf:test-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
   (apply #'operate 'test-op system args))
