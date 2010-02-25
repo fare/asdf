@@ -6,8 +6,9 @@ cl-asdf (2:1.625-1) unstable; urgency=low
     (Closes: #457919)
   * Added info that this version breaks clc
   * Fix conflict with clc
+  * Small patch to make :implementation-type work for clc
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 25 Feb 2010 06:06:24 +0100
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 25 Feb 2010 18:36:16 +0100
 
 cl-asdf (2:1.502-1) unstable; urgency=low
 
