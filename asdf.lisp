@@ -61,8 +61,8 @@
   (labels ((rename-away (package)
              (loop :with name = (package-name package)
                :for i :from 1 :for n = (format nil "~A.~D" name i)
-               :unless (find-package n) :do (rename-package package name)))
-           (ensure-exists (name nicknames)
+               :unless (find-package n) :do (rename-package package n)))
+           (ensure-exists (name nicknames use)
              (let* ((previous
                      (remove-duplicates
                       (remove-if
@@ -72,10 +72,12 @@
                (cond
                  (previous
                   (map () #'rename-away (cdr previous))
-                  (rename-package (car previous) name nicknames)
-                  (car previous))
+                  (let ((p (car previous)))
+                    (rename-package p name nicknames)
+                    (ensure-use p use)
+                    p))
                  (t
-                  (make-package name :nicknames nicknames)))))
+                  (make-package name :nicknames nicknames :use use)))))
            (remove-symbol (symbol package)
              (let ((sym (find-symbol (string symbol) package)))
                (when sym
@@ -83,8 +85,10 @@
                  (unintern sym package))))
            (ensure-unintern (package symbols)
              (dolist (sym symbols) (remove-symbol sym package)))
+           (ensure-shadow (package symbols)
+             (shadow symbols package))
            (ensure-use (package use)
-             (dolist (used use)
+             (dolist (used (reverse use))
                (do-external-symbols (sym used)
                  (unless (eq sym (find-symbol (string sym) package))
                    (remove-symbol sym package)))
@@ -97,10 +101,10 @@
                    (remove-symbol sym package)))
                (dolist (sym syms)
                  (export sym package))))
-           (ensure-package (name &key nicknames use export unintern)
-             (let* ((p (ensure-exists name nicknames)))
-               (ensure-use p use)
+           (ensure-package (name &key nicknames use unintern shadow export)
+             (let ((p (ensure-exists name nicknames use)))
                (ensure-unintern p unintern)
+               (ensure-shadow p shadow)
                (ensure-export p export)
                p)))
     (ensure-package
@@ -927,17 +931,19 @@ called with an object of type asdf:system."
        (and system-pair
             (system-source-file (cdr system-pair)))))))
 
-(defvar *central-registry*
-  `((directory-namestring *default-pathname-defaults*))
+(defvar *central-registry* nil
 "A list of 'system directory designators' ASDF uses to find systems.
 
-A 'system directory designator' is a pathname or a function
+A 'system directory designator' is a pathname or an expression
 which evaluates to a pathname. For example:
 
     (setf asdf:*central-registry*
           (list '*default-pathname-defaults*
                 #p\"/home/me/cl/systems/\"
                 #p\"/usr/share/common-lisp/systems/\"))
+
+This is for backward compatibilily.
+Going forward, we recommend new users should be using the source-registry.
 ")
 
 (defun sysdef-central-registry-search (system)
@@ -2251,7 +2257,7 @@ with a different configuration, so the configuration would be re-read then."
                (relativize-pathname-directory
                 (truenamize *default-pathname-defaults*)))
               ((eql :implementation) (implementation-identifier))
-              ((eql :implementation-type) (implementation-type))
+              ((eql :implementation-type) (princ-to-string (implementation-type)))
               ((eql :uid) (princ-to-string (get-uid)))))
          (d (if (pathnamep x) r (ensure-directory-pathname r)))
          (s (if (and wildenp (not (pathnamep x)))
@@ -2559,9 +2565,6 @@ with a different configuration, so the configuration would be re-read then."
     ".git" ".hg" ".pc" ".svn" "CVS" "RCS" "SCCS" "_darcs"
     "_sgbak" "autom4te.cache" "cover_db" "_build"))
 
-(defun default-registry ()
-  ())
-
 (defvar *source-registry* ()
   "Either NIL (for uninitialized), or a list of one element,
 said element itself being a list of directory pathnames where to look for .asd files")
@@ -2689,6 +2692,23 @@ with a different configuration, so the configuration would be re-read then."
 (defparameter *source-registry-file* #p"common-lisp/source-registry.conf")
 (defparameter *source-registry-directory* #p"common-lisp/source-registry.conf.d/")
 
+(defun wrapping-source-registry ()
+  `(:source-registry
+    #+sbcl (:tree ,(getenv "SBCL_HOME"))
+   :inherit-configuration))
+(defun default-source-registry ()
+  `(:source-registry
+    #+sbcl (:directory ,(merge-pathnames ".sbcl/systems/" (user-homedir-pathname)))
+    (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
+    (:directory ,(merge-pathnames ".local/share/common-lisp/systems/" (user-homedir-pathname)))
+    (:tree ,(merge-pathnames ".local/share/common-lisp/source/" (user-homedir-pathname)))
+    (:directory "/usr/local/share/common-lisp/systems/")
+    (:tree "/usr/local/share/common-lisp/source/")
+    (:directory "/usr/local/share/common-lisp/systems/")
+    (:tree "/usr/local/share/common-lisp/source/")
+    (:directory "/usr/share/common-lisp/systems/")
+    (:tree "/usr/share/common-lisp/source/")
+    :inherit-configuration))
 (defun user-source-registry ()
   (merge-pathnames *source-registry-file* (user-configuration-directory)))
 (defun system-source-registry ()
@@ -2743,7 +2763,7 @@ with a different configuration, so the configuration would be re-read then."
       ((:exclude)
        (setf *default-exclusions* rest))
       ((:default-registry)
-       (default-registry))
+       (inherit-source-registry '(default-source-registry) :register register))
       ((:inherit-configuration)
        (inherit-source-registry inherit :register register))
       ((:ignore-inherited-configuration)
@@ -2754,9 +2774,10 @@ with a different configuration, so the configuration would be re-read then."
 (defun compute-source-registry (&optional parameter)
   (multiple-value-bind (collect result) (make-collector)
     (inherit-source-registry
-     (list*
-      parameter
-      *default-source-registries*)
+     `(wrapping-source-registry
+       ,parameter
+       ,@*default-source-registries*
+       default-source-registry)
      :register
      (lambda (directory &key recurse exclude)
        (register-asd-directory
@@ -2788,34 +2809,7 @@ with a different configuration, so the configuration would be re-read then."
         (when system
           (asdf:operate 'asdf:load-op name)
           t))))
-
-  (defun contrib-sysdef-search (system)
-    (let ((home (getenv "SBCL_HOME")))
-      (when (and home (not (string= home "")))
-        (let* ((name (coerce-name system))
-               (home (truename home))
-               (contrib (merge-pathnames
-                         (make-pathname :directory `(:relative ,name)
-                                        :name name
-                                        :type "asd"
-                                        :case :local
-                                        :version :newest)
-                         home)))
-          (probe-file contrib)))))
-
-  (pushnew
-   '(let ((home (getenv "SBCL_HOME")))
-      (when (and home (not (string= home "")))
-        (merge-pathnames "site-systems/" (truename home))))
-   *central-registry*)
-
-  (pushnew
-   '(merge-pathnames ".sbcl/systems/"
-     (user-homedir-pathname))
-   *central-registry*)
-
-  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*)
-  (pushnew 'contrib-sysdef-search *system-definition-search-functions*))
+  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups after hot-upgrade.
