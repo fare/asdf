@@ -23,7 +23,7 @@
   #+gcl
   (lisp:quit code)
   #+lispworks
-  (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
+  (lispworks:quit :status return :confirm nil :return nil :ignore-errors-p t)
   #+(or openmcl mcl)
   (ccl::quit return)
   #+sbcl
