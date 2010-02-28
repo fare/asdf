@@ -111,8 +111,7 @@ case "$lisp" in
   clisp)
     if type clisp ; then
 	fasl_ext="fas"
-	command=`which clisp`
-	command="$command -norc -ansi -I "
+	command="clisp -norc -ansi -I "
         nodebug="-on-error exit"
         eval="-x"
     fi ;;
@@ -155,15 +154,13 @@ case "$lisp" in
   ecl)
     if type ecl ; then
 	fasl_ext="fas"
-	command=`which ecl`
-	command="$command -norc"
+	command="ecl -norc"
         eval="-eval"
     fi ;;
   lispworks)
     if type lispworks ; then
 	fasl_ext="ofasl"
-	command=`which lispworks`
-	command="$command -siteinit - -init -"
+	command="lispworks -siteinit - -init -"
         eval="-eval"
     fi ;;
   *)
