@@ -99,6 +99,7 @@ if [ -z $1 ] ; then
     lisp="sbcl"
 fi
 
+command=
 case "$lisp" in
   sbcl)
     if type sbcl ; then
@@ -161,11 +162,20 @@ case "$lisp" in
   lispworks)
     if type lispworks ; then
 	fasl_ext="ofasl"
-	command=`which ecl`
+	command=`which lispworks`
 	command="$command -siteinit - -init -"
         eval="-eval"
     fi ;;
+  *)
+    echo "Unsupported lisp: $1" >&2
+    echo "Please add support to run-tests.sh" >&2
+    exit 42 ;;
 esac
+
+if [ -z "$command" ] ; then
+    echo "lisp implementation not found: $1" >&2
+    exit 43
+fi
 
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
   command="$command $nodebug"
