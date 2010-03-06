@@ -247,7 +247,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.628" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.629" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -1125,7 +1125,7 @@ to `~a` which is not a directory.~@:>"
 (defmethod source-file-type ((c html-file) (s module)) "html")
 (defmethod source-file-type ((c static-file) (s module)) nil)
 
-(defun merge-component-relative-pathname (name &key type defaults)
+(defun merge-component-name-type (name &key type defaults)
   ;; The defaults are required notably because they provide the default host
   ;; to the below make-pathname, which may crucially matter to
   ;; e.g. people somehow using logical-pathnames.
@@ -1133,7 +1133,7 @@ to `~a` which is not a directory.~@:>"
     (pathname
      name)
     (symbol
-     (merge-component-relative-pathname (string-downcase name) :type type :defaults defaults))
+     (merge-component-name-type (string-downcase name) :type type :defaults defaults))
     (string
      (multiple-value-bind (relative path filename)
          (component-name-to-pathname-components name (eq type :directory))
@@ -1153,7 +1153,7 @@ to `~a` which is not a directory.~@:>"
                           :host host :device device)))))))
 
 (defmethod component-relative-pathname ((component component))
-  (merge-component-relative-pathname
+  (merge-component-name-type
    (or (slot-value component 'relative-pathname)
        (component-name component))
    :type (source-file-type component (component-system component))

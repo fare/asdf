@@ -45,8 +45,10 @@ is bound, write a message and exit on an error.  If
                   ((ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
                    (break))
                   (t
+                   (format *error-output* "ABORTING:~% ~S~%" c)
                    #+sbcl (sb-debug:backtrace 69)
                    #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
+                   (format *error-output* "ABORTING:~% ~S~%" c)
                    (leave-lisp "~&Script failed~%" 1))))))
     (funcall thunk)
     (leave-lisp "~&Script succeeded~%" 0)))
