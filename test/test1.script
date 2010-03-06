@@ -4,8 +4,12 @@
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (format t "blah ~S~%" asdf:*central-registry*)
+ (describe (asdf:find-system 'test1))
+ (trace asdf:operate asdf:perform asdf::merge-component-relative-pathname
+        asdf:component-name asdf:component-pathname)
  (asdf:operate 'asdf:load-op 'test1)
-
+ (format t "blah~%")
  ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))

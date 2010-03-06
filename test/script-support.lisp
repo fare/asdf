@@ -41,8 +41,12 @@ is bound, write a message and exit on an error.  If
   (handler-bind
       ((error (lambda (c)
                 (format *error-output* "~a" c)
-                (if (ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
-                    (break)
-                    (leave-lisp "~&Script failed~%" 1)))))
+                (cond
+                  ((ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
+                   (break))
+                  (t
+                   #+sbcl (sb-debug:backtrace 69)
+                   #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
+                   (leave-lisp "~&Script failed~%" 1))))))
     (funcall thunk)
     (leave-lisp "~&Script succeeded~%" 0)))
