@@ -639,7 +639,7 @@ actually-existing directory."
     (pathname
      (let ((lastchar (aref pathspec (1- (length pathspec)))))
        (cond ((or (eql lastchar #\;) (eql lastchar #\/)) pathspec)
-             ((find #\; pathspec)
+             ((find #\; pathspec) ;; assume a ; means a logical pathname directory separator
               (concatenate 'string pathspec ";"))
              (t
               ;; guess it's a string that's not a logical
@@ -1127,8 +1127,12 @@ to `~a` which is not a directory.~@:>"
 
 (defun merge-component-name-type (name &key type defaults)
   ;; The defaults are required notably because they provide the default host
-  ;; to the below make-pathname, which may crucially matter to
-  ;; e.g. people somehow using logical-pathnames.
+  ;; to the below make-pathname, which may crucially matter to people using
+  ;; merge-pathnames with non-default hosts,  e.g. for logical-pathnames.
+  ;; NOTE that the host and device slots will be taken from the defaults,
+  ;; but that should only matter if you either (a) use absolute pathnames, or
+  ;; (b) later merge relative pathnames with CL:MERGE-PATHNAMES instead of
+  ;; ASDF:MERGE-PATHNAMES*
   (etypecase name
     (pathname
      name)
@@ -1159,6 +1163,7 @@ to `~a` which is not a directory.~@:>"
    :type (source-file-type component (component-system component))
    :defaults (let ((parent (component-parent component)))
                (and parent (component-pathname parent)))))
+
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
