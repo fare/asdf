@@ -451,7 +451,7 @@ compiled.
 system-definition := ( defsystem system-designator {option}* )
 
 option := :components component-list
-        | :pathname pathname
+        | :pathname pathname-specifier
         | :default-component-class
         | :perform method-form
         | :explain method-form
@@ -463,7 +463,7 @@ option := :components component-list
 
 component-list := ( {component-def}* )
 
-component-def  := ( component-type name {option}* )
+component-def  := ( component-type simple-component-name {option}* )
 
 component-type := :module | :file | :system | other-component-type
 
@@ -480,9 +480,42 @@ required-op := operation-name | feature
 simple-component-name := string
                       |  symbol
 
+pathname-specifier := pathname | string | symbol
+
 method-form := (operation-name qual lambda-list &rest body)
 qual := method qualifier
 @end verbatim
+
+@subsection Component names
+
+Component names (@code{simple-component-name}) may be either strings or
+symbols.  If they are symbols, they will be translated into strings, and
+downcased in the process.  Slashes (@code{/}) in strings will be treated
+as directory separators, so that @code{"foo/bar"} will refer to a file
+named ``bar'' in the subdirectory (relative to the parent directory)
+``foo''.
+
+@subsection Pathname specifiers
+
+A pathname specifier may be a pathname or a string.  Pathnames are
+typically specified using reader macros such as @code{#p} or
+@code{#.(make-pathname ...)}.
+
+A string will be interpreted as a Unix-style pathname, where @code{/}
+characters will be interpreted as directory separators.
+
+A symbol will be translated to a string and downcased, then interpreted
+as per strings.
+
+@subsection Warning about logical pathnames
+
+ASDF does not have any way to reliably detect or interpret logical
+pathnames in pathname specifier strings, or in component names.  If you wish to
+specify pathnames as strings, you @emph{must} use the Unix-style syntax.
+
+Note that logical pathnames are available to you through the use of
+pathnames proper.
+
 
 @subsection Serial dependencies
 
