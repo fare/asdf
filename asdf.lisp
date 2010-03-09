@@ -111,7 +111,7 @@
      ':asdf-utilities
      :nicknames '(#:asdf-extensions)
      :use '(#:common-lisp)
-     :unintern '(#:make-collector)
+     :unintern '(#:split #:make-collector)
      :export
      '(#:absolute-pathname-p
        #:aif
@@ -131,7 +131,7 @@
        #:remove-keys
        #:remove-keyword
        #:resolve-symlinks
-       #:split
+       #:split-string
        #:component-name-to-pathname-components
        #:split-name-type
        #:system-registered-p
@@ -247,7 +247,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.630" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.631" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -523,7 +523,7 @@ does not have an absolute directory, then the HOST and DEVICE come from the DEFA
   (declare (dynamic-extent format-args))
   (apply #'format *verbose-out* format-string format-args))
 
-(defun split (string &key max (separator '(#\Space #\Tab)))
+(defun split-string (string &key max (separator '(#\Space #\Tab)))
   ;; Beware: this API function has changed in ASDF 1.628!
   ;; optional arguments became keyword arguments, and max now works from the end.
   "Split STRING in components separater by any of the characters in the sequence SEPARATOR,
@@ -546,7 +546,7 @@ starting the separation from the end, e.g. when called with arguments
 
 (defun split-name-type (filename)
   (destructuring-bind (name &optional type)
-      (split filename :max 2 :separator ".")
+      (split-string filename :max 2 :separator ".")
     (if (equal name "")
         (values filename nil)
         (values name type))))
@@ -568,7 +568,7 @@ The intention of this function is to support structured component names,
 e.g., \(:file \"foo/bar\"\), which will be unpacked to relative
 pathnames."
   (check-type s string)
-  (let* ((components (split s :separator "/"))
+  (let* ((components (split-string s :separator "/"))
          (last-comp (car (last components))))
     (multiple-value-bind (relative components)
         (if (equal (first components) "")
@@ -905,9 +905,9 @@ actually-existing directory."
 
 (defmethod version-satisfies ((cver string) version)
   (let ((x (mapcar #'parse-integer
-                   (split cver :separator ".")))
+                   (split-string cver :separator ".")))
         (y (mapcar #'parse-integer
-                   (split version :separator "."))))
+                   (split-string version :separator "."))))
     (labels ((bigger (x y)
                (cond ((not y) t)
                      ((not x) nil)
@@ -2349,7 +2349,7 @@ with a different configuration, so the configuration would be re-read then."
           (and (consp directive)
                (or (and (length=n-p directive 2)
                         (or (and (eq (first directive) :include)
-                                 (typep (second directive) '(or string pathname)))
+                                 (typep (second directive) '(or string pathname null)))
                             (and (location-designator-p (first directive))
                                  (or (location-designator-p (second directive))
                                      (null (second directive))))))
@@ -2496,7 +2496,8 @@ with a different configuration, so the configuration would be re-read then."
       (let ((src (first directive))
             (dst (second directive)))
         (if (eq src :include)
-            (process-output-translations (pathname dst) :inherit nil :collect collect)
+            (when dst
+              (process-output-translations (pathname dst) :inherit nil :collect collect))
             (let* ((trusrc (truenamize (resolve-location src t)))
                    (trudst (if dst (resolve-location dst t) trusrc)))
               (funcall collect (list trusrc trudst)))))))
@@ -2679,7 +2680,7 @@ with a different configuration, so the configuration would be re-read then."
             (case kw
               ((:include :directory :tree)
                (and (length=n-p rest 1)
-                    (typep (car rest) '(or pathname string))))
+                    (typep (car rest) '(or pathname string null))))
               ((:exclude)
                (every #'stringp rest))
               (null rest))))
@@ -2819,10 +2820,12 @@ with a different configuration, so the configuration would be re-read then."
          (process-source-registry (pathname pathname) :inherit nil :register register)))
       ((:directory)
        (destructuring-bind (pathname) rest
-         (funcall register pathname)))
+         (when pathname
+           (funcall register pathname))))
       ((:tree)
        (destructuring-bind (pathname) rest
-         (funcall register pathname :recurse t :exclude *default-exclusions*)))
+         (when pathname
+           (funcall register pathname :recurse t :exclude *default-exclusions*))))
       ((:exclude)
        (setf *default-exclusions* rest))
       ((:default-registry)
