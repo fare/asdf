@@ -73,7 +73,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * The object model of ASDF::
 * Controlling where ASDF saves compiled files::
 * Error handling::
-* Compilation error and warning handling::
 * Miscellaneous additional functionality::
 * Getting the latest version::
 * FAQ::
@@ -1509,11 +1508,13 @@ to some thus-named subdirectory of @file{~/.cache/common-lisp/}.
 See the document @file{README.asdf-output-translations}
 for a full specification on how to configure @code{asdf-output-translations}.
 
-@node  Error handling, Compilation error and warning handling, Controlling where ASDF saves compiled files, Top
+@node  Error handling, Miscellaneous additional functionality, Controlling where ASDF saves compiled files, Top
 @comment  node-name,  next,  previous,  up
 @chapter Error handling
 @findex SYSTEM-DEFINITION-ERROR
 @findex OPERATION-ERROR
+
+@section ASDF errors
 
 It is an error to define a system incorrectly:
 an implementation may detect this and signal a generalised instance of
@@ -1523,9 +1524,7 @@ Operations may go wrong (for example when source files contain errors).
 These are signalled using generalised instances of
 @code{OPERATION-ERROR}.
 
-@node  Compilation error and warning handling, Miscellaneous additional functionality, Error handling, Top
-@comment  node-name,  next,  previous,  up
-@chapter Compilation error and warning handling
+@section Compilation error and warning handling
 @vindex *compile-file-warnings-behaviour*
 @vindex *compile-file-errors-behavior*
 
@@ -1536,7 +1535,7 @@ control the handling of any such events.
 The valid values for these variables are
 @code{:error}, @code{:warn}, and @code{:ignore}.
 
-@node  Miscellaneous additional functionality, Getting the latest version, Compilation error and warning handling, Top
+@node  Miscellaneous additional functionality, Getting the latest version, Error handling, Top
 @comment  node-name,  next,  previous,  up
 @chapter Miscellaneous additional functionality
 
