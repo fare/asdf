@@ -531,18 +531,19 @@ return a list.
 If MAX is specified, then no more than max(1,MAX) components will be returned,
 starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
-  (let ((list nil) (words 0) (end (length string)))
-    (flet ((separatorp (char) (find char separator))
-           (done () (return-from split (cons (subseq string 0 end) list))))
-      (loop
-        :for start = (if (and max (>= words (1- max)))
-                         (done)
-                         (position-if #'separatorp string :end end :from-end t)) :do
-        (when (null start)
-          (done))
-        (push (subseq string (1+ start) end) list)
-        (incf words)
-        (setf end start)))))
+  (block nil
+    (let ((list nil) (words 0) (end (length string)))
+      (flet ((separatorp (char) (find char separator))
+             (done () (return (cons (subseq string 0 end) list))))
+        (loop
+          :for start = (if (and max (>= words (1- max)))
+                           (done)
+                           (position-if #'separatorp string :end end :from-end t)) :do
+          (when (null start)
+            (done))
+          (push (subseq string (1+ start) end) list)
+          (incf words)
+          (setf end start))))))
 
 (defun split-name-type (filename)
   (destructuring-bind (name &optional type)

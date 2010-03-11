@@ -55,8 +55,10 @@ do_tests() {
   command=$1 eval=$2 fasl_ext=$3
   rm -f *.$fasl_ext ~/.cache/common-lisp/"`pwd`"/*.$fasl_ext || true
   ( cd .. && $command $eval '(load "test/compile-asdf.lisp")' )
-  if [ $? -eq 0 ] ; then
-    echo "Compiled OK"
+  if [ $? -ne 0 ] ; then
+    echo "Compilation FAILED" >&2
+  else
+    echo "Compiled OK" >&2
     test_count=0
     test_pass=0
     test_fail=0
