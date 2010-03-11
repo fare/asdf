@@ -1517,7 +1517,7 @@ for a full specification on how to configure @code{asdf-output-translations}.
 @section ASDF errors
 
 It is an error to define a system incorrectly:
-an implementation may detect this and signal a generalised instance of
+if ASDF detects an incorrect system definition, it will signal a generalised instance of
 @code{SYSTEM-DEFINITION-ERROR}.
 
 Operations may go wrong (for example when source files contain errors).
