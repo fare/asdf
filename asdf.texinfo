@@ -11,14 +11,14 @@
 @end direntry
 
 @copying
-This manual describes asdf, a system definition facility for Common
-Lisp programs and libraries.
+This manual describes ASDF, a system definition facility
+for Common Lisp programs and libraries.
 
-asdf Copyright @copyright{} 2001-2010 Daniel Barlow and contributors
+ASDF Copyright @copyright{} 2001-2010 Daniel Barlow and contributors.
 
-This manual Copyright @copyright{} 2001-2010 Daniel Barlow and
-contributors
-This manual revised @copyright{} 2009-2010 Robert P. Goldman
+This manual Copyright @copyright{} 2001-2010 Daniel Barlow and contributors.
+
+This manual revised @copyright{} 2009-2010 Robert P. Goldman.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -65,50 +65,50 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @insertcopying
 
 @menu
-* Introduction::                
-* Loading ASDF::                
+* Introduction::
+* Loading ASDF::
 * Configuring ASDF::
 * Using ASDF::
-* Defining systems with defsystem::  
-* The object model of ASDF::    
-* Controlling where ASDF saves compiled files::  
-* Error handling::              
-* Compilation error and warning handling::  
-* Miscellaneous additional functionality::  
-* Getting the latest version::  
-* FAQ::     
+* Defining systems with defsystem::
+* The object model of ASDF::
+* Controlling where ASDF saves compiled files::
+* Error handling::
+* Compilation error and warning handling::
+* Miscellaneous additional functionality::
+* Getting the latest version::
+* FAQ::
 * TODO list::
-* missing bits in implementation::  
-* Inspiration::                 
-* Concept Index::               
-* Function and Class Index::    
-* Variable Index::              
+* missing bits in implementation::
+* Inspiration::
+* Concept Index::
+* Function and Class Index::
+* Variable Index::
 
 @detailmenu
  --- The Detailed Node Listing ---
 
 Defining systems with defsystem
 
-* The defsystem form::          
-* A more involved example::     
-* The defsystem grammar::       
-* Other code in .asd files::    
+* The defsystem form::
+* A more involved example::
+* The defsystem grammar::
+* Other code in .asd files::
 
 The object model of ASDF
 
-* Operations::                  
-* Components::                  
+* Operations::
+* Components::
 
 Operations
 
-* Predefined operations of ASDF::  
-* Creating new operations::     
+* Predefined operations of ASDF::
+* Creating new operations::
 
 Components
 
-* Common attributes of components::  
-* Pre-defined subclasses of component::  
-* Creating new component types::  
+* Common attributes of components::
+* Pre-defined subclasses of component::
+* Creating new component types::
 
 properties
 
@@ -536,10 +536,10 @@ software.
 
 
 @menu
-* The defsystem form::          
-* A more involved example::     
-* The defsystem grammar::       
-* Other code in .asd files::    
+* The defsystem form::
+* A more involved example::
+* The defsystem grammar::
+* Other code in .asd files::
 @end menu
 
 @node  The defsystem form, A more involved example, Defining systems with defsystem, Defining systems with defsystem
@@ -906,8 +906,8 @@ and @emph{operations}, the actions that can be performed on a system.
 
 
 @menu
-* Operations::                  
-* Components::                  
+* Operations::
+* Components::
 @end menu
 
 @node  Operations, Components, The object model of ASDF, The object model of ASDF
@@ -956,8 +956,8 @@ with the same @var{initargs} as the original one.
 @end deffn
 
 @menu
-* Predefined operations of ASDF::  
-* Creating new operations::     
+* Predefined operations of ASDF::
+* Creating new operations::
 @end menu
 
 @node Predefined operations of ASDF, Creating new operations, Operations, Operations
@@ -1162,9 +1162,9 @@ Hence, it is strongly advised to define a system
 
 
 @menu
-* Common attributes of components::  
-* Pre-defined subclasses of component::  
-* Creating new component types::  
+* Common attributes of components::
+* Pre-defined subclasses of component::
+* Creating new component types::
 @end menu
 
 @node  Common attributes of components, Pre-defined subclasses of component, Components, Components
