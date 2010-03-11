@@ -247,7 +247,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.631" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.632" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -2822,11 +2822,11 @@ with a different configuration, so the configuration would be re-read then."
       ((:directory)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register pathname))))
+           (funcall register (pathname pathname)))))
       ((:tree)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register pathname :recurse t :exclude *default-exclusions*))))
+           (funcall register (pathname pathname) :recurse t :exclude *default-exclusions*))))
       ((:exclude)
        (setf *default-exclusions* rest))
       ((:default-registry)
@@ -2836,20 +2836,32 @@ with a different configuration, so the configuration would be re-read then."
       ((:ignore-inherited-configuration)
        nil))))
 
+(defun flatten-source-registry (registries)
+  (while-collecting (collect)
+    (inherit-source-registry
+     registries
+     :register (lambda (directory &key recurse exclude)
+                 (collect (list directory :recurse recurse :exclude exclude))))))
+
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.
 (defun compute-source-registry (&optional parameter)
-  (while-collecting (collect)
-    (inherit-source-registry
-     `(wrapping-source-registry
-       ,parameter
-       ,@*default-source-registries*
-       default-source-registry)
-     :register
-     (lambda (directory &key recurse exclude)
-       (register-asd-directory
-        directory
-        :recurse recurse :exclude exclude :collect #'collect)))))
+  (let* ((flattened
+          (flatten-source-registry
+           `(wrapping-source-registry
+             ,parameter
+             ,@*default-source-registries*
+             default-source-registry)))
+         (simplified
+          (remove-duplicates flattened :test 'equal :from-end nil))
+         (processed
+          (while-collecting (collect)
+            (dolist (entry simplified)
+              (destructuring-bind (directory &key recurse exclude) entry
+                (register-asd-directory
+                 directory
+                 :recurse recurse :exclude exclude :collect #'collect))))))
+    processed))
 
 (defun initialize-source-registry (&optional parameter)
   (setf (source-registry) (compute-source-registry parameter)))
