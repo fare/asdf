@@ -2319,7 +2319,7 @@ with a different configuration, so the configuration would be re-read then."
                (relativize-pathname-directory
                 (truenamize *default-pathname-defaults*)))
               ((eql :implementation) (implementation-identifier))
-              ((eql :implementation-type) (princ-to-string (implementation-type)))
+              ((eql :implementation-type) (string-downcase (implementation-type)))
               ((eql :uid) (princ-to-string (get-uid)))))
          (d (if (pathnamep x) r (ensure-directory-pathname r)))
          (s (if (and wildenp (not (pathnamep x)))
