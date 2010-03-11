@@ -65,54 +65,50 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @insertcopying
 
 @menu
-
-* Introduction::
-* Using asdf to load systems::
-* Defining systems with defsystem::
-* The object model of asdf::
-* Controlling where ASDF saves compiled files::
-* Error handling::
-* Compilation error and warning handling::
-* Miscellaneous additional functionality::
-* Getting the latest version::
-* FAQ::
+* Introduction::                
+* Loading ASDF::                
+* Configuring ASDF::
+* Using ASDF::
+* Defining systems with defsystem::  
+* The object model of ASDF::    
+* Controlling where ASDF saves compiled files::  
+* Error handling::              
+* Compilation error and warning handling::  
+* Miscellaneous additional functionality::  
+* Getting the latest version::  
+* FAQ::     
 * TODO list::
-* missing bits in implementation::
-* Inspiration::
-* Concept Index::
-* Function and Class Index::
-* Variable Index::
+* missing bits in implementation::  
+* Inspiration::                 
+* Concept Index::               
+* Function and Class Index::    
+* Variable Index::              
 
 @detailmenu
  --- The Detailed Node Listing ---
 
-Using ASDF
-
-@c * Installing ASDF::
-
 Defining systems with defsystem
 
-* The defsystem form::
-* A more involved example::
-* The defsystem grammar::
-* Other code in .asd files::
+* The defsystem form::          
+* A more involved example::     
+* The defsystem grammar::       
+* Other code in .asd files::    
 
+The object model of ASDF
 
-The object model of asdf
-
-* Operations::
-* Components::
+* Operations::                  
+* Components::                  
 
 Operations
 
-* Predefined operations of asdf::
-* Creating new operations::
+* Predefined operations of ASDF::  
+* Creating new operations::     
 
 Components
 
-* Common attributes of components::
-* Pre-defined subclasses of component::
-* Creating new component types::
+* Common attributes of components::  
+* Pre-defined subclasses of component::  
+* Creating new component types::  
 
 properties
 
@@ -126,7 +122,7 @@ properties
 
 @c -------------------
 
-@node Introduction, Using asdf to load systems, Top, Top
+@node Introduction, Loading ASDF, Top, Top
 @comment  node-name,  next,  previous,  up
 @chapter Introduction
 
@@ -140,7 +136,7 @@ ASDF presents three faces:
 one for users of Common Lisp software who want to reuse other people's code,
 one for writers of Common Lisp software who want to specify how to build their systems,
 one for implementers of Common Lisp extensions who want to extend the build system.
-@xref{Using asdf to load systems,the getting started guide},
+@xref{Using ASDF, Using asdf to load systems, Loading a system},
 to learn how to use ASDF to load a system.
 @xref{Defining systems with defsystem},
 to learn how to define a system of your own.
@@ -148,7 +144,7 @@ to learn how to define a system of your own.
 Later chapters describe the ASDF internals and how to extend ASDF.
 
 
-@node  Using ASDF to load systems, Defining systems with defsystem, Introduction, Top
+@node Loading ASDF, Configuring ASDF, Introduction, Top
 @comment  node-name,  next,  previous,  up
 @chapter Loading ASDF
 @vindex *central-registry*
@@ -241,6 +237,8 @@ whenever you start your Lisp implementation,
 for example by loading it from the startup script or dumping a custom core
 --- check your Lisp implementation's manual for details.
 
+@node Configuring ASDF, Using ASDF, Loading ASDF, Top
+@comment  node-name,  next,  previous,  up
 
 @chapter Configuring ASDF
 
@@ -459,6 +457,8 @@ ASDF-Binary-Locations is now not needed anymore and should not be used.
 cl-launch 3.0 and common-lisp-controller 7.1 have been updated
 to just delegate this functionality to ASDF.
 
+@node Using ASDF, Defining systems with defsystem, Configuring ASDF, Top
+@comment  node-name,  next,  previous,  up
 
 @chapter Using ASDF
 
@@ -474,7 +474,7 @@ by evaluating the following Lisp form:
 In older versions of ASDF, you needed to use
 @code{(asdf:oos 'asdf:load-op :@var{foo})}.
 We recommend that you upgrade from such older versions.
-@xref{Loading an otherwise installed ASDF}.
+@xref{Loading ASDF,,Loading an otherwise installed ASDF}.
 
 
 @section Other Operations
@@ -496,7 +496,7 @@ should redirect all output from ASDF operations.
 
 Reminder: before ASDF can operate on a system, however,
 it must be able to find and load that system's definition.
-@xref{Configuring ASDF to find your systems}.
+@xref{Configuring ASDF,,Configuring ASDF to find your systems}.
 
 
 @section Summary
@@ -527,7 +527,7 @@ for Common Lisp software you write yourself,
 including how to extend ASDF to define new operation and component types.
 
 
-@node   Defining systems with defsystem, The object model of asdf, Using asdf to load systems, Top
+@node Defining systems with defsystem, The object model of ASDF, Using ASDF, Top
 @comment  node-name,  next,  previous,  up
 @chapter Defining systems with defsystem
 
@@ -536,10 +536,10 @@ software.
 
 
 @menu
-* The defsystem form::
-* A more involved example::
-* The defsystem grammar::
-* Other code in .asd files::
+* The defsystem form::          
+* A more involved example::     
+* The defsystem grammar::       
+* Other code in .asd files::    
 @end menu
 
 @node  The defsystem form, A more involved example, Defining systems with defsystem, Defining systems with defsystem
@@ -762,7 +762,7 @@ or @code{#.(make-pathname ...)}.
 Note however, that @code{#p...} is a short for @code{#.(parse-namestring ...)}
 and that the behavior @code{parse-namestring} is completely non-portable,
 unless you are using Common Lisp @code{logical-pathname}s
-(@xref{Warning about logical pathnames} below).
+(@xref{The defsystem grammar,,Warning about logical pathnames}, below).
 Pathnames made with @code{#.(make-pathname ...)}
 can usually be done more easily with the string syntax above.
 The only case that you really need a pathname object is to override
@@ -887,7 +887,7 @@ of output from ASDF operations.
 @end itemize
 
 
-@node The object model of asdf, Controlling where ASDF saves compiled files, Defining systems with defsystem, Top
+@node The object model of ASDF, Controlling where ASDF saves compiled files, Defining systems with defsystem, Top
 @comment  node-name,  next,  previous,  up
 @chapter The object model of ASDF
 
@@ -906,11 +906,11 @@ and @emph{operations}, the actions that can be performed on a system.
 
 
 @menu
-* Operations::
-* Components::
+* Operations::                  
+* Components::                  
 @end menu
 
-@node  Operations, Components, The object model of asdf, The object model of asdf
+@node  Operations, Components, The object model of ASDF, The object model of ASDF
 @comment  node-name,  next,  previous,  up
 @section Operations
 @cindex operation
@@ -956,13 +956,13 @@ with the same @var{initargs} as the original one.
 @end deffn
 
 @menu
-* Predefined operations of asdf::
-* Creating new operations::
+* Predefined operations of ASDF::  
+* Creating new operations::     
 @end menu
 
-@node Predefined operations of asdf, Creating new operations, Operations, Operations
+@node Predefined operations of ASDF, Creating new operations, Operations, Operations
 @comment  node-name,  next,  previous,  up
-@subsection Predefined operations of asdf
+@subsection Predefined operations of ASDF
 
 All the operations described in this section are in the @code{asdf} package.
 They are invoked via the @code{operate} generic function.
@@ -1065,7 +1065,7 @@ and test techniques in use in the community.
 
 @c @end deffn
 
-@node  Creating new operations,  , Predefined operations of asdf, Operations
+@node  Creating new operations,  , Predefined operations of ASDF, Operations
 @comment  node-name,  next,  previous,  up
 @subsection Creating new operations
 
@@ -1101,7 +1101,7 @@ if you don't like the default one
 Operations that print output should send that output to the standard
 CL stream @code{*standard-output*}, as the Lisp compiler and loader do.
 
-@node Components,  , Operations, The object model of asdf
+@node Components,  , Operations, The object model of ASDF
 @comment  node-name,  next,  previous,  up
 @section Components
 @cindex component
@@ -1162,9 +1162,9 @@ Hence, it is strongly advised to define a system
 
 
 @menu
-* Common attributes of components::
-* Pre-defined subclasses of component::
-* Creating new component types::
+* Common attributes of components::  
+* Pre-defined subclasses of component::  
+* Creating new component types::  
 @end menu
 
 @node  Common attributes of components, Pre-defined subclasses of component, Components, Components
@@ -1181,7 +1181,7 @@ If a symbol, its name is taken and lowercased.
 
 Unless overridden by a @code{:pathname} attribute,
 the name will be interpreted as a pathname specifier according
-to a Unix-style syntax. @xref{Pathname specifiers}.
+to a Unix-style syntax. @xref{The defsystem grammar,,Pathname specifiers}.
 
 @subsubsection Version identifier
 
@@ -1298,10 +1298,10 @@ I'm sure they'd welcome your fixes.
 This attribute is optional and if absent (which is the usual case),
 the component name will be used.
 
-@xref{Pathname specifiers} for an explanation of how this attribute
+@xref{The defsystem grammar,,Pathname specifiers}, for an explanation of how this attribute
 is interpreted.
 
-Note that the DEFSYSTEM operator (used to create a ``top-level'' system)
+Note that the @code{defsystem} macro (used to create a ``top-level'' system)
 does additional processing to set the filesystem location of
 the top component in that system.
 This is detailed elsewhere, @xref{Defining systems with defsystem}.
@@ -1463,7 +1463,7 @@ The new component type is used in a @code{defsystem} form in this way:
     )
 @end lisp
 
-@node Controlling where ASDF saves compiled files, Error handling, The object model of asdf, Top
+@node Controlling where ASDF saves compiled files, Error handling, The object model of ASDF, Top
 @comment  node-name,  next,  previous,  up
 @chapter Controlling where ASDF saves compiled files
 @cindex asdf-output-translations
@@ -1538,7 +1538,7 @@ The valid values for these variables are
 
 @node  Miscellaneous additional functionality, Getting the latest version, Compilation error and warning handling, Top
 @comment  node-name,  next,  previous,  up
-@chapter Additional Functionality
+@chapter Miscellaneous additional functionality
 
 @emph{FIXME:  Add discussion of @code{run-shell-command}?  Others?}
 
@@ -1606,7 +1606,7 @@ If this does not work, it is a bug, and you should report it
 @item ``How can I cater for unit-testing in my system?''
 
 ASDF provides a predefined test operation, @code{test-op}.
-@xref{Predefined operations of asdf, test-op}.
+@xref{Predefined operations of ASDF, test-op}.
 The test operation, however, is largely left to the system definer to specify.
 @code{test-op} has been
 a topic of considerable discussion on the asdf-devel mailing list, and
@@ -1658,7 +1658,7 @@ item ``How can I cater for documentation generation in my system?''
 
 The ASDF developers are currently working to add a @code{doc-op} to the
 set of predefined ASDF operations (@pxref{Predefined operations of
-asdf}).  See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
+ASDF}).  See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
 
 @item ``How can I customize where fasl files are stored?''
 
