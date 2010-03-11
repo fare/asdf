@@ -83,38 +83,38 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Function and Class Index::
 * Variable Index::
 
-@detailmenu
- --- The Detailed Node Listing ---
+@c @detailmenu
+@c  --- The Detailed Node Listing ---
 
-Defining systems with defsystem
+@c Defining systems with defsystem
 
-* The defsystem form::
-* A more involved example::
-* The defsystem grammar::
-* Other code in .asd files::
+@c * The defsystem form::
+@c * A more involved example::
+@c * The defsystem grammar::
+@c * Other code in .asd files::
 
-The object model of ASDF
+@c The object model of ASDF
 
-* Operations::
-* Components::
+@c * Operations::
+@c * Components::
 
-Operations
+@c Operations
 
-* Predefined operations of ASDF::
-* Creating new operations::
+@c * Predefined operations of ASDF::
+@c * Creating new operations::
 
-Components
+@c Components
 
-* Common attributes of components::
-* Pre-defined subclasses of component::
-* Creating new component types::
+@c * Common attributes of components::
+@c * Pre-defined subclasses of component::
+@c * Creating new component types::
 
-properties
+@c properties
 
-* Pre-defined subclasses of component::
-* Creating new component types::
+@c * Pre-defined subclasses of component::
+@c * Creating new component types::
 
-@end detailmenu
+@c @end detailmenu
 @end menu
 
 @end ifnottex
