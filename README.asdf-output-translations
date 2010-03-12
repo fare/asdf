@@ -246,8 +246,11 @@ Output location API
 
 The specified functions are exported from package ASDF.
 
-(initialize-output-translations)
+(initialize-output-translations parameter)
    will read the configuration and initialize all internal variables.
+   You can provide a parameter which is NIL, a configuration SEXP,
+   a configuration string, a pathname to load, or a symbol fbound
+   to a function that returns one of the previous.
 
 (clear-output-translations)
    undoes any output location configuration
@@ -259,12 +262,11 @@ The specified functions are exported from package ASDF.
    systems defined in the current image, only about
    where to look for systems not yet defined.
 
-(ensure-output-translations)
+(ensure-output-translations parameter)
    checks whether output translations have been initialized.
-   If not, initialize them.
-   This function will be called before any attempt to operate on a system.
-   If your application wants to override the provided defaults,
-   it will have to use the below function process-output-translations.
+   If not, initialize them with given parameter.
+   This function will be called before any attempt to operate on a system
+   (with a parameter NIL).
 
 (apply-output-translations PATHNAME)
    Applies the configured output location translations to PATHNAME
