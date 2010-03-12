@@ -381,6 +381,7 @@ control what directories are added to the ASDF search path.
 
 
 @section Configuring where ASDF stores object files
+@findex clear-output-locations
 
 ASDF lets you configure where object files will be stored.
 Sensible defaults are provided and
@@ -393,10 +394,10 @@ and without write privileges on shared source directories, etc.
 This also allows to keep source directories uncluttered
 by plenty of object files.
 
-Starting with ASDF 1.6, the @code{asdf-output-translations} facility
+Starting with ASDF 1.600, the @code{asdf-output-translations} facility
 was added to ASDF itself, that controls where object files will be stored.
-This facility is fully described in the document
-@file{README.asdf-output-translations}.
+This facility is fully described in a chapter of this manual, 
+@ref{Controlling where ASDF saves compiled files}.
 
 The simplest way to add a translation to your search path,
 say from @file{/foo/bar/baz/quux/}
@@ -448,7 +449,7 @@ if the configuration may change
 between the machine where you save it at the time you save it
 and the machine you resume it at the time you resume it.
 
-Finally note that before ASDF 1.6,
+Finally note that before ASDF 1.600,
 other ASDF add-ons offered the same functionality,
 each in subtly different and incompatible ways:
 ASDF-Binary-Locations, cl-launch, common-lisp-controller.
@@ -1730,10 +1731,12 @@ To explicitly flush any information cached by the system, use the API below.
 
 The specified functions are exported from package ASDF.
 
-(initialize-output-translations)
-   will read the configuration and initialize all internal variables.
 
-(clear-output-translations)
+@defun initialize-output-translations
+   will read the configuration and initialize all internal variables.
+@end defun
+
+@defun clear-output-translations
    undoes any output location configuration
    and clears any cache for the mapping algorithm.
    You might want to call that before you
@@ -1742,17 +1745,20 @@ The specified functions are exported from package ASDF.
    Note that this does not include clearing information about
    systems defined in the current image, only about
    where to look for systems not yet defined.
+@end defun
 
-(ensure-output-translations)
+@defun ensure-output-translations
    checks whether output translations have been initialized.
    If not, initialize them.
    This function will be called before any attempt to operate on a system.
    If your application wants to override the provided defaults,
    it will have to use the below function process-output-translations.
+@end defun
 
-(apply-output-translations PATHNAME)
-   Applies the configured output location translations to PATHNAME
+@defun apply-output-translations PATHNAME
+   Applies the configured output location translations to @var{PATHNAME}
    (calls ensure-output-translations for the translations).
+@end defun
 
 
 @section Credits
