@@ -135,9 +135,9 @@ ASDF presents three faces:
 one for users of Common Lisp software who want to reuse other people's code,
 one for writers of Common Lisp software who want to specify how to build their systems,
 one for implementers of Common Lisp extensions who want to extend the build system.
-@xref{Using ASDF, Using asdf to load systems, Loading a system},
+@xref{Using ASDF,,Loading a system}
 to learn how to use ASDF to load a system.
-@xref{Defining systems with defsystem},
+@xref{Defining systems with defsystem}
 to learn how to define a system of your own.
 @c XXXX missing @xref here!
 Later chapters describe the ASDF internals and how to extend ASDF.
@@ -205,17 +205,17 @@ or none at all:
 
 If it returns a version number, that's the version of ASDF installed.
 If it returns the keyword @code{:OLD},
-then you're using an old version of ASDF (from before 1.5).
+then you're using an old version of ASDF (from before 1.500).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.6,
+If you are running a version older than 1.600,
 we recommend that you load a newer ASDF using the method below.
 
 
 @section Loading an otherwise installed ASDF
 
 If your implementation doesn't include ASDF,
-or includes an old version of it (before 1.6),
+or includes an old version of it (before 1.600),
 you will have to install the file @file{asdf.lisp}
 somewhere and load it with:
 
@@ -226,9 +226,9 @@ somewhere and load it with:
 The single file @file{asdf.lisp} is all you normally need to use ASDF.
 
 You can extract this file from latest release tarball on the
-@url{http://common-lisp.net/project/asdf/,asdf-home} website.
+@url{http://common-lisp.net/project/asdf/,ASDF website}.
 If you are daring and willing to report bugs, you can get
-the latest and greatest version of ASDF from its VCS repository,
+the latest and greatest version of ASDF from its git repository.
 @xref{Getting the latest version}.
 
 For maximum convenience you might want to have ASDF loaded
@@ -246,7 +246,7 @@ for example by loading it from the startup script or dumping a custom core
 So it may compile and load your systems, ASDF must be configured to find
 the @file{.asd} files that contain system definitions.
 
-Since ASDF 1.6, the preferred way to configure where ASDF finds your systems is
+Since ASDF 1.600, the preferred way to configure where ASDF finds your systems is
 the @code{source-registry} facility, fully described in the document
 @file{README.source-registry}.
 
@@ -761,14 +761,14 @@ Such objects are typically specified using reader macros such as @code{#p}
 or @code{#.(make-pathname ...)}.
 Note however, that @code{#p...} is a short for @code{#.(parse-namestring ...)}
 and that the behavior @code{parse-namestring} is completely non-portable,
-unless you are using Common Lisp @code{logical-pathname}s
-(@xref{The defsystem grammar,,Warning about logical pathnames}, below).
+unless you are using Common Lisp @code{logical-pathname}s.
+(@xref{The defsystem grammar,,Warning about logical pathnames}, below.)
 Pathnames made with @code{#.(make-pathname ...)}
 can usually be done more easily with the string syntax above.
 The only case that you really need a pathname object is to override
 the component-type default file type for a given component.
 Therefore, it is a rare case that pathname objects should be used at all.
-Unhappily, old versions of ASDF (before 1.6) didn't properly support
+Unhappily, old versions of ASDF (before 1.600) didn't properly support
 parsing component names as strings specifying paths with directories,
 and the cumbersome @code{#.(make-pathname ...)} syntax had to be used.
 
@@ -1298,13 +1298,13 @@ I'm sure they'd welcome your fixes.
 This attribute is optional and if absent (which is the usual case),
 the component name will be used.
 
-@xref{The defsystem grammar,,Pathname specifiers}, for an explanation of how this attribute
-is interpreted.
+@xref{The defsystem grammar,,Pathname specifiers},
+for an explanation of how this attribute is interpreted.
 
 Note that the @code{defsystem} macro (used to create a ``top-level'' system)
 does additional processing to set the filesystem location of
 the top component in that system.
-This is detailed elsewhere, @xref{Defining systems with defsystem}.
+This is detailed elsewhere. @xref{Defining systems with defsystem}.
 
 The answer to the frequently asked question
 ``how do I create a system definition
@@ -1470,17 +1470,17 @@ The new component type is used in a @code{defsystem} form in this way:
 @vindex ASDF_OUTPUT_TRANSLATIONS
 
 Each Common Lisp implementation has its own format
-for compiled files (fasls for short).
+for compiled files (fasls for short, short for ``fast loading'').
 If you use multiple implementations
 (or multiple versions of the same implementation),
 you'll soon find your source directories
-littered with various `DFSL`s, `FASL`s, `CFSL`s and so on.
+littered with various @file{fasl}s, @file{dfsl}s, @file{cfsl}s and so on.
 Worse yet, some implementations use the same file extension
-or change formats from version to version which means that
-you'll have to recompile binaries as you switch from one
-implementation to the next.
+while changing formats from version to version (or platform to platform)
+which means that you'll have to recompile binaries
+as you switch from one implementation to the next.
 
-As of version 1.600, ASDF includes @code{asdf-output-translations}
+As of version 1.600, ASDF includes the @code{asdf-output-translations} facility
 to mitigate the problem.
 
 @section Configurations
@@ -1490,10 +1490,10 @@ Configurations specify mappings from source locations to binary locations.
 @enumerate
 
   @item
-        An application may explicitly initialize the output-translations
+     An application may explicitly initialize the output-translations
      configuration using the Configuration API
-     (@pxref{Controlling where ASDF saves compiled files,,Configuration API})
      in which case this takes precedence.
+     (@pxref{Controlling where ASDF saves compiled files,,Configuration API}.)
      It may itself compute this configuration from the command-line,
      from a script, from its own configuration file, etc.
 
@@ -1542,43 +1542,46 @@ in configuration files, no matter if the last one inherits or not.
 
 @section Backward Compatibility
 
-@comment{FIXME -- I think we should provide an easy way to get behavior equivalent to A-B-L and I will propose a technique for doing this.}
+@c FIXME -- I think we should provide an easy way
+@c to get behavior equivalent to A-B-L and
+@c I will propose a technique for doing this.
 
 We purposefully do NOT provide backward compatibility with earlier versions of
-asdf-binary-locations (8 Sept 2009),
-common-lisp-controller (7.00) or
-cl-launch (2.35),
+@code{ASDF-Binary-Locations} (8 Sept 2009),
+@code{common-lisp-controller} (7.0) or
+@code{cl-launch} (2.35),
 each of which had similar general capabilities.
-Future versions of same packages (if any)
-will hopefully use the new ASDF API as defined below.
+The previous APIs of these programs were not designed
+for configuration by the end-user
+in an easy way with configuration files.
+Recent versions of same packages use
+the new @code{asdf-output-translations} API as defined below:
+@code{common-lisp-controller} (7.1) and @code{cl-launch} (3.00);
+@code{ASDF-Binary-Locations} is fully superseded and not to be used anymore.
 
-These previous programs' API was not designed
-for easy configuration by the end-user
-in an easy way with configuration files,
-and their previous API didn't fit the new paradigm.
-
-But this incompatibility won't inconvenience many people.
+This incompatibility shouldn't inconvenience many people.
 Indeed, few people use and customize these packages;
-these people are experts who can trivially adapt to the new configuration.
+these few people are experts who can trivially adapt to the new configuration.
 Most people are not experts, could not properly configure these features
 (except inasmuch as the default configuration of
-common-lisp-controller and/or cl-launch
+@code{common-lisp-controller} and/or @code{cl-launch}
 might have been doing the right thing for some users),
-and yet will experience software that "just works",
+and yet will experience software that ``just works'',
 as configured by the system distributor, or by default.
 
-Nevertheless, if you want to use the old ASDF-Binary-Locations
+Nevertheless, if you want to use the old @code{ASDF-Binary-Locations}
 (the one available as an extension to load of top of ASDF,
 not the one built into a few old versions of ASDF),
-it may still work if you just make sure you do not configure the new
-builtin ASDF-Output-Translations.
-But if you configure both ASDF's new builtin and ASDF-Binary-Locations
-(or an old common-lisp-controller or cl-launch),
-you may experience "interesting" issues, so don't do it.
+it may still work if you just make sure you disable the new
+builtin @code{asdf-output-translations}.
+But if you configure both ASDF's new builtin and @code{ASDF-Binary-Locations}
+(or an old @code{common-lisp-controller} or @code{cl-launch}),
+you may experience ``interesting'' issues, so don't do it.
 
 @section Configuration DSL
 
-Here is the grammar of the SEXP DSL for asdf-output-translations configuration:
+Here is the grammar of the SEXP DSL
+for @code{asdf-output-translations} configuration:
 
 @verbatim
 ;; A configuration is single SEXP starting with keyword :source-registry
@@ -1632,7 +1635,7 @@ or subdirectories of the path before them, or bust.
 
 The last component, if not a pathname, is notionally completed by @file{/**/*.*}.
 You can specify more fine-grained patterns by using a pathname object,
-e.g. @code{#p"some/path/**/foo*/bar-*.fasl"}
+e.g. @file{#p"some/path/**/foo*/bar-*.fasl"}
 
 You may use @code{#+features} to customize the configuration file.
 
@@ -1643,16 +1646,20 @@ to anything but themselves (same as if the second designator was the same as the
 from the file specified.
 
 An @code{:inherit-configuration} statement cause the search to recurse with the path
-specifications from the next configuration
-(see section Configurations_ above).
+specifications from the next configuration.
+See section Configurations above. @c XXX xref needed.
 
 @itemize
-@item :enable-user-cache is the same as @code{(:root :user-cache)}.
-@item :disable-cache is the same as @code{(:root :root)}.
-@item :user-cache uses the contents of variable @code{asdf::*user-cache*}
+@item
+@code{:enable-user-cache} is the same as @code{(:root :user-cache)}.
+@item
+@code{:disable-cache} is the same as @code{(:root :root)}.
+@item
+@code{:user-cache} uses the contents of variable @code{asdf::*user-cache*}
 which by default is the same as using
 @code{(:home ".cache" "common-lisp" :implementation)}.
-@item :system-cache uses the contents of variable @code{asdf::*system-cache*}
+@item
+@code{:system-cache} uses the contents of variable @code{asdf::*system-cache*}
 which by default is the same as using
 @code{(:root "var" "cache" "common-lisp" :uid :implementation-type)}
 @end itemize
@@ -1661,7 +1668,8 @@ which by default is the same as using
 @section Configuration Directories
 
 Configuration directories consist in files each contains
-a list of directives without any enclosing @code{(:asdf-output-translations ...)} form.
+a list of directives without any enclosing
+@code{(:asdf-output-translations ...)} form.
 The files will be sorted by namestring as if by @code{#'string<} and
 the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
@@ -1669,7 +1677,7 @@ at the end of the list.
 
 This allows for packaging software that has file granularity
 (e.g. Debian's @command{dpkg} or some future version of @command{clbuild})
-to easily include configuration information about distributed software.
+to easily include configuration information about software being distributed.
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.:
@@ -1684,16 +1692,20 @@ ASDF will skip to next configuration if it's an empty string.
 It will @code{READ} the string as an SEXP in the DSL
 if it begins with a paren @code{(}
 and it will be interpreted as a colon-separated list of directories.
-Directories should come in pairs, each pair indicating a :map directive.
+Directories should come by pairs, indicating a mapping directive.
 
-The magic empty entry indicates the splicing of inherited configuration
-rather than one of entry in a mapping pair.
+The magic empty entry,
+if it comes in what would otherwise be the first entry in a pair,
+indicates the splicing of inherited configuration.
+If it comes as the second entry in a pair,
+it indicates that the directory specified first is to be left untranslated
+(which has the same effect as if the directory had been repeated).
 
 
 @section Semantics of Output Translations
 
-From the specified configuration, a list of mappings is extracted
-in a straightforward way:
+From the specified configuration,
+a list of mappings is extracted in a straightforward way:
 mappings are collected in order, recursing through
 included or inherited configuration as specified.
 To this list is prepended some implementation-specific mappings,
@@ -1732,8 +1744,16 @@ To explicitly flush any information cached by the system, use the API below.
 The specified functions are exported from package ASDF.
 
 
-@defun initialize-output-translations
+@defun initialize-output-translations PARAMETER
    will read the configuration and initialize all internal variables.
+   You may extend or override configuration
+   from the environment and configuration files
+   with the given @var{PARAMETER}, which can be
+   @code{NIL} (no configuration override),
+   or a SEXP (in the SEXP DSL),
+   a string (as in the string DSL),
+   a pathname (of a file or directory with configuration),
+   or a symbol (fbound to function that when called returns one of the above).
 @end defun
 
 @defun clear-output-translations
@@ -1747,24 +1767,22 @@ The specified functions are exported from package ASDF.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-output-translations
+@defun ensure-output-translations PARAMETER
    checks whether output translations have been initialized.
-   If not, initialize them.
+   If not, initialize them with the given @var{PARAMETER}.
    This function will be called before any attempt to operate on a system.
-   If your application wants to override the provided defaults,
-   it will have to use the below function process-output-translations.
 @end defun
 
 @defun apply-output-translations PATHNAME
    Applies the configured output location translations to @var{PATHNAME}
-   (calls ensure-output-translations for the translations).
+   (calls @code{ensure-output-translations} for the translations).
 @end defun
 
 
 @section Credits
 
-Thanks a lot to Bjorn Lindberg and Gary King for ASDF-Binary-Locations,
-and to Peter van Eynde for Common Lisp Controller.
+Thanks a lot to Bjorn Lindberg and Gary King for @code{ASDF-Binary-Locations},
+and to Peter van Eynde for @code{Common Lisp Controller}.
 
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
@@ -1875,8 +1893,7 @@ Discussion of ASDF development is conducted on the mailing list
 @chapter FAQ
 
 
-@itemize
-@item ``My Common Lisp implementation comes with an outdated version of ASDF. What to do?''
+@section ``My Common Lisp implementation comes with an outdated version of ASDF. What to do?''
 
 More up-to-date versions of ASDF are distributed with an @file{asdf.asd} file,
 and @emph{should} load cleanly on top of older versions.
@@ -1887,11 +1904,13 @@ and then do:
 (asdf:oos 'asdf:load-op :asdf)
 @end example
 
-If this does not work, it is a bug, and you should report it
-(@pxref{FAQ, report-bugs, Where do I report a bug}).
+If this does not work, it is a bug, and you should report it.
+@xref{FAQ, report-bugs, Where do I report a bug}.
+In the meantime, you can load @file{asdf.lisp} directly.
+@xref{Loading ASDF,Loading an otherwise installed ASDF}.
 
 
-@item ``How can I cater for unit-testing in my system?''
+@section ``How can I cater for unit-testing in my system?''
 
 ASDF provides a predefined test operation, @code{test-op}.
 @xref{Predefined operations of ASDF, test-op}.
@@ -1942,34 +1961,39 @@ has passed, or which tests have failed.  The user must simply read the
 console output.  This limitation has been the subject of much
 discussion.
 
-item ``How can I cater for documentation generation in my system?''
+@section ``How can I cater for documentation generation in my system?''
 
-The ASDF developers are currently working to add a @code{doc-op} to the
-set of predefined ASDF operations (@pxref{Predefined operations of
-ASDF}).  See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
+The ASDF developers are currently working to add a @code{doc-op}
+to the set of predefined ASDF operations.
+@xref{Predefined operations of ASDF}.
+See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
 
-@item ``How can I customize where fasl files are stored?''
+@section ``How can I customize where fasl files are stored?''
 
 @xref{Controlling where ASDF saves compiled files}.
 
 Note that in the past there was an add-on to ASDF called
-ASDF-binary-locations, developed by Gary King.  That add-on has been
-merged into ASDF proper.
+ASDF-binary-locations, developed by Gary King.
+That add-on has been merged into ASDF proper,
+then superseded by the asdf-output-translations facility.
 
-Note that use of asdf-binary-locations can interfere with one aspect of
-your systems --- if your system uses @code{*load-truename*} to find
-files (e.g., if you have some data files stored with your program), then
-the relocation that this ASDF customization performs is likely to
-interfere.
+Note that use of asdf-output-translations
+can interfere with one aspect of your systems
+--- if your system uses @code{*load-truename*} to find files
+(e.g., if you have some data files stored with your program),
+then the relocation that this ASDF customization performs
+is likely to interfere.
+Use @code{asdf:apply-output-translations} to locate a file
+whos pathname has been translated by the facility.
 
-@item ``How can I maintain non-Lisp (e.g. C) source files?''
+@section ``How can I maintain non-Lisp (e.g. C) source files?''
 
 @anchor{report-bugs}
-@item  Where do I report a bug?
+@section  Where do I report a bug?
 
 ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
 
-@item ``I want to put my module's files at the top level.  How do I do this?''
+@section ``I want to put my module's files at the top level.  How do I do this?''
 
 By default, the files contained in an asdf module go
 in a subdirectory with the same name as the module.
@@ -2031,7 +2055,6 @@ either as the name component of a pathname
 or as a name component plus optional dot-separated type component
 (if the component class doesn't specifies a pathname type).
 
-@end itemize
 
 @node  TODO list, missing bits in implementation, FAQ, Top
 comment  node-name,  next,  previous,  up
