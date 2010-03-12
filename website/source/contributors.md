@@ -12,14 +12,14 @@
 * nhabedi - Edi Weitz
 * pvaneynd - Peter Van Eynde
 * rjain - Rahul Jain
+* rpg - Robert P. Goldman <rpgoldman@sift.info>
+* fare - Francois-Rene Rideau <fare@tunes.org>
 
 (If I've left off your name, please accept my apologies and
-[let me know](mailto:gwking@metabang.com))
+[let me know](mailto:fare@tunes.org))
 
 </div>
 
 </div>
 {include "resources/footer.md"}
 </div>
-
-
