@@ -135,12 +135,12 @@ ASDF presents three faces:
 one for users of Common Lisp software who want to reuse other people's code,
 one for writers of Common Lisp software who want to specify how to build their systems,
 one for implementers of Common Lisp extensions who want to extend the build system.
-@xref{Using ASDF,,Loading a system}
+@xref{Using ASDF,,Loading a system},
 to learn how to use ASDF to load a system.
-@xref{Defining systems with defsystem}
+@xref{Defining systems with defsystem},
 to learn how to define a system of your own.
-@c XXXX missing @xref here!
-Later chapters describe the ASDF internals and how to extend ASDF.
+@xref{The object model of ASDF} for a description of
+the ASDF internals and how to extend ASDF.
 
 NOTA BENE:
 We are preparing for a release of ASDF 2,
