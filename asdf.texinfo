@@ -142,6 +142,17 @@ to learn how to define a system of your own.
 @c XXXX missing @xref here!
 Later chapters describe the ASDF internals and how to extend ASDF.
 
+NOTA BENE:
+We are preparing for a release of ASDF 2,
+which will have version 2.000 and later.
+The current release 1.634 has all the code we think we need,
+but we're still working on documentation,
+and on fixing the occasional bug.
+For all practical purposes, ASDF 2 refers to releases later than 1.634,
+and ASDF 1 to any release earlier than 1.369 or so.
+Once ASDF 2.000 is released, older versions will not be supported anymore,
+and we'll push @code{:asdf2} onto @code{*features*}.
+
 
 @node Loading ASDF, Configuring ASDF, Introduction, Top
 @comment  node-name,  next,  previous,  up
@@ -1498,29 +1509,29 @@ Configurations specify mappings from source locations to binary locations.
      from a script, from its own configuration file, etc.
 
   @item
-        The source registry will be configured from
+     The source registry will be configured from
      the environment variable @code{ASDF_OUTPUT_TRANSLATIONS} if it exists.
 
   @item
-  The source registry will be configured from
+     The source registry will be configured from
      user configuration file
 	@file{~/.config/common-lisp/asdf-output-translations.conf}
      if it exists.
 
   @item
-  The source registry will be configured from
+     The source registry will be configured from
      user configuration directory
 	@file{~/.config/common-lisp/asdf-output-translations.conf.d/}
      if it exists.
 
   @item
-  The source registry will be configured from
+     The source registry will be configured from
      system configuration file
 	@file{/etc/common-lisp/asdf-output-translations.conf}
      if it exists.
 
   @item
-  The source registry will be configured from
+     The source registry will be configured from
      system configuration directory
 	@file{/etc/common-lisp/asdf-output-translations.conf.d/}
      if it exists.
@@ -1537,7 +1548,7 @@ includes its inherited configuration.
 
 Additionally, some implementation-specific directories
 may be automatically added to whatever mappings are specified
-in configuration files, no matter if the last one inherits or not.
+in configuration files, no matter whether the last one inherits or not.
 
 
 @section Backward Compatibility
@@ -1634,7 +1645,8 @@ Relative components better be either relative
 or subdirectories of the path before them, or bust.
 
 The last component, if not a pathname, is notionally completed by @file{/**/*.*}.
-You can specify more fine-grained patterns by using a pathname object,
+You can specify more fine-grained patterns
+by using a pathname object as the last component
 e.g. @file{#p"some/path/**/foo*/bar-*.fasl"}
 
 You may use @code{#+features} to customize the configuration file.
@@ -1787,7 +1799,7 @@ and to Peter van Eynde for @code{Common Lisp Controller}.
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
- -- Francois-Rene Rideau @email{fare@@tunes.org}
+ --- Francois-Rene Rideau @email{fare@@tunes.org}
 
 @c @section Default locations
 @c @findex output-files-for-system-and-operation

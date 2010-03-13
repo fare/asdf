@@ -1,6 +1,6 @@
 (in-package #:common-lisp-user)
 
-(load (merge-pathnames "script-support" *load-pathname*))
+(load (make-pathname :name "script-support" :defaults *load-pathname*))
 
 (cond ((probe-file *asdf-lisp*)
        (ensure-directories-exist *asdf-fasl*)

@@ -168,8 +168,8 @@
 (defmethod output-files ((o bundle-op) (c system))
   (let ((name (concatenate 'base-string (component-name c)
                            (slot-value o 'name-suffix))))
-    (list (merge-pathnames (compile-file-pathname name :type (bundle-op-type o))
-                           (component-relative-pathname c)))))
+    (list (merge-pathnames* (compile-file-pathname name :type (bundle-op-type o))
+                            (component-relative-pathname c)))))
 
 (defmethod output-files ((o fasl-op) (c system))
   (loop for file in (call-next-method)

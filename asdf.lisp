@@ -247,7 +247,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.633" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.634" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -2207,7 +2207,7 @@ output to `*verbose-out*`.  Returns the shell's exit code."
 ;;; ---------------------------------------------------------------------------
 ;;; Generic support for configuration files
 (defun user-configuration-directory ()
-  (merge-pathnames #p".config/" (user-homedir-pathname)))
+  (merge-pathnames* #p".config/" (user-homedir-pathname)))
 (defun system-configuration-directory ()
   #p"/etc/")
 
@@ -2419,15 +2419,15 @@ with a different configuration, so the configuration would be re-read then."
 
 (defparameter *implementation-output-translations*
   `(:output-translations
-   ;; If clozure had any precompiled ASDF system, we'd use that:
-   ; #+clozure (,(ccl::ccl-directory) ())
-   ;; SBCL *does* have precompiled ASDF system, so we use this:
-   #+sbcl (,(getenv "SBCL_HOME") ())
-   ;; All-import, here is where we want user stuff to be:
-   :inherit-configuration
-   ;; If we want to enable the user cache by default, here would be the place:
-   :enable-user-cache
-   ))
+    ;; Some implementations have precompiled ASDF systems,
+    ;; so we must disable translations for implementation paths.
+    #+sbcl (,(getenv "SBCL_HOME") ())
+    #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; only needed if LPNs are resolved manually.
+    #+clozure (,(wilden (ccl::ccl-directory)) ()) ; not needed: no precompiled ASDF system
+    ;; All-import, here is where we want user stuff to be:
+    :inherit-configuration
+    ;; If we want to enable the user cache by default, here would be the place:
+    :enable-user-cache))
 
 (defun implementation-output-translations ()
   *implementation-output-translations*)
@@ -2763,10 +2763,10 @@ with a different configuration, so the configuration would be re-read then."
    :inherit-configuration))
 (defun default-source-registry ()
   `(:source-registry
-    #+sbcl (:directory ,(merge-pathnames ".sbcl/systems/" (user-homedir-pathname)))
+    #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir-pathname)))
     (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
-    (:directory ,(merge-pathnames ".local/share/common-lisp/systems/" (user-homedir-pathname)))
-    (:tree ,(merge-pathnames ".local/share/common-lisp/source/" (user-homedir-pathname)))
+    (:directory ,(merge-pathnames* ".local/share/common-lisp/systems/" (user-homedir-pathname)))
+    (:tree ,(merge-pathnames* ".local/share/common-lisp/source/" (user-homedir-pathname)))
     (:directory "/usr/local/share/common-lisp/systems/")
     (:tree "/usr/local/share/common-lisp/source/")
     (:directory "/usr/local/share/common-lisp/systems/")
@@ -2775,13 +2775,13 @@ with a different configuration, so the configuration would be re-read then."
     (:tree "/usr/share/common-lisp/source/")
     :inherit-configuration))
 (defun user-source-registry ()
-  (merge-pathnames *source-registry-file* (user-configuration-directory)))
+  (merge-pathnames* *source-registry-file* (user-configuration-directory)))
 (defun system-source-registry ()
-  (merge-pathnames *source-registry-file* (system-configuration-directory)))
+  (merge-pathnames* *source-registry-file* (system-configuration-directory)))
 (defun user-source-registry-directory ()
-  (merge-pathnames *source-registry-directory* (user-configuration-directory)))
+  (merge-pathnames* *source-registry-directory* (user-configuration-directory)))
 (defun system-source-registry-directory ()
-  (merge-pathnames *source-registry-directory* (system-configuration-directory)))
+  (merge-pathnames* *source-registry-directory* (system-configuration-directory)))
 (defun environment-source-registry ()
   (getenv "CL_SOURCE_REGISTRY"))
 

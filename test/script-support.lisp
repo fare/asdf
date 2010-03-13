@@ -1,8 +1,20 @@
 (in-package #:common-lisp-user)
 
-(defvar *asdf-lisp* (truename (merge-pathnames "../asdf.lisp" *load-truename*)))
-(defvar *asdf-fasl* (compile-file-pathname (merge-pathnames "tmp/" *asdf-lisp*)))
-(defun load-asdf () (load *asdf-fasl*))
+;; We can't use asdf:merge-pathnames* because ASDF isn't loaded yet.
+;; We still want to work despite and host/device funkiness.
+(defvar *asdf-lisp*
+  (truename
+   (merge-pathnames
+    (make-pathname :directory '(:relative :up) :name "asdf" :type "lisp"
+                   :defaults *load-truename*)
+    *load-truename*)))
+(defvar *asdf-fasl*
+  (compile-file-pathname
+   (merge-pathnames
+    (make-pathname :directory '(:relative "tmp") :defaults *asdf-lisp*)
+    *asdf-lisp*)))
+(defun load-asdf ()
+  (load *asdf-fasl*))
 
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
