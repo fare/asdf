@@ -254,10 +254,10 @@
 (defclass compiled-file (component) ())
 (defmethod component-relative-pathname ((component compiled-file))
   (compile-file-pathname
-   (merge-component-relative-pathname
-    (slot-value component 'relative-pathname)
-    (component-name component)
-    "fas")))
+   (merge-component-name-type
+    (or (slot-value component 'relative-pathname)
+        (component-name component))
+    :type "fas")))
 
 (defmethod output-files (o (c compiled-file))
   nil)
@@ -268,6 +268,30 @@
 (defmethod perform ((o load-fasl-op) (c compiled-file))
   (load (component-pathname c)))
 (defmethod perform (o (c compiled-file))
+  nil)
+
+;;;
+;;; Pre-built systems
+;;;
+(defclass prebuilt-system (system)
+  ((static-library :accessor prebuilt-system-static-library :initarg :lib)))
+
+(defmethod output-files ((o lib-op) (c prebuilt-system))
+  (list (compile-file-pathname (prebuilt-system-static-library c) :type :lib)))
+
+(defmethod perform ((o lib-op) (c prebuilt-system))
+  (car (output-files o c)))
+
+(defmethod component-depends-on ((o lib-op) (c prebuilt-system))
+  nil)
+
+(defmethod bundle-sub-operations ((o lib-op) (c prebuilt-system))
+  nil)
+
+(defmethod bundle-sub-operations ((o monolithic-lib-op) (c prebuilt-system))
+  (error "Prebuilt system ~S shipped with ECL can not be used in a monolithic library operation." c))
+
+(defmethod bundle-sub-operations ((o monolithic-bundle-op) (c prebuilt-system))
   nil)
 
 ;;;
@@ -289,7 +313,8 @@
         t))))
 
 (defun register-pre-built-system (name)
-  (register-system name (make-instance 'system :name name)))
+  (register-system name (make-instance 'system :name name
+                                       :source-file nil)))
 
 (setf si::*module-provider-functions*
       (loop for f in si::*module-provider-functions*
