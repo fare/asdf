@@ -1494,7 +1494,7 @@ The new component type is used in a @code{defsystem} form in this way:
 Configurations specify paths where to find system files.
 
   1- An application may explicitly initialize the source-registry
-     configuration using the `Configuration API`_ below,
+     configuration using the @xref{Configuration API} below,
      in which case this takes precedence.
      It may itself compute this configuration from the command-line,
      from a script, from its own configuration file, etc.
@@ -1524,7 +1524,7 @@ Configurations specify paths where to find system files.
 
   7- The source registry will be configured from a default configuration,
      which allows for implementation-specific software to be searched.
-     (See below `Backward Compatibility`_).
+     (See below @xref{Backward Compatibility}).
 
 Each of these configuration is specified as a SEXP
 in a trival domain-specific language (defined below).
@@ -1589,7 +1589,7 @@ DIRECTIVE :=
 
 PATTERN := a string without wildcards, that will be matched exactly
 	against the name of a any subdirectory in the directory component
-        of a path. e.g. ``_darcs'' will match #p"/foo/bar/_darcs/src/bar.asd"
+        of a path. e.g. @code{"_darcs"} will match @file{#p"/foo/bar/_darcs/src/bar.asd"}
 @end example
 
 
@@ -1597,7 +1597,7 @@ PATTERN := a string without wildcards, that will be matched exactly
 
 Configuration directories consist in files each contains
 a list of directives without any enclosing @code{(:source-registry ...)} form.
-The files will be sorted by namestring as if by #'string< and
+The files will be sorted by namestring as if by @code{#'string<} and
 the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
 at the end of the list.
@@ -1605,6 +1605,12 @@ at the end of the list.
 This allows for packaging software that has file granularity
 (e.g. Debian's @code{dpkg} or some future version of @code{clbuild})
 to easily include configuration information about distributed software.
+
+The convention is that, for sorting purposes,
+the names of files in such a directory begin with two digits
+that determine the order in which these entries will be read.
+Also, the type of these files is conventionally @code{"conf"}
+and as a limitation of some implementations, the type cannot be @code{NIL}.
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.::
@@ -2019,6 +2025,12 @@ at the end of the list.
 This allows for packaging software that has file granularity
 (e.g. Debian's @command{dpkg} or some future version of @command{clbuild})
 to easily include configuration information about software being distributed.
+
+The convention is that, for sorting purposes,
+the names of files in such a directory begin with two digits
+that determine the order in which these entries will be read.
+Also, the type of these files is conventionally @code{"conf"}
+and as a limitation of some implementations, the type cannot be @code{NIL}.
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.:
