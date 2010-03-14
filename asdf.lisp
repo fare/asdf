@@ -2917,7 +2917,8 @@ with a different configuration, so the configuration would be re-read then."
     (setf excl:*warn-on-nested-reader-conditionals* *acl-warn-save*)))
 
 (pushnew :asdf *features*)
-;;(pushnew :asdf2 *features*) ;; do that when we reach version 2
+;; this is a release candidate for ASDF 2.0
+(pushnew :asdf2 *features*)
 
 (provide :asdf)
 

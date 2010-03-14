@@ -125,6 +125,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @node Introduction, Loading ASDF, Top, Top
 @comment  node-name,  next,  previous,  up
 @chapter Introduction
+@cindex ASDF-related features
+@vindex *features*
+@cindex Testing for ASDF
+@cindex ASDF versions
+@cindex :asdf
+@cindex :asdf2
 
 ASDF is Another System Definition Facility:
 a tool for specifying how systems of Common Lisp software
@@ -146,13 +152,17 @@ the ASDF internals and how to extend ASDF.
 NOTA BENE:
 We are preparing for a release of ASDF 2,
 which will have version 2.000 and later.
-The current release 1.634 has all the code we think we need,
+Releases in the 1.6xx series and beyond should be considered as 
+release candidates,
 but we're still working on documentation,
 and on fixing the occasional bug.
 For all practical purposes, ASDF 2 refers to releases later than 1.634,
 and ASDF 1 to any release earlier than 1.369 or so.
-Once ASDF 2.000 is released, older versions will not be supported anymore,
-and we'll push @code{:asdf2} onto @code{*features*}.
+
+ASDF 2.0 release candidates and beyond will have 
+@code{:asdf2} onto @code{*features*} so that if you are writing
+ASDF-dependent code you may check for this feature to see if the new API
+is present.  @emph{All} versions of ASDF should have the @code{:asdf} feature.
 
 
 @node Loading ASDF, Configuring ASDF, Introduction, Top
