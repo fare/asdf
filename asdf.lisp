@@ -250,7 +250,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.638" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.639" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -2692,19 +2692,20 @@ with a different configuration, so the configuration would be re-read then."
            (return `(:source-registry ,@(nreverse directives)))))))))
 
 (defun register-asd-directory (directory &key recurse exclude collect)
-  (if (not recurse)
-      (funcall collect (ensure-directory-pathname directory))
-      (let* ((files (ignore-errors
-                      (directory (merge-pathnames* *wild-asd* directory)
-                                 #+sbcl #+sbcl :resolve-symlinks nil
-                                 #+clisp #+clisp :circle t)))
-             (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
-                                      :test #'equal)))
-        (loop
-          :for dir :in dirs
-          :unless (loop :for x :in exclude
-                    :thereis (find x (pathname-directory dir) :test #'equal))
-          :do (funcall collect dir)))))
+  (let ((directory (ensure-directory-pathname directory)))
+    (if (not recurse)
+        (funcall collect directory)
+        (let* ((files (ignore-errors
+                        (directory (merge-pathnames* *wild-asd* directory)
+                                   #+sbcl #+sbcl :resolve-symlinks nil
+                                   #+clisp #+clisp :circle t)))
+               (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
+                                        :test #'equal)))
+          (loop
+            :for dir :in dirs
+            :unless (loop :for x :in exclude
+                      :thereis (find x (pathname-directory dir) :test #'equal))
+            :do (funcall collect dir))))))
 
 (defparameter *default-source-registries*
   '(environment-source-registry
