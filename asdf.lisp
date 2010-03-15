@@ -145,7 +145,7 @@
     (ensure-package
      ':asdf
      :use '(:common-lisp :asdf-utilities)
-     :unintern '(#:*asdf-revision*)
+     :unintern '(#:*asdf-revision* #:around #:asdf-method-combination)
      :fmakunbound '(#:perform #:explain #:output-files #:operation-done-p)
      :export
      '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
@@ -250,7 +250,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.636" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.637" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -495,11 +495,12 @@ starting the separation from the end, e.g. when called with arguments
           (setf end start))))))
 
 (defun split-name-type (filename)
-  (destructuring-bind (name &optional (type :unspecific))
-      (split-string filename :max 2 :separator ".")
-    (if (equal name "")
-        (values filename :unspecific)
-        (values name type))))
+  (let ((unspecific #-clisp :unspecific #+clisp nil))
+    (destructuring-bind (name &optional (type unspecific))
+        (split-string filename :max 2 :separator ".")
+      (if (equal name "")
+          (values filename unspecific)
+          (values name type)))))
 
 (defun component-name-to-pathname-components (s &optional force-directory)
   "Splits the path string S, returning three values:
