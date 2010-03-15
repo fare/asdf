@@ -52,8 +52,8 @@ usage () {
 }
 
 do_tests() {
-  command=$1 eval=$2 fasl_ext=$3
-  rm -f *.$fasl_ext ~/.cache/common-lisp/"`pwd`"/*.$fasl_ext || true
+  command=$1 eval=$2
+  rm -f ~/.cache/common-lisp/"`pwd`"/* || true
   ( cd .. && $command $eval '(load "test/compile-asdf.lisp")' )
   if [ $? -ne 0 ] ; then
     echo "Compilation FAILED" >&2
@@ -67,7 +67,7 @@ do_tests() {
     do
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
-      rm -f *.$fasl_ext ~/.cache/common-lisp/"`pwd`"/*.$fasl_ext || true
+      rm -f ~/.cache/common-lisp/"`pwd`"/* || true
       if $command $eval "(load \"$i\")" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
@@ -104,67 +104,48 @@ fi
 command=
 case "$lisp" in
   sbcl)
-    if type sbcl ; then
-      fasl_ext="fasl"
-      command="sbcl --noinform --userinit /dev/null --sysinit /dev/null"
-      nodebug="--disable-debugger"
-      eval="--eval"
-    fi ;;
+    command=sbcl
+    flags="--noinform --userinit /dev/null --sysinit /dev/null"
+    nodebug="--disable-debugger"
+    eval="--eval" ;;
   clisp)
-    if type clisp ; then
-	fasl_ext="fas"
-	command="clisp -norc -ansi -I "
-        nodebug="-on-error exit"
-        eval="-x"
-    fi ;;
+    command=clisp
+    flags="-norc -ansi -I "
+    nodebug="-on-error exit"
+    eval="-x" ;;
   allegro)
-    if type alisp ; then
-	fasl_ext="fasl"
-	command="alisp -q "
-        nodebug="-batch"
-        eval="-e"
-    fi ;;
+    command=alisp
+    flags="-q"
+    nodebug="-batch"
+    eval="-e" ;;
   allegromodern)
-    if type mlisp ; then
-	fasl_ext="fasl"
-	command="mlisp -q"
-        nodebug="-batch"
-        eval="-e"
-    fi ;;
+    command=mlisp
+    flags="-q"
+    nodebug="-batch"
+    eval="-e" ;;
   ccl)
-    if type ccl ; then
-        case `uname -s` in
-          Linux) fasl_os=lx ;;
-          Darwin) fasl_os=dx ;;
-        esac
-        case `uname -m` in
-          x86_64|ppc64) fasl_bits=64 ;;
-          i?86|ppc) fasl_bits=32 ;;
-        esac
-        fasl_ext="${fasl_os}${fasl_bits}fsl"
-	command="ccl --no-init --quiet"
-        nodebug="--batch"
-        eval="--eval"
-    fi ;;
+    command=ccl
+    flags="--no-init --quiet"
+    nodebug="--batch"
+    eval="--eval" ;;
   cmucl)
-    if type lisp ; then
-	fasl_ext="x86f"
-	command="lisp -noinit"
-        nodebug="-batch"
-        eval="-eval"
-    fi ;;
+    command=lisp
+    flags="-noinit"
+    nodebug="-batch"
+    eval="-eval" ;;
   ecl)
-    if type ecl ; then
-	fasl_ext="fas"
-	command="ecl -norc"
-        eval="-eval"
-    fi ;;
+    command=ecl
+    flags="-norc"
+    eval="-eval" ;;
   lispworks)
-    if type lispworks ; then
-	fasl_ext="ofasl"
-	command="lispworks -siteinit - -init -"
-        eval="-eval"
-    fi ;;
+    command=lispworks
+    flags="-siteinit - -init -"
+    eval="-eval" ;;
+  gclcvs)
+    export GCL_ANSI=t
+    command=gclcvs
+    flags="-q"
+    eval="-eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2
     echo "Please add support to run-tests.sh" >&2
@@ -172,7 +153,11 @@ case "$lisp" in
 esac
 
 if [ -z "$command" ] ; then
-    echo "lisp implementation not found: $1" >&2
+    echo "lisp implementation not recognized: $1" >&2
+    exit 43
+fi
+if ! type "$command" ; then
+    echo "lisp implementation not found: $command" >&2
     exit 43
 fi
 
@@ -195,7 +180,7 @@ else
     mkdir -p results
     echo $command
     thedate=`date "+%Y-%m-%d"`
-    do_tests "$command" "$eval" "$fasl_ext" 2>&1 | \
+    do_tests "$command" "$eval" 2>&1 | \
 	tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
     clean_up
 fi

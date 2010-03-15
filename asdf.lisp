@@ -85,6 +85,10 @@
                  (unintern sym package))))
            (ensure-unintern (package symbols)
              (dolist (sym symbols) (remove-symbol sym package)))
+           (ensure-fmakunbound (package symbols)
+             (loop :for name :in symbols
+               :for sym = (find-symbol (string name) package)
+               :when sym :do (fmakunbound sym)))
            (ensure-shadow (package symbols)
              (shadow symbols package))
            (ensure-use (package use)
@@ -101,9 +105,10 @@
                    (remove-symbol sym package)))
                (dolist (sym syms)
                  (export sym package))))
-           (ensure-package (name &key nicknames use unintern shadow export)
+           (ensure-package (name &key nicknames use unintern fmakunbound shadow export)
              (let ((p (ensure-exists name nicknames use)))
                (ensure-unintern p unintern)
+               (ensure-fmakunbound p fmakunbound)
                (ensure-shadow p shadow)
                (ensure-export p export)
                p)))
@@ -141,13 +146,14 @@
      ':asdf
      :use '(:common-lisp :asdf-utilities)
      :unintern '(#:*asdf-revision*)
+     :fmakunbound '(#:perform #:explain #:output-files #:operation-done-p)
      :export
      '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
        #:system-definition-pathname #:find-component ; miscellaneous
        #:compile-system #:load-system #:test-system
        #:compile-op #:load-op #:load-source-op
        #:test-op
-       #:operation                 ; operations
+       #:operation               ; operations
        #:feature                 ; sort-of operation
        #:version                 ; metaphorically sort-of an operation
 
@@ -217,9 +223,6 @@
        #:coerce-entry-to-directory
        #:remove-entry-from-registry
 
-       #:standard-asdf-method-combination
-       #:around                     ; protocol assistants
-
        #:initialize-output-translations
        #:clear-output-translations
        #:ensure-output-translations
@@ -247,7 +250,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.635" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.636" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -268,7 +271,7 @@ Defaults to `t`.")
 (defvar *verbose-out* nil)
 
 (defparameter +asdf-methods+
-  '(perform explain output-files operation-done-p))
+  '(perform-with-restarts perform explain output-files operation-done-p))
 
 #+allegro
 (eval-when (:compile-toplevel :execute)
@@ -301,56 +304,14 @@ Defaults to `t`.")
         (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p))))))
 
 ;;;; -------------------------------------------------------------------------
-;;;; CLOS magic for asdf:around methods
-
-(define-method-combination standard-asdf-method-combination ()
-  ((around-asdf (around))
-   (around (:around))
-   (before (:before))
-   (primary () :required t)
-   (after (:after)))
-  (flet ((call-methods (methods)
-           (mapcar #'(lambda (method)
-                       `(call-method ,method))
-                   methods)))
-    (let* ((form (if (or before after (rest primary))
-                     `(multiple-value-prog1
-                          (progn ,@(call-methods before)
-                                 (call-method ,(first primary)
-                                              ,(rest primary)))
-                        ,@(call-methods (reverse after)))
-                     `(call-method ,(first primary))))
-           (standard-form (if around
-                              `(call-method ,(first around)
-                                            (,@(rest around)
-                                               (make-method ,form)))
-                              form)))
-      (if around-asdf
-          `(call-method ,(first around-asdf)
-                        (,@(rest around-asdf) (make-method ,standard-form)))
-          standard-form))))
-
-(setf (documentation 'standard-asdf-method-combination
-                     'method-combination)
-      "This method combination is based on the standard method combination,
-but defines a new method-qualifier, `asdf:around`.  `asdf:around`
-methods will be run *around* any `:around` methods, so that the core
-protocol may employ around methods and those around methods will not
-be overridden by around methods added by a system developer.")
-
-;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
 
-(defgeneric perform (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric operation-done-p (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric explain (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric output-files (operation component)
-  (:method-combination standard-asdf-method-combination))
-(defgeneric input-files (operation component)
-  (:method-combination standard-asdf-method-combination))
+(defgeneric perform-with-restarts (operation component))
+(defgeneric perform (operation component))
+(defgeneric operation-done-p (operation component))
+(defgeneric explain (operation component))
+(defgeneric output-files (operation component))
+(defgeneric input-files (operation component))
 
 (defgeneric system-source-file (system)
   (:documentation "Return the source file in which system is defined."))
@@ -440,27 +401,6 @@ The plan returned is a list of dotted-pairs. Each pair is the `cons`
 of ASDF operation object and a `component` object. The pairs will be
 processed in order by `operate`."))
 
-(defgeneric output-files-using-mappings (source possible-paths path-mappings)
-  (:documentation
-"Use the variable \\*source-to-target-mappings\\* to find
-an output path for the source. The algorithm transforms each
-entry in possible-paths as follows: If there is a mapping
-whose source starts with the path of possible-path, then
-replace possible-path with a pathname that starts with the
-target of the mapping and continues with the rest of
-possible-path. If no such mapping is found, then use the
-default mapping.
-
-If \\*centralize-lisp-binaries\\* is false, then the default
-mapping is to place the output in a subdirectory of the
-source. The subdirectory is named using the Lisp
-implementation \(see
-implementation-specific-directory-name\). If
-\\*centralize-lisp-binaries\\* is true, then the default
-mapping is to place the output in subdirectories of
-\\*default-toplevel-directory\\* where the subdirectory
-structure will mirror that of the source."))
-
 
 ;;;; -------------------------------------------------------------------------
 ;;;; General Purpose Utilities
@@ -499,22 +439,31 @@ does not have an absolute directory, then the HOST and DEVICE come from the DEFA
          (name (or (pathname-name specified) (pathname-name defaults)))
          (type (or (pathname-type specified) (pathname-type defaults)))
          (version (or (pathname-version specified) (pathname-version defaults))))
-    (multiple-value-bind (host device directory)
-        (ecase (first directory)
-          ((nil)
-           (values (pathname-host defaults)
-                   (pathname-device defaults)
-                   (pathname-directory defaults)))
-          ((:absolute)
-           (values (pathname-host specified)
-                   (pathname-device specified)
-                   directory))
-          ((:relative)
-           (values (pathname-host defaults)
-                   (pathname-device defaults)
-                   (append (pathname-directory defaults) (cdr directory)))))
-      (make-pathname :host host :device device :directory directory
-                     :name name :type type :version version))))
+    (labels ((ununspecific (x)
+               (if (eq x :unspecific) nil x))
+             (unspecific-handler (p)
+               (if (typep p 'logical-pathname) #'ununspecific #'identity)))
+      (multiple-value-bind (host device directory unspecific-handler)
+          (ecase (first directory)
+            ((nil)
+             (values (pathname-host defaults)
+                     (pathname-device defaults)
+                     (pathname-directory defaults)
+                     (unspecific-handler defaults)))
+            ((:absolute)
+             (values (pathname-host specified)
+                     (pathname-device specified)
+                     directory
+                     (unspecific-handler specified)))
+            ((:relative)
+             (values (pathname-host defaults)
+                     (pathname-device defaults)
+                     (append (pathname-directory defaults) (cdr directory))
+                     (unspecific-handler defaults))))
+        (make-pathname :host host :device device :directory directory
+                       :name (funcall unspecific-handler name)
+                       :type (funcall unspecific-handler type)
+                       :version (funcall unspecific-handler version))))))
 
 (define-modify-macro appendf (&rest args)
   append "Append onto list")
@@ -546,10 +495,10 @@ starting the separation from the end, e.g. when called with arguments
           (setf end start))))))
 
 (defun split-name-type (filename)
-  (destructuring-bind (name &optional type)
+  (destructuring-bind (name &optional (type :unspecific))
       (split-string filename :max 2 :separator ".")
     (if (equal name "")
-        (values filename nil)
+        (values filename :unspecific)
         (values name type))))
 
 (defun component-name-to-pathname-components (s &optional force-directory)
@@ -1193,7 +1142,7 @@ to `~a` which is not a directory.~@:>"
                                      &allow-other-keys)
   (declare (ignorable operation slot-names force))
   ;; empty method to disable initarg validity checking
-  )
+  (values))
 
 (defun node-for (o c)
   (cons (class-name (class-of o)) c))
@@ -1594,7 +1543,10 @@ recursive calls to traverse.")
           :collect (let ((output (compile-file-pathname i)))
                      (load output))))
 
-(defmethod perform around ((o load-op) (c cl-source-file))
+(defmethod perform-with-restarts (operation component)
+  (perform operation component))
+
+(defmethod perform-with-restarts :around ((o load-op) (c cl-source-file))
   (let ((state :initial))
     (loop :until (or (eq state :success)
                      (eq state :failure)) :do
@@ -1605,7 +1557,7 @@ recursive calls to traverse.")
             (setf state :success))
            (:failed-load
             (setf state :recompiled)
-            (perform (make-instance 'asdf:compile-op) c))
+            (perform (make-instance 'compile-op) c))
            (t
             (with-simple-restart
                 (try-recompiling "Recompile ~a and try loading it again"
@@ -1614,7 +1566,7 @@ recursive calls to traverse.")
               (call-next-method)
               (setf state :success)))))))
 
-(defmethod perform around ((o compile-op) (c cl-source-file))
+(defmethod perform-with-restarts :around ((o compile-op) (c cl-source-file))
   (let ((state :initial))
     (loop :until (or (eq state :success)
                      (eq state :failure)) :do
@@ -1625,7 +1577,7 @@ recursive calls to traverse.")
             (setf state :success))
            (:failed-compile
             (setf state :recompiled)
-            (perform (make-instance 'asdf:compile-op) c))
+            (perform-with-restarts o c))
            (t
             (with-simple-restart
                 (try-recompiling "Try recompiling ~a"
@@ -1717,7 +1669,7 @@ recursive calls to traverse.")
         (loop :for (op . component) :in steps :do
           (loop
             (restart-case
-                (progn (perform op component)
+                (progn (perform-with-restarts op component)
                        (return))
               (retry ()
                 :report
@@ -2536,9 +2488,15 @@ return the configuration"
        :return (translate-pathname path source destination)
        :finally (return path)))))
 
-(defmethod output-files :around ((op operation) (c component))
-  "Method to rewrite output files to fasl-root"
-  (mapcar #'apply-output-translations (call-next-method)))
+(defmethod output-files :around (operation component)
+  "Translate output files, unless asked not to"
+  (declare (ignorable operation component))
+  (values
+   (multiple-value-bind (files fixedp) (call-next-method)
+     (if fixedp
+         files
+         (mapcar #'apply-output-translations files)))
+   t))
 
 (defun compile-file-pathname* (input-file &rest keys)
   (apply-output-translations

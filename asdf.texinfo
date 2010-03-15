@@ -152,14 +152,14 @@ the ASDF internals and how to extend ASDF.
 NOTA BENE:
 We are preparing for a release of ASDF 2,
 which will have version 2.000 and later.
-Releases in the 1.6xx series and beyond should be considered as 
+Releases in the 1.600 series and beyond should be considered as
 release candidates,
 but we're still working on documentation,
 and on fixing the occasional bug.
 For all practical purposes, ASDF 2 refers to releases later than 1.634,
 and ASDF 1 to any release earlier than 1.369 or so.
 
-ASDF 2.0 release candidates and beyond will have 
+ASDF 2.000 release candidates and beyond will have
 @code{:asdf2} onto @code{*features*} so that if you are writing
 ASDF-dependent code you may check for this feature to see if the new API
 is present.  @emph{All} versions of ASDF should have the @code{:asdf} feature.
@@ -221,8 +221,8 @@ or none at all:
 
 @lisp
 (let* ((a (find-package :asdf))
-            (v (and a (find-symbol (symbol-name :asdf-version) a))))
-       (cond (v (funcall v))(a :old)))
+       (v (and a (find-symbol (symbol-name :asdf-version) a))))
+  (cond (v (funcall v))(a :old)))
 @end lisp
 
 If it returns a version number, that's the version of ASDF installed.
@@ -418,7 +418,7 @@ by plenty of object files.
 
 Starting with ASDF 1.600, the @code{asdf-output-translations} facility
 was added to ASDF itself, that controls where object files will be stored.
-This facility is fully described in a chapter of this manual, 
+This facility is fully described in a chapter of this manual,
 @ref{Controlling where ASDF saves compiled files}.
 
 The simplest way to add a translation to your search path,
@@ -793,6 +793,13 @@ Therefore, it is a rare case that pathname objects should be used at all.
 Unhappily, old versions of ASDF (before 1.600) didn't properly support
 parsing component names as strings specifying paths with directories,
 and the cumbersome @code{#.(make-pathname ...)} syntax had to be used.
+Note that when specifying pathname objects, no magic interpretation of the pathname
+is made depending on the component type.
+On the one hand, you have to be careful to provide a pathname that correctly
+fulfills whatever constraints are required from that component type
+(e.g. naming a directory or a file with appropriate type);
+on the other hand, you can circumvent the file type that would otherwise
+be forced upon you if you were specifying a string.
 
 
 @subsection Warning about logical pathnames
@@ -1109,6 +1116,13 @@ when invoked with an object of type @code{source-file}:
 @itemize
 
 @item @code{output-files}
+The @code{output-files} method determines where the method will put its files.
+It returns two values, a list of pathnames, and a boolean.
+If the boolean is @code{T} then the pathnames are marked
+not be translated by enclosing @code{:around} methods.
+If the boolean is @code{NIL} then enclosing @code{:around} methods
+may translate these pathnames, e.g. to ensure object files
+are somehow stored in some implementation-dependent cache.
 @item @code{perform}
 The @code{perform} method must call @code{output-files}
 to find out where to put its files,
@@ -1434,7 +1448,7 @@ purposes; these are given elsewhere.
 @xref{The defsystem grammar}.
 
 Users can create new classes for their systems:
-the default @code{defsystem} macro takes a @code{:classs} keyword argument.
+the default @code{defsystem} macro takes a @code{:class} keyword argument.
 @end deffn
 
 @node  Creating new component types,  , Pre-defined subclasses of component, Components
@@ -1455,7 +1469,7 @@ We create a subclass of
 
 @lisp
 (defclass unportable-cl-source-file (cl-source-file)
-    ())
+  ())
 @end lisp
 
 A hypothetical function @code{system-dependent-dirname}
@@ -1467,7 +1481,7 @@ of an @code{unportable-cl-source-file}.
 (defmethod component-pathname ((component unportable-cl-source-file))
   (let ((pathname (call-next-method))
         (name (string-downcase (system-dependent-dirname))))
-    (merge-pathnames
+    (merge-pathnames*
      (make-pathname :directory (list :relative name))
      pathname)))
 @end lisp
@@ -1494,7 +1508,7 @@ The new component type is used in a @code{defsystem} form in this way:
 Configurations specify paths where to find system files.
 
   1- An application may explicitly initialize the source-registry
-     configuration using the configuration API 
+     configuration using the configuration API
      (@pxref{Controlling where ASDF searches for systems,Configuration API,Configuration API}, below)
      in which case this takes precedence.
      It may itself compute this configuration from the command-line,
