@@ -1494,7 +1494,8 @@ The new component type is used in a @code{defsystem} form in this way:
 Configurations specify paths where to find system files.
 
   1- An application may explicitly initialize the source-registry
-     configuration using the @xref{Configuration API} below,
+     configuration using the configuration API 
+     (@pxref{Controlling where ASDF searches for systems,Configuration API,Configuration API}, below)
      in which case this takes precedence.
      It may itself compute this configuration from the command-line,
      from a script, from its own configuration file, etc.
@@ -1523,8 +1524,8 @@ Configurations specify paths where to find system files.
      if it exists.
 
   7- The source registry will be configured from a default configuration,
-     which allows for implementation-specific software to be searched.
-     (See below @xref{Backward Compatibility}).
+     which allows for implementation-specific software to be searched
+     (@pxref{Controlling where ASDF searches for systems,,Backward Compatibility}).
 
 Each of these configuration is specified as a SEXP
 in a trival domain-specific language (defined below).
@@ -1597,7 +1598,7 @@ PATTERN := a string without wildcards, that will be matched exactly
 
 Configuration directories consist in files each contains
 a list of directives without any enclosing @code{(:source-registry ...)} form.
-The files will be sorted by namestring as if by @code{#'string<} and
+The files will be sorted by namestring as if by @code{string<} and
 the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
 at the end of the list.
