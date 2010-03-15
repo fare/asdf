@@ -250,7 +250,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.637" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.638" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -495,7 +495,7 @@ starting the separation from the end, e.g. when called with arguments
           (setf end start))))))
 
 (defun split-name-type (filename)
-  (let ((unspecific #-clisp :unspecific #+clisp nil))
+  (let ((unspecific #-(or clisp armedbear) :unspecific #+(or clisp armedbear) nil))
     (destructuring-bind (name &optional (type unspecific))
         (split-string filename :max 2 :separator ".")
       (if (equal name "")
@@ -1083,7 +1083,7 @@ to `~a` which is not a directory.~@:>"
   ;; NOTE that the host and device slots will be taken from the defaults,
   ;; but that should only matter if you either (a) use absolute pathnames, or
   ;; (b) later merge relative pathnames with CL:MERGE-PATHNAMES instead of
-  ;; ASDF:MERGE-PATHNAMES*
+  ;; ASDF-UTILITIES:MERGE-PATHNAMES*
   (etypecase name
     (pathname
      name)

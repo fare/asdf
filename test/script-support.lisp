@@ -23,7 +23,10 @@
 ;; http://www.cliki.net/cl-launch
 (defun leave-lisp (message return)
   (when message
-    (format *error-output* message))
+    (format *error-output* message)
+    (terpri *error-output*))
+  (finish-output *error-output*)
+  (finish-output *standard-output*)
   #+allegro
   (excl:exit return)
   #+clisp
@@ -60,6 +63,7 @@ is bound, write a message and exit on an error.  If
                    (format *error-output* "ABORTING:~% ~S~%" c)
                    #+sbcl (sb-debug:backtrace 69)
                    #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
+                   #+clisp (system::print-backtrace)
                    (format *error-output* "ABORTING:~% ~S~%" c)
                    (leave-lisp "~&Script failed~%" 1))))))
     (funcall thunk)

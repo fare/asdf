@@ -101,7 +101,7 @@ if [ -z $1 ] ; then
     lisp="sbcl"
 fi
 
-command=
+command= flags= nodebug= eval=
 case "$lisp" in
   sbcl)
     command=sbcl
@@ -144,18 +144,17 @@ case "$lisp" in
   gclcvs)
     export GCL_ANSI=t
     command=gclcvs
-    flags="-q"
+    flags="-batch"
     eval="-eval" ;;
+  abcl)
+    command=abcl
+    eval="--eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2
     echo "Please add support to run-tests.sh" >&2
     exit 42 ;;
 esac
 
-if [ -z "$command" ] ; then
-    echo "lisp implementation not recognized: $1" >&2
-    exit 43
-fi
 if ! type "$command" ; then
     echo "lisp implementation not found: $command" >&2
     exit 43
