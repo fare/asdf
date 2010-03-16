@@ -157,6 +157,7 @@
        #:operation               ; operations
        #:feature                 ; sort-of operation
        #:version                 ; metaphorically sort-of an operation
+       #:version-satisfies
 
        #:input-files #:output-files #:perform ; operation methods
        #:operation-done-p #:explain

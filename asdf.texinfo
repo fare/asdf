@@ -156,7 +156,7 @@ Releases in the 1.600 series and beyond should be considered as
 release candidates,
 but we're still working on documentation,
 and on fixing the occasional bug.
-For all practical purposes, ASDF 2 refers to releases later than 1.634,
+For all practical purposes, ASDF 2 refers to releases later than 1.635,
 and ASDF 1 to any release earlier than 1.369 or so.
 
 ASDF 2.000 release candidates and beyond will have
@@ -220,17 +220,15 @@ whether a recent version is loaded, an old version is loaded,
 or none at all:
 
 @lisp
-(let* ((a (find-package :asdf))
-       (v (and a (find-symbol (symbol-name :asdf-version) a))))
-  (cond (v (funcall v))(a :old)))
+#+asdf2 (asdf:asdf-version) #-asdf2 (and (find-package :asdf) :old)
 @end lisp
 
 If it returns a version number, that's the version of ASDF installed.
 If it returns the keyword @code{:OLD},
-then you're using an old version of ASDF (from before 1.500).
+then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.600,
+If you are running a version older than 1.645,
 we recommend that you load a newer ASDF using the method below.
 
 
