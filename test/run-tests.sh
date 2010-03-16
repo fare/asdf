@@ -134,7 +134,11 @@ case "$lisp" in
     nodebug="-batch"
     eval="-eval" ;;
   ecl)
-    command=ecl
+    #if [ -x /usr/lib/ecl/ecl-original ] ; then
+    #  command=/usr/lib/ecl/ecl-original
+    #else
+      command=ecl
+    #fi
     flags="-norc"
     eval="-eval" ;;
   lispworks)

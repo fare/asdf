@@ -146,7 +146,8 @@
      ':asdf
      :use '(:common-lisp :asdf-utilities)
      :unintern '(#:*asdf-revision* #:around #:asdf-method-combination)
-     :fmakunbound '(#:perform #:explain #:output-files #:operation-done-p)
+     :fmakunbound '(#:perform #:explain #:output-files #:operation-done-p
+                    #:component-relative-pathname)
      :export
      '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
        #:system-definition-pathname #:find-component ; miscellaneous
