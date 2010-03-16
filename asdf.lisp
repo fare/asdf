@@ -145,7 +145,7 @@
     (ensure-package
      ':asdf
      :use '(:common-lisp :asdf-utilities)
-     :unintern '(#:*asdf-revision* #:around #:asdf-method-combination)
+     :unintern '(#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector)
      :fmakunbound '(#:perform #:explain #:output-files #:operation-done-p
                     #:component-relative-pathname)
      :export
@@ -251,7 +251,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.641" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.642" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -556,6 +556,8 @@ pathnames."
   #+allegro (excl:pathname-resolve-symbolic-links path))
 
 (defun getenv (x)
+  #+abcl
+  (ext:getenv x)
   #+sbcl
   (sb-ext:posix-getenv x)
   #+clozure
@@ -2040,7 +2042,10 @@ output to `*verbose-out*`.  Returns the shell's exit code."
     #+ecl ;; courtesy of Juan Jose Garcia Ripoll
     (si:system command)
 
-    #-(or openmcl clisp lispworks allegro scl cmu sbcl ecl)
+    #+abcl
+    (ext:run-shell-command command :output *verbose-out*)
+
+    #-(or openmcl clisp lispworks allegro scl cmu sbcl ecl abcl)
     (error "RUN-SHELL-COMMAND not implemented for this Lisp")
     ))
 
@@ -2168,10 +2173,44 @@ output to `*verbose-out*`.  Returns the shell's exit code."
 
 ;;; ---------------------------------------------------------------------------
 ;;; Generic support for configuration files
-(defun user-configuration-directory ()
-  (merge-pathnames* #p".config/" (user-homedir-pathname)))
-(defun system-configuration-directory ()
-  #p"/etc/")
+(defun try-directory-subpath (x sub &key type)
+  (let* ((p (and x (ensure-directory-pathname x)))
+         (tp (and p (ignore-errors (truename p))))
+         (sp (and tp (merge-pathnames* (merge-component-name-type sub :type type) p)))
+         (ts (and sp (ignore-errors (truename sp)))))
+    (and ts (values sp ts))))
+(defun user-configuration-directories ()
+  (remove-if
+   #'null
+   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
+     `(,(try (getenv "XDG_CONFIG_HOME") "common-lisp/")
+       ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
+           :for dir :in (split-string dirs :separator ":")
+           :collect (try dir "common-lisp/"))
+       #+windows
+        ,@`(#+lispworks ,(try (sys:get-folder-path :common-appdata) "common-lisp/config/")
+            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
+           #+(not cygwin)
+           ,(try (or (getenv "USERPROFILE") (user-homedir-pathname))
+                 "Application Data/common-lisp/config/"))
+       ,(try (user-homedir-pathname) ".config/common-lisp/")))))
+(defun system-configuration-directories ()
+  (remove-if
+   #'null
+   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
+     `(#+windows
+       ,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
+           ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
+           #+(not cygwin)
+           ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))
+       #p"/etc/"))))
+(defun in-first-directory (dirs x)
+  (loop :for dir :in dirs
+    :thereis (and dir (ignore-errors (truename (merge-pathnames* x (ensure-directory-pathname dir)))))))
+(defun in-user-configuration-directory (x)
+  (in-first-directory (user-configuration-directories) x))
+(defun in-system-configuration-directory (x)
+  (in-first-directory (system-configuration-directories) x))
 
 (defun configuration-inheritance-directive-p (x)
   (let ((kw '(:inherit-configuration :ignore-inherited-configuration)))
@@ -2223,8 +2262,27 @@ said element itself being a sorted list of mappings.
 Each mapping is a pair of a source pathname and destination pathname,
 and the order is by decreasing length of namestring of the source pathname.")
 
-(defvar *user-cache* '(:home ".cache" "common-lisp" :implementation))
-(defvar *system-cache* '(:root "var" "cache" "common-lisp" :uid :implementation))
+(defvar *user-cache*
+  (or
+   (let ((h (getenv "XDG_CACHE_HOME")))
+     (and h `(,h "common-lisp" :implementation)))
+   #+(and windows lispworks)
+   (let ((h (sys:get-folder-path :common-appdata))) ;; no :common-caches in Windows???
+     (and h `(,h "common-lisp" "cache")))
+   #+(and windows (not cygwin))
+   ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Cache
+   (let ((h (or (getenv "USERPROFILE") (user-homedir-pathname))))
+     (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
+   '(:home ".cache" "common-lisp" :implementation)))
+(defvar *system-cache*
+  (or
+   #+(and windows lispworks)
+   (let ((h (sys:get-folder-path :common-appdata))) ;; no :common-caches in Windows???
+     (and h `(,h "common-lisp" "cache")))
+   #+windows
+   (let ((h (or (getenv "USERPROFILE") (user-homedir-pathname))))
+     (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
+   '(:root "var" "cache" "common-lisp" :uid :implementation)))
 
 (defun output-translations ()
   (car *output-translations*))
@@ -2394,17 +2452,17 @@ with a different configuration, so the configuration would be re-read then."
 (defun implementation-output-translations ()
   *implementation-output-translations*)
 
-(defparameter *output-translations-file* #p"common-lisp/asdf-output-translations.conf")
-(defparameter *output-translations-directory* #p"common-lisp/asdf-output-translations.conf.d/")
+(defparameter *output-translations-file* #p"asdf-output-translations.conf")
+(defparameter *output-translations-directory* #p"asdf-output-translations.conf.d/")
 
 (defun user-output-translations-pathname ()
-  (merge-pathnames* *output-translations-file* (user-configuration-directory)))
+  (in-user-configuration-directory *output-translations-file* ))
 (defun system-output-translations-pathname ()
-  (merge-pathnames* *output-translations-file* (system-configuration-directory)))
+  (in-system-configuration-directory *output-translations-file*))
 (defun user-output-translations-directory-pathname ()
-  (merge-pathnames* *output-translations-directory* (user-configuration-directory)))
+  (in-user-configuration-directory *output-translations-directory*))
 (defun system-output-translations-directory-pathname ()
-  (merge-pathnames* *output-translations-directory* (system-configuration-directory)))
+  (in-system-configuration-directory *output-translations-directory*))
 (defun environment-output-translations ()
   (getenv "ASDF_OUTPUT_TRANSLATIONS"))
 
@@ -2723,34 +2781,48 @@ with a different configuration, so the configuration would be re-read then."
     system-source-registry
     system-source-registry-directory))
 
-(defparameter *source-registry-file* #p"common-lisp/source-registry.conf")
-(defparameter *source-registry-directory* #p"common-lisp/source-registry.conf.d/")
+(defparameter *source-registry-file* #p"source-registry.conf")
+(defparameter *source-registry-directory* #p"source-registry.conf.d/")
 
 (defun wrapping-source-registry ()
   `(:source-registry
     #+sbcl (:tree ,(getenv "SBCL_HOME"))
    :inherit-configuration))
 (defun default-source-registry ()
-  `(:source-registry
-    #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir-pathname)))
-    (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
-    (:directory ,(merge-pathnames* ".local/share/common-lisp/systems/" (user-homedir-pathname)))
-    (:tree ,(merge-pathnames* ".local/share/common-lisp/source/" (user-homedir-pathname)))
-    (:directory "/usr/local/share/common-lisp/systems/")
-    (:tree "/usr/local/share/common-lisp/source/")
-    (:directory "/usr/local/share/common-lisp/systems/")
-    (:tree "/usr/local/share/common-lisp/source/")
-    (:directory "/usr/share/common-lisp/systems/")
-    (:tree "/usr/share/common-lisp/source/")
-    :inherit-configuration))
+  (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
+    `(:source-registry
+      #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir-pathname)))
+      (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
+      ,@`(let*
+             #+(or (not windows) cygwin)
+             ((datahome
+               (or (getenv "XDG_DATA_HOME")
+                   (try (user-homedir-pathname) ".local/share/")))
+              (datadirs
+               (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
+              (dirs (cons datahome (split-string datadirs :separator ":"))))
+             #+(and windows (not cygwin))
+             ((datahome
+               #+lispworks (sys:get-folder-path :common-appdata)
+               #-lispworks (try (or (getenv "USERPROFILE") (user-homedir-pathname))
+                                "Application Data"))
+              (datadir
+               #+lispworks (sys:get-folder-path :local-appdata)
+               #-lispworks (try (getenv "ALLUSERSPROFILE")
+                                "Application Data"))
+              (dirs (list datahome datadir)))
+         (loop :for dir :in (cons datahome datadirs)
+           :collect `(:directory ,(try dir "common-lisp/systems/"))
+           :collect `(:tree ,(try dir "common-lisp/source/"))))
+    :inherit-configuration)))
 (defun user-source-registry ()
-  (merge-pathnames* *source-registry-file* (user-configuration-directory)))
+  (in-user-configuration-directory *source-registry-file*))
 (defun system-source-registry ()
-  (merge-pathnames* *source-registry-file* (system-configuration-directory)))
+  (in-system-configuration-directory *source-registry-file*))
 (defun user-source-registry-directory ()
-  (merge-pathnames* *source-registry-directory* (user-configuration-directory)))
+  (in-user-configuration-directory *source-registry-directory*))
 (defun system-source-registry-directory ()
-  (merge-pathnames* *source-registry-directory* (system-configuration-directory)))
+  (in-system-configuration-directory *source-registry-directory*))
 (defun environment-source-registry ()
   (getenv "CL_SOURCE_REGISTRY"))
 

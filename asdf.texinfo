@@ -1808,6 +1808,7 @@ for the sake of keeping ASDF no more complex than strictly necessary.
 @item Add proper defaults.
 @item Get inspired by the XDG base directory specification?
  @uref{http://standards.freedesktop.org/basedir-spec/basedir-spec-latest.html}
+ YES! Starting with 1.642, our defaults respect that.
 @end itemize
 
 
