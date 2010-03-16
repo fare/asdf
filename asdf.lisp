@@ -495,7 +495,11 @@ starting the separation from the end, e.g. when called with arguments
           (setf end start))))))
 
 (defun split-name-type (filename)
-  (let ((unspecific #-(or clisp armedbear) :unspecific #+(or clisp armedbear) nil))
+  (let ((unspecific
+         ;; Giving :unspecific as argument to make-pathname is not portable.
+         ;; See CLHS make-pathname and 19.2.2.2.3.
+         ;; We only use it on implementations that support it.
+         (or #+(or sbcl ccl ecl lispworks) :unspecific)))
     (destructuring-bind (name &optional (type unspecific))
         (split-string filename :max 2 :separator ".")
       (if (equal name "")
