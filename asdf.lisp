@@ -85,10 +85,6 @@
                  (unintern sym package))))
            (ensure-unintern (package symbols)
              (dolist (sym symbols) (remove-symbol sym package)))
-           (ensure-fmakunbound (package symbols)
-             (loop :for name :in symbols
-               :for sym = (find-symbol (string name) package)
-               :when sym :do (fmakunbound sym)))
            (ensure-shadow (package symbols)
              (shadow symbols package))
            (ensure-use (package use)
@@ -97,6 +93,10 @@
                  (unless (eq sym (find-symbol (string sym) package))
                    (remove-symbol sym package)))
                (use-package used package)))
+           (ensure-fmakunbound (package symbols)
+             (loop :for name :in symbols
+               :for sym = (find-symbol (string name) package)
+               :when sym :do (fmakunbound sym)))
            (ensure-export (package export)
              (let ((syms (loop :for x :in export :collect
                            (intern (string x) package))))
@@ -108,9 +108,9 @@
            (ensure-package (name &key nicknames use unintern fmakunbound shadow export)
              (let ((p (ensure-exists name nicknames use)))
                (ensure-unintern p unintern)
-               (ensure-fmakunbound p fmakunbound)
                (ensure-shadow p shadow)
                (ensure-export p export)
+               (ensure-fmakunbound p fmakunbound)
                p)))
     (ensure-package
      ':asdf-utilities
@@ -145,9 +145,9 @@
     (ensure-package
      ':asdf
      :use '(:common-lisp :asdf-utilities)
-     :unintern '(#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector)
-     :fmakunbound '(#:perform #:explain #:output-files #:operation-done-p
-                    #:component-relative-pathname #:system-relative-pathname)
+     :unintern '(#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector
+                 #:perform #:explain #:output-files #:operation-done-p
+                 #:component-relative-pathname #:system-relative-pathname)
      :export
      '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
        #:system-definition-pathname #:find-component ; miscellaneous
@@ -2792,28 +2792,28 @@ with a different configuration, so the configuration would be re-read then."
     `(:source-registry
       #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir-pathname)))
       (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
-      ,@`(let*
-             #+(or (not windows) cygwin)
-             ((datahome
-               (or (getenv "XDG_DATA_HOME")
-                   (try (user-homedir-pathname) ".local/share/")))
-              (datadirs
-               (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
-              (dirs (cons datahome (split-string datadirs :separator ":"))))
-             #+(and windows (not cygwin))
-             ((datahome
-               #+lispworks (sys:get-folder-path :common-appdata)
-               #-lispworks (try (or (getenv "USERPROFILE") (user-homedir-pathname))
-                                "Application Data"))
-              (datadir
-               #+lispworks (sys:get-folder-path :local-appdata)
-               #-lispworks (try (getenv "ALLUSERSPROFILE")
-                                "Application Data"))
-              (dirs (list datahome datadir)))
-         (loop :for dir :in (cons datahome datadirs)
+      ,@(let*
+         #+(or (not windows) cygwin)
+         ((datahome
+           (or (getenv "XDG_DATA_HOME")
+               (try (user-homedir-pathname) ".local/share/")))
+          (datadirs
+           (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
+          (dirs (cons datahome (split-string datadirs :separator ":"))))
+         #+(and windows (not cygwin))
+         ((datahome
+           #+lispworks (sys:get-folder-path :common-appdata)
+           #-lispworks (try (or (getenv "USERPROFILE") (user-homedir-pathname))
+                            "Application Data"))
+          (datadir
+           #+lispworks (sys:get-folder-path :local-appdata)
+           #-lispworks (try (getenv "ALLUSERSPROFILE")
+                            "Application Data"))
+          (dirs (list datahome datadir)))
+         (loop :for dir :in dirs
            :collect `(:directory ,(try dir "common-lisp/systems/"))
            :collect `(:tree ,(try dir "common-lisp/source/"))))
-    :inherit-configuration)))
+      :inherit-configuration)))
 (defun user-source-registry ()
   (in-user-configuration-directory *source-registry-file*))
 (defun system-source-registry ()
