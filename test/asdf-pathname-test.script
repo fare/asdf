@@ -30,7 +30,7 @@
 ;;; (:file "module1-1/file3.lisp") means #p"module1-1/file3.lisp.lisp" (assuming /)
 ;;; (:static-file "module1-1/file3.lisp") means #p"module1-1/file3.lisp"
 
-(defun test-component-pathnames (&key (root (make-pathname :directory (pathname-directory (truename *load-pathname*))))
+(defun test-component-pathnames (&key (root (asdf::pathname-directory-pathname *asdf-fasl*))
                                  (delete-host t)
                                  (support-string-pathnames nil))
   (unwind-protect
@@ -45,18 +45,24 @@
            (*print-pretty* nil)
            (start-time 0))
 
-      (with-open-file (result-stream "output.txt" :direction :output :if-exists :supersede :if-does-not-exist :create)
+      (with-open-file (result-stream (asdf::merge-pathnames* "output.txt" root)
+                                     :direction :output
+                                     :if-exists :supersede :if-does-not-exist :create)
         (flet ((src-dir (&rest path) (append (pathname-directory root) (cons "asdf-src" path)))
                (bin-dir (&rest path) (append (pathname-directory root) (cons "asdf-bin" path))))
           (setf (logical-pathname-translations "ASDFTEST")
                 `((,(format nil "**;*.~a" bin-type)
-                   ,(make-pathname :directory (bin-dir :wild-inferiors) :name :wild :type bin-type :version nil))
+                   ,(make-pathname :directory (bin-dir :wild-inferiors)
+                                   :name :wild :type bin-type :version nil))
                   (,(format nil "**;*.~a.*" bin-type)
-                   ,(make-pathname :directory (bin-dir :wild-inferiors) :name :wild :type bin-type))
+                   ,(make-pathname :directory (bin-dir :wild-inferiors)
+                                   :name :wild :type bin-type))
                   ("**;*.*"
-                   ,(make-pathname :directory (src-dir :wild-inferiors) :name :wild :type :wild :version nil))
+                   ,(make-pathname :directory (src-dir :wild-inferiors)
+                                   :name :wild :type :wild :version nil))
                   ("**;*.*.*"
-                   ,(make-pathname :directory (src-dir :wild-inferiors) :name :wild :type :wild))))
+                   ,(make-pathname :directory (src-dir :wild-inferiors)
+                                   :name :wild :type :wild))))
 
           (let ((failures nil)
                 (systems `(,(make-pathname :directory (src-dir "system1") :name nil :type nil)
@@ -102,7 +108,7 @@
                          ,(parse-namestring "ASDFTEST:system2;module4;file.lisp")
                          ,@(when support-string-pathnames
                              `(,(concatenate 'string root-directory-namestring "asdf-src/system1/module1/file.lisp")))))
-                
+
                 (test-files (remove-duplicates
                              (sort (loop
                                      ;; enumerate (system x module x file) pathname variations for relative
@@ -125,9 +131,9 @@
                                      collect (make-pathname :directory directory :name "static-file" :type "type")
                                      ;; :file "module2/file"
                                      collect (make-pathname :directory directory :name "file" :type "lisp")
-                                     ;; :file "module2/typep-file.type"
+                                     ;; :file "module2/typed-file.type"
                                      collect (make-pathname :directory directory :name "typed-file.type" :type "lisp")          ; for source files
-                                     collect (make-pathname :directory directory :name "typed-file.type" :type nil)          ; for static files
+                                     ;;collect (make-pathname :directory directory :name "typed-file.type" :type nil)          ; for static files ;; invalid as static file, unlike the below.
                                      ;; :static-file "module2/static-file.type"
                                      collect (make-pathname :directory directory :name "static-file" :type "type")
 
