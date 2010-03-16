@@ -693,6 +693,9 @@ actually-existing directory."
                             :defaults p)
              sofar)))))))
 
+(defun lispize-pathname (input-file)
+  (make-pathname :type "lisp" :defaults input-file))
+
 ;;;; -------------------------------------------------------------------------
 ;;;; Classes, Conditions
 
@@ -1484,7 +1487,7 @@ recursive calls to traverse.")
   ;; Note how we use OUTPUT-FILES to find the binary locations
   ;; This allows the user to override the names.
   (let* ((input (output-files o c))
-         (output (compile-file-pathname (first input) :type :fasl)))
+         (output (compile-file-pathname (lispize-pathname (first input)) :type :fasl)))
     (c:build-fasl output :lisp-files (remove "fas" input :key #'pathname-type :test #'string=))))
 
 (defmethod perform :after ((operation operation) (c component))
@@ -1518,11 +1521,12 @@ recursive calls to traverse.")
         (error 'compile-error :component c :operation operation)))))
 
 (defmethod output-files ((operation compile-op) (c cl-source-file))
-  #-:broken-fasl-loader
-  (list #-ecl (compile-file-pathname (component-pathname c))
-        #+ecl (compile-file-pathname (component-pathname c) :type :object)
-        #+ecl (compile-file-pathname (component-pathname c) :type :fasl))
-  #+:broken-fasl-loader (list (component-pathname c)))
+  (let ((p (lispize-pathname (component-pathname c))))
+    #-:broken-fasl-loader
+    (list #-ecl (compile-file-pathname p)
+          #+ecl (compile-file-pathname p :type :object)
+          #+ecl (compile-file-pathname p :type :fasl))
+    #+:broken-fasl-loader (list p)))
 
 (defmethod perform ((operation compile-op) (c static-file))
   nil)
@@ -1545,7 +1549,7 @@ recursive calls to traverse.")
   #-ecl (mapcar #'load (input-files o c))
   #+ecl (loop :for i :in (input-files o c)
           :unless (string= (pathname-type i) "fas")
-          :collect (let ((output (compile-file-pathname i)))
+          :collect (let ((output (compile-file-pathname (lispize-pathname i))))
                      (load output))))
 
 (defmethod perform-with-restarts (operation component)
@@ -2506,7 +2510,7 @@ return the configuration"
 (defun compile-file-pathname* (input-file &rest keys)
   (apply-output-translations
    (apply #'compile-file-pathname
-          (truenamize (make-pathname :type "lisp" :defaults input-file))
+          (truenamize (lispize-pathname input-file))
           keys)))
 
 ;;;; -----------------------------------------------------------------
