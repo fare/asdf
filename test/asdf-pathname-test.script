@@ -179,11 +179,12 @@
                       (handler-bind
                         ((error (lambda (c)
                                   (incf system-failures)
-                                  (format result-stream "~&~%***~%error: ~a~%~:w"
-                                          c system-definition)
+                                  (format *error-output* "~&error! ~a~%sysdef:~% ~W~%" c system-definition)
                                   #+sbcl (sb-debug:backtrace 69)
                                   #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
                                   #+clisp (system::print-backtrace)
+                                  (format result-stream "~&~%***~%error: ~a~%~:w"
+                                          c system-definition)
                                   (return-from :test-system))))
                         (unless (and (or (typep system-pathname 'logical-pathname)
                                          (typep module-pathname 'logical-pathname))
@@ -265,7 +266,16 @@
       (setf (logical-pathname-translations "ASDFTEST") nil))
     (remhash "test-system" asdf::*defined-systems*)))
 
-#+clisp (trace asdf-utilities:merge-pathnames* make-pathname asdf::merge-component-name-type)
+#+clisp
+(trace
+ make-pathname
+ make-instance
+ asdf::component-pathname
+ asdf::component-relative-pathname
+ asdf::merge-pathnames*
+ asdf::merge-component-name-type
+ asdf::component-name-to-pathname-components
+ make-pathname)
 
 (quit-on-error
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
