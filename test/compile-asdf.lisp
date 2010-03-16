@@ -20,17 +20,15 @@
            (compile-file *asdf-lisp* :output-file tmp))
        (declare (ignore result))
        (cond
+         #-ecl
          (warnings-p
-                ;;; ECL gives warnings that it shouldn't!
-          #+ecl (leave-lisp "ASDF compiled with warnings. Please fix ECL." 0)
-          #-ecl
           (leave-lisp "Testsuite failed: ASDF compiled with warnings" 1))
          (errors-p
           (leave-lisp "Testsuite failed: ASDF compiled with ERRORS" 2))
          (t
-          #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
-          (posix:copy-file tmp *asdf-fasl* :method :rename)
-          #-clisp
-          (rename-file tmp *asdf-fasl*
-                       #+clozure :if-exists #+clozure :rename-and-delete)
+          #+ecl
+          (when warnings-p
+            (format t "~&ASDF compiled with warnings. Please fix ECL.~%"))
+          (ignore-errors (delete-file *asdf-fasl*))
+          (rename-file tmp *asdf-fasl*)
           (leave-lisp "ASDF compiled cleanly" 0)))))))

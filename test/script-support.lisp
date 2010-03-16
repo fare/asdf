@@ -11,8 +11,23 @@
 (defvar *asdf-fasl*
   (compile-file-pathname
    (merge-pathnames
-    (make-pathname :directory '(:relative "tmp") :defaults *asdf-lisp*)
+    (make-pathname :directory '(:relative "tmp")
+                   :name (format nil "asdf-~(~A~)"
+                                 (or #+allegro (format nil "~Alisp" excl:*current-case-mode*)
+                                     #+armedbear :abcl
+                                     #+clisp :clisp
+                                     #+clozure :ccl
+                                     #+cmu :cmucl
+                                     #+corman :cormanlisp
+                                     #+digitool :mcl
+                                     #+ecl :ecl
+                                     #+gcl :gcl
+                                     #+lispworks :lispworks
+                                     #+sbcl :sbcl
+                                     #+scl scl))
+                   :defaults *asdf-lisp*)
     *asdf-lisp*)))
+
 (defun load-asdf ()
   (load *asdf-fasl*))
 
