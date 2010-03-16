@@ -1803,7 +1803,6 @@ for the sake of keeping ASDF no more complex than strictly necessary.
 @section TODO
 
 @itemize
-@item Integrate into the rest of the documentation.
 @item Add examples
 @item Add proper defaults.
 @item Get inspired by the XDG base directory specification?
@@ -1821,7 +1820,7 @@ Thanks to Rommel Martinez for the initial implementation attempt.
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
- -- Francois-Rene Rideau @email{fare@@tunes.org}, Mon, 22 Feb 2010 00:07:33 -0500
+ --- Francois-Rene Rideau @email{fare@@tunes.org}, Mon, 22 Feb 2010 00:07:33 -0500
 
 
 
@@ -2231,9 +2230,15 @@ It returns a pathname built from the location of the system's source file
 and the relative pathname. For example
 
 @lisp
-> (asdf:system-relative-pathname 'cl-ppcre "regex.data")
+> (asdf:system-relative-pathname 'cl-ppcre #p"regex.data")
 #P"/repository/other/cl-ppcre/regex.data"
 @end lisp
+
+Instead of a pathname, you can provide a symbol or a string,
+and optionally a keyword argument @code{type}.
+The arguments will then be interpreted in the same way
+as pathname specifiers for components.
+@xref{The defsystem grammar,,Pathname specifiers}.
 
 @end enumerate
 

@@ -147,7 +147,7 @@
      :use '(:common-lisp :asdf-utilities)
      :unintern '(#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector)
      :fmakunbound '(#:perform #:explain #:output-files #:operation-done-p
-                    #:component-relative-pathname)
+                    #:component-relative-pathname #:system-relative-pathname)
      :export
      '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
        #:system-definition-pathname #:find-component ; miscellaneous
@@ -2071,13 +2071,12 @@ output to `*verbose-out*`.  Returns the shell's exit code."
      :directory (relativize-directory (pathname-directory p))
      :defaults p)))
 
-(defun system-relative-pathname (system pathname &key name type)
-  (let ((directory (pathname-directory pathname)))
-    (merge-pathnames*
-     (make-pathname :name (or name (pathname-name pathname))
-                    :type (or type (pathname-type pathname))
-                    :directory (relativize-directory directory))
-     (system-source-directory system))))
+(defun system-relative-pathname (system name &key type)
+  (merge-pathnames*
+   (merge-component-name-type
+    :name name
+    :type type)
+   (system-source-directory system)))
 
 
 ;;; ---------------------------------------------------------------------------
