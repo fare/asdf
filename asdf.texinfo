@@ -855,7 +855,8 @@ and in the usual case the user is recommended not to supply it.
 Instead, ASDF follows a hairy set of rules that are designed so that
 @enumerate
 @item
-@code{find-system} will load a system from disk
+@code{find-system}
+will load a system from disk
 and have its pathname default to the right place.
 @item
 This pathname information will not be overwritten with
@@ -1693,8 +1694,16 @@ The specified functions are exported from your build system's package.
 Thus for ASDF the corresponding functions are in package ASDF,
 and for XCVB the corresponding functions are in package XCVB.
 
-@defun initialize-source-registry
+@defun initialize-source-registry PARAMETER
    will read the configuration and initialize all internal variables.
+   You may extend or override configuration
+   from the environment and configuration files
+   with the given @var{PARAMETER}, which can be
+   @code{NIL} (no configuration override),
+   or a SEXP (in the SEXP DSL),
+   a string (as in the string DSL),
+   a pathname (of a file or directory with configuration),
+   or a symbol (fbound to function that when called returns one of the above).
 @end defun
 
 @defun clear-source-registry
@@ -1708,30 +1717,10 @@ and for XCVB the corresponding functions are in package XCVB.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-source-registry
+@defun ensure-source-registry PARAMETER
    checks whether a source registry has been initialized.
-   If not, initialize it.
-   This function will be called before any attempt to find a system
-   in the source registry.
-   If your application wants to override the provided defaults,
-   it will have to use the below function process-source-registry.
+   If not, initialize it with the given @var{PARAMETER}.
 @end defun
-
-
-@defun process-source-registry X &key inherit collect
-   If X is a CONS, parse it as a SEXP in the configuration DSL,
-   and extend or override inheritted configuration.
-   If X is a STRING, first parse it into a SEXP
-   as for the CL_SOURCE_REGISTRY
-   environment variable (see above) then process it.
-   If X is a PATHNAME, read the file as a single SEXP and process it.
-   The inheritted configuration is provided in keyword argument inherit,
-   itself a list of functions that take inherit
-   and collect keyword arguments
-   and defaulting to a list of functions
-   that implements the default behavior.
-@end defun
-
 
 @section Future
 
@@ -2108,7 +2097,6 @@ To explicitly flush any information cached by the system, use the API below.
 @section Output location API
 
 The specified functions are exported from package ASDF.
-
 
 @defun initialize-output-translations PARAMETER
    will read the configuration and initialize all internal variables.

@@ -284,6 +284,11 @@
  make-pathname)
 
 (quit-on-error
+ (asdf:initialize-source-registry)
+ (format t "source registry: ~S~%" (asdf::source-registry))
+ (asdf:initialize-output-translations)
+ (format t "output translations: ~S~%" (asdf::output-translations))
+
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
      (leave-lisp "test failed" 1)))
 

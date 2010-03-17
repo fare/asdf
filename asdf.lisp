@@ -1,9 +1,9 @@
 ;;; -*- mode: common-lisp; package: asdf; -*-
-;;; This is asdf: Another System Definition Facility.
+;;; This is ASDF: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
-;;; Note first that the canonical source for asdf is presently
+;;; Note first that the canonical source for ASDF is presently
 ;;; <URL:http://common-lisp.net/project/asdf/>.
 ;;;
 ;;; If you obtained this copy from anywhere else, and you experience
@@ -147,7 +147,11 @@
      :use '(:common-lisp :asdf-utilities)
      :unintern '(#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector
                  #:perform #:explain #:output-files #:operation-done-p
-                 #:component-relative-pathname #:system-relative-pathname)
+                 #-ecl #:component-relative-pathname)
+     :fmakunbound '(#:system-source-file
+                    #:component-relative-pathname #:system-relative-pathname
+                    #:process-source-registry
+                    #:inherit-source-registry #:process-source-registry-directive)
      :export
      '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
        #:system-definition-pathname #:find-component ; miscellaneous
@@ -238,11 +242,6 @@
        #:ensure-source-registry
        #:process-source-registry))))
 
-#+nil
-(error "The author of this file habitually uses #+nil to comment out ~
-        forms. But don't worry, it was unlikely to work in the New ~
-        Implementation of Lisp anyway")
-
 (in-package #:asdf)
 
 ;;;; -------------------------------------------------------------------------
@@ -252,7 +251,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.646" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.647" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -292,11 +291,6 @@ Defaults to `t`.")
 ;;;; * define methods on UPDATE-INSTANCE-FOR-REDEFINED-CLASS
 ;;;;   for each of the classes we define that has changed incompatibly.
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (when (and (fboundp 'system-source-file)
-             (not (typep (fdefinition 'system-source-file) 'generic-function)))
-    (fmakunbound 'system-source-file))
-  (map () 'fmakunbound '(process-source-registry inherit-source-registry
-                         process-source-registry-directive))
   #+ecl
   (when (find-class 'compile-op nil)
     (defmethod update-instance-for-redefined-class :after
@@ -2431,13 +2425,13 @@ with a different configuration, so the configuration would be re-read then."
           (return `(:output-translations ,@(nreverse directives)))))))))
 
 (defparameter *default-output-translations*
-  '(implementation-output-translations
+  '(environment-output-translations
     user-output-translations-pathname
     user-output-translations-directory-pathname
     system-output-translations-pathname
     system-output-translations-directory-pathname))
 
-(defparameter *implementation-output-translations*
+(defun wrapping-output-translations ()
   `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
@@ -2448,9 +2442,6 @@ with a different configuration, so the configuration would be re-read then."
     :inherit-configuration
     ;; If we want to enable the user cache by default, here would be the place:
     :enable-user-cache))
-
-(defun implementation-output-translations ()
-  *implementation-output-translations*)
 
 (defparameter *output-translations-file* #p"asdf-output-translations.conf")
 (defparameter *output-translations-directory* #p"asdf-output-translations.conf.d/")
@@ -2471,9 +2462,7 @@ with a different configuration, so the configuration would be re-read then."
                                         (inherit *default-output-translations*)
                                         collect)
   (process-output-translations (funcall x) :inherit inherit :collect collect))
-(defmethod process-output-translations ((pathname pathname) &key
-                                        (inherit *default-output-translations*)
-                                        collect)
+(defmethod process-output-translations ((pathname pathname) &key inherit collect)
   (cond
     ((directory-pathname-p pathname)
      (process-output-translations (validate-output-translations-directory pathname)
@@ -2483,19 +2472,13 @@ with a different configuration, so the configuration would be re-read then."
                                   :inherit inherit :collect collect))
     (t
      (inherit-output-translations inherit :collect collect))))
-(defmethod process-output-translations ((string string) &key
-                                        (inherit *default-output-translations*)
-                                        collect)
+(defmethod process-output-translations ((string string) &key inherit collect)
   (process-output-translations (parse-output-translations-string string)
                                :inherit inherit :collect collect))
-(defmethod process-output-translations ((x null) &key
-                                    (inherit *default-output-translations*)
-                                    collect)
+(defmethod process-output-translations ((x null) &key inherit collect)
   (declare (ignorable x))
   (inherit-output-translations inherit :collect collect))
-(defmethod process-output-translations ((form cons) &key
-                                        (inherit *default-output-translations*)
-                                        collect)
+(defmethod process-output-translations ((form cons) &key inherit collect)
   (dolist (directive (cdr (validate-output-translations-form form)))
     (process-output-translations-directive directive :inherit inherit :collect collect)))
 
@@ -2521,19 +2504,21 @@ with a different configuration, so the configuration would be re-read then."
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (let* ((trusrc (truenamize (resolve-location src t)))
                    (trudst (if dst (resolve-location dst t) trusrc)))
+              (funcall collect (list trudst trudst))
               (funcall collect (list trusrc trudst)))))))
 
-(defun compute-output-translations
-    (&optional (translations *default-output-translations*))
+(defun compute-output-translations (&optional parameter)
   "read the configuration, return it"
-  (while-collecting (c)
-    (inherit-output-translations translations :collect #'c)))
+  (remove-duplicates
+   (while-collecting (c)
+     (inherit-output-translations
+      `(wrapping-output-translations ,parameter ,@*default-output-translations*) :collect #'c))
+   :test 'equal :from-end nil))
 
-(defun initialize-output-translations
-    (&optional (translations *default-output-translations*))
+(defun initialize-output-translations (&optional parameter)
   "read the configuration, initialize the internal configuration variable,
 return the configuration"
-  (setf (output-translations) (compute-output-translations translations)))
+  (setf (output-translations) (compute-output-translations parameter)))
 
 ;; checks an initial variable to see whether the state is initialized
 ;; or cleared. In the former case, return current configuration; in
@@ -2779,7 +2764,8 @@ with a different configuration, so the configuration would be re-read then."
     user-source-registry
     user-source-registry-directory
     system-source-registry
-    system-source-registry-directory))
+    system-source-registry-directory
+    default-source-registry))
 
 (defparameter *source-registry-file* #p"source-registry.conf")
 (defparameter *source-registry-directory* #p"source-registry.conf.d/")
@@ -2891,8 +2877,7 @@ with a different configuration, so the configuration would be re-read then."
           (flatten-source-registry
            `(wrapping-source-registry
              ,parameter
-             ,@*default-source-registries*
-             default-source-registry)))
+             ,@*default-source-registries*)))
          (simplified
           (remove-duplicates flattened :test 'equal :from-end nil))
          (processed

@@ -5,7 +5,6 @@
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
 
-export CL_SOURCE_REGISTRY="$PWD"
 unset DEBUG_ASDF_TEST
 
 while getopts "duh" OPTION
@@ -51,10 +50,12 @@ usage () {
     echo "    -u -h -- show this message."
 }
 
+DO () { ( set -x ; "$@" ); }
+
 do_tests() {
   command="$1" eval="$2"
   rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-  ( cd .. && $command $eval '(load "test/compile-asdf.lisp")' )
+  ( cd .. && DO $command $eval '(load "test/compile-asdf.lisp")' )
   if [ $? -ne 0 ] ; then
     echo "Compilation FAILED" >&2
   else
@@ -68,7 +69,7 @@ do_tests() {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if $command $eval "(load \"$i\")" ; then
+      if DO $command $eval "(load \"$i\")" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
@@ -104,54 +105,50 @@ fi
 command= flags= nodebug= eval=
 case "$lisp" in
   sbcl)
-    command=sbcl
+    command="${SBCL:-sbcl}"
     flags="--noinform --userinit /dev/null --sysinit /dev/null"
     nodebug="--disable-debugger"
     eval="--eval" ;;
   clisp)
-    command=clisp
+    command="${CLISP:-clisp}"
     flags="-norc -ansi -I "
     nodebug="-on-error exit"
     eval="-x" ;;
   allegro)
-    command=alisp
+    command="${ALLEGRO:-alisp}"
     flags="-q"
     nodebug="-batch"
     eval="-e" ;;
   allegromodern)
-    command=mlisp
+    command="${ALLEGROMODERN:-mlisp}"
     flags="-q"
     nodebug="-batch"
     eval="-e" ;;
   ccl)
-    command=ccl
+    command="${CCL:-ccl}"
     flags="--no-init --quiet"
     nodebug="--batch"
     eval="--eval" ;;
   cmucl)
-    command=lisp
+    command="${CMUCL:-lisp}"
     flags="-noinit"
     nodebug="-batch"
     eval="-eval" ;;
   ecl)
-    #if [ -x /usr/lib/ecl/ecl-original ] ; then
-    #  command=/usr/lib/ecl/ecl-original
-    #else
-      command=ecl
-    #fi
+    command="${ECL:-ecl}"
     flags="-norc"
     eval="-eval" ;;
   lispworks)
-    command=lispworks
+    command="${LISPWORKS:-lispworks}"
     flags="-siteinit - -init -"
     eval="-eval" ;;
   gclcvs)
     export GCL_ANSI=t
-    command=gclcvs
+    command="${GCL:-gclcvs}"
     flags="-batch"
     eval="-eval" ;;
   abcl)
-    command=abcl
+    command="${ABCL:-abcl}"
     eval="--eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2
@@ -164,9 +161,16 @@ if ! type "$command" ; then
     exit 43
 fi
 
+asdfdir="$(cd .. ; /bin/pwd)"
+export CL_SOURCE_REGISTRY="${asdfdir}"
+export ASDF_OUTPUT_TRANSLATIONS="${asdfdir}:${asdfdir}/tmp/fasls/$(basename $command)"
+env | grep asdf
+
+command="$command $flags"
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
   command="$command $nodebug"
 fi
+
 
 create_config () {
     mkdir -p ../tmp/test-source-registry-conf.d ../tmp/test-asdf-output-translations-conf.d
@@ -181,8 +185,6 @@ if [ -z "$command" ] ; then
 else
     create_config
     mkdir -p results
-    command="$command $flags"
-    echo $command
     thedate=`date "+%Y-%m-%d"`
     do_tests "$command" "$eval" 2>&1 | \
 	tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
