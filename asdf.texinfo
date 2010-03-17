@@ -156,10 +156,10 @@ Releases in the 1.600 series and beyond should be considered as
 release candidates,
 but we're still working on documentation,
 and on fixing the occasional bug.
-For all practical purposes, ASDF 2 refers to releases later than 1.635,
+For all practical purposes, ASDF 2 refers to releases later than 1.648,
 and ASDF 1 to any release earlier than 1.369 or so.
 
-ASDF 2.000 release candidates and beyond will have
+ASDF 2 release candidates and beyond will have
 @code{:asdf2} onto @code{*features*} so that if you are writing
 ASDF-dependent code you may check for this feature to see if the new API
 is present.  @emph{All} versions of ASDF should have the @code{:asdf} feature.
@@ -228,14 +228,50 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.645,
+If you are running a version older than 1.648,
 we recommend that you load a newer ASDF using the method below.
+
+
+@section Upgrading ASDF
+
+If your implementation does provide ASDF 2 or later,
+and you want to upgrade to a more recent version,
+just install ASDF like any other package
+(see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below),
+configure ASDF as usual (see @pxref{Configuring ASDF} below),
+and upgrade with:
+
+@lisp
+(require :asdf)
+(asdf:load-system :asdf)
+@end lisp
+
+If on the other hand, your implementation only provides an old ASDF,
+you will require a special configuration step and an old-style loading:
+
+@lisp
+(require :asdf)
+(push #p"@var{/path/to/new/asdf/}" asdf:*central-registry*)
+(asdf:oos 'asdf:load-op :asdf)
+@end lisp
+
+Don't forget the trailing @code{/} at the end of your pathname.
+
+Also, note that older versions of ASDF won't redirect their output,
+or at least won't do it according to your usual ASDF 2 configuration.
+You therefore need write access on the directory
+where you install the new ASDF,
+and make sure you're not using it
+for multiple mutually incompatible implementations.
+At worst, you may have to have multiple copies of the new ASDF,
+e.g. one per implementation installation, to avoid clashes.
 
 
 @section Loading an otherwise installed ASDF
 
 If your implementation doesn't include ASDF,
-or includes an old version of it (before 1.600),
+if for some reason the upgrade somehow fails,
+does not or cannot apply to your case,
 you will have to install the file @file{asdf.lisp}
 somewhere and load it with:
 
@@ -256,6 +292,7 @@ whenever you start your Lisp implementation,
 for example by loading it from the startup script or dumping a custom core
 --- check your Lisp implementation's manual for details.
 
+
 @node Configuring ASDF, Using ASDF, Loading ASDF, Top
 @comment  node-name,  next,  previous,  up
 
@@ -266,7 +303,7 @@ for example by loading it from the startup script or dumping a custom core
 So it may compile and load your systems, ASDF must be configured to find
 the @file{.asd} files that contain system definitions.
 
-Since ASDF 1.600, the preferred way to configure where ASDF finds your systems is
+Since ASDF 2, the preferred way to configure where ASDF finds your systems is
 the @code{source-registry} facility,
 fully described in its own chapter of this manual.
 @xref{Controlling where ASDF searches for systems}.
@@ -415,7 +452,7 @@ and without write privileges on shared source directories, etc.
 This also allows to keep source directories uncluttered
 by plenty of object files.
 
-Starting with ASDF 1.600, the @code{asdf-output-translations} facility
+Starting with ASDF 2, the @code{asdf-output-translations} facility
 was added to ASDF itself, that controls where object files will be stored.
 This facility is fully described in a chapter of this manual,
 @ref{Controlling where ASDF saves compiled files}.
@@ -470,7 +507,7 @@ if the configuration may change
 between the machine where you save it at the time you save it
 and the machine you resume it at the time you resume it.
 
-Finally note that before ASDF 1.600,
+Finally note that before ASDF 2,
 other ASDF add-ons offered the same functionality,
 each in subtly different and incompatible ways:
 ASDF-Binary-Locations, cl-launch, common-lisp-controller.
@@ -789,7 +826,7 @@ can usually be done more easily with the string syntax above.
 The only case that you really need a pathname object is to override
 the component-type default file type for a given component.
 Therefore, it is a rare case that pathname objects should be used at all.
-Unhappily, old versions of ASDF (before 1.600) didn't properly support
+Unhappily, ASDF 1 didn't properly support
 parsing component names as strings specifying paths with directories,
 and the cumbersome @code{#.(make-pathname ...)} syntax had to be used.
 Note that when specifying pathname objects, no magic interpretation of the pathname
@@ -1217,7 +1254,8 @@ If a symbol, its name is taken and lowercased.
 
 Unless overridden by a @code{:pathname} attribute,
 the name will be interpreted as a pathname specifier according
-to a Unix-style syntax. @xref{The defsystem grammar,,Pathname specifiers}.
+to a Unix-style syntax.
+@xref{The defsystem grammar,,Pathname specifiers}.
 
 @subsubsection Version identifier
 
@@ -1238,11 +1276,13 @@ Don't hold your breath.
 @emph{FIXME: This subsection seems to contradict the
 @code{defsystem} grammar subsection,
 which doesn't provide any obvious way to specify required features.
-Furthermore, in 2009, discussions on the asdf-devel mailing list
+Furthermore, in 2009, discussions on the
+@uref{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
 suggested that the specification of required features may be broken,
 and that no one may have been using them for a while.
-Please contact the asdf-devel mailing list if you are interested
-in getting this features feature fixed.}
+Please contact the
+@uref{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
+if you are interested in getting this features feature fixed.}
 
 Traditionally defsystem users have used reader conditionals
 to include or exclude specific per-implementation files.
@@ -1876,14 +1916,14 @@ while changing formats from version to version (or platform to platform)
 which means that you'll have to recompile binaries
 as you switch from one implementation to the next.
 
-As of version 1.600, ASDF includes the @code{asdf-output-translations} facility
+ASDF 2 includes the @code{asdf-output-translations} facility
 to mitigate the problem.
 
 @section Configurations
 
 Configurations specify mappings from input locations to output locations.
 Once again we rely on the XDG base directory specification for configuration.
-@xref{Controlling where ASDF searches for systems,,XDG base directory}
+@xref{Controlling where ASDF searches for systems,,XDG base directory}.
 
 @enumerate
 
@@ -2310,24 +2350,174 @@ You may get the ASDF source repository using git:
 
 You will find the above referenced tags in this repository.
 
-Discussion of ASDF development is conducted on the mailing list
+Discussion of ASDF development is conducted on the
+mailing list
 @kbd{asdf-devel@@common-lisp.net}.
+@uref{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel}
+
 
 @node FAQ, TODO list, Getting the latest version, Top
 @comment  node-name,  next,  previous,  up
 @chapter FAQ
 
+@section  ``Where do I report a bug?''
 
-@section ``My Common Lisp implementation comes with an outdated version of ASDF. What to do?''
+ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
 
-More up-to-date versions of ASDF are distributed with an @file{asdf.asd} file,
-and @emph{should} load cleanly on top of older versions.
-So you should be able to load this definition file
-(or add its directory's pathname to your @code{asdf:*central-registry*} variable),
-and then do:
-@lisp
-(asdf:oos 'asdf:load-op :asdf)
-@end lisp
+If you're unsure about whether something is a bug, of for general discussion,
+use the @uref{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
+
+
+@section ``What has changed since ASDF 1?''
+
+TODO: answer that question, with subsections per sub-question, and rationale.
+
+@subsection ASDF can portably name files inside systems and components
+
+Common Lisp namestrings are not portable,
+except maybe for logical pathnamestrings,
+that themselves require a lot of setup that is itself ultimately non-portable.
+The only portable ways to refer to pathnames inside systems and components
+were very awkward, using @code{#.(make-pathname ...)} and
+@code{#.(merge-pathnames ...)}.
+Even the above were themselves were inadequate in the general case
+due to host and device issues, unless horribly complex patterns were used.
+Plenty of simple cases that looked portable actually weren't,
+leading to much confusion and greavance.
+
+ASDF 2 implements its own portable syntax for strings as pathname specifiers.
+Naming files within a system definition becomes easy and portable again.
+See @code{asdf::merge-component-name-type},
+@code{asdf-utilities:merge-pathnames*},
+@code{asdf-utilities:system-relative-pathname}.
+
+@xref{The defsystem grammar,,Pathname specifiers}.
+
+@subsection Output translations
+
+A popular feature added to ASDF was output redirection:
+@code{asdf-binary-locations}, @code{common-lisp-controller},
+@code{cl-launch} and other hacks were all implementing it in ways
+both mutually incompatible and difficult to configure.
+
+Output redirection is essential to share
+source directories of portable systems across multiple implementations
+or variants thereof,
+or source directories of shared installations of systems across multiple users,
+or combinations of the above.
+
+In ASDF 2, a standard mechanism is provided for that,
+@code{asdf-output-translations},
+with sensible defaults, adequate configuration languages,
+and a coherent set of configuration files and hooks.
+
+@ref{Controlling where ASDF saves compiled files}.
+
+@subsection Source Registry Configuration
+
+Configuring ASDF used to require special magic
+to be applied just at the right moment,
+between the moment ASDF is loaded and the moment it is used,
+in a way that is specific to the user,
+the implementation he is using and the application he is building.
+
+This made for awkward configuration files and startup scripts
+that could not be shared between users, managed by administrators
+or packaged by distributions.
+
+ASDF 2 provides a well-documented way to configure ASDF,
+with sensible defaults, adequate configuration languages,
+and a coherent set of configuration files and hooks.
+
+@xref{Controlling where ASDF searches for systems}.
+
+@subsection Usual operations are made easier to the user
+
+In ASDF 1, you had to use the awkward syntax
+@code{(asdf:oos 'asdf:load-op :foo)}
+to load a system,
+and similarly for @code{compile-op}, @code{test-op}.
+
+In ASDF 2, you can use shortcuts for the usual operations:
+@code{(asdf:load-system :foo)}, and
+similarly for @code{compile-system}, @code{test-system}.
+
+
+@subsection Many bugs have been fixed
+
+Dependencies were not correctly propagated
+across submodules within a system.
+
+Many features used to not be portable,
+especially where pathnames were involved.
+The internal test suite used to massively fail
+in many implementations.
+
+Support was broken for some implementations.
+
+The documentation was grossly out of date.
+
+These issues and many others have been fixed.
+
+@subsection ASDF itself is versioned
+
+Between new features, old bugs fixed, and new bugs introduced,
+there was a variety of releases of ASDF in the wild,
+and little way to check which release had which feature set.
+People using or writing systems had to either make worst-case assumptions
+as to what features were available and worked,
+or take great pains to have the correct version of ASDF installed.
+
+With ASDF 2, we provide a new stable set of working features
+that everyone can rely on from now on.
+Use @code{#+asdf2} to detect presence of ASDF 2,
+@code{(asdf:version-satisfies (asdf:asdf-version) "1.648")}
+to check the availability of a version no earlier than required.
+
+@subsection ASDF can be upgraded
+
+When an old version of ASDF was loaded,
+it was very hard to upgrade ASDF in your current image
+without breaking everything.
+Instead you have to exit the Lisp process and
+somehow arrange to start a new one from a simpler image.
+Something that can't be done from within Lisp,
+making automation of it difficult,
+which compounded with difficulty in configuration,
+made the task quite hard.
+Yet as we saw before, the task would have been required
+to not have to live with the worst case or non-portable
+subset of ASDF features.
+
+With ASDF 2, it is easy to upgrade
+from ASDF 2 to later versions from within Lisp,
+and not too hard to upgrade from ASDF 1 to ASDF 2 from within Lisp.
+We support hot upgrade of ASDF and any breakage is a bug
+that we will do our best to fix.
+
+@subsection Decoupled release cycle
+
+When vendors were releasing their Lisp implementations with ASDF,
+they had to basically never change version
+because neither upgrade nor downgrade was possible
+without breaking something for someone,
+and no obvious upgrade path was visible and recommendable.
+
+With ASDF 2, upgrade is possible, easy and can be recommended.
+This means that vendors can safely ship a recent version of ASDF,
+confident that if a user isn't fully satisfied,
+he can easily upgrade ASDF and deal
+with a supported recent version of it.
+This means that release cycles will be causally decoupled,
+the practical consequence of which will mean faster convergence
+towards the latest version for everyone.
+
+@section Issues with installing the proper version of ASDF
+
+@subsection ``My Common Lisp implementation comes with an outdated version of ASDF. What to do?''
+
+We recommend you upgrade ASDF.
+@xref{Loading ASDF,,Upgrading ASDF}.
 
 If this does not work, it is a bug, and you should report it.
 @xref{FAQ, report-bugs, Where do I report a bug}.
@@ -2335,19 +2525,71 @@ In the meantime, you can load @file{asdf.lisp} directly.
 @xref{Loading ASDF,Loading an otherwise installed ASDF}.
 
 
-@section ``What has changed since ASDF 1?''
+@subsection ``I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?''
 
-TODO: answer that question, with subsections per sub-question, and rationale.
+Starting with current candidate releases of ASDF 2,
+it should always be a good time to upgrade to a recent version of ASDF.
+You may consult with the maintainer for which specific version they recommend,
+but the latest RELEASE should be correct.
+We trust you to thoroughly test it with your implementation before you release it.
+If there are any issues with the current release,
+it's a bug that you should report upstream and that we will fix ASAP.
+
+As to how to include ASDF, we recommend that
+if you do have a few magic systems in your implementation path,
+that are specially treated in @code{wrapping-source-registry},
+like SBCL does.
+In this case, we explicitly ask you to @emph{NOT} distribute
+@file{asdf.asd} together with your implementation's ASDF,
+least you separate it from the other systems in this path,
+or otherwise rename the system and its @file{asd} file
+to e.g. @code{asdf-sbcl} and @file{asdf-sbcl.asd}.
+
+If you do not have any such magic systems, or have other non-magic systems
+that you want to bundle with your implementation,
+then you may add them to the @code{default-source-registry},
+and you are welcome to include @file{asdf.asd} amongst them.
+
+Please send upstream any patches you make to ASDF itself,
+so we can merge them back in for the benefit of your users
+when they upgrade to the upstream version.
 
 
-@section ``How can I cater for unit-testing in my system?''
+@section Issues with configuring ASDF
+
+@subsection ``How can I customize where fasl files are stored?''
+
+@xref{Controlling where ASDF saves compiled files}.
+
+Note that in the past there was an add-on to ASDF called
+@code{ASDF-binary-locations}, developed by Gary King.
+That add-on has been merged into ASDF proper,
+then superseded by the asdf-output-translations facility.
+
+Note that use of @code{asdf-output-translations}
+can interfere with one aspect of your systems
+--- if your system uses @code{*load-truename*} to find files
+(e.g., if you have some data files stored with your program),
+then the relocation that this ASDF customization performs
+is likely to interfere.
+Use @code{asdf:system-relative-pathname} to locate a file
+in the source directory of some system, and
+use @code{asdf:apply-output-translations} to locate a file
+whose pathname has been translated by the facility.
+
+
+@section Issues with using and extending ASDF to define systems
+
+@subsection ``How can I cater for unit-testing in my system?''
 
 ASDF provides a predefined test operation, @code{test-op}.
 @xref{Predefined operations of ASDF, test-op}.
 The test operation, however, is largely left to the system definer to specify.
 @code{test-op} has been
-a topic of considerable discussion on the asdf-devel mailing list, and
-on the launchpad bug-tracker.
+a topic of considerable discussion on the
+@uref{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list},
+and on the
+@uref{https://launchpad.net/asdf,launchpad bug-tracker}.
 
 Here are some guidelines:
 
@@ -2391,48 +2633,30 @@ has passed, or which tests have failed.  The user must simply read the
 console output.  This limitation has been the subject of much
 discussion.
 
-@section ``How can I cater for documentation generation in my system?''
+@subsection ``How can I cater for documentation generation in my system?''
 
 The ASDF developers are currently working to add a @code{doc-op}
 to the set of predefined ASDF operations.
 @xref{Predefined operations of ASDF}.
 See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
 
-@section ``How can I customize where fasl files are stored?''
 
-@xref{Controlling where ASDF saves compiled files}.
 
-Note that in the past there was an add-on to ASDF called
-@code{ASDF-binary-locations}, developed by Gary King.
-That add-on has been merged into ASDF proper,
-then superseded by the asdf-output-translations facility.
+@subsection ``How can I maintain non-Lisp (e.g. C) source files?''
 
-Note that use of @code{asdf-output-translations}
-can interfere with one aspect of your systems
---- if your system uses @code{*load-truename*} to find files
-(e.g., if you have some data files stored with your program),
-then the relocation that this ASDF customization performs
-is likely to interfere.
-Use @code{asdf:system-relative-pathname} to locate a file
-in the source directory of some system, and
-use @code{asdf:apply-output-translations} to locate a file
-whose pathname has been translated by the facility.
-
-@section ``How can I maintain non-Lisp (e.g. C) source files?''
+See @code{cffi}'s @code{cffi-grovel}.
 
 @anchor{report-bugs}
-@section  Where do I report a bug?
 
-ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
 
-@section ``I want to put my module's files at the top level.  How do I do this?''
+@subsection ``I want to put my module's files at the top level.  How do I do this?''
 
 By default, the files contained in an asdf module go
 in a subdirectory with the same name as the module.
-However, this can be overridden by adding a @code{:pathname} argument
+However, this can be overridden by adding a @code{:pathname ""} argument
 to the module description.
-For example, here is how it is done
-in the spatial-trees ASDF system definition:
+For example, here is how it could be done
+in the spatial-trees ASDF system definition for ASDF 2:
 
 @example
 (asdf:defsystem :spatial-trees
@@ -2476,7 +2700,7 @@ A pathname can only be portably constructed with such syntax as
 @code{#.(make-pathname :directory '(:relative "foo" "bar"))},
 and similarly the current directory can only be portably specified as
 @code{#.(make-pathname :directory '(:relative))}.
-However, as of ASDF 1.624, you can portably use a string to denote a pathname.
+However, as of ASDF 2, you can portably use a string to denote a pathname.
 The string will be parsed as a @code{/}-separated path from the current directory,
 such that the empty string @code{""} denotes the current directory, and
 @code{"foo/bar"} (no trailing @code{/} required in the case of modules)
@@ -2578,7 +2802,7 @@ so should be.
 
 ``I notice that
 
-        @code{(oos 'compile-op :araneida :force t)}
+        @code{(asdf:compile-system :araneida :force t)}
 
 also forces compilation of every other system the @code{:araneida} system depends on.
 This is rarely useful to me;
@@ -2610,7 +2834,7 @@ Other possible interface: have a ``revert'' function akin to @code{make clean}.
 (asdf:revert 'asdf:compile-op 'araneida)
 @end lisp
 
-would delete any files produced by @code{'compile-op 'araneida}.
+would delete any files produced by @code{(compile-system :araneida)}.
 Of course, it wouldn't be able to do much about stuff in the image itself.
 
 How would this work?
