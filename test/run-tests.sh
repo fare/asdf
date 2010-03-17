@@ -140,6 +140,10 @@ case "$lisp" in
     eval="-eval" ;;
   lispworks)
     command="${LISPWORKS:-lispworks}"
+    # If you have a licensed copy of lispworks,
+    # you can obtain the "lispworks" binary with, e.g.
+    # echo '(hcl:save-image "/lispworks" :environment nil)' > /tmp/build.lisp ;
+    # ./lispworks-6-0-0-x86-linux -siteinit - -init - -build /tmp/build.lisp
     flags="-siteinit - -init -"
     eval="-eval" ;;
   gclcvs)
@@ -163,7 +167,7 @@ fi
 
 asdfdir="$(cd .. ; /bin/pwd)"
 export CL_SOURCE_REGISTRY="${asdfdir}"
-export ASDF_OUTPUT_TRANSLATIONS="${asdfdir}:${asdfdir}/tmp/fasls/$(basename $command)"
+export ASDF_OUTPUT_TRANSLATIONS="${asdfdir}:${asdfdir}/tmp/fasls/$(basename $command):"
 env | grep asdf
 
 command="$command $flags"

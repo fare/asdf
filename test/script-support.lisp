@@ -12,17 +12,17 @@
   (compile-file-pathname
    (let ((impl (string-downcase
                 (or #+allegro (format nil "~Alisp" excl:*current-case-mode*)
-                                     #+armedbear :abcl
-                                     #+clisp :clisp
-                                     #+clozure :ccl
-                                     #+cmu :cmucl
-                                     #+corman :cormanlisp
-                                     #+digitool :mcl
-                                     #+ecl :ecl
-                                     #+gcl :gcl
-                                     #+lispworks :lispworks
-                                     #+sbcl :sbcl
-                                     #+scl scl))))
+                    #+armedbear :abcl
+                    #+clisp :clisp
+                    #+clozure :ccl
+                    #+cmu :cmucl
+                    #+corman :cormanlisp
+                    #+digitool :mcl
+                    #+ecl :ecl
+                    #+gcl :gcl
+                    #+lispworks :lispworks
+                    #+sbcl :sbcl
+                    #+scl scl))))
      (merge-pathnames
       (make-pathname :directory `(:relative "tmp" "fasls" ,impl)
                      :defaults *asdf-lisp*)
@@ -47,17 +47,19 @@
   #+clisp
   (ext:quit return)
   #+(or cmu scl)
-  (unix:unix-exit code)
+  (unix:unix-exit return)
   #+ecl
   (si:quit return)
   #+gcl
-  (lisp:quit code)
+  (lisp:quit return)
   #+lispworks
   (lispworks:quit :status return :confirm nil :return nil :ignore-errors-p t)
   #+(or openmcl mcl)
   (ccl::quit return)
   #+sbcl
   (sb-ext:quit :unix-status return)
+  #+abcl
+  (ext:quit :status return)
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
 
