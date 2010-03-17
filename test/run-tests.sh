@@ -52,7 +52,7 @@ usage () {
 }
 
 do_tests() {
-  command=$1 eval=$2
+  command="$1" eval="$2"
   rm -f ~/.cache/common-lisp/"`pwd`"/* || true
   ( cd .. && $command $eval '(load "test/compile-asdf.lisp")' )
   if [ $? -ne 0 ] ; then
@@ -181,6 +181,7 @@ if [ -z "$command" ] ; then
 else
     create_config
     mkdir -p results
+    command="$command $flags"
     echo $command
     thedate=`date "+%Y-%m-%d"`
     do_tests "$command" "$eval" 2>&1 | \
