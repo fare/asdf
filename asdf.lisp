@@ -251,7 +251,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.648" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.649" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -2066,9 +2066,7 @@ output to `*verbose-out*`.  Returns the shell's exit code."
 
 (defun system-relative-pathname (system name &key type)
   (merge-pathnames*
-   (merge-component-name-type
-    :name name
-    :type type)
+   (merge-component-name-type name :type type)
    (system-source-directory system)))
 
 
