@@ -2337,7 +2337,7 @@ In the meantime, you can load @file{asdf.lisp} directly.
 
 @section ``What has changed since ASDF 1?''
 
-TODO: answer that question.
+TODO: answer that question, with subsections per sub-question, and rationale.
 
 
 @section ``How can I cater for unit-testing in my system?''
