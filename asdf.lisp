@@ -75,7 +75,7 @@
                       (remove-if
                        #'null
                        (mapcar #'find-package (cons name nicknames)))
-                      :from-end nil)))
+                      :from-end t)))
                (cond
                  (previous
                   (map () #'rename-away (cdr previous)) ;; packages with conflicting (nick)names
@@ -158,7 +158,7 @@
        :unintern `(#-ecl ,@redefined-functions
                    #:*asdf-revision* #:around #:asdf-method-combination
                    #:split #:make-collector)
-       :fmakunbound '(#+ecl ,@redefined-functions
+       :fmakunbound `(#+ecl ,@redefined-functions
                       #:system-source-file
                       #:component-relative-pathname #:system-relative-pathname
                       #:process-source-registry
@@ -262,7 +262,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.652" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.653" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -598,15 +598,7 @@ actually-existing directory."
   "Converts the non-wild pathname designator PATHSPEC to directory form."
   (cond
    ((stringp pathspec)
-    (pathname
-     (let ((lastchar (aref pathspec (1- (length pathspec)))))
-       (cond ((or (eql lastchar #\;) (eql lastchar #\/)) pathspec)
-             ((find #\; pathspec) ;; assume a ; means a logical pathname directory separator
-              (concatenate 'string pathspec ";"))
-             (t
-              ;; guess it's a string that's not a logical
-              ;; pathname string
-              (concatenate 'string pathspec "/"))))))
+    (ensure-directory-pathname (pathname pathspec)))
    ((not (pathnamep pathspec))
     (error "Invalid pathname designator ~S" pathspec))
    ((wild-pathname-p pathspec)
@@ -2522,7 +2514,7 @@ with a different configuration, so the configuration would be re-read then."
    (while-collecting (c)
      (inherit-output-translations
       `(wrapping-output-translations ,parameter ,@*default-output-translations*) :collect #'c))
-   :test 'equal :from-end nil))
+   :test 'equal :from-end t))
 
 (defun initialize-output-translations (&optional parameter)
   "read the configuration, initialize the internal configuration variable,
@@ -2761,7 +2753,7 @@ with a different configuration, so the configuration would be re-read then."
                                    #+sbcl #+sbcl :resolve-symlinks nil
                                    #+clisp #+clisp :circle t)))
                (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
-                                        :test #'equal)))
+                                        :test #'equal :from-end t)))
           (loop
             :for dir :in dirs
             :unless (loop :for x :in exclude
@@ -2881,7 +2873,7 @@ with a different configuration, so the configuration would be re-read then."
         ,@*default-source-registries*)
       :register (lambda (directory &key recurse exclude)
                   (collect (list directory :recurse recurse :exclude exclude)))))
-   :test 'equal :from-end nil))
+   :test 'equal :from-end t))
 
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.
