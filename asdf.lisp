@@ -2895,9 +2895,9 @@ with a different configuration, so the configuration would be re-read then."
       (initialize-source-registry)))
 
 ;;;; -----------------------------------------------------------------
-;;;; SBCL hook into REQUIRE
+;;;; SBCL and ClozureCL hook into REQUIRE
 ;;;;
-#+sbcl
+#+(or sbcl clozure)
 (progn
   (defun module-provide-asdf (name)
     (handler-bind ((style-warning #'muffle-warning))
@@ -2906,7 +2906,9 @@ with a different configuration, so the configuration would be re-read then."
         (when system
           (asdf:operate 'asdf:load-op name)
           t))))
-  (pushnew 'module-provide-asdf sb-ext:*module-provider-functions*))
+  (pushnew 'module-provide-asdf
+           #+sbcl sb-ext:*module-provider-functions*
+           #+clozure ccl::*module-provider-functions*))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups after hot-upgrade.
