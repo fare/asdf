@@ -2187,13 +2187,15 @@ output to `*verbose-out*`.  Returns the shell's exit code."
 (defun system-configuration-directories ()
   (remove-if
    #'null
-   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
-     `(#+windows
+   (append
+    #+windows
+    (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
+      `(
        ,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
            #+(not cygwin)
-           ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))
-       #p"/etc/"))))
+           ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))))
+    (list #p"/etc/"))))
 (defun in-first-directory (dirs x)
   (loop :for dir :in dirs
     :thereis (and dir (ignore-errors (truename (merge-pathnames* x (ensure-directory-pathname dir)))))))
