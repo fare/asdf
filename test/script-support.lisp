@@ -11,7 +11,10 @@
 (defvar *asdf-fasl*
   (compile-file-pathname
    (let ((impl (string-downcase
-                (or #+allegro (format nil "~Alisp" excl:*current-case-mode*)
+                (or #+allegro
+                    (ecase excl:*current-case-mode*
+                      (:case-sensitive-lower :mlisp)
+                      (:case-sensitive-upper :alisp))
                     #+armedbear :abcl
                     #+clisp :clisp
                     #+clozure :ccl
