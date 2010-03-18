@@ -5,6 +5,18 @@
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
 
+usage () {
+    echo "$0 [lisp invocation] [scripts-regex]"
+    echo " - read lisp forms one at a time from matching scripts"
+    echo " - quit with exit status 0 on getting eof"
+    echo " - quit with exit status >0 if an unhandled error occurs"
+    echo " you need to supply the .script in the second argument"
+    echo " lisps include sbcl, clisp, allegro and allegromodern"
+    echo "OPTIONS:"
+    echo "    -d -- debug mode"
+    echo "    -u -h -- show this message."
+}
+
 unset DEBUG_ASDF_TEST
 
 while getopts "duh" OPTION
@@ -37,18 +49,6 @@ else
 fi
 
 sok=1
-
-usage () {
-    echo "$0 [lisp invocation] [scripts-regex]"
-    echo " - read lisp forms one at a time from matching scripts"
-    echo " - quit with exit status 0 on getting eof"
-    echo " - quit with exit status >0 if an unhandled error occurs"
-    echo " you need to supply the .script in the second argument"
-    echo " lisps include sbcl, clisp, allegro and allegromodern"
-    echo "OPTIONS:"
-    echo "    -d -- debug mode"
-    echo "    -u -h -- show this message."
-}
 
 DO () { ( set -x ; "$@" ); }
 
