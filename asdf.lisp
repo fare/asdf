@@ -60,19 +60,26 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (labels ((rename-away (package)
              (loop :with name = (package-name package)
-               :for i :from 1 :for n = (format nil "~A.~D" name i)
-               :unless (find-package n) :do (rename-package package n)))
+               :for i :from 1 :for new = (format nil "~A.~D" name i)
+               :unless (find-package new) :do
+               (rename-package-name package name new)))
+           (rename-package-name (package old new)
+             (let* ((old-names (cons (package-name package) (package-nicknames package)))
+                    (new-names (subst new old old-names :test 'equal))
+                    (new-name (car new-names))
+                    (new-nicknames (cdr new-names)))
+               (rename-package package new-name new-nicknames)))
            (ensure-exists (name nicknames use)
              (let* ((previous
                      (remove-duplicates
                       (remove-if
                        #'null
                        (mapcar #'find-package (cons name nicknames)))
-                      :from-end t)))
+                      :from-end nil)))
                (cond
                  (previous
-                  (map () #'rename-away (cdr previous))
-                  (let ((p (car previous)))
+                  (map () #'rename-away (cdr previous)) ;; packages with conflicting (nick)names
+                  (let ((p (car previous))) ;; previous package with same name
                     (rename-package p name nicknames)
                     (ensure-use p use)
                     p))
@@ -114,7 +121,7 @@
                p)))
     (let ((redefined-functions
            '(#:perform #:explain #:output-files #:operation-done-p
-             #:component-relative-pathname)))
+             #:perform-with-restarts #:component-relative-pathname)))
       (ensure-package
        ':asdf-utilities
        :nicknames '(#:asdf-extensions)
@@ -244,7 +251,7 @@
          #:compute-source-registry
          #:clear-source-registry
          #:ensure-source-registry
-         #:process-source-registry))))
+         #:process-source-registry)))))
 
 (in-package #:asdf)
 
@@ -255,7 +262,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.651" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.652" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -1555,7 +1562,7 @@ recursive calls to traverse.")
 (defmethod perform-with-restarts (operation component)
   (perform operation component))
 
-(defmethod perform-with-restarts :around ((o load-op) (c cl-source-file))
+(defmethod perform-with-restarts ((o load-op) (c cl-source-file))
   (let ((state :initial))
     (loop :until (or (eq state :success)
                      (eq state :failure)) :do
@@ -1575,7 +1582,7 @@ recursive calls to traverse.")
               (call-next-method)
               (setf state :success)))))))
 
-(defmethod perform-with-restarts :around ((o compile-op) (c cl-source-file))
+(defmethod perform-with-restarts ((o compile-op) (c cl-source-file))
   (let ((state :initial))
     (loop :until (or (eq state :success)
                      (eq state :failure)) :do
@@ -1869,7 +1876,7 @@ Returns the new tree (which probably shares structure with the old one)"
   (dolist (name +asdf-methods+)
     (map ()
          ;; this is inefficient as most of the stored
-         ;; methods will not be for this particular gf n
+         ;; methods will not be for this particular gf
          ;; But this is hardly performance-critical
          (lambda (m)
            (remove-method (symbol-function name) m))
