@@ -112,135 +112,139 @@
                (ensure-export p export)
                (ensure-fmakunbound p fmakunbound)
                p)))
-    (ensure-package
-     ':asdf-utilities
-     :nicknames '(#:asdf-extensions)
-     :use '(#:common-lisp)
-     :unintern '(#:split #:make-collector)
-     :export
-     '(#:absolute-pathname-p
-       #:aif
-       #:appendf
-       #:asdf-message
-       #:coerce-name
-       #:directory-pathname-p
-       #:ends-with
-       #:ensure-directory-pathname
-       #:getenv
-       #:get-uid
-       #:length=n-p
-       #:merge-pathnames*
-       #:pathname-directory-pathname
-       #:pathname-sans-name+type ;; deprecated. Use pathname-directory-pathname
-       #:read-file-forms
-       #:remove-keys
-       #:remove-keyword
-       #:resolve-symlinks
-       #:split-string
-       #:component-name-to-pathname-components
-       #:split-name-type
-       #:system-registered-p
-       #:truenamize
-       #:while-collecting))
-    (ensure-package
-     ':asdf
-     :use '(:common-lisp :asdf-utilities)
-     :unintern '(#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector
-                 #:perform #:explain #:output-files #:operation-done-p
-                 #-ecl #:component-relative-pathname)
-     :fmakunbound '(#:system-source-file
-                    #:component-relative-pathname #:system-relative-pathname
-                    #:process-source-registry
-                    #:inherit-source-registry #:process-source-registry-directive)
-     :export
-     '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
-       #:system-definition-pathname #:find-component ; miscellaneous
-       #:compile-system #:load-system #:test-system
-       #:compile-op #:load-op #:load-source-op
-       #:test-op
-       #:operation               ; operations
-       #:feature                 ; sort-of operation
-       #:version                 ; metaphorically sort-of an operation
-       #:version-satisfies
+    (let ((redefined-functions
+           '(#:perform #:explain #:output-files #:operation-done-p
+             #:component-relative-pathname)))
+      (ensure-package
+       ':asdf-utilities
+       :nicknames '(#:asdf-extensions)
+       :use '(#:common-lisp)
+       :unintern '(#:split #:make-collector)
+       :export
+       '(#:absolute-pathname-p
+         #:aif
+         #:appendf
+         #:asdf-message
+         #:coerce-name
+         #:directory-pathname-p
+         #:ends-with
+         #:ensure-directory-pathname
+         #:getenv
+         #:get-uid
+         #:length=n-p
+         #:merge-pathnames*
+         #:pathname-directory-pathname
+         #:pathname-sans-name+type ;; deprecated. Use pathname-directory-pathname
+         #:read-file-forms
+         #:remove-keys
+         #:remove-keyword
+         #:resolve-symlinks
+         #:split-string
+         #:component-name-to-pathname-components
+         #:split-name-type
+         #:system-registered-p
+         #:truenamize
+         #:while-collecting))
+      (ensure-package
+       ':asdf
+       :use '(:common-lisp :asdf-utilities)
+       :unintern `(#-ecl ,@redefined-functions
+                   #:*asdf-revision* #:around #:asdf-method-combination
+                   #:split #:make-collector)
+       :fmakunbound '(#+ecl ,@redefined-functions
+                      #:system-source-file
+                      #:component-relative-pathname #:system-relative-pathname
+                      #:process-source-registry
+                      #:inherit-source-registry #:process-source-registry-directive)
+       :export
+       '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
+         #:system-definition-pathname #:find-component ; miscellaneous
+         #:compile-system #:load-system #:test-system
+         #:compile-op #:load-op #:load-source-op
+         #:test-op
+         #:operation               ; operations
+         #:feature                 ; sort-of operation
+         #:version                 ; metaphorically sort-of an operation
+         #:version-satisfies
 
-       #:input-files #:output-files #:perform ; operation methods
-       #:operation-done-p #:explain
+         #:input-files #:output-files #:perform ; operation methods
+         #:operation-done-p #:explain
 
-       #:component #:source-file
-       #:c-source-file #:cl-source-file #:java-source-file
-       #:static-file
-       #:doc-file
-       #:html-file
-       #:text-file
-       #:source-file-type
-       #:module                     ; components
-       #:system
-       #:unix-dso
+         #:component #:source-file
+         #:c-source-file #:cl-source-file #:java-source-file
+         #:static-file
+         #:doc-file
+         #:html-file
+         #:text-file
+         #:source-file-type
+         #:module                     ; components
+         #:system
+         #:unix-dso
 
-       #:module-components          ; component accessors
-       #:component-pathname
-       #:component-relative-pathname
-       #:component-name
-       #:component-version
-       #:component-parent
-       #:component-property
-       #:component-system
+         #:module-components          ; component accessors
+         #:component-pathname
+         #:component-relative-pathname
+         #:component-name
+         #:component-version
+         #:component-parent
+         #:component-property
+         #:component-system
 
-       #:component-depends-on
+         #:component-depends-on
 
-       #:system-description
-       #:system-long-description
-       #:system-author
-       #:system-maintainer
-       #:system-license
-       #:system-licence
-       #:system-source-file
-       #:system-relative-pathname
-       #:map-systems
+         #:system-description
+         #:system-long-description
+         #:system-author
+         #:system-maintainer
+         #:system-license
+         #:system-licence
+         #:system-source-file
+         #:system-relative-pathname
+         #:map-systems
 
-       #:operation-on-warnings
-       #:operation-on-failure
+         #:operation-on-warnings
+         #:operation-on-failure
 
                                         ;#:*component-parent-pathname*
-       #:*system-definition-search-functions*
-       #:*central-registry*         ; variables
-       #:*compile-file-warnings-behaviour*
-       #:*compile-file-failure-behaviour*
-       #:*resolve-symlinks*
+         #:*system-definition-search-functions*
+         #:*central-registry*         ; variables
+         #:*compile-file-warnings-behaviour*
+         #:*compile-file-failure-behaviour*
+         #:*resolve-symlinks*
 
-       #:asdf-version
+         #:asdf-version
 
-       #:operation-error #:compile-failed #:compile-warned #:compile-error
-       #:error-name
-       #:error-pathname
-       #:missing-definition
-       #:error-component #:error-operation
-       #:system-definition-error
-       #:missing-component
-       #:missing-component-of-version
-       #:missing-dependency
-       #:missing-dependency-of-version
-       #:circular-dependency        ; errors
-       #:duplicate-names
+         #:operation-error #:compile-failed #:compile-warned #:compile-error
+         #:error-name
+         #:error-pathname
+         #:missing-definition
+         #:error-component #:error-operation
+         #:system-definition-error
+         #:missing-component
+         #:missing-component-of-version
+         #:missing-dependency
+         #:missing-dependency-of-version
+         #:circular-dependency        ; errors
+         #:duplicate-names
 
-       #:try-recompiling
-       #:retry
-       #:accept                     ; restarts
-       #:coerce-entry-to-directory
-       #:remove-entry-from-registry
+         #:try-recompiling
+         #:retry
+         #:accept                     ; restarts
+         #:coerce-entry-to-directory
+         #:remove-entry-from-registry
 
-       #:initialize-output-translations
-       #:clear-output-translations
-       #:ensure-output-translations
-       #:apply-output-translations
-       #:compile-file-pathname*
+         #:initialize-output-translations
+         #:clear-output-translations
+         #:ensure-output-translations
+         #:apply-output-translations
+         #:compile-file-pathname*
 
-       #:*default-source-registries*
-       #:initialize-source-registry
-       #:compute-source-registry
-       #:clear-source-registry
-       #:ensure-source-registry
-       #:process-source-registry))))
+         #:*default-source-registries*
+         #:initialize-source-registry
+         #:compute-source-registry
+         #:clear-source-registry
+         #:ensure-source-registry
+         #:process-source-registry))))
 
 (in-package #:asdf)
 
@@ -251,7 +255,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.650" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.651" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
