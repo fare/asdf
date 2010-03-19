@@ -262,7 +262,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.653" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.654" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -297,8 +297,6 @@ Defaults to `t`.")
 ;;;; Cleanups before hot-upgrade.
 ;;;; Things to do in case we're upgrading from a previous version of ASDF.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
-;;;; * fmakunbound functions that once (in previous version of ASDF)
-;;;;   were simple DEFUNs but now are generic functions.
 ;;;; * define methods on UPDATE-INSTANCE-FOR-REDEFINED-CLASS
 ;;;;   for each of the classes we define that has changed incompatibly.
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -2634,7 +2632,7 @@ return the configuration"
 
 ;;;; -----------------------------------------------------------------
 ;;;; Source Registry Configuration, by Francois-Rene Rideau
-;;;; See README.source-registry and https://bugs.launchpad.net/asdf/+bug/485918
+;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
 ;; Using ack 1.2 exclusions
 (defvar *default-exclusions*
@@ -2745,20 +2743,19 @@ with a different configuration, so the configuration would be re-read then."
            (return `(:source-registry ,@(nreverse directives)))))))))
 
 (defun register-asd-directory (directory &key recurse exclude collect)
-  (let ((directory (ensure-directory-pathname directory)))
-    (if (not recurse)
-        (funcall collect directory)
-        (let* ((files (ignore-errors
-                        (directory (merge-pathnames* *wild-asd* directory)
-                                   #+sbcl #+sbcl :resolve-symlinks nil
-                                   #+clisp #+clisp :circle t)))
-               (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
-                                        :test #'equal :from-end t)))
-          (loop
-            :for dir :in dirs
-            :unless (loop :for x :in exclude
-                      :thereis (find x (pathname-directory dir) :test #'equal))
-            :do (funcall collect dir))))))
+  (if (not recurse)
+      (funcall collect directory)
+      (let* ((files (ignore-errors
+                      (directory (merge-pathnames* *wild-asd* directory)
+                                 #+sbcl #+sbcl :resolve-symlinks nil
+                                 #+clisp #+clisp :circle t)))
+             (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
+                                      :test #'equal :from-end t)))
+        (loop
+          :for dir :in dirs
+          :unless (loop :for x :in exclude
+                    :thereis (find x (pathname-directory dir) :test #'equal))
+          :do (funcall collect dir)))))
 
 (defparameter *default-source-registries*
   '(environment-source-registry
@@ -2850,11 +2847,11 @@ with a different configuration, so the configuration would be re-read then."
       ((:directory)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (pathname pathname)))))
+           (funcall register (ensure-directory-pathname pathname)))))
       ((:tree)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (pathname pathname) :recurse t :exclude *default-exclusions*))))
+           (funcall register (ensure-directory-pathname pathname) :recurse t :exclude *default-exclusions*))))
       ((:exclude)
        (setf *default-exclusions* rest))
       ((:default-registry)
