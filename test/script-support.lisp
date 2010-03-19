@@ -14,7 +14,7 @@
                 (or #+allegro
                     (ecase excl:*current-case-mode*
                       (:case-sensitive-lower :mlisp)
-                      (:case-sensitive-upper :alisp))
+                      (:case-insensitive-upper :alisp))
                     #+armedbear :abcl
                     #+clisp :clisp
                     #+clozure :ccl
