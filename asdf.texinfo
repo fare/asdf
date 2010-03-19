@@ -1601,7 +1601,7 @@ system configuration directory
 @file{/etc/common-lisp/source-registry.conf.d/}
 if it exists.
 
-@ite
+@item
 The source registry will be configured from a default configuration.
 This configuration may allow for implementation-specific systems
 to be found, for systems to be found the current directory
@@ -1653,7 +1653,7 @@ ASDF will first search for @code{.asd} files in the directories specified in
 @code{asdf:*central-registry*}
 before it searches in the source registry above.
 
-@xref{Configuring ASDF,,Configuring ASDF to find your systems -- old style}
+@xref{Configuring ASDF,,Configuring ASDF to find your systems -- old style}.
 
 By default, @code{asdf:*central-registry*} will be empty.
 
