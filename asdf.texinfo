@@ -2123,7 +2123,7 @@ which by default is the same as using
 
 Configuration directories consist in files each contains
 a list of directives without any enclosing
-@code{(:asdf-output-translations ...)} form.
+@code{(:output-translations ...)} form.
 The files will be sorted by namestring as if by @code{#'string<} and
 the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included

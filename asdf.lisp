@@ -262,7 +262,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.654" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.655" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -2393,7 +2393,9 @@ with a different configuration, so the configuration would be re-read then."
      '(:output-translations :inherit-configuration))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
-    ((find (char string 0) "\"(")
+    ((eql (char string 0) #\")
+     (parse-output-translations-string (read-from-string string)))
+    ((eql (char string 0) #\()
      (validate-output-translations-form (read-from-string string)))
     (t
      (loop
@@ -2416,7 +2418,7 @@ with a different configuration, so the configuration would be re-read then."
           (t
            (setf source s)))
         (setf start (1+ i))
-        (when (>= start end)
+        (when (> start end)
           (when source
             (error "Uneven number of components in source to destination mapping ~S" string))
           (unless inherit

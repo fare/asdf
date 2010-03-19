@@ -41,4 +41,20 @@
  (asdf::version-satisfies (asdf:asdf-version) "1.608"))
 (assert
  (not (asdf::version-satisfies (asdf:asdf-version) "666")))
+
+(assert
+ (equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")
+        '(:output-translations
+          ("/foo" "/bar")
+          :inherit-configuration
+          ("/baz" "/quux"))))
+(assert
+ (equal (asdf::parse-output-translations-string "/:")
+        '(:output-translations ("/" nil) :ignore-inherited-configuration)))
+(assert
+ (equal (asdf::parse-output-translations-string "/::")
+        '(:output-translations ("/" nil) :inherit-configuration)))
+(assert
+ (equal (asdf::parse-output-translations-string "/:/")
+        '(:output-translations ("/" "/") :ignore-inherited-configuration)))
 )
