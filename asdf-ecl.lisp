@@ -207,10 +207,36 @@
 
 
 (defun make-build (system &rest args &key (monolithic nil) (type :fasl)
+                   (move-here nil move-here-p)
                    &allow-other-keys)
-  (apply #'operate (select-operation monolithic type)
-         system
-         (remove-keys '(monolithic type) args)))
+  (let* ((operation-name (select-operation monolithic type))
+         (operation (apply #'operate operation-name
+                           system
+                           (remove-keys '(monolithic type move-here) args)))
+         (system (find-system system))
+         (files (and system (output-files operation system))))
+    (print files)
+    (print move-here)
+    (if (or move-here
+            (and (null move-here-p)
+                 (member operation-name '(:program))))
+        (loop for path in files
+           for filename = (namestring (truename path))
+           for new-path = (make-pathname :name (pathname-name path)
+                                         :type (pathname-type path)
+                                         :defaults *default-pathname-defaults*)
+           for new-filename = (namestring new-path)
+           for command =
+             #+windows
+             (format nil "move ~S ~S" filename new-filename)
+             #-windows
+             (format nil "mv ~S ~S" filename new-filename)
+           do (unless (equalp new-filename filename)
+                (when (plusp (si::system (print command)))
+                  (error "Unable to move file~&  ~S~&to new location~&  ~S"
+                         path new-path)))
+           collect new-path)
+        files)))
 
 ;;;
 ;;; LOAD-FASL-OP
@@ -277,7 +303,10 @@
   ((static-library :accessor prebuilt-system-static-library :initarg :lib)))
 
 (defmethod output-files ((o lib-op) (c prebuilt-system))
-  (list (compile-file-pathname (prebuilt-system-static-library c) :type :lib)))
+  (values (list (compile-file-pathname (prebuilt-system-static-library c)
+                                       :type :lib))
+          t ; Advertise that we do not want this path renamed
+          ))
 
 (defmethod perform ((o lib-op) (c prebuilt-system))
   (car (output-files o c)))
