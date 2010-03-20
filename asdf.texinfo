@@ -156,13 +156,14 @@ Releases in the 1.600 series and beyond should be considered as
 release candidates,
 but we're still working on documentation,
 and on fixing the occasional bug.
-For all practical purposes, ASDF 2 refers to releases later than 1.648,
+For all practical purposes, ASDF 2 refers to releases later than 1.656,
 and ASDF 1 to any release earlier than 1.369 or so.
 
 ASDF 2 release candidates and beyond will have
 @code{:asdf2} onto @code{*features*} so that if you are writing
-ASDF-dependent code you may check for this feature to see if the new API
-is present.  @emph{All} versions of ASDF should have the @code{:asdf} feature.
+ASDF-dependent code you may check for this feature
+to see if the new API is present.
+@emph{All} versions of ASDF should have the @code{:asdf} feature.
 
 
 @node Loading ASDF, Configuring ASDF, Introduction, Top
@@ -228,7 +229,7 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.648,
+If you are running a version older than 1.656,
 we recommend that you load a newer ASDF using the method below.
 
 
@@ -529,9 +530,18 @@ by evaluating the following Lisp form:
 (asdf:load-system :@var{foo})
 @end example
 
+On some implementations (namely, SBCL and Clozure CL),
+ASDF hooks into the @code{CL:REQUIRE} facility
+and you can just use:
+
+@example
+(require :@var{foo})
+@end example
+
 In older versions of ASDF, you needed to use
 @code{(asdf:oos 'asdf:load-op :@var{foo})}.
-We recommend that you upgrade from such older versions.
+If your ASDF is too old to provide @code{asdf:load-system} though
+we recommend that you upgrade to ASDF 2.
 @xref{Loading ASDF,,Loading an otherwise installed ASDF}.
 
 
@@ -1714,11 +1724,15 @@ The convention is that, for sorting purposes,
 the names of files in such a directory begin with two digits
 that determine the order in which these entries will be read.
 Also, the type of these files is conventionally @code{"conf"}
-and as a limitation of some implementations, the type cannot be @code{NIL}.
+and as a limitation to some implementations (e.g. GNU clisp),
+the type cannot be @code{NIL}.
 
 Directories may be included by specifying a directory pathname
-or namestring in an @code{:include} directive, e.g.::
+or namestring in an @code{:include} directive, e.g.:
+
+@example
 	(:include "/foo/bar/")
+@end example
 
 
 @section Shell-friendly syntax for configuration
@@ -2124,7 +2138,7 @@ which by default is the same as using
 Configuration directories consist in files each contains
 a list of directives without any enclosing
 @code{(:output-translations ...)} form.
-The files will be sorted by namestring as if by @code{#'string<} and
+The files will be sorted by namestring as if by @code{string<} and
 the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
 at the end of the list.
@@ -2368,9 +2382,7 @@ If you're unsure about whether something is a bug, of for general discussion,
 use the @uref{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
 
 
-@section ``What has changed since ASDF 1?''
-
-TODO: answer that question, with subsections per sub-question, and rationale.
+@section ``What has changed between ASDF 1 and ASDF 2?''
 
 @subsection ASDF can portably name files inside systems and components
 
@@ -2387,20 +2399,21 @@ leading to much confusion and greavance.
 
 ASDF 2 implements its own portable syntax for strings as pathname specifiers.
 Naming files within a system definition becomes easy and portable again.
-See @code{asdf::merge-component-name-type},
+See @code{asdf:system-relative-pathname},
 @code{asdf-utilities:merge-pathnames*},
-@code{asdf-utilities:system-relative-pathname}.
+@code{asdf::merge-component-name-type}.
+
 
 @xref{The defsystem grammar,,Pathname specifiers}.
 
 @subsection Output translations
 
-A popular feature added to ASDF was output redirection:
+A popular feature added to ASDF was output pathname translation:
 @code{asdf-binary-locations}, @code{common-lisp-controller},
 @code{cl-launch} and other hacks were all implementing it in ways
 both mutually incompatible and difficult to configure.
 
-Output redirection is essential to share
+Output pathname translation is essential to share
 source directories of portable systems across multiple implementations
 or variants thereof,
 or source directories of shared installations of systems across multiple users,
@@ -2428,6 +2441,11 @@ or packaged by distributions.
 ASDF 2 provides a well-documented way to configure ASDF,
 with sensible defaults, adequate configuration languages,
 and a coherent set of configuration files and hooks.
+
+At the same time, ASDF 2 remains compatible
+with the old magic you may have in your build scripts
+to tailor the ASDF configuration to your build automation needs,
+and also allows for new magic, simpler and more powerful magic.
 
 @xref{Controlling where ASDF searches for systems}.
 
@@ -2471,7 +2489,7 @@ or take great pains to have the correct version of ASDF installed.
 With ASDF 2, we provide a new stable set of working features
 that everyone can rely on from now on.
 Use @code{#+asdf2} to detect presence of ASDF 2,
-@code{(asdf:version-satisfies (asdf:asdf-version) "1.648")}
+@code{(asdf:version-satisfies (asdf:asdf-version) "1.656")}
 to check the availability of a version no earlier than required.
 
 @subsection ASDF can be upgraded
