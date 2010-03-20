@@ -4,6 +4,24 @@
 @settitle ASDF Manual
 @c %**end of header
 
+@c We use @&key, etc to escape & from TeX in lambda lists --
+@c so we need to define them for info as well.
+@macro &allow-other-keys
+&allow-other-keys
+@end macro
+@macro &optional
+&optional
+@end macro
+@macro &rest
+&rest
+@end macro
+@macro &key
+&key
+@end macro
+@macro &body
+&body
+@end macro
+
 @c for install-info
 @dircategory Software development
 @direntry
@@ -1013,8 +1031,8 @@ and easier than having them all be @code{EQL} methods.
 
 Operations are invoked on systems via @code{operate}.
 @anchor{operate}
-@deffn {Generic function} @code{operate} @var{operation} @var{system} @code{&rest} @var{initargs}
-@deffnx {Generic function} @code{oos} @var{operation} @var{system} @code{&rest} @var{initargs}
+@deffn {Generic function} @code{operate} @var{operation} @var{system} @&rest @var{initargs}
+@deffnx {Generic function} @code{oos} @var{operation} @var{system} @&rest @var{initargs}
 @code{operate} invokes @var{operation} on @var{system}.
 @code{oos} is a synonym for @code{operate}.
 
@@ -1047,7 +1065,7 @@ They are invoked via the @code{operate} generic function.
 (asdf:operate 'asdf:@var{operation-name} :@var{system-name} @{@var{operation-options ...}@})
 @end lisp
 
-@deffn Operation @code{compile-op} @code{&key} @code{proclamations}
+@deffn Operation @code{compile-op} @&key @code{proclamations}
 
 This operation compiles the specified component.
 If proclamations are supplied, they will be proclaimed.
@@ -1064,7 +1082,7 @@ does not necessarily load all the parts of the system, though;
 use @code{load-op} to load a system.
 @end deffn
 
-@deffn Operation @code{load-op} @code{&key} @code{proclamations}
+@deffn Operation @code{load-op} @&key @code{proclamations}
 
 This operation loads a system.
 
