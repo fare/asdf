@@ -170,8 +170,8 @@ the ASDF internals and how to extend ASDF.
 @emph{Nota Bene}:
 We are preparing for a release of ASDF 2,
 which will have version 2.000 and later.
-Releases in the 1.600 series and beyond should be considered as
-release candidates.
+Current releases, in the 1.600 series and beyond,
+should be considered as release candidates.
 We're still working on polishing the code and documentation.
 @ref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
 
@@ -2497,19 +2497,24 @@ similarly for @code{compile-system}, @code{test-system}.
 
 @subsection Many bugs have been fixed
 
+These issues and many others have been fixed,
+including the following:
+
 Dependencies were not correctly propagated
 across submodules within a system.
 
 Many features used to not be portable,
 especially where pathnames were involved.
+
 The internal test suite used to massively fail
 in many implementations.
 
-Support was broken for some implementations.
+Support was broken for some implementations (notably ABCL).
 
 The documentation was grossly out of date.
 
-These issues and many others have been fixed.
+ECL extensions were not integrated in the ASDF release.
+
 
 @subsection ASDF itself is versioned
 
