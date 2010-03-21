@@ -9,6 +9,7 @@
 ;;;
 ;;; ECL SPECIFIC OPERATIONS FOR ASDF
 ;;;
+#+xcvb (module (:depends-on ("asdf")))
 
 (in-package :asdf)
 (require 'cmp)
