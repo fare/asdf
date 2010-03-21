@@ -171,17 +171,9 @@ the ASDF internals and how to extend ASDF.
 We are preparing for a release of ASDF 2,
 which will have version 2.000 and later.
 Releases in the 1.600 series and beyond should be considered as
-release candidates,
-but we're still working on documentation,
-and on fixing the occasional bug.
-For all practical purposes, ASDF 2 refers to releases later than 1.656,
-and ASDF 1 to any release earlier than 1.369 or so.
-
-ASDF 2 release candidates and beyond will have
-@code{:asdf2} onto @code{*features*} so that if you are writing
-ASDF-dependent code you may check for this feature
-to see if the new API is present.
-@emph{All} versions of ASDF should have the @code{:asdf} feature.
+release candidates.
+We're still working on polishing the code and documentation.
+@ref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
 
 
 @node Loading ASDF, Configuring ASDF, Introduction, Top
@@ -2401,6 +2393,30 @@ use the @uref{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-de
 
 
 @section ``What has changed between ASDF 1 and ASDF 2?''
+
+@subsection What are ASDF 1 and ASDF 2?
+
+We are preparing for a release of ASDF 2,
+which will have version 2.000 and later.
+While the code and documentation are essentially complete
+we are still working on polishing them before release.
+
+Releases in the 1.600 series and beyond
+should be considered as release candidates.
+For all practical purposes,
+ASDF 2 refers to releases later than 1.656,
+and ASDF 1 to any release earlier than 1.369 or so.
+If your ASDF doesn't have a version, it's old.
+
+ASDF 2 release candidates and beyond will have
+@code{:asdf2} onto @code{*features*} so that if you are writing
+ASDF-dependent code you may check for this feature
+to see if the new API is present.
+@emph{All} versions of ASDF should have the @code{:asdf} feature.
+
+If you are experiencing problems or limitations of any sort with ASDF 1,
+we recommend that you should upgrade to ASDF 2 or its latest release candidate.
+
 
 @subsection ASDF can portably name files inside systems and components
 
