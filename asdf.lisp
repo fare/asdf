@@ -1064,21 +1064,23 @@ to `~a` which is not a directory.~@:>"
 
 ;;; component subclasses
 
-(defclass source-file (component) ())
+(defclass source-file (component)
+  ((type :accessor source-file-explicit-type :initarg :type :initform nil)))
 
-(defclass cl-source-file (source-file) ())
-(defclass c-source-file (source-file) ())
-(defclass java-source-file (source-file) ())
+(defclass cl-source-file (source-file)
+  ((type :initform "lisp")))
+(defclass c-source-file (source-file)
+  ((type :initform "c")))
+(defclass java-source-file (source-file)
+  ((type :initform "java")))
 (defclass static-file (source-file) ())
 (defclass doc-file (static-file) ())
-(defclass html-file (doc-file) ())
+(defclass html-file (doc-file)
+  ((type :initform "html")))
 
 (defmethod source-file-type ((component module) (s module)) :directory)
-(defmethod source-file-type ((c cl-source-file) (s module)) "lisp")
-(defmethod source-file-type ((c c-source-file) (s module)) "c")
-(defmethod source-file-type ((c java-source-file) (s module)) "java")
-(defmethod source-file-type ((c html-file) (s module)) "html")
-(defmethod source-file-type ((c static-file) (s module)) nil)
+(defmethod source-file-type ((component source-file) (s module))
+  (source-file-explicit-type component))
 
 (defun merge-component-name-type (name &key type defaults)
   ;; The defaults are required notably because they provide the default host
