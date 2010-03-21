@@ -63,4 +63,11 @@ test-all: FORCE
 	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 		--eval "(write-test-web-pages)" --eval "(quit)"
 
+manual-html: asdf.texinfo
+	makeinfo --html asdf.texinfo
+
+manual-info: asdf.texinfo
+	makeinfo asdf.texinfo
+
+
 FORCE:
