@@ -496,8 +496,8 @@ Note that your Operating System distribution or your system administrator
 may already have configured translations for you.
 In absence of any configuration, the default is to redirect everything
 under an implementation-dependent subdirectory of @file{~/.cache/common-lisp/}.
-Once again, see the document @file{README.asdf-output-translations}
-for full details.
+@xref{Controlling where ASDF searches for systems} for full details.
+
 
 Also note that when choosing a filename, the convention is to use
 the @file{.conf} extension
@@ -2089,6 +2089,7 @@ DIRECTORY-DESIGNATOR :=
     (ABSOLUTE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...)
 
 ABSOLUTE-COMPONENT-DESIGNATOR :=
+    NULL | ;; As source: skip this entry. As destination: same as source
     STRING | ;; namestring (directory is assumed, better be absolute or bust, ``/**/*.*'' added)
     PATHNAME | ;; pathname (better be an absolute directory or bust)
     :HOME | ;; designates the user-homedir-pathname ~/
@@ -2621,7 +2622,7 @@ when they upgrade to the upstream version.
 Note that in the past there was an add-on to ASDF called
 @code{ASDF-binary-locations}, developed by Gary King.
 That add-on has been merged into ASDF proper,
-then superseded by the asdf-output-translations facility.
+then superseded by the @code{asdf-output-translations} facility.
 
 Note that use of @code{asdf-output-translations}
 can interfere with one aspect of your systems
