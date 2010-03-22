@@ -72,5 +72,8 @@ manual-html-one-page: asdf.texinfo
 manual-info: asdf.texinfo
 	makeinfo asdf.texinfo
 
+manual-pdf: asdf.texinfo
+	texi2pdf asdf.texinfo
+
 
 FORCE:
