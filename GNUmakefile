@@ -66,13 +66,13 @@ test-all: FORCE
 manual-html: asdf.texinfo
 	makeinfo --html asdf.texinfo
 
-manual-html-one-page: asdf.texinfo
+asdf.html: asdf.texinfo
 	makeinfo --html --no-split --no-headers asdf.texinfo > asdf.html
 
-manual-info: asdf.texinfo
+asdf.info: asdf.texinfo
 	makeinfo asdf.texinfo
 
-manual-pdf: asdf.texinfo
+asdf.pdf: asdf.texinfo
 	texi2pdf asdf.texinfo
 
 
