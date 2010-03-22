@@ -496,7 +496,7 @@ Note that your Operating System distribution or your system administrator
 may already have configured translations for you.
 In absence of any configuration, the default is to redirect everything
 under an implementation-dependent subdirectory of @file{~/.cache/common-lisp/}.
-@xref{Controlling where ASDF searches for systems} for full details.
+@xref{Controlling where ASDF searches for systems}, for full details.
 
 
 Also note that when choosing a filename, the convention is to use
@@ -2123,7 +2123,7 @@ or subdirectories of the path before them, or bust.
 
 The last component, if not a pathname, is notionally completed by @file{/**/*.*}.
 You can specify more fine-grained patterns
-by using a pathname object as the last component
+by using a pathname obj1ect as the last component
 e.g. @file{#p"some/path/**/foo*/bar-*.fasl"}
 
 You may use @code{#+features} to customize the configuration file.
@@ -2136,7 +2136,7 @@ from the file specified.
 
 An @code{:inherit-configuration} statement cause the search to recurse with the path
 specifications from the next configuration.
-See section Configurations above. @c XXX xref needed.
+@xref{Controlling where ASDF saves compiled files,,Configurations}, above.
 
 @itemize
 @item
