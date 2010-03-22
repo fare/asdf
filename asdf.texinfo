@@ -766,6 +766,8 @@ component-def  := ( component-type simple-component-name {option}* )
 
 component-type := :system | :module | :file | :static-file | other-component-type
 
+other-component-type := symbol-by-name
+
 dependency-def := simple-component-name
                | ( :feature name )
                | ( :version simple-component-name version-specifier)
@@ -789,6 +791,14 @@ qual := method qualifier
 
 Component names (@code{simple-component-name})
 may be either strings or symbols.
+
+@subsection Component types 
+
+Component type names, even if expressed as keywords, will be looked up
+by name in the current package and in the asdf package, if not found in
+the current package.  So a component type @code{my-component-type}, in
+the current package @code{my-system-asd} can be specified as
+@code{:my-component-type}, or @code{my-component-type}.
 
 @subsection Pathname specifiers
 
