@@ -262,7 +262,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.657" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.658" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -2355,7 +2355,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun location-designator-p (x)
   (flet ((componentp (c) (typep c '(or string pathname keyword))))
-    (or (componentp x) (and (consp x) (every #'componentp x)))))
+    (or (null x) (componentp x) (and (consp x) (every #'componentp x)))))
 
 (defun validate-output-translations-directive (directive)
   (unless
@@ -2367,8 +2367,7 @@ with a different configuration, so the configuration would be re-read then."
                         (or (and (eq (first directive) :include)
                                  (typep (second directive) '(or string pathname null)))
                             (and (location-designator-p (first directive))
-                                 (or (location-designator-p (second directive))
-                                     (null (second directive))))))
+                                 (location-designator-p (second directive)))))
                    (and (length=n-p directive 1)
                         (location-designator-p (first directive))))))
     (error "Invalid directive ~S~%" directive))
@@ -2505,10 +2504,11 @@ with a different configuration, so the configuration would be re-read then."
         (if (eq src :include)
             (when dst
               (process-output-translations (pathname dst) :inherit nil :collect collect))
-            (let* ((trusrc (truenamize (resolve-location src t)))
-                   (trudst (if dst (resolve-location dst t) trusrc)))
-              (funcall collect (list trudst trudst))
-              (funcall collect (list trusrc trudst)))))))
+            (when src
+              (let* ((trusrc (truenamize (resolve-location src t)))
+                     (trudst (if dst (resolve-location dst t) trusrc)))
+                (funcall collect (list trudst trudst))
+                (funcall collect (list trusrc trudst))))))))
 
 (defun compute-output-translations (&optional parameter)
   "read the configuration, return it"
