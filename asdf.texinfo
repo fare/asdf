@@ -746,8 +746,8 @@ but before the component in question has been compiled.
 @comment  node-name,  next,  previous,  up
 @section The defsystem grammar
 
-@verbatim
-system-definition := ( defsystem system-designator {option}* )
+@example
+system-definition := ( defsystem system-designator @var{option}* )
 
 option := :components component-list
         | :pathname pathname-specifier
@@ -756,24 +756,24 @@ option := :components component-list
         | :explain method-form
         | :output-files method-form
         | :operation-done-p method-form
-        | :depends-on ( {dependency-def}* )
+        | :depends-on ( @var{dependency-def}* )
         | :serial [ t | nil ]
-        | :in-order-to ( {dependency}+ )
+        | :in-order-to ( @var{dependency}+ )
 
-component-list := ( {component-def}* )
+component-list := ( @var{component-def}* )
 
-component-def  := ( component-type simple-component-name {option}* )
+component-def  := ( component-type simple-component-name @var{option}* )
 
 component-type := :system | :module | :file | :static-file | other-component-type
 
-other-component-type := symbol-by-name
+other-component-type := symbol-by-name (@pxref{The defsystem grammar,,Component types})
 
 dependency-def := simple-component-name
                | ( :feature name )
                | ( :version simple-component-name version-specifier)
 
-dependency := (dependent-op {requirement}+)
-requirement := (required-op {required-component}+)
+dependency := (dependent-op @var{requirement}+)
+requirement := (required-op @var{required-component}+)
              | (feature feature-name)
 dependent-op := operation-name
 required-op := operation-name | feature
@@ -783,9 +783,9 @@ simple-component-name := string
 
 pathname-specifier := pathname | string | symbol
 
-method-form := (operation-name qual lambda-list &rest body)
+method-form := (operation-name qual lambda-list @&rest body)
 qual := method qualifier
-@end verbatim
+@end example
 
 @subsection Component names
 
