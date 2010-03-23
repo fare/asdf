@@ -263,7 +263,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.660" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.661" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -1572,26 +1572,6 @@ recursive calls to traverse.")
                 (try-recompiling "Recompile ~a and try loading it again"
                                   (component-name c))
               (setf state :failed-load)
-              (call-next-method)
-              (setf state :success)))))))
-
-(defmethod perform-with-restarts ((o compile-op) (c cl-source-file))
-  (let ((state :initial))
-    (loop :until (or (eq state :success)
-                     (eq state :failure)) :do
-         (case state
-           (:recompiled
-            (setf state :failure)
-            (call-next-method)
-            (setf state :success))
-           (:failed-compile
-            (setf state :recompiled)
-            (perform-with-restarts o c))
-           (t
-            (with-simple-restart
-                (try-recompiling "Try recompiling ~a"
-                                  (component-name c))
-              (setf state :failed-compile)
               (call-next-method)
               (setf state :success)))))))
 
