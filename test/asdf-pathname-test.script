@@ -272,17 +272,6 @@
       (setf (logical-pathname-translations "ASDFTEST") nil))
     (remhash "test-system" asdf::*defined-systems*)))
 
-#+clisp
-(trace
- make-pathname
- make-instance
- asdf::component-pathname
- asdf::component-relative-pathname
- asdf::merge-pathnames*
- asdf::merge-component-name-type
- asdf::component-name-to-pathname-components
- make-pathname)
-
 (quit-on-error
  (asdf:initialize-source-registry)
  (format t "source registry: ~S~%" (asdf::source-registry))

@@ -188,9 +188,9 @@ if [ -z "$command" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 else
     create_config
-    mkdir -p results
+    mkdir -p ../tmp/results
     thedate=`date "+%Y-%m-%d"`
     do_tests "$command" "$eval" 2>&1 | \
-	tee "results/${lisp}.text" "results/${lisp}-${thedate}.save"
+	tee "../tmp/results/${lisp}.text" "../tmp/results/${lisp}-${thedate}.save"
     clean_up
 fi

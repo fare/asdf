@@ -121,7 +121,8 @@
                p)))
     (let ((redefined-functions
            '(#:perform #:explain #:output-files #:operation-done-p
-             #:perform-with-restarts #:component-relative-pathname)))
+             #:perform-with-restarts #:component-relative-pathname
+             #:system-source-file)))
       (ensure-package
        ':asdf-utilities
        :nicknames '(#:asdf-extensions)
@@ -262,7 +263,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.658" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.659" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -587,10 +588,10 @@ ways that the filename components can be missing are for it to be `nil`,
 Note that this does _not_ check to see that `pathname` points to an
 actually-existing directory."
   (flet ((check-one (x)
-           (not (null (member x '(nil :unspecific "")
-                              :test 'equal)))))
+           (member x '(nil :unspecific "") :test 'equal)))
     (and (check-one (pathname-name pathname))
-         (check-one (pathname-type pathname)))))
+         (check-one (pathname-type pathname))
+         t)))
 
 (defun ensure-directory-pathname (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to directory form."
@@ -2048,7 +2049,9 @@ output to `*verbose-out*`.  Returns the shell's exit code."
 ;;;; ---------------------------------------------------------------------------
 ;;;; system-relative-pathname
 
-(defmethod system-source-file ((system-name t))
+(defmethod system-source-file ((system-name string))
+  (system-source-file (find-system system-name)))
+(defmethod system-source-file ((system-name symbol))
   (system-source-file (find-system system-name)))
 
 (defun system-source-directory (system-name)
