@@ -263,7 +263,7 @@
   ;; This parameter isn't actually user-visible
   ;; -- please use the exported function ASDF:ASDF-VERSION below.
   ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-  (subseq "VERSION:1.659" (1+ (length "VERSION"))))
+  (subseq "VERSION:1.660" (1+ (length "VERSION"))))
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
@@ -2317,6 +2317,13 @@ with a different configuration, so the configuration would be re-read then."
           (etypecase x
             (pathname x)
             (string (ensure-directory-pathname x))
+            (cons
+             (let ((car (resolve-absolute-location-component (car x) nil)))
+               (if (null (cdr x))
+                   car
+                   (let ((cdr (resolve-relative-location-component
+                               car (cdr x) wildenp)))
+                     (merge-pathnames* cdr car)))))
             ((eql :home) (user-homedir-pathname))
             ((eql :user-cache) (resolve-location *user-cache* nil))
             ((eql :system-cache) (resolve-location *system-cache* nil))
@@ -2333,6 +2340,13 @@ with a different configuration, so the configuration would be re-read then."
   (let* ((r (etypecase x
               (pathname x)
               (string x)
+              (cons
+               (let ((car (resolve-relative-location-component super (car x) nil)))
+                 (if (null (cdr x))
+                     car
+                     (let ((cdr (resolve-relative-location-component
+                                 (merge-pathnames* car super) (cdr x) wildenp)))
+                       (merge-pathnames* cdr car)))))
               ((eql :current-directory)
                (relativize-pathname-directory
                 (truenamize *default-pathname-defaults*)))
@@ -2509,8 +2523,9 @@ with a different configuration, so the configuration would be re-read then."
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (when src
               (let* ((trusrc (truenamize (resolve-location src t)))
-                     (trudst (if dst (resolve-location dst t) trusrc)))
-                (funcall collect (list trudst trudst))
+                     (trudst (if dst (resolve-location dst t) trusrc))
+                     (wilddst (make-pathname :name :wild :type :wild :defaults trudst)))
+                (funcall collect (list wilddst wilddst))
                 (funcall collect (list trusrc trudst))))))))
 
 (defun compute-output-translations (&optional parameter)
@@ -2562,6 +2577,39 @@ return the configuration"
    (apply #'compile-file-pathname
           (truenamize (lispize-pathname input-file))
           keys)))
+
+;;;; -----------------------------------------------------------------
+;;;; Compatibility mode for ASDF-Binary-Locations
+
+(defun enable-asdf-binary-locations-compatibility
+    (&key
+     (centralize-lisp-binaries nil)
+     (default-toplevel-directory
+         ;; Use ".cache/common-lisp" instead ???
+         (merge-pathnames* (make-pathname :directory '(:relative ".fasls"))
+                           (user-homedir-pathname)))
+     (include-per-user-information nil)
+     (map-all-source-files nil)
+     (source-to-target-mappings nil))
+  (let* ((fasl-type (pathname-type (compile-file-pathname "foo.lisp")))
+         (wild-inferiors (make-pathname :directory '(:relative :wild-inferiors)))
+         (mapped-files (make-pathname
+                        :name :wild
+                        :type (if map-all-source-files :wild fasl-type)))
+         (destination-directory
+          (if centralize-lisp-binaries
+              `(,default-toplevel-directory
+                ,@(when include-per-user-information
+                        (cdr (pathname-directory (user-homedir-pathname))))
+                :implementation ,wild-inferiors)
+              `(:root ,wild-inferiors :implementation))))
+    (initialize-output-translations
+     `(:output-translations
+       ,@source-to-target-mappings
+       ((:root ,wild-inferiors ,mapped-files)
+        (,@destination-directory ,mapped-files))
+       (:root :root)
+       :ignore-inherited-configuration))))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Windows shortcut support.  Based on:
