@@ -267,9 +267,8 @@
 
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
-
-Not officially supported:
-you can compare this string with ASDF::VERSION-SATISFIES."
+You can compare this string with e.g.:
+(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"1.661\")."
   *asdf-version*)
 
 (defvar *resolve-symlinks* t
