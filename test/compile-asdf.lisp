@@ -6,7 +6,8 @@
   ((not (probe-file *asdf-lisp*))
    (leave-lisp "Testsuite failed: unable to find ASDF source" 3))
   ((and (probe-file *asdf-fasl*)
-        (> (file-write-date *asdf-fasl*) (file-write-date *asdf-lisp*)))
+        (> (file-write-date *asdf-fasl*) (file-write-date *asdf-lisp*))
+        (ignore-errors (load *asdf-fasl*)))
    (leave-lisp "Reusing previously-compiled ASDF" 0))
   (t
    (let ((tmp (make-pathname :name "asdf-tmp" :defaults *asdf-fasl*)))
@@ -29,6 +30,7 @@
           #+ecl
           (when warnings-p
             (format t "~&ASDF compiled with warnings. Please fix ECL.~%"))
-          (ignore-errors (delete-file *asdf-fasl*))
+          (when (probe-file *asdf-fasl*)
+            (delete-file *asdf-fasl*))
           (rename-file tmp *asdf-fasl*)
           (leave-lisp "ASDF compiled cleanly" 0)))))))

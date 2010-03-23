@@ -7,25 +7,21 @@
  (asdf:operate 'asdf:load-op 'test-module-depend)
 
  ;; test that it compiled
- (defvar file1-date (file-write-date (asdf:compile-file-pathname* "file1")))
+ (let ((file1-date (file-write-date (asdf:compile-file-pathname* "file1"))))
 
- (assert (and file1-date (file-write-date (asdf:compile-file-pathname* "file2"))))
+   (assert (and file1-date (file-write-date (asdf:compile-file-pathname* "file2"))))
 
- ;; and loaded
- (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
+   ;; and loaded
+   (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
 
+   ;; now touch file1 and check that file2 _is_ also recompiled
+   ;; this will only work if the cross-module (intra-system)
+   ;; dependency bug is fixed.
 
- ;; now touch file1 and check that file2 _is_ also recompiled
- ;; this will only work if the cross-module (intra-system)
- ;; dependency bug is fixed.
-
- (let ((before (file-write-date (asdf:compile-file-pathname* "file2"))))
-   (asdf::run-shell-command "touch file1.lisp")
-   (sleep 1)
-   (asdf:operate 'asdf:load-op 'test-module-depend)
-   (assert (>  (file-write-date (asdf:compile-file-pathname* "file2")) before))
-   ;; does this properly go to the second level?
-   (assert (>  (file-write-date (asdf:compile-file-pathname* "file3")) before))
-   ))
-
-
+   (let ((before (file-write-date (asdf:compile-file-pathname* "file2"))))
+     (asdf::run-shell-command "touch file1.lisp")
+     (sleep 1)
+     (asdf:operate 'asdf:load-op 'test-module-depend)
+     (assert (> (file-write-date (asdf:compile-file-pathname* "file2")) before))
+     ;; does this properly go to the second level?
+     (assert (> (file-write-date (asdf:compile-file-pathname* "file3")) before)))))

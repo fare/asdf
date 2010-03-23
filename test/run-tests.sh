@@ -165,9 +165,9 @@ if ! type "$command" ; then
     exit 43
 fi
 
-asdfdir="$(cd .. ; /bin/pwd)"
-export CL_SOURCE_REGISTRY="${asdfdir}"
-export ASDF_OUTPUT_TRANSLATIONS="${asdfdir}:${asdfdir}/tmp/fasls/$(basename $command):"
+ASDFDIR="$(cd .. ; /bin/pwd)"
+export CL_SOURCE_REGISTRY="${ASDFDIR}"
+export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/tmp/fasls\" :implementation)) :ignore-inherited-configuration)"
 env | grep asdf
 
 command="$command $flags"

@@ -2123,7 +2123,7 @@ or subdirectories of the path before them, or bust.
 
 The last component, if not a pathname, is notionally completed by @file{/**/*.*}.
 You can specify more fine-grained patterns
-by using a pathname obj1ect as the last component
+by using a pathname object as the last component
 e.g. @file{#p"some/path/**/foo*/bar-*.fasl"}
 
 You may use @code{#+features} to customize the configuration file.
