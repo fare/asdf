@@ -2345,9 +2345,7 @@ The valid values for these variables are
 ASDF includes several additional features that are generally
 useful for system definition and development. These include:
 
-@enumerate
-@item
-@code{system-relative-pathname}
+@defun system-relative-pathname system name @&key type
 
 It's often handy to locate a file relative to some system.
 The @code{system-relative-pathname} function meets this need.
@@ -2365,8 +2363,16 @@ and optionally a keyword argument @code{type}.
 The arguments will then be interpreted in the same way
 as pathname specifiers for components.
 @xref{The defsystem grammar,,Pathname specifiers}.
+@end defun
 
-@end enumerate
+@defun system-source-directory system-designator
+
+ASDF does not provide a turnkey solution for locating data (or other
+miscellaneous) files that are distributed together with the source code
+of a system.  Programmers can use @code{system-source-directory} to find
+such files.  Returns a pathname object.  The @var{system-designator} may
+be a string, symbol, or ASDF system object.
+@end defun
 
 
 @node Getting the latest version, FAQ, Miscellaneous additional functionality, Top
@@ -2444,7 +2450,7 @@ leading to much confusion and greavance.
 
 ASDF 2 implements its own portable syntax for strings as pathname specifiers.
 Naming files within a system definition becomes easy and portable again.
-See @code{asdf:system-relative-pathname},
+@xref{Miscellaneous additional functionality,asdf:system-relative-pathname},
 @code{asdf-utilities:merge-pathnames*},
 @code{asdf::merge-component-name-type}.
 
