@@ -262,7 +262,7 @@
            #:clear-source-registry
            #:ensure-source-registry
            #:process-source-registry))
-        (eval `(defvar ,(intern (string versym) (find-package :asdf)) ,asdf-version))))))
+        (eval `(defparameter ,(intern (string versym) (find-package :asdf)) ,asdf-version))))))
 
 (in-package #:asdf)
 
