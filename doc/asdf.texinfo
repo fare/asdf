@@ -2645,6 +2645,35 @@ in the source directory of some system, and
 use @code{asdf:apply-output-translations} to locate a file
 whose pathname has been translated by the facility.
 
+@subsection ``How can I wholly disable the compiler output cache?''
+
+To permanently disable the compiler output cache
+for all future runs of ASDF, you can:
+
+@example
+mkdir -p ~/.config/common-lisp/asdf-output-translations.conf.d/
+echo ':disable-cache' > ~/.config/common-lisp/asdf-output-translations.conf.d/99-disable-cache.conf
+@end example
+
+This assumes that you didn't otherwise configure the ASDF files
+(if you did, edit them again),
+and don't somehow override the configuration at runtime
+with a shell variable (see below) or some other runtime command
+(e.g. some call to @code{asdf:initialize-output-translations}).
+
+To disable the compiler output cache in Lisp processes
+run by your current shell, try (assuming @code{bash} or @code{zsh}):
+
+@example
+export ASDF_OUTPUT_TRANSLATIONS=/:
+@end example
+
+To disable the compiler output cache just in the current Lisp process,
+use (after loading ASDF but before using it):
+
+@example
+(asdf:initialize-output-translations "/:")
+@end example
 
 @section Issues with using and extending ASDF to define systems
 
