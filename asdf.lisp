@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.662" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.663" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf (find-symbol (string versym) existing-asdf)))
