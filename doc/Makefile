@@ -1,3 +1,5 @@
+all:	asdf.html asdf.info asdf.pdf
+
 manual-html: asdf.texinfo
 	makeinfo --html asdf.texinfo
 
@@ -10,3 +12,7 @@ asdf.info: asdf.texinfo
 asdf.pdf: asdf.texinfo
 	texi2pdf asdf.texinfo
 
+.PHONY: clean
+clean:
+	-rm -r asdf
+	-rm asdf.info asdf.html asdf.pdf
