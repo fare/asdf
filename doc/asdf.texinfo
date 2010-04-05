@@ -1134,7 +1134,7 @@ in a way that is compatible with all of the various test libraries
 and test techniques in use in the community.
 @end deffn
 
-@c @deffn Operation test-system-version &key minimum
+@c @deffn Operation test-system-version @&key minimum
 
 @c Asks the system whether it satisfies a version requirement.
 
@@ -2067,7 +2067,7 @@ as configured by the system distributor, or by default.
 Nevertheless, if you are a fan of @code{ASDF-Binary-Locations},
 we provide a limited emulation mode:
 
-@defun asdf:enable-asdf-binary-locations-compatibility &key centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
+@defun asdf:enable-asdf-binary-locations-compatibility @&key centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
 This function will initialize the new @code{asdf-output-translations} facility in a way
 that emulates the behavior of the old @code{ASDF-Binary-Locations} facility.
 Where you would previously set global variables
