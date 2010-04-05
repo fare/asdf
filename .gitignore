@@ -5,8 +5,11 @@ common-lisp.net
 init-lisp.lisp
 website/changelog.xml
 push
+resbcl
+reccl
 
 # Temporary files from documentation build
+doc/asdf/
 doc/asdf.aux
 doc/asdf.cp
 doc/asdf.cps

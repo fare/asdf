@@ -560,7 +560,7 @@ pathnames."
     :append (list k v)))
 
 (defun resolve-symlinks (path)
-  #-allegro (truename path)
+  #-allegro (truenamize path)
   #+allegro (excl:pathname-resolve-symbolic-links path))
 
 (defun getenv (x)
@@ -829,7 +829,7 @@ actually-existing directory."
 (defun component-parent-pathname (component)
   (aif (component-parent component)
        (component-pathname it)
-       (truename *default-pathname-defaults*)))
+       (truenamize *default-pathname-defaults*)))
 
 (defmethod component-pathname ((component component))
   (merge-pathnames* (component-relative-pathname component)
