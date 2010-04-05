@@ -2159,6 +2159,11 @@ located."
 
 ;;; ---------------------------------------------------------------------------
 ;;; Generic support for configuration files
+
+(defun user-homedir ()
+  #+cmu (truename (user-homedir-pathname))
+  #-cmu (user-homedir-pathname))
+
 (defun try-directory-subpath (x sub &key type)
   (let* ((p (and x (ensure-directory-pathname x)))
          (tp (and p (ignore-errors (truename p))))
@@ -2177,9 +2182,9 @@ located."
         ,@`(#+lispworks ,(try (sys:get-folder-path :common-appdata) "common-lisp/config/")
             ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
            #+(not cygwin)
-           ,(try (or (getenv "USERPROFILE") (user-homedir-pathname))
+           ,(try (or (getenv "USERPROFILE") (user-homedir))
                  "Application Data/common-lisp/config/"))
-       ,(try (user-homedir-pathname) ".config/common-lisp/")))))
+       ,(try (user-homedir) ".config/common-lisp/")))))
 (defun system-configuration-directories ()
   (remove-if
    #'null
@@ -2259,7 +2264,7 @@ and the order is by decreasing length of namestring of the source pathname.")
      (and h `(,h "common-lisp" "cache")))
    #+(and windows (not cygwin))
    ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Cache
-   (let ((h (or (getenv "USERPROFILE") (user-homedir-pathname))))
+   (let ((h (or (getenv "USERPROFILE") (user-homedir))))
      (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
    '(:home ".cache" "common-lisp" :implementation)))
 (defvar *system-cache*
@@ -2268,7 +2273,7 @@ and the order is by decreasing length of namestring of the source pathname.")
    (let ((h (sys:get-folder-path :common-appdata))) ;; no :common-caches in Windows???
      (and h `(,h "common-lisp" "cache")))
    #+windows
-   (let ((h (or (getenv "USERPROFILE") (user-homedir-pathname))))
+   (let ((h (or (getenv "USERPROFILE") (user-homedir))))
      (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
    '(:root "var" "cache" "common-lisp" :uid :implementation)))
 
@@ -2314,7 +2319,7 @@ with a different configuration, so the configuration would be re-read then."
                    (let ((cdr (resolve-relative-location-component
                                car (cdr x) wildenp)))
                      (merge-pathnames* cdr car)))))
-            ((eql :home) (user-homedir-pathname))
+            ((eql :home) (user-homedir))
             ((eql :user-cache) (resolve-location *user-cache* nil))
             ((eql :system-cache) (resolve-location *system-cache* nil))
             ((eql :current-directory) (truenamize *default-pathname-defaults*))
@@ -2617,7 +2622,7 @@ effectively disabling the output translation facility."
      (default-toplevel-directory
          ;; Use ".cache/common-lisp" instead ???
          (merge-pathnames* (make-pathname :directory '(:relative ".fasls"))
-                           (user-homedir-pathname)))
+                           (user-homedir)))
      (include-per-user-information nil)
      (map-all-source-files nil)
      (source-to-target-mappings nil))
@@ -2630,7 +2635,7 @@ effectively disabling the output translation facility."
           (if centralize-lisp-binaries
               `(,default-toplevel-directory
                 ,@(when include-per-user-information
-                        (cdr (pathname-directory (user-homedir-pathname))))
+                        (cdr (pathname-directory (user-homedir))))
                 :implementation ,wild-inferiors)
               `(:root ,wild-inferiors :implementation))))
     (initialize-output-translations
@@ -2862,20 +2867,20 @@ with a different configuration, so the configuration would be re-read then."
 (defun default-source-registry ()
   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
     `(:source-registry
-      #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir-pathname)))
+      #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir)))
       (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
       ,@(let*
          #+(or (not windows) cygwin)
          ((datahome
            (or (getenv "XDG_DATA_HOME")
-               (try (user-homedir-pathname) ".local/share/")))
+               (try (user-homedir) ".local/share/")))
           (datadirs
            (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
           (dirs (cons datahome (split-string datadirs :separator ":"))))
          #+(and windows (not cygwin))
          ((datahome
            #+lispworks (sys:get-folder-path :common-appdata)
-           #-lispworks (try (or (getenv "USERPROFILE") (user-homedir-pathname))
+           #-lispworks (try (or (getenv "USERPROFILE") (user-homedir))
                             "Application Data"))
           (datadir
            #+lispworks (sys:get-folder-path :local-appdata)
