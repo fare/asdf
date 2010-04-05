@@ -277,6 +277,16 @@ for multiple mutually incompatible implementations.
 At worst, you may have to have multiple copies of the new ASDF,
 e.g. one per implementation installation, to avoid clashes.
 
+Finally, note that there are some limitations to upgrading ASDF:
+@itemize
+@item
+Any ASDF extension is invalidated, and will need to be reloaded.
+@item
+It is safer if you upgrade ASDF and its extensions as a special step
+at the very beginning of whatever script you are running,
+before you start using ASDF to load anything else.
+@end itemize
+
 
 @section Loading an otherwise installed ASDF
 
@@ -2054,16 +2064,33 @@ might have been doing the right thing for some users),
 and yet will experience software that ``just works'',
 as configured by the system distributor, or by default.
 
-Nevertheless, if you want to use the old @code{ASDF-Binary-Locations}
+Nevertheless, if you are a fan of @code{ASDF-Binary-Locations},
+we provide a limited emulation mode:
+
+@defun asdf:enable-asdf-binary-locations-compatibility &key centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
+This function will initialize the new @code{asdf-output-translations} facility in a way
+that emulates the behavior of the old @code{ASDF-Binary-Locations} facility.
+Where you would previously set global variables
+@var{*centralize-lisp-binaries*},
+@var{*default-toplevel-directory*},
+@var{*include-per-user-information*},
+@var{*map-all-source-files*} or @var{*source-to-target-mappings*}
+you will now have to pass the same values as keyword arguments to this function.
+Note however that as an extension the @code{:source-to-target-mappings} keyword argument
+will accept any valid pathname designator for @code{asdf-output-translations}
+instead of just strings and pathnames.
+@end defun
+
+If you insist, you can also keep using the old @code{ASDF-Binary-Locations}
 (the one available as an extension to load of top of ASDF,
 not the one built into a few old versions of ASDF),
-it may still work if you just make sure you disable the new
-builtin @code{asdf-output-translations}.
-But if you configure both ASDF's new builtin and @code{ASDF-Binary-Locations}
-(or an old @code{common-lisp-controller} or @code{cl-launch}),
-you may experience ``interesting'' issues, so don't do it.
+but first you must disable @code{asdf-output-translations}
+with @code{(asdf:disable-output-translations)},
+or you might experience ``interesting'' issues.
 
-Also, note that this feature is enabled by default.
+Also, note that output translation is enabled by default.
+To disable it, use @code{(asdf:disable-output-translations)}.
+
 
 @section Configuration DSL
 
@@ -2250,8 +2277,14 @@ The specified functions are exported from package ASDF.
    or a symbol (fbound to function that when called returns one of the above).
 @end defun
 
+@defun disable-output-translations
+   will initialize output translations in a way
+   that maps every pathname to itself,
+   effectively disabling the output translation facility.
+@end defun
+
 @defun clear-output-translations
-   undoes any output location configuration
+   undoes any output translation configuration
    and clears any cache for the mapping algorithm.
    You might want to call that before you
    dump an image that would be resumed with a different configuration,

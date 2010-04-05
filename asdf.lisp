@@ -61,6 +61,7 @@
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
           (subseq "VERSION:1.664" (1+ (length "VERSION"))))
+         #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf (find-symbol (string versym) existing-asdf)))
@@ -251,6 +252,7 @@
            #:remove-entry-from-registry
 
            #:initialize-output-translations
+           #:disable-output-translations
            #:clear-output-translations
            #:ensure-output-translations
            #:apply-output-translations
@@ -2528,6 +2530,12 @@ with a different configuration, so the configuration would be re-read then."
   "read the configuration, initialize the internal configuration variable,
 return the configuration"
   (setf (output-translations) (compute-output-translations parameter)))
+
+(defun disable-output-translations ()
+  "Initialize output translations in a way that maps every file to itself,
+effectively disabling the output translation facility."
+  (initialize-output-translations
+   '(:output-translations :disable-cache :ignore-inherited-configuration)))
 
 ;; checks an initial variable to see whether the state is initialized
 ;; or cleared. In the former case, return current configuration; in
