@@ -153,6 +153,7 @@ case "$lisp" in
     eval="-eval" ;;
   abcl)
     command="${ABCL:-abcl}"
+    flags="--noinit --noinform"
     eval="--eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2

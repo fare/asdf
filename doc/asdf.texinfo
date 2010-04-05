@@ -802,7 +802,7 @@ qual := method qualifier
 Component names (@code{simple-component-name})
 may be either strings or symbols.
 
-@subsection Component types 
+@subsection Component types
 
 Component type names, even if expressed as keywords, will be looked up
 by name in the current package and in the asdf package, if not found in
@@ -1828,7 +1828,7 @@ The specified functions are exported from your build system's package.
 Thus for ASDF the corresponding functions are in package ASDF,
 and for XCVB the corresponding functions are in package XCVB.
 
-@defun initialize-source-registry PARAMETER
+@defun initialize-source-registry @&optional PARAMETER
    will read the configuration and initialize all internal variables.
    You may extend or override configuration
    from the environment and configuration files
@@ -1851,7 +1851,7 @@ and for XCVB the corresponding functions are in package XCVB.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-source-registry PARAMETER
+@defun ensure-source-registry @&optional PARAMETER
    checks whether a source registry has been initialized.
    If not, initialize it with the given @var{PARAMETER}.
 @end defun
@@ -2120,6 +2120,8 @@ DIRECTIVE :=
     ;; add a single directory to be scanned (no recursion)
     (DIRECTORY-DESIGNATOR DIRECTORY-DESIGNATOR)
 
+    ;; use a function to return the translation of a directory designator
+    (DIRECTORY-DESIGNATOR (:function TRANSLATION-FUNCTION))
 
 DIRECTORY-DESIGNATOR :=
     ABSOLUTE-COMPONENT-DESIGNATOR |
@@ -2143,6 +2145,13 @@ RELATIVE-COMPONENT-DESIGNATOR :=
     :CURRENT-DIRECTORY | ;; all components of the current directory, without the :absolute
     :UID | ;; current UID -- not available on Windows
     :USER ;; current USER name -- NOT IMPLEMENTED(!)
+
+TRANSLATION-FUNCTION :=
+    SYMBOL | ;; symbol of a function that takes two arguments,
+             ;; the pathname to be translated and the matching DIRECTORY-DESIGNATOR
+    LAMBDA   ;; A form which evalutates to a function taking two arguments consisting of
+             ;; the pathname to be translated and the matching DIRECTORY-DESIGNATOR
+
 @end verbatim
 
 Relative components better be either relative
@@ -2160,6 +2169,17 @@ to anything but themselves (same as if the second designator was the same as the
 
 @code{:include} statements cause the search to recurse with the path specifications
 from the file specified.
+
+If the @code{translate-pathname} mechanism cannot achieve a desired
+translation, the user may provide a function which provides the
+required algorithim.  Such a translation function is specified by
+supplying a list as the second @code{directory-designator} whose first
+element is the keyword @code{:function}, and whose second element is
+either a symbol which designates a function or a lambda expression.
+The function designated by the second argument must take two
+arguments, the first being the pathname of the source file, the second
+being the wildcard that was matched.  The result of the function
+invocation should be the translated pathname.
 
 An @code{:inherit-configuration} statement cause the search to recurse with the path
 specifications from the next configuration.
@@ -2265,7 +2285,7 @@ To explicitly flush any information cached by the system, use the API below.
 
 The specified functions are exported from package ASDF.
 
-@defun initialize-output-translations PARAMETER
+@defun initialize-output-translations @&optional PARAMETER
    will read the configuration and initialize all internal variables.
    You may extend or override configuration
    from the environment and configuration files
@@ -2294,7 +2314,7 @@ The specified functions are exported from package ASDF.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-output-translations PARAMETER
+@defun ensure-output-translations @&optional PARAMETER
    checks whether output translations have been initialized.
    If not, initialize them with the given @var{PARAMETER}.
    This function will be called before any attempt to operate on a system.

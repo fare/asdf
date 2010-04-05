@@ -2364,6 +2364,16 @@ with a different configuration, so the configuration would be re-read then."
   (flet ((componentp (c) (typep c '(or string pathname keyword))))
     (or (null x) (componentp x) (and (consp x) (every #'componentp x)))))
 
+(defun location-function-p (x)
+  (and
+   (consp x)
+   (length=n-p x 2)
+   (or (and (equal (first x) :function)
+            (typep (second x) 'symbol))
+       (and (equal (first x) 'lambda)
+            (cddr x)
+            (length=n-p (second x) 2)))))
+
 (defun validate-output-translations-directive (directive)
   (unless
       (or (member directive '(:inherit-configuration
@@ -2374,7 +2384,8 @@ with a different configuration, so the configuration would be re-read then."
                         (or (and (eq (first directive) :include)
                                  (typep (second directive) '(or string pathname null)))
                             (and (location-designator-p (first directive))
-                                 (location-designator-p (second directive)))))
+                                 (or (location-designator-p (second directive))
+                                     (location-function-p (second directive))))))
                    (and (length=n-p directive 1)
                         (location-designator-p (first directive))))))
     (error "Invalid directive ~S~%" directive))
@@ -2447,6 +2458,8 @@ with a different configuration, so the configuration would be re-read then."
     #+sbcl (,(getenv "SBCL_HOME") ())
     #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; only needed if LPNs are resolved manually.
     #+clozure (,(wilden (ccl::ccl-directory)) ()) ; not needed: no precompiled ASDF system
+    #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
+    #+abcl (#p"/:jar:file/**/*.*" (:user-cache #p"**/*.*"))
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
     ;; If we want to enable the user cache by default, here would be the place:
@@ -2512,11 +2525,17 @@ with a different configuration, so the configuration would be re-read then."
             (when dst
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (when src
-              (let* ((trusrc (truenamize (resolve-location src t)))
-                     (trudst (if dst (resolve-location dst t) trusrc))
-                     (wilddst (make-pathname :name :wild :type :wild :defaults trudst)))
-                (funcall collect (list wilddst wilddst))
-                (funcall collect (list trusrc trudst))))))))
+              (let ((trusrc (truenamize (resolve-location src t))))
+                (if (location-function-p dst)
+                    (funcall collect
+                             (list trusrc
+                                   (if (symbolp (second dst))
+                                       (fdefinition (second dst))
+                                       (eval (second dst)))))
+                    (let* ((trudst (if dst (resolve-location dst t) trusrc))
+                           (wilddst (make-pathname :name :wild :type :wild :defaults trudst)))
+                      (funcall collect (list wilddst wilddst))
+                      (funcall collect (list trusrc trudst))))))))))
 
 (defun compute-output-translations (&optional parameter)
   "read the configuration, return it"
@@ -2552,11 +2571,14 @@ effectively disabling the output translation facility."
      path)
     ((or pathname string)
      (ensure-output-translations)
-     (setf path (truenamize path))
-     (loop :for (source destination) :in (car *output-translations*)
-       :when (pathname-match-p path source)
-       :return (translate-pathname path source destination)
-       :finally (return path)))))
+     (loop :with p = (truenamize path)
+       :for (source destination) :in (car *output-translations*)
+       :when (pathname-match-p p source)
+       :return
+        (if (functionp destination)
+            (funcall destination p source)
+            (translate-pathname p source destination))
+       :finally (return p)))))
 
 (defmethod output-files :around (operation component)
   "Translate output files, unless asked not to"
@@ -2573,6 +2595,18 @@ effectively disabling the output translation facility."
    (apply #'compile-file-pathname
           (truenamize (lispize-pathname input-file))
           keys)))
+
+(defun translate-jar-pathname (source wildcard)
+  (declare (ignore wildcard))
+  (let ((root (apply-output-translations
+               (concatenate 'string
+                            "/:jar:file/"
+                            (namestring (first (pathname-device
+                                                source))))))
+        (entry (make-pathname :directory (pathname-directory source)
+                              :name (pathname-name source)
+                              :type (pathname-type source))))
+    (concatenate 'string (namestring root) (namestring entry))))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Compatibility mode for ASDF-Binary-Locations
@@ -2950,10 +2984,15 @@ with a different configuration, so the configuration would be re-read then."
 ;;;; -----------------------------------------------------------------
 ;;;; SBCL and ClozureCL hook into REQUIRE
 ;;;;
-#+(or sbcl clozure)
+#+(or sbcl clozure abcl)
 (progn
   (defun module-provide-asdf (name)
-    (handler-bind ((style-warning #'muffle-warning))
+    (handler-bind
+        ((style-warning #'muffle-warning)
+         (missing-component (constantly nil))
+         (error (lambda (e)
+                  (format *error-output* "ASDF could not load ~A because ~A.~%"
+                          name e))))
       (let* ((*verbose-out* (make-broadcast-stream))
              (system (asdf:find-system name nil)))
         (when system
@@ -2961,7 +3000,8 @@ with a different configuration, so the configuration would be re-read then."
           t))))
   (pushnew 'module-provide-asdf
            #+sbcl sb-ext:*module-provider-functions*
-           #+clozure ccl::*module-provider-functions*))
+           #+clozure ccl::*module-provider-functions*
+           #+abcl sys::*module-provider-functions*))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups after hot-upgrade.
