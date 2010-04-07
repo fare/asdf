@@ -500,7 +500,7 @@ To wholly disable output translations for all directories,
 you can create a file @file{00-disable.conf}
 with the line:
 
-@kbd{(:root :root)}
+@kbd{(t t)}
 
 Note that your Operating System distribution or your system administrator
 may already have configured translations for you.
@@ -1772,7 +1772,11 @@ ASDF will skip to next configuration if it's an empty string.
 It will @code{READ} the string as a SEXP in the DSL
 if it begins with a paren @code{(}
 and it will be interpreted much like @code{TEXINPUTS}
-as @code{:} (colon) separated list of paths, where
+list of paths, where
+
+  * paths are separated
+   by a @code{:} (colon) on Unix platforms (including cygwin),
+   by a @code{;} (semicolon) on other platforms (mainly, Windows).
 
   * each entry is a directory to add to the search path.
 
@@ -2124,6 +2128,7 @@ DIRECTIVE :=
     (DIRECTORY-DESIGNATOR (:function TRANSLATION-FUNCTION))
 
 DIRECTORY-DESIGNATOR :=
+    T | ;; as source matches anything, as destination leaves pathname unmapped.
     ABSOLUTE-COMPONENT-DESIGNATOR |
     (ABSOLUTE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...)
 
@@ -2134,7 +2139,6 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
     :HOME | ;; designates the user-homedir-pathname ~/
     :USER-CACHE | ;; designates the default location for the user cache
     :SYSTEM-CACHE | ;; designates the default location for the system cache
-    :ROOT | ;; the root of the filesystem hierarchy
     :CURRENT-DIRECTORY ;; the current directory
 
 RELATIVE-COMPONENT-DESIGNATOR :=
@@ -2187,9 +2191,9 @@ specifications from the next configuration.
 
 @itemize
 @item
-@code{:enable-user-cache} is the same as @code{(:root :user-cache)}.
+@code{:enable-user-cache} is the same as @code{(t :user-cache)}.
 @item
-@code{:disable-cache} is the same as @code{(:root :root)}.
+@code{:disable-cache} is the same as @code{(t t)}.
 @item
 @code{:user-cache} uses the contents of variable @code{asdf::*user-cache*}
 which by default is the same as using
@@ -2197,7 +2201,8 @@ which by default is the same as using
 @item
 @code{:system-cache} uses the contents of variable @code{asdf::*system-cache*}
 which by default is the same as using
-@code{(:root "var" "cache" "common-lisp" :uid :implementation-type)}
+@code{("/var/cache/common-lisp" :uid :implementation-type)}
+(on Unix and cygwin), or something semi-sensible on Windows.
 @end itemize
 
 
@@ -2233,8 +2238,11 @@ When considering environment variable @code{ASDF_OUTPUT_TRANSLATIONS}
 ASDF will skip to next configuration if it's an empty string.
 It will @code{READ} the string as an SEXP in the DSL
 if it begins with a paren @code{(}
-and it will be interpreted as a colon-separated list of directories.
+and it will be interpreted as a list of directories.
 Directories should come by pairs, indicating a mapping directive.
+Entries are separated
+by a @code{:} (colon) on Unix platforms (including cygwin),
+by a @code{;} (semicolon) on other platforms (mainly, Windows).
 
 The magic empty entry,
 if it comes in what would otherwise be the first entry in a pair,
@@ -2721,7 +2729,8 @@ with a shell variable (see below) or some other runtime command
 (e.g. some call to @code{asdf:initialize-output-translations}).
 
 To disable the compiler output cache in Lisp processes
-run by your current shell, try (assuming @code{bash} or @code{zsh}):
+run by your current shell, try (assuming @code{bash} or @code{zsh})
+(on Unix and cygwin only):
 
 @example
 export ASDF_OUTPUT_TRANSLATIONS=/:
@@ -2731,7 +2740,7 @@ To disable the compiler output cache just in the current Lisp process,
 use (after loading ASDF but before using it):
 
 @example
-(asdf:initialize-output-translations "/:")
+(asdf:disable-output-translations)
 @end example
 
 @section Issues with using and extending ASDF to define systems

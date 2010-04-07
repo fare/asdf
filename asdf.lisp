@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.666" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.667" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -2160,9 +2160,12 @@ located."
 ;;; ---------------------------------------------------------------------------
 ;;; Generic support for configuration files
 
+(defparameter *inter-directory-separator*
+  #+(or unix cygwin) #\:
+  #-(or unix cygwin) #\;)
+
 (defun user-homedir ()
-  #+cmu (truename (user-homedir-pathname))
-  #-cmu (user-homedir-pathname))
+  (truename (user-homedir-pathname)))
 
 (defun try-directory-subpath (x sub &key type)
   (let* ((p (and x (ensure-directory-pathname x)))
@@ -2275,7 +2278,8 @@ and the order is by decreasing length of namestring of the source pathname.")
    #+windows
    (let ((h (or (getenv "USERPROFILE") (user-homedir))))
      (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
-   '(:root "var" "cache" "common-lisp" :uid :implementation)))
+   #+(or unix cygwin)
+   '("/var/cache/common-lisp" :uid :implementation)))
 
 (defun output-translations ()
   (car *output-translations*))
@@ -2284,7 +2288,11 @@ and the order is by decreasing length of namestring of the source pathname.")
   (setf *output-translations*
         (list
          (stable-sort (copy-list x) #'>
-                      :key (lambda (x) (length (pathname-directory (car x))))))))
+                      :key (lambda (x)
+                             (etypecase (car x)
+                               ((eql t) -1)
+                               (pathname
+                                (length (pathname-directory (car x))))))))))
 
 (defun output-translations-initialized-p ()
   (and *output-translations* t))
@@ -2322,8 +2330,7 @@ with a different configuration, so the configuration would be re-read then."
             ((eql :home) (user-homedir))
             ((eql :user-cache) (resolve-location *user-cache* nil))
             ((eql :system-cache) (resolve-location *system-cache* nil))
-            ((eql :current-directory) (truenamize *default-pathname-defaults*))
-            ((eql :root) (make-pathname :directory '(:absolute)))))
+            ((eql :current-directory) (truenamize *default-pathname-defaults*))))
          (s (if (and wildenp (not (pathnamep x)))
                 (wilden r)
                 r)))
@@ -2367,7 +2374,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun location-designator-p (x)
   (flet ((componentp (c) (typep c '(or string pathname keyword))))
-    (or (null x) (componentp x) (and (consp x) (every #'componentp x)))))
+    (or (typep x 'boolean) (componentp x) (and (consp x) (every #'componentp x)))))
 
 (defun location-function-p (x)
   (and
@@ -2428,7 +2435,7 @@ with a different configuration, so the configuration would be re-read then."
       :with start = 0
       :with end = (length string)
       :with source = nil
-      :for i = (or (position #\: string :start start) end) :do
+      :for i = (or (position *inter-directory-separator* string :start start) end) :do
       (let ((s (subseq string start i)))
         (cond
           (source
@@ -2517,9 +2524,9 @@ with a different configuration, so the configuration would be re-read then."
   (if (atom directive)
       (ecase directive
         ((:enable-user-cache)
-         (process-output-translations-directive '(:root :user-cache) :collect collect))
+         (process-output-translations-directive '(t :user-cache) :collect collect))
         ((:disable-cache)
-         (process-output-translations-directive '(:root :root) :collect collect))
+         (process-output-translations-directive '(t t) :collect collect))
         ((:inherit-configuration)
          (inherit-output-translations inherit :collect collect))
         ((:ignore-inherited-configuration)
@@ -2530,17 +2537,21 @@ with a different configuration, so the configuration would be re-read then."
             (when dst
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (when src
-              (let ((trusrc (truenamize (resolve-location src t))))
-                (if (location-function-p dst)
-                    (funcall collect
-                             (list trusrc
-                                   (if (symbolp (second dst))
-                                       (fdefinition (second dst))
-                                       (eval (second dst)))))
-                    (let* ((trudst (if dst (resolve-location dst t) trusrc))
-                           (wilddst (make-pathname :name :wild :type :wild :defaults trudst)))
-                      (funcall collect (list wilddst wilddst))
-                      (funcall collect (list trusrc trudst))))))))))
+              (let ((trusrc (or (eql src t) (truenamize (resolve-location src t)))))
+                (cond
+                  ((location-function-p dst)
+                   (funcall collect
+                            (list trusrc
+                                  (if (symbolp (second dst))
+                                      (fdefinition (second dst))
+                                      (eval (second dst))))))
+                  ((eq dst t)
+                   (funcall collect (list trusrc t)))
+                  (t
+                   (let* ((trudst (if dst (resolve-location dst t) trusrc))
+                          (wilddst (make-pathname :name :wild :type :wild :defaults trudst)))
+                     (funcall collect (list wilddst t))
+                     (funcall collect (list trusrc trudst)))))))))))
 
 (defun compute-output-translations (&optional parameter)
   "read the configuration, return it"
@@ -2578,12 +2589,57 @@ effectively disabling the output translation facility."
      (ensure-output-translations)
      (loop :with p = (truenamize path)
        :for (source destination) :in (car *output-translations*)
-       :when (pathname-match-p p source)
+       :when (or (eq source t) (pathname-match-p p source))
        :return
-        (if (functionp destination)
-            (funcall destination p source)
-            (translate-pathname p source destination))
+       (cond
+         ((functionp destination)
+          (funcall destination p source))
+         ((eq destination t)
+          p)
+         ((and (eq source t) (pathnamep destination))
+          (translate-full-pathname p destination))
+         (t
+          (translate-pathname p source destination)))
        :finally (return p)))))
+
+(defun last-char (s)
+  (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
+
+(defun translate-full-pathname (source destination)
+  (let* ((absolute-destination (merge-pathnames* destination source))
+         (wild-destination
+          (if (wild-pathname-p absolute-destination)
+            absolute-destination
+            (wilden absolute-destination))))
+    #+(or unix cygwin)
+    (translate-pathname source (wilden "/") wild-destination)
+    #-(or unix cygwin)
+    (let* ((base-pathname
+            (make-pathname :directory '(:absolute "FOO")
+                           :defaults destination))
+           (separator
+            (last-char (namestring base-pathname)))
+           (host-device-namestring (namestring
+                                    (make-pathname
+                                     :directory nil :name nil :type nil :version nil
+                                     :defaults source)))
+           (new-base (concatenate 'string (namestring base-pathname)
+                                  (substitute separator #\: host-device-namestring)
+                                  separator))
+           (src-dir (pathname-directory source))
+           (source-relativized-directory
+            (cond
+              ((null src-dir) '(:relative))
+              ((stringp src-dir) '(:relative ,src-dir))
+              ((and (consp src-dir) (member (car src-dir) '(:absolute :relative)))
+               `(:relative ,@(cdr src-dir)))))
+           (rebased-source (merge-pathnames*
+                            (make-pathname :host nil :device nil
+                                           :directory source-relativized-directory
+                                           :defaults source)
+                            base-pathname)))
+      (translate-pathname rebased-source (wilden base-pathname) wild-destination))))
+
 
 (defmethod output-files :around (operation component)
   "Translate output files, unless asked not to"
@@ -2601,6 +2657,7 @@ effectively disabling the output translation facility."
           (truenamize (lispize-pathname input-file))
           keys)))
 
+#+abcl
 (defun translate-jar-pathname (source wildcard)
   (declare (ignore wildcard))
   (let ((root (apply-output-translations
@@ -2643,7 +2700,7 @@ effectively disabling the output translation facility."
        ,@source-to-target-mappings
        ((:root ,wild-inferiors ,mapped-files)
         (,@destination-directory ,mapped-files))
-       (:root :root)
+       (t t)
        :ignore-inherited-configuration))))
 
 ;;;; -----------------------------------------------------------------
@@ -2814,7 +2871,7 @@ with a different configuration, so the configuration would be re-read then."
       :with directives = ()
       :with start = 0
       :with end = (length string)
-      :for pos = (position #\: string :start start) :do
+      :for pos = (position *inter-directory-separator* string :start start) :do
       (let ((s (subseq string start (or pos end))))
         (cond
          ((equal "" s) ; empty element: inherit
