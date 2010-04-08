@@ -1,0 +1,130 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns='http://www.w3.org/1999/xhtml' xml:lang='en' lang='en'>
+  <head>
+    <title>ASDF - Another System Definition Facility</title>
+    <link type='text/css' href='style.css' rel='stylesheet' />
+    <meta name="author" content="the ASDF group"/>
+  </head>
+  <body>
+    <div class="header">
+      <span class="logo">
+        <a href="http://common-lisp.net/project/asdf/" title="ASDF Homepage">
+          <img src="lisp-logo120x80.png" title="ASDF homepage" width="100" alt="Lisp Lizzard" />
+        </a>
+      </span>
+      <h2>ASDF</h2><h4>Another System Definition Facility</h4>
+    </div>
+    <div class="contents">
+      <div class="system-links">
+        <ul>
+          <li><a href="#what_it_is">What it is</a></li>
+          <li><a href="#documentation">Documentation</a></li>
+          <li><a href="#downloads">Getting it</a></li>
+          <li><a href="#bugs">Reporting Bugs</a></li>
+          <li><a href="#mailing-list">Mailing List</a></li>
+          <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=log"
+                 >Changelog</a></li>
+        </ul>
+      </div>
+      <div class="system-description">
+        <a id="what_it_is"></a>
+        <h3>What it is</h3>
+        <p>ASDF is a tool for describing how source files are organized:
+          what depends on which and when.
+        </p>
+        <p>It is roughly what Common-Lisp hackers use to build software
+          where C hackers would use say GNU Make.
+        </p>
+        <p>ASDF stands for <em>A</em>nother <em>S</em>ystem <em>D</em>efinition <em>F</em>acility,
+          in the continuity of the Lisp DEFSYSTEM of yore.
+        </p>
+        <a id="documentation"></a>
+        <h3>Documentation</h3>
+        <p>You can read our manual:</p>
+        <ul>
+          <li><a href="asdf.html">as one HTML file</a></li>
+          <li><a href="asdf/">split into one HTML file per section</a></li>
+          <li><a href="asdf.pdf">as a PDF document</a></li>
+          <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=asdf.texinfo">as texinfo source</a></li>
+        </ul>
+
+        <a href="downloads"></a>
+        <h3>Getting it</h3>
+        <p>Though they may lag behind the version here, ASDF comes bundled with most Lisps.
+          To get the greatest and latest, you can:
+        </p>
+        <ul>
+          <li>download just the source for
+            <!--<a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob_plain;tag=RELEASE;f=asdf.lisp">asdf.lisp</a>,-->
+            <a href="http://common-lisp.net/project/asdf/asdf.lisp">asdf.lisp</a>,
+          </li>
+          <li>download the
+            <!--<a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;tag=RELEASE;a=snapshot;sf=tgz">tarball</a>,-->
+            <a href="http://common-lisp.net/project/asdf/asdf.tar.gz">tarball</a>
+            to get all bells and whistles,
+          </li>
+          <li>pull the latest from our git repository
+            (<a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git">browse</a>)
+            <pre>git clone http://common-lisp.net/project/asdf/asdf.git</pre>
+        </li></ul>
+
+        <a id="bugs">
+        <h3>Reporting Bugs</h3>
+        <p>To report bugs, you can use our 
+          <a href="https://launchpad.net/asdf/">launchpad project</a>.
+          If you're unsure about the bug or want to discuss how to fix it,
+          you can send email to the project mailing-list below.
+        </p>
+
+        <a id="mailing-list"></a>
+        <h3>Mailing List</h3>
+        <ul>
+          <li><a href="http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel">asdf-devel</a>:
+            A list for questions, patches, bug reports, and so on; It's for everything.
+        </li></ul>
+
+        <h3>Contributing</h3>
+        <p>Join our mailing list, check the code out from git,
+          send questions, ideas and patches!
+        </p>
+
+        <a id="news"></a>
+        <h3>What is happening</h3>
+        <dl>
+          <dt>December 2009 to April 2010</dt>
+          <dd>Fran&ccedil;ois-Ren&eacute; Rideau is de facto maintainer,
+            with notable contributions from Robert P. Goldman.
+            Push towards an ASDF 2 release
+            which many clean-ups, simplified configuration
+            and updated documentation.
+          </dd>
+          <dt>May 2006 to November 2009</dt>
+          <dd>Gary King is de facto maintainer,
+            with notable contributions from
+            Robert P. Goldman, Nikodemus Siivola, Christophe Rhodes, D Herring.
+            Many small features and fixing bugs,
+            trying to make the project more usable,
+            moving to using git and common-lisp.net.
+          </dd>
+          <dt>May 2004 to April 2006</dt>
+          <dd>Christophe Rhodes is de facto maintainer,
+            with notable contributions from
+            Nikodemus Siivola, Peter Van Eynde, Edi Weitz, Kevin Rosenberg.
+            Make the system more robust, a few more features.
+          <dt>August 2001 to May 2004</dt>
+          <dd>Maintained by Daniel Barlow, with notable contributions from
+            Christophe Rhodes, Kevin Rosenberg, Edi Weitz, Rahul Jain.
+          <dt>August 2001</dt>
+          <dd>Created by Daniel Barlow</dd>
+      </dl></div>
+      <div id="footer">
+        <a class="nav" href="http://validator.w3.org/check/referer" title="xhtml1.1"><img src="http://common-lisp.net/project/cl-containers/shared/buttons/xhtml.gif" width="80" height="15" title="valid xhtml button" alt="valid xhtml" /></a>
+        <a class="nav" href="http://www.catb.org/hacker-emblem/" title="hacker"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/hacker.png" width="80" height="15" title="hacker emblem" alt="hacker button" /></a>
+        <a class="nav" href="http://www.lisp.org/" title="Association of Lisp Users"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lambda-lisp.png" width="80" height="15" title="ALU emblem" alt="ALU button" /></a>
+        <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
+        <p><span class="copyright"Copyright &copy; 2001-2010 Daniel Barlow and contributors</span></p>
+        <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
+        <div id="timestamp">Last updated 2010-04-08</div>
+    </div></div>
+  </body>
+</html>

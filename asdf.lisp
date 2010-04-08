@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.670" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.671" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -1370,12 +1370,14 @@ recursive calls to traverse.")
                                (cond ((string-equal
                                        (symbol-name (first d))
                                        "VERSION")
+                                      ;; https://bugs.launchpad.net/asdf/+bug/527788
                                       (appendf
                                        forced
                                        (do-one-dep op (second d) (third d))))
                                      ;; this particular subform is not documented, indeed
                                      ;; clashes with the documentation, since it assumes a
-                                     ;; third component
+                                     ;; third component.
+                                     ;; See https://bugs.launchpad.net/asdf/+bug/518467
                                      ((and (string-equal
                                             (symbol-name (first d))
                                             "FEATURE")
@@ -1383,7 +1385,7 @@ recursive calls to traverse.")
                                                  :test 'string-equal))
                                       (appendf
                                        forced
-                                       (do-one-dep op (second d) (third d))))
+                                       (do-one-dep op (third d) nil)))
                                      (t
                                       (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name" d))))
                               (t
@@ -2938,7 +2940,7 @@ with a different configuration, so the configuration would be re-read then."
       #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir)))
       (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
       ,@(let*
-         #+(or (not windows) cygwin)
+         #+(or unix cygwin)
          ((datahome
            (or (getenv "XDG_DATA_HOME")
                (try (user-homedir) ".local/share/")))
@@ -2955,6 +2957,8 @@ with a different configuration, so the configuration would be re-read then."
            #-lispworks (try (getenv "ALLUSERSPROFILE")
                             "Application Data"))
           (dirs (list datahome datadir)))
+         #+(and (not unix) (not windows) (not cygwin))
+         ((dirs ()))
          (loop :for dir :in dirs
            :collect `(:directory ,(try dir "common-lisp/systems/"))
            :collect `(:tree ,(try dir "common-lisp/source/"))))
