@@ -96,7 +96,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Getting the latest version::
 * FAQ::
 * TODO list::
-* missing bits in implementation::
 * Inspiration::
 * Concept Index::
 * Function and Class Index::
@@ -231,7 +230,7 @@ whether a recent version is loaded, an old version is loaded,
 or none at all:
 
 @lisp
-(and (find-package :asdf) #+asdf2 (asdf:asdf-version) #-asdf2 :old)
+(or #+asdf2 (asdf:asdf-version) #+asdf :old)
 @end lisp
 
 If it returns a version number, that's the version of ASDF installed.
@@ -239,7 +238,7 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.656,
+If you are running a version older than 1.671,
 we recommend that you load a newer ASDF using the method below.
 
 
@@ -2550,7 +2549,8 @@ or combinations of the above.
 In ASDF 2, a standard mechanism is provided for that,
 @code{asdf-output-translations},
 with sensible defaults, adequate configuration languages,
-and a coherent set of configuration files and hooks.
+a coherent set of configuration files and hooks,
+and support for non-Unix platforms.
 
 @ref{Controlling where ASDF saves compiled files}.
 
@@ -2622,7 +2622,7 @@ or take great pains to have the correct version of ASDF installed.
 With ASDF 2, we provide a new stable set of working features
 that everyone can rely on from now on.
 Use @code{#+asdf2} to detect presence of ASDF 2,
-@code{(asdf:version-satisfies (asdf:asdf-version) "1.656")}
+@code{(asdf:version-satisfies (asdf:asdf-version) "1.671")}
 to check the availability of a version no earlier than required.
 
 @subsection ASDF can be upgraded
@@ -2645,6 +2645,9 @@ from ASDF 2 to later versions from within Lisp,
 and not too hard to upgrade from ASDF 1 to ASDF 2 from within Lisp.
 We support hot upgrade of ASDF and any breakage is a bug
 that we will do our best to fix.
+There are still limitations on upgrade, though,
+most notably the fact that after you upgrade ASDF,
+you must also reload or upgrade all ASDF extensions.
 
 @subsection Decoupled release cycle
 
@@ -2893,9 +2896,13 @@ or as a name component plus optional dot-separated type component
 (if the component class doesn't specifies a pathname type).
 
 
-@node  TODO list, missing bits in implementation, FAQ, Top
+@node  TODO list, Inspiration, FAQ, Top
 comment  node-name,  next,  previous,  up
 @chapter TODO list
+
+Here is an old list of things to do,
+in addition to the bugs that are now tracked on launchpad:
+@url{https://launchpad.net/asdf}.
 
 * Outstanding spec questions, things to add
 
@@ -2949,9 +2956,7 @@ A ``dry run'' of an operation can be made with the following form:
 This uses unexported symbols.
 What would be a nice interface for this functionality?
 
-@node  missing bits in implementation, Inspiration, TODO list, Top
-@comment  node-name,  next,  previous,  up
-@chapter missing bits in implementation
+* Missing bits in implementation
 
 ** all of the above
 
@@ -3029,7 +3034,7 @@ For example, @code{(load "use") depends-on (load "macros")} is a peer,
 whereas @code{(load "use") depends-on (compile "use")}
 is more of a ``subservient'' relationship.
 
-@node  Inspiration, Concept Index, missing bits in implementation, Top
+@node  Inspiration, Concept Index, TODO list, Top
 @comment  node-name,  next,  previous,  up
 @chapter Inspiration
 
