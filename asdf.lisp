@@ -2550,7 +2550,9 @@ with a different configuration, so the configuration would be re-read then."
             (when dst
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (when src
-              (let ((trusrc (or (eql src t) (truenamize (resolve-location src t)))))
+              (let ((trusrc (or (eql src t)
+                                (let ((loc (resolve-location src t)))
+                                  (if (absolute-pathname-p loc) (truenamize loc) loc)))))
                 (cond
                   ((location-function-p dst)
                    (funcall collect
