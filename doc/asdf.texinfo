@@ -2172,19 +2172,34 @@ You may use @code{#+features} to customize the configuration file.
 The second designator of a mapping may be @code{NIL}, indicating that files are not mapped
 to anything but themselves (same as if the second designator was the same as the first).
 
+When the first designator is @code{t},
+the mapping always matches.
+When the first designator starts with @code{:root},
+the mapping matches any host and device.
+In either of these cases, if the second designator
+isn't @code{t} and doesn't start with @code{:root},
+then strings indicating the host and pathname are somehow copied
+in the beginning of the directory component of the source pathname
+before it is translated.
+
+When the second designator is @code{t}, the mapping is the identity.
+When the second designator starts with @code{root},
+the mapping preserves the host and device of the original pathname.
+
 @code{:include} statements cause the search to recurse with the path specifications
 from the file specified.
 
 If the @code{translate-pathname} mechanism cannot achieve a desired
 translation, the user may provide a function which provides the
 required algorithim.  Such a translation function is specified by
-supplying a list as the second @code{directory-designator} whose first
-element is the keyword @code{:function}, and whose second element is
+supplying a list as the second @code{directory-designator}
+the first element of which is the keyword @code{:function},
+and the second element of which is
 either a symbol which designates a function or a lambda expression.
-The function designated by the second argument must take two
-arguments, the first being the pathname of the source file, the second
-being the wildcard that was matched.  The result of the function
-invocation should be the translated pathname.
+The function designated by the second argument must take two arguments,
+the first being the pathname of the source file,
+the second being the wildcard that was matched.
+The result of the function invocation should be the translated pathname.
 
 An @code{:inherit-configuration} statement cause the search to recurse with the path
 specifications from the next configuration.

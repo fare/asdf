@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.668" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.669" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -669,9 +669,13 @@ actually-existing directory."
   "Resolve as much of a pathname as possible"
   (block nil
     (when (typep p 'logical-pathname) (return p))
-    (ignore-errors (return (truename p)))
-    (let ((directory (pathname-directory p)))
-      (when (or (atom directory) (not (eq :absolute (car directory))))
+    (let* ((p (merge-pathnames p))
+           (directory (pathname-directory p)))
+      (when (typep p 'logical-pathname) (return p))
+      (ignore-errors (return (truename p)))
+      (when (stringp directory)
+         (return p))
+      (when (not (eq :absolute (car directory)))
         (return p))
       (let ((sofar (ignore-errors (truename (pathname-root p)))))
         (unless sofar (return p))
@@ -2596,51 +2600,53 @@ effectively disabling the output translation facility."
      (ensure-output-translations)
      (loop :with p = (truenamize path)
        :for (source destination) :in (car *output-translations*)
-       :when (or (eq source t)
-                 (and (absolute-pathname-p source) (pathname-match-p p source))
-                 (and (pathnamep source)
-                      (pathname-match-p p (merge-pathnames* source (pathname-root p)))))
+       :for root = (when (or (eq source t)
+                             (and (pathnamep source)
+                                  (not (absolute-pathname-p source))))
+                     (pathname-root p))
+       :for absolute-source = (cond
+                                ((eq source t) (wilden root))
+                                (root (merge-pathnames* source root))
+                                (t source))
+       :when (or (eq source t) (pathname-match-p p absolute-source))
        :return
        (cond
          ((functionp destination)
-          (funcall destination p source))
+          (funcall destination p absolute-source))
          ((eq destination t)
           p)
-         ((and (eq source t) (pathnamep destination))
-          (translate-full-pathname p destination))
+         ((not (pathnamep destination))
+          (error "invalid destination"))
+         ((not (absolute-pathname-p destination))
+          (translate-pathname p absolute-source (merge-pathnames* destination root)))
+         (root
+          (translate-pathname (directorize-pathname-host-device p) absolute-source destination))
          (t
-          (translate-pathname p source destination)))
+          (translate-pathname p absolute-source destination)))
        :finally (return p)))))
 
 (defun last-char (s)
   (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
-(defun translate-full-pathname (source destination)
-  (let* ((source-root (pathname-root source))
-         (wild-source (wilden source-root))
-         (absolute-source (merge-pathnames* source source-root))
-         (absolute-destination (merge-pathnames* destination source-root))
-         (wild-destination
-          (if (wild-pathname-p absolute-destination)
-              absolute-destination
-              (wilden absolute-destination)))
-         (destination-root (pathname-root absolute-destination))
-         (source-foo (make-pathname :directory '(:absolute "FOO") :defaults source-root))
-         (source-separator (last-char (namestring source-foo)))
-         (source-root-namestring (namestring source-root))
-         (source-root-string
+(defun directorize-pathname-host-device (pathname)
+  (let* ((root (pathname-root pathname))
+         (wild-root (wilden root))
+         (absolute-pathname (merge-pathnames* pathname root))
+         (foo (make-pathname :directory '(:absolute "FOO") :defaults root))
+         (separator (last-char (namestring foo)))
+         (root-namestring (namestring root))
+         (root-string
           (substitute-if #\/
                          (lambda (x) (or (eql x #\:)
-                                         (eql x source-separator)))
-                         source-root-namestring)))
+                                         (eql x separator)))
+                         root-namestring)))
     (multiple-value-bind (relative path filename)
-        (component-name-to-pathname-components source-root-string t)
+        (component-name-to-pathname-components root-string t)
       (declare (ignore relative filename))
-      (let* ((new-base
-              (make-pathname :defaults source-root
-                             :directory `(:absolute ,@path)))
-             (rebased-source (translate-pathname absolute-source wild-source (wilden new-base))))
-        (translate-pathname rebased-source wild-source wild-destination)))))
+      (let ((new-base
+             (make-pathname :defaults root
+                            :directory `(:absolute ,@path))))
+        (translate-pathname absolute-pathname wild-root (wilden new-base))))))
 
 (defmethod output-files :around (operation component)
   "Translate output files, unless asked not to"
