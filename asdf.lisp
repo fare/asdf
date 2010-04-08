@@ -735,7 +735,10 @@ actually-existing directory."
   ((components :initarg :components :reader circular-dependency-components)))
 
 (define-condition duplicate-names (system-definition-error)
-  ((name :initarg :name :reader duplicate-names-name)))
+  ((name :initarg :name :reader duplicate-names-name))
+  (:report (lambda (c s)
+             (format s "~@<Error while defining system: multiple components are given same name ~A~@:>"
+                     (duplicate-names-name c)))))
 
 (define-condition missing-component (system-definition-error)
   ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)
@@ -1948,8 +1951,7 @@ Returns the new tree (which probably shares structure with the old one)"
           (loop :for c in (module-components ret) :do
             (if (gethash (component-name c)
                          name-hash)
-                (error 'duplicate-names
-                       :name (component-name c))
+                (error 'duplicate-names :name (component-name c))
                 (setf (gethash (component-name c)
                                name-hash)
                       t)))))
