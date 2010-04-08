@@ -2134,6 +2134,7 @@ DIRECTORY-DESIGNATOR :=
 
 ABSOLUTE-COMPONENT-DESIGNATOR :=
     NULL | ;; As source: skip this entry. As destination: same as source
+    :ROOT | ;; magic: paths that are relative to the root of the source host and device
     STRING | ;; namestring (directory is assumed, better be absolute or bust, ``/**/*.*'' added)
     PATHNAME | ;; pathname (better be an absolute directory or bust)
     :HOME | ;; designates the user-homedir-pathname ~/

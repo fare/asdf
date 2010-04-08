@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.667" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.668" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -659,19 +659,21 @@ actually-existing directory."
       (handler-case (parse-integer (read-line stream))
         (error () (error "Unable to find out user ID")))))))
 
+(defun pathname-root (pathname)
+  (make-pathname :host (pathname-host pathname)
+                 :device (pathname-device pathname)
+                 :directory '(:absolute)
+                 :name nil :type nil :version nil))
+
 (defun truenamize (p)
   "Resolve as much of a pathname as possible"
   (block nil
     (when (typep p 'logical-pathname) (return p))
     (ignore-errors (return (truename p)))
-    (let ((host (pathname-host p))
-          (device (pathname-device p))
-          (directory (pathname-directory p)))
+    (let ((directory (pathname-directory p)))
       (when (or (atom directory) (not (eq :absolute (car directory))))
         (return p))
-      (let ((sofar (ignore-errors
-                     (truename (make-pathname :host host :device device
-                                              :directory '(:absolute))))))
+      (let ((sofar (ignore-errors (truename (pathname-root p)))))
         (unless sofar (return p))
         (loop :for component :in (cdr directory)
           :for rest :on (cdr directory)
@@ -2327,6 +2329,11 @@ with a different configuration, so the configuration would be re-read then."
                    (let ((cdr (resolve-relative-location-component
                                car (cdr x) wildenp)))
                      (merge-pathnames* cdr car)))))
+            ((eql :root)
+             ;; special magic! we encode such paths as relative pathnames,
+             ;; but it means "relative to the root of the source pathname's host and device".
+             (return-from resolve-absolute-location-component
+               (make-pathname :directory '(:relative))))
             ((eql :home) (user-homedir))
             ((eql :user-cache) (resolve-location *user-cache* nil))
             ((eql :system-cache) (resolve-location *system-cache* nil))
@@ -2589,7 +2596,10 @@ effectively disabling the output translation facility."
      (ensure-output-translations)
      (loop :with p = (truenamize path)
        :for (source destination) :in (car *output-translations*)
-       :when (or (eq source t) (pathname-match-p p source))
+       :when (or (eq source t)
+                 (and (absolute-pathname-p source) (pathname-match-p p source))
+                 (and (pathnamep source)
+                      (pathname-match-p p (merge-pathnames* source (pathname-root p)))))
        :return
        (cond
          ((functionp destination)
@@ -2606,40 +2616,31 @@ effectively disabling the output translation facility."
   (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
 (defun translate-full-pathname (source destination)
-  (let* ((absolute-destination (merge-pathnames* destination source))
+  (let* ((source-root (pathname-root source))
+         (wild-source (wilden source-root))
+         (absolute-source (merge-pathnames* source source-root))
+         (absolute-destination (merge-pathnames* destination source-root))
          (wild-destination
           (if (wild-pathname-p absolute-destination)
-            absolute-destination
-            (wilden absolute-destination))))
-    #+(or unix cygwin)
-    (translate-pathname source (wilden "/") wild-destination)
-    #-(or unix cygwin)
-    (let* ((base-pathname
-            (make-pathname :directory '(:absolute "FOO")
-                           :defaults destination))
-           (separator
-            (last-char (namestring base-pathname)))
-           (host-device-namestring (namestring
-                                    (make-pathname
-                                     :directory nil :name nil :type nil :version nil
-                                     :defaults source)))
-           (new-base (concatenate 'string (namestring base-pathname)
-                                  (substitute separator #\: host-device-namestring)
-                                  separator))
-           (src-dir (pathname-directory source))
-           (source-relativized-directory
-            (cond
-              ((null src-dir) '(:relative))
-              ((stringp src-dir) '(:relative ,src-dir))
-              ((and (consp src-dir) (member (car src-dir) '(:absolute :relative)))
-               `(:relative ,@(cdr src-dir)))))
-           (rebased-source (merge-pathnames*
-                            (make-pathname :host nil :device nil
-                                           :directory source-relativized-directory
-                                           :defaults source)
-                            base-pathname)))
-      (translate-pathname rebased-source (wilden base-pathname) wild-destination))))
-
+              absolute-destination
+              (wilden absolute-destination)))
+         (destination-root (pathname-root absolute-destination))
+         (source-foo (make-pathname :directory '(:absolute "FOO") :defaults source-root))
+         (source-separator (last-char (namestring source-foo)))
+         (source-root-namestring (namestring source-root))
+         (source-root-string
+          (substitute-if #\/
+                         (lambda (x) (or (eql x #\:)
+                                         (eql x source-separator)))
+                         source-root-namestring)))
+    (multiple-value-bind (relative path filename)
+        (component-name-to-pathname-components source-root-string t)
+      (declare (ignore relative filename))
+      (let* ((new-base
+              (make-pathname :defaults source-root
+                             :directory `(:absolute ,@path)))
+             (rebased-source (translate-pathname absolute-source wild-source (wilden new-base))))
+        (translate-pathname rebased-source wild-source wild-destination)))))
 
 (defmethod output-files :around (operation component)
   "Translate output files, unless asked not to"
