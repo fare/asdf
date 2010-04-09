@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.672" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.673" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -647,6 +647,7 @@ actually-existing directory."
 #+clisp (defun get-uid () (posix:uid))
 #+sbcl (defun get-uid () (sb-unix:unix-getuid))
 #+cmu (defun get-uid () (unix:unix-getuid))
+#+ecl (ffi:clines "#include <sys/types.h>" "#include <unistd.h>")
 #+ecl (defun get-uid () (ffi:c-inline () () :int "getuid()" :one-liner t))
 #+allegro (defun get-uid () (excl.osi:getuid))
 #-(or cmu sbcl clisp allegro ecl)
