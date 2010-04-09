@@ -25,6 +25,6 @@ website:
 .PHONY: clean veryclean manual-html
 clean:
 	rm -f ${intermediate}
-veryclean:
+veryclean: clean
 	rm -f asdf.html asdf.pdf asdf.info
 	rm -rf asdf/

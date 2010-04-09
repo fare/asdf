@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.671" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.672" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -1021,7 +1021,7 @@ to `~a` which is not a directory.~@:>"
            ;; that's the case, well, that's not good, but as long as
            ;; the operation is otherwise considered to be done we
            ;; could continue and survive.
-  (or (file-write-date pathname)
+  (or (and pathname (file-write-date pathname))
       (progn
         (warn "Missing FILE-WRITE-DATE for ~S: treating it as zero."
               pathname)
@@ -1275,8 +1275,7 @@ class specifier, not an operation."
          ;; for its side-effects in the current image,
          ;; assumed to be idem-potent,
          ;; e.g. LOAD-OP or LOAD-SOURCE-OP of some CL-SOURCE-FILE.
-         (and op-time
-              (>= op-time (latest-in))))
+         (and op-time (>= op-time (latest-in))))
         ((not in-files)
          ;; an operation without output-files and no input-files
          ;; is probably meant for its side-effects on the file-system,
@@ -1289,10 +1288,17 @@ class specifier, not an operation."
          ;; assumed to have been done if the latter are all older
          ;; than the former.
          ;; e.g. COMPILE-OP of some CL-SOURCE-FILE.
+         ;; We use >= instead of > to play nice with generated files.
+         ;; This opens a race condition if an input file is changed
+         ;; after the output is created but within the same second
+         ;; of filesystem time; but the same race condition exists
+         ;; whenever the computation from input to output takes more
+         ;; than one second of filesystem time (or just crosses the
+         ;; second). So that's cool.
          (and
           (every #'probe-file in-files)
           (every #'probe-file out-files)
-          (and (> (earliest-out) (latest-in)))))))))
+          (>= (earliest-out) (latest-in))))))))
 
 
 ;;; So you look at this code and think "why isn't it a bunch of
