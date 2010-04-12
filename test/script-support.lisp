@@ -2,13 +2,16 @@
 
 ;; We can't use asdf:merge-pathnames* because ASDF isn't loaded yet.
 ;; We still want to work despite and host/device funkiness.
-(defvar *asdf-lisp*
-  (truename
-   (merge-pathnames
-    (make-pathname :directory '(:relative :up) :name "asdf" :type "lisp"
-                   :defaults *load-truename*)
-    *load-truename*)))
-(defvar *asdf-fasl*
+(defparameter *test-directory*
+  (make-pathname :name nil :type nil :version nil
+                 :defaults (or *load-truename* *compile-file-truename*)))
+(defparameter *asdf-directory*
+  (merge-pathnames
+   (make-pathname :directory '(:relative :back) :defaults *test-directory*)
+   *test-directory*))
+(defparameter *asdf-lisp*
+  (make-pathname :name "asdf" :type "lisp" :defaults *asdf-directory*))
+(defparameter *asdf-fasl*
   (compile-file-pathname
    (let ((impl (string-downcase
                 (or #+allegro
@@ -28,7 +31,7 @@
                     #+scl scl))))
      (merge-pathnames
       (make-pathname :directory `(:relative "tmp" "fasls" ,impl)
-                     :defaults *asdf-lisp*)
+                     :defaults *asdf-directory*)
       *asdf-lisp*))))
 
 (defun load-asdf ()

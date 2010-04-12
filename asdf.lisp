@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.673" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.674" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -257,6 +257,7 @@
            #:ensure-output-translations
            #:apply-output-translations
            #:compile-file-pathname*
+           #:enable-asdf-binary-locations-compatibility
 
            #:*default-source-registries*
            #:initialize-source-registry
@@ -2883,7 +2884,7 @@ with a different configuration, so the configuration would be re-read then."
      '(:source-registry :inherit-configuration))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
-    ((eql (char string 0) "\"(")
+    ((find (char string 0) "\"(")
      (validate-source-registry-form (read-from-string string)))
     (t
      (loop

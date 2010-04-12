@@ -2904,7 +2904,7 @@ Here is an old list of things to do,
 in addition to the bugs that are now tracked on launchpad:
 @url{https://launchpad.net/asdf}.
 
-* Outstanding spec questions, things to add
+@section Outstanding spec questions, things to add
 
 ** packaging systems
 
@@ -2956,7 +2956,7 @@ A ``dry run'' of an operation can be made with the following form:
 This uses unexported symbols.
 What would be a nice interface for this functionality?
 
-* Missing bits in implementation
+@section Missing bits in implementation
 
 ** all of the above
 
