@@ -33,7 +33,7 @@
    ;; unix cwd.  this is not a problem for run-tests.sh, but can be in general
 
    (let ((before (file-write-date file2)))
-     (asdf::run-shell-command "touch file1.lisp")
      (sleep 1)
+     (asdf::run-shell-command "touch file1.lisp")
      (asdf:operate 'asdf:load-op 'test1)
      (assert (>  (file-write-date file2) before)))))

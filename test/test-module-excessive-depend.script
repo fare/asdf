@@ -42,8 +42,8 @@
    ;; dependency bug is fixed and the excessive compilation bug is fixed.
 
    (let ((before file2-date))
-     (asdf::run-shell-command "touch file1.lisp")
      (sleep 1)
+     (asdf::run-shell-command "touch file1.lisp")
      (let ((plan (asdf::traverse
                   (make-instance 'asdf:load-op)
                   (asdf:find-system 'test-module-excessive-depend)))

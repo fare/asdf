@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.675" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.676" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -441,9 +441,15 @@ Deprecated. Use PATHNAME-DIRECTORY-PATHNAME instead."
 and NIL NAME, TYPE and VERSION components"
   (make-pathname :name nil :type nil :version nil :defaults pathname))
 
+(defun current-directory ()
+  (truenamize (pathname-directory-pathname *default-pathname-defaults*)))
+
 (defun merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
   "MERGE-PATHNAMES* is like MERGE-PATHNAMES except that if the SPECIFIED pathname
-does not have an absolute directory, then the HOST and DEVICE come from the DEFAULTS."
+does not have an absolute directory, then the HOST and DEVICE come from the DEFAULTS.
+Also, if either argument is NIL, then the other argument is returned unmodified."
+  (when (null specified) (return-from merge-pathnames* defaults))
+  (when (null defaults) (return-from merge-pathnames* specified))
   (let* ((specified (pathname specified))
          (defaults (pathname defaults))
          (directory (pathname-directory specified))
@@ -783,6 +789,7 @@ actually-existing directory."
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
    (relative-pathname :initarg :pathname)
+   (absolute-pathname)
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
    ;; XXX we should provide some atomic interface for updating the
@@ -838,13 +845,25 @@ actually-existing directory."
      :initform 'cl-source-file :initarg :default-component-class)))
 
 (defun component-parent-pathname (component)
-  (aif (component-parent component)
-       (component-pathname it)
-       (truenamize *default-pathname-defaults*)))
+  ;; No default anymore (in particular, no *default-pathname-defaults*).
+  ;; If you force component to have a NULL pathname, you better arrange
+  ;; for any of its children to explicitly provide a proper absolute pathname
+  ;; wherever a pathname is actually wanted.
+  (let ((parent (component-parent component)))
+    (when parent
+      (component-pathname parent))))
 
 (defmethod component-pathname ((component component))
-  (merge-pathnames* (component-relative-pathname component)
-                    (component-parent-pathname component)))
+  (if (slot-boundp component 'absolute-pathname)
+      (slot-value component 'absolute-pathname)
+      (let ((pathname
+             (merge-pathnames*
+             (component-relative-pathname component)
+             (component-parent-pathname component))))
+        (unless (or (null pathname) (absolute-pathname-p pathname))
+          (error "Invalid relative pathname ~S for component ~S" pathname component))
+        (setf (slot-value component 'absolute-pathname) pathname)
+        pathname)))
 
 (defmethod component-property ((c component) property)
   (cdr (assoc property (slot-value c 'properties) :test #'equal)))
@@ -1138,9 +1157,7 @@ to `~a` which is not a directory.~@:>"
    (or (slot-value component 'relative-pathname)
        (component-name component))
    :type (source-file-type component (component-system component))
-   :defaults (let ((parent (component-parent component)))
-               (and parent (component-pathname parent)))))
-
+   :defaults (component-parent-pathname component)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
@@ -1771,13 +1788,15 @@ details."
   ;; to resolve symbolic links. If not resolving symlinks, then we use
   ;; *load-pathname* instead of *load-truename* since in some
   ;; implementations, the latter has *already resolved it.
-  (or (and pathname-supplied-p pathname)
-      (when *load-pathname*
-        (pathname-directory-pathname
-         (if *resolve-symlinks*
-             (resolve-symlinks *load-truename*)
-             *load-pathname*)))
-      *default-pathname-defaults*))
+  (let ((file-pathname
+         (when (or *load-pathname* *compile-file-pathname*)
+           (pathname-directory-pathname
+            (if *resolve-symlinks*
+                (resolve-symlinks (or *load-truename* *compile-file-truename*))
+                *load-pathname*)))))
+    (or (and pathname-supplied-p (merge-pathnames pathname file-pathname))
+        file-pathname
+        (current-directory))))
 
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
@@ -1946,6 +1965,7 @@ Returns the new tree (which probably shares structure with the old one)"
              :pathname pathname
              :parent parent
              other-args)
+      (component-pathname ret) ; eagerly compute the absolute pathname
       (when (typep ret 'module)
         (setf (module-default-component-class ret)
               (or default-component-class
@@ -1977,7 +1997,6 @@ Returns the new tree (which probably shares structure with the old one)"
             (component-do-first ret) `((compile-op (load-op ,@depends-on))))
 
       (%refresh-component-inline-methods ret rest)
-
       ret)))
 
 ;;;; ---------------------------------------------------------------------------
@@ -2357,7 +2376,7 @@ with a different configuration, so the configuration would be re-read then."
             ((eql :home) (user-homedir))
             ((eql :user-cache) (resolve-location *user-cache* nil))
             ((eql :system-cache) (resolve-location *system-cache* nil))
-            ((eql :current-directory) (truenamize *default-pathname-defaults*))))
+            ((eql :current-directory) (current-directory))))
          (s (if (and wildenp (not (pathnamep x)))
                 (wilden r)
                 r)))
@@ -2377,8 +2396,7 @@ with a different configuration, so the configuration would be re-read then."
                                  (merge-pathnames* car super) (cdr x) wildenp)))
                        (merge-pathnames* cdr car)))))
               ((eql :current-directory)
-               (relativize-pathname-directory
-                (truenamize *default-pathname-defaults*)))
+               (relativize-pathname-directory (current-directory)))
               ((eql :implementation) (implementation-identifier))
               ((eql :implementation-type) (string-downcase (implementation-type)))
               ((eql :uid) (princ-to-string (get-uid)))))
