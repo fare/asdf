@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.674" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.675" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -854,7 +854,8 @@ actually-existing directory."
     (if a
         (setf (cdr a) new-value)
         (setf (slot-value c 'properties)
-              (acons property new-value (slot-value c 'properties))))))
+              (acons property new-value (slot-value c 'properties)))))
+  new-value)
 
 (defclass system (module)
   ((description :accessor system-description :initarg :description)
@@ -1214,7 +1215,8 @@ class specifier, not an operation."
 
 (defmethod (setf visiting-component) (new-value operation component)
   ;; MCL complains about unused lexical variables
-  (declare (ignorable new-value operation component)))
+  (declare (ignorable operation component))
+  new-value)
 
 (defmethod (setf visiting-component) (new-value (o operation) (c component))
   (let ((node (node-for o c))
@@ -1222,7 +1224,8 @@ class specifier, not an operation."
     (if new-value
         (pushnew node (operation-visiting-nodes a) :test 'equal)
         (setf (operation-visiting-nodes a)
-              (remove node  (operation-visiting-nodes a) :test 'equal)))))
+              (remove node  (operation-visiting-nodes a) :test 'equal))))
+  new-value)
 
 (defmethod component-visiting-p ((o operation) (c component))
   (let ((node (node-for o c)))
@@ -2302,15 +2305,16 @@ and the order is by decreasing length of namestring of the source pathname.")
 (defun output-translations ()
   (car *output-translations*))
 
-(defun (setf output-translations) (x)
+(defun (setf output-translations) (new-value)
   (setf *output-translations*
         (list
-         (stable-sort (copy-list x) #'>
+         (stable-sort (copy-list new-value) #'>
                       :key (lambda (x)
                              (etypecase (car x)
                                ((eql t) -1)
                                (pathname
-                                (length (pathname-directory (car x))))))))))
+                                (length (pathname-directory (car x)))))))))
+  new-value)
 
 (defun output-translations-initialized-p ()
   (and *output-translations* t))
@@ -2573,8 +2577,12 @@ with a different configuration, so the configuration would be re-read then."
                   ((eq dst t)
                    (funcall collect (list trusrc t)))
                   (t
-                   (let* ((trudst (if dst (resolve-location dst t) trusrc))
-                          (wilddst (make-pathname :name :wild :type :wild :defaults trudst)))
+                   (let* ((trudst (make-pathname
+                                   :version :wild
+                                   :defaults (if dst (resolve-location dst t) trusrc)))
+                          (wilddst (make-pathname
+                                    :name :wild :type :wild :version :wild
+                                    :defaults trudst)))
                      (funcall collect (list wilddst t))
                      (funcall collect (list trusrc trudst)))))))))))
 
@@ -2815,8 +2823,9 @@ said element itself being a list of directory pathnames where to look for .asd f
 (defun source-registry ()
   (car *source-registry*))
 
-(defun (setf source-registry) (x)
-  (setf *source-registry* (list x)))
+(defun (setf source-registry) (new-value)
+  (setf *source-registry* (list new-value))
+  new-value)
 
 (defun source-registry-initialized-p ()
   (and *source-registry* t))

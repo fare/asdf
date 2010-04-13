@@ -2466,6 +2466,8 @@ You may get the ASDF source repository using git:
 @kbd{git clone http://common-lisp.net/project/asdf/asdf.git}
 
 You will find the above referenced tags in this repository.
+You can also browse the repository on
+@url{http://common-lisp.net/gitweb?p=projects/asdf/asdf.git}.
 
 Discussion of ASDF development is conducted on the
 mailing list
