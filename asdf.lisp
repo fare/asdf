@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.676" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.677" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -677,7 +677,7 @@ actually-existing directory."
   "Resolve as much of a pathname as possible"
   (block nil
     (when (typep p 'logical-pathname) (return p))
-    (let* ((p (merge-pathnames p))
+    (let* ((p (merge-pathnames* p))
            (directory (pathname-directory p)))
       (when (typep p 'logical-pathname) (return p))
       (ignore-errors (return (truename p)))
@@ -1794,7 +1794,7 @@ details."
             (if *resolve-symlinks*
                 (resolve-symlinks (or *load-truename* *compile-file-truename*))
                 *load-pathname*)))))
-    (or (and pathname-supplied-p (merge-pathnames pathname file-pathname))
+    (or (and pathname-supplied-p (merge-pathnames* pathname file-pathname))
         file-pathname
         (current-directory))))
 
