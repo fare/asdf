@@ -60,7 +60,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.677" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.678" (1+ (length "VERSION"))))
          #+allegro (excl::*autoload-package-name-alist* nil)
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
@@ -2596,7 +2596,7 @@ with a different configuration, so the configuration would be re-read then."
                    (funcall collect (list trusrc t)))
                   (t
                    (let* ((trudst (make-pathname
-                                   :version :wild
+                                   :version #-ecl :wild #+ecl nil
                                    :defaults (if dst (resolve-location dst t) trusrc)))
                           (wilddst (make-pathname
                                     :name :wild :type :wild :version :wild
