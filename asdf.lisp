@@ -51,17 +51,19 @@
 
 (declaim (optimize (speed 2) (debug 2) (safety 3)))
 
-#+ecl (require 'cmp)
+#+ecl (require :cmp)
 
 ;;;; Create packages in a way that is compatible with hot-upgrade.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;;; See more at the end of the file.
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  #+allegro
+  (setf excl::*autoload-package-name-alist*
+        (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.679" (1+ (length "VERSION"))))
-         #+allegro (excl::*autoload-package-name-alist* nil)
+          (subseq "VERSION:1.700" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf (find-symbol (string versym) existing-asdf)))
@@ -200,6 +202,7 @@
            #:unix-dso
 
            #:module-components          ; component accessors
+           #:module-components-by-name  ; component accessors
            #:component-pathname
            #:component-relative-pathname
            #:component-name
@@ -265,7 +268,8 @@
            #:clear-source-registry
            #:ensure-source-registry
            #:process-source-registry))
-        (eval `(defparameter ,(intern (string versym) (find-package :asdf)) ,asdf-version))))))
+        (eval `(defparameter ,(intern (string versym) (find-package :asdf))
+                 ,asdf-version))))))
 
 (in-package #:asdf)
 
@@ -307,6 +311,12 @@ Defaults to `t`.")
 ;;;; * define methods on UPDATE-INSTANCE-FOR-REDEFINED-CLASS
 ;;;;   for each of the classes we define that has changed incompatibly.
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (when (find-class 'module nil)
+    (eval ;; without this protection, Lispworks issues a warning. Sigh.
+     '(defmethod update-instance-for-redefined-class :after
+       ((m module) added deleted plist &key)
+       (when (member 'components-by-name added)
+         (compute-module-components-by-name m)))))
   #+ecl
   (when (find-class 'compile-op nil)
     (defmethod update-instance-for-redefined-class :after
@@ -365,7 +375,7 @@ VISIT-COMPONENT, if that has been called, otherwise NIL.
 This value stored will be a cons cell, the first element
 of which is a computed key, so not interesting.  The
 CDR wil be the DATA value stored by VISIT-COMPONENT; recover
-it as \(cdr \(component-visited-p op c\)\).
+it as (cdr (component-visited-p op c)).
   In the current form of ASDF, the DATA value retrieved is
 effectively a boolean, indicating whether some operations are
 to be performed in order to do OPERATION X COMPONENT.  If the
@@ -484,7 +494,10 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
                        :version (funcall unspecific-handler version))))))
 
 (define-modify-macro appendf (&rest args)
-  append "Append onto list")
+  append "Append onto list") ;; only to be used on short lists.
+
+(define-modify-macro orf (&rest args)
+  or "or a flag")
 
 (defun asdf-message (format-string &rest format-args)
   (declare (dynamic-extent format-args))
@@ -649,7 +662,7 @@ actually-existing directory."
      :until (eq form eof)
      :collect form)))
 
-#-windows
+#-(and (or win32 windows mswindows mingw32) (not cygwin))
 (progn
 #+clisp (defun get-uid () (posix:uid))
 #+sbcl (defun get-uid () (sb-unix:unix-getuid))
@@ -778,7 +791,7 @@ actually-existing directory."
    (version :accessor component-version :initarg :version)
    (in-order-to :initform nil :initarg :in-order-to
                 :accessor component-in-order-to)
-   ;; XXX crap name
+   ;; XXX crap name, but it's an official API name!
    (do-first :initform nil :initarg :do-first
              :accessor component-do-first)
    ;; methods defined using the "inline" style inside a defsystem form:
@@ -834,15 +847,38 @@ actually-existing directory."
     (ignore-errors
       (prin1 (component-name c) stream))))
 
+(defvar *default-component-class* 'cl-source-file)
+
+(defun compute-module-components-by-name (module)
+  (let ((hash (module-components-by-name module)))
+    (clrhash hash)
+    (loop :for c :in (module-components module)
+      :for name = (component-name c)
+      :for previous = (gethash name (module-components-by-name module))
+      :do
+      (when previous
+        (error 'duplicate-names :name name))
+      :do (setf (gethash name (module-components-by-name module)) c))
+    hash))
+
 (defclass module (component)
-  ((components :initform nil :accessor module-components :initarg :components)
-   ;; what to do if we can't satisfy a dependency of one of this module's
-   ;; components.  This allows a limited form of conditional processing
-   (if-component-dep-fails :initform :fail
-                           :accessor module-if-component-dep-fails
-                           :initarg :if-component-dep-fails)
-   (default-component-class :accessor module-default-component-class
-     :initform 'cl-source-file :initarg :default-component-class)))
+  ((components
+    :initform nil
+    :initarg :components
+    :accessor module-components)
+   (components-by-name
+    :initform (make-hash-table :test 'equal)
+    :accessor module-components-by-name)
+   ;; What to do if we can't satisfy a dependency of one of this module's
+   ;; components.  This allows a limited form of conditional processing.
+   (if-component-dep-fails
+    :initform :fail
+    :initarg :if-component-dep-fails
+    :accessor module-if-component-dep-fails)
+   (default-component-class
+    :initform *default-component-class*
+    :initarg :default-component-class
+    :accessor module-default-component-class)))
 
 (defun component-parent-pathname (component)
   ;; No default anymore (in particular, no *default-pathname-defaults*).
@@ -984,21 +1020,9 @@ Going forward, we recommend new users should be using the source-registry.
              (let ((defaults (eval dir)))
                (when defaults
                  (cond ((directory-pathname-p defaults)
-                        (let ((file (and defaults
-                                         (make-pathname
-                                          :defaults defaults :version :newest
-                                          :name name :type "asd" :case :local)))
-                               #+(and (or win32 windows) (not :clisp))
-                               (shortcut (make-pathname
-                                          :defaults defaults :version :newest
-                                          :name name :type "asd.lnk" :case :local)))
-                          (if (and file (probe-file file))
-                              (return file))
-                          #+(and (or win32 windows) (not :clisp))
-                          (when (probe-file shortcut)
-                            (let ((target (parse-windows-shortcut shortcut)))
-                              (when target
-                                (return (pathname target)))))))
+                        (let ((file (probe-asd name defaults)))
+                          (when file
+                            (return file))))
                        (t
                         (restart-case
                             (let* ((*print-circle* nil)
@@ -1043,10 +1067,11 @@ to `~a` which is not a directory.~@:>"
            ;; that's the case, well, that's not good, but as long as
            ;; the operation is otherwise considered to be done we
            ;; could continue and survive.
-  (or (and pathname (file-write-date pathname))
+  (or (and pathname (probe-file pathname) (file-write-date pathname))
       (progn
-        (warn "Missing FILE-WRITE-DATE for ~S: treating it as zero."
-              pathname)
+        (when pathname
+          (warn "Missing FILE-WRITE-DATE for ~S: treating it as zero."
+                pathname))
         0)))
 
 (defun find-system (name &optional (error-p t))
@@ -1090,8 +1115,7 @@ to `~a` which is not a directory.~@:>"
 
 (defmethod find-component ((module module) name &optional version)
   (if (slot-boundp module 'components)
-      (let ((m (find name (module-components module)
-                     :test #'equal :key #'component-name)))
+      (let ((m (gethash name (module-components-by-name module))))
         (if (and m (version-satisfies m version)) m))))
 
 
@@ -1166,13 +1190,18 @@ to `~a` which is not a directory.~@:>"
 
 (defclass operation ()
   (
-   ;; what is the TYPE of this slot?  seems like it should be boolean,
-   ;; but TRAVERSE checks to see if it's a list of component names...
-   ;; [2010/02/07:rpg]
+   ;; as of danb's 2003-03-16 commit e0d02781, :force can be:
+   ;; T to force the inside of existing system,
+   ;;   but not recurse to other systems we depend on.
+   ;; :ALL (or any other atom) to force all systems
+   ;;   including other systems we depend on.
+   ;; (SYSTEM1 SYSTEM2 ... SYSTEMN)
+   ;;   to force systems named in a given list
+   ;;   (but this feature never worked before ASDF 1.700 and is cerror'ed out.)
    (forced :initform nil :initarg :force :accessor operation-forced)
    (original-initargs :initform nil :initarg :original-initargs
                       :accessor operation-original-initargs)
-   (visited-nodes :initform nil :accessor operation-visited-nodes)
+   (visited-nodes :initform (make-hash-table :test 'equal) :accessor operation-visited-nodes)
    (visiting-nodes :initform nil :accessor operation-visiting-nodes)
    (parent :initform nil :initarg :parent :accessor operation-parent)))
 
@@ -1222,13 +1251,13 @@ class specifier, not an operation."
 
 (defmethod visit-component ((o operation) (c component) data)
   (unless (component-visited-p o c)
-    (push (cons (node-for o c) data)
-          (operation-visited-nodes (operation-ancestor o)))))
+    (setf (gethash (node-for o c)
+                   (operation-visited-nodes (operation-ancestor o)))
+          (cons t data))))
 
 (defmethod component-visited-p ((o operation) (c component))
-  (assoc (node-for o c)
-         (operation-visited-nodes (operation-ancestor o))
-         :test 'equal))
+  (gethash (node-for o c)
+           (operation-visited-nodes (operation-ancestor o))))
 
 (defmethod (setf visiting-component) (new-value operation component)
   ;; MCL complains about unused lexical variables
@@ -1241,7 +1270,7 @@ class specifier, not an operation."
     (if new-value
         (pushnew node (operation-visiting-nodes a) :test 'equal)
         (setf (operation-visiting-nodes a)
-              (remove node  (operation-visiting-nodes a) :test 'equal))))
+              (remove node (operation-visiting-nodes a) :test 'equal))))
   new-value)
 
 (defmethod component-visiting-p ((o operation) (c component))
@@ -1323,183 +1352,199 @@ class specifier, not an operation."
           (>= (earliest-out) (latest-in))))))))
 
 
-;;; So you look at this code and think "why isn't it a bunch of
-;;; methods".  And the answer is, because standard method combination
-;;; runs :before methods most->least-specific, which is back to front
-;;; for our purposes.
+
+;;; For 1.700 I've done my best to refactor TRAVERSE
+;;; by splitting it up in a bunch of functions,
+;;; so as to improve the collection and use-detection algorithm. --fare
+;;; The protocol is as follows: we pass around operation, dependency,
+;;; bunch of other stuff, and a force argument. Return a force flag.
+;;; The returned flag is T if anything has changed that requires a rebuild.
+;;; The force argument is a list of components that will require a rebuild
+;;; if the flag is T, at which point whoever returns the flag has to
+;;; mark them all as forced, and whoever recurses again can use a NIL list
+;;; as a further argument.
 
 (defvar *forcing* nil
   "This dynamically-bound variable is used to force operations in
 recursive calls to traverse.")
 
-(defmethod traverse ((operation operation) (c component))
-  (let ((forced nil))                   ;return value -- everyone side-effects onto this
-    (labels ((%do-one-dep (required-op required-c required-v)
-               ;; returns a partial plan that results from performing required-op
-               ;; on required-c, possibly with a required-vERSION
-               (let* ((dep-c (or (find-component
-                                  (component-parent c)
-                                  ;; XXX tacky.  really we should build the
-                                  ;; in-order-to slot with canonicalized
-                                  ;; names instead of coercing this late
-                                  (coerce-name required-c) required-v)
-                                 (if required-v
-                                     (error 'missing-dependency-of-version
-                                            :required-by c
-                                            :version required-v
-                                            :requires required-c)
-                                     (error 'missing-dependency
-                                            :required-by c
-                                            :requires required-c))))
-                      (op (make-sub-operation c operation dep-c required-op)))
-                 (traverse op dep-c)))
-             (do-one-dep (required-op required-c required-v)
-               ;; this function is a thin, error-handling wrapper around
-               ;; %do-one-dep.  Returns a partial plan per that function.
-               (loop
-                 (restart-case
-                     (return (%do-one-dep required-op required-c required-v))
-                   (retry ()
-                     :report (lambda (s)
-                               (format s "~@<Retry loading component ~S.~@:>"
-                                       required-c))
-                     :test
-                     (lambda (c)
-#|
-                        (print (list :c1 c (typep c 'missing-dependency)))
-                        (when (typep c 'missing-dependency)
-                          (print (list :c2 (missing-requires c) required-c
-                                       (equalp (missing-requires c)
-                                               required-c))))
-|#
-                       (or (null c)
-                           (and (typep c 'missing-dependency)
-                                (equalp (missing-requires c)
-                                        required-c))))))))
-             (do-dep (op dep)
-               ;; type of arguments uncertain:  op seems to at least potentially be a
-               ;; symbol, rather than an operation
-               ;; dep is either a list of component names (?) or (we hope) a single
-               ;; component name.
-               ;; handle a single dependency, returns nothing of interest --- side-
-               ;; effects onto the FORCED variable, which is scoped over TRAVERSE
-               (cond ((eq op 'feature)
-                      (or (member (car dep) *features*)
-                          (error 'missing-dependency
-                                 :required-by c
-                                 :requires (car dep))))
-                     (t
-                      (dolist (d dep)
-                        ;; structured dependencies --- this parses keywords
-                        ;; the keywords could be broken out and cleanly (extensibly)
-                        ;; processed by EQL methods, but for the pervasive side-effecting
-                        ;; onto FORCED
-                        (cond ((consp d)
-                               (cond ((string-equal
-                                       (symbol-name (first d))
-                                       "VERSION")
-                                      ;; https://bugs.launchpad.net/asdf/+bug/527788
-                                      (appendf
-                                       forced
-                                       (do-one-dep op (second d) (third d))))
-                                     ;; this particular subform is not documented, indeed
-                                     ;; clashes with the documentation, since it assumes a
-                                     ;; third component.
-                                     ;; See https://bugs.launchpad.net/asdf/+bug/518467
-                                     ((and (string-equal
-                                            (symbol-name (first d))
-                                            "FEATURE")
-                                           (find (second d) *features*
-                                                 :test 'string-equal))
-                                      (appendf
-                                       forced
-                                       (do-one-dep op (third d) nil)))
-                                     (t
-                                      (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name" d))))
-                              (t
-                               (appendf forced (do-one-dep op d nil)))))))))
+(defgeneric do-traverse (operation component collect))
+
+(defun %do-one-dep (operation c collect required-op required-c required-v)
+  ;; collects a partial plan that results from performing required-op
+  ;; on required-c, possibly with a required-vERSION
+  (let* ((dep-c (or (find-component
+                     (component-parent c)
+                     ;; XXX tacky.  really we should build the
+                     ;; in-order-to slot with canonicalized
+                     ;; names instead of coercing this late
+                     (coerce-name required-c) required-v)
+                    (if required-v
+                        (error 'missing-dependency-of-version
+                               :required-by c
+                               :version required-v
+                               :requires required-c)
+                        (error 'missing-dependency
+                               :required-by c
+                               :requires required-c))))
+         (op (make-sub-operation c operation dep-c required-op)))
+    (do-traverse op dep-c collect)))
+
+(defun do-one-dep (operation c collect required-op required-c required-v)
+  ;; this function is a thin, error-handling wrapper around
+  ;; %do-one-dep.  Returns a partial plan per that function.
+  (loop
+    (restart-case
+        (return (%do-one-dep operation c collect
+                             required-op required-c required-v))
+      (retry ()
+        :report (lambda (s)
+                  (format s "~@<Retry loading component ~S.~@:>"
+                          required-c))
+        :test
+        (lambda (c)
+          #|
+          (print (list :c1 c (typep c 'missing-dependency)))
+          (when (typep c 'missing-dependency)
+          (print (list :c2 (missing-requires c) required-c
+          (equalp (missing-requires c)
+          required-c))))
+          |#
+          (or (null c)
+              (and (typep c 'missing-dependency)
+                   (equalp (missing-requires c)
+                           required-c))))))))
+
+(defun do-dep (operation c collect op dep)
+  ;; type of arguments uncertain:
+  ;; op seems to at least potentially be a symbol, rather than an operation
+  ;; dep is a list of component names
+  (cond ((eq op 'feature)
+         (if (member (car dep) *features*)
+             nil
+             (error 'missing-dependency
+                    :required-by c
+                    :requires (car dep))))
+        (t
+         (let ((flag nil))
+           (flet ((dep (op comp ver)
+                    (when (do-one-dep operation c collect
+                                      op comp ver)
+                      (setf flag t))))
+             (dolist (d dep)
+               (if (atom d)
+                   (dep op d nil)
+                   ;; structured dependencies --- this parses keywords
+                   ;; the keywords could be broken out and cleanly (extensibly)
+                   ;; processed by EQL methods
+                   (cond ((eq :version (first d))
+                          ;; https://bugs.launchpad.net/asdf/+bug/527788
+                          (dep op (second d) (third d)))
+                         ;; This particular subform is not documented and
+                         ;; has always been broken in the past.
+                         ;; Therefore no one uses it, and I'm cerroring it out,
+                         ;; after fixing it
+                         ;; See https://bugs.launchpad.net/asdf/+bug/518467
+                         ((eq :feature (first d))
+                          (cerror "Continue nonetheless."
+                                  "Congratulations, you're the first ever user of FEATURE dependencies! Please contact the asdf-devel mailing-list.")
+                          (when (find (second d) *features* :test 'string-equal)
+                            (dep op (third d) nil)))
+                         (t
+                          (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name" d))))))
+           flag))))
+
+(defmethod do-traverse ((operation operation) (c component) collect)
+  (let ((flag nil)) ;; return value: must we rebuild this and its dependencies?
+    (labels
+        ((update-flag (x)
+           (when x
+             (setf flag t)))
+         (dep (op comp)
+           (update-flag (do-dep operation c collect op comp))))
+      ;; Have we been visited yet? If so, just process the result?
       (aif (component-visited-p operation c)
-           (return-from traverse
-             (if (cdr it) (list (cons 'pruned-op c)) nil)))
+           (progn
+             (update-flag (cdr it))
+             (return-from do-traverse flag)))
       ;; dependencies
-      (if (component-visiting-p operation c)
-          (error 'circular-dependency :components (list c)))
+      (when (component-visiting-p operation c)
+        (error 'circular-dependency :components (list c)))
       (setf (visiting-component operation c) t)
       (unwind-protect
-          (progn
-            ;; first we check and do all the dependencies for the
-            ;; module.  Operations planned in this loop will show up
-            ;; in the contents of the FORCED variable, and are consumed
-            ;; downstream (watch out for the shadowing FORCED variable
-            ;; around the DOLIST below!)
-            (let ((*forcing* nil))
-              ;; upstream dependencies are never forced to happen just because
-              ;; the things that depend on them are....
-              (loop :for (required-op . deps) :in
-                                              (component-depends-on operation c)
-                    :do (do-dep required-op deps)))
-            ;; constituent bits
-            (let ((module-ops
-                   (when (typep c 'module)
-                     (let ((at-least-one nil)
-                           (forced nil)
-                           ;; this is set based on the results of the
-                           ;; dependencies and whether we are in the
-                           ;; context of a *forcing* call...
-                           (must-operate (or *forcing*
-                                             ;; inter-system dependencies do NOT trigger
-                                             ;; building components
-                                             (and
-                                              (not (typep c 'system))
-                                              forced)))
-                           (error nil))
-                       (dolist (kid (module-components c))
-                           (handler-case
-                               (let ((*forcing* must-operate))
-                                 (appendf forced (traverse operation kid)))
-                             (missing-dependency (condition)
-                               (when (eq (module-if-component-dep-fails c)
-                                       :fail)
-                                   (error condition))
-                               (setf error condition))
-                             (:no-error (c)
-                               (declare (ignore c))
-                               (setf at-least-one t))))
-                       (when (and (eq (module-if-component-dep-fails c)
-                                      :try-next)
-                                  (not at-least-one))
-                         (error error))
-                       forced))))
-              ;; now the thing itself
-              ;; the test here is a bit oddly written.  FORCED here doesn't
-              ;; mean that this operation is forced on this component, but that
-              ;; something upstream of this component has been forced.
-              (when (or forced module-ops
-                        *forcing*
-                        (not (operation-done-p operation c))
-                        (let ((f (operation-forced
-                                  (operation-ancestor operation))))
-                          ;; does anyone fully understand the following condition?
-                          ;; if so, please add a comment to explain it...
-                          (and f (or (not (consp f))
-                                     (member (component-name
-                                              (operation-ancestor operation))
-                                             (mapcar #'coerce-name f)
-                                             ;; this was string=, but for the benefit
-                                             ;; of mlisp, we use string-equal for this
-                                             ;; purpose.
-                                             :test #'string-equal)))))
-                (let ((do-first (cdr (assoc (class-name (class-of operation))
-                                            (component-do-first c)))))
-                  (loop :for (required-op . deps) :in do-first
-                        :do (do-dep required-op deps)))
-                (setf forced (append (delete 'pruned-op forced :key #'car)
-                                     (delete 'pruned-op module-ops :key #'car)
-                                     (list (cons operation c)))))))
-        (setf (visiting-component operation c) nil))
-      (visit-component operation c (and forced t))
-      forced)))
+           (progn
+             ;; first we check and do all the dependencies for the module.
+             ;; Operations planned in this loop will show up
+             ;; in the results, and are consumed below.
+             (let ((*forcing* nil))
+               ;; upstream dependencies are never forced to happen just because
+               ;; the things that depend on them are....
+               (loop
+                 :for (required-op . deps) :in (component-depends-on operation c)
+                 :do (dep required-op deps)))
+             ;; constituent bits
+             (when (typep c 'module)
+               (let ((at-least-one nil)
+                     ;; This is set based on the results of the
+                     ;; dependencies and whether we are in the
+                     ;; context of a *forcing* call...
+                     ;; inter-system dependencies do NOT trigger
+                     ;; building components
+                     (*forcing*
+                      (or *forcing*
+                          (and flag (not (typep c 'system)))))
+                     (error nil))
+                 (dolist (kid (module-components c))
+                   (handler-case
+                       (do-traverse operation kid collect)
+                     (missing-dependency (condition)
+                       (when (eq (module-if-component-dep-fails c)
+                                 :fail)
+                         (error condition))
+                       (setf error condition))
+                     (:no-error (c)
+                       (declare (ignore c))
+                       (setf at-least-one t))))
+                 (when (and (eq (module-if-component-dep-fails c)
+                                :try-next)
+                            (not at-least-one))
+                   (error error))))
+             (update-flag
+              (or
+               *forcing*
+               (not (operation-done-p operation c))
+               ;; For sub-operations, check whether
+               ;; the original ancestor operation was forced,
+               ;; or names us amongst an explicit list of things to force...
+               ;; except that this check doesn't distinguish
+               ;; between all the things with a given name. Sigh.
+               ;; BROKEN!
+               (let ((f (operation-forced
+                         (operation-ancestor operation))))
+                 (and f (or (not (consp f)) ;; T or :ALL
+                            (and (typep c 'system) ;; list of names of systems to force
+                                 (member (component-name c) f
+                                         :test #'string=)))))))
+             (when flag
+               (let ((do-first (cdr (assoc (class-name (class-of operation))
+                                           (component-do-first c)))))
+                 (loop :for (required-op . deps) :in do-first
+                   :do (do-dep operation c collect required-op deps)))
+               (funcall collect (cons operation c))))
+        (setf (visiting-component operation c) nil)))
+      (visit-component operation c flag)
+      flag))
 
+(defmethod traverse ((operation operation) (c component))
+  ;; cerror'ing a feature that seems to have NEVER EVER worked,
+  ;; ever since danb created it in his 2003-03-16 commit e0d02781
+  (when (consp (operation-forced operation))
+    (cerror "Continue nonetheless."
+            "Congratulations, you're the first ever user of the :force (list of system names) feature! Please contact the asdf-devel mailing-list to collect a cookie.")
+    (setf (operation-forced operation)
+          (mapcar #'coerce-name (operation-forced operation))))
+  (while-collecting (collect)
+    (do-traverse operation c #'collect)))
 
 (defmethod perform ((operation operation) (c source-file))
   (sysdef-error
@@ -1870,7 +1915,7 @@ Returns the new tree (which probably shares structure with the old one)"
     new-tree))
 
 
-(defvar *serial-depends-on*)
+(defvar *serial-depends-on* nil)
 
 (defun sysdef-error-component (msg type name value)
   (sysdef-error (concatenate 'string msg
@@ -1924,7 +1969,6 @@ Returns the new tree (which probably shares structure with the old one)"
   (%define-component-inline-methods component rest))
 
 (defun parse-component-form (parent options)
-
   (destructuring-bind
         (type name &rest rest &key
               ;; the following list of keywords is reproduced below in the
@@ -1956,10 +2000,9 @@ Returns the new tree (which probably shares structure with the old one)"
             (or (find-component parent name)
                 (make-instance (class-for-type parent type)))))
       (when weakly-depends-on
-        (setf depends-on (append depends-on (remove-if (complement #'find-system) weakly-depends-on))))
-      (when (boundp '*serial-depends-on*)
-        (setf depends-on
-              (concatenate 'list *serial-depends-on* depends-on)))
+        (appendf depends-on (remove-if (complement #'find-system) weakly-depends-on)))
+      (when *serial-depends-on*
+        (push *serial-depends-on* depends-on))
       (apply #'reinitialize-instance ret
              :name (coerce-name name)
              :pathname pathname
@@ -1973,21 +2016,13 @@ Returns the new tree (which probably shares structure with the old one)"
                        (module-default-component-class parent))))
         (let ((*serial-depends-on* nil))
           (setf (module-components ret)
-                (loop :for c-form :in components
+                (loop
+                  :for c-form :in components
                   :for c = (parse-component-form ret c-form)
+                  :for name = (component-name c)
                   :collect c
-                  :if serial
-                  :do (push (component-name c) *serial-depends-on*))))
-
-        ;; check for duplicate names
-        (let ((name-hash (make-hash-table :test #'equal)))
-          (loop :for c in (module-components ret) :do
-            (if (gethash (component-name c)
-                         name-hash)
-                (error 'duplicate-names :name (component-name c))
-                (setf (gethash (component-name c)
-                               name-hash)
-                      t)))))
+                  :when serial :do (setf *serial-depends-on* name))))
+        (compute-module-components-by-name ret))
 
       (setf (component-in-order-to ret)
             (union-of-dependencies
@@ -2221,7 +2256,7 @@ located."
        ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
            :for dir :in (split-string dirs :separator ":")
            :collect (try dir "common-lisp/"))
-       #+windows
+       #+(and (or win32 windows mswindows mingw32) (not cygwin))
         ,@`(#+lispworks ,(try (sys:get-folder-path :common-appdata) "common-lisp/config/")
             ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
            #+(not cygwin)
@@ -2232,13 +2267,11 @@ located."
   (remove-if
    #'null
    (append
-    #+windows
+    #+(and (or win32 windows mswindows mingw32) (not cygwin))
     (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
-      `(
-       ,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
+      `(,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
-           #+(not cygwin)
-           ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))))
+        ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))))
     (list #p"/etc/"))))
 (defun in-first-directory (dirs x)
   (loop :for dir :in dirs
@@ -2305,7 +2338,7 @@ and the order is by decreasing length of namestring of the source pathname.")
    #+(and windows lispworks)
    (let ((h (sys:get-folder-path :common-appdata))) ;; no :common-caches in Windows???
      (and h `(,h "common-lisp" "cache")))
-   #+(and windows (not cygwin))
+   #+(and (or win32 windows mswindows mingw32) (not cygwin))
    ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Cache
    (let ((h (or (getenv "USERPROFILE") (user-homedir))))
      (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
@@ -2315,7 +2348,7 @@ and the order is by decreasing length of namestring of the source pathname.")
    #+(and windows lispworks)
    (let ((h (sys:get-folder-path :common-appdata))) ;; no :common-caches in Windows???
      (and h `(,h "common-lisp" "cache")))
-   #+windows
+   #+(and (or win32 windows mswindows mingw32) (not cygwin))
    (let ((h (or (getenv "USERPROFILE") (user-homedir))))
      (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
    #+(or unix cygwin)
@@ -2854,29 +2887,33 @@ with a different configuration, so the configuration would be re-read then."
   (setf *source-registry* '())
   (values))
 
+(defun probe-asd (name defaults)
+  (block nil
+    (when (directory-pathname-p defaults)
+      (let ((file
+             (make-pathname
+              :defaults defaults :version :newest :case :local
+              :name name
+              :type "asd")))
+        (when (probe-file file)
+          (return file)))
+      #+(and (or win32 windows mswindows mingw32) (not cygwin) (not clisp))
+      (let ((shortcut
+             (make-pathname
+              :defaults defaults :version :newest :case :local
+              :name (concatenate 'string name ".asd")
+              :type "lnk")))
+        (when (probe-file shortcut)
+          (let ((target (parse-windows-shortcut shortcut)))
+            (when target
+              (return (pathname target)))))))))
+
 (defun sysdef-source-registry-search (system)
   (ensure-source-registry)
-  (let ((name (coerce-name system)))
-    (block nil
-      (dolist (dir (source-registry))
-        (let ((defaults (eval dir)))
-          (when defaults
-            (cond ((directory-pathname-p defaults)
-                   (let ((file (and defaults
-                                    (make-pathname
-                                     :defaults defaults :version :newest
-                                     :name name :type "asd" :case :local)))
-                         #+(and (or win32 windows) (not :clisp))
-                         (shortcut (make-pathname
-                                    :defaults defaults :version :newest
-                                    :name name :type "asd.lnk" :case :local)))
-                     (when (and file (probe-file file))
-                       (return file))
-                     #+(and (or win32 windows) (not :clisp))
-                     (when (probe-file shortcut)
-                       (let ((target (parse-windows-shortcut shortcut)))
-                         (when target
-                           (return (pathname target))))))))))))))
+  (loop :with name = (coerce-name system)
+    :for defaults :in (source-registry)
+    :for file = (probe-asd name defaults)
+    :when file :return file))
 
 (defun validate-source-registry-directive (directive)
   (unless
@@ -2981,7 +3018,7 @@ with a different configuration, so the configuration would be re-read then."
           (datadirs
            (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
           (dirs (cons datahome (split-string datadirs :separator ":"))))
-         #+(and windows (not cygwin))
+         #+(and (or win32 windows mswindows mingw32) (not cygwin))
          ((datahome
            #+lispworks (sys:get-folder-path :common-appdata)
            #-lispworks (try (or (getenv "USERPROFILE") (user-homedir))
@@ -2991,7 +3028,7 @@ with a different configuration, so the configuration would be re-read then."
            #-lispworks (try (getenv "ALLUSERSPROFILE")
                             "Application Data"))
           (dirs (list datahome datadir)))
-         #+(and (not unix) (not windows) (not cygwin))
+         #-(or unix win32 windows mswindows mingw32 cygwin)
          ((dirs ()))
          (loop :for dir :in dirs
            :collect `(:directory ,(try dir "common-lisp/systems/"))
