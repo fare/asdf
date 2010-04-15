@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.700" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.701" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf (find-symbol (string versym) existing-asdf)))
@@ -791,6 +791,8 @@ actually-existing directory."
    (version :accessor component-version :initarg :version)
    (in-order-to :initform nil :initarg :in-order-to
                 :accessor component-in-order-to)
+   ;; This one is used by POIU. Maybe in the future by ASDF instead of in-order-to?
+   (load-dependencies :accessor component-load-dependencies :initform nil)
    ;; XXX crap name, but it's an official API name!
    (do-first :initform nil :initarg :do-first
              :accessor component-do-first)
@@ -2023,6 +2025,8 @@ Returns the new tree (which probably shares structure with the old one)"
                   :collect c
                   :when serial :do (setf *serial-depends-on* name))))
         (compute-module-components-by-name ret))
+
+      (setf (component-load-dependencies ret) depends-on) ;; Used by POIU
 
       (setf (component-in-order-to ret)
             (union-of-dependencies
