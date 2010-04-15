@@ -238,7 +238,7 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.671,
+If you are running a version older than 1.678,
 we recommend that you load a newer ASDF using the method below.
 
 
@@ -2532,7 +2532,6 @@ Naming files within a system definition becomes easy and portable again.
 @code{asdf-utilities:merge-pathnames*},
 @code{asdf::merge-component-name-type}.
 
-
 @xref{The defsystem grammar,,Pathname specifiers}.
 
 @subsection Output translations
@@ -2554,7 +2553,7 @@ with sensible defaults, adequate configuration languages,
 a coherent set of configuration files and hooks,
 and support for non-Unix platforms.
 
-@ref{Controlling where ASDF saves compiled files}.
+@xref{Controlling where ASDF saves compiled files}.
 
 @subsection Source Registry Configuration
 
@@ -2615,8 +2614,8 @@ ECL extensions were not integrated in the ASDF release.
 @subsection ASDF itself is versioned
 
 Between new features, old bugs fixed, and new bugs introduced,
-there was a variety of releases of ASDF in the wild,
-and little way to check which release had which feature set.
+there were various releases of ASDF in the wild,
+and no simple way to check which release had which feature set.
 People using or writing systems had to either make worst-case assumptions
 as to what features were available and worked,
 or take great pains to have the correct version of ASDF installed.
@@ -2624,7 +2623,7 @@ or take great pains to have the correct version of ASDF installed.
 With ASDF 2, we provide a new stable set of working features
 that everyone can rely on from now on.
 Use @code{#+asdf2} to detect presence of ASDF 2,
-@code{(asdf:version-satisfies (asdf:asdf-version) "1.671")}
+@code{(asdf:version-satisfies (asdf:asdf-version) "1.678")}
 to check the availability of a version no earlier than required.
 
 @subsection ASDF can be upgraded
@@ -2899,7 +2898,7 @@ or as a name component plus optional dot-separated type component
 
 
 @node  TODO list, Inspiration, FAQ, Top
-comment  node-name,  next,  previous,  up
+@comment  node-name,  next,  previous,  up
 @chapter TODO list
 
 Here is an old list of things to do,
