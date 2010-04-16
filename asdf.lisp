@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.701" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.702" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf (find-symbol (string versym) existing-asdf)))
@@ -431,9 +431,9 @@ processed in order by `operate`."))
   (let ((vars (mapcar #'(lambda (x) (gensym (symbol-name x))) collectors))
         (initial-values (mapcar (constantly nil) collectors)))
     `(let ,(mapcar #'list vars initial-values)
-       (flet ,(mapcar #'(lambda (c v) `(,c (x) (push x ,v))) collectors vars)
+       (flet ,(mapcar #'(lambda (c v) `(,c (x) (push x ,v) (values))) collectors vars)
          ,@body
-         (values ,@(mapcar #'(lambda (v) `(nreverse ,v)) vars))))))
+         (values ,@(mapcar #'(lambda (v) `(reverse ,v)) vars))))))
 
 (defmacro aif (test then &optional else)
   `(let ((it ,test)) (if it ,then ,else)))
@@ -1204,7 +1204,7 @@ to `~a` which is not a directory.~@:>"
    (original-initargs :initform nil :initarg :original-initargs
                       :accessor operation-original-initargs)
    (visited-nodes :initform (make-hash-table :test 'equal) :accessor operation-visited-nodes)
-   (visiting-nodes :initform nil :accessor operation-visiting-nodes)
+   (visiting-nodes :initform (make-hash-table :test 'equal) :accessor operation-visiting-nodes)
    (parent :initform nil :initarg :parent :accessor operation-parent)))
 
 (defmethod print-object ((o operation) stream)
@@ -1270,15 +1270,13 @@ class specifier, not an operation."
   (let ((node (node-for o c))
         (a (operation-ancestor o)))
     (if new-value
-        (pushnew node (operation-visiting-nodes a) :test 'equal)
-        (setf (operation-visiting-nodes a)
-              (remove node (operation-visiting-nodes a) :test 'equal))))
-  new-value)
+        (setf (gethash node (operation-visiting-nodes a)) t)
+        (remhash node (operation-visiting-nodes a)))
+    new-value))
 
 (defmethod component-visiting-p ((o operation) (c component))
   (let ((node (node-for o c)))
-    (member node (operation-visiting-nodes (operation-ancestor o))
-            :test 'equal)))
+    (gethash node (operation-visiting-nodes (operation-ancestor o)))))
 
 (defmethod component-depends-on ((op-spec symbol) (c component))
   (component-depends-on (make-instance op-spec) c))
@@ -1456,6 +1454,9 @@ recursive calls to traverse.")
                           (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name" d))))))
            flag))))
 
+(defun do-collect (collect x)
+  (funcall collect x))
+
 (defmethod do-traverse ((operation operation) (c component) collect)
   (let ((flag nil)) ;; return value: must we rebuild this and its dependencies?
     (labels
@@ -1464,7 +1465,7 @@ recursive calls to traverse.")
              (setf flag t)))
          (dep (op comp)
            (update-flag (do-dep operation c collect op comp))))
-      ;; Have we been visited yet? If so, just process the result?
+      ;; Have we been visited yet? If so, just process the result.
       (aif (component-visited-p operation c)
            (progn
              (update-flag (cdr it))
@@ -1485,55 +1486,59 @@ recursive calls to traverse.")
                  :for (required-op . deps) :in (component-depends-on operation c)
                  :do (dep required-op deps)))
              ;; constituent bits
-             (when (typep c 'module)
-               (let ((at-least-one nil)
-                     ;; This is set based on the results of the
-                     ;; dependencies and whether we are in the
-                     ;; context of a *forcing* call...
-                     ;; inter-system dependencies do NOT trigger
-                     ;; building components
-                     (*forcing*
-                      (or *forcing*
-                          (and flag (not (typep c 'system)))))
-                     (error nil))
-                 (dolist (kid (module-components c))
-                   (handler-case
-                       (do-traverse operation kid collect)
-                     (missing-dependency (condition)
-                       (when (eq (module-if-component-dep-fails c)
-                                 :fail)
-                         (error condition))
-                       (setf error condition))
-                     (:no-error (c)
-                       (declare (ignore c))
-                       (setf at-least-one t))))
-                 (when (and (eq (module-if-component-dep-fails c)
-                                :try-next)
-                            (not at-least-one))
-                   (error error))))
-             (update-flag
-              (or
-               *forcing*
-               (not (operation-done-p operation c))
-               ;; For sub-operations, check whether
-               ;; the original ancestor operation was forced,
-               ;; or names us amongst an explicit list of things to force...
-               ;; except that this check doesn't distinguish
-               ;; between all the things with a given name. Sigh.
-               ;; BROKEN!
-               (let ((f (operation-forced
-                         (operation-ancestor operation))))
-                 (and f (or (not (consp f)) ;; T or :ALL
-                            (and (typep c 'system) ;; list of names of systems to force
-                                 (member (component-name c) f
-                                         :test #'string=)))))))
-             (when flag
-               (let ((do-first (cdr (assoc (class-name (class-of operation))
-                                           (component-do-first c)))))
-                 (loop :for (required-op . deps) :in do-first
-                   :do (do-dep operation c collect required-op deps)))
-               (funcall collect (cons operation c))))
-        (setf (visiting-component operation c) nil)))
+             (let ((module-ops
+                    (when (typep c 'module)
+                      (let ((at-least-one nil)
+                            ;; This is set based on the results of the
+                            ;; dependencies and whether we are in the
+                            ;; context of a *forcing* call...
+                            ;; inter-system dependencies do NOT trigger
+                            ;; building components
+                            (*forcing*
+                             (or *forcing*
+                                 (and flag (not (typep c 'system)))))
+                            (error nil))
+                        (while-collecting (internal-collect)
+                          (dolist (kid (module-components c))
+                            (handler-case
+                                (update-flag
+                                 (do-traverse operation kid #'internal-collect))
+                              (missing-dependency (condition)
+                                (when (eq (module-if-component-dep-fails c)
+                                          :fail)
+                                  (error condition))
+                                (setf error condition))
+                              (:no-error (c)
+                                (declare (ignore c))
+                                (setf at-least-one t))))
+                          (when (and (eq (module-if-component-dep-fails c)
+                                         :try-next)
+                                     (not at-least-one))
+                            (error error)))))))
+               (update-flag
+                (or
+                 *forcing*
+                 (not (operation-done-p operation c))
+                 ;; For sub-operations, check whether
+                 ;; the original ancestor operation was forced,
+                 ;; or names us amongst an explicit list of things to force...
+                 ;; except that this check doesn't distinguish
+                 ;; between all the things with a given name. Sigh.
+                 ;; BROKEN!
+                 (let ((f (operation-forced
+                           (operation-ancestor operation))))
+                   (and f (or (not (consp f)) ;; T or :ALL
+                              (and (typep c 'system) ;; list of names of systems to force
+                                   (member (component-name c) f
+                                           :test #'string=)))))))
+               (when flag
+                 (let ((do-first (cdr (assoc (class-name (class-of operation))
+                                             (component-do-first c)))))
+                   (loop :for (required-op . deps) :in do-first
+                     :do (do-dep operation c collect required-op deps)))
+                 (do-collect collect (vector module-ops))
+                 (do-collect collect (cons operation c)))))
+             (setf (visiting-component operation c) nil)))
       (visit-component operation c flag)
       flag))
 
@@ -1545,8 +1550,19 @@ recursive calls to traverse.")
             "Congratulations, you're the first ever user of the :force (list of system names) feature! Please contact the asdf-devel mailing-list to collect a cookie.")
     (setf (operation-forced operation)
           (mapcar #'coerce-name (operation-forced operation))))
-  (while-collecting (collect)
-    (do-traverse operation c #'collect)))
+  (flatten-tree
+   (while-collecting (collect)
+     (do-traverse operation c #'collect))))
+
+(defun flatten-tree (l)
+  (while-collecting (c)
+    (labels ((r (x)
+               (if (vectorp x)
+                   (r* (svref x 0))
+                   (c x)))
+             (r* (l)
+               (dolist (x l) (r x))))
+      (r* l))))
 
 (defmethod perform ((operation operation) (c source-file))
   (sysdef-error
@@ -2032,8 +2048,8 @@ Returns the new tree (which probably shares structure with the old one)"
             (union-of-dependencies
              in-order-to
              `((compile-op (compile-op ,@depends-on))
-               (load-op (load-op ,@depends-on))))
-            (component-do-first ret) `((compile-op (load-op ,@depends-on))))
+               (load-op (load-op ,@depends-on)))))
+      (setf (component-do-first ret) `((compile-op (load-op ,@depends-on))))
 
       (%refresh-component-inline-methods ret rest)
       ret)))
