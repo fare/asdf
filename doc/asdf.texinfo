@@ -172,7 +172,7 @@ the ASDF internals and how to extend ASDF.
 @emph{Nota Bene}:
 We are preparing for a release of ASDF 2,
 which will have version 2.000 and later.
-Current releases, in the 1.600 series and beyond,
+Current releases, in the 1.700 series and beyond,
 should be considered as release candidates.
 We're still working on polishing the code and documentation.
 @ref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
@@ -241,7 +241,7 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.678,
+If you are running a version older than 1.703,
 we recommend that you load a newer ASDF using the method below.
 
 
@@ -2499,7 +2499,7 @@ which will have version 2.000 and later.
 While the code and documentation are essentially complete
 we are still working on polishing them before release.
 
-Releases in the 1.600 series and beyond
+Releases in the 1.700 series and beyond
 should be considered as release candidates.
 For all practical purposes,
 ASDF 2 refers to releases later than 1.656,
@@ -2516,7 +2516,7 @@ If you are experiencing problems or limitations of any sort with ASDF 1,
 we recommend that you should upgrade to ASDF 2 or its latest release candidate.
 
 
-@subsection ASDF can portably name files inside systems and components
+@subsection ASDF can portably name files in subdirectories
 
 Common Lisp namestrings are not portable,
 except maybe for logical pathnamestrings,
@@ -2598,14 +2598,18 @@ similarly for @code{compile-system}, @code{test-system}.
 These issues and many others have been fixed,
 including the following:
 
-Dependencies were not correctly propagated
-across submodules within a system.
+The infamous TRAVERSE function has been revamped significantly,
+with many bugs squashed.
+In particular, dependencies were not correctly propagated
+across submodules within a system but now are.
+The :version and :feature features and
+the :force (system1 .. systemN) feature have been fixed.
 
 Many features used to not be portable,
 especially where pathnames were involved.
 
 The internal test suite used to massively fail
-in many implementations.
+on many implementations.
 
 Support was broken for some implementations (notably ABCL).
 
@@ -2626,7 +2630,7 @@ or take great pains to have the correct version of ASDF installed.
 With ASDF 2, we provide a new stable set of working features
 that everyone can rely on from now on.
 Use @code{#+asdf2} to detect presence of ASDF 2,
-@code{(asdf:version-satisfies (asdf:asdf-version) "1.678")}
+@code{(asdf:version-satisfies (asdf:asdf-version) "1.703")}
 to check the availability of a version no earlier than required.
 
 @subsection ASDF can be upgraded

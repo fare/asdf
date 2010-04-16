@@ -63,15 +63,21 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.702" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.703" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
-         (existing-version (and existing-asdf (find-symbol (string versym) existing-asdf)))
+         (existing-version (and existing-asdf
+                                (symbol-value
+                                 (find-symbol (string versym) existing-asdf))))
          (redefined-functions
           '(#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file)))
     (unless (equal asdf-version existing-version)
+      (when existing-asdf
+        (format *error-output*
+                "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
+                existing-version asdf-version))
       (labels ((rename-away (package)
                  (loop :with name = (package-name package)
                    :for i :from 1 :for new = (format nil "~A.~D" name i)
