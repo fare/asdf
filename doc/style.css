@@ -244,10 +244,12 @@ a:hover {
 	font-family: Arial, Helvetica, sans-serif;
 }
 
-.system-description {
-	width: 75%;
+.contents {
+        // width: 90%;
 	padding-left: 2em;
-	float: left;
+	padding-right: 2em;
+        padding-top: 2em;
+        padding-bottom: 1.5em;
 }
 
 .check {font-size: x-small;
