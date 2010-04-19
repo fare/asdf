@@ -1,3 +1,9 @@
+cl-asdf (2:1.704-2) UNRELEASED; urgency=low
+
+  * open for changes
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 19 Apr 2010 21:45:07 +0200
+
 cl-asdf (2:1.704-1) unstable; urgency=low
 
   * Imported new upstream.
