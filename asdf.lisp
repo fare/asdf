@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.703" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.704" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -238,6 +238,7 @@
            #:*compile-file-warnings-behaviour*
            #:*compile-file-failure-behaviour*
            #:*resolve-symlinks*
+           #:*asdf-verbose*
 
            #:asdf-version
 
@@ -285,7 +286,7 @@
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
 You can compare this string with e.g.:
-(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"1.661\")."
+(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"1.704\")."
   *asdf-version*)
 
 (defvar *resolve-symlinks* t
@@ -298,6 +299,8 @@ Defaults to `t`.")
 (defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
 
 (defvar *verbose-out* nil)
+
+(defvar *asdf-verbose* t)
 
 (defparameter +asdf-methods+
   '(perform-with-restarts perform explain output-files operation-done-p))
@@ -679,7 +682,7 @@ actually-existing directory."
 #-(or cmu sbcl clisp allegro ecl)
 (defun get-uid ()
   (let ((uid-string
-         (with-output-to-string (asdf::*VERBOSE-OUT*)
+         (with-output-to-string (*verbose-out*)
            (asdf:run-shell-command "id -ur"))))
     (with-input-from-string (stream uid-string)
       (read-line stream)
@@ -1756,7 +1759,8 @@ recursive calls to traverse.")
 ;;;; -------------------------------------------------------------------------
 ;;;; Invoking Operations
 
-(defun operate (operation-class system &rest args &key (verbose t) version force
+(defun operate (operation-class system &rest args
+                &key ((:verbose *asdf-verbose*) *asdf-verbose*) version force
                 &allow-other-keys)
   (declare (ignore force))
   (let* ((*package* *package*)
@@ -1764,7 +1768,7 @@ recursive calls to traverse.")
          (op (apply #'make-instance operation-class
                     :original-initargs args
                     args))
-         (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
+         (*verbose-out* (if *asdf-verbose* *standard-output* (make-broadcast-stream)))
          (system (if (typep system 'component) system (find-system system))))
     (unless (version-satisfies system version)
       (error 'missing-component-of-version :requires system :version version))
@@ -1792,7 +1796,7 @@ recursive calls to traverse.")
                 (return)))))))
     op))
 
-(defun oos (operation-class system &rest args &key force (verbose t) version
+(defun oos (operation-class system &rest args &key force verbose version
             &allow-other-keys)
   (declare (ignore force verbose version))
   (apply #'operate operation-class system args))
@@ -1822,21 +1826,21 @@ created with the same initargs as the original one.
   (setf (documentation 'operate 'function)
         operate-docstring))
 
-(defun load-system (system &rest args &key force (verbose t) version
+(defun load-system (system &rest args &key force verbose version
                     &allow-other-keys)
   "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
   (apply #'operate 'load-op system args))
 
-(defun compile-system (system &rest args &key force (verbose t) version
+(defun compile-system (system &rest args &key force verbose version
                        &allow-other-keys)
   "Shorthand for `(operate 'asdf:compile-op system)`. See OPERATE
 for details."
   (declare (ignore force verbose version))
   (apply #'operate 'compile-op system args))
 
-(defun test-system (system &rest args &key force (verbose t) version
+(defun test-system (system &rest args &key force verbose version
                     &allow-other-keys)
   "Shorthand for `(operate 'asdf:test-op system)`. See OPERATE for
 details."
@@ -1869,13 +1873,15 @@ details."
 
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
-                            &allow-other-keys)
+                            system-dependencies &allow-other-keys)
       options
-    (let ((component-options (remove-keyword :class options)))
+    (let ((component-options (remove-keys '(:system-dependencies :class) options)))
       `(progn
          ;; system must be registered before we parse the body, otherwise
          ;; we recur when trying to find an existing system of the same name
          ;; to reuse options (e.g. pathname) from
+         ,@(loop for system in system-dependencies
+              collect `(asdf:load-system ,system))
          (let ((s (system-registered-p ',name)))
            (cond ((and s (eq (type-of (cdr s)) ',class))
                   (setf (car s) (get-universal-time)))
