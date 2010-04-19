@@ -9,19 +9,14 @@
 build: build-stamp
 build-stamp:
 	dh_testdir
-	makeinfo asdf.texinfo
-	makeinfo --html asdf.texinfo
-	texi2pdf asdf.texinfo
+	make -C doc all
 	touch build-stamp
 
 clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp
-	rm asdf/*.html asdf.aux asdf.cp asdf.cps asdf.fn \
-	   asdf.fns asdf.info asdf.ky asdf.log asdf.pdf asdf.pg \
-           asdf.toc asdf.tp asdf.vr asdf.vrs  || true
-	rmdir asdf || true
+	make -C doc clean
 	dh_clean
 
 # Build architecture-dependent files here.
