@@ -21,7 +21,6 @@ bump_revision: FORCE
 	bin/bump-revision-and-tag.sh
 
 archive: FORCE
-
 	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 		--eval "(rewrite-license)" --eval "(quit)"
 	bin/build-tarball.sh
@@ -33,12 +32,11 @@ archive-copy: archive
 	git push cl.net
 	git push --tags cl.net
 
-website-copy: FORCE
-	bin/rsync-cp.sh website/output/ $(webhome_private)
-	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
+website:
+	make -C doc website
 
 clean_dirs = $(sourceDirectory)
-clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl o
+clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl o bak
 
 clean: FORCE
 	@for dir in $(clean_dirs); do \
@@ -52,6 +50,8 @@ clean: FORCE
 		done; \
 	     fi; \
 	done
+	rm -rf tmp
+	make -C doc clean
 
 test: FORCE
 	@cd test; make clean;./run-tests.sh $(lisp) $(test-regex)

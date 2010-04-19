@@ -4,8 +4,8 @@
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ ;;(trace ASDF::MERGE-COMPONENT-RELATIVE-PATHNAME ASDF::COMPONENT-RELATIVE-PATHNAME)
  (asdf:operate 'asdf:load-op 'test1)
-
  ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
@@ -22,6 +22,7 @@
    ;; recompiled
    (sleep 1) ; mtime has 1-second granularity, so pause here for fast machines
 
+   (trace asdf::operation-done-p asdf::traverse)
    (asdf::run-shell-command "rm -f ~A" (namestring file2))
    (asdf:operate 'asdf:load-op 'test1)
    (assert (= file1-date (file-write-date file1)))
@@ -33,7 +34,7 @@
    ;; unix cwd.  this is not a problem for run-tests.sh, but can be in general
 
    (let ((before (file-write-date file2)))
-     (asdf::run-shell-command "touch file1.lisp")
      (sleep 1)
+     (asdf::run-shell-command "touch file1.lisp")
      (asdf:operate 'asdf:load-op 'test1)
-     (assert (>  (file-write-date file2) before)))))
+     (assert (> (file-write-date file2) before)))))

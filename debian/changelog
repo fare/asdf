@@ -1,6 +1,6 @@
-cl-asdf (2:1.627-2) UNRELEASED; urgency=low
+cl-asdf (2:1.704-1) UNRELEASED; urgency=low
 
-  * open for changes
+  * Imported new upstream.
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 27 Feb 2010 21:40:19 +0100
 

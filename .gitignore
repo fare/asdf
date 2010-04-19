@@ -4,18 +4,31 @@ common-lisp.net
 .vcs
 init-lisp.lisp
 website/changelog.xml
+push
+resbcl
+reccl
 
-# Test stuff
-test/results/
-test/tmp/
-test/conf.d/
-test/dir1/
-test/dir2/
+# Temporary files from documentation build
+doc/asdf/
+doc/asdf.aux
+doc/asdf.cp
+doc/asdf.cps
+doc/asdf.fn
+doc/asdf.fns
+doc/asdf.html
+doc/asdf.info
+doc/asdf.ky
+doc/asdf.log
+doc/asdf.pdf
+doc/asdf.pg
+doc/asdf.toc
+doc/asdf.tp
+doc/asdf.vr
+doc/asdf.vrs
 
 # We build these at various stages in the make process
 LICENSE
 website/output/
-test-results/
 tmp/
 lift-local.config
 *.dribble

@@ -20,9 +20,10 @@
  (every (complement #'directory-pathname-p)
   (list
    (make-pathname :name "foo" :type nil :directory '(:absolute "tmp"))
-   (make-pathname :name nil :type "bar" :directory '(:absolute "tmp"))
-   (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
-   (make-pathname :name "." :type "" :directory '(:absolute "tmp")))))
+   (make-pathname :name nil :type "bar" :directory '(:absolute "tmp")))))
+;; These are funky and non portable. Omit from tests.
+;; (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
+;; (make-pathname :name "." :type "" :directory '(:absolute "tmp"))
 (assert (equal (multiple-value-list (component-name-to-pathname-components "" t))
                '(:relative nil nil)))
 (assert (equal (multiple-value-list (component-name-to-pathname-components "" nil))
@@ -41,4 +42,5 @@
  (asdf::version-satisfies (asdf:asdf-version) "1.608"))
 (assert
  (not (asdf::version-satisfies (asdf:asdf-version) "666")))
+
 )

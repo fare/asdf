@@ -1,0 +1,78 @@
+;;; -*- Lisp -*-
+(load "script-support")
+(load-asdf)
+(in-package :asdf)
+
+(defparameter *test-directory*
+  (merge-pathnames*
+    (make-pathname :directory '(:relative "tmp"))
+    cl-user::*asdf-directory*))
+
+(defun under-test-directory (designator &optional (defaults *test-directory*))
+  (namestring (merge-pathnames* (merge-component-name-type designator) defaults)))
+
+(defun create-conf-files (&optional (path *test-directory*))
+  (let ((v `(("conf.d/conf1.conf"
+              ((:directory ,(under-test-directory "dir1/"))))
+             ("conf.d/conf2.conf"
+              ((:tree ,(under-test-directory "dir2/")))))))
+    (loop
+      :for (file contents) :in v
+      :for name = (under-test-directory file path)
+      :do
+      (ensure-directories-exist name)
+      (with-open-file (out name
+                           :direction :output
+                           :if-exists :supersede)
+        (with-standard-io-syntax
+          (format out "~{~S~}" contents))))))
+
+(defparameter *test-asd-directories*
+  (loop
+    :for dir
+    :in '("dir1/" "dir2/dir3/" "dir2/dir4/" "dir2/")
+    :collect (under-test-directory dir)))
+
+(defun create-asd-files ()
+  (loop
+    :for d :in *test-asd-directories*
+    :for i :from 0 :do
+    (ensure-directories-exist d)
+    (with-open-file (s (merge-pathnames* (format nil "foo~D.asd" i) d)
+                       :direction :output
+                       :if-exists :rename-and-delete
+                       :if-does-not-exist :create)
+      (format s "(asdf:defsystem :foo~D)~%" i))))
+
+(cl-user::quit-on-error
+
+(assert
+ (equal (parse-output-translations-string "/foo:/bar::/baz:/quux")
+        '(:output-translations
+          ("/foo" "/bar")
+          :inherit-configuration
+          ("/baz" "/quux"))))
+(assert
+ (equal (parse-output-translations-string "/:")
+        '(:output-translations ("/" nil) :ignore-inherited-configuration)))
+(assert
+ (equal (parse-output-translations-string "/::")
+        '(:output-translations ("/" nil) :inherit-configuration)))
+(assert
+ (equal (parse-output-translations-string "/:/")
+        '(:output-translations ("/" "/") :ignore-inherited-configuration)))
+
+(assert
+ (equal (parse-output-translations-string
+         "(:output-translations (\"/\" \"/\") :ignore-inherited-configuration)")
+        '(:output-translations ("/" "/") :ignore-inherited-configuration)))
+
+(create-asd-files)
+(create-conf-files)
+(initialize-source-registry
+ `(:source-registry (:include ,(under-test-directory "conf.d/"))
+                    :ignore-inherited-configuration))
+(assert
+ (equal (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
+        (under-test-directory "dir2/bar/baz.lisp")))
+)

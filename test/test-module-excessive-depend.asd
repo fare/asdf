@@ -10,13 +10,13 @@
                           :depends-on ("file1")
                           :components ((:file "file2")))))
 
-(defun find-file2 ()
-  (find-component (find-quux) "file2"))
-
 (defun find-quux ()
   (find-component
    (find-system :test-module-excessive-depend)
    "quux"))
+
+(defun find-file2 ()
+  (find-component (find-quux) "file2"))
 
 (defmethod component-depends-on ((op load-op)
                                  (c (eql (find-file2))))
@@ -31,9 +31,7 @@
 (defmethod find-component :around ((m (eql (find-quux)))
                                    (c string) &optional version)
   "FIND-COMPONENT on a component is a no-op --- it's already found."
+  (declare (ignore version))
   (if (string-equal c "file3-only")
       (asdf:find-system c)
       (call-next-method)))
-
-
-

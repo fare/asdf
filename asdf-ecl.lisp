@@ -9,6 +9,7 @@
 ;;;
 ;;; ECL SPECIFIC OPERATIONS FOR ASDF
 ;;;
+#+xcvb (module (:depends-on ("asdf")))
 
 (in-package :asdf)
 (require 'cmp)
@@ -168,8 +169,8 @@
 (defmethod output-files ((o bundle-op) (c system))
   (let ((name (concatenate 'base-string (component-name c)
                            (slot-value o 'name-suffix))))
-    (list (merge-pathnames (compile-file-pathname name :type (bundle-op-type o))
-                           (component-relative-pathname c)))))
+    (list (merge-pathnames* (compile-file-pathname name :type (bundle-op-type o))
+                            (component-relative-pathname c)))))
 
 (defmethod output-files ((o fasl-op) (c system))
   (loop for file in (call-next-method)
@@ -207,10 +208,36 @@
 
 
 (defun make-build (system &rest args &key (monolithic nil) (type :fasl)
+                   (move-here nil move-here-p)
                    &allow-other-keys)
-  (apply #'operate (select-operation monolithic type)
-         system
-         (remove-keys '(monolithic type) args)))
+  (let* ((operation-name (select-operation monolithic type))
+         (operation (apply #'operate operation-name
+                           system
+                           (remove-keys '(monolithic type move-here) args)))
+         (system (find-system system))
+         (files (and system (output-files operation system))))
+    (print files)
+    (print move-here)
+    (if (or move-here
+            (and (null move-here-p)
+                 (member operation-name '(:program))))
+        (loop for path in files
+           for filename = (namestring (truename path))
+           for new-path = (make-pathname :name (pathname-name path)
+                                         :type (pathname-type path)
+                                         :defaults *default-pathname-defaults*)
+           for new-filename = (namestring new-path)
+           for command =
+             #+windows
+             (format nil "move ~S ~S" filename new-filename)
+             #-windows
+             (format nil "mv ~S ~S" filename new-filename)
+           do (unless (equalp new-filename filename)
+                (when (plusp (si::system (print command)))
+                  (error "Unable to move file~&  ~S~&to new location~&  ~S"
+                         path new-path)))
+           collect new-path)
+        files)))
 
 ;;;
 ;;; LOAD-FASL-OP
@@ -254,10 +281,10 @@
 (defclass compiled-file (component) ())
 (defmethod component-relative-pathname ((component compiled-file))
   (compile-file-pathname
-   (merge-component-relative-pathname
-    (slot-value component 'relative-pathname)
-    (component-name component)
-    "fas")))
+   (merge-component-name-type
+    (or (slot-value component 'relative-pathname)
+        (component-name component))
+    :type "fas")))
 
 (defmethod output-files (o (c compiled-file))
   nil)
@@ -268,6 +295,33 @@
 (defmethod perform ((o load-fasl-op) (c compiled-file))
   (load (component-pathname c)))
 (defmethod perform (o (c compiled-file))
+  nil)
+
+;;;
+;;; Pre-built systems
+;;;
+(defclass prebuilt-system (system)
+  ((static-library :accessor prebuilt-system-static-library :initarg :lib)))
+
+(defmethod output-files ((o lib-op) (c prebuilt-system))
+  (values (list (compile-file-pathname (prebuilt-system-static-library c)
+                                       :type :lib))
+          t ; Advertise that we do not want this path renamed
+          ))
+
+(defmethod perform ((o lib-op) (c prebuilt-system))
+  (car (output-files o c)))
+
+(defmethod component-depends-on ((o lib-op) (c prebuilt-system))
+  nil)
+
+(defmethod bundle-sub-operations ((o lib-op) (c prebuilt-system))
+  nil)
+
+(defmethod bundle-sub-operations ((o monolithic-lib-op) (c prebuilt-system))
+  (error "Prebuilt system ~S shipped with ECL can not be used in a monolithic library operation." c))
+
+(defmethod bundle-sub-operations ((o monolithic-bundle-op) (c prebuilt-system))
   nil)
 
 ;;;
@@ -289,7 +343,8 @@
         t))))
 
 (defun register-pre-built-system (name)
-  (register-system name (make-instance 'system :name name)))
+  (register-system name (make-instance 'system :name name
+                                       :source-file nil)))
 
 (setf si::*module-provider-functions*
       (loop for f in si::*module-provider-functions*
