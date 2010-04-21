@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.704" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.705" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -1674,24 +1674,44 @@ recursive calls to traverse.")
   (perform operation component))
 
 (defmethod perform-with-restarts ((o load-op) (c cl-source-file))
-  (let ((state :initial))
-    (loop :until (or (eq state :success)
-                     (eq state :failure)) :do
-         (case state
-           (:recompiled
-            (setf state :failure)
-            (call-next-method)
-            (setf state :success))
-           (:failed-load
-            (setf state :recompiled)
-            (perform (make-instance 'compile-op) c))
-           (t
-            (with-simple-restart
-                (try-recompiling "Recompile ~a and try loading it again"
-                                  (component-name c))
-              (setf state :failed-load)
-              (call-next-method)
-              (setf state :success)))))))
+  (loop :with state = :initial
+    :until (or (eq state :success)
+               (eq state :failure)) :do
+    (case state
+      (:recompiled
+       (setf state :failure)
+       (call-next-method)
+       (setf state :success))
+      (:failed-load
+       (setf state :recompiled)
+       (perform (make-instance 'compile-op) c))
+      (t
+       (with-simple-restart
+           (try-recompiling "Recompile ~a and try loading it again"
+                            (component-name c))
+         (setf state :failed-load)
+         (call-next-method)
+         (setf state :success))))))
+
+(defmethod perform-with-restarts ((o compile-op) (c cl-source-file))
+  (loop :with state = :initial
+    :until (or (eq state :success)
+               (eq state :failure)) :do
+    (case state
+      (:recompiled
+       (setf state :failure)
+       (call-next-method)
+       (setf state :success))
+      (:failed-compile
+       (setf state :recompiled)
+       (perform-with-restarts o c))
+      (t
+       (with-simple-restart
+           (try-recompiling "Try recompiling ~a"
+                            (component-name c))
+         (setf state :failed-compile)
+         (call-next-method)
+         (setf state :success))))))
 
 (defmethod perform ((operation load-op) (c static-file))
   nil)
@@ -1873,15 +1893,15 @@ details."
 
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
-                            system-dependencies &allow-other-keys)
+                            defsystem-depends-on &allow-other-keys)
       options
-    (let ((component-options (remove-keys '(:system-dependencies :class) options)))
+    (let ((component-options (remove-keys '(:defsystem-depends-on :class) options)))
       `(progn
          ;; system must be registered before we parse the body, otherwise
          ;; we recur when trying to find an existing system of the same name
          ;; to reuse options (e.g. pathname) from
-         ,@(loop for system in system-dependencies
-              collect `(asdf:load-system ,system))
+         ,@(loop :for system :in defsystem-depends-on
+             :collect `(asdf:load-system ,system))
          (let ((s (system-registered-p ',name)))
            (cond ((and s (eq (type-of (cdr s)) ',class))
                   (setf (car s) (get-universal-time)))
@@ -1893,8 +1913,7 @@ details."
            (%set-system-source-file *load-truename*
                                     (cdr (system-registered-p ',name))))
          (parse-component-form
-          nil (apply
-               #'list
+          nil (list*
                :module (coerce-name ',name)
                :pathname
                ,(determine-system-pathname pathname pathname-arg-p)
@@ -2198,15 +2217,6 @@ located."
 (defun lisp-version-string ()
   (let ((s (lisp-implementation-version)))
     (declare (ignorable s))
-    #+(or scl sbcl ecl armedbear cormanlisp mcl) s
-    #+cmu (substitute #\- #\/ s)
-    #+clozure (format nil "~d.~d~@[-~d~]"
-                      ccl::*openmcl-major-version*
-                      ccl::*openmcl-minor-version*
-                      #+ppc64-target 64
-                      #-ppc64-target nil)
-    #+lispworks (format nil "~A~@[~A~]" s
-                        (when (member :lispworks-64bit *features*) "-64bit"))
     #+allegro (format nil
                       "~A~A~A~A"
                       excl::*common-lisp-version-number*
@@ -2219,8 +2229,23 @@ located."
                        (:-ics "8")
                        (:+ics ""))
                       (if (member :64bit *features*) "-64bit" ""))
+    #+clozure (format nil "~d.~d-fasl~d"
+                      ccl::*openmcl-major-version*
+                      ccl::*openmcl-minor-version*
+                      (logand ccl::fasl-version #xFF))
+    #+cmu (substitute #\- #\/ s)
+    #+digitool (subseq s 8)
+    #+ecl (format nil "~A~@[-~A~]" s
+                  (let ((vcs-id (funcall (ext:lisp-implementation-vcs-id))))
+                    (when (>= (length vcs-id) 8)
+                      (subseq vcs-id 0 8))))
+    #+lispworks (format nil "~A~@[~A~]" s
+                        (when (member :lispworks-64bit *features*) "-64bit"))
+    ;; #+sbcl (format nil "~a-fasl~d" s sb-fasl:+fasl-file-version+) ; fasl-f-v is redundant
+    #+(or armedbear cormanlisp mcl sbcl scl) s
     #+(or clisp gcl) (subseq s 0 (position #\space s))
-    #+digitool (subseq s 8)))
+    #-(or allegro armedbear clisp clozure cmu cormanlisp digitool
+          ecl gcl lispworks mcl sbcl scl) s))
 
 (defun first-feature (features)
   (labels
