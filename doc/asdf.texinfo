@@ -535,7 +535,7 @@ other ASDF add-ons offered the same functionality,
 each in subtly different and incompatible ways:
 ASDF-Binary-Locations, cl-launch, common-lisp-controller.
 ASDF-Binary-Locations is now not needed anymore and should not be used.
-cl-launch 3.0 and common-lisp-controller 7.1 have been updated
+cl-launch 2.900 and common-lisp-controller 7.1 have been updated
 to just delegate this functionality to ASDF.
 
 @node Using ASDF, Defining systems with defsystem, Configuring ASDF, Top

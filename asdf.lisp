@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.705" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.706" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -683,7 +683,7 @@ actually-existing directory."
 (defun get-uid ()
   (let ((uid-string
          (with-output-to-string (*verbose-out*)
-           (asdf:run-shell-command "id -ur"))))
+           (run-shell-command "id -ur"))))
     (with-input-from-string (stream uid-string)
       (read-line stream)
       (handler-case (parse-integer (read-line stream))
@@ -1066,7 +1066,7 @@ to `~a` which is not a directory.~@:>"
 (defun make-temporary-package ()
   (flet ((try (counter)
            (ignore-errors
-             (make-package (format nil "~a~D" 'asdf counter)
+             (make-package (format nil "~A~D" :asdf counter)
                            :use '(:cl :asdf)))))
     (do* ((counter 0 (+ counter 1))
           (package (try counter) (try counter)))
@@ -1901,7 +1901,7 @@ details."
          ;; we recur when trying to find an existing system of the same name
          ;; to reuse options (e.g. pathname) from
          ,@(loop :for system :in defsystem-depends-on
-             :collect `(asdf:load-system ,system))
+             :collect `(load-system ,system))
          (let ((s (system-registered-p ',name)))
            (cond ((and s (eq (type-of (cdr s)) ',class))
                   (setf (car s) (get-universal-time)))
@@ -2236,7 +2236,7 @@ located."
     #+cmu (substitute #\- #\/ s)
     #+digitool (subseq s 8)
     #+ecl (format nil "~A~@[-~A~]" s
-                  (let ((vcs-id (funcall (ext:lisp-implementation-vcs-id))))
+                  (let ((vcs-id (ext:lisp-implementation-vcs-id)))
                     (when (>= (length vcs-id) 8)
                       (subseq vcs-id 0 8))))
     #+lispworks (format nil "~A~@[~A~]" s
@@ -2332,7 +2332,8 @@ located."
     (list #p"/etc/"))))
 (defun in-first-directory (dirs x)
   (loop :for dir :in dirs
-    :thereis (and dir (ignore-errors (truename (merge-pathnames* x (ensure-directory-pathname dir)))))))
+    :thereis (and dir (ignore-errors
+                        (truename (merge-pathnames* x (ensure-directory-pathname dir)))))))
 (defun in-user-configuration-directory (x)
   (in-first-directory (user-configuration-directories) x))
 (defun in-system-configuration-directory (x)
@@ -3035,10 +3036,15 @@ with a different configuration, so the configuration would be re-read then."
 (defun register-asd-directory (directory &key recurse exclude collect)
   (if (not recurse)
       (funcall collect directory)
-      (let* ((files (ignore-errors
-                      (directory (merge-pathnames* *wild-asd* directory)
-                                 #+sbcl #+sbcl :resolve-symlinks nil
-                                 #+clisp #+clisp :circle t)))
+      (let* ((files
+              (handler-case
+                  (directory (merge-pathnames* *wild-asd* directory)
+                             #+sbcl #+sbcl :resolve-symlinks nil
+                             #+clisp #+clisp :circle t)
+                (error (c)
+                  (warn "Error while scanning system definitions under directory ~S:~%~A"
+                        directory c)
+                  nil)))
              (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
                                       :test #'equal :from-end t)))
         (loop
@@ -3199,9 +3205,9 @@ with a different configuration, so the configuration would be re-read then."
                   (format *error-output* "ASDF could not load ~A because ~A.~%"
                           name e))))
       (let* ((*verbose-out* (make-broadcast-stream))
-             (system (asdf:find-system name nil)))
+             (system (find-system name nil)))
         (when system
-          (asdf:operate 'asdf:load-op name)
+          (load-system name)
           t))))
   (pushnew 'module-provide-asdf
            #+sbcl sb-ext:*module-provider-functions*
