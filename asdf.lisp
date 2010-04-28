@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.707" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.708" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -855,6 +855,7 @@ actually-existing directory."
 (when (find-class 'module nil)
   (defmethod update-instance-for-redefined-class :after
       ((m module) added deleted plist &key)
+    (declare (ignore deleted plist))
     (when (member 'components-by-name added)
       (compute-module-components-by-name m))))
 
