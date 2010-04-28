@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.708" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.709" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -853,11 +853,12 @@ actually-existing directory."
 
 ;; Cleanup before hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
 (when (find-class 'module nil)
-  (defmethod update-instance-for-redefined-class :after
-      ((m module) added deleted plist &key)
-    (declare (ignore deleted plist))
-    (when (member 'components-by-name added)
-      (compute-module-components-by-name m))))
+  (eval
+   '(defmethod update-instance-for-redefined-class :after
+     ((m module) added deleted plist &key)
+     (declare (ignore deleted plist))
+     (when (member 'components-by-name added)
+       (compute-module-components-by-name m)))))
 
 (defclass module (component)
   ((components
@@ -1539,8 +1540,9 @@ recursive calls to traverse.")
       flag))
 
 (defmethod traverse ((operation operation) (c component))
-  ;; cerror'ing a feature that seems to have NEVER EVER worked,
-  ;; ever since danb created it in his 2003-03-16 commit e0d02781
+  ;; cerror'ing a feature that seems to have NEVER EVER worked
+  ;; ever since danb created it in his 2003-03-16 commit e0d02781.
+  ;; It was both fixed and disabled in the 1.700 rewrite.
   (when (consp (operation-forced operation))
     (cerror "Continue nonetheless."
             "Congratulations, you're the first ever user of the :force (list of system names) feature! Please contact the asdf-devel mailing-list to collect a cookie.")
