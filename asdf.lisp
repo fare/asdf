@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.706" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.707" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -312,27 +312,6 @@ Defaults to `t`.")
                   excl:*warn-on-nested-reader-conditionals*))
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
     (setf excl:*warn-on-nested-reader-conditionals* nil)))
-
-;;;; -------------------------------------------------------------------------
-;;;; Cleanups before hot-upgrade.
-;;;; Things to do in case we're upgrading from a previous version of ASDF.
-;;;; See https://bugs.launchpad.net/asdf/+bug/485687
-;;;; * define methods on UPDATE-INSTANCE-FOR-REDEFINED-CLASS
-;;;;   for each of the classes we define that has changed incompatibly.
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (when (find-class 'module nil)
-    (eval ;; without this protection, Lispworks issues a warning. Sigh.
-     '(defmethod update-instance-for-redefined-class :after
-       ((m module) added deleted plist &key)
-       (when (member 'components-by-name added)
-         (compute-module-components-by-name m)))))
-  #+ecl
-  (when (find-class 'compile-op nil)
-    (defmethod update-instance-for-redefined-class :after
-        ((c compile-op) added deleted plist &key)
-      (format *trace-output* "~&UI4RC:a ~S~%" (list c added deleted plist))
-      (let ((system-p (getf plist 'system-p)))
-        (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
@@ -871,6 +850,13 @@ actually-existing directory."
         (error 'duplicate-names :name name))
       :do (setf (gethash name (module-components-by-name module)) c))
     hash))
+
+;; Cleanup before hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
+(when (find-class 'module nil)
+  (defmethod update-instance-for-redefined-class :after
+      ((m module) added deleted plist &key)
+    (when (member 'components-by-name added)
+      (compute-module-components-by-name m))))
 
 (defclass module (component)
   ((components
@@ -1587,6 +1573,14 @@ recursive calls to traverse.")
 
 ;;;; -------------------------------------------------------------------------
 ;;;; compile-op
+
+;; Cleanup before hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
+#+ecl
+(when (find-class 'compile-op nil)
+  (defmethod update-instance-for-redefined-class :after
+      ((c compile-op) added deleted plist &key)
+    (let ((system-p (getf plist 'system-p)))
+      (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p)))))
 
 (defclass compile-op (operation)
   ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
