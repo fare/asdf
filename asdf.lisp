@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.709" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.710" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -278,7 +278,7 @@
         (eval `(defparameter ,(intern (string versym) (find-package :asdf))
                  ,asdf-version))))))
 
-(in-package #:asdf)
+(in-package :asdf)
 
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
