@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.710" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.711" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -72,7 +72,7 @@
          (redefined-functions
           '(#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file)))
+            #:system-source-file #:operate)))
     (unless (equal asdf-version existing-version)
       (when existing-asdf
         (format *error-output*
@@ -1776,9 +1776,11 @@ recursive calls to traverse.")
 ;;;; -------------------------------------------------------------------------
 ;;;; Invoking Operations
 
-(defun operate (operation-class system &rest args
-                &key ((:verbose *asdf-verbose*) *asdf-verbose*) version force
-                &allow-other-keys)
+(defgeneric operate (operation-class system &key &allow-other-keys))
+
+(defmethod operate (operation-class system &rest args
+                    &key ((:verbose *asdf-verbose*) *asdf-verbose*) version force
+                    &allow-other-keys)
   (declare (ignore force))
   (let* ((*package* *package*)
          (*readtable* *readtable*)
@@ -1794,8 +1796,9 @@ recursive calls to traverse.")
         (loop :for (op . component) :in steps :do
           (loop
             (restart-case
-                (progn (perform-with-restarts op component)
-                       (return))
+                (progn
+                  (perform-with-restarts op component)
+                  (return))
               (retry ()
                 :report
                 (lambda (s)
