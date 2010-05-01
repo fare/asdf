@@ -7,11 +7,12 @@ clnet_home      := "/project/asdf/public_html/"
 
 sourceDirectory := $(shell pwd)
 
-lisps = allegro allegromodern ccl clisp sbcl
+lisps ?= allegro ccl clisp ecl lispworks sbcl
+## untested by me: abcl allegromodern cmucl
+## FAIL: gclcvs
+## maybe supported by asdf, never supported by our tests: cormancl mcl scl
 
-ifndef lisp
-lisp := sbcl
-endif
+lisp ?= sbcl
 
 # website, tag, install
 
@@ -54,13 +55,11 @@ clean: FORCE
 	make -C doc clean
 
 test: FORCE
-	@cd test; make clean;./run-tests.sh $(lisp) $(test-regex)
+	@cd test; make clean;./run-tests.sh ${lisp} ${test-glob}
 
 test-all: FORCE
-	@for lisp in $(lisps); do \
-		make test lisp=$$lisp; \
+	@for lisp in ${lisps} ; do \
+		make test lisp=$$lisp || exit 1 ; \
 	done
-	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-		--eval "(write-test-web-pages)" --eval "(quit)"
 
 FORCE:

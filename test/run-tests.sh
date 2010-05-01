@@ -86,6 +86,7 @@ do_tests() {
     echo "  $test_pass passing and $test_fail failing" >&2
     if [ $test_fail -eq 0 ] ; then
 	echo "all tests apparently successful" >&2
+        echo success > ../tmp/results/status
     else
 	echo "failing test(s): $failed_list" >&2
     fi
@@ -190,8 +191,11 @@ if [ -z "$command" ] ; then
 else
     create_config
     mkdir -p ../tmp/results
+    echo failure > ../tmp/results/status
     thedate=`date "+%Y-%m-%d"`
     do_tests "$command" "$eval" 2>&1 | \
 	tee "../tmp/results/${lisp}.text" "../tmp/results/${lisp}-${thedate}.save"
+    read a < ../tmp/results/status
     clean_up
+    [ success = "$a" ] ## exit code
 fi

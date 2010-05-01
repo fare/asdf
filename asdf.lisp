@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.712" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.713" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -72,8 +72,9 @@
          (redefined-functions
           '(#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file #:operate)))
-    (unless (equal asdf-version existing-version)
+            #:system-source-file #:operate))
+         (already-there (equal asdf-version existing-version)))
+    (unless (and existing-asdf already-there)
       (when existing-asdf
         (format *error-output*
                 "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
@@ -107,6 +108,8 @@
                       (make-package name :nicknames nicknames :use use)))))
                (find-sym (symbol package)
                  (find-symbol (string symbol) package))
+               (intern* (symbol package)
+                 (intern (string symbol) package))
                (remove-symbol (symbol package)
                  (let ((sym (find-sym symbol package)))
                    (when sym
@@ -128,7 +131,7 @@
                    :when sym :do (fmakunbound sym)))
                (ensure-export (package export)
                  (let ((syms (loop :for x :in export :collect
-                               (intern (string x) package))))
+                               (intern* x package))))
                    (do-external-symbols (sym package)
                      (unless (member sym syms)
                        (remove-symbol sym package)))
@@ -174,10 +177,10 @@
         (ensure-package
          ':asdf
          :use '(:common-lisp :asdf-utilities)
-         :unintern `(#-ecl ,@redefined-functions
+         :unintern `(#-(or gcl ecl) ,@redefined-functions
                            #:*asdf-revision* #:around #:asdf-method-combination
                            #:split #:make-collector)
-         :fmakunbound `(#+ecl ,@redefined-functions
+         :fmakunbound `(#+(or gcl ecl) ,@redefined-functions
                               #:system-source-file
                               #:component-relative-pathname #:system-relative-pathname
                               #:process-source-registry
@@ -275,10 +278,30 @@
            #:clear-source-registry
            #:ensure-source-registry
            #:process-source-registry))
-        (eval `(defparameter ,(intern (string versym) (find-package :asdf))
-                 ,asdf-version))))))
+        (let* ((version (intern* versym :asdf))
+               (upvar (intern* '#:*upgraded-p* :asdf))
+               (upval0 (and (boundp upvar) (symbol-value upvar)))
+               (upval1 (if existing-version (cons existing-version upval0) upval0)))
+          (eval `(progn
+                   (defparameter ,version ,asdf-version)
+                   (defparameter ,upvar ',upval1))))))))
 
 (in-package :asdf)
+
+;; More cleanups in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
+(when *upgraded-p*
+   #+ecl
+   (defmethod update-instance-for-redefined-class :after
+       ((c compile-op) added deleted plist &key)
+     (declare (ignore added deleted))
+     (let ((system-p (getf plist 'system-p)))
+       (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p))))
+   (eval
+    '(defmethod update-instance-for-redefined-class :after
+         ((m module) added deleted plist &key)
+       (declare (ignorable deleted plist))
+       (when (member 'components-by-name added)
+         (compute-module-components-by-name m)))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
@@ -322,6 +345,7 @@ Defaults to `t`.")
 (defgeneric explain (operation component))
 (defgeneric output-files (operation component))
 (defgeneric input-files (operation component))
+(defgeneric component-operation-time (operation component))
 
 (defgeneric system-source-file (system)
   (:documentation "Return the source file in which system is defined."))
@@ -851,15 +875,6 @@ actually-existing directory."
       :do (setf (gethash name (module-components-by-name module)) c))
     hash))
 
-;; Cleanup before hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
-(when (find-class 'module nil)
-  (eval
-   '(defmethod update-instance-for-redefined-class :after
-     ((m module) added deleted plist &key)
-     (declare (ignore deleted plist))
-     (when (member 'components-by-name added)
-       (compute-module-components-by-name m)))))
-
 (defclass module (component)
   ((components
     :initform nil
@@ -1140,8 +1155,11 @@ to `~a` which is not a directory.~@:>"
 (defclass html-file (doc-file)
   ((type :initform "html")))
 
-(defmethod source-file-type ((component module) (s module)) :directory)
+(defmethod source-file-type ((component module) (s module))
+  (declare (ignorable component s))
+  :directory)
 (defmethod source-file-type ((component source-file) (s module))
+  (declare (ignorable s))
   (source-file-explicit-type component))
 
 (defun merge-component-name-type (name &key type defaults)
@@ -1301,12 +1319,17 @@ class specifier, not an operation."
         ;; original source file, then
         (list (component-pathname c)))))
 
-(defmethod input-files ((operation operation) (c module)) nil)
+(defmethod input-files ((operation operation) (c module))
+  (declare (ignorable operation c))
+  nil)
+
+(defmethod component-operation-time (o c)
+  (gethash (type-of o) (component-operation-times c)))
 
 (defmethod operation-done-p ((o operation) (c component))
   (let ((out-files (output-files o c))
         (in-files (input-files o c))
-        (op-time (gethash (type-of o) (component-operation-times c))))
+        (op-time (component-operation-time o c)))
     (flet ((earliest-out ()
              (reduce #'min (mapcar #'safe-file-write-date out-files)))
            (latest-in ()
@@ -1569,6 +1592,7 @@ recursive calls to traverse.")
    (class-of operation) (class-of c)))
 
 (defmethod perform ((operation operation) (c module))
+  (declare (ignorable operation c))
   nil)
 
 (defmethod explain ((operation operation) (component component))
@@ -1576,14 +1600,6 @@ recursive calls to traverse.")
 
 ;;;; -------------------------------------------------------------------------
 ;;;; compile-op
-
-;; Cleanup before hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
-#+ecl
-(when (find-class 'compile-op nil)
-  (defmethod update-instance-for-redefined-class :after
-      ((c compile-op) added deleted plist &key)
-    (let ((system-p (getf plist 'system-p)))
-      (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p)))))
 
 (defclass compile-op (operation)
   ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
@@ -1636,6 +1652,7 @@ recursive calls to traverse.")
         (error 'compile-error :component c :operation operation)))))
 
 (defmethod output-files ((operation compile-op) (c cl-source-file))
+  (declare (ignorable operation))
   (let ((p (lispize-pathname (component-pathname c))))
     #-:broken-fasl-loader
     (list #-ecl (compile-file-pathname p)
@@ -1644,12 +1661,15 @@ recursive calls to traverse.")
     #+:broken-fasl-loader (list p)))
 
 (defmethod perform ((operation compile-op) (c static-file))
+  (declare (ignorable operation c))
   nil)
 
 (defmethod output-files ((operation compile-op) (c static-file))
+  (declare (ignorable operation c))
   nil)
 
-(defmethod input-files ((op compile-op) (c static-file))
+(defmethod input-files ((operation compile-op) (c static-file))
+  (declare (ignorable operation c))
   nil)
 
 
@@ -1671,6 +1691,7 @@ recursive calls to traverse.")
   (perform operation component))
 
 (defmethod perform-with-restarts ((o load-op) (c cl-source-file))
+  (declare (ignorable o))
   (loop :with state = :initial
     :until (or (eq state :success)
                (eq state :failure)) :do
@@ -1711,15 +1732,19 @@ recursive calls to traverse.")
          (setf state :success))))))
 
 (defmethod perform ((operation load-op) (c static-file))
+  (declare (ignorable operation c))
   nil)
 
 (defmethod operation-done-p ((operation load-op) (c static-file))
+  (declare (ignorable operation c))
   t)
 
-(defmethod output-files ((o operation) (c component))
+(defmethod output-files ((operation operation) (c component))
+  (declare (ignorable operation c))
   nil)
 
 (defmethod component-depends-on ((operation load-op) (c component))
+  (declare (ignorable operation))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
 
@@ -1729,19 +1754,23 @@ recursive calls to traverse.")
 (defclass load-source-op (basic-load-op) ())
 
 (defmethod perform ((o load-source-op) (c cl-source-file))
+  (declare (ignorable o))
   (let ((source (component-pathname c)))
     (setf (component-property c 'last-loaded-as-source)
           (and (load source)
                (get-universal-time)))))
 
 (defmethod perform ((operation load-source-op) (c static-file))
+  (declare (ignorable operation c))
   nil)
 
 (defmethod output-files ((operation load-source-op) (c component))
+  (declare (ignorable operation c))
   nil)
 
 ;;; FIXME: we simply copy load-op's dependencies.  this is Just Not Right.
 (defmethod component-depends-on ((o load-source-op) (c component))
+  (declare (ignorable o))
   (let ((what-would-load-op-do (cdr (assoc 'load-op
                                            (component-in-order-to c)))))
     (mapcar (lambda (dep)
@@ -1751,6 +1780,7 @@ recursive calls to traverse.")
             what-would-load-op-do)))
 
 (defmethod operation-done-p ((o load-source-op) (c source-file))
+  (declare (ignorable o))
   (if (or (not (component-property c 'last-loaded-as-source))
           (> (safe-file-write-date (component-pathname c))
              (component-property c 'last-loaded-as-source)))
@@ -1763,13 +1793,16 @@ recursive calls to traverse.")
 (defclass test-op (operation) ())
 
 (defmethod perform ((operation test-op) (c component))
+  (declare (ignorable operation c))
   nil)
 
 (defmethod operation-done-p ((operation test-op) (c system))
   "Testing a system is _never_ done."
+  (declare (ignorable operation c))
   nil)
 
 (defmethod component-depends-on :around ((o test-op) (c system))
+  (declare (ignorable o))
   (cons `(load-op ,(component-name c)) (call-next-method)))
 
 
