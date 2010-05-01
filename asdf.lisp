@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.711" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.712" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -2606,10 +2606,11 @@ with a different configuration, so the configuration would be re-read then."
     #+sbcl (,(getenv "SBCL_HOME") ())
     #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; only needed if LPNs are resolved manually.
     #+clozure (,(wilden (ccl::ccl-directory)) ()) ; not needed: no precompiled ASDF system
-    #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
-    #+abcl (#p"/:jar:file/**/*.*" (:user-cache #p"**/*.*"))
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
+    ;; These are for convenience, and can be overridden by the user:
+    #+abcl (#p"/___jar___file___root___/**/*.*" (:user-cache #p"**/*.*"))
+    #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
     ;; If we want to enable the user cache by default, here would be the place:
     :enable-user-cache))
 
@@ -2797,15 +2798,16 @@ effectively disabling the output translation facility."
 #+abcl
 (defun translate-jar-pathname (source wildcard)
   (declare (ignore wildcard))
-  (let ((root (apply-output-translations
-               (concatenate 'string
-                            "/:jar:file/"
-                            (namestring (first (pathname-device
-                                                source))))))
-        (entry (make-pathname :directory (pathname-directory source)
-                              :name (pathname-name source)
-                              :type (pathname-type source))))
-    (concatenate 'string (namestring root) (namestring entry))))
+  (let* ((p (pathname (first (pathname-device source))))
+         (root (format nil "/___jar___file___root___/~@[~A/~]"
+                       (and (find :windows *features*)
+                            (pathname-device p)))))
+    (apply-output-translations
+     (merge-pathnames*
+      (relativize-pathname-directory source)
+      (merge-pathnames*
+       (relativize-pathname-directory p)
+       root)))))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Compatibility mode for ASDF-Binary-Locations
@@ -3193,7 +3195,7 @@ with a different configuration, so the configuration would be re-read then."
       (initialize-source-registry)))
 
 ;;;; -----------------------------------------------------------------
-;;;; SBCL and ClozureCL hook into REQUIRE
+;;;; Hook into REQUIRE for SBCL, ClozureCL and ABCL
 ;;;;
 #+(or sbcl clozure abcl)
 (progn

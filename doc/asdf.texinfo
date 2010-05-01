@@ -2611,7 +2611,7 @@ The :version and :feature features and
 the :force (system1 .. systemN) feature have been fixed.
 
 @item
-Performance has been notably improved for very large systems
+Performance has been notably improved for large systems
 (say with thousands of components) by using
 hash-tables instead of linear search,
 and linear-time list accumulation
@@ -2769,24 +2769,58 @@ We trust you to thoroughly test it with your implementation before you release i
 If there are any issues with the current release,
 it's a bug that you should report upstream and that we will fix ASAP.
 
-As to how to include ASDF, we recommend that
-if you do have a few magic systems in your implementation path,
-that are specially treated in @code{wrapping-source-registry},
-like SBCL does.
-In this case, we explicitly ask you to @emph{NOT} distribute
-@file{asdf.asd} together with your implementation's ASDF,
-least you separate it from the other systems in this path,
-or otherwise rename the system and its @file{asd} file
-to e.g. @code{asdf-sbcl} and @file{asdf-sbcl.asd}.
+As to how to include ASDF, we recommend the following:
 
+@itemize
+@item
+If ASDF isn't installed yet, then @code{(require :asdf)}
+should load the version of ASDF that is bundled with your system.
+You may have it load some other version configured by the user,
+if you allow such configuration.
+
+@item
+If your system provides a mechanism to hook into @code{CL:REQUIRE},
+then it would be nice to add ASDF to this hook the same way that
+SBCL, CCL and ABCL do it.
+
+@item
+You may, like SBCL, have ASDF be implicitly used to require systems
+that are bundled with your Lisp distribution.
+If you do have a few magic systems that come with your implementation
+in a precompiled way such that one should only use the binary version
+that goes with your distribution, like SBCL does,
+then you should add them in the beginning of @code{wrapping-source-registry}.
+
+@item
+If you have magic systems as above, like SBCL does,
+then we explicitly ask you to @emph{NOT} distribute
+@file{asdf.asd} as part of those magic systems.
+You should still include the file @file{asdf.lisp} in your source distribution
+and precompile it in your binary distribution,
+but @file{asdf.asd} if included at all,
+should be secluded from the magic systems,
+in a separate file hierarchy,
+or you may otherwise rename the system and its file to e.g.
+@code{asdf-ecl} and @file{asdf-ecl.asd}, or
+@code{sb-asdf} and @file{sb-asdf.asd}.
+Indeed, if you made @file{asdf.asd} a magic system,
+then users would no longer be able to upgrade ASDF using ASDF itself
+to some version of their preference that
+they maintain independently from your Lisp distribution.
+
+@item
 If you do not have any such magic systems, or have other non-magic systems
 that you want to bundle with your implementation,
 then you may add them to the @code{default-source-registry},
 and you are welcome to include @file{asdf.asd} amongst them.
 
-Please send upstream any patches you make to ASDF itself,
+@item
+Please send us upstream any patches you make to ASDF itself,
 so we can merge them back in for the benefit of your users
 when they upgrade to the upstream version.
+
+@end itemize
+
 
 
 @section Issues with configuring ASDF
