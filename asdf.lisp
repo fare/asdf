@@ -63,7 +63,7 @@
         (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.713" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.714" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (versym '#:*asdf-version*)
          (existing-version (and existing-asdf
@@ -72,7 +72,7 @@
          (redefined-functions
           '(#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file #:operate))
+            #:system-source-file #:operate #:find-component))
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
       (when existing-asdf
@@ -369,10 +369,9 @@ another pathname in a degenerate way."))
 
 (defgeneric version-satisfies (component version))
 
-(defgeneric find-component (module name &optional version)
-  (:documentation "Finds the component with name NAME present in the
-MODULE module; if MODULE is nil, then the component is assumed to be a
-system."))
+(defgeneric find-component (base path)
+  (:documentation "Finds the component with PATH starting from BASE module;
+if BASE is nil, then the component is assumed to be a system."))
 
 (defgeneric source-file-type (component system))
 
@@ -824,6 +823,16 @@ actually-existing directory."
    (properties :accessor component-properties :initarg :properties
                :initform nil)))
 
+(defun component-find-path (component)
+  (reverse
+   (loop :for c = component :then (component-parent c)
+     :while c :collect (component-name c))))
+
+(defmethod print-object ((c component) stream)
+  (print-unreadable-object (c stream :type t :identity nil)
+    (format stream "~@<~{~S~^ ~}~@:>" (component-find-path c))))
+
+
 ;;;; methods: conditions
 
 (defmethod print-object ((c missing-dependency) s)
@@ -855,11 +864,6 @@ actually-existing directory."
   (aif (component-parent component)
        (component-system it)
        component))
-
-(defmethod print-object ((c component) stream)
-  (print-unreadable-object (c stream :type t :identity t)
-    (ignore-errors
-      (prin1 (component-name c) stream))))
 
 (defvar *default-component-class* 'cl-source-file)
 
@@ -1076,11 +1080,14 @@ to `~a` which is not a directory.~@:>"
          (package package))))
 
 (defun safe-file-write-date (pathname)
-           ;; if FILE-WRITE-DATE returns NIL, it's possible that the
-           ;; user or some other agent has deleted an input file.  If
-           ;; that's the case, well, that's not good, but as long as
-           ;; the operation is otherwise considered to be done we
-           ;; could continue and survive.
+  ;; If FILE-WRITE-DATE returns NIL, it's possible that
+  ;; the user or some other agent has deleted an input file.
+  ;; Also, generated files will not exist at the time planning is done
+  ;; and calls operation-done-p which calls safe-file-write-date.
+  ;; So it is very possible that we can't get a valid file-write-date,
+  ;; and we can survive and we will continue the planning
+  ;; as if the file were very old.
+  ;; (or should we treat the case in a different, special way?)
   (or (and pathname (probe-file pathname) (file-write-date pathname))
       (progn
         (when pathname
@@ -1105,10 +1112,7 @@ to `~a` which is not a directory.~@:>"
                (let ((*package* package))
                  (asdf-message
                   "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
-                  ;; FIXME: This wants to be (ENOUGH-NAMESTRING
-                  ;; ON-DISK), but CMUCL barfs on that.
-                  on-disk
-                  *package*)
+                  on-disk *package*)
                  (load on-disk)))
           (delete-package package))))
     (let ((in-memory (system-registered-p name)))
@@ -1127,17 +1131,31 @@ to `~a` which is not a directory.~@:>"
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding components
 
-(defmethod find-component ((module module) name &optional version)
-  (if (slot-boundp module 'components)
-      (let ((m (gethash name (module-components-by-name module))))
-        (if (and m (version-satisfies m version)) m))))
+(defmethod find-component ((base string) path)
+  (let ((s (find-system base nil)))
+    (and s (find-component s path))))
 
+(defmethod find-component ((base symbol) path)
+  (cond
+    (base (find-component (coerce-name base) path))
+    (path (find-component path nil))
+    (t    nil)))
 
-;;; a component with no parent is a system
-(defmethod find-component ((module (eql nil)) name &optional version)
-  (declare (ignorable module))
-  (let ((m (find-system name nil)))
-    (if (and m (version-satisfies m version)) m)))
+(defmethod find-component ((base cons) path)
+  (find-component (car base) (cons (cdr base) path)))
+
+(defmethod find-component ((module module) (name string))
+  (when (slot-boundp module 'components-by-name)
+    (values (gethash name (module-components-by-name module)))))
+
+(defmethod find-component ((component component) (name symbol))
+  (if name
+      (find-component component (string name))
+      component))
+
+(defmethod find-component ((module module) (name cons))
+  (find-component (find-component module (car name)) (cdr name)))
+
 
 ;;; component subclasses
 
@@ -1393,12 +1411,8 @@ recursive calls to traverse.")
 (defun %do-one-dep (operation c collect required-op required-c required-v)
   ;; collects a partial plan that results from performing required-op
   ;; on required-c, possibly with a required-vERSION
-  (let* ((dep-c (or (find-component
-                     (component-parent c)
-                     ;; XXX tacky.  really we should build the
-                     ;; in-order-to slot with canonicalized
-                     ;; names instead of coercing this late
-                     (coerce-name required-c) required-v)
+  (let* ((dep-c (or (let ((d (find-component (component-parent c) required-c)))
+                      (and d (version-satisfies d required-v) d))
                     (if required-v
                         (error 'missing-dependency-of-version
                                :required-by c
@@ -1576,9 +1590,15 @@ recursive calls to traverse.")
      (do-traverse operation c #'collect))))
 
 (defun flatten-tree (l)
+  ;; You collected things into a list.
+  ;; Most elements are just things to collect again.
+  ;; A (simple-vector 1) indicate that you should recurse into its contents.
+  ;; This way, in two passes (rather than N being the depth of the tree),
+  ;; you can collect things with marginally constant-time append,
+  ;; achieving linear time collection instead of quadratic time.
   (while-collecting (c)
     (labels ((r (x)
-               (if (vectorp x)
+               (if (typep x '(simple-vector 1))
                    (r* (svref x 0))
                    (c x)))
              (r* (l)
@@ -2839,7 +2859,7 @@ effectively disabling the output translation facility."
      (merge-pathnames*
       (relativize-pathname-directory source)
       (merge-pathnames*
-       (relativize-pathname-directory p)
+       (relativize-pathname-directory (ensure-directory-pathname p))
        root)))))
 
 ;;;; -----------------------------------------------------------------
