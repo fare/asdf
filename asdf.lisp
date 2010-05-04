@@ -49,7 +49,8 @@
 
 (cl:in-package :cl-user)
 
-(declaim (optimize (speed 2) (debug 2) (safety 3)))
+(declaim (optimize (speed 2) (debug 2) (safety 3))
+         #+sbcl (sb-ext:muffle-conditions sb-ext:compiler-note))
 
 #+ecl (require :cmp)
 
@@ -57,228 +58,248 @@
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;;; See more at the end of the file.
 
+#+gcl
+(eval-when (:compile-toplevel :load-toplevel)
+  (defpackage :asdf-utilities (:use :cl))
+  (defpackage :asdf (:use :cl :asdf-utilities)))
+
 (eval-when (:load-toplevel :compile-toplevel :execute)
   #+allegro
   (setf excl::*autoload-package-name-alist*
-        (remove "asdf" excl::*autoload-package-name-alist* :test 'equalp :key 'car))
+        (remove "asdf" excl::*autoload-package-name-alist*
+                :test 'equalp :key 'car))
   (let* ((asdf-version
-          ;; the 1+ hair is to ensure that we don't do an inadvertent find and replace
-          (subseq "VERSION:1.714" (1+ (length "VERSION"))))
+          ;; the 1+ helps the version bumping script discriminate
+          (subseq "VERSION:1.715" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
-         (versym '#:*asdf-version*)
-         (existing-version (and existing-asdf
-                                (symbol-value
-                                 (find-symbol (string versym) existing-asdf))))
-         (redefined-functions
-          '(#:perform #:explain #:output-files #:operation-done-p
-            #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file #:operate #:find-component))
+         (vername '#:*asdf-version*)
+         (versym (and existing-asdf
+                      (find-symbol (string vername) existing-asdf)))
+         (existing-version (and versym (boundp versym) (symbol-value versym)))
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
+      #-gcl
       (when existing-asdf
         (format *error-output*
                 "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
                 existing-version asdf-version))
-      (labels ((rename-away (package)
-                 (loop :with name = (package-name package)
-                   :for i :from 1 :for new = (format nil "~A.~D" name i)
-                   :unless (find-package new) :do
-                   (rename-package-name package name new)))
-               (rename-package-name (package old new)
-                 (let* ((old-names (cons (package-name package) (package-nicknames package)))
-                        (new-names (subst new old old-names :test 'equal))
-                        (new-name (car new-names))
-                        (new-nicknames (cdr new-names)))
-                   (rename-package package new-name new-nicknames)))
-               (ensure-exists (name nicknames use)
-                 (let* ((previous
-                         (remove-duplicates
-                          (remove-if
-                           #'null
-                           (mapcar #'find-package (cons name nicknames)))
-                          :from-end t)))
-                   (cond
-                     (previous
-                      (map () #'rename-away (cdr previous)) ;; packages with conflicting (nick)names
-                      (let ((p (car previous))) ;; previous package with same name
-                        (rename-package p name nicknames)
-                        (ensure-use p use)
-                        p))
-                     (t
-                      (make-package name :nicknames nicknames :use use)))))
-               (find-sym (symbol package)
-                 (find-symbol (string symbol) package))
-               (intern* (symbol package)
-                 (intern (string symbol) package))
-               (remove-symbol (symbol package)
-                 (let ((sym (find-sym symbol package)))
-                   (when sym
-                     (unexport sym package)
-                     (unintern sym package))))
-               (ensure-unintern (package symbols)
-                 (dolist (sym symbols) (remove-symbol sym package)))
-               (ensure-shadow (package symbols)
-                 (shadow symbols package))
-               (ensure-use (package use)
-                 (dolist (used (reverse use))
-                   (do-external-symbols (sym used)
-                     (unless (eq sym (find-sym sym package))
-                       (remove-symbol sym package)))
-                   (use-package used package)))
-               (ensure-fmakunbound (package symbols)
-                 (loop :for name :in symbols
-                   :for sym = (find-sym name package)
-                   :when sym :do (fmakunbound sym)))
-               (ensure-export (package export)
-                 (let ((syms (loop :for x :in export :collect
-                               (intern* x package))))
-                   (do-external-symbols (sym package)
-                     (unless (member sym syms)
-                       (remove-symbol sym package)))
-                   (dolist (sym syms)
-                     (export sym package))))
-               (ensure-package (name &key nicknames use unintern fmakunbound shadow export)
-                 (let ((p (ensure-exists name nicknames use)))
-                   (ensure-unintern p unintern)
-                   (ensure-shadow p shadow)
-                   (ensure-export p export)
-                   (ensure-fmakunbound p fmakunbound)
-                   p)))
-        (ensure-package
-         ':asdf-utilities
-         :nicknames '(#:asdf-extensions)
-         :use '(#:common-lisp)
-         :unintern '(#:split #:make-collector)
-         :export
-         '(#:absolute-pathname-p
-           #:aif
-           #:appendf
-           #:asdf-message
-           #:coerce-name
-           #:directory-pathname-p
-           #:ends-with
-           #:ensure-directory-pathname
-           #:getenv
-           #:get-uid
-           #:length=n-p
-           #:merge-pathnames*
-           #:pathname-directory-pathname
-           #:pathname-sans-name+type ;; deprecated. Use pathname-directory-pathname
-           #:read-file-forms
-           #:remove-keys
-           #:remove-keyword
-           #:resolve-symlinks
-           #:split-string
-           #:component-name-to-pathname-components
-           #:split-name-type
-           #:system-registered-p
-           #:truenamize
-           #:while-collecting))
-        (ensure-package
-         ':asdf
-         :use '(:common-lisp :asdf-utilities)
-         :unintern `(#-(or gcl ecl) ,@redefined-functions
-                           #:*asdf-revision* #:around #:asdf-method-combination
-                           #:split #:make-collector)
-         :fmakunbound `(#+(or gcl ecl) ,@redefined-functions
-                              #:system-source-file
-                              #:component-relative-pathname #:system-relative-pathname
-                              #:process-source-registry
-                              #:inherit-source-registry #:process-source-registry-directive)
-         :export
-         '(#:defsystem #:oos #:operate #:find-system #:run-shell-command
-           #:system-definition-pathname #:find-component ; miscellaneous
-           #:compile-system #:load-system #:test-system
-           #:compile-op #:load-op #:load-source-op
-           #:test-op
-           #:operation               ; operations
-           #:feature                 ; sort-of operation
-           #:version                 ; metaphorically sort-of an operation
-           #:version-satisfies
+      (labels
+          ((rename-away (package)
+             (loop :with name = (package-name package)
+               :for i :from 1 :for new = (format nil "~A.~D" name i)
+               :unless (find-package new) :do
+               (rename-package-name package name new)))
+           (rename-package-name (package old new)
+             (let* ((old-names (cons (package-name package)
+                                     (package-nicknames package)))
+                    (new-names (subst new old old-names :test 'equal))
+                    (new-name (car new-names))
+                    (new-nicknames (cdr new-names)))
+               (rename-package package new-name new-nicknames)))
+           (ensure-exists (name nicknames use)
+             (let* ((previous
+                     (remove-duplicates
+                      (remove-if
+                       #'null
+                       (mapcar #'find-package (cons name nicknames)))
+                      :from-end t)))
+               (cond
+                 (previous
+                  ;; do away with packages with conflicting (nick)names
+                  (map () #'rename-away (cdr previous))
+                  ;; reuse previous package with same name
+                  (let ((p (car previous)))
+                    (rename-package p name nicknames)
+                    (ensure-use p use)
+                    p))
+                 (t
+                  (make-package name :nicknames nicknames :use use)))))
+           (find-sym (symbol package)
+             (find-symbol (string symbol) package))
+           (intern* (symbol package)
+             (intern (string symbol) package))
+           (remove-symbol (symbol package)
+             (let ((sym (find-sym symbol package)))
+               (when sym
+                 (unexport sym package)
+                 (unintern sym package))))
+           (ensure-unintern (package symbols)
+             (dolist (sym symbols) (remove-symbol sym package)))
+           (ensure-shadow (package symbols)
+             (shadow symbols package))
+           (ensure-use (package use)
+             (dolist (used (reverse use))
+               (do-external-symbols (sym used)
+                 (unless (eq sym (find-sym sym package))
+                   (remove-symbol sym package)))
+               (use-package used package)))
+           (ensure-fmakunbound (package symbols)
+             (loop :for name :in symbols
+               :for sym = (find-sym name package)
+               :when sym :do (fmakunbound sym)))
+           (ensure-export (package export)
+             (let ((syms (loop :for x :in export :collect
+                           (intern* x package))))
+               (do-external-symbols (sym package)
+                 (unless (member sym syms)
+                   (remove-symbol sym package)))
+               (dolist (sym syms)
+                 (export sym package))))
+           (ensure-package (name &key nicknames use unintern fmakunbound shadow export)
+             (let ((p (ensure-exists name nicknames use)))
+               (ensure-unintern p unintern)
+               (ensure-shadow p shadow)
+               (ensure-export p export)
+               (ensure-fmakunbound p fmakunbound)
+               p)))
+        (macrolet
+            ((pkgdcl (name &key nicknames use export
+                           redefined-functions unintern fmakunbound shadow)
+               `(ensure-package
+                 ',name :nicknames ',nicknames :use ',use :export ',export
+                 :shadow ',shadow
+                 :unintern ',(append #-(or gcl ecl) redefined-functions
+                                     unintern)
+                 :fmakunbound ',(append #+(or gcl ecl) redefined-functions
+                                        fmakunbound))))
+          (pkgdcl
+           :asdf-utilities
+           :nicknames (#:asdf-extensions)
+           :use (#:common-lisp)
+           :unintern (#:split #:make-collector)
+           :export
+           (#:absolute-pathname-p
+            #:aif
+            #:appendf
+            #:asdf-message
+            #:coerce-name
+            #:directory-pathname-p
+            #:ends-with
+            #:ensure-directory-pathname
+            #:getenv
+            #:get-uid
+            #:length=n-p
+            #:merge-pathnames*
+            #:pathname-directory-pathname
+            #:read-file-forms
+            #:remove-keys
+            #:remove-keyword
+            #:resolve-symlinks
+            #:split-string
+            #:component-name-to-pathname-components
+            #:split-name-type
+            #:system-registered-p
+            #:truenamize
+            #:while-collecting))
+          (pkgdcl
+           :asdf
+           :use (:common-lisp :asdf-utilities)
+           :redefined-functions
+           (#:perform #:explain #:output-files #:operation-done-p
+            #:perform-with-restarts #:component-relative-pathname
+            #:system-source-file #:operate #:find-component)
+           :unintern
+           (#:*asdf-revision* #:around #:asdf-method-combination
+            #:split #:make-collector)
+           :fmakunbound
+           (#:system-source-file
+            #:component-relative-pathname #:system-relative-pathname
+            #:process-source-registry
+            #:inherit-source-registry #:process-source-registry-directive)
+           :export
+           (#:defsystem #:oos #:operate #:find-system #:run-shell-command
+            #:system-definition-pathname #:find-component ; miscellaneous
+            #:compile-system #:load-system #:test-system
+            #:compile-op #:load-op #:load-source-op
+            #:test-op
+            #:operation               ; operations
+            #:feature                 ; sort-of operation
+            #:version                 ; metaphorically sort-of an operation
+            #:version-satisfies
 
-           #:input-files #:output-files #:perform ; operation methods
-           #:operation-done-p #:explain
+            #:input-files #:output-files #:perform ; operation methods
+            #:operation-done-p #:explain
 
-           #:component #:source-file
-           #:c-source-file #:cl-source-file #:java-source-file
-           #:static-file
-           #:doc-file
-           #:html-file
-           #:text-file
-           #:source-file-type
-           #:module                     ; components
-           #:system
-           #:unix-dso
+            #:component #:source-file
+            #:c-source-file #:cl-source-file #:java-source-file
+            #:static-file
+            #:doc-file
+            #:html-file
+            #:text-file
+            #:source-file-type
+            #:module                     ; components
+            #:system
+            #:unix-dso
 
-           #:module-components          ; component accessors
-           #:module-components-by-name  ; component accessors
-           #:component-pathname
-           #:component-relative-pathname
-           #:component-name
-           #:component-version
-           #:component-parent
-           #:component-property
-           #:component-system
+            #:module-components          ; component accessors
+            #:module-components-by-name  ; component accessors
+            #:component-pathname
+            #:component-relative-pathname
+            #:component-name
+            #:component-version
+            #:component-parent
+            #:component-property
+            #:component-system
 
-           #:component-depends-on
+            #:component-depends-on
 
-           #:system-description
-           #:system-long-description
-           #:system-author
-           #:system-maintainer
-           #:system-license
-           #:system-licence
-           #:system-source-file
-           #:system-source-directory
-           #:system-relative-pathname
-           #:map-systems
+            #:system-description
+            #:system-long-description
+            #:system-author
+            #:system-maintainer
+            #:system-license
+            #:system-licence
+            #:system-source-file
+            #:system-source-directory
+            #:system-relative-pathname
+            #:map-systems
 
-           #:operation-on-warnings
-           #:operation-on-failure
-                                        ;#:*component-parent-pathname*
-           #:*system-definition-search-functions*
-           #:*central-registry*         ; variables
-           #:*compile-file-warnings-behaviour*
-           #:*compile-file-failure-behaviour*
-           #:*resolve-symlinks*
-           #:*asdf-verbose*
+            #:operation-on-warnings
+            #:operation-on-failure
+            ;;#:*component-parent-pathname*
+            #:*system-definition-search-functions*
+            #:*central-registry*         ; variables
+            #:*compile-file-warnings-behaviour*
+            #:*compile-file-failure-behaviour*
+            #:*resolve-symlinks*
+            #:*asdf-verbose*
 
-           #:asdf-version
+            #:asdf-version
 
-           #:operation-error #:compile-failed #:compile-warned #:compile-error
-           #:error-name
-           #:error-pathname
-           #:load-system-definition-error
-           #:error-component #:error-operation
-           #:system-definition-error
-           #:missing-component
-           #:missing-component-of-version
-           #:missing-dependency
-           #:missing-dependency-of-version
-           #:circular-dependency        ; errors
-           #:duplicate-names
+            #:operation-error #:compile-failed #:compile-warned #:compile-error
+            #:error-name
+            #:error-pathname
+            #:load-system-definition-error
+            #:error-component #:error-operation
+            #:system-definition-error
+            #:missing-component
+            #:missing-component-of-version
+            #:missing-dependency
+            #:missing-dependency-of-version
+            #:circular-dependency        ; errors
+            #:duplicate-names
 
-           #:try-recompiling
-           #:retry
-           #:accept                     ; restarts
-           #:coerce-entry-to-directory
-           #:remove-entry-from-registry
+            #:try-recompiling
+            #:retry
+            #:accept                     ; restarts
+            #:coerce-entry-to-directory
+            #:remove-entry-from-registry
 
-           #:initialize-output-translations
-           #:disable-output-translations
-           #:clear-output-translations
-           #:ensure-output-translations
-           #:apply-output-translations
-           #:compile-file-pathname*
-           #:enable-asdf-binary-locations-compatibility
+            #:initialize-output-translations
+            #:disable-output-translations
+            #:clear-output-translations
+            #:ensure-output-translations
+            #:apply-output-translations
+            #:compile-file-pathname*
+            #:enable-asdf-binary-locations-compatibility
 
-           #:*default-source-registries*
-           #:initialize-source-registry
-           #:compute-source-registry
-           #:clear-source-registry
-           #:ensure-source-registry
-           #:process-source-registry))
-        (let* ((version (intern* versym :asdf))
+            #:*default-source-registries*
+            #:initialize-source-registry
+            #:compute-source-registry
+            #:clear-source-registry
+            #:ensure-source-registry
+            #:process-source-registry)))
+        (let* ((version (intern* vername :asdf))
                (upvar (intern* '#:*upgraded-p* :asdf))
                (upval0 (and (boundp upvar) (symbol-value upvar)))
                (upval1 (if existing-version (cons existing-version upval0) upval0)))
@@ -289,6 +310,10 @@
 (in-package :asdf)
 
 ;; More cleanups in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
+#+gcl
+(eval-when (:compile-toplevel :load-toplevel)
+  (defvar *asdf-version* nil)
+  (defvar *upgraded-p* nil))
 (when *upgraded-p*
    #+ecl
    (defmethod update-instance-for-redefined-class :after
@@ -449,14 +474,6 @@ processed in order by `operate`."))
 (defmacro aif (test then &optional else)
   `(let ((it ,test)) (if it ,then ,else)))
 
-(defun pathname-sans-name+type (pathname)
-  "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
-and NIL NAME and TYPE components.
-Issue: doesn't override the VERSION component.
-
-Deprecated. Use PATHNAME-DIRECTORY-PATHNAME instead."
-  (make-pathname :name nil :type nil :defaults pathname))
-
 (defun pathname-directory-pathname (pathname)
   "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
 and NIL NAME, TYPE and VERSION components"
@@ -498,6 +515,13 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
              (values (pathname-host defaults)
                      (pathname-device defaults)
                      (append (pathname-directory defaults) (cdr directory))
+                     (unspecific-handler defaults)))
+            #+gcl
+            (t
+             (assert (stringp (first directory)))
+             (values (pathname-host defaults)
+                     (pathname-device defaults)
+                     (append (pathname-directory defaults) directory)
                      (unspecific-handler defaults))))
         (make-pathname :host host :device device :directory directory
                        :name (funcall unspecific-handler name)
@@ -539,7 +563,7 @@ starting the separation from the end, e.g. when called with arguments
          ;; Giving :unspecific as argument to make-pathname is not portable.
          ;; See CLHS make-pathname and 19.2.2.2.3.
          ;; We only use it on implementations that support it.
-         (or #+(or sbcl ccl ecl lispworks) :unspecific)))
+         (or #+(or ccl ecl gcl lispworks sbcl) :unspecific)))
     (destructuring-bind (name &optional (type unspecific))
         (split-string filename :max 2 :separator ".")
       (if (equal name "")
@@ -711,28 +735,27 @@ actually-existing directory."
         (return p))
       (let ((sofar (ignore-errors (truename (pathname-root p)))))
         (unless sofar (return p))
-        (loop :for component :in (cdr directory)
-          :for rest :on (cdr directory)
-          :for more = (ignore-errors
-                        (truename
-                         (merge-pathnames*
-                          (make-pathname :directory `(:relative ,component))
-                          sofar))) :do
-          (if more
-              (setf sofar more)
-              (return
-                (merge-pathnames*
-                 (make-pathname :host nil :device nil
-                                :directory `(:relative ,@rest)
-                                :defaults p)
-                 sofar)))
-          :finally
-          (return
-            (merge-pathnames*
-             (make-pathname :host nil :device nil
-                            :directory nil
-                            :defaults p)
-             sofar)))))))
+        (flet ((solution (directory)
+                 (merge-pathnames*
+                  (make-pathname :host nil :device nil
+                                 :directory directory
+                                 :name (pathname-name p)
+                                 :type (pathname-type p)
+                                 :version (pathname-version p)
+                                 :defaults "/" :case :local)
+                  sofar)))
+          (loop :for component :in (cdr directory)
+            :for rest :on (cdr directory)
+            :for more = (ignore-errors
+                          (truename
+                           (merge-pathnames*
+                            (make-pathname :directory `(:relative ,component))
+                            sofar))) :do
+            (if more
+                (setf sofar more)
+                (return (solution `(:relative ,@rest))))
+            :finally
+            (return (solution nil))))))))
 
 (defun lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
@@ -2021,7 +2044,7 @@ Returns the new tree (which probably shares structure with the old one)"
 
 (defun sysdef-error-component (msg type name value)
   (sysdef-error (concatenate 'string msg
-                             "~&The value specified for ~(~A~) ~A is ~W")
+                             "~&The value specified for ~(~A~) ~A is ~S")
                 type name value))
 
 (defun check-component-input (type name weakly-depends-on
@@ -2157,6 +2180,46 @@ synchronously execute the result using a Bourne-compatible shell, with
 output to `*verbose-out*`.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
+
+    #+abcl
+    (ext:run-shell-command command :output *verbose-out*)
+
+    #+allegro
+    ;; will this fail if command has embedded quotes - it seems to work
+    (multiple-value-bind (stdout stderr exit-code)
+        (excl.osi:command-output
+         (format nil "~a -c \"~a\""
+                 #+mswindows "sh" #-mswindows "/bin/sh" command)
+         :input nil :whole nil
+         #+mswindows :show-window #+mswindows :hide)
+      (format *verbose-out* "~{~&; ~a~%~}~%" stderr)
+      (format *verbose-out* "~{~&; ~a~%~}~%" stdout)
+      exit-code)
+
+    #+clisp                     ;XXX not exactly *verbose-out*, I know
+    (ext:run-shell-command  command :output :terminal :wait t)
+
+    #+clozure
+    (nth-value 1
+               (ccl:external-process-status
+                (ccl:run-program "/bin/sh" (list "-c" command)
+                                 :input nil :output *verbose-out*
+                                 :wait t)))
+
+    #+ecl ;; courtesy of Juan Jose Garcia Ripoll
+    (si:system command)
+
+    #+gcl
+    (lisp:system command)
+
+    #+lispworks
+    (system:call-system-showing-output
+     command
+     :shell-type "/bin/sh"
+     :show-cmd nil
+     :prefix ""
+     :output-stream *verbose-out*)
+
     #+sbcl
     (sb-ext:process-exit-code
      (apply #'sb-ext:run-program
@@ -2172,45 +2235,8 @@ output to `*verbose-out*`.  Returns the shell's exit code."
       (list  "-c" command)
       :input nil :output *verbose-out*))
 
-    #+allegro
-    ;; will this fail if command has embedded quotes - it seems to work
-    (multiple-value-bind (stdout stderr exit-code)
-        (excl.osi:command-output
-         (format nil "~a -c \"~a\""
-                 #+mswindows "sh" #-mswindows "/bin/sh" command)
-         :input nil :whole nil
-         #+mswindows :show-window #+mswindows :hide)
-      (format *verbose-out* "~{~&; ~a~%~}~%" stderr)
-      (format *verbose-out* "~{~&; ~a~%~}~%" stdout)
-      exit-code)
-
-    #+lispworks
-    (system:call-system-showing-output
-     command
-     :shell-type "/bin/sh"
-     :show-cmd nil
-     :prefix ""
-     :output-stream *verbose-out*)
-
-    #+clisp                     ;XXX not exactly *verbose-out*, I know
-    (ext:run-shell-command  command :output :terminal :wait t)
-
-    #+openmcl
-    (nth-value 1
-               (ccl:external-process-status
-                (ccl:run-program "/bin/sh" (list "-c" command)
-                                 :input nil :output *verbose-out*
-                                 :wait t)))
-
-    #+ecl ;; courtesy of Juan Jose Garcia Ripoll
-    (si:system command)
-
-    #+abcl
-    (ext:run-shell-command command :output *verbose-out*)
-
-    #-(or openmcl clisp lispworks allegro scl cmu sbcl ecl abcl)
-    (error "RUN-SHELL-COMMAND not implemented for this Lisp")
-    ))
+    #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl)
+    (error "RUN-SHELL-COMMAND not implemented for this Lisp")))
 
 ;;;; ---------------------------------------------------------------------------
 ;;;; system-relative-pathname
@@ -2229,9 +2255,13 @@ located."
                  :defaults (system-source-file system-designator)))
 
 (defun relativize-directory (directory)
-  (if (eq (car directory) :absolute)
-      (cons :relative (cdr directory))
-      directory))
+  (cond
+    ((stringp directory)
+     (list :relative directory))
+    ((eq (car directory) :absolute)
+     (cons :relative (cdr directory)))
+    (t
+     directory)))
 
 (defun relativize-pathname-directory (pathspec)
   (let ((p (pathname pathspec)))
