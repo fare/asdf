@@ -66,6 +66,7 @@
 (defmethod initialize-instance :after ((instance bundle-op) &rest initargs
                                        &key (name-suffix nil name-suffix-p)
                                        &allow-other-keys)
+  (declare (ignorable initargs name-suffix))
   (unless name-suffix-p
     (setf (slot-value instance 'name-suffix)
           (if (bundle-op-monolithic-p instance) "-mono" "")))
@@ -84,6 +85,7 @@
 (defvar *force-load-p* nil)
 
 (defmethod operation-done-p :around ((operation load-op) c)
+  (declare (ignorable operation c))
   (if *force-load-p* nil (call-next-method)))
 
 (defun gather-components (op-type system &key filter-system filter-type include-self)
@@ -122,6 +124,7 @@
 ;;; Gather the static libraries of all components.
 ;;;
 (defmethod bundle-sub-operations ((o monolithic-bundle-op) c)
+  (declare (ignorable o))
   (gather-components 'lib-op c :filter-type 'system :include-self t))
 ;;;
 ;;; STATIC LIBRARIES
@@ -141,7 +144,7 @@
 ;;; with the static library of this module.
 ;;;
 (defmethod bundle-sub-operations ((o dll-op) c)
-  (declare (ignore o))
+  (declare (ignorable o))
   (list (cons (make-instance 'lib-op) c)))
 ;;;
 ;;; FASL FILES
@@ -149,7 +152,7 @@
 ;;; Gather the statically linked library of this component.
 ;;;
 (defmethod bundle-sub-operations ((o fasl-op) c)
-  (declare (ignore o))
+  (declare (ignorable o))
   (list (cons (make-instance 'lib-op) c)))
 
 (defmethod component-depends-on ((o bundle-op) (c system))
@@ -159,11 +162,11 @@
                    (component-name dep))))
 
 (defmethod component-depends-on ((o lib-op) (c system))
-  (declare (ignore o))
+  (declare (ignorable o))
   (list (list 'compile-op (component-name c))))
 
 (defmethod component-depends-on ((o bundle-op) c)
-  (declare (ignore o c))
+  (declare (ignorable o c))
   nil)
 
 (defmethod input-files ((o bundle-op) (c system))
@@ -177,16 +180,16 @@
                             (component-relative-pathname c)))))
 
 (defmethod output-files ((o fasl-op) (c system))
-  (declare (ignore c))
+  (declare (ignorable o c))
   (loop for file in (call-next-method)
      collect (make-pathname :type "fasb" :defaults file)))
 
 (defmethod perform ((o bundle-op) (c t))
-  (declare (ignore o c))
+  (declare (ignorable o c))
   t)
 
 (defmethod operation-done-p ((o bundle-op) (c source-file))
-  (declare (ignore o c))
+  (declare (ignorable o c))
   t)
 
 (defmethod perform ((o bundle-op) (c system))
@@ -255,6 +258,7 @@
   (every #'(lambda (c) (typep c 'compiled-file)) (module-components c)))
 
 (defmethod component-depends-on ((o load-fasl-op) (c system))
+  (declare (ignorable o))
   (unless (trivial-system-p c)
     (subst 'load-fasl-op 'load-op
            (subst 'fasl-op 'compile-op
@@ -325,19 +329,19 @@
   (car (output-files o c)))
 
 (defmethod component-depends-on ((o lib-op) (c prebuilt-system))
-  (declare (ignore o c))
+  (declare (ignorable o c))
   nil)
 
 (defmethod bundle-sub-operations ((o lib-op) (c prebuilt-system))
-  (declare (ignore o c))
+  (declare (ignorable o c))
   nil)
 
 (defmethod bundle-sub-operations ((o monolithic-lib-op) (c prebuilt-system))
-  (declare (ignore o c))
+  (declare (ignorable o))
   (error "Prebuilt system ~S shipped with ECL can not be used in a monolithic library operation." c))
 
 (defmethod bundle-sub-operations ((o monolithic-bundle-op) (c prebuilt-system))
-  (declare (ignore o c))
+  (declare (ignorable o c))
   nil)
 
 ;;;

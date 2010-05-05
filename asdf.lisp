@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.716" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.717" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -316,17 +316,19 @@
   (defvar *upgraded-p* nil))
 (when *upgraded-p*
    #+ecl
-   (defmethod update-instance-for-redefined-class :after
-       ((c compile-op) added deleted plist &key)
-     (declare (ignore added deleted))
-     (let ((system-p (getf plist 'system-p)))
-       (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p))))
-   (eval
-    '(defmethod update-instance-for-redefined-class :after
-         ((m module) added deleted plist &key)
-       (declare (ignorable deleted plist))
-       (when (member 'components-by-name added)
-         (compute-module-components-by-name m)))))
+   (when (find-class 'compile-op nil)
+     (defmethod update-instance-for-redefined-class :after
+         ((c compile-op) added deleted plist &key)
+       (declare (ignore added deleted))
+       (let ((system-p (getf plist 'system-p)))
+         (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p)))))
+   (when (find-class 'module nil)
+     (eval
+      '(defmethod update-instance-for-redefined-class :after
+           ((m module) added deleted plist &key)
+         (declare (ignorable deleted plist))
+         (when (member 'components-by-name added)
+           (compute-module-components-by-name m))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
