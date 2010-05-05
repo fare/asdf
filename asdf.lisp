@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.715" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.716" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -500,7 +500,7 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
              (unspecific-handler (p)
                (if (typep p 'logical-pathname) #'ununspecific #'identity)))
       (multiple-value-bind (host device directory unspecific-handler)
-          (ecase (first directory)
+          (#-gcl ecase #+gcl case (first directory)
             ((nil)
              (values (pathname-host defaults)
                      (pathname-device defaults)
@@ -735,14 +735,13 @@ actually-existing directory."
         (return p))
       (let ((sofar (ignore-errors (truename (pathname-root p)))))
         (unless sofar (return p))
-        (flet ((solution (directory)
+        (flet ((solution (directories)
                  (merge-pathnames*
                   (make-pathname :host nil :device nil
-                                 :directory directory
+                                 :directory `(:relative ,@directories)
                                  :name (pathname-name p)
                                  :type (pathname-type p)
-                                 :version (pathname-version p)
-                                 :defaults "/" :case :local)
+                                 :version (pathname-version p))
                   sofar)))
           (loop :for component :in (cdr directory)
             :for rest :on (cdr directory)
@@ -753,7 +752,7 @@ actually-existing directory."
                             sofar))) :do
             (if more
                 (setf sofar more)
-                (return (solution `(:relative ,@rest))))
+                (return (solution rest)))
             :finally
             (return (solution nil))))))))
 
@@ -2288,9 +2287,10 @@ located."
 (defparameter *os-features*
   '((:windows :mswindows :win32 :mingw32)
     (:solaris :sunos)
+    :linux ;; for GCL at least, must appear before :bsd.
     :macosx :darwin :apple
     :freebsd :netbsd :openbsd :bsd
-    :linux :unix))
+    :unix))
 
 (defparameter *architecture-features*
   '((:x86-64 :amd64 :x86_64 :x8664-target)
@@ -2312,6 +2312,7 @@ located."
                        (:-ics "8")
                        (:+ics ""))
                       (if (member :64bit *features*) "-64bit" ""))
+    #+clisp (subseq s 0 (position #\space s))
     #+clozure (format nil "~d.~d-fasl~d"
                       ccl::*openmcl-major-version*
                       ccl::*openmcl-minor-version*
@@ -2322,11 +2323,11 @@ located."
                   (let ((vcs-id (ext:lisp-implementation-vcs-id)))
                     (when (>= (length vcs-id) 8)
                       (subseq vcs-id 0 8))))
+    #+gcl (subseq s (1+ (position #\space s)))
     #+lispworks (format nil "~A~@[~A~]" s
                         (when (member :lispworks-64bit *features*) "-64bit"))
     ;; #+sbcl (format nil "~a-fasl~d" s sb-fasl:+fasl-file-version+) ; fasl-f-v is redundant
     #+(or armedbear cormanlisp mcl sbcl scl) s
-    #+(or clisp gcl) (subseq s 0 (position #\space s))
     #-(or allegro armedbear clisp clozure cmu cormanlisp digitool
           ecl gcl lispworks mcl sbcl scl) s))
 

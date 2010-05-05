@@ -552,7 +552,7 @@ by evaluating the following Lisp form:
 (asdf:load-system :@var{foo})
 @end example
 
-On some implementations (namely, SBCL and Clozure CL),
+On some implementations (namely ABCL, Clozure CL and SBCL),
 ASDF hooks into the @code{CL:REQUIRE} facility
 and you can just use:
 
@@ -2731,11 +2731,18 @@ Other issues include the following:
 
 @item
 There is a slight performance bug, notably on SBCL,
-when initially searching for @file{asd} files
-(depending on your configuration).
-The @code{(directory "**/*.asd")} can make things slower than desired.
+when initially searching for @file{asd} files,
+the implicit @code{(directory "/configured/path/**/*.asd")}
+for every configured path @code{(:tree "/configured/path/")}
+in your @code{source-registry} configuration can cause a slight pause.
 Try to @code{(time (asdf:initialize-source-registry))}
 to see how bad it is or isn't on your system.
+If you insist on not having this pause,
+you can avoid the pause by overriding the default source-registry configuration
+and not use any deep @code{:tree} entry but only @code{:directory} entries
+or shallow @code{:tree} entries.
+Or you can fix your implementation to not be quite that slow
+when recursing through directories.
 
 @item
 On Windows, only LispWorks supports proper default configuration pathnames
