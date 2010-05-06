@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.717" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.718" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -1661,9 +1661,10 @@ recursive calls to traverse.")
 (defmethod perform :after ((o compile-op) (c cl-source-file))
   ;; Note how we use OUTPUT-FILES to find the binary locations
   ;; This allows the user to override the names.
-  (let* ((input (output-files o c))
-         (output (compile-file-pathname (lispize-pathname (first input)) :type :fasl)))
-    (c:build-fasl output :lisp-files (remove "fas" input :key #'pathname-type :test #'string=))))
+  (let* ((files (output-files o c))
+         (object (first files))
+         (fasl (second files)))
+    (c:build-fasl fasl :lisp-files (list object))))
 
 (defmethod perform :after ((operation operation) (c component))
   (setf (gethash (type-of operation) (component-operation-times c))
@@ -1699,8 +1700,7 @@ recursive calls to traverse.")
   (declare (ignorable operation))
   (let ((p (lispize-pathname (component-pathname c))))
     #-:broken-fasl-loader
-    (list #-ecl (compile-file-pathname p)
-          #+ecl (compile-file-pathname p :type :object)
+    (list (compile-file-pathname p #+ecl :type #+ecl :object)
           #+ecl (compile-file-pathname p :type :fasl))
     #+:broken-fasl-loader (list p)))
 
@@ -3281,9 +3281,9 @@ with a different configuration, so the configuration would be re-read then."
       (initialize-source-registry)))
 
 ;;;; -----------------------------------------------------------------
-;;;; Hook into REQUIRE for SBCL, ClozureCL and ABCL
+;;;; Hook into REQUIRE for ABCL, ClozureCL, CMUCL, ECL and SBCL
 ;;;;
-#+(or sbcl clozure abcl)
+#+(or abcl clozure cmu ecl sbcl)
 (progn
   (defun module-provide-asdf (name)
     (handler-bind
@@ -3298,9 +3298,11 @@ with a different configuration, so the configuration would be re-read then."
           (load-system name)
           t))))
   (pushnew 'module-provide-asdf
-           #+sbcl sb-ext:*module-provider-functions*
+           #+abcl sys::*module-provider-functions*
            #+clozure ccl::*module-provider-functions*
-           #+abcl sys::*module-provider-functions*))
+           #+cmu ext:*module-provider-functions*
+           #+ecl si:*module-provider-functions*
+           #+sbcl sb-ext:*module-provider-functions*))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups after hot-upgrade.
