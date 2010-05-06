@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.718" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.719" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -1174,7 +1174,7 @@ to `~a` which is not a directory.~@:>"
 
 (defmethod find-component ((component component) (name symbol))
   (if name
-      (find-component component (string name))
+      (find-component component (coerce-name name))
       component))
 
 (defmethod find-component ((module module) (name cons))
@@ -2402,9 +2402,7 @@ located."
        #+(and (or win32 windows mswindows mingw32) (not cygwin))
         ,@`(#+lispworks ,(try (sys:get-folder-path :common-appdata) "common-lisp/config/")
             ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
-           #+(not cygwin)
-           ,(try (or (getenv "USERPROFILE") (user-homedir))
-                 "Application Data/common-lisp/config/"))
+           ,(try (getenv "APPDATA") "common-lisp/config/"))
        ,(try (user-homedir) ".config/common-lisp/")))))
 (defun system-configuration-directories ()
   (remove-if
@@ -2476,27 +2474,16 @@ Each mapping is a pair of a source pathname and destination pathname,
 and the order is by decreasing length of namestring of the source pathname.")
 
 (defvar *user-cache*
-  (or
-   (let ((h (getenv "XDG_CACHE_HOME")))
-     (and h `(,h "common-lisp" :implementation)))
-   #+(and windows lispworks)
-   (let ((h (sys:get-folder-path :common-appdata))) ;; no :common-caches in Windows???
-     (and h `(,h "common-lisp" "cache")))
-   #+(and (or win32 windows mswindows mingw32) (not cygwin))
-   ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Cache
-   (let ((h (or (getenv "USERPROFILE") (user-homedir))))
-     (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
-   '(:home ".cache" "common-lisp" :implementation)))
+  (flet ((try (x &rest sub) (and x `(,x ,@sub))))
+    (or
+     (try (getenv "XDG_CACHE_HOME") "common-lisp" :implementation)
+     #+(and (or win32 windows mswindows mingw32) (not cygwin))
+     (try (getenv "APPDATA") "common-lisp" "cache" :implementation)
+     '(:home ".cache" "common-lisp" :implementation))))
 (defvar *system-cache*
-  (or
-   #+(and windows lispworks)
-   (let ((h (sys:get-folder-path :common-appdata))) ;; no :common-caches in Windows???
-     (and h `(,h "common-lisp" "cache")))
-   #+(and (or win32 windows mswindows mingw32) (not cygwin))
-   (let ((h (or (getenv "USERPROFILE") (user-homedir))))
-     (and h `(,h "Local Settings" "Temporary Internet Files" "common-lisp")))
-   #+(or unix cygwin)
-   '("/var/cache/common-lisp" :uid :implementation)))
+  ;; No good default, plus there's a security problem
+  ;; with other users messing with such directories.
+  *user-cache*)
 
 (defun output-translations ()
   (car *output-translations*))
@@ -3170,10 +3157,7 @@ with a different configuration, so the configuration would be re-read then."
            (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
           (dirs (cons datahome (split-string datadirs :separator ":"))))
          #+(and (or win32 windows mswindows mingw32) (not cygwin))
-         ((datahome
-           #+lispworks (sys:get-folder-path :common-appdata)
-           #-lispworks (try (or (getenv "USERPROFILE") (user-homedir))
-                            "Application Data"))
+         ((datahome (getenv "APPDATA"))
           (datadir
            #+lispworks (sys:get-folder-path :local-appdata)
            #-lispworks (try (getenv "ALLUSERSPROFILE")

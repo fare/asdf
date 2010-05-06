@@ -2466,7 +2466,7 @@ a slightly older version about which none of the HEAD users have complained.
 There is also a STABLE version, which is earlier than release.
 
 You may get the ASDF source repository using git:
-@kbd{git clone http://common-lisp.net/project/asdf/asdf.git}
+@kbd{git clone git://common-lisp.net/projects/asdf/asdf.git}
 
 You will find the above referenced tags in this repository.
 You can also browse the repository on
@@ -2577,8 +2577,18 @@ ASDF 2 provides a well-documented way to configure ASDF,
 with sensible defaults, adequate configuration languages,
 and a coherent set of configuration files and hooks.
 
+We believe it's a vast improvement because it decouples
+application distribution from library distribution.
+The application writer can avoid thinking where the libraries are,
+and the library distributor (dpkg, clbuild, advanced user, etc.)
+can configure them once and for every application.
+Yet settings can be easily overridden where needed,
+so whoever needs control has exactly as much as required.
+
 At the same time, ASDF 2 remains compatible
 with the old magic you may have in your build scripts
+(using @code{*central-registry*} and
+@code{*system-definition-search-functions*})
 to tailor the ASDF configuration to your build automation needs,
 and also allows for new magic, simpler and more powerful magic.
 
