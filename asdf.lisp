@@ -49,8 +49,8 @@
 
 (cl:in-package :cl-user)
 
-(declaim (optimize (speed 2) (debug 2) (safety 3))
-         #+sbcl (sb-ext:muffle-conditions sb-ext:compiler-note))
+#|(declaim (optimize (speed 2) (debug 2) (safety 3))
+#+sbcl (sb-ext:muffle-conditions sb-ext:compiler-note))|#
 
 #+ecl (require :cmp)
 
@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.719" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.720" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -626,7 +626,7 @@ pathnames."
   #+sbcl
   (sb-ext:posix-getenv x)
   #+clozure
-  (ccl::getenv x)
+  (ccl:getenv x)
   #+clisp
   (ext:getenv x)
   #+cmu
@@ -1947,24 +1947,21 @@ details."
 ;;;; -------------------------------------------------------------------------
 ;;;; Defsystem
 
+(defun load-pathname ()
+  (let ((pn (or *load-pathname* *compile-file-pathname*)))
+    (if *resolve-symlinks*
+        (and pn (resolve-symlinks pn))
+        pn)))
+
 (defun determine-system-pathname (pathname pathname-supplied-p)
-  ;; called from the defsystem macro.
-  ;; the pathname of a system is either
+  ;; The defsystem macro calls us to determine
+  ;; the pathname of a system as follows:
   ;; 1. the one supplied,
-  ;; 2. derived from the *load-truename* (see below), or
-  ;; 3. taken from *default-pathname-defaults*
-  ;;
-  ;; if using *load-truename*, then we also deal with whether or not
-  ;; to resolve symbolic links. If not resolving symlinks, then we use
-  ;; *load-pathname* instead of *load-truename* since in some
-  ;; implementations, the latter has *already resolved it.
-  (let ((file-pathname
-         (when (or *load-pathname* *compile-file-pathname*)
-           (pathname-directory-pathname
-            (if *resolve-symlinks*
-                (resolve-symlinks (or *load-truename* *compile-file-truename*))
-                *load-pathname*)))))
-    (or (and pathname-supplied-p (merge-pathnames* pathname file-pathname))
+  ;; 2. derived from *load-pathname* via load-pathname
+  ;; 3. taken from the *default-pathname-defaults* via current-directory
+  (let* ((file-pathname (load-pathname))
+         (directory-pathname (and file-pathname (pathname-directory-pathname file-pathname))))
+    (or (and pathname-supplied-p (merge-pathnames* pathname directory-pathname))
         file-pathname
         (current-directory))))
 
@@ -1987,7 +1984,7 @@ details."
                  (t
                   (register-system (quote ,name)
                                    (make-instance ',class :name ',name))))
-           (%set-system-source-file *load-truename*
+           (%set-system-source-file (load-pathname)
                                     (cdr (system-registered-p ',name))))
          (parse-component-form
           nil (list*
@@ -2563,6 +2560,7 @@ with a different configuration, so the configuration would be re-read then."
                (relativize-pathname-directory (current-directory)))
               ((eql :implementation) (implementation-identifier))
               ((eql :implementation-type) (string-downcase (implementation-type)))
+              #-(and (or win32 windows mswindows mingw32) (not cygwin))
               ((eql :uid) (princ-to-string (get-uid)))))
          (d (if (pathnamep x) r (ensure-directory-pathname r)))
          (s (if (and wildenp (not (pathnamep x)))
@@ -2677,8 +2675,8 @@ with a different configuration, so the configuration would be re-read then."
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
     #+sbcl (,(getenv "SBCL_HOME") ())
-    #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; only needed if LPNs are resolved manually.
-    #+clozure (,(wilden (ccl::ccl-directory)) ()) ; not needed: no precompiled ASDF system
+    #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; not needed: no precompiled ASDF system
+    #+clozure (,(wilden (truename #p"ccl:")) ()) ; not needed: no precompiled ASDF system
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
     ;; These are for convenience, and can be overridden by the user:
@@ -3283,7 +3281,7 @@ with a different configuration, so the configuration would be re-read then."
           t))))
   (pushnew 'module-provide-asdf
            #+abcl sys::*module-provider-functions*
-           #+clozure ccl::*module-provider-functions*
+           #+clozure ccl:*module-provider-functions*
            #+cmu ext:*module-provider-functions*
            #+ecl si:*module-provider-functions*
            #+sbcl sb-ext:*module-provider-functions*))

@@ -2635,11 +2635,12 @@ Windows support was notably quirky because of such non-portability.
 @item
 The internal test suite used to massively fail on many implementations.
 While still incomplete, it now fully passes
-on all implementations supported by the test suite.
+on all implementations supported by the test suite,
+except for GCL (due to GCL bugs).
 
 @item
 Support was lacking for some implementations.
-ABCL was notably wholly broken.
+ABCL and GCL were notably wholly broken.
 ECL extensions were not integrated in the ASDF release.
 
 @item
@@ -3089,11 +3090,7 @@ What would be a nice interface for this functionality?
 
 @section Missing bits in implementation
 
-** all of the above
-
 ** reuse the same scratch package whenever a system is reloaded from disk
-
-** rules for system pathname defaulting are not yet implemented properly
 
 ** proclamations probably aren't
 
@@ -3102,16 +3099,6 @@ What would be a nice interface for this functionality?
 We should do something inventive when processing a @code{defsystem} form,
 like take the list of kids and @code{setf} the slot to @code{nil},
 then transfer children from old to new list as they're found.
-
-**  traverse may become a normal function
-
-If you're defining methods on @code{traverse}, speak up.
-
-
-** a lot of load-op methods can be rewritten to use input-files
-
-so should be.
-
 
 ** (stuff that might happen later)
 
