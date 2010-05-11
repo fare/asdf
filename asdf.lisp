@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.720" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.721" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -593,7 +593,7 @@ pathnames."
          (last-comp (car (last components))))
     (multiple-value-bind (relative components)
         (if (equal (first components) "")
-            (if (and (plusp (length s)) (eql (char s 0) #\/))
+            (if (equal (first-char s) #\/)
                 (values :absolute (cdr components))
                 (values :relative nil))
           (values :relative components))
@@ -2446,10 +2446,15 @@ located."
       (error "One and only one form allowed for ~A. Got: ~S~%" description forms))
     (funcall validator (car forms))))
 
+(defun hidden-file-p (pathname)
+  (equal (first-char (pathname-name pathname)) #\.))
+
 (defun validate-configuration-directory (directory tag validator)
   (let ((files (sort (ignore-errors
-                       (directory (make-pathname :name :wild :type :wild :defaults directory)
-                                  #+sbcl :resolve-symlinks #+sbcl nil))
+                       (remove-if
+                        'hidden-file-p
+                        (directory (make-pathname :name :wild :type "conf" :defaults directory)
+                                   #+sbcl :resolve-symlinks #+sbcl nil)))
                      #'string< :key #'namestring)))
     `(,tag
       ,@(loop :for file :in files :append
@@ -2827,6 +2832,9 @@ effectively disabling the output translation facility."
           (translate-pathname p absolute-source destination)))
        :finally (return p)))))
 
+(defun first-char (s)
+  (and (stringp s) (plusp (length s)) (char s 0)))
+
 (defun last-char (s)
   (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
@@ -3139,6 +3147,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun wrapping-source-registry ()
   `(:source-registry
+    #+cmu (:tree #p"modules:")
     #+sbcl (:tree ,(getenv "SBCL_HOME"))
    :inherit-configuration))
 (defun default-source-registry ()
@@ -3272,12 +3281,12 @@ with a different configuration, so the configuration would be re-read then."
         ((style-warning #'muffle-warning)
          (missing-component (constantly nil))
          (error (lambda (e)
-                  (format *error-output* "ASDF could not load ~A because ~A.~%"
+                  (format *error-output* "ASDF could not load ~(~A~) because ~A.~%"
                           name e))))
       (let* ((*verbose-out* (make-broadcast-stream))
-             (system (find-system name nil)))
+             (system (find-system (string-downcase name) nil)))
         (when system
-          (load-system name)
+          (load-system system)
           t))))
   (pushnew 'module-provide-asdf
            #+abcl sys::*module-provider-functions*

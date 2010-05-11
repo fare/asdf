@@ -343,7 +343,7 @@ The simplest way to add a path to your search path,
 say @file{/foo/bar/baz/quux/}
 is to create the directory
 @file{~/.config/common-lisp/source-registry.conf.d/}
-and there create a file with any name of your choice,
+and there create a file with any name of your choice but the type @file{conf},
 for instance @file{42-bazquux.conf}
 containing the line:
 
@@ -357,10 +357,11 @@ to be recursively scanned for @file{.asd} files, instead use:
 Note that your Operating System distribution or your system administrator
 may already have configured system-managed libraries for you.
 
-Also note that when choosing a filename, the convention is to use
-the @file{.conf} extension
-(and a non-empty extension is required for CLISP compatibility),
-and it is customary to start the filename with two digits
+The required @file{.conf} extension allows you to have disabled files
+or editor backups (ending in @file{~}), and works portably
+(for instance, it is a pain to allow both empty and non-empty extension on CLISP).
+Excluded are files the name of which start with a @file{.} character.
+It is customary to start the filename with two digits
 that specify the order in which the directories will be scanned.
 
 ASDF will automatically read your configuration
@@ -485,7 +486,7 @@ say from @file{/foo/bar/baz/quux/}
 to @file{/where/i/want/my/fasls/}
 is to create the directory
 @file{~/.config/common-lisp/asdf-output-translations.conf.d/}
-and there create a file with any name of your choice,
+and there create a file with any name of your choice and the type @file{conf},
 for instance @file{42-bazquux.conf}
 containing the line:
 
@@ -510,11 +511,11 @@ In absence of any configuration, the default is to redirect everything
 under an implementation-dependent subdirectory of @file{~/.cache/common-lisp/}.
 @xref{Controlling where ASDF searches for systems}, for full details.
 
-
-Also note that when choosing a filename, the convention is to use
-the @file{.conf} extension
-(and a non-empty extension is required for CLISP compatibility),
-and it is customary to start the filename with two digits
+The required @file{.conf} extension allows you to have disabled files
+or editor backups (ending in @file{~}), and works portably
+(for instance, it is a pain to allow both empty and non-empty extension on CLISP).
+Excluded are files the name of which start with a @file{.} character.
+It is customary to start the filename with two digits
 that specify the order in which the directories will be scanned.
 
 ASDF will automatically read your configuration

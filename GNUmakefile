@@ -7,10 +7,10 @@ clnet_home      := "/project/asdf/public_html/"
 
 sourceDirectory := $(shell pwd)
 
-lisps ?= allegro ccl clisp ecl lispworks sbcl
-## untested by me: abcl allegromodern cmucl
+lisps ?= allegro ccl clisp ecl sbcl
+## not tested by me: abcl allegromodern cmucl lisworks
 ## FAIL: gclcvs
-## maybe supported by asdf, never supported by our tests: cormancl mcl scl
+## maybe supported by asdf, not supported yet by our tests: cormancl mcl scl
 
 lisp ?= sbcl
 
