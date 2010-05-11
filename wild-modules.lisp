@@ -33,6 +33,6 @@ use a wild pathname instead." module)))
                     files)))))
 
 ;; Don't export wild-module or else will get a full warning
-;; when (require 'asdf) if asdf is already loaded
+;; when (require :asdf) if asdf is already loaded
 
 ;;(export '(wild-module))

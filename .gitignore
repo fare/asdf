@@ -3,6 +3,7 @@ push
 resbcl
 reccl
 reecl
+regcl
 
 # Temporary files from documentation build
 doc/asdf/
