@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.721" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.722" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -3147,9 +3147,9 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun wrapping-source-registry ()
   `(:source-registry
-    #+cmu (:tree #p"modules:")
     #+sbcl (:tree ,(getenv "SBCL_HOME"))
-   :inherit-configuration))
+    :inherit-configuration
+    #+cmu (:tree #p"modules:")))
 (defun default-source-registry ()
   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
     `(:source-registry
