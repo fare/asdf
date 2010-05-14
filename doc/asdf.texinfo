@@ -1720,8 +1720,10 @@ DIRECTIVE :=
     ;; add a directory hierarchy, recursing but excluding specified patterns
     (:tree DIRECTORY-PATHNAME-DESIGNATOR) |
 
-    ;; override the default defaults for exclusion patterns
+    ;; override the defaults for exclusion patterns
     (:exclude PATTERN ...) |
+    ;; augment the defaults for exclusion patterns
+    (:also-exclude PATTERN ...) |
 
     ;; splice the parsed contents of another config file
     (:include REGULAR-FILE-PATHNAME-DESIGNATOR) |
@@ -1809,9 +1811,14 @@ ASDF currently returns the first system found,
 XCVB currently raised an error.
 If none is found, the search continues.
 
-Exclude statements specify patterns of subdirectories the systems of which
-to ignore. Typically you don't want to use copies of files kept by such
+Exclude statements specify patterns of subdirectories
+the systems from which to ignore.
+Typically you don't want to use copies of files kept by such
 version control systems as Darcs.
+Exclude statements are not propagated to further included or inherited
+configuration files or expressions;
+instead the defaults are reset around every configuration statement
+to the default defaults from @code{asdf::*default-source-registry-exclusions*}.
 
 Include statements cause the search to recurse with the path specifications
 from the file specified.

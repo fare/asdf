@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.722" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.723" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -3000,10 +3000,12 @@ effectively disabling the output translation facility."
 ;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
 ;; Using ack 1.2 exclusions
-(defvar *default-exclusions*
+(defvar *default-source-registry-exclusions*
   '(".bzr" ".cdv" "~.dep" "~.dot" "~.nib" "~.plst"
     ".git" ".hg" ".pc" ".svn" "CVS" "RCS" "SCCS" "_darcs"
     "_sgbak" "autom4te.cache" "cover_db" "_build"))
+
+(defvar *source-registry-exclusions* *default-source-registry-exclusions*)
 
 (defvar *source-registry* ()
   "Either NIL (for uninitialized), or a list of one element,
@@ -3062,7 +3064,7 @@ with a different configuration, so the configuration would be re-read then."
               ((:include :directory :tree)
                (and (length=n-p rest 1)
                     (typep (car rest) '(or pathname string null))))
-              ((:exclude)
+              ((:exclude :also-exclude)
                (every #'stringp rest))
               (null rest))))
     (error "Invalid directive ~S~%" directive))
@@ -3207,7 +3209,7 @@ with a different configuration, so the configuration would be re-read then."
   (declare (ignorable x))
   (inherit-source-registry inherit :register register))
 (defmethod process-source-registry ((form cons) &key inherit register)
-  (let ((*default-exclusions* *default-exclusions*))
+  (let ((*source-registry-exclusions* *default-source-registry-exclusions*))
     (dolist (directive (cdr (validate-source-registry-form form)))
       (process-source-registry-directive directive :inherit inherit :register register))))
 
@@ -3228,9 +3230,11 @@ with a different configuration, so the configuration would be re-read then."
       ((:tree)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (ensure-directory-pathname pathname) :recurse t :exclude *default-exclusions*))))
+           (funcall register (ensure-directory-pathname pathname) :recurse t :exclude *source-registry-exclusions*))))
       ((:exclude)
-       (setf *default-exclusions* rest))
+       (setf *source-registry-exclusions* rest))
+      ((:also-exclude)
+       (appendf *source-registry-exclusions* rest))
       ((:default-registry)
        (inherit-source-registry '(default-source-registry) :register register))
       ((:inherit-configuration)
