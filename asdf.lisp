@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.723" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.724" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -80,7 +80,7 @@
     (unless (and existing-asdf already-there)
       #-gcl
       (when existing-asdf
-        (format *error-output*
+        (format *trace-output*
                 "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
                 existing-version asdf-version))
       (labels
@@ -327,6 +327,7 @@
       '(defmethod update-instance-for-redefined-class :after
            ((m module) added deleted plist &key)
          (declare (ignorable deleted plist))
+         (format *trace-output* "Updating ~A~%" m)
          (when (member 'components-by-name added)
            (compute-module-components-by-name m))))))
 
@@ -892,8 +893,8 @@ actually-existing directory."
 (defvar *default-component-class* 'cl-source-file)
 
 (defun compute-module-components-by-name (module)
-  (let ((hash (module-components-by-name module)))
-    (clrhash hash)
+  (let ((hash (make-hash-table :test 'equal)))
+    (setf (module-components-by-name module) hash)
     (loop :for c :in (module-components module)
       :for name = (component-name c)
       :for previous = (gethash name (module-components-by-name module))
@@ -909,7 +910,6 @@ actually-existing directory."
     :initarg :components
     :accessor module-components)
    (components-by-name
-    :initform (make-hash-table :test 'equal)
     :accessor module-components-by-name)
    ;; What to do if we can't satisfy a dependency of one of this module's
    ;; components.  This allows a limited form of conditional processing.
@@ -1169,8 +1169,9 @@ to `~a` which is not a directory.~@:>"
   (find-component (car base) (cons (cdr base) path)))
 
 (defmethod find-component ((module module) (name string))
-  (when (slot-boundp module 'components-by-name)
-    (values (gethash name (module-components-by-name module)))))
+  (unless (slot-boundp module 'components-by-name) ;; SBCL may miss the u-i-f-r-c method!!!
+    (compute-module-components-by-name module))
+  (values (gethash name (module-components-by-name module))))
 
 (defmethod find-component ((component component) (name symbol))
   (if name
