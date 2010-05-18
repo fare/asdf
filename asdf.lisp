@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.724" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.725" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -482,7 +482,7 @@ processed in order by `operate`."))
 and NIL NAME, TYPE and VERSION components"
   (make-pathname :name nil :type nil :version nil :defaults pathname))
 
-(defun current-directory ()
+(defun default-directory ()
   (truenamize (pathname-directory-pathname *default-pathname-defaults*)))
 
 (defun merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
@@ -517,7 +517,9 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
             ((:relative)
              (values (pathname-host defaults)
                      (pathname-device defaults)
-                     (append (pathname-directory defaults) (cdr directory))
+                     (if (pathname-directory defaults)
+                         (append (pathname-directory defaults) (cdr directory))
+                         directory)
                      (unspecific-handler defaults)))
             #+gcl
             (t
@@ -542,8 +544,8 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
   (apply #'format *verbose-out* format-string format-args))
 
 (defun split-string (string &key max (separator '(#\Space #\Tab)))
-  "Split STRING in components separater by any of the characters in the sequence SEPARATOR,
-return a list.
+  "Split STRING into a list of components separated by
+any of the characters in the sequence SEPARATOR.
 If MAX is specified, then no more than max(1,MAX) components will be returned,
 starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
@@ -1959,12 +1961,12 @@ details."
   ;; the pathname of a system as follows:
   ;; 1. the one supplied,
   ;; 2. derived from *load-pathname* via load-pathname
-  ;; 3. taken from the *default-pathname-defaults* via current-directory
+  ;; 3. taken from the *default-pathname-defaults* via default-directory
   (let* ((file-pathname (load-pathname))
          (directory-pathname (and file-pathname (pathname-directory-pathname file-pathname))))
     (or (and pathname-supplied-p (merge-pathnames* pathname directory-pathname))
         file-pathname
-        (current-directory))))
+        (default-directory))))
 
 (defmacro defsystem (name &body options)
   (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
@@ -2543,7 +2545,7 @@ with a different configuration, so the configuration would be re-read then."
             ((eql :home) (user-homedir))
             ((eql :user-cache) (resolve-location *user-cache* nil))
             ((eql :system-cache) (resolve-location *system-cache* nil))
-            ((eql :current-directory) (current-directory))))
+            ((eql :default-directory) (default-directory))))
          (s (if (and wildenp (not (pathnamep x)))
                 (wilden r)
                 r)))
@@ -2562,8 +2564,8 @@ with a different configuration, so the configuration would be re-read then."
                      (let ((cdr (resolve-relative-location-component
                                  (merge-pathnames* car super) (cdr x) wildenp)))
                        (merge-pathnames* cdr car)))))
-              ((eql :current-directory)
-               (relativize-pathname-directory (current-directory)))
+              ((eql :default-directory)
+               (relativize-pathname-directory (default-directory)))
               ((eql :implementation) (implementation-identifier))
               ((eql :implementation-type) (string-downcase (implementation-type)))
               #-(and (or win32 windows mswindows mingw32) (not cygwin))

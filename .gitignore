@@ -23,7 +23,7 @@ doc/asdf.tp
 doc/asdf.vr
 doc/asdf.vrs
 
-# We build these at various stages in the make process
+# We build these at various stages in the build and test process
 LICENSE
 tmp/
 *.dribble
@@ -37,3 +37,5 @@ tmp/
 *.*fsl
 *.bak
 *.data
+test/try-reloading-dependency.asd
+test/fileMissing.lisp
