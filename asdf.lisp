@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.726" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.727" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -1070,7 +1070,15 @@ called with an object of type asdf:system."
 ;;; convention that functions in this list are prefixed SYSDEF-
 
 (defparameter *system-definition-search-functions*
-  '(sysdef-central-registry-search sysdef-source-registry-search))
+  '(sysdef-central-registry-search sysdef-source-registry-search sysdef-find-asdf))
+
+(defun sysdef-find-asdf (system)
+  (let ((name (coerce-name system)))
+    (when (equal name "asdf")
+      (eval
+       `(defsystem :asdf
+          :pathname ,(or *compile-file-truename* *load-truename*)
+          :depends-on () :components ())))))
 
 (defun system-definition-pathname (system)
   (let ((system-name (coerce-name system)))
@@ -2768,9 +2776,9 @@ with a different configuration, so the configuration would be re-read then."
   (getenv "ASDF_OUTPUT_TRANSLATIONS"))
 
 (defgeneric process-output-translations (spec &key inherit collect))
-(declaim (ftype (function (t &key (:collect (or symbol function))) null)
+(declaim (ftype (function (t &key (:collect (or symbol function))) t)
                 inherit-output-translations))
-(declaim (ftype (function (t &key (:collect (or symbol function)) (:inherit list)) null)
+(declaim (ftype (function (t &key (:collect (or symbol function)) (:inherit list)) t)
                 process-output-translations-directive))
 
 (defmethod process-output-translations ((x symbol) &key
@@ -3204,9 +3212,9 @@ with a different configuration, so the configuration would be re-read then."
   (getenv "CL_SOURCE_REGISTRY"))
 
 (defgeneric process-source-registry (spec &key inherit register))
-(declaim (ftype (function (t &key (:register (or symbol function))) null)
+(declaim (ftype (function (t &key (:register (or symbol function))) t)
                 inherit-source-registry))
-(declaim (ftype (function (t &key (:register (or symbol function)) (:inherit list)) null)
+(declaim (ftype (function (t &key (:register (or symbol function)) (:inherit list)) t)
                 process-source-registry-directive))
 
 (defmethod process-source-registry ((x symbol) &key inherit register)
@@ -3354,8 +3362,7 @@ with a different configuration, so the configuration would be re-read then."
     (setf excl:*warn-on-nested-reader-conditionals* *acl-warn-save*)))
 
 (pushnew :asdf *features*)
-;; this is a release candidate for ASDF 2.0
-(pushnew :asdf2 *features*)
+(pushnew :asdf2 *features*) ;; this is a release candidate for ASDF 2.0
 
 (provide :asdf)
 
