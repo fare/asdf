@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.727" (1+ (length "VERSION"))))
+          (subseq "VERSION:1.728" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -456,11 +456,11 @@ discarded instead of recorded."))
 
 (defgeneric traverse (operation component)
   (:documentation
-"Generate and return a plan for performing `operation` on `component`.
+"Generate and return a plan for performing OPERATION on COMPONENT.
 
-The plan returned is a list of dotted-pairs. Each pair is the `cons`
-of ASDF operation object and a `component` object. The pairs will be
-processed in order by `operate`."))
+The plan returned is a list of dotted-pairs. Each pair is the CONS
+of ASDF operation object and a COMPONENT object. The pairs will be
+processed in order by OPERATE."))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -480,7 +480,8 @@ processed in order by `operate`."))
 (defun pathname-directory-pathname (pathname)
   "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
 and NIL NAME, TYPE and VERSION components"
-  (make-pathname :name nil :type nil :version nil :defaults pathname))
+  (when pathname
+    (make-pathname :name nil :type nil :version nil :defaults pathname)))
 
 (defun merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
   "MERGE-PATHNAMES* is like MERGE-PATHNAMES except that if the SPECIFIED pathname
@@ -491,7 +492,7 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
   (let* ((specified (pathname specified))
          (defaults (pathname defaults))
          (directory (pathname-directory specified))
-         (directory (if (stringp directory) `(:absolute ,directory) directory))
+         #-sbcl (directory (if (stringp directory) `(:absolute ,directory) directory))
          (name (or (pathname-name specified) (pathname-name defaults)))
          (type (or (pathname-type specified) (pathname-type defaults)))
          (version (or (pathname-version specified) (pathname-version defaults))))
@@ -643,13 +644,13 @@ pathnames."
   (si:getenv x))
 
 (defun directory-pathname-p (pathname)
-  "Does `pathname` represent a directory?
+  "Does PATHNAME represent a directory?
 
 A directory-pathname is a pathname _without_ a filename. The three
-ways that the filename components can be missing are for it to be `nil`,
-`:unspecific` or the empty string.
+ways that the filename components can be missing are for it to be NIL,
+:UNSPECIFIC or the empty string.
 
-Note that this does _not_ check to see that `pathname` points to an
+Note that this does _not_ check to see that PATHNAME points to an
 actually-existing directory."
   (flet ((check-one (x)
            (member x '(nil :unspecific "") :test 'equal)))
@@ -733,10 +734,8 @@ actually-existing directory."
            (directory (pathname-directory p)))
       (when (typep p 'logical-pathname) (return p))
       (ignore-errors (return (truename p)))
-      (when (stringp directory)
-         (return p))
-      (when (not (eq :absolute (car directory)))
-        (return p))
+      #-sbcl (when (stringp directory) (return p))
+      (when (not (eq :absolute (car directory))) (return p))
       (let ((sofar (ignore-errors (truename (pathname-root p)))))
         (unless sofar (return p))
         (flet ((solution (directories)
@@ -981,7 +980,7 @@ actually-existing directory."
       (let ((pathname
              (merge-pathnames*
              (component-relative-pathname component)
-             (component-parent-pathname component))))
+             (pathname-directory-pathname (component-parent-pathname component)))))
         (unless (or (null pathname) (absolute-pathname-p pathname))
           (error "Invalid relative pathname ~S for component ~S" pathname component))
         (setf (slot-value component 'absolute-pathname) pathname)
@@ -1055,9 +1054,9 @@ of which is a system object.")
   (gethash (coerce-name name) *defined-systems*))
 
 (defun map-systems (fn)
-  "Apply `fn` to each defined system.
+  "Apply FN to each defined system.
 
-`fn` should be a function of one argument. It will be
+FN should be a function of one argument. It will be
 called with an object of type asdf:system."
   (maphash (lambda (_ datum)
              (declare (ignore _))
@@ -1143,8 +1142,8 @@ Going forward, we recommend new users should be using the source-registry.
                             (let* ((*print-circle* nil)
                                    (message
                                     (format nil
-                                            "~@<While searching for system `~a`: `~a` evaluated ~
-to `~a` which is not a directory.~@:>"
+                                            "~@<While searching for system ~S: ~S evaluated ~
+to ~S which is not a directory.~@:>"
                                             system dir defaults)))
                               (error message))
                           (remove-entry-from-registry ()
@@ -1975,15 +1974,15 @@ recursive calls to traverse.")
 (let ((operate-docstring
   "Operate does three things:
 
-1. It creates an instance of `operation-class` using any keyword parameters
+1. It creates an instance of OPERATION-CLASS using any keyword parameters
 as initargs.
-2. It finds the  asdf-system specified by `system` (possibly loading
+2. It finds the  asdf-system specified by SYSTEM (possibly loading
 it from disk).
-3. It then calls `traverse` with the operation and system as arguments
+3. It then calls TRAVERSE with the operation and system as arguments
 
-The traverse operation is wrapped in `with-compilation-unit` and error
-handling code. If a `version` argument is supplied, then operate also
-ensures that the system found satisfies it using the `version-satisfies`
+The traverse operation is wrapped in WITH-COMPILATION-UNIT and error
+handling code. If a VERSION argument is supplied, then operate also
+ensures that the system found satisfies it using the VERSION-SATISFIES
 method.
 
 Note that dependencies may cause the operation to invoke other
@@ -2247,9 +2246,9 @@ Returns the new tree (which probably shares structure with the old one)"
 ;;;; years so everyone has time to migrate away from it. -- fare 2009-12-01
 
 (defun run-shell-command (control-string &rest args)
-  "Interpolate `args` into `control-string` as if by `format`, and
+  "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
-output to `*verbose-out*`.  Returns the shell's exit code."
+output to *VERBOSE-OUT*.  Returns the shell's exit code."
   (let ((command (apply #'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
 
