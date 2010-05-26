@@ -846,6 +846,14 @@ will be interpreted as the pathname @file{#p"foo/bar"},
 and a string @code{"foo/bar.quux"}
 will be interpreted as the pathname @file{#p"foo/bar.quux"}.
 
+ASDF does not interpret the string @code{".."} to designate the parent
+directory.  This string will be passed through to the underlying
+operating system for interpretation.  We @emph{believe} that this will
+work on all platforms where ASDF is deployed, but do not guarantee this
+behavior.  A pathname object with a relative directory component of
+@code{:up} or @code{:back} is the only guaranteed way to specify a
+parent directory.
+
 If a symbol is given, it will be translated into a string,
 and downcased in the process.
 The downcasing of symbols is unconventional,
@@ -857,23 +865,26 @@ so this makes more sense than attempting to use @code{:case :common}
 as argument to @code{make-pathname},
 which is reported not to work on some implementations.
 
-Pathnames objects may be given to override the path for a component.
+Pathname objects may be given to override the path for a component.
 Such objects are typically specified using reader macros such as @code{#p}
 or @code{#.(make-pathname ...)}.
-Note however, that @code{#p...} is a short for @code{#.(parse-namestring ...)}
-and that the behavior @code{parse-namestring} is completely non-portable,
-unless you are using Common Lisp @code{logical-pathname}s.
-(@xref{The defsystem grammar,,Warning about logical pathnames}, below.)
+Note however, that @code{#p...} is a shorthand for @code{#.(parse-namestring ...)}
+and that the behavior of @code{parse-namestring} is completely non-portable,
+unless you are using Common Lisp @code{logical-pathname}s
+(@pxref{The defsystem grammar,,Warning about logical pathnames}, below).
 Pathnames made with @code{#.(make-pathname ...)}
 can usually be done more easily with the string syntax above.
 The only case that you really need a pathname object is to override
 the component-type default file type for a given component.
-Therefore, it is a rare case that pathname objects should be used at all.
+Therefore, pathname objects should only rarely be used.
 Unhappily, ASDF 1 didn't properly support
 parsing component names as strings specifying paths with directories,
 and the cumbersome @code{#.(make-pathname ...)} syntax had to be used.
-Note that when specifying pathname objects, no magic interpretation of the pathname
-is made depending on the component type.
+
+Note that when specifying pathname objects, 
+ASDF does not do any special interpretation of the pathname
+influenced by the component type, unlike the procedure for
+pathname-specifying strings.
 On the one hand, you have to be careful to provide a pathname that correctly
 fulfills whatever constraints are required from that component type
 (e.g. naming a directory or a file with appropriate type);
@@ -883,27 +894,33 @@ be forced upon you if you were specifying a string.
 
 @subsection Warning about logical pathnames
 
+We recommend that you no use logical pathnames in your asdf system
+definitions, but logical pathnames @emph{are} supported.
+
 To use logical pathnames,
 you will have to provide a pathname object as a @code{:pathname} specifier
 to components that use it, using such syntax as
 @code{#p"LOGICAL-HOST:absolute;path;to;component.lisp"}.
 
 You only have to specify such logical pathname for your system or
-some top-level component, as sub-components using the usual string syntax
-for names will be properly merged with the pathname of their parent.
+some top-level component.  Sub-components' relative pathnames, specified
+using the string syntax
+for names, will be properly merged with the pathnames of their parents.
 The specification of a logical pathname host however is @emph{not}
 otherwise directly supported in the ASDF syntax
 for pathname specifiers as strings.
 
-Logical pathnames are not specifically recommended to newcomers,
-but are otherwise supported.
-Moreover, the @code{asdf-output-translation} layer will
-avoid trying to resolve and translate logical-pathnames,
-so you can define yourself what translations you want to use
+The @code{asdf-output-translation} layer will
+avoid trying to resolve and translate logical-pathnames.
+The advantage of this is that you can define yourself what translations you want to use
 with the logical pathname facility.
+The disadvantage is that if you do not define such translations, any
+system that uses logical pathnames will be have differently under
+asdf-output-translations than other systems you use.
 
-The user of logical pathnames will have to configure logical pathnames himself,
-before they may be used, and ASDF provides no specific support for that.
+If you wish to use logical pathnames you will have to configure the
+translations yourself before they may be used.  ASDF provides no
+specific support for defining logical pathname translations.
 
 
 @subsection Serial dependencies
