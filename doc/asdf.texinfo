@@ -814,6 +814,7 @@ the current package @code{my-system-asd} can be specified as
 @code{:my-component-type}, or @code{my-component-type}.
 
 @subsection Pathname specifiers
+@cindex pathname specifiers
 
 A pathname specifier (@code{pathname-specifier})
 may be a pathname, a string or a symbol.
@@ -893,6 +894,7 @@ be forced upon you if you were specifying a string.
 
 
 @subsection Warning about logical pathnames
+@cindex logical pathnames 
 
 We recommend that you no use logical pathnames in your asdf system
 definitions, but logical pathnames @emph{are} supported.
@@ -924,6 +926,7 @@ specific support for defining logical pathname translations.
 
 
 @subsection Serial dependencies
+@cindex serial dependencies
 
 If the @code{:serial t} option is specified for a module,
 ASDF will add dependencies for each each child component,
