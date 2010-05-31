@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:1.728" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.000" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -337,7 +337,7 @@
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
 You can compare this string with e.g.:
-(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"1.704\")."
+(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"2.000\")."
   *asdf-version*)
 
 (defvar *resolve-symlinks* t
@@ -3361,7 +3361,7 @@ with a different configuration, so the configuration would be re-read then."
     (setf excl:*warn-on-nested-reader-conditionals* *acl-warn-save*)))
 
 (pushnew :asdf *features*)
-(pushnew :asdf2 *features*) ;; this is a release candidate for ASDF 2.0
+(pushnew :asdf2 *features*)
 
 (provide :asdf)
 

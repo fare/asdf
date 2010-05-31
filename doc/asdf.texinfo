@@ -170,11 +170,9 @@ to learn how to define a system of your own.
 the ASDF internals and how to extend ASDF.
 
 @emph{Nota Bene}:
-We are preparing for a release of ASDF 2, hopefully for May 2010,
-which will have version 2.000 and later.
-Current releases, in the 1.700 series and beyond,
-should be considered as release candidates.
-We're still working on polishing the code and documentation.
+We have released ASDF 2.000 on May 31st 2010.
+It hopefully will have been it included
+in all CL maintained implementations shortly afterwards.
 @xref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
 
 
@@ -241,7 +239,7 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 1.711,
+If you are running a version older than 2.000,
 we recommend that you load a newer ASDF using the method below.
 
 
@@ -2522,26 +2520,21 @@ use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-dev
 
 @subsection What are ASDF 1 and ASDF 2?
 
-We are preparing for a release of ASDF 2,
-which will have version 2.000 and later.
-While the code and documentation are essentially complete
-we are still working on polishing them before release.
+On May 31st 2010, we have released ASDF 2.
+ASDF 2 refers to release 2.000 and later.
+(Releases between 1.656 and 1.728 were development releases for ASDF 2.)
+ASDF 1 to any release earlier than 1.369 or so.
+If your ASDF doesn't sport a version, it's an old ASDF 1.
 
-Releases in the 1.700 series and beyond
-should be considered as release candidates.
-For all practical purposes,
-ASDF 2 refers to releases later than 1.656,
-and ASDF 1 to any release earlier than 1.369 or so.
-If your ASDF doesn't have a version, it's old.
-
-ASDF 2 release candidates and beyond will have
+ASDF 2 and its release candidates push
 @code{:asdf2} onto @code{*features*} so that if you are writing
 ASDF-dependent code you may check for this feature
 to see if the new API is present.
 @emph{All} versions of ASDF should have the @code{:asdf} feature.
 
 If you are experiencing problems or limitations of any sort with ASDF 1,
-we recommend that you should upgrade to ASDF 2 or its latest release candidate.
+we recommend that you should upgrade to ASDF 2,
+or whatever is the latest release.
 
 
 @subsection ASDF can portably name files in subdirectories
@@ -2689,7 +2682,7 @@ or take great pains to have the correct version of ASDF installed.
 With ASDF 2, we provide a new stable set of working features
 that everyone can rely on from now on.
 Use @code{#+asdf2} to detect presence of ASDF 2,
-@code{(asdf:version-satisfies (asdf:asdf-version) "1.711")}
+@code{(asdf:version-satisfies (asdf:asdf-version) "2.000")}
 to check the availability of a version no earlier than required.
 
 
