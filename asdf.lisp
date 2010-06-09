@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.000" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.001" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -2082,7 +2082,7 @@ details."
     (or class
         (and (eq type :file)
              (or (module-default-component-class parent)
-                 (find-class 'cl-source-file)))
+                 (find-class *default-component-class*)))
         (sysdef-error "~@<don't recognize component type ~A~@:>" type))))
 
 (defun maybe-add-tree (tree op1 op2 c)
