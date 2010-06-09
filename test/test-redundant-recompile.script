@@ -1,0 +1,28 @@
+;;; -*- Lisp -*-
+(load "script-support")
+(load-asdf)
+
+(quit-on-error
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (asdf:operate 'asdf:load-op 'test-redundant-recompile)
+ ;; test that it compiled
+ (let* ((file1 (asdf:compile-file-pathname* "file1"))
+        (file2 (asdf:compile-file-pathname* "file2"))
+        (file1-date (file-write-date file1))
+        (file2-date (file-write-date file2)))
+
+   (format t "~&test-redundant-recompile 1: ~S ~S~%" file1 file1-date)
+   (format t "~&test-redundant-recompile 2: ~S ~S~%" file2 file2-date)
+   (assert file1-date)
+   (assert file2-date)
+
+   ;; and loaded
+   (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
+
+   ;; now rerun the load-op and check that no files are recompiled
+
+   ;;(trace asdf::operation-done-p asdf::traverse)
+   (asdf:operate 'asdf:load-op 'test-redundant-recompile)
+   (assert (= file1-date (file-write-date file1)))
+   (assert (= file2-date (file-write-date file2)))))
+
