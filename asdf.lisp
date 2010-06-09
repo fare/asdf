@@ -467,6 +467,16 @@ processed in order by OPERATE."))
 ;;;; General Purpose Utilities
 
 (defmacro while-collecting ((&rest collectors) &body body)
+  "COLLECTORS should be a list of names for collections.  A collector
+defines a function that, when applied to an argument inside BODY, will
+add its argument to the corresponding collection.  Returns multiple values,
+a list for each collection, in order.
+   E.g.,
+\(while-collecting \(foo bar\)
+           \(dolist \(x '\(\(a 1\) \(b 2\) \(c 3\)\)\)
+             \(foo \(first x\)\)
+             \(bar \(second x\)\)\)\)
+Returns two values: \(A B C\) and \(1 2 3\)."
   (let ((vars (mapcar #'(lambda (x) (gensym (symbol-name x))) collectors))
         (initial-values (mapcar (constantly nil) collectors)))
     `(let ,(mapcar #'list vars initial-values)
