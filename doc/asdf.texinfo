@@ -338,19 +338,19 @@ If you're using some tool to install software,
 the authors of that tool should already have configured ASDF.
 
 The simplest way to add a path to your search path,
-say @file{/foo/bar/baz/quux/}
+say @file{/home/luser/.asd-link-farm/}
 is to create the directory
 @file{~/.config/common-lisp/source-registry.conf.d/}
 and there create a file with any name of your choice but the type @file{conf},
-for instance @file{42-bazquux.conf}
+for instance @file{42-asd-link-farm.conf}
 containing the line:
 
-@kbd{(:directory "/foo/bar/baz/quux/")}
+@kbd{(:directory "/home/luser/.asd-link-farm/")}
 
-If you want all the subdirectories under @file{/foo/bar/baz/}
+If you want all the subdirectories under @file{/home/luser/lisp/}
 to be recursively scanned for @file{.asd} files, instead use:
 
-@kbd{(:tree "/foo/bar/baz/quux/")}
+@kbd{(:tree "/home/luser/lisp/")}
 
 Note that your Operating System distribution or your system administrator
 may already have configured system-managed libraries for you.
@@ -894,8 +894,9 @@ be forced upon you if you were specifying a string.
 @subsection Warning about logical pathnames
 @cindex logical pathnames 
 
-We recommend that you no use logical pathnames in your asdf system
-definitions, but logical pathnames @emph{are} supported.
+We recommend that you not use logical pathnames
+in your asdf system definitions at this point,
+but logical pathnames @emph{are} supported.
 
 To use logical pathnames,
 you will have to provide a pathname object as a @code{:pathname} specifier
@@ -919,8 +920,9 @@ system that uses logical pathnames will be have differently under
 asdf-output-translations than other systems you use.
 
 If you wish to use logical pathnames you will have to configure the
-translations yourself before they may be used.  ASDF provides no
-specific support for defining logical pathname translations.
+translations yourself before they may be used.
+ASDF currently provides no specific support
+for defining logical pathname translations.
 
 
 @subsection Serial dependencies
@@ -932,8 +934,8 @@ on all the children textually preceding it.
 This is done as if by @code{:depends-on}.
 
 @lisp
-:components ((:file "a") (:file "b") (:file "c"))
 :serial t
+:components ((:file "a") (:file "b") (:file "c"))
 @end lisp
 
 is equivalent to
@@ -1732,6 +1734,12 @@ CONFIGURATION := (:source-registry DIRECTIVE ...)
 
 ;; A directive is one of the following:
 DIRECTIVE :=
+    ;; INHERITANCE DIRECTIVE:
+    ;; Your configuration expression MUST contain
+    ;; exactly one of either of these:
+    :inherit-configuration | ; splices inherited configuration (often specified last)
+    :ignore-inherited-configuration | ; drop inherited configuration (specified anywhere)
+
     ;; add a single directory to be scanned (no recursion)
     (:directory DIRECTORY-PATHNAME-DESIGNATOR) |
 
@@ -1746,17 +1754,21 @@ DIRECTIVE :=
     ;; splice the parsed contents of another config file
     (:include REGULAR-FILE-PATHNAME-DESIGNATOR) |
 
-    ;; Your configuration expression MUST contain
-    ;; exactly one of either of these:
-    :inherit-configuration | ; splices contents of inherited configuration
-    :ignore-inherited-configuration | ; drop contents of inherited configuration
-
     ;; This directive specifies that some default must be spliced.
     :default-registry
 
 PATTERN := a string without wildcards, that will be matched exactly
 	against the name of a any subdirectory in the directory component
         of a path. e.g. @code{"_darcs"} will match @file{#p"/foo/bar/_darcs/src/bar.asd"}
+@end example
+
+For instance, as a simple case, my @file{~/.config/common-lisp/source-registry.conf},
+which is the default place ASDF looks for this configuration,
+once contained:
+@example
+(:source-registry
+  (:tree "/home/fare/cl/")
+  :inherit-configuration)
 @end example
 
 
@@ -1767,7 +1779,7 @@ a list of directives without any enclosing @code{(:source-registry ...)} form.
 The files will be sorted by namestring as if by @code{string<} and
 the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
-at the end of the list.
+at the @emph{end} of the list.
 
 This allows for packaging software that has file granularity
 (e.g. Debian's @code{dpkg} or some future version of @code{clbuild})
@@ -1785,6 +1797,15 @@ or namestring in an @code{:include} directive, e.g.:
 
 @example
 	(:include "/foo/bar/")
+@end example
+
+Hence, to achieve the same effect as
+my example @file{~/.config/common-lisp/source-registry.conf} above,
+I could simply create a file
+@file{~/.config/common-lisp/source-registry.conf.d/33-home-fare-cl.conf}
+alone in its directory with the following contents:
+@example
+(:tree "/home/fare/cl/")
 @end example
 
 
@@ -2136,13 +2157,14 @@ CONFIGURATION := (:output-translations DIRECTIVE ...)
 
 ;; A directive is one of the following:
 DIRECTIVE :=
-    ;; include a configuration file or directory
-    (:include PATHNAME-DESIGNATOR) |
-
+    ;; INHERITANCE DIRECTIVE:
     ;; Your configuration expression MUST contain
     ;; exactly one of either of these:
-    :inherit-configuration | ; splices contents of inherited configuration
-    :ignore-inherited-configuration | ; drop contents of inherited configuration
+    :inherit-configuration | ; splices inherited configuration (often specified last)
+    :ignore-inherited-configuration | ; drop inherited configuration (specified anywhere)
+
+    ;; include a configuration file or directory
+    (:include PATHNAME-DESIGNATOR) |
 
     ;; enable global cache in ~/.common-lisp/cache/sbcl-1.0.35-x86-64/ or something.
     :enable-user-cache |
@@ -2258,7 +2280,7 @@ a list of directives without any enclosing
 The files will be sorted by namestring as if by @code{string<} and
 the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
-at the end of the list.
+at the @emph{end} of the list.
 
 This allows for packaging software that has file granularity
 (e.g. Debian's @command{dpkg} or some future version of @command{clbuild})

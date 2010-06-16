@@ -19,7 +19,6 @@
 
    ;; now remove one output file and check that the other is _not_ recompiled
 
-   ;;(trace asdf::operation-done-p asdf::traverse)
    (asdf::run-shell-command "rm -f ~A" (namestring file2))
    (asdf:operate 'asdf:load-op 'test1)
    (assert (= file1-date (file-write-date file1)))
