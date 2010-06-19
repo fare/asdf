@@ -27,11 +27,12 @@ archive: FORCE
 	bin/build-tarball.sh
 
 archive-copy: archive
+	git checkout release
 	bin/rsync-cp.sh tmp/asdf*.tar.gz $(webhome_private)/archives
 	bin/link-tarball.sh $(clnet_home) $(user)
 	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
-	git push cl.net
-	git push --tags cl.net
+	git push cl.net release
+	git push --tags cl.net release
 
 website:
 	make -C doc website
