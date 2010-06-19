@@ -290,6 +290,7 @@
             #:clear-output-translations
             #:ensure-output-translations
             #:apply-output-translations
+            #:compile-file*
             #:compile-file-pathname*
             #:enable-asdf-binary-locations-compatibility
 
@@ -1761,7 +1762,7 @@ recursive calls to traverse.")
   (let ((source-file (component-pathname c))
         (output-file (car (output-files operation c))))
     (multiple-value-bind (output warnings-p failure-p)
-        (apply #'compile-file source-file :output-file output-file
+        (apply #'compile-file* source-file :output-file output-file
                (compile-op-flags operation))
       (when warnings-p
         (case (operation-on-warnings operation)
@@ -2928,11 +2929,39 @@ effectively disabling the output translation facility."
          (mapcar #'apply-output-translations files)))
    t))
 
-(defun compile-file-pathname* (input-file &rest keys)
-  (apply-output-translations
-   (apply #'compile-file-pathname
-          (truenamize (lispize-pathname input-file))
-          keys)))
+(defun compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
+  (or output-file
+      (apply-output-translations
+       (apply 'compile-file-pathname
+              (truenamize (lispize-pathname input-file))
+              keys))))
+
+(defun tmpize-pathname (x)
+  (make-pathname
+   :name (format nil "ASDF-TMP-~A" (pathname-name x))
+   :defaults x))
+
+(defun delete-file-if-exists (x)
+  (when (probe-file x)
+    (delete-file x)))
+
+(defun compile-file* (input-file &rest keys)
+  (let* ((output-file (apply 'compile-file-pathname* input-file keys))
+         (tmp-file (tmpize-pathname output-file))
+         (successp nil))
+    (unwind-protect
+         (multiple-value-bind (output-truename warnings-p failure-p)
+             (apply 'compile-file input-file :output-file tmp-file keys)
+           (if failure-p
+               (setf output-truename nil)
+               (setf successp t))
+           (values output-truename warnings-p failure-p))
+      (cond
+        (successp
+         (delete-file-if-exists output-file)
+         (rename-file tmp-file output-file))
+        (t
+         (delete-file-if-exists tmp-file))))))
 
 #+abcl
 (defun translate-jar-pathname (source wildcard)
