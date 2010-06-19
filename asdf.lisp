@@ -70,7 +70,7 @@
                 :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.001" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.002" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -614,9 +614,10 @@ pathnames."
                 (values :absolute (cdr components))
                 (values :relative nil))
           (values :relative components))
+      (setf components (remove "" components :test #'equal))
       (cond
         ((equal last-comp "")
-         (values relative (butlast components) nil))
+         (values relative components nil)) ; "" already removed
         (force-directory
          (values relative components nil))
         (t
