@@ -32,8 +32,7 @@ tmp/
 *.cfsl
 *.fas
 *.lib
-*.o
-*.a
+*.[oahcisS]
 *.*fsl
 *.bak
 *.data

@@ -49,28 +49,27 @@
 
 (cl:in-package :cl-user)
 
-#|(declaim (optimize (speed 2) (debug 2) (safety 3))
-#+sbcl (sb-ext:muffle-conditions sb-ext:compiler-note))|#
-
-#+ecl (require :cmp)
+;; Implementation-dependent tweaks
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  ;; (declaim (optimize (speed 2) (debug 2) (safety 3)) ; NO: rely on the implementation defaults.
+  #+allegro
+  (setf excl::*autoload-package-name-alist*
+        (remove "asdf" excl::*autoload-package-name-alist*
+                :test 'equalp :key 'car))
+  #+ecl (require :cmp)
+  #+gcl
+  (eval-when (:compile-toplevel :load-toplevel)
+    (defpackage :asdf-utilities (:use :cl))
+    (defpackage :asdf (:use :cl :asdf-utilities))))
 
 ;;;; Create packages in a way that is compatible with hot-upgrade.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;;; See more at the end of the file.
 
-#+gcl
-(eval-when (:compile-toplevel :load-toplevel)
-  (defpackage :asdf-utilities (:use :cl))
-  (defpackage :asdf (:use :cl :asdf-utilities)))
-
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  #+allegro
-  (setf excl::*autoload-package-name-alist*
-        (remove "asdf" excl::*autoload-package-name-alist*
-                :test 'equalp :key 'car))
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.100" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.101" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -155,13 +154,11 @@
         (macrolet
             ((pkgdcl (name &key nicknames use export
                            redefined-functions unintern fmakunbound shadow)
-               `(ensure-package
-                 ',name :nicknames ',nicknames :use ',use :export ',export
-                 :shadow ',shadow
-                 :unintern ',(append #-(or gcl ecl) redefined-functions
-                                     unintern)
-                 :fmakunbound ',(append #+(or gcl ecl) redefined-functions
-                                        fmakunbound))))
+                 `(ensure-package
+                   ',name :nicknames ',nicknames :use ',use :export ',export
+                   :shadow ',shadow
+                   :unintern ',(append #-(or gcl ecl) redefined-functions unintern)
+                   :fmakunbound ',(append fmakunbound))))
           (pkgdcl
            :asdf-utilities
            :nicknames (#:asdf-extensions)
@@ -367,16 +364,20 @@ Defaults to `t`.")
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
+(defmacro defgeneric* (name formals &rest options)
+  `(progn
+     #+(or gcl ecl) (fmakunbound ',name)
+     (defgeneric ,name ,formals ,@options)))
 
-(defgeneric perform-with-restarts (operation component))
-(defgeneric perform (operation component))
-(defgeneric operation-done-p (operation component))
-(defgeneric explain (operation component))
-(defgeneric output-files (operation component))
-(defgeneric input-files (operation component))
+(defgeneric* perform-with-restarts (operation component))
+(defgeneric* perform (operation component))
+(defgeneric* operation-done-p (operation component))
+(defgeneric* explain (operation component))
+(defgeneric* output-files (operation component))
+(defgeneric* input-files (operation component))
 (defgeneric component-operation-time (operation component))
 
-(defgeneric system-source-file (system)
+(defgeneric* system-source-file (system)
   (:documentation "Return the source file in which system is defined."))
 
 (defgeneric component-system (component)
@@ -398,7 +399,7 @@ another pathname in a degenerate way."))
 
 (defgeneric version-satisfies (component version))
 
-(defgeneric find-component (base path)
+(defgeneric* find-component (base path)
   (:documentation "Finds the component with PATH starting from BASE module;
 if BASE is nil, then the component is assumed to be a system."))
 
@@ -1938,7 +1939,7 @@ recursive calls to traverse.")
 ;;;; -------------------------------------------------------------------------
 ;;;; Invoking Operations
 
-(defgeneric operate (operation-class system &key &allow-other-keys))
+(defgeneric* operate (operation-class system &key &allow-other-keys))
 
 (defmethod operate (operation-class system &rest args
                     &key ((:verbose *asdf-verbose*) *asdf-verbose*) version force
@@ -3393,7 +3394,7 @@ with a different configuration, so the configuration would be re-read then."
 ;;;; -----------------------------------------------------------------
 ;;;; Done!
 (when *load-verbose*
-  (asdf-message ";; ASDF, version ~a" (asdf-version)))
+  (asdf-message ";; ASDF, version ~a~%" (asdf-version)))
 
 #+allegro
 (eval-when (:compile-toplevel :execute)

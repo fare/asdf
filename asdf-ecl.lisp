@@ -5,14 +5,14 @@
 ;;;   License as published by the Free Software Foundation; either
 ;;;   version 2 of the License, or (at your option) any later version.
 ;;;
-;;;   See file '../../Copyright' for full details.
+;;;   See file 'ecl/Copyright' for full details.
 ;;;
 ;;; ECL SPECIFIC OPERATIONS FOR ASDF
 ;;;
 #+xcvb (module (:depends-on ("asdf")))
 
 (in-package :asdf)
-(require 'cmp)
+(require :cmp)
 
 ;;;
 ;;; COMPILE-OP / LOAD-OP
