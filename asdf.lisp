@@ -47,7 +47,9 @@
 
 #+xcvb (module ())
 
-(cl:in-package :cl-user)
+(cl:in-package :cl)
+(defpackage :asdf-bootstrap (:use :cl))
+(in-package :asdf-bootstrap)
 
 ;; Implementation-dependent tweaks
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -69,7 +71,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version
           ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.101" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.102" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
