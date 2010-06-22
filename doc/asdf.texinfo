@@ -534,7 +534,7 @@ other ASDF add-ons offered the same functionality,
 each in subtly different and incompatible ways:
 ASDF-Binary-Locations, cl-launch, common-lisp-controller.
 ASDF-Binary-Locations is now not needed anymore and should not be used.
-cl-launch 2.900 and common-lisp-controller 7.1 have been updated
+cl-launch 3.000 and common-lisp-controller 7.2 have been updated
 to just delegate this functionality to ASDF.
 
 @node Using ASDF, Defining systems with defsystem, Configuring ASDF, Top
@@ -2104,7 +2104,7 @@ for configuration by the end-user
 in an easy way with configuration files.
 Recent versions of same packages use
 the new @code{asdf-output-translations} API as defined below:
-@code{common-lisp-controller} (7.1) and @code{cl-launch} (3.00);
+@code{common-lisp-controller} (7.2) and @code{cl-launch} (3.000).
 @code{ASDF-Binary-Locations} is fully superseded and not to be used anymore.
 
 This incompatibility shouldn't inconvenience many people.
@@ -2580,6 +2580,12 @@ Naming files within a system definition becomes easy and portable again.
 @code{asdf-utilities:merge-pathnames*},
 @code{asdf::merge-component-name-type}.
 
+On the other hand, there are places where systems used to accept namestrings
+where you must now use an explicit pathname object:
+@code{(defsystem ... :pathname "LOGICAL-HOST:PATH;TO;SYSTEM;" ...)}
+must now be written with the @code{#p} syntax:
+@code{(defsystem ... :pathname #p"LOGICAL-HOST:PATH;TO;SYSTEM;" ...)}
+
 @xref{The defsystem grammar,,Pathname specifiers}.
 
 
@@ -2776,6 +2782,16 @@ your previous A-B-L configuration.
 See @code{asdf:enable-asdf-binary-locations-compatibility} in
 @pxref{Controlling where ASDF saves compiled files,,Backward Compatibility}.
 But thou shall not load ABL on top of ASDF 2.
+
+@item
+ASDF pathname designators are now specified in places where they were unspecified,
+and a few small adjustments have to be made to some non-portable defsystems.
+Notably, in the @code{:pathname} argument to a @code{defsystem} and its components,
+a logical pathname (or implementation-dependent hierarchical pathname)
+must now be specified with @code{#p} syntax
+where the namestring might have previously sufficed;
+moreover when evaluation is desired @code{#.} must be used,
+where it wasn't necessary in the toplevel @code{:pathname} argument.
 
 @end itemize
 
