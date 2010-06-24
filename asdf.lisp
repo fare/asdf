@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.103" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.104" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -1085,18 +1085,6 @@ called with an object of type asdf:system."
 (defparameter *system-definition-search-functions*
   '(sysdef-central-registry-search sysdef-source-registry-search sysdef-find-asdf))
 
-(defun sysdef-find-asdf (system)
-  (let ((name (coerce-name system)))
-    (when (equal name "asdf")
-      (let* ((registered (cdr (gethash name *defined-systems*)))
-             (asdf (or registered
-                       (make-instance
-                        'system :name "asdf"
-                        :source-file (or *compile-file-truename* *load-truename*)))))
-        (unless registered
-          (register-system "asdf" asdf))
-        (throw 'find-system asdf)))))
-
 (defun system-definition-pathname (system)
   (let ((system-name (coerce-name system)))
     (or
@@ -1241,6 +1229,18 @@ to ~S which is not a directory.~@:>"
   (asdf-message "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
+
+(defun sysdef-find-asdf (system)
+  (let ((name (coerce-name system)))
+    (when (equal name "asdf")
+      (let* ((registered (cdr (gethash name *defined-systems*)))
+             (asdf (or registered
+                       (make-instance
+                        'system :name "asdf"
+                        :source-file (or *compile-file-truename* *load-truename*)))))
+        (unless registered
+          (register-system "asdf" asdf))
+        (throw 'find-system asdf)))))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -1761,6 +1761,10 @@ recursive calls to traverse.")
 (defmethod perform :after ((operation operation) (c component))
   (setf (gethash (type-of operation) (component-operation-times c))
         (get-universal-time)))
+
+(declaim (ftype (function ((or pathname string) &rest t &key &allow-other-keys)
+                          (values t t t))
+                compile-file*))
 
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
@@ -2948,7 +2952,7 @@ effectively disabling the output translation facility."
   (when (probe-file x)
     (delete-file x)))
 
-(defun compile-file* (input-file &rest keys)
+(defun compile-file* (input-file &rest keys &key &allow-other-keys)
   (let* ((output-file (apply 'compile-file-pathname* input-file keys))
          (tmp-file (tmpize-pathname output-file))
          (status :error))
