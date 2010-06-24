@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.104" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.105" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -2972,13 +2972,13 @@ effectively disabling the output translation facility."
         (t
          (setf status :success)))
       (ecase status
-        ((:success :warn)
+        ((:success :warn :ignore)
          (delete-file-if-exists output-file)
          (when output-truename
            (rename-file output-truename output-file)
            (setf output-truename output-file)))
         (:error
-         (delete-file-if-exists tmp-file)
+         (delete-file-if-exists output-truename)
          (setf output-truename nil)))
       (values output-truename warnings-p failure-p))))
 
