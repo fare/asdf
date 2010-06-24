@@ -344,9 +344,15 @@ You can compare this string with e.g.:
 
 Defaults to `t`.")
 
-(defvar *compile-file-warnings-behaviour* :warn)
+(defvar *compile-file-warnings-behaviour* :warn
+  "How should ASDF react if it encounters a warning when compiling a
+file?  Valid values are :error, :warn, and :ignore.")
 
-(defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn)
+(defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn
+        "How should ASDF react if it encounters a failure \(per the
+ANSI spec of COMPILE-FILE\) when compiling a file?  Valid values are
+:error, :warn, and :ignore.  Note that ASDF ALWAYS raises an error
+if it fails to create an output file when compiling.")
 
 (defvar *verbose-out* nil)
 
