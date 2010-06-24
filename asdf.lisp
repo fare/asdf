@@ -69,9 +69,8 @@
 ;;;; See more at the end of the file.
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (let* ((asdf-version
-          ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.102" (1+ (length "VERSION"))))
+  (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
+          (subseq "VERSION:2.103" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -1089,10 +1088,14 @@ called with an object of type asdf:system."
 (defun sysdef-find-asdf (system)
   (let ((name (coerce-name system)))
     (when (equal name "asdf")
-      (eval
-       `(defsystem :asdf
-          :pathname ,(or *compile-file-truename* *load-truename*)
-          :depends-on () :components ())))))
+      (let* ((registered (cdr (gethash name *defined-systems*)))
+             (asdf (or registered
+                       (make-instance
+                        'system :name "asdf"
+                        :source-file (or *compile-file-truename* *load-truename*)))))
+        (unless registered
+          (register-system "asdf" asdf))
+        (throw 'find-system asdf)))))
 
 (defun system-definition-pathname (system)
   (let ((system-name (coerce-name system)))
@@ -1207,31 +1210,32 @@ to ~S which is not a directory.~@:>"
         0)))
 
 (defun find-system (name &optional (error-p t))
-  (let* ((name (coerce-name name))
-         (in-memory (system-registered-p name))
-         (on-disk (system-definition-pathname name)))
-    (when (and on-disk
-               (or (not in-memory)
-                   (< (car in-memory) (safe-file-write-date on-disk))))
-      (let ((package (make-temporary-package)))
-        (unwind-protect
-             (handler-bind
-                 ((error (lambda (condition)
-                           (error 'load-system-definition-error
-                                  :name name :pathname on-disk
-                                  :condition condition))))
-               (let ((*package* package))
-                 (asdf-message
-                  "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
-                  on-disk *package*)
-                 (load on-disk)))
-          (delete-package package))))
-    (let ((in-memory (system-registered-p name)))
-      (if in-memory
-          (progn (when on-disk (setf (car in-memory)
-                                     (safe-file-write-date on-disk)))
-                 (cdr in-memory))
-          (when error-p (error 'missing-component :requires name))))))
+  (catch 'find-system
+    (let* ((name (coerce-name name))
+           (in-memory (system-registered-p name))
+           (on-disk (system-definition-pathname name)))
+      (when (and on-disk
+                 (or (not in-memory)
+                     (< (car in-memory) (safe-file-write-date on-disk))))
+        (let ((package (make-temporary-package)))
+          (unwind-protect
+               (handler-bind
+                   ((error (lambda (condition)
+                             (error 'load-system-definition-error
+                                    :name name :pathname on-disk
+                                    :condition condition))))
+                 (let ((*package* package))
+                   (asdf-message
+                    "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
+                    on-disk *package*)
+                   (load on-disk)))
+            (delete-package package))))
+      (let ((in-memory (system-registered-p name)))
+        (if in-memory
+            (progn (when on-disk (setf (car in-memory)
+                                       (safe-file-write-date on-disk)))
+                   (cdr in-memory))
+            (when error-p (error 'missing-component :requires name)))))))
 
 (defun register-system (name system)
   (asdf-message "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
@@ -1763,7 +1767,9 @@ recursive calls to traverse.")
 (defmethod perform ((operation compile-op) (c cl-source-file))
   #-:broken-fasl-loader
   (let ((source-file (component-pathname c))
-        (output-file (car (output-files operation c))))
+        (output-file (car (output-files operation c)))
+        (*compile-file-warnings-behaviour* (operation-on-warnings operation))
+        (*compile-file-failure-behaviour* (operation-on-failure operation)))
     (multiple-value-bind (output warnings-p failure-p)
         (apply #'compile-file* source-file :output-file output-file
                (compile-op-flags operation))
@@ -2081,24 +2087,18 @@ details."
                ,(determine-system-pathname pathname pathname-arg-p)
                ',component-options))))))
 
-
 (defun class-for-type (parent type)
-  (let* ((extra-symbols (list (find-symbol (symbol-name type) *package*)
-                              (find-symbol (symbol-name type)
-                                           (load-time-value
-                                            (package-name :asdf)))))
-         (class (dolist (symbol (if (keywordp type)
-                                    extra-symbols
-                                    (cons type extra-symbols)))
-                  (when (and symbol
-                             (find-class symbol nil)
-                             (subtypep symbol 'component))
-                    (return (find-class symbol))))))
-    (or class
-        (and (eq type :file)
-             (or (module-default-component-class parent)
-                 (find-class *default-component-class*)))
-        (sysdef-error "~@<don't recognize component type ~A~@:>" type))))
+  (or (loop :for symbol :in (list
+                             (unless (keywordp type) type)
+                             (find-symbol (symbol-name type) *package*)
+                             (find-symbol (symbol-name type) :asdf))
+        :for class = (and symbol (find-class symbol nil))
+        :when (and class (subtypep class 'component))
+        :return class)
+      (and (eq type :file)
+           (or (module-default-component-class parent)
+               (find-class *default-component-class*)))
+      (sysdef-error "~@<don't recognize component type ~A~@:>" type)))
 
 (defun maybe-add-tree (tree op1 op2 c)
   "Add the node C at /OP1/OP2 in TREE, unless it's there already.
@@ -2951,20 +2951,26 @@ effectively disabling the output translation facility."
 (defun compile-file* (input-file &rest keys)
   (let* ((output-file (apply 'compile-file-pathname* input-file keys))
          (tmp-file (tmpize-pathname output-file))
-         (successp nil))
-    (unwind-protect
-         (multiple-value-bind (output-truename warnings-p failure-p)
-             (apply 'compile-file input-file :output-file tmp-file keys)
-           (if failure-p
-               (setf output-truename nil)
-               (setf successp t))
-           (values output-truename warnings-p failure-p))
+         (status :error))
+    (multiple-value-bind (output-truename warnings-p failure-p)
+        (apply 'compile-file input-file :output-file tmp-file keys)
       (cond
-        (successp
-         (delete-file-if-exists output-file)
-         (rename-file tmp-file output-file))
+        (failure-p
+         (setf status *compile-file-failure-behaviour*))
+        (warnings-p
+         (setf status *compile-file-warnings-behaviour*))
         (t
-         (delete-file-if-exists tmp-file))))))
+         (setf status :success)))
+      (ecase status
+        ((:success :warn)
+         (delete-file-if-exists output-file)
+         (when output-truename
+           (rename-file output-truename output-file)
+           (setf output-truename output-file)))
+        (:error
+         (delete-file-if-exists tmp-file)
+         (setf output-truename nil)))
+      (values output-truename warnings-p failure-p))))
 
 #+abcl
 (defun translate-jar-pathname (source wildcard)
