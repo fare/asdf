@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.106" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.107" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -3355,14 +3355,18 @@ with a different configuration, so the configuration would be re-read then."
 (defun initialize-source-registry (&optional parameter)
   (setf (source-registry) (compute-source-registry parameter)))
 
-;; checks an initial variable to see whether the state is initialized
+;; Checks an initial variable to see whether the state is initialized
 ;; or cleared. In the former case, return current configuration; in
 ;; the latter, initialize.  ASDF will call this function at the start
-;; of (asdf:find-system).
-(defun ensure-source-registry ()
+;; of (asdf:find-system) to make sure the source registry is initialized.
+;; However, it will do so *without* a parameter, at which point it
+;; will be too late to provide a parameter to this function, though
+;; you may override the configuration explicitly by calling
+;; initialize-source-registry directly with your parameter.
+(defun ensure-source-registry (&optional parameter)
   (if (source-registry-initialized-p)
       (source-registry)
-      (initialize-source-registry)))
+      (initialize-source-registry parameter)))
 
 (defun sysdef-source-registry-search (system)
   (ensure-source-registry)
