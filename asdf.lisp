@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.108" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.109" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -2962,7 +2962,7 @@ effectively disabling the output translation facility."
    :defaults x))
 
 (defun delete-file-if-exists (x)
-  (when (probe-file x)
+  (when (and x (probe-file x))
     (delete-file x)))
 
 (defun compile-file* (input-file &rest keys &key &allow-other-keys)
