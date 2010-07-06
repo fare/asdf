@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.109" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.110" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -1076,6 +1076,17 @@ of which is a system object.")
 
 (defun system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
+
+(defun clear-system (name)
+  "Clear the entry for a system in the database of systems previously loaded.
+Note that this does NOT in any way cause the code of the system to be unloaded."
+  ;; There is no "unload" operation in Common Lisp, and a general such operation
+  ;; cannot be portably written, considering how much CL relies on side-effects
+  ;; of global data structures.
+  ;; Note that this does a setf gethash instead of a remhash
+  ;; this way there remains a hint in the *defined-systems* table
+  ;; that the system was loaded at some point.
+  (setf (gethash (coerce-name name) *defined-systems*) nil))
 
 (defun map-systems (fn)
   "Apply FN to each defined system.
