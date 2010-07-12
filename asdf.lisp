@@ -895,6 +895,8 @@ actually-existing directory."
    (in-order-to :initform nil :initarg :in-order-to
                 :accessor component-in-order-to)
    ;; This one is used by POIU. Maybe in the future by ASDF instead of in-order-to?
+   ;; POIU is a parallel (multi-process build) extension of ASDF.  See
+   ;; http://www.cliki.net/poiu
    (load-dependencies :accessor component-load-dependencies :initform nil)
    ;; XXX crap name, but it's an official API name!
    (do-first :initform nil :initarg :do-first
