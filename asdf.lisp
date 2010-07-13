@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.110" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.111" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -2526,7 +2526,7 @@ located."
       `(,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
         ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))))
-    (list #p"/etc/"))))
+    (list #p"/etc/common-lisp/"))))
 (defun in-first-directory (dirs x)
   (loop :for dir :in dirs
     :thereis (and dir (ignore-errors
