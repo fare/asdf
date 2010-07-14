@@ -2190,8 +2190,8 @@ Returns the new tree (which probably shares structure with the old one)"
   (dolist (name +asdf-methods+)
     (let ((keyword (intern (symbol-name name) :keyword)))
       (loop :for data = rest :then (cddr data)
-        :for key = (when data (first data))
-        :for value = (when data (second data))
+        :for key = (first data)
+        :for value = (second data)
         :while data
         :when (eq key keyword) :do
         (destructuring-bind (op qual (o c) &body body) value

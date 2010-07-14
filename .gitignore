@@ -22,6 +22,7 @@ doc/asdf.toc
 doc/asdf.tp
 doc/asdf.vr
 doc/asdf.vrs
+doc/asdf.t2d/
 
 # We build these at various stages in the build and test process
 LICENSE
@@ -38,3 +39,12 @@ tmp/
 *.data
 test/try-reloading-dependency.asd
 test/fileMissing.lisp
+
+# debian stuff
+build-stamp
+debian/cl-asdf.debhelper.log
+debian/cl-asdf.postinst.debhelper
+debian/cl-asdf.prerm.debhelper
+debian/cl-asdf.substvars
+debian/cl-asdf/
+debian/files

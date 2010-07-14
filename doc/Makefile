@@ -27,4 +27,4 @@ clean:
 	rm -f ${intermediate}
 veryclean: clean
 	rm -f asdf.html asdf.pdf asdf.info
-	rm -rf asdf/
+	rm -rf asdf/ asdf.t2d/

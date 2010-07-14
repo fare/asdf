@@ -16,7 +16,7 @@ clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp
-	make -C doc clean
+	make -C doc veryclean
 	dh_clean
 
 # Build architecture-dependent files here.

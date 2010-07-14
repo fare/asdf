@@ -1,6 +1,6 @@
 To build this package you need to get the git repository:
 
-git clone http://git.debian.org/git/pkg-common-lisp/cl-asdf.git
+git clone git://git.debian.org/git/pkg-common-lisp/cl-asdf.git
 
 Get the upstream branch too:
 
@@ -9,14 +9,14 @@ git checkout -t -b upstream remotes/origin/upstream
 
 Then you need to setup the following remotes:
 
-git remote add upstream http://common-lisp.net/project/asdf/asdf.git
+git remote add upstream git://common-lisp.net/projects/asdf/asdf.git
 
 To update the package from upstream do:
 
 git checkout upstream
-git pull upstream master:upstream
+git pull upstream release:upstream
 git whatchanged
-git tag upstream/<date>
+#git tag upstream/<date> # not necessary anymore, now that we use the same as upstream.
 git checkout master
 git pull . upstream
 

@@ -1,1 +1,1 @@
-asdf.lisp wild-modules.lisp asdf-install.lisp usr/share/common-lisp/source/cl-asdf/
+asdf.lisp asdf-ecl.lisp wild-modules.lisp asdf.asd build.xcvb usr/share/common-lisp/source/cl-asdf/

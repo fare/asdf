@@ -1,8 +1,10 @@
-cl-asdf (2:1.704-2) UNRELEASED; urgency=low
+cl-asdf (2:2.004-1) unstable; urgency=low
 
-  * open for changes
+  * Imported new upstream, try not to diverge from it.
+  * Remove cl-cclan which was removed from the upstream repository.
+  * Updated Debian configuration and documentation.
 
- -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 19 Apr 2010 21:45:07 +0200
+ -- Francois-Rene Rideau <fare@tunes.org>  Wed, 14 Jul 2010 14:06:50 -0400
 
 cl-asdf (2:1.704-1) unstable; urgency=low
 
