@@ -18,18 +18,14 @@
                          #'(lambda (w)
                              (princ w *error-output*)
                              (muffle-warning w))))
-           (compile-file *asdf-lisp* :output-file tmp))
+           (compile-file *asdf-lisp* :output-file tmp :print t :verbose t))
        (declare (ignore result))
        (cond
-         #-ecl
          (warnings-p
           (leave-lisp "Testsuite failed: ASDF compiled with warnings" 1))
          (errors-p
           (leave-lisp "Testsuite failed: ASDF compiled with ERRORS" 2))
          (t
-          #+ecl
-          (when warnings-p
-            (format t "~&ASDF compiled with warnings. Please fix ECL.~%"))
           (when (probe-file *asdf-fasl*)
             (delete-file *asdf-fasl*))
           (rename-file tmp *asdf-fasl*)

@@ -43,6 +43,7 @@
 ;;; code adapted from cl-launch (any errors in transcription are mine!)
 ;; http://www.cliki.net/cl-launch
 (defun leave-lisp (message return)
+  (fresh-line *error-output*)
   (when message
     (format *error-output* message)
     (terpri *error-output*))

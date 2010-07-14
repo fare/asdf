@@ -1,12 +1,9 @@
 # really this is private to my build process
-make/
-common-lisp.net
-.vcs
-init-lisp.lisp
-website/changelog.xml
 push
 resbcl
 reccl
+reecl
+regcl
 
 # Temporary files from documentation build
 doc/asdf/
@@ -26,17 +23,18 @@ doc/asdf.tp
 doc/asdf.vr
 doc/asdf.vrs
 
-# We build these at various stages in the make process
+# We build these at various stages in the build and test process
 LICENSE
-website/output/
 tmp/
-lift-local.config
 *.dribble
 *.fasl
 *.dfsl
 *.cfsl
 *.fas
 *.lib
-*.o
+*.[oahcisS]
 *.*fsl
 *.bak
+*.data
+test/try-reloading-dependency.asd
+test/fileMissing.lisp

@@ -1,0 +1,9 @@
+;;; -*- Lisp -*-
+(load "script-support")
+(load-asdf)
+
+(quit-on-error
+ (asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
+ (asdf:load-system :asdf)
+ (asdf:initialize-source-registry `(:source-registry (:directory ,*asdf-directory*) :ignore-inherited-configuration))
+ (asdf:load-system :asdf))

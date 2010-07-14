@@ -39,8 +39,7 @@
 (assert
  (asdf::version-satisfies (asdf:asdf-version) (asdf:asdf-version)))
 (assert
- (asdf::version-satisfies (asdf:asdf-version) "1.608"))
+ (asdf::version-satisfies (asdf:asdf-version) "2.000"))
 (assert
  (not (asdf::version-satisfies (asdf:asdf-version) "666")))
-
 )

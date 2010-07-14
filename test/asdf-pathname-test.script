@@ -185,11 +185,11 @@
                       (handler-bind
                         ((error (lambda (c)
                                   (incf system-failures)
-                                  (format *error-output* "~&error! ~a~%sysdef:~% ~W~%" c system-definition)
+                                  (format *error-output* "~&error! ~a~%sysdef:~% ~S~%" c system-definition)
                                   #+sbcl (sb-debug:backtrace 69)
                                   #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
                                   #+clisp (system::print-backtrace)
-                                  (format result-stream "~&~%***~%error: ~a~%~:w"
+                                  (format result-stream "~&~%***~%error: ~a~%~s"
                                           c system-definition)
                                   (return-from :test-system))))
                         (unless (and (or (typep system-pathname 'logical-pathname)
@@ -241,9 +241,9 @@
                                              :missing)))
                             test-files))
 
-            (format result-stream "~&~%~% translations: ~a: ~:w" "ASDFTEST" (logical-pathname-translations "ASDFTEST"))
+            (format result-stream "~&~%~% translations: ~a: ~s" "ASDFTEST" (logical-pathname-translations "ASDFTEST"))
 
-            (format result-stream "~&~%~% variations:~% systems: ~:w~% modules: ~:w~% files: ~:w"
+            (format result-stream "~&~%~% variations:~% systems: ~s~% modules: ~s~% files: ~s"
                     systems modules files)
 
             (let ((homogeneous-failures 0) (*print-length* nil))

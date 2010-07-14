@@ -7,11 +7,12 @@ clnet_home      := "/project/asdf/public_html/"
 
 sourceDirectory := $(shell pwd)
 
-lisps = allegro allegromodern ccl clisp sbcl
+lisps ?= allegro ccl clisp ecl sbcl
+## not tested by me: abcl allegromodern cmucl lisworks
+## FAIL: gclcvs
+## maybe supported by asdf, not supported yet by our tests: cormancl mcl scl
 
-ifndef lisp
-lisp := sbcl
-endif
+lisp ?= sbcl
 
 # website, tag, install
 
@@ -26,11 +27,12 @@ archive: FORCE
 	bin/build-tarball.sh
 
 archive-copy: archive
+	git checkout release
 	bin/rsync-cp.sh tmp/asdf*.tar.gz $(webhome_private)/archives
 	bin/link-tarball.sh $(clnet_home) $(user)
 	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
-	git push cl.net
-	git push --tags cl.net
+	git push cl.net release
+	git push --tags cl.net release
 
 website:
 	make -C doc website
@@ -54,13 +56,11 @@ clean: FORCE
 	make -C doc clean
 
 test: FORCE
-	@cd test; make clean;./run-tests.sh $(lisp) $(test-regex)
+	@cd test; make clean;./run-tests.sh ${lisp} ${test-glob}
 
 test-all: FORCE
-	@for lisp in $(lisps); do \
-		make test lisp=$$lisp; \
+	@for lisp in ${lisps} ; do \
+		make test lisp=$$lisp || exit 1 ; \
 	done
-	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-		--eval "(write-test-web-pages)" --eval "(quit)"
 
 FORCE:

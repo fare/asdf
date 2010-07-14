@@ -26,12 +26,18 @@
       </ul>
     </div>
     <div class="contents">
+        <a id="ASDF 2"></a>
+        <h3>ASDF 2</h3>
+        <p>We recently released ASDF 2 (on May 31st 2010).
+          It will hopefully be bundled will all official releases
+          of Common Lisp implementations made after that date.
+        </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
         <p>ASDF is a tool for describing how source files are organized:
           what depends on which and when.
         </p>
-        <p>It is roughly what Common-Lisp hackers use to build software
+        <p>It is roughly what Common Lisp hackers use to build software
           where C hackers would use say GNU Make.
         </p>
         <p>ASDF stands for <em>A</em>nother <em>S</em>ystem <em>D</em>efinition <em>F</em>acility,
@@ -47,7 +53,7 @@
           <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=asdf.texinfo">as texinfo source</a></li>
         </ul>
 
-        <a href="downloads"></a>
+        <a id="downloads"></a>
         <h3>Getting it</h3>
         <p>Though they may lag behind the version here, ASDF comes bundled with most Lisps.
           To get the greatest and latest, you can:
@@ -64,7 +70,9 @@
           </li>
           <li>pull the latest from our git repository
             (<a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git">browse</a>)
-            <pre>git clone http://common-lisp.net/project/asdf/asdf.git</pre>
+            <pre>git clone git://common-lisp.net/projects/asdf/asdf.git</pre>
+            (Note that our "master" branch is for current development;
+            get our "release" branch for the latest stable release.)
         </li></ul>
 
         <a id="bugs">
@@ -90,19 +98,20 @@
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
-          <dt>December 2009 to April 2010</dt>
+          <dt>December 2009 to June 2010</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau is de facto maintainer,
-            with notable contributions from Robert P. Goldman.
-            Push towards an ASDF 2 release
+            with notable contributions from Robert P. Goldman,
+            Juanjo Garcia-Ripoll and James Anderson.
+            ASDF 2 released
             with many clean-ups, better configurability
             and updated documentation.
           </dd>
           <dt>May 2006 to November 2009</dt>
           <dd>Gary King is de facto maintainer,
             with notable contributions from
-            Robert P. Goldman, Nikodemus Siivola, Christophe Rhodes, D Herring.
+            Robert P. Goldman, Nikodemus Siivola, Christophe Rhodes, Daniel Herring.
             Many small features and bug fixes,
-            trying to make the project more usable,
+            making the project more maintanable,
             moving to using git and common-lisp.net.
           </dd>
           <dt>May 2004 to April 2006</dt>
@@ -124,7 +133,7 @@
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2010 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2010-04-08</div>
+        <div id="timestamp">Last updated 2010-06-02</div>
     </div>
   </body>
 </html>

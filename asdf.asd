@@ -3,7 +3,7 @@
 ;;;                                                                  ;;;
 ;;; Free Software available under an MIT-style license.              ;;;
 ;;;                                                                  ;;;
-;;; Copyright (c) 2001-2009 Daniel Barlow and contributors           ;;;
+;;; Copyright (c) 2001-2010 Daniel Barlow and contributors           ;;;
 ;;;                                                                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

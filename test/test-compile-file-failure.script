@@ -1,0 +1,17 @@
+;;; -*- Lisp -*-
+
+(load "script-support")
+(load-asdf)
+
+(quit-on-error
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (assert (handler-case
+             (let ((asdf:*compile-file-failure-behaviour* :warn))
+               (asdf:load-system 'test-compile-file-failure :force t)
+               t)
+           (asdf:compile-error () nil)))
+ (assert (handler-case
+             (let ((asdf:*compile-file-failure-behaviour* :error))
+               (asdf:load-system 'test-compile-file-failure :force t)
+               nil)
+           (asdf:compile-error () t))))
