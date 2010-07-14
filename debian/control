@@ -1,13 +1,22 @@
 Source: cl-asdf
-Section: devel
+Section: lisp
 Priority: optional
-Maintainer: Peter Van Eynde <pvaneynd@debian.org>
-Build-Depends-Indep: debhelper (>> 4.0.0), cvs2cl
-Standards-Version: 3.6.2.1
+Maintainer: Debian Common Lisp Team <pkg-common-lisp-devel@lists.alioth.debian.org>
+Uploaders: Peter Van Eynde <pvaneynd@debian.org>,
+  Francois-Rene Rideau <fare@tunes.org>
+Build-Depends: debhelper (>> 7)
+Build-Depends-Indep: texinfo,texlive-extra-utils, texlive, texlive-generic-recommended, dh-lisp
+Standards-Version: 3.8.4
+Homepage: http://common-lisp.net/project/asdf/
+Vcs-Git: git://git.debian.org/git/pkg-common-lisp/cl-asdf.git
 
 Package: cl-asdf
 Architecture: all
 Recommends: common-lisp-controller, sbcl | lisp-compiler
+Replaces: sbcl-common (<= 1:0.9.13.0-2)
+Conflicts: sbcl-common (<= 1:0.9.13.0-2), common-lisp-controller (<= 7.0)
+Breaks: common-lisp-controller (<= 7.0)
+Depends: ${misc:Depends}
 Description: Another System Definition Facility
  asdf provides a "make" type functions for Common Lisp packages. It
  provides compilation and loading features for complex Lisp systems
@@ -16,10 +25,3 @@ Description: Another System Definition Facility
  common-lisp-controller package. Unlike defsystem3 in CLC, asdf is
  object-oriented and extensible.
 
-Package: cl-cclan
-Architecture: all
-Depends: common-lisp-controller
-Description: Comprehensive Common Lisp Archive Network
- cclan is a tool for creating a repository of Common Lisp packages.
- cclan utilizes asdf to automatically create installable packages for various
- operating systems.

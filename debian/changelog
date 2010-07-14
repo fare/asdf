@@ -1,10 +1,190 @@
-cl-asdf (1.88-1) unstable; urgency=low
+cl-asdf (2:2.004-1) unstable; urgency=low
+
+  * Imported new upstream, try not to diverge from it.
+  * Remove cl-cclan which was removed from the upstream repository.
+  * Updated Debian configuration and documentation.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Wed, 14 Jul 2010 14:06:50 -0400
+
+cl-asdf (2:1.704-1) unstable; urgency=low
+
+  * Imported new upstream.
+  * We now have a makefile for Documentation, use it
+  * Add debian/source/format for the stupid quilt mess
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 19 Apr 2010 21:37:48 +0200
+
+cl-asdf (2:1.627-1) unstable; urgency=low
+
+  * New upstream release. 
+  * Added dh_installinfo for info files. (Closes: #560290)
+  * Incorporated run-shell-command patch for LispWorks. Thanks tianchun!
+    (Closes: #457919)
+  * Added info that this version breaks clc
+  * Fix conflict with clc
+  * Small patch to make :implementation-type work for clc
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 25 Feb 2010 18:36:16 +0100
+
+cl-asdf (2:1.502-1) unstable; urgency=low
+
+  * new upstream, back to version numbers.
+  * added /etc/common-lisp/source-registry.conf.d/ directory
+  * Added README's to documentation
+  * it's debian/*.dirs not debian/*.dir\!
+  * Updated standard version, no real changes
+  * Added lintian overrides for cl-cclan
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 01 Feb 2010 07:31:06 +0100
+
+cl-asdf (1:20091221-1) unstable; urgency=low
+
+  * New upstream, version 1.374
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 31 Dec 2009 08:36:15 +0100
+
+cl-asdf (1:20090819-3) unstable; urgency=low
+
+  * Fixed the loop construct again. (Closes: #546205) 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 12 Sep 2009 10:08:23 +0100
+
+cl-asdf (1:20090819-2) unstable; urgency=low
+
+  * Fix the loop contruct. This makes ecl fail. (Closes: #545768)
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 10 Sep 2009 14:20:11 +0100
+
+cl-asdf (1:20090819-1) unstable; urgency=low
+
+  * New upstream, New homepage and new upstream repository.
+  * changed section to lisp
+  * now using debhelper v7
+  * added debian/README.building
+  * remove cvs2cl from dependencies
+  * remove upstream ChangeLog
+  * added dummy watch file
+  * added ${misc:Depends} to cl-asdf Depends
+  * Updated Standards-Version no real changes
+  * fixed Section of cl-asdf.doc-base
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 01 Sep 2009 08:20:28 +0100
+
+cl-asdf (1.111-1) unstable; urgency=low
+
+  * New upstream release.
+  * Updated standard version without real changes
+  * Corrected Vcs-Bzr field
+  * Move to using dh-lisp
+  * Fixed Vcs-Git field
+  * Changed to group maintanance
+  * recreated upstream changelog with git2cl
+  * Changed directory, so we depend on a newer clc 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 09 Feb 2008 10:07:21 +0100
+
+cl-asdf (1.109-2) unstable; urgency=low
+
+  * stop trying to dump the package, use the package name instead.
+    (Closes: #436129)
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 27 Sep 2007 05:42:20 +0200
+
+cl-asdf (1.109-1) unstable; urgency=low
+
+  * New upstream. Major changes:
+     + main change is the addition of system-relative-pathname function. This takes a
+       system name and a partial pathname and combines them to return a new pathname
+       _relative_ to the system. This is exported and lightly documented.
+     + this patch also updates preference-file-for-system/operation in an effort
+       to prevent it from being confused by *default-pathname-defaults* that include
+       a specific name and type.
+     + Removes inline component methods more carefully (and, I believe, correctly!). Helps keep LispWorks happy.
+     + Reworked asdf tests to make them more robust and perhaps more flexible too.
+  * Now use texlive to build. 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sun, 16 Sep 2007 14:45:57 +0200
+
+cl-asdf (1.107-1) unstable; urgency=low
+
+  * New upstream release, adding the system-relative-pathname
+    function.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sun, 08 Apr 2007 23:05:18 +0200
+
+cl-asdf (1.106-1) experimental; urgency=low
+
+  * New upstream. Major changes:
+
+      + Minor patch in class-for-type that evaluates only *package* at read
+   time rather than (package-name *package*); this keeps case sensitive Lisps
+   happy all the time and keeps case insensitive lisps happily insensitive.
+  
+      + A patch from Richard Kreuter that allows pathname defaulting to work
+   better with *load-truename* and *default-pathname-defaults*; this makes it
+   easier to work with defsystems in the REPL.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 14 Mar 2007 09:18:25 +0100
+
+cl-asdf (1.104-1) experimental; urgency=low
+
+  * Added XS-X-Vcs-Darcs header
+  * modified S-X-Vcs-Darcs to XS-Vcs-Darcs field
+  * New upstream. Major changes:
+     + add a better docstring for component-depends-on (via #lisp and Robert
+     Goldman)
+     + ASDF now sends output to *standard-output* (thanks to Richard M.
+     Kreuter).
+     + Slightly better SBCL_HOME treatement for SBCL.
+  * upload to experimental during the freeze
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Tue,  6 Feb 2007 08:21:06 +0100
+
+cl-asdf (1.101-1) unstable; urgency=low
+
+  * New upstream version.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 20 Sep 2006 07:08:57 +0200
+
+cl-asdf (1.99-3) unstable; urgency=low
+
+  * Added tetex-bin to Build-Depends-Indep (Closes: #379532)
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 24 Jul 2006 19:34:49 +0200
+
+cl-asdf (1.99-2) unstable; urgency=low
+
+  * Move asdf.info files from sbcl to this package.
+  * move texinfo to BuildDependsIndep
+  * we build something build-indep 
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Fri, 30 Jun 2006 23:18:40 +0200
+
+icl-asdf (1.99-1) unstable; urgency=low
+
+  * New upstream.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Mon, 19 Jun 2006 05:28:12 +0200
+
+cil-asdf (1.97-1) unstable; urgency=low
+
+  * New upstream release
+  * Moved debhelper to build-depeneds
+  * increased standards-version without real changes.
+
+ -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 20 May 2006 19:28:58 +0200
+
+
+cl-asdf (1.89-1) unstable; urgency=low
 
   * Noticed that I actually increased the version with the CVS commit
   * Updated the standards version
   * Remove the prepare build stuff, build through darcs
   * Improve duplicate names test: use equal instead of equalp.
     From a comment from Faré.
+  * Remove CVS cruft
+  * Seperate CVS version of asdf.lisp from version of package. The tag
+    is not the version of the package
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 22 Sep 2005 12:52:31 +0200
 
