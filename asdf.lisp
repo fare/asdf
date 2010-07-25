@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.004" (1+ (length "VERSION")))) ; NB: same as 2.111.
+          (subseq "VERSION:2.112" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -750,6 +750,13 @@ actually-existing directory."
                  :directory '(:absolute)
                  :name nil :type nil :version nil))
 
+(defun probe-file* (p)
+  "when given a pathname P, probes the filesystem for a file or directory
+with given pathname and if it exists return its truename."
+  (and (pathnamep p) (not (wild-pathname-p p))
+       #+clisp (ignore-errors (truename p))
+       #-clisp (probe-file p)))
+
 (defun truenamize (p)
   "Resolve as much of a pathname as possible"
   (block nil
@@ -757,10 +764,11 @@ actually-existing directory."
     (let* ((p (merge-pathnames* p))
            (directory (pathname-directory p)))
       (when (typep p 'logical-pathname) (return p))
-      (ignore-errors (return (truename p)))
+      (let ((found (probe-file* p)))
+        (when found (return found)))
       #-sbcl (when (stringp directory) (return p))
       (when (not (eq :absolute (car directory))) (return p))
-      (let ((sofar (ignore-errors (truename (pathname-root p)))))
+      (let ((sofar (probe-file* (pathname-root p))))
         (unless sofar (return p))
         (flet ((solution (directories)
                  (merge-pathnames*
@@ -772,11 +780,10 @@ actually-existing directory."
                   sofar)))
           (loop :for component :in (cdr directory)
             :for rest :on (cdr directory)
-            :for more = (ignore-errors
-                          (truename
-                           (merge-pathnames*
-                            (make-pathname :directory `(:relative ,component))
-                            sofar))) :do
+            :for more = (probe-file*
+                         (merge-pathnames*
+                          (make-pathname :directory `(:relative ,component))
+                          sofar)) :do
             (if more
                 (setf sofar more)
                 (return (solution rest)))
@@ -2502,9 +2509,9 @@ located."
 
 (defun try-directory-subpath (x sub &key type)
   (let* ((p (and x (ensure-directory-pathname x)))
-         (tp (and p (ignore-errors (truename p))))
+         (tp (and p (probe-file* p)))
          (sp (and tp (merge-pathnames* (merge-component-name-type sub :type type) p)))
-         (ts (and sp (ignore-errors (truename sp)))))
+         (ts (and sp (probe-file* sp))))
     (and ts (values sp ts))))
 (defun user-configuration-directories ()
   (remove-if
@@ -2531,8 +2538,7 @@ located."
     (list #p"/etc/common-lisp/"))))
 (defun in-first-directory (dirs x)
   (loop :for dir :in dirs
-    :thereis (and dir (ignore-errors
-                        (truename (merge-pathnames* x (ensure-directory-pathname dir)))))))
+    :thereis (and dir (probe-file* (merge-pathnames* x (ensure-directory-pathname dir))))))
 (defun in-user-configuration-directory (x)
   (in-first-directory (user-configuration-directories) x))
 (defun in-system-configuration-directory (x)
