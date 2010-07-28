@@ -1454,15 +1454,6 @@ does additional processing to set the filesystem location of
 the top component in that system.
 This is detailed elsewhere. @xref{Defining systems with defsystem}.
 
-The answer to the frequently asked question
-``how do I create a system definition
-where all the source files have a @file{.cl} extension''
-is thus
-
-@lisp
-(defmethod source-file-type ((c cl-source-file) (s (eql (find-system 'my-sys))))
-  "cl")
-@end lisp
 
 @subsubsection properties
 
@@ -2569,7 +2560,7 @@ mailing list
 
 ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
 
-If you're unsure about whether something is a bug, of for general discussion,
+If you're unsure about whether something is a bug, or for general discussion,
 use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
 
 
@@ -2791,7 +2782,7 @@ the practical consequence of which will mean faster convergence
 towards the latest version for everyone.
 
 
-@subsection Pitfalls of ASDF 2
+@subsection Pitfalls of the transition to ASDF 2
 
 The main pitfalls in upgrading to ASDF 2 seem to be related
 to the output translation mechanism.
@@ -2818,6 +2809,12 @@ See @code{asdf:enable-asdf-binary-locations-compatibility} in
 @pxref{Controlling where ASDF saves compiled files,,Backward Compatibility}.
 But thou shall not load ABL on top of ASDF 2.
 
+@end itemize
+
+Other issues include the following:
+
+@itemize
+
 @item
 ASDF pathname designators are now specified in places where they were unspecified,
 and a few small adjustments have to be made to some non-portable defsystems.
@@ -2827,12 +2824,6 @@ must now be specified with @code{#p} syntax
 where the namestring might have previously sufficed;
 moreover when evaluation is desired @code{#.} must be used,
 where it wasn't necessary in the toplevel @code{:pathname} argument.
-
-@end itemize
-
-Other issues include the following:
-
-@itemize
 
 @item
 There is a slight performance bug, notably on SBCL,
@@ -2852,8 +2843,24 @@ when recursing through directories.
 @item
 On Windows, only LispWorks supports proper default configuration pathnames
 based on the Windows registry.
-Other implementations make do.
-Windows support is largely untested, so please help report and fix bugs.
+Other implementations make do with environment variables.
+Windows support is somewhat less tested than Unix support.
+Please help report and fix bugs.
+
+@item
+The mechanism by which one customizes a system so that Lisp files
+may use a different extension from the default @file{.lisp} has changed.
+Previously, the pathname for a component was lazily computed when operating on a system,
+and you would
+@code{(defmethod source-file-type ((component cl-source-file) (system (eql (find-system 'foo))))
+  (declare (ignorable component system)) "cl")}.
+Now, the pathname for a component is eagerly computed when defining the system,
+and instead you will @code{(defclass my-cl-source-file (cl-source-file) ((type :iniform "cl")))}
+and use @code{:default-component-class my-cl-source-file} as argument to @code{defsystem},
+as detailed in a @pxref{FAQ,How do I create a system definition where all the source files have a .cl extension?} below.
+
+@findex source-file-type
+
 
 @end itemize
 
@@ -3121,6 +3128,30 @@ either as the name component of a pathname
 (if the component class specifies a pathname type),
 or as a name component plus optional dot-separated type component
 (if the component class doesn't specifies a pathname type).
+
+@subsection How do I create a system definition where all the source files have a .cl extension?
+
+First, create a new @code{cl-source-file} subclass that provides an
+initform for the @code{type} slot:
+
+@lisp
+(defclass my-cl-source-file (cl-source-file)
+   ((type :initform "cl")))
+@end lisp
+
+Then make your system use this subclass in preference to the standard
+one:
+
+@lisp
+(defsystem my-cl-system
+  :default-component-class my-cl-source-file
+   ....
+)
+@end lisp
+
+We assume that these definitions are loaded into a package that uses
+@code{ASDF}.
+
 
 
 @node  TODO list, Inspiration, FAQ, Top
