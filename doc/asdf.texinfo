@@ -1451,15 +1451,6 @@ does additional processing to set the filesystem location of
 the top component in that system.
 This is detailed elsewhere. @xref{Defining systems with defsystem}.
 
-The answer to the frequently asked question
-``how do I create a system definition
-where all the source files have a @file{.cl} extension''
-is thus
-
-@lisp
-(defmethod source-file-type ((c cl-source-file) (s (eql (find-system 'my-sys))))
-  "cl")
-@end lisp
 
 @subsubsection properties
 
@@ -2566,7 +2557,7 @@ mailing list
 
 ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
 
-If you're unsure about whether something is a bug, of for general discussion,
+If you're unsure about whether something is a bug, or for general discussion,
 use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
 
 
@@ -2824,6 +2815,14 @@ must now be specified with @code{#p} syntax
 where the namestring might have previously sufficed;
 moreover when evaluation is desired @code{#.} must be used,
 where it wasn't necessary in the toplevel @code{:pathname} argument.
+
+@item
+The old approach for creating a system definition where all the source
+files have a @file{.cl} extension, which relied on redefining a
+@code{source-file-type} on @code{cl-source-file} doesn't work any
+longer, because the signature for @code{source-file-type} has changed.
+@xref{FAQ}.
+@findex source-file-type
 
 @end itemize
 
@@ -3117,6 +3116,30 @@ either as the name component of a pathname
 (if the component class specifies a pathname type),
 or as a name component plus optional dot-separated type component
 (if the component class doesn't specifies a pathname type).
+
+@subsection How do I create a system definition where all the source files have a @file{.cl} extension?
+
+First, create a new @code{cl-source-file} subclass that provides an
+initform for the @code{type} slot:
+
+@lisp
+(defclass my-cl-source-file (cl-source-file)
+   ((type :initform "cl")))
+@end lisp
+
+Then make your system use this subclass in preference to the standard
+one:
+
+@lisp
+(defsystem my-cl-system
+  :default-component-class my-cl-source-file
+   ....
+)
+@end lisp
+
+We assume that these definitions are loaded into a package that uses
+@code{ASDF}.
+
 
 
 @node  TODO list, Inspiration, FAQ, Top
