@@ -206,7 +206,10 @@ Consult your Lisp implementation's documentation for details.
 
 Hopefully, ASDF 2 will soon be bundled with every Common Lisp implementation,
 and you can load it that way.
-
+If it is not, see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
+if you are using the latest version of your Lisp vendor's software,
+you may also send a bug report to your Lisp vendor and complain about
+their failing to provide ASDF.
 
 @section Checking whether ASDF is loaded
 
@@ -239,7 +242,7 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 2.000,
+If you are running a version older than 2.004,
 we recommend that you load a newer ASDF using the method below.
 
 
@@ -2871,7 +2874,7 @@ In the meantime, you can load @file{asdf.lisp} directly.
 @subsection ``I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?''
 
 Starting with current candidate releases of ASDF 2,
-it should always be a good time to upgrade to a recent version of ASDF.
+it should always be a good time to upgrade to a recent ASDF.
 You may consult with the maintainer for which specific version they recommend,
 but the latest RELEASE should be correct.
 We trust you to thoroughly test it with your implementation before you release it.
@@ -2882,7 +2885,7 @@ As to how to include ASDF, we recommend the following:
 
 @itemize
 @item
-If ASDF isn't installed yet, then @code{(require :asdf)}
+If ASDF isn't loaded yet, then @code{(require :asdf)}
 should load the version of ASDF that is bundled with your system.
 You may have it load some other version configured by the user,
 if you allow such configuration.
@@ -2908,8 +2911,9 @@ You should still include the file @file{asdf.lisp} in your source distribution
 and precompile it in your binary distribution,
 but @file{asdf.asd} if included at all,
 should be secluded from the magic systems,
-in a separate file hierarchy,
-or you may otherwise rename the system and its file to e.g.
+in a separate file hierarchy;
+alternatively, you may provide the system
+after renaming it and its @file{.asd} file to e.g.
 @code{asdf-ecl} and @file{asdf-ecl.asd}, or
 @code{sb-asdf} and @file{sb-asdf.asd}.
 Indeed, if you made @file{asdf.asd} a magic system,
