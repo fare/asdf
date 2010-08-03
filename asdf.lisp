@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.112" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.113" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -644,24 +644,16 @@ pathnames."
     :append (list k v)))
 
 (defun getenv (x)
-  #+abcl
-  (ext:getenv x)
-  #+sbcl
-  (sb-ext:posix-getenv x)
-  #+clozure
-  (ccl:getenv x)
-  #+clisp
-  (ext:getenv x)
-  #+cmu
-  (cdr (assoc (intern x :keyword) ext:*environment-list*))
-  #+lispworks
-  (lispworks:environment-variable x)
-  #+allegro
-  (sys:getenv x)
-  #+gcl
-  (system:getenv x)
-  #+ecl
-  (si:getenv x))
+  (#+abcl ext:getenv
+   #+allegro sys:getenv
+   #+clisp ext:getenv
+   #+clozure ccl:getenv
+   #+(or cmu scl) (lambda (x) (cdr (assoc x ext:*environment-list* :test #'string=)))
+   #+ecl si:getenv
+   #+gcl system:getenv
+   #+lispworks lispworks:environment-variable
+   #+sbcl sb-ext:posix-getenv
+   x))
 
 (defun directory-pathname-p (pathname)
   "Does PATHNAME represent a directory?
@@ -724,25 +716,24 @@ actually-existing directory."
 
 #-(and (or win32 windows mswindows mingw32) (not cygwin))
 (progn
-#+clisp (defun get-uid () (posix:uid))
-#+sbcl (defun get-uid () (sb-unix:unix-getuid))
-#+cmu (defun get-uid () (unix:unix-getuid))
-#+ecl #.(cl:and (cl:< ext:+ecl-version-number+ 100601)
-         '(ffi:clines "#include <sys/types.h>" "#include <unistd.h>"))
-#+ecl (defun get-uid ()
-        #.(cl:if (cl:< ext:+ecl-version-number+ 100601)
-            '(ffi:c-inline () () :int "getuid()" :one-liner t)
-            '(ext::getuid)))
-#+allegro (defun get-uid () (excl.osi:getuid))
-#-(or cmu sbcl clisp allegro ecl)
-(defun get-uid ()
-  (let ((uid-string
-         (with-output-to-string (*verbose-out*)
-           (run-shell-command "id -ur"))))
-    (with-input-from-string (stream uid-string)
-      (read-line stream)
-      (handler-case (parse-integer (read-line stream))
-        (error () (error "Unable to find out user ID")))))))
+  #+ecl #.(cl:and (cl:< ext:+ecl-version-number+ 100601)
+                  '(ffi:clines "#include <sys/types.h>" "#include <unistd.h>"))
+  (defun get-uid ()
+    #+allegro (excl.osi:getuid)
+    #+clisp (posix:uid)
+    #+(or cmu scl) (unix:unix-getuid)
+    #+ecl #.(cl:if (cl:< ext:+ecl-version-number+ 100601)
+                   '(ffi:c-inline () () :int "getuid()" :one-liner t)
+                   '(ext::getuid))
+    #+sbcl (sb-unix:unix-getuid)
+    #-(or allegro clisp cmu ecl sbcl scl)
+    (let ((uid-string
+           (with-output-to-string (*verbose-out*)
+             (run-shell-command "id -ur"))))
+      (with-input-from-string (stream uid-string)
+        (read-line stream)
+        (handler-case (parse-integer (read-line stream))
+          (error () (error "Unable to find out user ID")))))))
 
 (defun pathname-root (pathname)
   (make-pathname :host (pathname-host pathname)
@@ -754,7 +745,7 @@ actually-existing directory."
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
   (and (pathnamep p) (not (wild-pathname-p p))
-       #+clisp (ignore-errors (truename p))
+       #+clisp (ext:probe-pathname p)
        #-clisp (probe-file p)))
 
 (defun truenamize (p)
