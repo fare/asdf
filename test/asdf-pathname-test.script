@@ -158,7 +158,7 @@
                                     year month day hour minute second
                                     (lisp-implementation-type)
                                     (lisp-implementation-version)
-                                    asdf::*asdf-version*)))
+                                    (asdf:asdf-version))))
                 (format result-stream ";;; ~a~%~%" header)
                 (format *trace-output* "~%;;; ~a~%~%" header)))
             (sleep 1)

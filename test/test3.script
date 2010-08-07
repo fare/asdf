@@ -1,15 +1,14 @@
 ;;; -*- Lisp -*-
-#+(or f1 f2)
-    (error "This test cannot run if :f1 or :f2 are on *features*")
+#+(or f1 f2) (error "This test cannot run if :f1 or :f2 are on *features*")
 (load "script-support")
 (load-asdf)
 (in-package :asdf)
 (cl-user::quit-on-error
- (let ((fasl1 (asdf:compile-file-pathname* (truename "file1.lisp")))
-       (fasl2 (asdf:compile-file-pathname* (truename "file2.lisp"))))
-     (asdf:run-shell-command "rm -f ~A ~A"
-                             (namestring fasl1)
-                             (namestring fasl2))
+ (let* ((fasl1 (asdf:compile-file-pathname* (truename "file1.lisp")))
+        (fasl2 (asdf:compile-file-pathname* (truename "file2.lisp")))
+        (ns1 (#-scl namestring #+scl ext:unix-namestring fasl1))
+        (ns2 (#-scl namestring #+scl ext:unix-namestring fasl2)))
+     (asdf:run-shell-command "rm -f ~A ~A" ns1 ns2)
      (setf asdf:*central-registry* '(*default-pathname-defaults*))
      (handler-case
          (asdf:oos 'asdf:load-op 'test3)
@@ -20,9 +19,10 @@
          (error "should have failed, oops")))
      (pushnew :f1 *features*)
      (asdf:oos 'asdf:load-op 'test3)
+     (format t "testing for~% FASL1=~S and~% FASL2=~S~%" fasl1 fasl2)
      (assert (probe-file fasl1))
      (assert (not (probe-file fasl2)))
-     (run-shell-command "rm -f ~A" (namestring fasl1))
+     (run-shell-command "rm -f ~A" ns1)
      (setf *features* (cons :f2 (cdr *features*)))
      (asdf:oos 'asdf:load-op 'test3)
      (assert (probe-file fasl2))

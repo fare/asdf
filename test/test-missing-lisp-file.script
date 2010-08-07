@@ -43,7 +43,5 @@
    (asdf::run-shell-command (format nil "rm -f ~A" missing-name))
    ;; we shouldn't be able to find the input-file for the compile-op, and that
    ;; should be an error.
-   (multiple-value-bind (retval err)
-       (ignore-errors
-         (asdf:operate 'asdf:load-op 'test-missing-lisp-file))
+   (let ((err (nth-value 1 (ignore-errors (asdf:operate 'asdf:load-op 'test-missing-lisp-file)))))
      (assert err)))))

@@ -105,16 +105,10 @@ fi
 
 command= flags= nodebug= eval=
 case "$lisp" in
-  sbcl)
-    command="${SBCL:-sbcl}"
-    flags="--noinform --userinit /dev/null --sysinit /dev/null"
-    nodebug="--disable-debugger"
+  abcl)
+    command="${ABCL:-abcl}"
+    flags="--noinit --noinform"
     eval="--eval" ;;
-  clisp)
-    command="${CLISP:-clisp}"
-    flags="-norc -ansi -I "
-    nodebug="-on-error exit"
-    eval="-x" ;;
   allegro)
     command="${ALLEGRO:-alisp}"
     flags="-q"
@@ -130,6 +124,11 @@ case "$lisp" in
     flags="--no-init --quiet"
     nodebug="--batch"
     eval="--eval" ;;
+  clisp)
+    command="${CLISP:-clisp}"
+    flags="-norc -ansi -I "
+    nodebug="-on-error exit"
+    eval="-x" ;;
   cmucl)
     command="${CMUCL:-lisp}"
     flags="-noinit"
@@ -139,6 +138,11 @@ case "$lisp" in
     command="${ECL:-ecl}"
     flags="-norc"
     eval="-eval" ;;
+  gclcvs)
+    export GCL_ANSI=t
+    command="${GCL:-gclcvs}"
+    flags="-batch"
+    eval="-eval" ;;
   lispworks)
     command="${LISPWORKS:-lispworks}"
     # If you have a licensed copy of lispworks,
@@ -147,15 +151,16 @@ case "$lisp" in
     # ./lispworks-6-0-0-x86-linux -siteinit - -init - -build /tmp/build.lisp
     flags="-siteinit - -init -"
     eval="-eval" ;;
-  gclcvs)
-    export GCL_ANSI=t
-    command="${GCL:-gclcvs}"
-    flags="-batch"
-    eval="-eval" ;;
-  abcl)
-    command="${ABCL:-abcl}"
-    flags="--noinit --noinform"
+  sbcl)
+    command="${SBCL:-sbcl}"
+    flags="--noinform --userinit /dev/null --sysinit /dev/null"
+    nodebug="--disable-debugger"
     eval="--eval" ;;
+  scl)
+    command="${SCL:-scl}"
+    flags="-noinit"
+    nodebug="-batch"
+    eval="-eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2
     echo "Please add support to run-tests.sh" >&2

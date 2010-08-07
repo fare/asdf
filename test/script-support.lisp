@@ -28,7 +28,7 @@
                     #+gcl :gcl
                     #+lispworks :lispworks
                     #+sbcl :sbcl
-                    #+scl scl))))
+                    #+scl :scl))))
      (merge-pathnames
       (make-pathname :directory `(:relative "tmp" "fasls" ,impl)
                      :defaults *asdf-directory*)
