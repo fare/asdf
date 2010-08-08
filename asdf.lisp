@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.114" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.115" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -2922,6 +2922,22 @@ effectively disabling the output translation facility."
       (output-translations)
       (initialize-output-translations)))
 
+(defun* translate-pathname* (path absolute-source destination &optional root source)
+  (declare (ignore source))
+  (cond
+    ((functionp destination)
+     (funcall destination path absolute-source))
+    ((eq destination t)
+     path)
+    ((not (pathnamep destination))
+     (error "invalid destination"))
+    ((not (absolute-pathname-p destination))
+     (translate-pathname path absolute-source (merge-pathnames* destination root)))
+    (root
+     (translate-pathname (directorize-pathname-host-device path) absolute-source destination))
+    (t
+     (translate-pathname path absolute-source destination))))
+
 (defun* apply-output-translations (path)
   (etypecase path
     (logical-pathname
@@ -2939,20 +2955,7 @@ effectively disabling the output translation facility."
                                 (root (merge-pathnames* source root))
                                 (t source))
        :when (or (eq source t) (pathname-match-p p absolute-source))
-       :return
-       (cond
-         ((functionp destination)
-          (funcall destination p absolute-source))
-         ((eq destination t)
-          p)
-         ((not (pathnamep destination))
-          (error "invalid destination"))
-         ((not (absolute-pathname-p destination))
-          (translate-pathname p absolute-source (merge-pathnames* destination root)))
-         (root
-          (translate-pathname (directorize-pathname-host-device p) absolute-source destination))
-         (t
-          (translate-pathname p absolute-source destination)))
+       :return (translate-pathname* p absolute-source destination root source)
        :finally (return p)))))
 
 (defmethod output-files :around (operation component)
@@ -3134,7 +3137,8 @@ effectively disabling the output translation facility."
 (defvar *default-source-registry-exclusions*
   '(".bzr" ".cdv" "~.dep" "~.dot" "~.nib" "~.plst"
     ".git" ".hg" ".pc" ".svn" "CVS" "RCS" "SCCS" "_darcs"
-    "_sgbak" "autom4te.cache" "cover_db" "_build"))
+    "_sgbak" "autom4te.cache" "cover_db" "_build"
+    "debian")) ;; debian often build stuff under the debian directory... BAD.
 
 (defvar *source-registry-exclusions* *default-source-registry-exclusions*)
 
