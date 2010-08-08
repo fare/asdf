@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.113" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.114" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -195,7 +195,8 @@
            :redefined-functions
            (#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file #:operate #:find-component)
+            #:system-source-file #:operate #:find-component
+            #:apply-output-translations #:translate-pathname*)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
             #:split #:make-collector)
@@ -371,10 +372,16 @@ if it fails to create an output file when compiling.")
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
-(defmacro defgeneric* (name formals &rest options)
-  `(progn
-     #+(or gcl ecl) (fmakunbound ',name)
-     (defgeneric ,name ,formals ,@options)))
+(macrolet
+    ((defdef (def* def)
+       `(defmacro ,def* (name formals &rest rest)
+          `(progn
+             #+(or ecl gcl) (fmakunbound ',name)
+             ,(when (and #+ecl (symbolp name))
+                `(declaim (notinline ,name))) ; fails for setf functions on ecl
+             (,',def ,name ,formals ,@rest)))))
+  (defdef defgeneric* defgeneric)
+  (defdef defun* defun))
 
 (defgeneric* perform-with-restarts (operation component))
 (defgeneric* perform (operation component))
@@ -382,42 +389,42 @@ if it fails to create an output file when compiling.")
 (defgeneric* explain (operation component))
 (defgeneric* output-files (operation component))
 (defgeneric* input-files (operation component))
-(defgeneric component-operation-time (operation component))
+(defgeneric* component-operation-time (operation component))
 
 (defgeneric* system-source-file (system)
   (:documentation "Return the source file in which system is defined."))
 
-(defgeneric component-system (component)
+(defgeneric* component-system (component)
   (:documentation "Find the top-level system containing COMPONENT"))
 
-(defgeneric component-pathname (component)
+(defgeneric* component-pathname (component)
   (:documentation "Extracts the pathname applicable for a particular component."))
 
-(defgeneric component-relative-pathname (component)
+(defgeneric* component-relative-pathname (component)
   (:documentation "Returns a pathname for the component argument intended to be
 interpreted relative to the pathname of that component's parent.
 Despite the function's name, the return value may be an absolute
 pathname, because an absolute pathname may be interpreted relative to
 another pathname in a degenerate way."))
 
-(defgeneric component-property (component property))
+(defgeneric* component-property (component property))
 
-(defgeneric (setf component-property) (new-value component property))
+(defgeneric* (setf component-property) (new-value component property))
 
-(defgeneric version-satisfies (component version))
+(defgeneric* version-satisfies (component version))
 
 (defgeneric* find-component (base path)
   (:documentation "Finds the component with PATH starting from BASE module;
 if BASE is nil, then the component is assumed to be a system."))
 
-(defgeneric source-file-type (component system))
+(defgeneric* source-file-type (component system))
 
-(defgeneric operation-ancestor (operation)
+(defgeneric* operation-ancestor (operation)
   (:documentation
    "Recursively chase the operation's parent pointer until we get to
 the head of the tree"))
 
-(defgeneric component-visited-p (operation component)
+(defgeneric* component-visited-p (operation component)
   (:documentation "Returns the value stored by a call to
 VISIT-COMPONENT, if that has been called, otherwise NIL.
 This value stored will be a cons cell, the first element
@@ -430,7 +437,7 @@ to be performed in order to do OPERATION X COMPONENT.  If the
 data value is NIL, the combination had been explored, but no
 operations needed to be performed."))
 
-(defgeneric visit-component (operation component data)
+(defgeneric* visit-component (operation component data)
   (:documentation "Record DATA as being associated with OPERATION
 and COMPONENT.  This is a side-effecting function:  the association
 will be recorded on the ROOT OPERATION \(OPERATION-ANCESTOR of the
@@ -440,11 +447,11 @@ non-NIL.  Using the data field is probably very risky; if there is
 already a record for OPERATION X COMPONENT, DATA will be quietly
 discarded instead of recorded."))
 
-(defgeneric (setf visiting-component) (new-value operation component))
+(defgeneric* (setf visiting-component) (new-value operation component))
 
-(defgeneric component-visiting-p (operation component))
+(defgeneric* component-visiting-p (operation component))
 
-(defgeneric component-depends-on (operation component)
+(defgeneric* component-depends-on (operation component)
   (:documentation
    "Returns a list of dependencies needed by the component to perform
     the operation.  A dependency has one of the following forms:
@@ -461,9 +468,9 @@ discarded instead of recorded."))
     should usually append the results of CALL-NEXT-METHOD to the
     list."))
 
-(defgeneric component-self-dependencies (operation component))
+(defgeneric* component-self-dependencies (operation component))
 
-(defgeneric traverse (operation component)
+(defgeneric* traverse (operation component)
   (:documentation
 "Generate and return a plan for performing OPERATION on COMPONENT.
 
@@ -496,13 +503,13 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 (defmacro aif (test then &optional else)
   `(let ((it ,test)) (if it ,then ,else)))
 
-(defun pathname-directory-pathname (pathname)
+(defun* pathname-directory-pathname (pathname)
   "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
 and NIL NAME, TYPE and VERSION components"
   (when pathname
     (make-pathname :name nil :type nil :version nil :defaults pathname)))
 
-(defun merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
+(defun* merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
   "MERGE-PATHNAMES* is like MERGE-PATHNAMES except that if the SPECIFIED pathname
 does not have an absolute directory, then the HOST and DEVICE come from the DEFAULTS.
 Also, if either argument is NIL, then the other argument is returned unmodified."
@@ -556,17 +563,17 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
 (define-modify-macro orf (&rest args)
   or "or a flag")
 
-(defun first-char (s)
+(defun* first-char (s)
   (and (stringp s) (plusp (length s)) (char s 0)))
 
-(defun last-char (s)
+(defun* last-char (s)
   (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
-(defun asdf-message (format-string &rest format-args)
+(defun* asdf-message (format-string &rest format-args)
   (declare (dynamic-extent format-args))
   (apply #'format *verbose-out* format-string format-args))
 
-(defun split-string (string &key max (separator '(#\Space #\Tab)))
+(defun* split-string (string &key max (separator '(#\Space #\Tab)))
   "Split STRING into a list of components separated by
 any of the characters in the sequence SEPARATOR.
 If MAX is specified, then no more than max(1,MAX) components will be returned,
@@ -586,7 +593,7 @@ starting the separation from the end, e.g. when called with arguments
           (incf words)
           (setf end start))))))
 
-(defun split-name-type (filename)
+(defun* split-name-type (filename)
   (let ((unspecific
          ;; Giving :unspecific as argument to make-pathname is not portable.
          ;; See CLHS make-pathname and 19.2.2.2.3.
@@ -598,7 +605,7 @@ starting the separation from the end, e.g. when called with arguments
           (values filename unspecific)
           (values name type)))))
 
-(defun component-name-to-pathname-components (s &optional force-directory)
+(defun* component-name-to-pathname-components (s &optional force-directory)
   "Splits the path string S, returning three values:
 A flag that is either :absolute or :relative, indicating
    how the rest of the values are to be interpreted.
@@ -632,18 +639,18 @@ pathnames."
         (t
          (values relative (butlast components) last-comp))))))
 
-(defun remove-keys (key-names args)
+(defun* remove-keys (key-names args)
   (loop :for (name val) :on args :by #'cddr
     :unless (member (symbol-name name) key-names
                     :key #'symbol-name :test 'equal)
     :append (list name val)))
 
-(defun remove-keyword (key args)
+(defun* remove-keyword (key args)
   (loop :for (k v) :on args :by #'cddr
     :unless (eq k key)
     :append (list k v)))
 
-(defun getenv (x)
+(defun* getenv (x)
   (#+abcl ext:getenv
    #+allegro sys:getenv
    #+clisp ext:getenv
@@ -655,7 +662,7 @@ pathnames."
    #+sbcl sb-ext:posix-getenv
    x))
 
-(defun directory-pathname-p (pathname)
+(defun* directory-pathname-p (pathname)
   "Does PATHNAME represent a directory?
 
 A directory-pathname is a pathname _without_ a filename. The three
@@ -670,7 +677,7 @@ actually-existing directory."
          (check-one (pathname-type pathname))
          t)))
 
-(defun ensure-directory-pathname (pathspec)
+(defun* ensure-directory-pathname (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to directory form."
   (cond
    ((stringp pathspec)
@@ -688,10 +695,10 @@ actually-existing directory."
                    :name nil :type nil :version nil
                    :defaults pathspec))))
 
-(defun absolute-pathname-p (pathspec)
-  (eq :absolute (car (pathname-directory (pathname pathspec)))))
+(defun* absolute-pathname-p (pathspec)
+  (and pathspec (eq :absolute (car (pathname-directory (pathname pathspec))))))
 
-(defun length=n-p (x n) ;is it that (= (length x) n) ?
+(defun* length=n-p (x n) ;is it that (= (length x) n) ?
   (check-type n (integer 0 *))
   (loop
     :for l = x :then (cdr l)
@@ -700,14 +707,14 @@ actually-existing directory."
       ((zerop i) (return (null l)))
       ((not (consp l)) (return nil)))))
 
-(defun ends-with (s suffix)
+(defun* ends-with (s suffix)
   (check-type s string)
   (check-type suffix string)
   (let ((start (- (length s) (length suffix))))
     (and (<= 0 start)
          (string-equal s suffix :start1 start))))
 
-(defun read-file-forms (file)
+(defun* read-file-forms (file)
   (with-open-file (in file)
     (loop :with eof = (list nil)
      :for form = (read in nil eof)
@@ -718,7 +725,7 @@ actually-existing directory."
 (progn
   #+ecl #.(cl:and (cl:< ext:+ecl-version-number+ 100601)
                   '(ffi:clines "#include <sys/types.h>" "#include <unistd.h>"))
-  (defun get-uid ()
+  (defun* get-uid ()
     #+allegro (excl.osi:getuid)
     #+clisp (posix:uid)
     #+(or cmu scl) (unix:unix-getuid)
@@ -735,20 +742,20 @@ actually-existing directory."
         (handler-case (parse-integer (read-line stream))
           (error () (error "Unable to find out user ID")))))))
 
-(defun pathname-root (pathname)
+(defun* pathname-root (pathname)
   (make-pathname :host (pathname-host pathname)
                  :device (pathname-device pathname)
                  :directory '(:absolute)
                  :name nil :type nil :version nil))
 
-(defun probe-file* (p)
+(defun* probe-file* (p)
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
   (and (pathnamep p) (not (wild-pathname-p p))
        #+clisp (ext:probe-pathname p)
        #-clisp (probe-file p)))
 
-(defun truenamize (p)
+(defun* truenamize (p)
   "Resolve as much of a pathname as possible"
   (block nil
     (when (typep p 'logical-pathname) (return p))
@@ -781,24 +788,24 @@ with given pathname and if it exists return its truename."
             :finally
             (return (solution nil))))))))
 
-(defun resolve-symlinks (path)
+(defun* resolve-symlinks (path)
   #-allegro (truenamize path)
   #+allegro (excl:pathname-resolve-symbolic-links path))
 
-(defun default-directory ()
+(defun* default-directory ()
   (truenamize (pathname-directory-pathname *default-pathname-defaults*)))
 
-(defun lispize-pathname (input-file)
+(defun* lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
 
 (defparameter *wild-path*
   (make-pathname :directory '(:relative :wild-inferiors)
                  :name :wild :type :wild :version :wild))
 
-(defun wilden (path)
+(defun* wilden (path)
   (merge-pathnames* *wild-path* path))
 
-(defun directorize-pathname-host-device (pathname)
+(defun* directorize-pathname-host-device (pathname)
   (let* ((root (pathname-root pathname))
          (wild-root (wilden root))
          (absolute-pathname (merge-pathnames* pathname root))
@@ -915,7 +922,7 @@ with given pathname and if it exists return its truename."
    (properties :accessor component-properties :initarg :properties
                :initform nil)))
 
-(defun component-find-path (component)
+(defun* component-find-path (component)
   (reverse
    (loop :for c = component :then (component-parent c)
      :while c :collect (component-name c))))
@@ -931,7 +938,7 @@ with given pathname and if it exists return its truename."
   (format s "~@<~A, required by ~A~@:>"
           (call-next-method c nil) (missing-required-by c)))
 
-(defun sysdef-error (format &rest arguments)
+(defun* sysdef-error (format &rest arguments)
   (error 'formatted-system-definition-error :format-control
          format :format-arguments arguments))
 
@@ -959,7 +966,7 @@ with given pathname and if it exists return its truename."
 
 (defvar *default-component-class* 'cl-source-file)
 
-(defun compute-module-components-by-name (module)
+(defun* compute-module-components-by-name (module)
   (let ((hash (make-hash-table :test 'equal)))
     (setf (module-components-by-name module) hash)
     (loop :for c :in (module-components module)
@@ -989,7 +996,7 @@ with given pathname and if it exists return its truename."
     :initarg :default-component-class
     :accessor module-default-component-class)))
 
-(defun component-parent-pathname (component)
+(defun* component-parent-pathname (component)
   ;; No default anymore (in particular, no *default-pathname-defaults*).
   ;; If you force component to have a NULL pathname, you better arrange
   ;; for any of its children to explicitly provide a proper absolute pathname
@@ -1057,7 +1064,7 @@ with given pathname and if it exists return its truename."
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding systems
 
-(defun make-defined-systems-table ()
+(defun* make-defined-systems-table ()
   (make-hash-table :test 'equal))
 
 (defvar *defined-systems* (make-defined-systems-table)
@@ -1067,17 +1074,17 @@ element of which is a universal-time indicating when the
 system definition was last updated, and the second element
 of which is a system object.")
 
-(defun coerce-name (name)
+(defun* coerce-name (name)
   (typecase name
     (component (component-name name))
     (symbol (string-downcase (symbol-name name)))
     (string name)
     (t (sysdef-error "~@<invalid component designator ~A~@:>" name))))
 
-(defun system-registered-p (name)
+(defun* system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
 
-(defun clear-system (name)
+(defun* clear-system (name)
   "Clear the entry for a system in the database of systems previously loaded.
 Note that this does NOT in any way cause the code of the system to be unloaded."
   ;; There is no "unload" operation in Common Lisp, and a general such operation
@@ -1088,7 +1095,7 @@ Note that this does NOT in any way cause the code of the system to be unloaded."
   ;; that the system was loaded at some point.
   (setf (gethash (coerce-name name) *defined-systems*) nil))
 
-(defun map-systems (fn)
+(defun* map-systems (fn)
   "Apply FN to each defined system.
 
 FN should be a function of one argument. It will be
@@ -1106,7 +1113,7 @@ called with an object of type asdf:system."
 (defparameter *system-definition-search-functions*
   '(sysdef-central-registry-search sysdef-source-registry-search sysdef-find-asdf))
 
-(defun system-definition-pathname (system)
+(defun* system-definition-pathname (system)
   (let ((system-name (coerce-name system)))
     (or
      (some (lambda (x) (funcall x system-name))
@@ -1130,7 +1137,7 @@ This is for backward compatibilily.
 Going forward, we recommend new users should be using the source-registry.
 ")
 
-(defun probe-asd (name defaults)
+(defun* probe-asd (name defaults)
   (block nil
     (when (directory-pathname-p defaults)
       (let ((file
@@ -1151,7 +1158,7 @@ Going forward, we recommend new users should be using the source-registry.
             (when target
               (return (pathname target)))))))))
 
-(defun sysdef-central-registry-search (system)
+(defun* sysdef-central-registry-search (system)
   (let ((name (coerce-name system))
         (to-remove nil)
         (to-replace nil))
@@ -1193,7 +1200,7 @@ to ~S which is not a directory.~@:>"
                           (list new)
                           (subseq *central-registry* (1+ position))))))))))
 
-(defun make-temporary-package ()
+(defun* make-temporary-package ()
   (flet ((try (counter)
            (ignore-errors
              (make-package (format nil "~A~D" :asdf counter)
@@ -1202,7 +1209,7 @@ to ~S which is not a directory.~@:>"
           (package (try counter) (try counter)))
          (package package))))
 
-(defun safe-file-write-date (pathname)
+(defun* safe-file-write-date (pathname)
   ;; If FILE-WRITE-DATE returns NIL, it's possible that
   ;; the user or some other agent has deleted an input file.
   ;; Also, generated files will not exist at the time planning is done
@@ -1218,7 +1225,7 @@ to ~S which is not a directory.~@:>"
                 pathname))
         0)))
 
-(defun find-system (name &optional (error-p t))
+(defun* find-system (name &optional (error-p t))
   (catch 'find-system
     (let* ((name (coerce-name name))
            (in-memory (system-registered-p name))
@@ -1246,12 +1253,12 @@ to ~S which is not a directory.~@:>"
                    (cdr in-memory))
             (when error-p (error 'missing-component :requires name)))))))
 
-(defun register-system (name system)
+(defun* register-system (name system)
   (asdf-message "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
 
-(defun sysdef-find-asdf (system)
+(defun* sysdef-find-asdf (system)
   (let ((name (coerce-name system)))
     (when (equal name "asdf")
       (let* ((registered (cdr (gethash name *defined-systems*)))
@@ -1317,7 +1324,7 @@ to ~S which is not a directory.~@:>"
   (declare (ignorable s))
   (source-file-explicit-type component))
 
-(defun merge-component-name-type (name &key type defaults)
+(defun* merge-component-name-type (name &key type defaults)
   ;; The defaults are required notably because they provide the default host
   ;; to the below make-pathname, which may crucially matter to people using
   ;; merge-pathnames with non-default hosts,  e.g. for logical-pathnames.
@@ -1389,7 +1396,7 @@ to ~S which is not a directory.~@:>"
   ;; empty method to disable initarg validity checking
   (values))
 
-(defun node-for (o c)
+(defun* node-for (o c)
   (cons (class-name (class-of o)) c))
 
 (defmethod operation-ancestor ((operation operation))
@@ -1398,7 +1405,7 @@ to ~S which is not a directory.~@:>"
        operation))
 
 
-(defun make-sub-operation (c o dep-c dep-o)
+(defun* make-sub-operation (c o dep-c dep-o)
   "C is a component, O is an operation, DEP-C is another
 component, and DEP-O, confusingly enough, is an operation
 class specifier, not an operation."
@@ -1543,9 +1550,9 @@ class specifier, not an operation."
   "This dynamically-bound variable is used to force operations in
 recursive calls to traverse.")
 
-(defgeneric do-traverse (operation component collect))
+(defgeneric* do-traverse (operation component collect))
 
-(defun %do-one-dep (operation c collect required-op required-c required-v)
+(defun* %do-one-dep (operation c collect required-op required-c required-v)
   ;; collects a partial plan that results from performing required-op
   ;; on required-c, possibly with a required-vERSION
   (let* ((dep-c (or (let ((d (find-component (component-parent c) required-c)))
@@ -1561,7 +1568,7 @@ recursive calls to traverse.")
          (op (make-sub-operation c operation dep-c required-op)))
     (do-traverse op dep-c collect)))
 
-(defun do-one-dep (operation c collect required-op required-c required-v)
+(defun* do-one-dep (operation c collect required-op required-c required-v)
   ;; this function is a thin, error-handling wrapper around
   ;; %do-one-dep.  Returns a partial plan per that function.
   (loop
@@ -1586,7 +1593,7 @@ recursive calls to traverse.")
                    (equalp (missing-requires c)
                            required-c))))))))
 
-(defun do-dep (operation c collect op dep)
+(defun* do-dep (operation c collect op dep)
   ;; type of arguments uncertain:
   ;; op seems to at least potentially be a symbol, rather than an operation
   ;; dep is a list of component names
@@ -1625,7 +1632,7 @@ recursive calls to traverse.")
                           (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name" d))))))
            flag))))
 
-(defun do-collect (collect x)
+(defun* do-collect (collect x)
   (funcall collect x))
 
 (defmethod do-traverse ((operation operation) (c component) collect)
@@ -1713,7 +1720,7 @@ recursive calls to traverse.")
       (visit-component operation c flag)
       flag))
 
-(defun flatten-tree (l)
+(defun* flatten-tree (l)
   ;; You collected things into a list.
   ;; Most elements are just things to collect again.
   ;; A (simple-vector 1) indicate that you should recurse into its contents.
@@ -2012,7 +2019,7 @@ recursive calls to traverse.")
                 (return)))))))
     op))
 
-(defun oos (operation-class system &rest args &key force verbose version
+(defun* oos (operation-class system &rest args &key force verbose version
             &allow-other-keys)
   (declare (ignore force verbose version))
   (apply #'operate operation-class system args))
@@ -2042,21 +2049,21 @@ created with the same initargs as the original one.
   (setf (documentation 'operate 'function)
         operate-docstring))
 
-(defun load-system (system &rest args &key force verbose version
+(defun* load-system (system &rest args &key force verbose version
                     &allow-other-keys)
   "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
   (apply #'operate 'load-op system args))
 
-(defun compile-system (system &rest args &key force verbose version
+(defun* compile-system (system &rest args &key force verbose version
                        &allow-other-keys)
   "Shorthand for `(operate 'asdf:compile-op system)`. See OPERATE
 for details."
   (declare (ignore force verbose version))
   (apply #'operate 'compile-op system args))
 
-(defun test-system (system &rest args &key force verbose version
+(defun* test-system (system &rest args &key force verbose version
                     &allow-other-keys)
   "Shorthand for `(operate 'asdf:test-op system)`. See OPERATE for
 details."
@@ -2066,13 +2073,13 @@ details."
 ;;;; -------------------------------------------------------------------------
 ;;;; Defsystem
 
-(defun load-pathname ()
+(defun* load-pathname ()
   (let ((pn (or *load-pathname* *compile-file-pathname*)))
     (if *resolve-symlinks*
         (and pn (resolve-symlinks pn))
         pn)))
 
-(defun determine-system-pathname (pathname pathname-supplied-p)
+(defun* determine-system-pathname (pathname pathname-supplied-p)
   ;; The defsystem macro calls us to determine
   ;; the pathname of a system as follows:
   ;; 1. the one supplied,
@@ -2112,7 +2119,7 @@ details."
                ,(determine-system-pathname pathname pathname-arg-p)
                ',component-options))))))
 
-(defun class-for-type (parent type)
+(defun* class-for-type (parent type)
   (or (loop :for symbol :in (list
                              (unless (keywordp type) type)
                              (find-symbol (symbol-name type) *package*)
@@ -2125,7 +2132,7 @@ details."
                (find-class *default-component-class*)))
       (sysdef-error "~@<don't recognize component type ~A~@:>" type)))
 
-(defun maybe-add-tree (tree op1 op2 c)
+(defun* maybe-add-tree (tree op1 op2 c)
   "Add the node C at /OP1/OP2 in TREE, unless it's there already.
 Returns the new tree (which probably shares structure with the old one)"
   (let ((first-op-tree (assoc op1 tree)))
@@ -2140,7 +2147,7 @@ Returns the new tree (which probably shares structure with the old one)"
           tree)
         (acons op1 (list (list op2 c)) tree))))
 
-(defun union-of-dependencies (&rest deps)
+(defun* union-of-dependencies (&rest deps)
   (let ((new-tree nil))
     (dolist (dep deps)
       (dolist (op-tree dep)
@@ -2153,12 +2160,12 @@ Returns the new tree (which probably shares structure with the old one)"
 
 (defvar *serial-depends-on* nil)
 
-(defun sysdef-error-component (msg type name value)
+(defun* sysdef-error-component (msg type name value)
   (sysdef-error (concatenate 'string msg
                              "~&The value specified for ~(~A~) ~A is ~S")
                 type name value))
 
-(defun check-component-input (type name weakly-depends-on
+(defun* check-component-input (type name weakly-depends-on
                               depends-on components in-order-to)
   "A partial test of the values of a component."
   (unless (listp depends-on)
@@ -2174,7 +2181,7 @@ Returns the new tree (which probably shares structure with the old one)"
     (sysdef-error-component ":in-order-to must be NIL or a list of components."
                             type name in-order-to)))
 
-(defun %remove-component-inline-methods (component)
+(defun* %remove-component-inline-methods (component)
   (dolist (name +asdf-methods+)
     (map ()
          ;; this is inefficient as most of the stored
@@ -2186,7 +2193,7 @@ Returns the new tree (which probably shares structure with the old one)"
   ;; clear methods, then add the new ones
   (setf (component-inline-methods component) nil))
 
-(defun %define-component-inline-methods (ret rest)
+(defun* %define-component-inline-methods (ret rest)
   (dolist (name +asdf-methods+)
     (let ((keyword (intern (symbol-name name) :keyword)))
       (loop :for data = rest :then (cddr data)
@@ -2200,11 +2207,11 @@ Returns the new tree (which probably shares structure with the old one)"
                              ,@body))
            (component-inline-methods ret)))))))
 
-(defun %refresh-component-inline-methods (component rest)
+(defun* %refresh-component-inline-methods (component rest)
   (%remove-component-inline-methods component)
   (%define-component-inline-methods component rest))
 
-(defun parse-component-form (parent options)
+(defun* parse-component-form (parent options)
   (destructuring-bind
         (type name &rest rest &key
               ;; the following list of keywords is reproduced below in the
@@ -2285,7 +2292,7 @@ Returns the new tree (which probably shares structure with the old one)"
 ;;;; it, and even after it's been deprecated, we will support it for a few
 ;;;; years so everyone has time to migrate away from it. -- fare 2009-12-01
 
-(defun run-shell-command (control-string &rest args)
+(defun* run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
 output to *VERBOSE-OUT*.  Returns the shell's exit code."
@@ -2357,7 +2364,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 (defmethod system-source-file ((system-name symbol))
   (system-source-file (find-system system-name)))
 
-(defun system-source-directory (system-designator)
+(defun* system-source-directory (system-designator)
   "Return a pathname object corresponding to the
 directory in which the system specification (.asd file) is
 located."
@@ -2365,7 +2372,7 @@ located."
                  :type nil
                  :defaults (system-source-file system-designator)))
 
-(defun relativize-directory (directory)
+(defun* relativize-directory (directory)
   (cond
     ((stringp directory)
      (list :relative directory))
@@ -2374,13 +2381,13 @@ located."
     (t
      directory)))
 
-(defun relativize-pathname-directory (pathspec)
+(defun* relativize-pathname-directory (pathspec)
   (let ((p (pathname pathspec)))
     (make-pathname
      :directory (relativize-directory (pathname-directory p))
      :defaults p)))
 
-(defun system-relative-pathname (system name &key type)
+(defun* system-relative-pathname (system name &key type)
   (merge-pathnames*
    (merge-component-name-type name :type type)
    (system-source-directory system)))
@@ -2411,7 +2418,7 @@ located."
     :java-1.4 :java-1.5 :java-1.6 :java-1.7))
 
 
-(defun lisp-version-string ()
+(defun* lisp-version-string ()
   (let ((s (lisp-implementation-version)))
     (declare (ignorable s))
     #+allegro (format nil
@@ -2446,7 +2453,7 @@ located."
     #-(or allegro armedbear clisp clozure cmu cormanlisp digitool
           ecl gcl lispworks mcl sbcl scl) s))
 
-(defun first-feature (features)
+(defun* first-feature (features)
   (labels
       ((fp (thing)
          (etypecase thing
@@ -2462,10 +2469,10 @@ located."
     (loop :for f :in features
       :when (fp f) :return :it)))
 
-(defun implementation-type ()
+(defun* implementation-type ()
   (first-feature *implementation-features*))
 
-(defun implementation-identifier ()
+(defun* implementation-identifier ()
   (labels
       ((maybe-warn (value fstring &rest args)
          (cond (value)
@@ -2495,16 +2502,16 @@ located."
   #+(or unix cygwin) #\:
   #-(or unix cygwin) #\;)
 
-(defun user-homedir ()
+(defun* user-homedir ()
   (truename (user-homedir-pathname)))
 
-(defun try-directory-subpath (x sub &key type)
+(defun* try-directory-subpath (x sub &key type)
   (let* ((p (and x (ensure-directory-pathname x)))
          (tp (and p (probe-file* p)))
          (sp (and tp (merge-pathnames* (merge-component-name-type sub :type type) p)))
          (ts (and sp (probe-file* sp))))
     (and ts (values sp ts))))
-(defun user-configuration-directories ()
+(defun* user-configuration-directories ()
   (remove-if
    #'null
    (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
@@ -2517,7 +2524,7 @@ located."
             ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
            ,(try (getenv "APPDATA") "common-lisp/config/"))
        ,(try (user-homedir) ".config/common-lisp/")))))
-(defun system-configuration-directories ()
+(defun* system-configuration-directories ()
   (remove-if
    #'null
    (append
@@ -2527,20 +2534,20 @@ located."
            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
         ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))))
     (list #p"/etc/common-lisp/"))))
-(defun in-first-directory (dirs x)
+(defun* in-first-directory (dirs x)
   (loop :for dir :in dirs
     :thereis (and dir (probe-file* (merge-pathnames* x (ensure-directory-pathname dir))))))
-(defun in-user-configuration-directory (x)
+(defun* in-user-configuration-directory (x)
   (in-first-directory (user-configuration-directories) x))
-(defun in-system-configuration-directory (x)
+(defun* in-system-configuration-directory (x)
   (in-first-directory (system-configuration-directories) x))
 
-(defun configuration-inheritance-directive-p (x)
+(defun* configuration-inheritance-directive-p (x)
   (let ((kw '(:inherit-configuration :ignore-inherited-configuration)))
     (or (member x kw)
         (and (length=n-p x 1) (member (car x) kw)))))
 
-(defun validate-configuration-form (form tag directive-validator
+(defun* validate-configuration-form (form tag directive-validator
                                     &optional (description tag))
   (unless (and (consp form) (eq (car form) tag))
     (error "Error: Form doesn't specify ~A ~S~%" description form))
@@ -2555,16 +2562,16 @@ located."
              :inherit-configuration :ignore-inherited-configuration)))
   form)
 
-(defun validate-configuration-file (file validator description)
+(defun* validate-configuration-file (file validator description)
   (let ((forms (read-file-forms file)))
     (unless (length=n-p forms 1)
       (error "One and only one form allowed for ~A. Got: ~S~%" description forms))
     (funcall validator (car forms))))
 
-(defun hidden-file-p (pathname)
+(defun* hidden-file-p (pathname)
   (equal (first-char (pathname-name pathname)) #\.))
 
-(defun validate-configuration-directory (directory tag validator)
+(defun* validate-configuration-directory (directory tag validator)
   (let ((files (sort (ignore-errors
                        (remove-if
                         'hidden-file-p
@@ -2602,10 +2609,10 @@ and the order is by decreasing length of namestring of the source pathname.")
   ;; with other users messing with such directories.
   *user-cache*)
 
-(defun output-translations ()
+(defun* output-translations ()
   (car *output-translations*))
 
-(defun (setf output-translations) (new-value)
+(defun* (setf output-translations) (new-value)
   (setf *output-translations*
         (list
          (stable-sort (copy-list new-value) #'>
@@ -2616,10 +2623,10 @@ and the order is by decreasing length of namestring of the source pathname.")
                                 (length (pathname-directory (car x)))))))))
   new-value)
 
-(defun output-translations-initialized-p ()
+(defun* output-translations-initialized-p ()
   (and *output-translations* t))
 
-(defun clear-output-translations ()
+(defun* clear-output-translations ()
   "Undoes any initialization of the output translations.
 You might want to call that before you dump an image that would be resumed
 with a different configuration, so the configuration would be re-read then."
@@ -2630,11 +2637,10 @@ with a different configuration, so the configuration would be re-read then."
   (make-pathname :directory '(:relative :wild-inferiors)
                  :name :wild :type "asd" :version :newest))
 
-
-(declaim (ftype (function (t &optional boolean) (or null pathname))
+(declaim (ftype (function (t &optional boolean) (values (or null pathname) &optional))
                 resolve-location))
 
-(defun resolve-relative-location-component (super x &optional wildenp)
+(defun* resolve-relative-location-component (super x &optional wildenp)
   (let* ((r (etypecase x
               (pathname x)
               (string x)
@@ -2659,7 +2665,7 @@ with a different configuration, so the configuration would be re-read then."
       (error "pathname ~S is not relative to ~S" s super))
     (merge-pathnames* s super)))
 
-(defun resolve-absolute-location-component (x wildenp)
+(defun* resolve-absolute-location-component (x wildenp)
   (let* ((r
           (etypecase x
             (pathname x)
@@ -2687,7 +2693,7 @@ with a different configuration, so the configuration would be re-read then."
       (error "Not an absolute pathname ~S" s))
     s))
 
-(defun resolve-location (x &optional wildenp)
+(defun* resolve-location (x &optional wildenp)
   (if (atom x)
       (resolve-absolute-location-component x wildenp)
       (loop :with path = (resolve-absolute-location-component (car x) nil)
@@ -2696,11 +2702,11 @@ with a different configuration, so the configuration would be re-read then."
                         path component (and wildenp (not morep))))
         :finally (return path))))
 
-(defun location-designator-p (x)
+(defun* location-designator-p (x)
   (flet ((componentp (c) (typep c '(or string pathname keyword))))
     (or (typep x 'boolean) (componentp x) (and (consp x) (every #'componentp x)))))
 
-(defun location-function-p (x)
+(defun* location-function-p (x)
   (and
    (consp x)
    (length=n-p x 2)
@@ -2710,7 +2716,7 @@ with a different configuration, so the configuration would be re-read then."
             (cddr x)
             (length=n-p (second x) 2)))))
 
-(defun validate-output-translations-directive (directive)
+(defun* validate-output-translations-directive (directive)
   (unless
       (or (member directive '(:inherit-configuration
                               :ignore-inherited-configuration
@@ -2727,22 +2733,22 @@ with a different configuration, so the configuration would be re-read then."
     (error "Invalid directive ~S~%" directive))
   directive)
 
-(defun validate-output-translations-form (form)
+(defun* validate-output-translations-form (form)
   (validate-configuration-form
    form
    :output-translations
    'validate-output-translations-directive
    "output translations"))
 
-(defun validate-output-translations-file (file)
+(defun* validate-output-translations-file (file)
   (validate-configuration-file
    file 'validate-output-translations-form "output translations"))
 
-(defun validate-output-translations-directory (directory)
+(defun* validate-output-translations-directory (directory)
   (validate-configuration-directory
    directory :output-translations 'validate-output-translations-directive))
 
-(defun parse-output-translations-string (string)
+(defun* parse-output-translations-string (string)
   (cond
     ((or (null string) (equal string ""))
      '(:output-translations :inherit-configuration))
@@ -2787,7 +2793,7 @@ with a different configuration, so the configuration would be re-read then."
     system-output-translations-pathname
     system-output-translations-directory-pathname))
 
-(defun wrapping-output-translations ()
+(defun* wrapping-output-translations ()
   `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
@@ -2805,18 +2811,18 @@ with a different configuration, so the configuration would be re-read then."
 (defparameter *output-translations-file* #p"asdf-output-translations.conf")
 (defparameter *output-translations-directory* #p"asdf-output-translations.conf.d/")
 
-(defun user-output-translations-pathname ()
+(defun* user-output-translations-pathname ()
   (in-user-configuration-directory *output-translations-file* ))
-(defun system-output-translations-pathname ()
+(defun* system-output-translations-pathname ()
   (in-system-configuration-directory *output-translations-file*))
-(defun user-output-translations-directory-pathname ()
+(defun* user-output-translations-directory-pathname ()
   (in-user-configuration-directory *output-translations-directory*))
-(defun system-output-translations-directory-pathname ()
+(defun* system-output-translations-directory-pathname ()
   (in-system-configuration-directory *output-translations-directory*))
-(defun environment-output-translations ()
+(defun* environment-output-translations ()
   (getenv "ASDF_OUTPUT_TRANSLATIONS"))
 
-(defgeneric process-output-translations (spec &key inherit collect))
+(defgeneric* process-output-translations (spec &key inherit collect))
 (declaim (ftype (function (t &key (:collect (or symbol function))) t)
                 inherit-output-translations))
 (declaim (ftype (function (t &key (:collect (or symbol function)) (:inherit list)) t)
@@ -2846,11 +2852,11 @@ with a different configuration, so the configuration would be re-read then."
   (dolist (directive (cdr (validate-output-translations-form form)))
     (process-output-translations-directive directive :inherit inherit :collect collect)))
 
-(defun inherit-output-translations (inherit &key collect)
+(defun* inherit-output-translations (inherit &key collect)
   (when inherit
     (process-output-translations (first inherit) :collect collect :inherit (rest inherit))))
 
-(defun process-output-translations-directive (directive &key inherit collect)
+(defun* process-output-translations-directive (directive &key inherit collect)
   (if (atom directive)
       (ecase directive
         ((:enable-user-cache)
@@ -2888,7 +2894,7 @@ with a different configuration, so the configuration would be re-read then."
                      (funcall collect (list wilddst t))
                      (funcall collect (list trusrc trudst)))))))))))
 
-(defun compute-output-translations (&optional parameter)
+(defun* compute-output-translations (&optional parameter)
   "read the configuration, return it"
   (remove-duplicates
    (while-collecting (c)
@@ -2896,12 +2902,12 @@ with a different configuration, so the configuration would be re-read then."
       `(wrapping-output-translations ,parameter ,@*default-output-translations*) :collect #'c))
    :test 'equal :from-end t))
 
-(defun initialize-output-translations (&optional parameter)
+(defun* initialize-output-translations (&optional parameter)
   "read the configuration, initialize the internal configuration variable,
 return the configuration"
   (setf (output-translations) (compute-output-translations parameter)))
 
-(defun disable-output-translations ()
+(defun* disable-output-translations ()
   "Initialize output translations in a way that maps every file to itself,
 effectively disabling the output translation facility."
   (initialize-output-translations
@@ -2911,12 +2917,12 @@ effectively disabling the output translation facility."
 ;; or cleared. In the former case, return current configuration; in
 ;; the latter, initialize.  ASDF will call this function at the start
 ;; of (asdf:find-system).
-(defun ensure-output-translations ()
+(defun* ensure-output-translations ()
   (if (output-translations-initialized-p)
       (output-translations)
       (initialize-output-translations)))
 
-(defun apply-output-translations (path)
+(defun* apply-output-translations (path)
   (etypecase path
     (logical-pathname
      path)
@@ -2959,23 +2965,23 @@ effectively disabling the output translation facility."
          (mapcar #'apply-output-translations files)))
    t))
 
-(defun compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
+(defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
   (or output-file
       (apply-output-translations
        (apply 'compile-file-pathname
               (truenamize (lispize-pathname input-file))
               keys))))
 
-(defun tmpize-pathname (x)
+(defun* tmpize-pathname (x)
   (make-pathname
    :name (format nil "ASDF-TMP-~A" (pathname-name x))
    :defaults x))
 
-(defun delete-file-if-exists (x)
+(defun* delete-file-if-exists (x)
   (when (and x (probe-file x))
     (delete-file x)))
 
-(defun compile-file* (input-file &rest keys &key &allow-other-keys)
+(defun* compile-file* (input-file &rest keys &key &allow-other-keys)
   (let* ((output-file (apply 'compile-file-pathname* input-file keys))
          (tmp-file (tmpize-pathname output-file))
          (status :error))
@@ -3000,7 +3006,7 @@ effectively disabling the output translation facility."
       (values output-truename warnings-p failure-p))))
 
 #+abcl
-(defun translate-jar-pathname (source wildcard)
+(defun* translate-jar-pathname (source wildcard)
   (declare (ignore wildcard))
   (let* ((p (pathname (first (pathname-device source))))
          (root (format nil "/___jar___file___root___/~@[~A/~]"
@@ -3016,7 +3022,7 @@ effectively disabling the output translation facility."
 ;;;; -----------------------------------------------------------------
 ;;;; Compatibility mode for ASDF-Binary-Locations
 
-(defun enable-asdf-binary-locations-compatibility
+(defun* enable-asdf-binary-locations-compatibility
     (&key
      (centralize-lisp-binaries nil)
      (default-toplevel-directory
@@ -3055,18 +3061,18 @@ effectively disabling the output translation facility."
 (defparameter *link-initial-dword* 76)
 (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
 
-(defun read-null-terminated-string (s)
+(defun* read-null-terminated-string (s)
   (with-output-to-string (out)
     (loop :for code = (read-byte s)
       :until (zerop code)
       :do (write-char (code-char code) out))))
 
-(defun read-little-endian (s &optional (bytes 4))
+(defun* read-little-endian (s &optional (bytes 4))
   (loop
     :for i :from 0 :below bytes
     :sum (ash (read-byte s) (* 8 i))))
 
-(defun parse-file-location-info (s)
+(defun* parse-file-location-info (s)
   (let ((start (file-position s))
         (total-length (read-little-endian s))
         (end-of-header (read-little-endian s))
@@ -3090,7 +3096,7 @@ effectively disabling the output translation facility."
           (file-position s (+ start remaining-offset))
           (read-null-terminated-string s))))))
 
-(defun parse-windows-shortcut (pathname)
+(defun* parse-windows-shortcut (pathname)
   (with-open-file (s pathname :element-type '(unsigned-byte 8))
     (handler-case
         (when (and (= (read-little-endian s) *link-initial-dword*)
@@ -3136,24 +3142,24 @@ effectively disabling the output translation facility."
   "Either NIL (for uninitialized), or a list of one element,
 said element itself being a list of directory pathnames where to look for .asd files")
 
-(defun source-registry ()
+(defun* source-registry ()
   (car *source-registry*))
 
-(defun (setf source-registry) (new-value)
+(defun* (setf source-registry) (new-value)
   (setf *source-registry* (list new-value))
   new-value)
 
-(defun source-registry-initialized-p ()
+(defun* source-registry-initialized-p ()
   (and *source-registry* t))
 
-(defun clear-source-registry ()
+(defun* clear-source-registry ()
   "Undoes any initialization of the source registry.
 You might want to call that before you dump an image that would be resumed
 with a different configuration, so the configuration would be re-read then."
   (setf *source-registry* '())
   (values))
 
-(defun validate-source-registry-directive (directive)
+(defun* validate-source-registry-directive (directive)
   (unless
       (or (member directive '(:default-registry (:default-registry)) :test 'equal)
           (destructuring-bind (kw &rest rest) directive
@@ -3167,19 +3173,19 @@ with a different configuration, so the configuration would be re-read then."
     (error "Invalid directive ~S~%" directive))
   directive)
 
-(defun validate-source-registry-form (form)
+(defun* validate-source-registry-form (form)
   (validate-configuration-form
    form :source-registry 'validate-source-registry-directive "a source registry"))
 
-(defun validate-source-registry-file (file)
+(defun* validate-source-registry-file (file)
   (validate-configuration-file
    file 'validate-source-registry-form "a source registry"))
 
-(defun validate-source-registry-directory (directory)
+(defun* validate-source-registry-directory (directory)
   (validate-configuration-directory
    directory :source-registry 'validate-source-registry-directive))
 
-(defun parse-source-registry-string (string)
+(defun* parse-source-registry-string (string)
   (cond
     ((or (null string) (equal string ""))
      '(:source-registry :inherit-configuration))
@@ -3213,7 +3219,7 @@ with a different configuration, so the configuration would be re-read then."
              (push '(:ignore-inherited-configuration) directives))
            (return `(:source-registry ,@(nreverse directives))))))))))
 
-(defun register-asd-directory (directory &key recurse exclude collect)
+(defun* register-asd-directory (directory &key recurse exclude collect)
   (if (not recurse)
       (funcall collect directory)
       (let* ((files
@@ -3244,12 +3250,12 @@ with a different configuration, so the configuration would be re-read then."
 (defparameter *source-registry-file* #p"source-registry.conf")
 (defparameter *source-registry-directory* #p"source-registry.conf.d/")
 
-(defun wrapping-source-registry ()
+(defun* wrapping-source-registry ()
   `(:source-registry
     #+sbcl (:tree ,(getenv "SBCL_HOME"))
     :inherit-configuration
     #+cmu (:tree #p"modules:")))
-(defun default-source-registry ()
+(defun* default-source-registry ()
   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
     `(:source-registry
       #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir)))
@@ -3275,18 +3281,18 @@ with a different configuration, so the configuration would be re-read then."
            :collect `(:directory ,(try dir "common-lisp/systems/"))
            :collect `(:tree ,(try dir "common-lisp/source/"))))
       :inherit-configuration)))
-(defun user-source-registry ()
+(defun* user-source-registry ()
   (in-user-configuration-directory *source-registry-file*))
-(defun system-source-registry ()
+(defun* system-source-registry ()
   (in-system-configuration-directory *source-registry-file*))
-(defun user-source-registry-directory ()
+(defun* user-source-registry-directory ()
   (in-user-configuration-directory *source-registry-directory*))
-(defun system-source-registry-directory ()
+(defun* system-source-registry-directory ()
   (in-system-configuration-directory *source-registry-directory*))
-(defun environment-source-registry ()
+(defun* environment-source-registry ()
   (getenv "CL_SOURCE_REGISTRY"))
 
-(defgeneric process-source-registry (spec &key inherit register))
+(defgeneric* process-source-registry (spec &key inherit register))
 (declaim (ftype (function (t &key (:register (or symbol function))) t)
                 inherit-source-registry))
 (declaim (ftype (function (t &key (:register (or symbol function)) (:inherit list)) t)
@@ -3315,11 +3321,11 @@ with a different configuration, so the configuration would be re-read then."
     (dolist (directive (cdr (validate-source-registry-form form)))
       (process-source-registry-directive directive :inherit inherit :register register))))
 
-(defun inherit-source-registry (inherit &key register)
+(defun* inherit-source-registry (inherit &key register)
   (when inherit
     (process-source-registry (first inherit) :register register :inherit (rest inherit))))
 
-(defun process-source-registry-directive (directive &key inherit register)
+(defun* process-source-registry-directive (directive &key inherit register)
   (destructuring-bind (kw &rest rest) (if (consp directive) directive (list directive))
     (ecase kw
       ((:include)
@@ -3345,7 +3351,7 @@ with a different configuration, so the configuration would be re-read then."
        nil)))
   nil)
 
-(defun flatten-source-registry (&optional parameter)
+(defun* flatten-source-registry (&optional parameter)
   (remove-duplicates
    (while-collecting (collect)
      (inherit-source-registry
@@ -3358,7 +3364,7 @@ with a different configuration, so the configuration would be re-read then."
 
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.
-(defun compute-source-registry (&optional parameter)
+(defun* compute-source-registry (&optional parameter)
   (while-collecting (collect)
     (dolist (entry (flatten-source-registry parameter))
       (destructuring-bind (directory &key recurse exclude) entry
@@ -3366,7 +3372,7 @@ with a different configuration, so the configuration would be re-read then."
          directory
          :recurse recurse :exclude exclude :collect #'collect)))))
 
-(defun initialize-source-registry (&optional parameter)
+(defun* initialize-source-registry (&optional parameter)
   (setf (source-registry) (compute-source-registry parameter)))
 
 ;; Checks an initial variable to see whether the state is initialized
@@ -3377,12 +3383,12 @@ with a different configuration, so the configuration would be re-read then."
 ;; will be too late to provide a parameter to this function, though
 ;; you may override the configuration explicitly by calling
 ;; initialize-source-registry directly with your parameter.
-(defun ensure-source-registry (&optional parameter)
+(defun* ensure-source-registry (&optional parameter)
   (if (source-registry-initialized-p)
       (source-registry)
       (initialize-source-registry parameter)))
 
-(defun sysdef-source-registry-search (system)
+(defun* sysdef-source-registry-search (system)
   (ensure-source-registry)
   (loop :with name = (coerce-name system)
     :for defaults :in (source-registry)
@@ -3394,7 +3400,7 @@ with a different configuration, so the configuration would be re-read then."
 ;;;;
 #+(or abcl clozure cmu ecl sbcl)
 (progn
-  (defun module-provide-asdf (name)
+  (defun* module-provide-asdf (name)
     (handler-bind
         ((style-warning #'muffle-warning)
          (missing-component (constantly nil))
