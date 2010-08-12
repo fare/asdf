@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.116" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.117" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -753,8 +753,10 @@ actually-existing directory."
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
   (and (pathnamep p) (not (wild-pathname-p p))
+       #+(or allegro clozure cmu ecl sbcl scl) (probe-file p)
        #+clisp (ext:probe-pathname p)
-       #-clisp (probe-file p)))
+       #-(or allegro clisp clozure cmu ecl sbcl scl)
+       (ignore-errors (truename p))))
 
 (defun* truenamize (p)
   "Resolve as much of a pathname as possible"

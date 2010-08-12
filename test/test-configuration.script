@@ -25,7 +25,7 @@
                            :direction :output
                            :if-exists :supersede)
         (with-standard-io-syntax
-          (format out "~{~S~}" contents))))))
+          (format out "~{~S~%~}" contents))))))
 
 (defparameter *test-asd-directories*
   (loop
@@ -69,6 +69,9 @@
 
 (create-asd-files)
 (create-conf-files)
+
+#+abcl (trace directory)
+
 (initialize-source-registry
  `(:source-registry (:include ,(under-test-directory "conf.d/"))
                     :ignore-inherited-configuration))

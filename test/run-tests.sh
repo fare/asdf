@@ -41,11 +41,12 @@ if [ x"$1" = "xhelp" ]; then
     usage
     exit 1
 fi
+lisp=$1 ; shift
 
-if [ -z "$2" ]; then
+if [ -z "$*" ]; then
     scripts="*.script"
 else
-    scripts="$2"
+    scripts="$*"
 fi
 
 sok=1
@@ -98,7 +99,6 @@ do_tests() {
 # terminate on error
 set -e
 
-lisp=$1
 if [ -z $1 ] ; then
     lisp="sbcl"
 fi

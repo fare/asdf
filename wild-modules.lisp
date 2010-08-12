@@ -12,27 +12,22 @@
 use a wild pathname instead." module)))
 
 (defmethod reinitialize-instance :after ((self wild-module) &key)
-  (let ((pathname (slot-value self 'relative-pathname)))
-    (and pathname
-         (not (wild-pathname-p pathname))
-         (sysdef-error "Wild-module ~A specified with non-wild pathname ~A."
-                       self pathname))
+  (let ((pathname (component-pathname self)))
+    (unless (and pathname (wild-pathname-p pathname))
+      (sysdef-error "Wild-module ~A specified with non-wild pathname ~A."
+                    self pathname))
     (setf (slot-value self 'components)
-          (let* ((*default-pathname-defaults* (component-parent-pathname self))
-                 (files (directory (merge-pathnames (component-relative-pathname self))))
+          (let* ((files (directory pathname))
                  (class (wild-module-component-class self))
                  (options (wild-module-component-options self)))
             (mapcar (lambda (file)
                       (apply #'make-instance class
-                             :name (file-namestring file)
-                                        ;; XXX fails when wildcards are in
-                                        ;; the directory or higher parts.
+                             :name (namestring file)
                              :pathname file
                              :parent self
                              options))
-                    files)))))
+                    files)))
+    (compute-module-components-by-name self)
+    (values)))
 
-;; Don't export wild-module or else will get a full warning
-;; when (require :asdf) if asdf is already loaded
-
-;;(export '(wild-module))
+(export 'wild-module)
