@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.115" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.116" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -343,17 +343,18 @@ You can compare this string with e.g.:
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.
 
-Defaults to `t`.")
+Defaults to T.")
 
-(defvar *compile-file-warnings-behaviour* :warn
-  "How should ASDF react if it encounters a warning when compiling a
-file?  Valid values are :error, :warn, and :ignore.")
+(defvar *compile-file-warnings-behaviour*
+  (or #+clisp :ignore :warn)
+  "How should ASDF react if it encounters a warning when compiling a file?
+Valid values are :error, :warn, and :ignore.")
 
-(defvar *compile-file-failure-behaviour* #+sbcl :error #-sbcl :warn
-        "How should ASDF react if it encounters a failure \(per the
-ANSI spec of COMPILE-FILE\) when compiling a file?  Valid values are
-:error, :warn, and :ignore.  Note that ASDF ALWAYS raises an error
-if it fails to create an output file when compiling.")
+(defvar *compile-file-failure-behaviour*
+  (or #+sbcl :error #+clisp :ignore :warn)
+  "How should ASDF react if it encounters a failure (per the ANSI spec of COMPILE-FILE)
+when compiling a file?  Valid values are :error, :warn, and :ignore.
+Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling.")
 
 (defvar *verbose-out* nil)
 
