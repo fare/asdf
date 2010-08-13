@@ -31,7 +31,6 @@
 (defmethod find-component :around ((m (eql (find-quux)))
                                    (c string))
   "FIND-COMPONENT on a component is a no-op --- it's already found."
-  (declare (ignore version))
   (if (string-equal c "file3-only")
       (asdf:find-system c)
       (call-next-method)))

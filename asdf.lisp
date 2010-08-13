@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.117" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.118" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -384,6 +384,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   (defdef defgeneric* defgeneric)
   (defdef defun* defun))
 
+(defgeneric* find-system (system &optional error-p))
 (defgeneric* perform-with-restarts (operation component))
 (defgeneric* perform (operation component))
 (defgeneric* operation-done-p (operation component))
@@ -391,6 +392,10 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 (defgeneric* output-files (operation component))
 (defgeneric* input-files (operation component))
 (defgeneric* component-operation-time (operation component))
+(defgeneric* operation-description (operation component)
+  (:documentation "returns a phrase that describes performing this operation
+on this component, e.g. \"loading /a/b/c\".
+You can put together sentences using this phrase."))
 
 (defgeneric* system-source-file (system)
   (:documentation "Return the source file in which system is defined."))
@@ -864,7 +869,9 @@ with given pathname and if it exists return its truename."
                      (error-name c) (error-pathname c) (error-condition c)))))
 
 (define-condition circular-dependency (system-definition-error)
-  ((components :initarg :components :reader circular-dependency-components)))
+  ((components :initarg :components :reader circular-dependency-components))
+  (:report (lambda (c s)
+             (format s "~@<Circular dependency: ~S~@:>" (circular-dependency-components c)))))
 
 (define-condition duplicate-names (system-definition-error)
   ((name :initarg :name :reader duplicate-names-name))
@@ -948,7 +955,7 @@ with given pathname and if it exists return its truename."
 ;;;; methods: components
 
 (defmethod print-object ((c missing-component) s)
-   (format s "~@<component ~S not found~
+  (format s "~@<component ~S not found~
              ~@[ in ~A~]~@:>"
           (missing-requires c)
           (when (missing-parent c)
@@ -957,10 +964,10 @@ with given pathname and if it exists return its truename."
 (defmethod print-object ((c missing-component-of-version) s)
   (format s "~@<component ~S does not match version ~A~
               ~@[ in ~A~]~@:>"
-           (missing-requires c)
-           (missing-version c)
-           (when (missing-parent c)
-             (component-name (missing-parent c)))))
+          (missing-requires c)
+          (missing-version c)
+          (when (missing-parent c)
+            (component-name (missing-parent c)))))
 
 (defmethod component-system ((component component))
   (aif (component-parent component)
@@ -1016,7 +1023,8 @@ with given pathname and if it exists return its truename."
              (component-relative-pathname component)
              (pathname-directory-pathname (component-parent-pathname component)))))
         (unless (or (null pathname) (absolute-pathname-p pathname))
-          (error "Invalid relative pathname ~S for component ~S" pathname component))
+          (error "Invalid relative pathname ~S for component ~S"
+                 pathname (component-find-path component)))
         (setf (slot-value component 'absolute-pathname) pathname)
         pathname)))
 
@@ -1228,10 +1236,12 @@ to ~S which is not a directory.~@:>"
                 pathname))
         0)))
 
-(defun* find-system (name &optional (error-p t))
+(defmethod find-system (name &optional (error-p t))
+  (find-system (coerce-name name) error-p))
+
+(defmethod find-system ((name string) &optional (error-p t))
   (catch 'find-system
-    (let* ((name (coerce-name name))
-           (in-memory (system-registered-p name))
+    (let* ((in-memory (system-registered-p name))
            (on-disk (system-definition-pathname name)))
       (when (and on-disk
                  (or (not in-memory)
@@ -1581,7 +1591,7 @@ recursive calls to traverse.")
       (retry ()
         :report (lambda (s)
                   (format s "~@<Retry loading component ~S.~@:>"
-                          required-c))
+                          (component-find-path required-c)))
         :test
         (lambda (c)
           #|
@@ -1845,6 +1855,9 @@ recursive calls to traverse.")
   (declare (ignorable operation c))
   nil)
 
+(defmethod operation-description ((operation compile-op) component)
+  (declare (ignorable operation component))
+  (format nil "compiling component ~S" (component-find-path component)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; load-op
@@ -1921,6 +1934,11 @@ recursive calls to traverse.")
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
 
+(defmethod operation-description ((operation load-op) component)
+  (declare (ignorable operation component))
+  (format nil "loading component ~S" (component-find-path component)))
+
+
 ;;;; -------------------------------------------------------------------------
 ;;;; load-source-op
 
@@ -1958,6 +1976,10 @@ recursive calls to traverse.")
           (> (safe-file-write-date (component-pathname c))
              (component-property c 'last-loaded-as-source)))
       nil t))
+
+(defmethod operation-description ((operation load-source-op) component)
+  (declare (ignorable operation component))
+  (format nil "loading component ~S" (component-find-path component)))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -2008,14 +2030,13 @@ recursive calls to traverse.")
               (retry ()
                 :report
                 (lambda (s)
-                  (format s "~@<Retry performing ~S on ~S.~@:>"
-                          op component)))
+                  (format s "~@<Retry ~A.~@:>" (operation-description op component))))
               (accept ()
                 :report
                 (lambda (s)
-                  (format s "~@<Continue, treating ~S on ~S as ~
+                  (format s "~@<Continue, treating ~A as ~
                                    having been successful.~@:>"
-                          op component))
+                          (operation-description op component)))
                 (setf (gethash (type-of op)
                                (component-operation-times component))
                       (get-universal-time))
