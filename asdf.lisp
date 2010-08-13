@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.118" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.119" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -195,7 +195,7 @@
            :redefined-functions
            (#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file #:operate #:find-component
+            #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname*)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
