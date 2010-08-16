@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.119" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.120" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -216,7 +216,7 @@
             #:version                 ; metaphorically sort-of an operation
             #:version-satisfies
 
-            #:input-files #:output-files #:perform ; operation methods
+            #:input-files #:output-files #:output-file #:perform ; operation methods
             #:operation-done-p #:explain
 
             #:component #:source-file
@@ -1773,7 +1773,10 @@ recursive calls to traverse.")
   nil)
 
 (defmethod explain ((operation operation) (component component))
-  (asdf-message "~&;;; ~A on ~A~%" operation component))
+  (asdf-message "~&;;; ~A~%" (operation-description operation component)))
+
+(defmethod operation-description (operation component)
+  (format nil "~A on component ~S" (class-of operation) (component-find-path component)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; compile-op
@@ -1786,6 +1789,12 @@ recursive calls to traverse.")
                :initform *compile-file-failure-behaviour*)
    (flags :initarg :flags :accessor compile-op-flags
           :initform #-ecl nil #+ecl '(:system-p t))))
+
+(defun output-file (operation component)
+  "The unique output file of performing OPERATION on COMPONENT"
+  (let ((files (output-files operation component)))
+    (assert (length=n-p files 1))
+    (first files)))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
   (map nil #'ensure-directories-exist (output-files operation c)))
@@ -1812,7 +1821,7 @@ recursive calls to traverse.")
 (defmethod perform ((operation compile-op) (c cl-source-file))
   #-:broken-fasl-loader
   (let ((source-file (component-pathname c))
-        (output-file (car (output-files operation c)))
+        (output-file (output-file operation c))
         (*compile-file-warnings-behaviour* (operation-on-warnings operation))
         (*compile-file-failure-behaviour* (operation-on-failure operation)))
     (multiple-value-bind (output warnings-p failure-p)
@@ -1856,7 +1865,7 @@ recursive calls to traverse.")
   nil)
 
 (defmethod operation-description ((operation compile-op) component)
-  (declare (ignorable operation component))
+  (declare (ignorable operation))
   (format nil "compiling component ~S" (component-find-path component)))
 
 ;;;; -------------------------------------------------------------------------
@@ -1935,7 +1944,7 @@ recursive calls to traverse.")
         (call-next-method)))
 
 (defmethod operation-description ((operation load-op) component)
-  (declare (ignorable operation component))
+  (declare (ignorable operation))
   (format nil "loading component ~S" (component-find-path component)))
 
 
@@ -1978,7 +1987,7 @@ recursive calls to traverse.")
       nil t))
 
 (defmethod operation-description ((operation load-source-op) component)
-  (declare (ignorable operation component))
+  (declare (ignorable operation))
   (format nil "loading component ~S" (component-find-path component)))
 
 
