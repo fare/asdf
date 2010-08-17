@@ -31,8 +31,14 @@ archive-copy: archive
 	bin/rsync-cp.sh tmp/asdf*.tar.gz $(webhome_private)/archives
 	bin/link-tarball.sh $(clnet_home) $(user)
 	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
-	git push cl.net release
-	git push --tags cl.net release
+	${MAKE} push
+
+push:
+	git status
+	git push --tags cl.net release master
+	git push --tags xcvb release master
+	git fetch
+	git status
 
 website:
 	make -C doc website
@@ -62,5 +68,18 @@ test-all: FORCE
 	@for lisp in ${lisps} ; do \
 		make test lisp=$$lisp || exit 1 ; \
 	done
+
+debian-package:
+	git-buildpackage --git-debian-branch=release --git-upstream-branch=RELEASE --git-tag --git-retag
+
+# Replace SBCL's ASDF with the current one.
+# not recommended: just use (asdf:load-system :asdf)
+replace-sbcl-asdf:
+	sbcl --eval '(compile-file "asdf.lisp" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
+
+# Replace CCL's ASDF with the current one.
+# not recommended: just use (asdf:load-system :asdf)
+replace-ccl-asdf:
+	ccl --eval '(progn(compile-file "asdf.lisp" :output-file (format nil "~Atools/asdf.lx64fsl" (ccl::ccl-directory)))(quit))'
 
 FORCE:

@@ -1,3 +1,10 @@
+cl-asdf (2:2.005-1) unstable; urgency=low
+
+  * New upstream.
+  * Don't use dh-lisp
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 17 Aug 2010 13:57:04 -0400
+
 cl-asdf (2:2.004-1) unstable; urgency=low
 
   * Imported new upstream, try not to diverge from it.

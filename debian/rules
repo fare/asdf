@@ -31,7 +31,7 @@ binary-indep: build
 	chmod +x test/run-tests.sh 
 	dh_installdirs -i
 	dh_install -i
-	dh_lisp -i
+	#dh_lisp -i
 	dh_installdocs -i
 	dh_installinfo -i
 	dh_installexamples -i
