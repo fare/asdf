@@ -48,3 +48,5 @@ debian/cl-asdf.prerm.debhelper
 debian/cl-asdf.substvars
 debian/cl-asdf/
 debian/files
+debian/patches/
+.pc
