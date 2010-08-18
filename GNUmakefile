@@ -58,7 +58,8 @@ clean: FORCE
 		done; \
 	     fi; \
 	done
-	rm -rf tmp
+	rm -rf tmp/ LICENSE test/try-reloading-dependency.asd
+	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log # debian crap
 	make -C doc clean
 
 test: FORCE
