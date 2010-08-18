@@ -1,3 +1,35 @@
+As upstream maintainer, I
+
+* use git from the upstream repo
+	git clone ssh://common-lisp.net/project/asdf/git/asdf.git
+
+* checkout the release branch
+	git checkout release
+
+* do dark magic to create a release, merging with master,
+ renumbering the version, then:
+	git commit
+
+* do the releasing:
+	git tag 2.00x ; make archive-copy ; make website ;
+        git tag -f RELEASE ; make push
+
+* edit debian files, then:
+	git commit
+
+* create debian package:
+	make debian-package
+
+* if unsatisfied, edit debian files some more then
+	git commit --amend
+  then goto previous point.
+
+If ever debian diverges from upstream, you should adapt accordingly.
+
+The below notes are obsolete, but might give you ideas how to do it.
+
+------>8------>8------>8------>8------>8------>8------>8------>8------>8------
+
 To build this package you need to get the git repository:
 
 git clone git://git.debian.org/git/pkg-common-lisp/cl-asdf.git
