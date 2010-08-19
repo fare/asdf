@@ -70,7 +70,7 @@
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.120" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.121" (1+ (length "VERSION"))))
          (existing-asdf (find-package :asdf))
          (vername '#:*asdf-version*)
          (versym (and existing-asdf
@@ -208,7 +208,7 @@
            :export
            (#:defsystem #:oos #:operate #:find-system #:run-shell-command
             #:system-definition-pathname #:find-component ; miscellaneous
-            #:compile-system #:load-system #:test-system
+            #:compile-system #:load-system #:test-system #:clear-system
             #:compile-op #:load-op #:load-source-op
             #:test-op
             #:operation               ; operations
@@ -284,6 +284,7 @@
             #:coerce-entry-to-directory
             #:remove-entry-from-registry
 
+            #:clear-configuration
             #:initialize-output-translations
             #:disable-output-translations
             #:clear-output-translations
@@ -292,7 +293,6 @@
             #:compile-file*
             #:compile-file-pathname*
             #:enable-asdf-binary-locations-compatibility
-
             #:*default-source-registries*
             #:initialize-source-registry
             #:compute-source-registry
@@ -2121,7 +2121,7 @@ details."
   (let* ((file-pathname (load-pathname))
          (directory-pathname (and file-pathname (pathname-directory-pathname file-pathname))))
     (or (and pathname-supplied-p (merge-pathnames* pathname directory-pathname))
-        file-pathname
+        directory-pathname
         (default-directory))))
 
 (defmacro defsystem (name &body options)
@@ -3432,10 +3432,14 @@ with a different configuration, so the configuration would be re-read then."
     :for file = (probe-asd name defaults)
     :when file :return file))
 
+(defun* clear-configuration ()
+  (clear-source-registry)
+  (clear-output-translations))
+
 ;;;; -----------------------------------------------------------------
 ;;;; Hook into REQUIRE for ABCL, ClozureCL, CMUCL, ECL and SBCL
 ;;;;
-#+(or abcl clozure cmu ecl sbcl)
+#+(or abcl clisp clozure cmu ecl sbcl)
 (progn
   (defun* module-provide-asdf (name)
     (handler-bind
@@ -3451,6 +3455,7 @@ with a different configuration, so the configuration would be re-read then."
           t))))
   (pushnew 'module-provide-asdf
            #+abcl sys::*module-provider-functions*
+           #+clisp custom:*module-provider-functions*
            #+clozure ccl:*module-provider-functions*
            #+cmu ext:*module-provider-functions*
            #+ecl si:*module-provider-functions*
