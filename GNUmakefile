@@ -58,8 +58,12 @@ clean: FORCE
 		done; \
 	     fi; \
 	done
-	rm -rf tmp
+	rm -rf tmp/ LICENSE test/try-reloading-dependency.asd
 	make -C doc clean
+
+mrproper: clean
+	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
+
 
 test: FORCE
 	@cd test; make clean;./run-tests.sh ${lisp} ${test-glob}
