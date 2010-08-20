@@ -554,7 +554,8 @@ by evaluating the following Lisp form:
 (asdf:load-system :@var{foo})
 @end example
 
-On some implementations (namely ABCL, Clozure CL, CMUCL, ECL and SBCL),
+On some implementations (namely recent versions of
+ABCL, Clozure CL, CLISP, CMUCL, ECL, SBCL and SCL),
 ASDF hooks into the @code{CL:REQUIRE} facility
 and you can just use:
 
@@ -2900,7 +2901,7 @@ if you allow such configuration.
 @item
 If your system provides a mechanism to hook into @code{CL:REQUIRE},
 then it would be nice to add ASDF to this hook the same way that
-ABCL, CCL, CMUCL, ECL and SBCL do it.
+ABCL, CCL, CLISP, CMUCL, ECL, SBCL and SCL do it.
 
 @item
 You may, like SBCL, have ASDF be implicitly used to require systems

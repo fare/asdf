@@ -48,37 +48,35 @@
 #+xcvb (module ())
 
 (cl:in-package :cl)
-(defpackage :asdf-bootstrap (:use :cl))
-(in-package :asdf-bootstrap)
 
-;; Implementation-dependent tweaks
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  ;;; make package if it doesn't exist yet.
+  ;;; DEFPACKAGE may cause errors on discrepancies, so we avoid it.
+  (unless (find-package :asdf)
+    (make-package :asdf :use '(:cl)))
+  ;;; Implementation-dependent tweaks
   ;; (declaim (optimize (speed 2) (debug 2) (safety 3)) ; NO: rely on the implementation defaults.
   #+allegro
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car))
-  #+ecl (require :cmp)
-  #+gcl
-  (eval-when (:compile-toplevel :load-toplevel)
-    (defpackage :asdf-utilities (:use :cl))
-    (defpackage :asdf (:use :cl :asdf-utilities))))
+  #+ecl (require :cmp))
+
+(in-package :asdf)
 
 ;;;; Create packages in a way that is compatible with hot-upgrade.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;;; See more at the end of the file.
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  (defvar *asdf-version* nil)
+  (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.121" (1+ (length "VERSION"))))
-         (existing-asdf (find-package :asdf))
-         (vername '#:*asdf-version*)
-         (versym (and existing-asdf
-                      (find-symbol (string vername) existing-asdf)))
-         (existing-version (and versym (boundp versym) (symbol-value versym)))
+          (subseq "VERSION:2.122" (1+ (length "VERSION"))))
+         (existing-asdf (fboundp 'find-system))
+         (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
-      #-gcl
       (when existing-asdf
         (format *trace-output*
                 "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
@@ -161,37 +159,8 @@
                    :unintern ',(append #-(or gcl ecl) redefined-functions unintern)
                    :fmakunbound ',(append fmakunbound))))
           (pkgdcl
-           :asdf-utilities
-           :nicknames (#:asdf-extensions)
-           :use (#:common-lisp)
-           :unintern (#:split #:make-collector)
-           :export
-           (#:absolute-pathname-p
-            #:aif
-            #:appendf
-            #:asdf-message
-            #:coerce-name
-            #:directory-pathname-p
-            #:ends-with
-            #:ensure-directory-pathname
-            #:getenv
-            #:get-uid
-            #:length=n-p
-            #:merge-pathnames*
-            #:pathname-directory-pathname
-            #:read-file-forms
-            #:remove-keys
-            #:remove-keyword
-            #:resolve-symlinks
-            #:split-string
-            #:component-name-to-pathname-components
-            #:split-name-type
-            #:system-registered-p
-            #:truenamize
-            #:while-collecting))
-          (pkgdcl
            :asdf
-           :use (:common-lisp :asdf-utilities)
+           :use (:common-lisp)
            :redefined-functions
            (#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
@@ -255,6 +224,7 @@
 
             #:operation-on-warnings
             #:operation-on-failure
+            #:component-visited-p
             ;;#:*component-parent-pathname*
             #:*system-definition-search-functions*
             #:*central-registry*         ; variables
@@ -298,22 +268,38 @@
             #:compute-source-registry
             #:clear-source-registry
             #:ensure-source-registry
-            #:process-source-registry)))
-        (let* ((version (intern* vername :asdf))
-               (upvar (intern* '#:*upgraded-p* :asdf))
-               (upval0 (and (boundp upvar) (symbol-value upvar)))
-               (upval1 (if existing-version (cons existing-version upval0) upval0)))
-          (eval `(progn
-                   (defparameter ,version ,asdf-version)
-                   (defparameter ,upvar ',upval1))))))))
+            #:process-source-registry
 
-(in-package :asdf)
+            ;; Utilities
+            #:absolute-pathname-p
+            #:aif
+            #:appendf
+            #:asdf-message
+            #:coerce-name
+            #:directory-pathname-p
+            #:ends-with
+            #:ensure-directory-pathname
+            #:getenv
+            #:get-uid
+            #:length=n-p
+            #:merge-pathnames*
+            #:pathname-directory-pathname
+            #:read-file-forms
+            #:remove-keys
+            #:remove-keyword
+            #:resolve-symlinks
+            #:split-string
+            #:component-name-to-pathname-components
+            #:split-name-type
+            #:system-registered-p
+            #:truenamize
+            #:while-collecting)))
+        (setf *asdf-version* asdf-version
+              *upgraded-p* (if existing-version
+                               (cons existing-version *upgraded-p*)
+                               *upgraded-p*))))))
 
 ;; More cleanups in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
-#+gcl
-(eval-when (:compile-toplevel :load-toplevel)
-  (defvar *asdf-version* nil)
-  (defvar *upgraded-p* nil))
 (when *upgraded-p*
    #+ecl
    (when (find-class 'compile-op nil)
@@ -451,7 +437,10 @@ OPERATION\).
   No evidence that DATA is ever interesting, beyond just being
 non-NIL.  Using the data field is probably very risky; if there is
 already a record for OPERATION X COMPONENT, DATA will be quietly
-discarded instead of recorded."))
+discarded instead of recorded.
+  Starting with 2.006, TRAVERSE will store an integer in data,
+so that nodes can be sorted in decreasing order of traversal."))
+
 
 (defgeneric* (setf visiting-component) (new-value operation component))
 
@@ -1389,7 +1378,7 @@ to ~S which is not a directory.~@:>"
    ;;   including other systems we depend on.
    ;; (SYSTEM1 SYSTEM2 ... SYSTEMN)
    ;;   to force systems named in a given list
-   ;;   (but this feature never worked before ASDF 1.700 and is cerror'ed out.)
+   ;; However, but this feature never worked before ASDF 1.700 and is currently cerror'ed out.
    (forced :initform nil :initarg :force :accessor operation-forced)
    (original-initargs :initform nil :initarg :original-initargs
                       :accessor operation-original-initargs)
@@ -1645,6 +1634,8 @@ recursive calls to traverse.")
                           (error "Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name" d))))))
            flag))))
 
+(defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
+
 (defun* do-collect (collect x)
   (funcall collect x))
 
@@ -1730,7 +1721,7 @@ recursive calls to traverse.")
                  (do-collect collect (vector module-ops))
                  (do-collect collect (cons operation c)))))
              (setf (visiting-component operation c) nil)))
-      (visit-component operation c flag)
+      (visit-component operation c (when flag (incf *visit-count*)))
       flag))
 
 (defun* flatten-tree (l)
@@ -1760,7 +1751,8 @@ recursive calls to traverse.")
           (mapcar #'coerce-name (operation-forced operation))))
   (flatten-tree
    (while-collecting (collect)
-     (do-traverse operation c #'collect))))
+     (let ((*visit-count* 0))
+       (do-traverse operation c #'collect)))))
 
 (defmethod perform ((operation operation) (c source-file))
   (sysdef-error
@@ -1821,7 +1813,9 @@ recursive calls to traverse.")
 (defmethod perform ((operation compile-op) (c cl-source-file))
   #-:broken-fasl-loader
   (let ((source-file (component-pathname c))
-        (output-file (output-file operation c))
+        ;; on some implementations, there are more than one output-file,
+        ;; but the first one should always be the primary fasl that gets loaded.
+        (output-file (first (output-files operation c)))
         (*compile-file-warnings-behaviour* (operation-on-warnings operation))
         (*compile-file-failure-behaviour* (operation-on-failure operation)))
     (multiple-value-bind (output warnings-p failure-p)
@@ -2049,8 +2043,8 @@ recursive calls to traverse.")
                 (setf (gethash (type-of op)
                                (component-operation-times component))
                       (get-universal-time))
-                (return)))))))
-    op))
+                (return))))))
+      (values op steps))))
 
 (defun* oos (operation-class system &rest args &key force verbose version
             &allow-other-keys)
@@ -3439,27 +3433,30 @@ with a different configuration, so the configuration would be re-read then."
 ;;;; -----------------------------------------------------------------
 ;;;; Hook into REQUIRE for ABCL, ClozureCL, CMUCL, ECL and SBCL
 ;;;;
+(defun* module-provide-asdf (name)
+  (handler-bind
+      ((style-warning #'muffle-warning)
+       (missing-component (constantly nil))
+       (error (lambda (e)
+                (format *error-output* "ASDF could not load ~(~A~) because ~A.~%"
+                        name e))))
+    (let* ((*verbose-out* (make-broadcast-stream))
+           (system (find-system (string-downcase name) nil)))
+      (when system
+        (load-system system)
+        t))))
+
 #+(or abcl clisp clozure cmu ecl sbcl)
-(progn
-  (defun* module-provide-asdf (name)
-    (handler-bind
-        ((style-warning #'muffle-warning)
-         (missing-component (constantly nil))
-         (error (lambda (e)
-                  (format *error-output* "ASDF could not load ~(~A~) because ~A.~%"
-                          name e))))
-      (let* ((*verbose-out* (make-broadcast-stream))
-             (system (find-system (string-downcase name) nil)))
-        (when system
-          (load-system system)
-          t))))
-  (pushnew 'module-provide-asdf
-           #+abcl sys::*module-provider-functions*
-           #+clisp custom:*module-provider-functions*
-           #+clozure ccl:*module-provider-functions*
-           #+cmu ext:*module-provider-functions*
-           #+ecl si:*module-provider-functions*
-           #+sbcl sb-ext:*module-provider-functions*))
+(let ((x (and #+clisp (find-symbol "*MODULE-PROVIDER-FUNCTIONS*" :custom))))
+  (when x
+    (eval `(pushnew 'module-provide-asdf
+            #+abcl sys::*module-provider-functions*
+            #+clisp ,x
+            #+clozure ccl:*module-provider-functions*
+            #+cmu ext:*module-provider-functions*
+            #+ecl si:*module-provider-functions*
+            #+sbcl sb-ext:*module-provider-functions*))))
+
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Cleanups after hot-upgrade.

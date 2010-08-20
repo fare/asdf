@@ -73,7 +73,7 @@ test-all: FORCE
 		make test lisp=$$lisp || exit 1 ; \
 	done
 
-debian-package:
+debian-package: mrproper
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=RELEASE --git-tag --git-retag
 
 # Replace SBCL's ASDF with the current one.
