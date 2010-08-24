@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.122" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.123" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1220,7 +1220,7 @@ to ~S which is not a directory.~@:>"
   ;; (or should we treat the case in a different, special way?)
   (or (and pathname (probe-file pathname) (file-write-date pathname))
       (progn
-        (when pathname
+        (when (and pathname *asdf-verbose*)
           (warn "Missing FILE-WRITE-DATE for ~S: treating it as zero."
                 pathname))
         0)))
@@ -1249,11 +1249,13 @@ to ~S which is not a directory.~@:>"
                    (load on-disk)))
             (delete-package package))))
       (let ((in-memory (system-registered-p name)))
-        (if in-memory
-            (progn (when on-disk (setf (car in-memory)
-                                       (safe-file-write-date on-disk)))
-                   (cdr in-memory))
-            (when error-p (error 'missing-component :requires name)))))))
+        (cond
+          (in-memory
+           (when on-disk
+             (setf (car in-memory) (safe-file-write-date on-disk)))
+           (cdr in-memory))
+          (error-p
+           (error 'missing-component :requires name)))))))
 
 (defun* register-system (name system)
   (asdf-message "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
