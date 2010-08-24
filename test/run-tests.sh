@@ -41,7 +41,7 @@ if [ x"$1" = "xhelp" ]; then
     usage
     exit 1
 fi
-lisp=$1 ; shift
+lisp=${1:-sbcl} ; shift
 
 if [ -z "$*" ]; then
     scripts="*.script"
@@ -98,10 +98,6 @@ do_tests() {
 
 # terminate on error
 set -e
-
-if [ -z $1 ] ; then
-    lisp="sbcl"
-fi
 
 command= flags= nodebug= eval=
 case "$lisp" in
