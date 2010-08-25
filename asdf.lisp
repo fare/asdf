@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.123" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.124" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -120,9 +120,16 @@
              (let ((sym (find-sym symbol package)))
                (when sym
                  (unexport sym package)
-                 (unintern sym package))))
+                 (unintern sym package)
+                 sym)))
            (ensure-unintern (package symbols)
-             (dolist (sym symbols) (remove-symbol sym package)))
+             (loop :with packages = (list-all-packages)
+               :for sym :in symbols
+               :for removed = (remove-symbol sym package)
+               :when removed :do
+               (loop :for p :in packages :do
+                 (when (eq removed (find-sym sym p))
+                   (unintern removed p)))))
            (ensure-shadow (package symbols)
              (shadow symbols package))
            (ensure-use (package use)
@@ -136,15 +143,26 @@
                :for sym = (find-sym name package)
                :when sym :do (fmakunbound sym)))
            (ensure-export (package export)
-             (let ((syms (loop :for x :in export :collect
-                           (intern* x package))))
-               (do-external-symbols (sym package)
-                 (unless (member sym syms)
-                   (remove-symbol sym package)))
-               (dolist (sym syms)
-                 (export sym package))))
+             (let ((formerly-exported-symbols nil)
+                   (bothly-exported-symbols nil)
+                   (newly-exported-symbols nil))
+               (loop :for sym :being :each :external-symbol :in package :do
+                 (if (member sym export :test 'string-equal)
+                     (push sym bothly-exported-symbols)
+                     (push sym formerly-exported-symbols)))
+               (loop :for sym :in export :do
+                 (unless (member sym bothly-exported-symbols :test 'string-equal)
+                   (push sym newly-exported-symbols)))
+               (loop :for user :in (package-used-by-list package)
+                 :for shadowing = (package-shadowing-symbols user) :do
+                 (loop :for new :in newly-exported-symbols
+                   :for old = (find-sym new user)
+                   :when (and old (not (member old shadowing)))
+                   :do (unintern old user)))
+               (loop :for x :in newly-exported-symbols :do
+                 (export (intern* x package)))))
            (ensure-package (name &key nicknames use unintern fmakunbound shadow export)
-             (let ((p (ensure-exists name nicknames use)))
+             (let* ((p (ensure-exists name nicknames use)))
                (ensure-unintern p unintern)
                (ensure-shadow p shadow)
                (ensure-export p export)
