@@ -1,3 +1,9 @@
+cl-asdf (2:2.007-1) unstable; urgency=low
+
+  * new upstream, fixes lp#623992 introduced in 2.006, allows upgrade on SBCL.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Wed, 25 Aug 2010 23:22:13 -0400
+
 cl-asdf (2:2.006-1) unstable; urgency=low
 
   * new upstream, with bug fixes and API changes.
