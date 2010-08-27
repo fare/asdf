@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.124" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.125" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -176,6 +176,9 @@
                    :shadow ',shadow
                    :unintern ',(append #-(or gcl ecl) redefined-functions unintern)
                    :fmakunbound ',(append fmakunbound))))
+          (let ((u (find-package :asdf-utilities)))
+            (when u
+              (ensure-unintern u (loop :for s :being :each :present-symbol :in u :collect s))))
           (pkgdcl
            :asdf
            :use (:common-lisp)
@@ -1353,7 +1356,7 @@ to ~S which is not a directory.~@:>"
   ;; NOTE that the host and device slots will be taken from the defaults,
   ;; but that should only matter if you either (a) use absolute pathnames, or
   ;; (b) later merge relative pathnames with CL:MERGE-PATHNAMES instead of
-  ;; ASDF-UTILITIES:MERGE-PATHNAMES*
+  ;; ASDF:MERGE-PATHNAMES*
   (etypecase name
     (pathname
      name)
