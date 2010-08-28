@@ -1891,8 +1891,10 @@ and for XCVB the corresponding functions are in package XCVB.
 @defun clear-source-registry
    undoes any source registry configuration
    and clears any cache for the search algorithm.
-   You might want to call that before you
-   dump an image that would be resumed with a different configuration,
+   You might want to call this function
+   (or better, @code{clear-configuration})
+   before you dump an image that would be resumed
+   with a different configuration,
    and return an empty configuration.
    Note that this does not include clearing information about
    systems defined in the current image, only about
@@ -1903,6 +1905,15 @@ and for XCVB the corresponding functions are in package XCVB.
    checks whether a source registry has been initialized.
    If not, initialize it with the given @var{PARAMETER}.
 @end defun
+
+Every time you use ASDF's @code{find-system}, or
+anything that uses it (such as @code{operate}, @code{load-system}, etc.),
+@code{ensure-source-registry} is called with parameter NIL,
+which the first time around causes your configuration to be read.
+If you change a configuration file,
+you need to explicitly @code{initialize-source-registry} again,
+or maybe simply to @code{clear-source-registry} (or @code{clear-configuration})
+which will cause the initialization to happen next time around.
 
 
 @section Future
@@ -2375,8 +2386,10 @@ The specified functions are exported from package ASDF.
 @defun clear-output-translations
    undoes any output translation configuration
    and clears any cache for the mapping algorithm.
-   You might want to call that before you
-   dump an image that would be resumed with a different configuration,
+   You might want to call this function
+   (or better, @code{clear-configuration})
+   before you dump an image that would be resumed
+   with a different configuration,
    and return an empty configuration.
    Note that this does not include clearing information about
    systems defined in the current image, only about
@@ -2393,6 +2406,15 @@ The specified functions are exported from package ASDF.
    Applies the configured output location translations to @var{PATHNAME}
    (calls @code{ensure-output-translations} for the translations).
 @end defun
+
+Every time you use ASDF's @code{output-files}, or
+anything that uses it (that may compile, such as @code{operate}, @code{perform}, etc.),
+@code{ensure-output-translations} is called with parameter NIL,
+which the first time around causes your configuration to be read.
+If you change a configuration file,
+you need to explicitly @code{initialize-output-translations} again,
+or maybe @code{clear-output-translations} (or @code{clear-configuration}),
+which will cause the initialization to happen next time around.
 
 
 @section Credits for output translations
