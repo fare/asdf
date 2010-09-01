@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.125" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.126" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -290,29 +290,29 @@
             #:clear-source-registry
             #:ensure-source-registry
             #:process-source-registry
+            #:system-registered-p
+            #:asdf-message
 
             ;; Utilities
             #:absolute-pathname-p
-            #:aif
-            #:appendf
-            #:asdf-message
+	    ;; #:aif #:it
+            ;; #:appendf
             #:coerce-name
             #:directory-pathname-p
-            #:ends-with
+            ;; #:ends-with
             #:ensure-directory-pathname
             #:getenv
-            #:get-uid
-            #:length=n-p
+            ;; #:get-uid
+            ;; #:length=n-p
             #:merge-pathnames*
             #:pathname-directory-pathname
             #:read-file-forms
-            #:remove-keys
-            #:remove-keyword
+	    ;; #:remove-keys
+	    ;; #:remove-keyword
             #:resolve-symlinks
             #:split-string
             #:component-name-to-pathname-components
             #:split-name-type
-            #:system-registered-p
             #:truenamize
             #:while-collecting)))
         (setf *asdf-version* asdf-version
@@ -743,7 +743,9 @@ actually-existing directory."
                   '(ffi:clines "#include <sys/types.h>" "#include <unistd.h>"))
   (defun* get-uid ()
     #+allegro (excl.osi:getuid)
-    #+clisp (posix:uid)
+    #+clisp (loop :for s :in '("posix:uid" "LINUX:getuid")
+	          :for f = (ignore-errors (read-from-string s))
+                  :when f :return (funcall f))
     #+(or cmu scl) (unix:unix-getuid)
     #+ecl #.(cl:if (cl:< ext:+ecl-version-number+ 100601)
                    '(ffi:c-inline () () :int "getuid()" :one-liner t)
@@ -767,11 +769,13 @@ actually-existing directory."
 (defun* probe-file* (p)
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
-  (and (pathnamep p) (not (wild-pathname-p p))
-       #+(or allegro clozure cmu ecl sbcl scl) (probe-file p)
-       #+clisp (ext:probe-pathname p)
-       #-(or allegro clisp clozure cmu ecl sbcl scl)
-       (ignore-errors (truename p))))
+  (etypecase p
+   (null nil)
+   (string (probe-file* (parse-namestring p)))
+   (pathname (unless (wild-pathname-p p)
+               #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
+               #+clisp (aif (find-symbol (string :probe-pathname) :ext) `(,it p))
+	       '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
   "Resolve as much of a pathname as possible"
