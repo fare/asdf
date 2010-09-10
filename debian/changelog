@@ -1,3 +1,10 @@
+cl-asdf (2:2.008-1) unstable; urgency=low
+
+  * new upstream: removes unwanted exports,
+    plays nicer with sbcl, cmucl, old clisp.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 10 Sep 2010 17:16:06 -0400
+
 cl-asdf (2:2.007-1) unstable; urgency=low
 
   * new upstream, fixes lp#623992 introduced in 2.006, allows upgrade on SBCL.
