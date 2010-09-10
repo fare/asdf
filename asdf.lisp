@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.007" (1+ (length "VERSION")))) ; same as 2.124
+          (subseq "VERSION:2.008" (1+ (length "VERSION")))) ; same as 2.128
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -176,6 +176,9 @@
                    :shadow ',shadow
                    :unintern ',(append #-(or gcl ecl) redefined-functions unintern)
                    :fmakunbound ',(append fmakunbound))))
+          (let ((u (find-package :asdf-utilities)))
+            (when u
+              (ensure-unintern u (loop :for s :being :each :present-symbol :in u :collect s))))
           (pkgdcl
            :asdf
            :use (:common-lisp)
@@ -287,29 +290,29 @@
             #:clear-source-registry
             #:ensure-source-registry
             #:process-source-registry
+            #:system-registered-p
+            #:asdf-message
 
             ;; Utilities
             #:absolute-pathname-p
-            #:aif
-            #:appendf
-            #:asdf-message
+	    ;; #:aif #:it
+            ;; #:appendf
             #:coerce-name
             #:directory-pathname-p
-            #:ends-with
+            ;; #:ends-with
             #:ensure-directory-pathname
             #:getenv
-            #:get-uid
-            #:length=n-p
+            ;; #:get-uid
+            ;; #:length=n-p
             #:merge-pathnames*
             #:pathname-directory-pathname
             #:read-file-forms
-            #:remove-keys
-            #:remove-keyword
+	    ;; #:remove-keys
+	    ;; #:remove-keyword
             #:resolve-symlinks
             #:split-string
             #:component-name-to-pathname-components
             #:split-name-type
-            #:system-registered-p
             #:truenamize
             #:while-collecting)))
         (setf *asdf-version* asdf-version
@@ -531,7 +534,7 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
   (let* ((specified (pathname specified))
          (defaults (pathname defaults))
          (directory (pathname-directory specified))
-         #-sbcl (directory (if (stringp directory) `(:absolute ,directory) directory))
+         #-(or sbcl cmu) (directory (if (stringp directory) `(:absolute ,directory) directory))
          (name (or (pathname-name specified) (pathname-name defaults)))
          (type (or (pathname-type specified) (pathname-type defaults)))
          (version (or (pathname-version specified) (pathname-version defaults))))
@@ -740,7 +743,9 @@ actually-existing directory."
                   '(ffi:clines "#include <sys/types.h>" "#include <unistd.h>"))
   (defun* get-uid ()
     #+allegro (excl.osi:getuid)
-    #+clisp (posix:uid)
+    #+clisp (loop :for s :in '("posix:uid" "LINUX:getuid")
+	          :for f = (ignore-errors (read-from-string s))
+                  :when f :return (funcall f))
     #+(or cmu scl) (unix:unix-getuid)
     #+ecl #.(cl:if (cl:< ext:+ecl-version-number+ 100601)
                    '(ffi:c-inline () () :int "getuid()" :one-liner t)
@@ -764,11 +769,13 @@ actually-existing directory."
 (defun* probe-file* (p)
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
-  (and (pathnamep p) (not (wild-pathname-p p))
-       #+(or allegro clozure cmu ecl sbcl scl) (probe-file p)
-       #+clisp (ext:probe-pathname p)
-       #-(or allegro clisp clozure cmu ecl sbcl scl)
-       (ignore-errors (truename p))))
+  (etypecase p
+   (null nil)
+   (string (probe-file* (parse-namestring p)))
+   (pathname (unless (wild-pathname-p p)
+               #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
+               #+clisp (aif (find-symbol (string :probe-pathname) :ext) `(,it p))
+	       '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
   "Resolve as much of a pathname as possible"
@@ -779,7 +786,7 @@ with given pathname and if it exists return its truename."
       (when (typep p 'logical-pathname) (return p))
       (let ((found (probe-file* p)))
         (when found (return found)))
-      #-sbcl (when (stringp directory) (return p))
+      #-(or sbcl cmu) (when (stringp directory) (return p))
       (when (not (eq :absolute (car directory))) (return p))
       (let ((sofar (probe-file* (pathname-root p))))
         (unless sofar (return p))
@@ -857,7 +864,8 @@ with given pathname and if it exists return its truename."
                 error-name error-pathname error-condition
                 duplicate-names-name
                 error-component error-operation
-                module-components module-components-by-name)
+                module-components module-components-by-name
+                circular-dependency-components)
          (ftype (function (t t) t) (setf module-components-by-name)))
 
 
@@ -1353,7 +1361,7 @@ to ~S which is not a directory.~@:>"
   ;; NOTE that the host and device slots will be taken from the defaults,
   ;; but that should only matter if you either (a) use absolute pathnames, or
   ;; (b) later merge relative pathnames with CL:MERGE-PATHNAMES instead of
-  ;; ASDF-UTILITIES:MERGE-PATHNAMES*
+  ;; ASDF:MERGE-PATHNAMES*
   (etypecase name
     (pathname
      name)
