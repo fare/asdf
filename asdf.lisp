@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.127" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.128" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -864,7 +864,8 @@ with given pathname and if it exists return its truename."
                 error-name error-pathname error-condition
                 duplicate-names-name
                 error-component error-operation
-                module-components module-components-by-name)
+                module-components module-components-by-name
+                circular-dependency-components)
          (ftype (function (t t) t) (setf module-components-by-name)))
 
 
