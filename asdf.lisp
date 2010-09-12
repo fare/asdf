@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.128" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.129" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2852,9 +2852,9 @@ with a different configuration, so the configuration would be re-read then."
   `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
-    #+sbcl (,(getenv "SBCL_HOME") ())
+    #+sbcl ,(let ((h (getenv "SBCL_HOME"))) (when (plusp (length h)) `(,h ())))
     #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; not needed: no precompiled ASDF system
-    #+clozure (,(wilden (truename #p"ccl:")) ()) ; not needed: no precompiled ASDF system
+    #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ())) ; not needed: no precompiled ASDF system
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
     ;; These are for convenience, and can be overridden by the user:
