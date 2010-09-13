@@ -920,7 +920,7 @@ avoid trying to resolve and translate logical-pathnames.
 The advantage of this is that you can define yourself what translations you want to use
 with the logical pathname facility.
 The disadvantage is that if you do not define such translations, any
-system that uses logical pathnames will be have differently under
+system that uses logical pathnames will behave differently under
 asdf-output-translations than other systems you use.
 
 If you wish to use logical pathnames you will have to configure the
@@ -933,7 +933,7 @@ for defining logical pathname translations.
 @cindex serial dependencies
 
 If the @code{:serial t} option is specified for a module,
-ASDF will add dependencies for each each child component,
+ASDF will add dependencies for each child component,
 on all the children textually preceding it.
 This is done as if by @code{:depends-on}.
 
