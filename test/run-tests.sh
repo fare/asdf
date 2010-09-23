@@ -11,7 +11,7 @@ usage () {
     echo " - quit with exit status 0 on getting eof"
     echo " - quit with exit status >0 if an unhandled error occurs"
     echo " you need to supply the .script in the second argument"
-    echo " lisps include sbcl, clisp, allegro and allegromodern"
+    echo " lisps include sbcl, clisp, cmucl, lispworks, clisp, allegro and allegromodern"
     echo "OPTIONS:"
     echo "    -d -- debug mode"
     echo "    -u -h -- show this message."
