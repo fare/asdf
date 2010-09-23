@@ -47,7 +47,7 @@
 
 #+xcvb (module ())
 
-(cl:in-package :cl)
+(cl:in-package :cl-user)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   ;;; make package if it doesn't exist yet.
@@ -55,7 +55,7 @@
   (unless (find-package :asdf)
     (make-package :asdf :use '(:cl)))
   ;;; Implementation-dependent tweaks
-  ;; (declaim (optimize (speed 2) (debug 2) (safety 3)) ; NO: rely on the implementation defaults.
+  ;; (declaim (optimize (speed 2) (debug 2) (safety 3))) ; NO: rely on the implementation defaults.
   #+allegro
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.129" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.130" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -82,36 +82,30 @@
                 "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
                 existing-version asdf-version))
       (labels
-          ((rename-away (package)
-             (loop :with name = (package-name package)
-               :for i :from 1 :for new = (format nil "~A.~D" name i)
-               :unless (find-package new) :do
-               (rename-package-name package name new)))
-           (rename-package-name (package old new)
-             (let* ((old-names (cons (package-name package)
-                                     (package-nicknames package)))
-                    (new-names (subst new old old-names :test 'equal))
-                    (new-name (car new-names))
-                    (new-nicknames (cdr new-names)))
-               (rename-package package new-name new-nicknames)))
+          ((unlink-package (package)
+             (let ((u (find-package package)))
+               (when u
+                 (ensure-unintern u
+                   (loop :for s :being :each :present-symbol :in u :collect s))
+                 (loop :for p :in (package-used-by-list u) :do
+                   (unuse-package u p))
+                 (delete-package u))))
            (ensure-exists (name nicknames use)
-             (let* ((previous
-                     (remove-duplicates
-                      (remove-if
-                       #'null
-                       (mapcar #'find-package (cons name nicknames)))
-                      :from-end t)))
-               (cond
-                 (previous
-                  ;; do away with packages with conflicting (nick)names
-                  (map () #'rename-away (cdr previous))
-                  ;; reuse previous package with same name
-                  (let ((p (car previous)))
+             (let ((previous
+                    (remove-duplicates
+                     (mapcar #'find-package (cons name nicknames))
+                     :from-end t)))
+               ;; do away with packages with conflicting (nick)names
+               (map () #'unlink-package (cdr previous))
+               ;; reuse previous package with same name
+               (let ((p (car previous)))
+                 (cond
+                   (p
                     (rename-package p name nicknames)
                     (ensure-use p use)
-                    p))
-                 (t
-                  (make-package name :nicknames nicknames :use use)))))
+                    p)
+                   (t
+                    (make-package name :nicknames nicknames :use use))))))
            (find-sym (symbol package)
              (find-symbol (string symbol) package))
            (intern* (symbol package)
@@ -176,9 +170,7 @@
                    :shadow ',shadow
                    :unintern ',(append #-(or gcl ecl) redefined-functions unintern)
                    :fmakunbound ',(append fmakunbound))))
-          (let ((u (find-package :asdf-utilities)))
-            (when u
-              (ensure-unintern u (loop :for s :being :each :present-symbol :in u :collect s))))
+          (unlink-package :asdf-utilities)
           (pkgdcl
            :asdf
            :use (:common-lisp)
@@ -334,7 +326,7 @@
       '(defmethod update-instance-for-redefined-class :after
            ((m module) added deleted plist &key)
          (declare (ignorable deleted plist))
-         (format *trace-output* "Updating ~A~%" m)
+         (when *asdf-verbose* (format *trace-output* "Updating ~A~%" m))
          (when (member 'components-by-name added)
            (compute-module-components-by-name m))))))
 
@@ -1288,17 +1280,22 @@ to ~S which is not a directory.~@:>"
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
 
-(defun* sysdef-find-asdf (system)
-  (let ((name (coerce-name system)))
-    (when (equal name "asdf")
-      (let* ((registered (cdr (gethash name *defined-systems*)))
-             (asdf (or registered
+(defun* find-system-fallback (requested fallback &optional source-file)
+  (setf fallback (coerce-name fallback)
+        source-file (or source-file *compile-file-truename* *load-truename*)
+        requested (coerce-name requested))
+  (when (equal requested fallback)
+    (let* ((registered (cdr (gethash fallback *defined-systems*)))
+           (system (or registered
                        (make-instance
-                        'system :name "asdf"
-                        :source-file (or *compile-file-truename* *load-truename*)))))
-        (unless registered
-          (register-system "asdf" asdf))
-        (throw 'find-system asdf)))))
+                        'system :name fallback
+                        :source-file source-file))))
+      (unless registered
+        (register-system fallback system))
+      (throw 'find-system system))))
+
+(defun* sysdef-find-asdf (name)
+  (find-system-fallback name "asdf"))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -2775,7 +2772,7 @@ with a different configuration, so the configuration would be re-read then."
   (unless
       (or (member directive '(:inherit-configuration
                               :ignore-inherited-configuration
-                              :enable-user-cache :disable-cache))
+                              :enable-user-cache :disable-cache nil))
           (and (consp directive)
                (or (and (length=n-p directive 2)
                         (or (and (eq (first directive) :include)
@@ -2920,7 +2917,7 @@ with a different configuration, so the configuration would be re-read then."
          (process-output-translations-directive '(t t) :collect collect))
         ((:inherit-configuration)
          (inherit-output-translations inherit :collect collect))
-        ((:ignore-inherited-configuration)
+        ((:ignore-inherited-configuration nil)
          nil))
       (let ((src (first directive))
             (dst (second directive)))
@@ -3116,6 +3113,8 @@ effectively disabling the output translation facility."
 ;;;; Jesse Hager: The Windows Shortcut File Format.
 ;;;; http://www.wotsit.org/list.asp?fc=13
 
+#+(and (or win32 windows mswindows mingw32) (not cygwin) (not clisp))
+(progn
 (defparameter *link-initial-dword* 76)
 (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
 
@@ -3182,7 +3181,7 @@ effectively disabling the output translation facility."
                     (read-sequence buffer s)
                     (map 'string #'code-char buffer)))))))
       (end-of-file ()
-        nil))))
+        nil)))))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Source Registry Configuration, by Francois-Rene Rideau
