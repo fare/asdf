@@ -1,3 +1,22 @@
+cl-asdf (2:2.008-1) unstable; urgency=low
+
+  * new upstream: removes unwanted exports,
+    plays nicer with sbcl, cmucl, old clisp.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 10 Sep 2010 17:16:06 -0400
+
+cl-asdf (2:2.007-1) unstable; urgency=low
+
+  * new upstream, fixes lp#623992 introduced in 2.006, allows upgrade on SBCL.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Wed, 25 Aug 2010 23:22:13 -0400
+
+cl-asdf (2:2.006-1) unstable; urgency=low
+
+  * new upstream, with bug fixes and API changes.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 24 Aug 2010 18:43:48 -0400
+
 cl-asdf (2:2.005-1) unstable; urgency=low
 
   * New upstream.
@@ -23,7 +42,7 @@ cl-asdf (2:1.704-1) unstable; urgency=low
 
 cl-asdf (2:1.627-1) unstable; urgency=low
 
-  * New upstream release. 
+  * New upstream release.
   * Added dh_installinfo for info files. (Closes: #560290)
   * Incorporated run-shell-command patch for LispWorks. Thanks tianchun!
     (Closes: #457919)
@@ -52,7 +71,7 @@ cl-asdf (1:20091221-1) unstable; urgency=low
 
 cl-asdf (1:20090819-3) unstable; urgency=low
 
-  * Fixed the loop construct again. (Closes: #546205) 
+  * Fixed the loop construct again. (Closes: #546205)
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 12 Sep 2009 10:08:23 +0100
 
@@ -86,7 +105,7 @@ cl-asdf (1.111-1) unstable; urgency=low
   * Fixed Vcs-Git field
   * Changed to group maintanance
   * recreated upstream changelog with git2cl
-  * Changed directory, so we depend on a newer clc 
+  * Changed directory, so we depend on a newer clc
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Sat, 09 Feb 2008 10:07:21 +0100
 
@@ -108,7 +127,7 @@ cl-asdf (1.109-1) unstable; urgency=low
        a specific name and type.
      + Removes inline component methods more carefully (and, I believe, correctly!). Helps keep LispWorks happy.
      + Reworked asdf tests to make them more robust and perhaps more flexible too.
-  * Now use texlive to build. 
+  * Now use texlive to build.
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Sun, 16 Sep 2007 14:45:57 +0200
 
@@ -126,7 +145,7 @@ cl-asdf (1.106-1) experimental; urgency=low
       + Minor patch in class-for-type that evaluates only *package* at read
    time rather than (package-name *package*); this keeps case sensitive Lisps
    happy all the time and keeps case insensitive lisps happily insensitive.
-  
+
       + A patch from Richard Kreuter that allows pathname defaulting to work
    better with *load-truename* and *default-pathname-defaults*; this makes it
    easier to work with defsystems in the REPL.
@@ -163,7 +182,7 @@ cl-asdf (1.99-2) unstable; urgency=low
 
   * Move asdf.info files from sbcl to this package.
   * move texinfo to BuildDependsIndep
-  * we build something build-indep 
+  * we build something build-indep
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Fri, 30 Jun 2006 23:18:40 +0200
 
@@ -201,14 +220,14 @@ cl-asdf (1.86-5) unstable; urgency=low
     defsystem files. Now works again with McClim. Closes: #310640
   * Corrected dependencies.
   * Added postinst rebuild of all clc-enabled lisps so the new version
-    actually gets loaded. 
+    actually gets loaded.
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Wed, 25 May 2005 08:22:17 +0200
 
 cl-asdf (1.86-4) unstable; urgency=low
 
   * My release script stripped the patch. So this should really contain the
-    patch. Damn. 
+    patch. Damn.
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Tue, 10 May 2005 14:17:51 +0200
 
@@ -338,7 +357,7 @@ cl-asdf (1.69) unstable; urgency=low
 
 cl-asdf (1.68) unstable; urgency=low
 
-  * New upstream with 'asdf:test-op 
+  * New upstream with 'asdf:test-op
 
  -- Kevin M. Rosenberg <kmr@debian.org>  Wed, 19 Mar 2003 10:16:01 -0700
 
@@ -387,7 +406,7 @@ cl-asdf (1.57-1) unstable; urgency=low
 
 cl-asdf (1.55-1) unstable; urgency=low
 
-  * New upstream.version (closes: 172074) 
+  * New upstream.version (closes: 172074)
 
  -- Kevin M. Rosenberg <kmr@debian.org>  Mon,  9 Dec 2002 10:23:21 -0700
 
@@ -408,7 +427,7 @@ cl-asdf (1.49) unstable; urgency=low
   * New upstream release, fixes run-shell-command for allegro. Code
     refactoring for run-shell-code.
   * Support new CLC reregister command
-  
+
  -- Kevin M. Rosenberg <kmr@debian.org>  Wed, 25 Sep 2002 23:57:23 -0600
 
 cl-asdf (1.47) unstable; urgency=low
@@ -534,7 +553,7 @@ cl-asdf (0.0+cvs.2002.08.18) unstable; urgency=low
   * Expand description in control file.
   * Change version numbering scheme since upstream has native debian
   directory
-  
+
  -- Kevin M. Rosenberg <kmr@debian.org>  Sat, 17 Aug 2002 14:25:33 -0600
 
 cl-asdf (0.0+cvs.2002.08.15-1) unstable; urgency=low
