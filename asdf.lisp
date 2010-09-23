@@ -970,15 +970,13 @@ with given pathname and if it exists return its truename."
 ;;;; methods: components
 
 (defmethod print-object ((c missing-component) s)
-  (format s "~@<component ~S not found~
-             ~@[ in ~A~]~@:>"
+  (format s "~@<component ~S not found~@[ in ~A~]~@:>"
           (missing-requires c)
           (when (missing-parent c)
             (component-name (missing-parent c)))))
 
 (defmethod print-object ((c missing-component-of-version) s)
-  (format s "~@<component ~S does not match version ~A~
-              ~@[ in ~A~]~@:>"
+  (format s "~@<component ~S does not match version ~A~@[ in ~A~]~@:>"
           (missing-requires c)
           (missing-version c)
           (when (missing-parent c)
@@ -1202,8 +1200,7 @@ Going forward, we recommend new users should be using the source-registry.
                             (let* ((*print-circle* nil)
                                    (message
                                     (format nil
-                                            "~@<While searching for system ~S: ~S evaluated ~
-to ~S which is not a directory.~@:>"
+                                            "~@<While searching for system ~S: ~S evaluated to ~S which is not a directory.~@:>"
                                             system dir defaults)))
                               (error message))
                           (remove-entry-from-registry ()
@@ -1784,8 +1781,7 @@ recursive calls to traverse.")
 
 (defmethod perform ((operation operation) (c source-file))
   (sysdef-error
-   "~@<required method PERFORM not implemented ~
-    for operation ~A, component ~A~@:>"
+   "~@<required method PERFORM not implemented for operation ~A, component ~A~@:>"
    (class-of operation) (class-of c)))
 
 (defmethod perform ((operation operation) (c module))
@@ -2065,8 +2061,7 @@ recursive calls to traverse.")
               (accept ()
                 :report
                 (lambda (s)
-                  (format s "~@<Continue, treating ~A as ~
-                                   having been successful.~@:>"
+                  (format s "~@<Continue, treating ~A as having been successful.~@:>"
                           (operation-description op component)))
                 (setf (gethash (type-of op)
                                (component-operation-times component))
@@ -2542,8 +2537,7 @@ located."
                             "No architecture feature found in ~a."
                             *architecture-features*))
           (version (maybe-warn (lisp-version-string)
-                               "Don't know how to get Lisp ~
-                                          implementation version.")))
+                               "Don't know how to get Lisp implementation version.")))
       (substitute-if
        #\_ (lambda (x) (find x " /:\\(){}[]$#`'\""))
        (format nil "~(~@{~a~^-~}~)" lisp version os arch)))))
