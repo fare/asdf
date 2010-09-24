@@ -2195,8 +2195,7 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
     PATHNAME | ;; pathname (better be an absolute directory or bust)
     :HOME | ;; designates the user-homedir-pathname ~/
     :USER-CACHE | ;; designates the default location for the user cache
-    :SYSTEM-CACHE | ;; designates the default location for the system cache
-    :CURRENT-DIRECTORY ;; the current directory
+    :SYSTEM-CACHE ;; designates the default location for the system cache
 
 RELATIVE-COMPONENT-DESIGNATOR :=
     STRING | ;; namestring, directory is assumed. If the last component, /**/*.* is added
