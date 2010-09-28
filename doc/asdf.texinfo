@@ -2202,7 +2202,6 @@ RELATIVE-COMPONENT-DESIGNATOR :=
     PATHNAME | ;; pathname unless last component, directory is assumed.
     :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.32.30-linux-x86-64
     :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
-    :CURRENT-DIRECTORY | ;; all components of the current directory, without the :absolute
     :UID | ;; current UID -- not available on Windows
     :USER ;; current USER name -- NOT IMPLEMENTED(!)
 

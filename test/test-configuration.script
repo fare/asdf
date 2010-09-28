@@ -70,11 +70,14 @@
 (create-asd-files)
 (create-conf-files)
 
-#+abcl (trace directory)
-
 (initialize-source-registry
  `(:source-registry (:include ,(under-test-directory "conf.d/"))
                     :ignore-inherited-configuration))
+
+#+abcl
+(when (find-system :foo3 nil)
+  (format t "~&Great news: ABCL can now find system FOO3 in a subdirectory!~%"))
+
 #-abcl ;; disable for ABCL for now. Hmmm. We need a better way to handle "known failures".
 (assert
  (equal (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
