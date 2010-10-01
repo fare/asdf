@@ -242,7 +242,7 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 2.004,
+If you are running a version older than 2.008,
 we recommend that you load a newer ASDF using the method below.
 
 
@@ -568,6 +568,19 @@ In older versions of ASDF, you needed to use
 If your ASDF is too old to provide @code{asdf:load-system} though
 we recommend that you upgrade to ASDF 2.
 @xref{Loading ASDF,,Loading an otherwise installed ASDF}.
+
+Note the name of a system is specified as a string or a symbol,
+typically a keyword.
+If a symbol (including a keyword), its name is taken and lowercased.
+The name must be a suitable value for the @code{:name} initarg
+to @code{make-pathname} in whatever filesystem the system is to be found.
+The lower-casing-symbols behaviour is unconventional,
+but was selected after some consideration.
+Observations suggest that the type of systems we want to support
+either have lowercase as customary case (unix, mac, windows)
+or silently convert lowercase to uppercase (lpns),
+so this makes more sense than attempting to use @code{:case :common},
+which is reported not to work on some implementations
 
 
 @section Other Operations
