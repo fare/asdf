@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.132" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.133" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2108,21 +2108,24 @@ created with the same initargs as the original one.
   "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
-  (apply #'operate 'load-op system args))
+  (apply #'operate 'load-op system args)
+  t)
 
 (defun* compile-system (system &rest args &key force verbose version
                        &allow-other-keys)
   "Shorthand for `(operate 'asdf:compile-op system)`. See OPERATE
 for details."
   (declare (ignore force verbose version))
-  (apply #'operate 'compile-op system args))
+  (apply #'operate 'compile-op system args)
+  t)
 
 (defun* test-system (system &rest args &key force verbose version
                     &allow-other-keys)
   "Shorthand for `(operate 'asdf:test-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
-  (apply #'operate 'test-op system args))
+  (apply #'operate 'test-op system args)
+  t)
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Defsystem
