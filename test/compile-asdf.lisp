@@ -21,6 +21,7 @@
            (compile-file *asdf-lisp* :output-file tmp :print t :verbose t))
        (declare (ignore result))
        (cond
+         #-ecl ; 10.7.1 has spurious warnings. Sigh.
          (warnings-p
           (leave-lisp "Testsuite failed: ASDF compiled with warnings" 1))
          (errors-p

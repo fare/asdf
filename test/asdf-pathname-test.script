@@ -278,6 +278,15 @@
  (asdf:initialize-output-translations)
  (format t "output translations: ~S~%" (asdf::output-translations))
 
+ #-(or clisp ecl) ; clisp has problem with the first one having :version :newest
+ (progn ; 1- we're testing with unix, are we not?
+   (assert (equal (asdf::resolve-location '(:home)) (truename (user-homedir-pathname))))
+   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz"))
+   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory t) #p"/foo/bar/baz/"))
+   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory t :wilden t) (asdf::wilden #p"/foo/bar/baz/")))
+   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory nil :wilden t) (asdf::wilden #p"/foo/bar/")))
+   (assert (equal (asdf::resolve-location '("/foo" "bar" #p"**/" "baz" #p"*.*") :directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
+
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
      (leave-lisp "test failed" 1)))
 

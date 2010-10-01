@@ -1752,6 +1752,29 @@ DIRECTIVE :=
     ;; This directive specifies that some default must be spliced.
     :default-registry
 
+REGULAR-FILE-PATHNAME-DESIGNATOR := PATHNAME-DESIGNATOR ;; interpreted as a file
+DIRECTORY-PATHNAME-DESIGNATOR := PATHNAME-DESIGNATOR ;; interpreted as a directory name
+
+PATHNAME-DESIGNATOR :=
+    NULL | ;; Special: skip this entry.
+    ABSOLUTE-COMPONENT-DESIGNATOR |
+    (ABSOLUTE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...)
+
+ABSOLUTE-COMPONENT-DESIGNATOR :=
+    STRING | ;; namestring (better be absolute or bust, directory assumed where applicable)
+    PATHNAME | ;; pathname (better be an absolute path, or bust)
+    :HOME | ;; designates the user-homedir-pathname ~/
+    :USER-CACHE | ;; designates the default location for the user cache
+    :SYSTEM-CACHE ;; designates the default location for the system cache
+
+RELATIVE-COMPONENT-DESIGNATOR :=
+    STRING | ;; namestring (directory assumed where applicable)
+    PATHNAME | ;; pathname
+    :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.32.30-linux-x86-64
+    :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
+    :UID | ;; current UID -- not available on Windows
+    :USER ;; current USER name -- NOT IMPLEMENTED(!)
+
 PATTERN := a string without wildcards, that will be matched exactly
 	against the name of a any subdirectory in the directory component
         of a path. e.g. @code{"_darcs"} will match @file{#p"/foo/bar/_darcs/src/bar.asd"}
@@ -1762,7 +1785,7 @@ which is the default place ASDF looks for this configuration,
 once contained:
 @example
 (:source-registry
-  (:tree "/home/fare/cl/")
+  (:tree (:home "cl")) ;; will expand to e.g. "/home/joeluser/cl/"
   :inherit-configuration)
 @end example
 

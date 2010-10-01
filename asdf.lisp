@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.131" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.132" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -178,7 +178,7 @@
            (#:perform #:explain #:output-files #:operation-done-p
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
-            #:apply-output-translations #:translate-pathname*)
+            #:apply-output-translations #:translate-pathname* #:resolve-location)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
             #:split #:make-collector)
@@ -323,12 +323,19 @@
          (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p)))))
    (when (find-class 'module nil)
      (eval
-      '(defmethod update-instance-for-redefined-class :after
-           ((m module) added deleted plist &key)
-         (declare (ignorable deleted plist))
-         (when *asdf-verbose* (format *trace-output* "Updating ~A~%" m))
-         (when (member 'components-by-name added)
-           (compute-module-components-by-name m))))))
+      '(progn
+         (defmethod update-instance-for-redefined-class :after
+             ((m module) added deleted plist &key)
+           (declare (ignorable deleted plist))
+           (when *asdf-verbose* (format *trace-output* "Updating ~A~%" m))
+           (when (member 'components-by-name added)
+             (compute-module-components-by-name m)))
+         (defmethod update-instance-for-redefined-class :after
+             ((s system) added deleted plist &key)
+           (declare (ignorable deleted plist))
+           (when *asdf-verbose* (format *trace-output* "Updating ~A~%" s))
+           (when (member 'source-file added)
+             (%set-system-source-file (probe-asd (component-name s) (component-pathname s)) s)))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
@@ -2683,19 +2690,24 @@ with a different configuration, so the configuration would be re-read then."
   (make-pathname :directory '(:relative :wild-inferiors)
                  :name :wild :type "asd" :version :newest))
 
-(declaim (ftype (function (t &optional boolean) (values (or null pathname) &optional))
+(declaim (ftype (function (t &key (:directory boolean) (:wilden boolean))
+                          (values (or null pathname) &optional))
                 resolve-location))
 
-(defun* resolve-relative-location-component (super x &optional wildenp)
+(defun* resolve-relative-location-component (super x &key directory wilden)
   (let* ((r (etypecase x
               (pathname x)
               (string x)
               (cons
-               (let ((car (resolve-relative-location-component super (car x) nil)))
+               (return-from resolve-relative-location-component
                  (if (null (cdr x))
-                     car
-                     (let ((cdr (resolve-relative-location-component
-                                 (merge-pathnames* car super) (cdr x) wildenp)))
+                     (resolve-relative-location-component
+                      super (car x) :directory directory :wilden wilden)
+                     (let* ((car (resolve-relative-location-component
+                                  super (car x) :directory t :wilden nil))
+                            (cdr (resolve-relative-location-component
+                                  (merge-pathnames* car super) (cdr x)
+                                  :directory directory :wilden wilden)))
                        (merge-pathnames* cdr car)))))
               ((eql :default-directory)
                (relativize-pathname-directory (default-directory)))
@@ -2703,49 +2715,55 @@ with a different configuration, so the configuration would be re-read then."
               ((eql :implementation-type) (string-downcase (implementation-type)))
               #-(and (or win32 windows mswindows mingw32) (not cygwin))
               ((eql :uid) (princ-to-string (get-uid)))))
-         (d (if (pathnamep x) r (ensure-directory-pathname r)))
-         (s (if (and wildenp (not (pathnamep x)))
-                (wilden d)
-                d)))
+         (d (if (or (pathnamep x) (not directory)) r (ensure-directory-pathname r)))
+         (s (if (or (pathnamep x) (not wilden)) d (wilden d))))
     (when (and (absolute-pathname-p s) (not (pathname-match-p s (wilden super))))
       (error "pathname ~S is not relative to ~S" s super))
     (merge-pathnames* s super)))
 
-(defun* resolve-absolute-location-component (x wildenp)
+(defun* resolve-absolute-location-component (x &key directory wilden)
   (let* ((r
           (etypecase x
             (pathname x)
-            (string (ensure-directory-pathname x))
+            (string (if directory (ensure-directory-pathname x) (parse-namestring x)))
             (cons
-             (let ((car (resolve-absolute-location-component (car x) nil)))
+             (return-from resolve-absolute-location-component
                (if (null (cdr x))
-                   car
-                   (let ((cdr (resolve-relative-location-component
-                               car (cdr x) wildenp)))
-                     (merge-pathnames* cdr car)))))
+                   (resolve-absolute-location-component
+                    (car x) :directory directory :wilden wilden)
+                   (let* ((car (resolve-absolute-location-component
+                                (car x) :directory t :wilden nil))
+                          (cdr (resolve-relative-location-component
+                                car (cdr x) :directory directory :wilden wilden)))
+                     (merge-pathnames* cdr car))))) ; XXX why is this not just "cdr" ?
             ((eql :root)
              ;; special magic! we encode such paths as relative pathnames,
              ;; but it means "relative to the root of the source pathname's host and device".
              (return-from resolve-absolute-location-component
-               (make-pathname :directory '(:relative))))
+               (let ((p (make-pathname :directory '(:relative))))
+                 (if wilden (wilden p) p))))
             ((eql :home) (user-homedir))
-            ((eql :user-cache) (resolve-location *user-cache* nil))
-            ((eql :system-cache) (resolve-location *system-cache* nil))
+            ((eql :user-cache) (resolve-location *user-cache* :directory t :wilden nil))
+            ((eql :system-cache) (resolve-location *system-cache* :directory t :wilden nil))
             ((eql :default-directory) (default-directory))))
-         (s (if (and wildenp (not (pathnamep x)))
+         (s (if (and wilden (not (pathnamep x)))
                 (wilden r)
                 r)))
     (unless (absolute-pathname-p s)
       (error "Not an absolute pathname ~S" s))
     s))
 
-(defun* resolve-location (x &optional wildenp)
+(defun* resolve-location (x &key directory wilden)
   (if (atom x)
-      (resolve-absolute-location-component x wildenp)
-      (loop :with path = (resolve-absolute-location-component (car x) nil)
+      (resolve-absolute-location-component x :directory directory :wilden wilden)
+      (loop :with path = (resolve-absolute-location-component
+                          (car x) :directory (and (or directory (cdr x)) t)
+                          :wilden (and wilden (null (cdr x))))
         :for (component . morep) :on (cdr x)
+        :for dir = (and (or morep directory) t)
+        :for wild = (and wilden (not morep))
         :do (setf path (resolve-relative-location-component
-                        path component (and wildenp (not morep))))
+                        path component :directory dir :wilden wild))
         :finally (return path))))
 
 (defun* location-designator-p (x)
@@ -2920,7 +2938,7 @@ with a different configuration, so the configuration would be re-read then."
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (when src
               (let ((trusrc (or (eql src t)
-                                (let ((loc (resolve-location src t)))
+                                (let ((loc (resolve-location src :directory t :wilden t)))
                                   (if (absolute-pathname-p loc) (truenamize loc) loc)))))
                 (cond
                   ((location-function-p dst)
@@ -2933,7 +2951,7 @@ with a different configuration, so the configuration would be re-read then."
                    (funcall collect (list trusrc t)))
                   (t
                    (let* ((trudst (make-pathname
-                                   :defaults (if dst (resolve-location dst t) trusrc)))
+                                   :defaults (if dst (resolve-location dst :directory t :wilden t) trusrc)))
                           (wilddst (make-pathname
                                     :name :wild :type :wild :version :wild
                                     :defaults trudst)))
@@ -3218,7 +3236,7 @@ with a different configuration, so the configuration would be re-read then."
             (case kw
               ((:include :directory :tree)
                (and (length=n-p rest 1)
-                    (typep (car rest) '(or pathname string null))))
+                    (location-designator-p (first rest))))
               ((:exclude :also-exclude)
                (every #'stringp rest))
               (null rest))))
@@ -3382,15 +3400,16 @@ with a different configuration, so the configuration would be re-read then."
     (ecase kw
       ((:include)
        (destructuring-bind (pathname) rest
-         (process-source-registry (pathname pathname) :inherit nil :register register)))
+         (process-source-registry (resolve-location pathname) :inherit nil :register register)))
       ((:directory)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (ensure-directory-pathname pathname)))))
+           (funcall register (resolve-location pathname :directory t)))))
       ((:tree)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (ensure-directory-pathname pathname) :recurse t :exclude *source-registry-exclusions*))))
+           (funcall register (resolve-location pathname :directory t)
+                    :recurse t :exclude *source-registry-exclusions*))))
       ((:exclude)
        (setf *source-registry-exclusions* rest))
       ((:also-exclude)
