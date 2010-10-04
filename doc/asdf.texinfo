@@ -736,16 +736,24 @@ slightly convoluted example:
 @lisp
 (defsystem "foo"
   :version "1.0"
-  :components ((:module "foo" :components ((:file "bar") (:file"baz")
-                                           (:file "quux"))
-                :perform (compile-op :after (op c)
-                          (do-something c))
-                :explain (compile-op :after (op c)
-                          (explain-something c)))
-               (:file "blah")))
+  :components ((:module "mod"
+                            :components ((:file "bar")
+                                                  (:file"baz")
+                                                  (:file "quux"))
+                            :perform (compile-op :after (op c)
+                                                  (do-something c))
+                            :explain (compile-op :after (op c)
+                                            (explain-something c)))
+                         (:file "blah")))
 @end lisp
 
-The method-form tokens need explaining: essentially, this part:
+The @code{:module} component named @code{"mod"} is a collection of three files,
+which will be located in a subdirectory of the main code directory named
+@file{mod} (this location can be overridden; see the discussion of the
+@code{:pathname} option in @ref{The defsystem grammar}).
+
+The method-form tokens provide a shorthand for defining methods on
+particular components.  This part
 
 @lisp
                 :perform (compile-op :after (op c)
@@ -763,12 +771,25 @@ has the effect of
            (explain-something c))
 @end lisp
 
-where @code{...} is the component in question;
-note that although this also supports @code{:before} methods,
-they may not do what you want them to ---
-a @code{:before} method on perform @code{((op compile-op) (c (eql ...)))}
-will run after all the dependencies and sub-components have been processed,
-but before the component in question has been compiled.
+where @code{...} is the component in question.
+In this case @code{...} would expand to something like 
+
+@lisp
+(find-component (find-system "foo") "mod")
+@end lisp
+
+For more details on the syntax of such forms, see @ref{The defsystem
+grammar}.
+For more details on what these methods do, @pxref{Operations} in
+@ref{The object model of ASDF}.
+
+@c The following plunge into the weeds is not appropriate in this
+@c location. [2010/10/03:rpg]
+@c note that although this also supports @code{:before} methods,
+@c they may not do what you want them to ---
+@c a @code{:before} method on perform @code{((op compile-op) (c (eql ...)))}
+@c will run after all the dependencies and sub-components have been processed,
+@c but before the component in question has been compiled.
 
 @node  The defsystem grammar, Other code in .asd files, A more involved example, Defining systems with defsystem
 @comment  node-name,  next,  previous,  up
