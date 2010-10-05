@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.133" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.134" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1898,11 +1898,11 @@ recursive calls to traverse.")
 (defclass load-op (basic-load-op) ())
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  #-ecl (mapcar #'load (input-files o c))
-  #+ecl (loop :for i :in (input-files o c)
-          :unless (string= (pathname-type i) "fas")
-          :collect (let ((output (compile-file-pathname (lispize-pathname i))))
-                     (load output))))
+  (map () #'load
+       #-ecl (input-files o c)
+       #+ecl (loop :for i :in (input-files o c)
+               :unless (string= (pathname-type i) "fas")
+               :collect (compile-file-pathname (lispize-pathname i)))))
 
 (defmethod perform-with-restarts (operation component)
   (perform operation component))
@@ -3100,8 +3100,10 @@ effectively disabling the output translation facility."
          (merge-pathnames* (make-pathname :directory '(:relative ".fasls"))
                            (user-homedir)))
      (include-per-user-information nil)
-     (map-all-source-files nil)
+     (map-all-source-files (or #+(or ecl clisp) t nil))
      (source-to-target-mappings nil))
+  (when (and (null map-all-source-files) #-(or ecl clisp) nil)
+    (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on ECL and CLISP"))
   (let* ((fasl-type (pathname-type (compile-file-pathname "foo.lisp")))
          (wild-inferiors (make-pathname :directory '(:relative :wild-inferiors)))
          (mapped-files (make-pathname
