@@ -1,3 +1,9 @@
+cl-asdf (2:2.009-1) unstable; urgency=low
+
+  * new upstream release 2.009, identical to 2.134 from master.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Wed, 06 Oct 2010 13:26:36 -0400
+
 cl-asdf (2:2.008-1) unstable; urgency=low
 
   * new upstream: removes unwanted exports,
