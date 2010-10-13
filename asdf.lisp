@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.134" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.135" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -173,6 +173,7 @@
           (unlink-package :asdf-utilities)
           (pkgdcl
            :asdf
+           :nicknames (:asdf-utilities) ;; DEPRECATED! Do not use, for backward compatibility only.
            :use (:common-lisp)
            :redefined-functions
            (#:perform #:explain #:output-files #:operation-done-p
