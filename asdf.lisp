@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.135" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.136" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -774,7 +774,7 @@ with given pathname and if it exists return its truename."
    (string (probe-file* (parse-namestring p)))
    (pathname (unless (wild-pathname-p p)
                #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
-               #+clisp (aif (find-symbol (string :probe-pathname) :ext) `(,it p))
+               #+clisp (aif (find-symbol (string :probe-pathname) :ext) `(ignore-errors (,it p)))
 	       '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
