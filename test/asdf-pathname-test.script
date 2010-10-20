@@ -32,7 +32,8 @@
 
 (defun test-component-pathnames (&key (root (asdf::pathname-directory-pathname *asdf-fasl*))
                                  (delete-host t)
-                                 (support-string-pathnames nil))
+                                 (support-string-pathnames nil)
+                                 (support-absolute-string-pathnames nil))
   (unwind-protect
     (let* ((bin-type (pathname-type (compile-file-pathname "test.lisp")))
            (root-directory-namestring (format nil "~{/~a~}/" (rest (pathname-directory root))))
@@ -84,12 +85,12 @@
                                  "module2/"
                                  "module2/module3"
                                  "module2/module3/"
-                                 ,(concatenate 'string root-directory-namestring "asdf-src/system1/module1")
-                                 ,(concatenate 'string root-directory-namestring "asdf-src/system1/module1/")
-                                 ,(concatenate 'string root-directory-namestring "asdf-src/system1/module2/")
-                                 ,(concatenate 'string root-directory-namestring "asdf-src/system1/module2/module3/")
-                                 ,(concatenate 'string root-directory-namestring "asdf-src/system2/module4/")))))
-
+                                 ,@(when support-absolute-string-pathnames
+                                     `(,(concatenate 'string root-directory-namestring "asdf-src/system1/module1")
+                                       ,(concatenate 'string root-directory-namestring "asdf-src/system1/module1/")
+                                       ,(concatenate 'string root-directory-namestring "asdf-src/system1/module2/")
+                                       ,(concatenate 'string root-directory-namestring "asdf-src/system1/module2/module3/")
+                                       ,(concatenate 'string root-directory-namestring "asdf-src/system2/module4/")))))))
                 (files `(nil
                          ,(make-pathname :directory '(:relative) :name "untyped-file" :type nil)
                          "file"
@@ -177,9 +178,10 @@
                                                                               (:static-file "static-file.type" :pathname ,file-pathname)
                                                                               (:file "module2/typed-file.type" :pathname ,file-pathname)
                                                                               (:static-file "module2/static-file.type" :pathname ,file-pathname)
-                                                                              (:static-file ,(concatenate 'string root-directory-namestring
+                                                                              ,@(when support-absolute-string-pathnames
+                                                                                      `((:static-file ,(concatenate 'string root-directory-namestring
                                                                                                           "asdf-src/system1/module1/file.lisp")
-                                                                                            :pathname ,file-pathname)))))))))
+                                                                                            :pathname ,file-pathname)))))))))))
 
                     (block :test-system
                       (handler-bind

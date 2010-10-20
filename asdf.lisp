@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.136" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.137" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -534,7 +534,18 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
   (let* ((specified (pathname specified))
          (defaults (pathname defaults))
          (directory (pathname-directory specified))
-         #-(or sbcl cmu) (directory (if (stringp directory) `(:absolute ,directory) directory))
+         (directory
+          (cond
+            #-(or sbcl cmu)
+            ((stringp directory) `(:absolute ,directory) directory)
+            #+gcl
+            ((and (consp directory) (stringp (first directory)))
+             `(:absolute ,@directory))
+            ((or (null directory)
+                 (and (consp directory) (member (first directory) '(:absolute :relative))))
+             directory)
+            (t
+             (error "Unrecognized directory component ~S in pathname ~S" directory specified))))
          (name (or (pathname-name specified) (pathname-name defaults)))
          (type (or (pathname-type specified) (pathname-type defaults)))
          (version (or (pathname-version specified) (pathname-version defaults))))
@@ -543,7 +554,7 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
              (unspecific-handler (p)
                (if (typep p 'logical-pathname) #'ununspecific #'identity)))
       (multiple-value-bind (host device directory unspecific-handler)
-          (#-gcl ecase #+gcl case (first directory)
+          (ecase (first directory)
             ((nil)
              (values (pathname-host defaults)
                      (pathname-device defaults)
@@ -560,13 +571,6 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
                      (if (pathname-directory defaults)
                          (append (pathname-directory defaults) (cdr directory))
                          directory)
-                     (unspecific-handler defaults)))
-            #+gcl
-            (t
-             (assert (stringp (first directory)))
-             (values (pathname-host defaults)
-                     (pathname-device defaults)
-                     (append (pathname-directory defaults) directory)
                      (unspecific-handler defaults))))
         (make-pathname :host host :device device :directory directory
                        :name (funcall unspecific-handler name)
@@ -621,7 +625,7 @@ starting the separation from the end, e.g. when called with arguments
           (values filename unspecific)
           (values name type)))))
 
-(defun* component-name-to-pathname-components (s &optional force-directory)
+(defun* component-name-to-pathname-components (s &key force-directory force-relative)
   "Splits the path string S, returning three values:
 A flag that is either :absolute or :relative, indicating
    how the rest of the values are to be interpreted.
@@ -638,12 +642,17 @@ The intention of this function is to support structured component names,
 e.g., \(:file \"foo/bar\"\), which will be unpacked to relative
 pathnames."
   (check-type s string)
+  (when (find #\: s)
+    (error "a portable ASDF pathname designator cannot include a #\: character: ~S" s))
   (let* ((components (split-string s :separator "/"))
          (last-comp (car (last components))))
     (multiple-value-bind (relative components)
         (if (equal (first components) "")
             (if (equal (first-char s) #\/)
-                (values :absolute (cdr components))
+                (progn
+                  (when force-relative
+                    (error "absolute pathname designator not allowed: ~S" s))
+                  (values :absolute (cdr components)))
                 (values :relative nil))
           (values :relative components))
       (setf components (remove "" components :test #'equal))
@@ -840,7 +849,7 @@ with given pathname and if it exists return its truename."
                                          (eql x separator)))
                          root-namestring)))
     (multiple-value-bind (relative path filename)
-        (component-name-to-pathname-components root-string t)
+        (component-name-to-pathname-components root-string :force-directory t)
       (declare (ignore relative filename))
       (let ((new-base
              (make-pathname :defaults root
@@ -1371,7 +1380,8 @@ Going forward, we recommend new users should be using the source-registry.
      (merge-component-name-type (string-downcase name) :type type :defaults defaults))
     (string
      (multiple-value-bind (relative path filename)
-         (component-name-to-pathname-components name (eq type :directory))
+         (component-name-to-pathname-components name :force-directory (eq type :directory)
+                                                :force-relative t)
        (multiple-value-bind (name type)
            (cond
              ((or (eq type :directory) (null filename))
@@ -2873,7 +2883,7 @@ with a different configuration, so the configuration would be re-read then."
     ;; These are for convenience, and can be overridden by the user:
     #+abcl (#p"/___jar___file___root___/**/*.*" (:user-cache #p"**/*.*"))
     #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
-    ;; If we want to enable the user cache by default, here would be the place:
+    ;; We enable the user cache by default, and here is the place we do:
     :enable-user-cache))
 
 (defparameter *output-translations-file* #p"asdf-output-translations.conf")
@@ -3052,8 +3062,8 @@ effectively disabling the output translation facility."
   (when (and x (probe-file x))
     (delete-file x)))
 
-(defun* compile-file* (input-file &rest keys &key &allow-other-keys)
-  (let* ((output-file (apply 'compile-file-pathname* input-file keys))
+(defun* compile-file* (input-file &rest keys &key output-file &allow-other-keys)
+  (let* ((output-file (or output-file (apply 'compile-file-pathname* input-file keys)))
          (tmp-file (tmpize-pathname output-file))
          (status :error))
     (multiple-value-bind (output-truename warnings-p failure-p)
@@ -3103,7 +3113,8 @@ effectively disabling the output translation facility."
      (include-per-user-information nil)
      (map-all-source-files (or #+(or ecl clisp) t nil))
      (source-to-target-mappings nil))
-  (when (and (null map-all-source-files) #-(or ecl clisp) nil)
+  #+(or ecl clisp)
+  (when (null map-all-source-files)
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on ECL and CLISP"))
   (let* ((fasl-type (pathname-type (compile-file-pathname "foo.lisp")))
          (wild-inferiors (make-pathname :directory '(:relative :wild-inferiors)))

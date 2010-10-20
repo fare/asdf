@@ -3417,7 +3417,7 @@ but that's all.
 The defsystem 4 proposal tends to look more at the external features,
 whereas this one centres on a protocol for system introspection.
 
-@section kmp's ``The Description of Large Systems'', MIT AI Memu 801
+@section kmp's ``The Description of Large Systems'', MIT AI Memo 801
 
 Available in updated-for-CL form on the web at
 @url{http://nhplace.com/kent/Papers/Large-Systems.html}
