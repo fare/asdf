@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.139" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.140" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -305,6 +305,7 @@
             #:split-string
             #:component-name-to-pathname-components
             #:split-name-type
+            #:subdirectories
             #:truenamize
             #:while-collecting)))
         (setf *asdf-version* asdf-version
@@ -695,11 +696,14 @@ ways that the filename components can be missing are for it to be NIL,
 
 Note that this does _not_ check to see that PATHNAME points to an
 actually-existing directory."
-  (flet ((check-one (x)
-           (member x '(nil :unspecific "") :test 'equal)))
-    (and (check-one (pathname-name pathname))
-         (check-one (pathname-type pathname))
-         t)))
+  (when pathname
+    (let ((pathname (pathname pathname)))
+      (flet ((check-one (x)
+               (member x '(nil :unspecific "") :test 'equal)))
+        (and (not (wild-pathname-p pathname))
+             (check-one (pathname-name pathname))
+             (check-one (pathname-type pathname))
+             t)))))
 
 (defun* ensure-directory-pathname (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to directory form."
@@ -1069,7 +1073,8 @@ with given pathname and if it exists return its truename."
    (licence :accessor system-licence :initarg :licence
             :accessor system-license :initarg :license)
    (source-file :reader system-source-file :initarg :source-file
-                :writer %set-system-source-file)))
+                :writer %set-system-source-file)
+   (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; version-satisfies
@@ -2156,7 +2161,7 @@ details."
   (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
                             defsystem-depends-on &allow-other-keys)
       options
-    (let ((component-options (remove-keys '(:defsystem-depends-on :class) options)))
+    (let ((component-options (remove-keys '(:class) options)))
       `(progn
          ;; system must be registered before we parse the body, otherwise
          ;; we recur when trying to find an existing system of the same name
@@ -3247,17 +3252,31 @@ with a different configuration, so the configuration would be re-read then."
                     #+clisp #+clisp :circle t))
        t))
 
-(defparameter *wild-subdir*
-  (make-pathname :directory '(:relative :wild) :name nil :type nil :version nil))
-
 (defun subdirectories (directory)
-  (ignore-errors
-    (directory (merge-pathnames* *wild-subdir* directory)
-               #+sbcl #+sbcl :resolve-symlinks nil
-               #+ccl #+ccl :follow-links nil
-               #+ccl #+ccl :directories t
-               #+ccl #+ccl :files nil
-               #+clisp #+clisp :circle t)))
+  (let* ((directory (ensure-directory-pathname directory))
+         #-cormanlisp
+         (wild (merge-pathnames*
+                #-(or abcl allegro scl)
+                (make-pathname :directory '(:relative :wild) :name nil :type nil :version nil)
+                #+(or abcl allegro scl) "*.*"
+                directory))
+         (dirs
+          #-cormanlisp
+          (ignore-errors
+            (directory wild .
+              #.(or #+allegro '(:directories-are-files nil :follow-symbolic-links nil)
+                    #+ccl '(:follow-links nil :directories t :files nil)
+                    #+clisp '(:circle t :if-does-not-exist :ignore)
+                    #+(or cmu scl) '(:follow-links nil :truenamep nil)
+                    #+digitool '(:directories t)
+                    #+sbcl '(:resolve-symlinks nil))))
+          #+cormanlisp (cl::directory-subdirs directory))
+         #+(or abcl allegro scl)
+         (dirs (remove-if-not #+abcl #'extensions:probe-directory
+                              #+allegro #'excl:probe-directory
+                              #+scl #'directory-pathname-p
+                              dirs)))
+    dirs))
 
 (defun collect-subdirs (directory collectp recursep collector)
   (when (funcall collectp directory)

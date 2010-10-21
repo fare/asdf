@@ -46,6 +46,8 @@
 
 (cl-user::quit-on-error
 
+(format t "~&subdirectories of dir2/: ~S~%" (subdirectories (under-test-directory "dir2/")))
+(assert (= 2 (length (subdirectories (under-test-directory "dir2/")))))
 (assert
  (equal (parse-output-translations-string "/foo:/bar::/baz:/quux")
         '(:output-translations
@@ -73,6 +75,13 @@
 (initialize-source-registry
  `(:source-registry (:include ,(under-test-directory "conf.d/"))
                     :ignore-inherited-configuration))
+
+(format t "~&Source Registry: ~S~%"
+        asdf::*source-registry*)
+(assert (find-system :foo0 nil))
+(assert (find-system :foo1 nil))
+(assert (find-system :foo2 nil))
+(assert (find-system :foo3 nil))
 
 (assert
  (equal (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
