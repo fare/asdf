@@ -1736,8 +1736,8 @@ to be found, for systems to be found the current directory
 
 @end enumerate
 
-Each of these configuration is specified as a SEXP
-in a trival domain-specific language (defined below).
+Each of these configurations is specified as an s-expression
+in a trivial domain-specific language (defined below).
 Additionally, a more shell-friendly syntax is available
 for the environment variable (defined yet below).
 
