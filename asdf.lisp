@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.138" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.139" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2693,10 +2693,6 @@ with a different configuration, so the configuration would be re-read then."
   (setf *output-translations* '())
   (values))
 
-(defparameter *wild-asd*
-  (make-pathname :directory '(:relative :wild-inferiors)
-                 :name :wild :type "asd" :version :newest))
-
 (declaim (ftype (function (t &key (:directory boolean) (:wilden boolean))
                           (values (or null pathname) &optional))
                 resolve-location))
@@ -3240,6 +3236,46 @@ with a different configuration, so the configuration would be re-read then."
   (setf *source-registry* '())
   (values))
 
+(defparameter *wild-asd*
+  (make-pathname :directory nil :name :wild :type "asd" :version :newest))
+
+(defun directory-has-asd-files-p (directory)
+  (and (ignore-errors
+         (directory (merge-pathnames* *wild-asd* directory)
+                    #+sbcl #+sbcl :resolve-symlinks nil
+                    #+ccl #+ccl :follow-links nil
+                    #+clisp #+clisp :circle t))
+       t))
+
+(defparameter *wild-subdir*
+  (make-pathname :directory '(:relative :wild) :name nil :type nil :version nil))
+
+(defun subdirectories (directory)
+  (ignore-errors
+    (directory (merge-pathnames* *wild-subdir* directory)
+               #+sbcl #+sbcl :resolve-symlinks nil
+               #+ccl #+ccl :follow-links nil
+               #+ccl #+ccl :directories t
+               #+ccl #+ccl :files nil
+               #+clisp #+clisp :circle t)))
+
+(defun collect-subdirs (directory collectp recursep collector)
+  (when (funcall collectp directory)
+    (funcall collector directory))
+  (dolist (subdir (subdirectories directory))
+    (when (funcall recursep subdir)
+      (collect-subdirs subdir collectp recursep collector))))
+
+(defun collect-sub*directories-with-asd
+    (directory &key
+     (exclude *default-source-registry-exclusions*)
+     collect)
+  (collect-subdirs
+   directory
+   #'directory-has-asd-files-p
+   #'(lambda (x) (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
+   collect))
+
 (defun* validate-source-registry-directive (directive)
   (unless
       (or (member directive '(:default-registry (:default-registry)) :test 'equal)
@@ -3303,22 +3339,8 @@ with a different configuration, so the configuration would be re-read then."
 (defun* register-asd-directory (directory &key recurse exclude collect)
   (if (not recurse)
       (funcall collect directory)
-      (let* ((files
-              (handler-case
-                  (directory (merge-pathnames* *wild-asd* directory)
-                             #+sbcl #+sbcl :resolve-symlinks nil
-                             #+clisp #+clisp :circle t)
-                (error (c)
-                  (warn "Error while scanning system definitions under directory ~S:~%~A"
-                        directory c)
-                  nil)))
-             (dirs (remove-duplicates (mapcar #'pathname-directory-pathname files)
-                                      :test #'equal :from-end t)))
-        (loop
-          :for dir :in dirs
-          :unless (loop :for x :in exclude
-                    :thereis (find x (pathname-directory dir) :test #'equal))
-          :do (funcall collect dir)))))
+      (collect-sub*directories-with-asd
+       directory :exclude exclude :collect collect)))
 
 (defparameter *default-source-registries*
   '(environment-source-registry
