@@ -72,13 +72,13 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.137" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.138" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
       (when existing-asdf
-        (format *trace-output*
+        (format *error-output*
                 "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
                 existing-version asdf-version))
       (labels
@@ -170,7 +170,6 @@
                    :shadow ',shadow
                    :unintern ',(append #-(or gcl ecl) redefined-functions unintern)
                    :fmakunbound ',(append fmakunbound))))
-          (unlink-package :asdf-utilities)
           (pkgdcl
            :asdf
            :nicknames (:asdf-utilities) ;; DEPRECATED! Do not use, for backward compatibility only.
@@ -710,7 +709,7 @@ actually-existing directory."
    ((not (pathnamep pathspec))
     (error "Invalid pathname designator ~S" pathspec))
    ((wild-pathname-p pathspec)
-    (error "Can't reliably convert wild pathnames."))
+    (error "Can't reliably convert wild pathname ~S" pathspec))
    ((directory-pathname-p pathspec)
     pathspec)
    (t
@@ -1611,8 +1610,8 @@ recursive calls to traverse.")
     (do-traverse op dep-c collect)))
 
 (defun* do-one-dep (operation c collect required-op required-c required-v)
-  ;; this function is a thin, error-handling wrapper around
-  ;; %do-one-dep.  Returns a partial plan per that function.
+  ;; this function is a thin, error-handling wrapper around %do-one-dep.
+  ;; Collects a partial plan per that function.
   (loop
     (restart-case
         (return (%do-one-dep operation c collect
@@ -1623,13 +1622,6 @@ recursive calls to traverse.")
                           (component-find-path required-c)))
         :test
         (lambda (c)
-          #|
-          (print (list :c1 c (typep c 'missing-dependency)))
-          (when (typep c 'missing-dependency)
-          (print (list :c2 (missing-requires c) required-c
-          (equalp (missing-requires c)
-          required-c))))
-          |#
           (or (null c)
               (and (typep c 'missing-dependency)
                    (equalp (missing-requires c)
@@ -1843,7 +1835,8 @@ recursive calls to traverse.")
   (setf (gethash (type-of operation) (component-operation-times c))
         (get-universal-time)))
 
-(declaim (ftype (function ((or pathname string) &rest t &key &allow-other-keys)
+(declaim (ftype (function ((or pathname string)
+                           &rest t &key (:output-file t) &allow-other-keys)
                           (values t t t))
                 compile-file*))
 
@@ -3218,7 +3211,8 @@ effectively disabling the output translation facility."
 
 ;; Using ack 1.2 exclusions
 (defvar *default-source-registry-exclusions*
-  '(".bzr" ".cdv" "~.dep" "~.dot" "~.nib" "~.plst"
+  '(".bzr" ".cdv"
+    ;; "~.dep" "~.dot" "~.nib" "~.plst" ; we don't support ack wildcards
     ".git" ".hg" ".pc" ".svn" "CVS" "RCS" "SCCS" "_darcs"
     "_sgbak" "autom4te.cache" "cover_db" "_build"
     "debian")) ;; debian often build stuff under the debian directory... BAD.
