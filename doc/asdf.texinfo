@@ -795,25 +795,33 @@ For more details on what these methods do, @pxref{Operations} in
 @comment  node-name,  next,  previous,  up
 @section The defsystem grammar
 
-@c This discussion does not distinguish the options that are only
-@c appropriate for modules (see the discussion in the object model part of
-@c the manual).  We should fix this. [2010/10/15:rpg]
+@c FIXME: @var typesetting not consistently used here.  We should either expand
+@c its use to everywhere, or we should kill it everywhere.
+
 
 @example
-system-definition := ( defsystem system-designator @var{option}* )
+system-definition := ( defsystem system-designator @var{system-option}* )
 
-option := :components component-list
+system-option := :defsystem-depends-on system-list
+                 | module-option
+                 | option
+
+module-option := :components component-list
+                 | :serial [ t | nil ]
+                 | :if-component-dep-fails component-dep-fail-option                 
+
+option := 
         | :pathname pathname-specifier
-        | :default-component-class
+        | :default-component-class class-name
         | :perform method-form
         | :explain method-form
         | :output-files method-form
         | :operation-done-p method-form
         | :depends-on ( @var{dependency-def}* )
-        | :serial [ t | nil ]
         | :in-order-to ( @var{dependency}+ )
-        | :if-component-dep-fails component-dep-fail-option
 
+
+system-list := ( @var{simple-component-name}* )
 
 component-list := ( @var{component-def}* )
 
@@ -858,6 +866,14 @@ by name in the current package and in the asdf package, if not found in
 the current package.  So a component type @code{my-component-type}, in
 the current package @code{my-system-asd} can be specified as
 @code{:my-component-type}, or @code{my-component-type}.
+
+@subsection Defsystem depends on
+
+The @code{:defsystem-depends-on} option to @code{defsystem} allows the
+programmer to specify another ASDF-defined system or set of systems that
+must be loaded @emph{before} the system definition is processed.
+Typically this is used to load an ASDF extension that is used in the
+system definition.
 
 @subsection Pathname specifiers
 @cindex pathname specifiers
@@ -1903,6 +1919,7 @@ list of paths, where
 
 
 @section Search Algorithm
+@vindex *default-source-registry-exclusions*
 
 In case that isn't clear, the semantics of the configuration is that
 when searching for a system of a given name,
