@@ -803,8 +803,16 @@ For more details on what these methods do, @pxref{Operations} in
 system-definition := ( defsystem system-designator @var{system-option}* )
 
 system-option := :defsystem-depends-on system-list
+                 | metadata
                  | module-option
                  | option
+
+metadata := :description string
+            | :long-description string
+            | :author string
+            | :maintainer string
+            | :license string
+            | :deprecated string
 
 module-option := :components component-list
                  | :serial [ t | nil ]
@@ -819,6 +827,7 @@ option :=
         | :operation-done-p method-form
         | :depends-on ( @var{dependency-def}* )
         | :in-order-to ( @var{dependency}+ )
+        | :version version-specifier
 
 
 system-list := ( @var{simple-component-name}* )
@@ -850,6 +859,8 @@ method-form := (operation-name qual lambda-list @&rest body)
 qual := method qualifier
 
 component-dep-fail-option := :fail | :try-next | :ignore
+
+version-string := " @var{digit}+ @{ . @var{digit}+ @} "
 @end example
 
 

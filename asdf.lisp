@@ -248,6 +248,7 @@
 
             #:asdf-version
 
+            ;; conditions
             #:operation-error #:compile-failed #:compile-warned #:compile-error
             #:error-name
             #:error-pathname
@@ -260,6 +261,7 @@
             #:missing-dependency-of-version
             #:circular-dependency        ; errors
             #:duplicate-names
+            #:deprecated-system-warning
 
             #:try-recompiling
             #:retry
@@ -930,6 +932,17 @@ with given pathname and if it exists return its truename."
 (define-condition compile-failed (compile-error) ())
 (define-condition compile-warned (compile-error) ())
 
+(define-condition deprecated-system-warning (warning)
+  ((system
+    :initarg :system
+    :reader deprecated-system))
+  (:report (lambda (c s)
+             (with-slots (system) c
+                 (format s "~@<System ~a has been deprecated: ~a~@:>"
+                         (component-name system)
+                         (system-deprecated system))))))
+  
+
 (defclass component ()
   ((name :accessor component-name :initarg :name :documentation
          "Component name: designator for a string composed of portable pathname characters")
@@ -1065,16 +1078,23 @@ with given pathname and if it exists return its truename."
   new-value)
 
 (defclass system (module)
-  ((description :accessor system-description :initarg :description)
+  (;; metadata slots
+   (description :accessor system-description :initarg :description)
    (long-description
     :accessor system-long-description :initarg :long-description)
    (author :accessor system-author :initarg :author)
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
             :accessor system-license :initarg :license)
+   (deprecated :reader system-deprecated :initarg :deprecated
+               :type (or string null))
+   ;; end of metadata slots
    (source-file :reader system-source-file :initarg :source-file
                 :writer %set-system-source-file)
-   (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
+   (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on))
+  ;; FIXME -- I am not sure whether it's more appropriate to have a default-intarg here, or
+  ;; an initform.  Reviewer eyeballs welcomed. [2010/10/22:rpg]
+  (:default-initargs :deprecated nil))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; version-satisfies
@@ -2059,6 +2079,8 @@ recursive calls to traverse.")
          (system (if (typep system 'component) system (find-system system))))
     (unless (version-satisfies system version)
       (error 'missing-component-of-version :requires system :version version))
+    (when (system-deprecated system)
+      (warn 'deprecated-system-warning :system system))
     (let ((steps (traverse op system)))
       (with-compilation-unit ()
         (loop :for (op . component) :in steps :do
@@ -3312,6 +3334,7 @@ with a different configuration, so the configuration would be re-read then."
 (defun* validate-source-registry-form (form)
   (validate-configuration-form
    form :source-registry 'validate-source-registry-directive "a source registry"))
+
 
 (defun* validate-source-registry-file (file)
   (validate-configuration-file
