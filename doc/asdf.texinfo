@@ -1733,6 +1733,9 @@ to be found, for systems to be found the current directory
 (at the time that the configuration is initialized) as well as
 @code{:directory} entries for @file{$XDG_DATA_DIRS/common-lisp/systems/} and
 @code{:tree} entries for @file{$XDG_DATA_DIRS/common-lisp/source/}.
+For instance, SBCL will include directories for its contribs
+when it can find them; it will look for them where SBCL was installed,
+or at the location specified by the @code{SBCL_HOME} environment variable.
 
 @end enumerate
 
@@ -1812,6 +1815,8 @@ DIRECTIVE :=
     (:exclude PATTERN ...) |
     ;; augment the defaults for exclusion patterns
     (:also-exclude PATTERN ...) |
+    ;; Note that the scope of a an exclude pattern specification is
+    ;; the rest of the current configuration expression or file.
 
     ;; splice the parsed contents of another config file
     (:include REGULAR-FILE-PATHNAME-DESIGNATOR) |
@@ -1855,7 +1860,6 @@ once contained:
   (:tree (:home "cl")) ;; will expand to e.g. "/home/joeluser/cl/"
   :inherit-configuration)
 @end example
-
 
 @section Configuration Directories
 
