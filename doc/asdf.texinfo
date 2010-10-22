@@ -1769,14 +1769,14 @@ On Windows platforms, when not using Cygwin,
 instead of the XDG base directory specification,
 we try to use folder configuration from the registry regarding
 @code{Common AppData} and similar directories.
-However, support querying the Windows registry is limited as of ASDF 2,
+However, support for querying the Windows registry is limited as of ASDF 2,
 and on many implementations, we may fall back to always using the defaults
 without consulting the registry.
 Patches welcome.
 
 @section Backward Compatibility
 
-For backward compatibility as well as for a practical backdoor for hackers,
+For backward compatibility as well as to provide a practical backdoor for hackers,
 ASDF will first search for @code{.asd} files in the directories specified in
 @code{asdf:*central-registry*}
 before it searches in the source registry above.
@@ -1790,10 +1790,10 @@ but will take precedence over the new mechanism if you do use it.
 
 @section Configuration DSL
 
-Here is the grammar of the SEXP DSL for source-registry configuration:
+Here is the grammar of the s-expression (SEXP) DSL for source-registry configuration:
 
 @example
-;; A configuration is single SEXP starting with keyword :source-registry
+;; A configuration is a single SEXP starting with keyword :source-registry
 ;; followed by a list of directives.
 CONFIGURATION := (:source-registry DIRECTIVE ...)
 
