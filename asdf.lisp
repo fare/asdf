@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.140" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.141" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2472,16 +2472,22 @@ located."
 (defparameter *os-features*
   '((:windows :mswindows :win32 :mingw32)
     (:solaris :sunos)
-    :linux ;; for GCL at least, must appear before :bsd.
-    :macosx :darwin :apple
+    (:linux :linux-target) ;; for GCL at least, must appear before :bsd.
+    (:macosx :darwin :darwin-target :apple)
     :freebsd :netbsd :openbsd :bsd
     :unix))
 
 (defparameter *architecture-features*
   '((:x86-64 :amd64 :x86_64 :x8664-target)
     (:x86 :i686 :i586 :pentium3 :i486 :i386 :pc386 :iapx386 :x8632-target :pentium4)
-    :hppa64 :hppa :ppc64 (:ppc32 :ppc :powerpc) :sparc64 :sparc
-    :java-1.4 :java-1.5 :java-1.6 :java-1.7))
+    :hppa64
+    :hppa
+    (:ppc64 :ppc64-target)
+    (:ppc32 :ppc32-target :ppc :powerpc)
+    :sparc64
+    :sparc
+    (:arm :arm-target)
+    (:java :java-1.4 :java-1.5 :java-1.6 :java-1.7)))
 
 
 (defun* lisp-version-string ()
