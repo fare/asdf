@@ -772,7 +772,7 @@ has the effect of
 @end lisp
 
 where @code{...} is the component in question.
-In this case @code{...} would expand to something like 
+In this case @code{...} would expand to something like
 
 @lisp
 (find-component (find-system "foo") "mod")
@@ -808,9 +808,9 @@ system-option := :defsystem-depends-on system-list
 
 module-option := :components component-list
                  | :serial [ t | nil ]
-                 | :if-component-dep-fails component-dep-fail-option                 
+                 | :if-component-dep-fails component-dep-fail-option
 
-option := 
+option :=
         | :pathname pathname-specifier
         | :default-component-class class-name
         | :perform method-form
@@ -944,7 +944,7 @@ Unhappily, ASDF 1 didn't properly support
 parsing component names as strings specifying paths with directories,
 and the cumbersome @code{#.(make-pathname ...)} syntax had to be used.
 
-Note that when specifying pathname objects, 
+Note that when specifying pathname objects,
 ASDF does not do any special interpretation of the pathname
 influenced by the component type, unlike the procedure for
 pathname-specifying strings.
@@ -956,7 +956,7 @@ be forced upon you if you were specifying a string.
 
 
 @subsection Warning about logical pathnames
-@cindex logical pathnames 
+@cindex logical pathnames
 
 We recommend that you not use logical pathnames
 in your asdf system definitions at this point,
