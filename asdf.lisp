@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.142" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.143" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1298,22 +1298,21 @@ Going forward, we recommend new users should be using the source-registry.
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
 
-(defun* find-system-fallback (requested fallback &optional source-file)
+(defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
   (setf fallback (coerce-name fallback)
         source-file (or source-file *compile-file-truename* *load-truename*)
         requested (coerce-name requested))
   (when (equal requested fallback)
     (let* ((registered (cdr (gethash fallback *defined-systems*)))
            (system (or registered
-                       (make-instance
-                        'system :name fallback
-                        :source-file source-file))))
+                       (apply 'make-instance 'system
+			      :name fallback :source-file source-file keys))))
       (unless registered
         (register-system fallback system))
       (throw 'find-system system))))
 
 (defun* sysdef-find-asdf (name)
-  (find-system-fallback name "asdf"))
+  (find-system-fallback name "asdf")) ;; :version *asdf-version* wouldn't be updated when ASDF is updated.
 
 
 ;;;; -------------------------------------------------------------------------

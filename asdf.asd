@@ -12,6 +12,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
+  ;;:version #.(asdf:asdf-version) ; how do we make that the *described* ASDF's version rather than the *previously loaded* ASDF's version?
   :depends-on ()
   :components
   ((:file "asdf")
