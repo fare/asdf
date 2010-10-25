@@ -72,7 +72,7 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.141" (1+ (length "VERSION"))))
+          (subseq "VERSION:2.142" (1+ (length "VERSION"))))
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2466,11 +2466,16 @@ located."
 ;;; Initially stolen from SLIME's SWANK, hacked since.
 
 (defparameter *implementation-features*
-  '(:allegro :lispworks :sbcl :clozure :digitool :cmu :clisp
-    :corman :cormanlisp :armedbear :gcl :ecl :scl))
+  '((:acl :allegro)
+    (:lw :lispworks)
+    (:digitool) ; before clozure, so it won't get preempted by ccl
+    (:ccl :clozure)
+    (:corman :cormanlisp)
+    (:abcl :armedbear)
+    :sbcl :cmu :clisp :gcl :ecl :scl))
 
 (defparameter *os-features*
-  '((:windows :mswindows :win32 :mingw32)
+  '((:win :windows :mswindows :win32 :mingw32) ;; shorten things on windows
     (:solaris :sunos)
     (:linux :linux-target) ;; for GCL at least, must appear before :bsd.
     (:macosx :darwin :darwin-target :apple)
@@ -2478,17 +2483,16 @@ located."
     :unix))
 
 (defparameter *architecture-features*
-  '((:x86-64 :amd64 :x86_64 :x8664-target)
-    (:x86 :i686 :i586 :pentium3 :i486 :i386 :pc386 :iapx386 :x8632-target :pentium4)
+  '((:amd64 :x86-64 :x86_64 :x8664-target)
+    (:x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
     :hppa64
     :hppa
     (:ppc64 :ppc64-target)
     (:ppc32 :ppc32-target :ppc :powerpc)
     :sparc64
-    :sparc
+    (:sparc32 :sparc)
     (:arm :arm-target)
     (:java :java-1.4 :java-1.5 :java-1.6 :java-1.7)))
-
 
 (defun* lisp-version-string ()
   (let ((s (lisp-implementation-version)))
@@ -2507,7 +2511,7 @@ located."
                       (if (member :64bit *features*) "-64bit" ""))
     #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
     #+clisp (subseq s 0 (position #\space s))
-    #+clozure (format nil "~d.~d-fasl~d"
+    #+clozure (format nil "~d.~d-f~d" ; shorten for windows
                       ccl::*openmcl-major-version*
                       ccl::*openmcl-minor-version*
                       (logand ccl::fasl-version #xFF))
