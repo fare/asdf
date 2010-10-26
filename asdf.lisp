@@ -71,8 +71,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version ;; the 1+ helps the version bumping script discriminate
-          (subseq "VERSION:2.143" (1+ (length "VERSION"))))
+  (let* ((asdf-version "2.144") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -934,13 +933,29 @@ with given pathname and if it exists return its truename."
   ((name :accessor component-name :initarg :name :documentation
          "Component name: designator for a string composed of portable pathname characters")
    (version :accessor component-version :initarg :version)
-   (in-order-to :initform nil :initarg :in-order-to
-                :accessor component-in-order-to)
    ;; This one is used by POIU. Maybe in the future by ASDF instead of in-order-to?
    ;; POIU is a parallel (multi-process build) extension of ASDF.  See
    ;; http://www.cliki.net/poiu
    (load-dependencies :accessor component-load-dependencies :initform nil)
-   ;; XXX crap name, but it's an official API name!
+   ;; In the ASDF object model, dependencies exist between *actions*
+   ;; (an action is a pair of operation and component). They are represented
+   ;; alists of operations to dependencies (other actions) in each component.
+   ;; There are two kinds of dependencies, each stored in its own slot:
+   ;; in-order-to and do-first dependencies. These two kinds are related to
+   ;; the fact that some actions modify the filesystem,
+   ;; whereas other actions modify the current image, and
+   ;; this implies a difference in how to interpret timestamps.
+   ;; in-order-to dependencies will trigger re-performing the action
+   ;; when the timestamp of some dependency
+   ;; makes the timestamp of current action out-of-date;
+   ;; do-first dependencies do not trigger such re-performing.
+   ;; Therefore, a FASL must be recompiled if it is obsoleted
+   ;; by any of its FASL dependencies (in-order-to); but
+   ;; it needn't be recompiled just because one of these dependencies
+   ;; hasn't yet been loaded in the current image (do-first).
+   ;; The names are crap, but they have been the official API since Dan Barlow's ASDF 1.52!
+   (in-order-to :initform nil :initarg :in-order-to
+                :accessor component-in-order-to)
    (do-first :initform nil :initarg :do-first
              :accessor component-do-first)
    ;; methods defined using the "inline" style inside a defsystem form:

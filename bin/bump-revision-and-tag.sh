@@ -35,7 +35,7 @@ fi
 new_version="$major.$bumped"
 
 cp asdf.lisp asdf.bak
-perl -pi -e "s/VERSION:[^\"]*\"/VERSION:$new_version\"/" asdf.lisp
+perl -pi -e "s/(\(asdf-version \")[^\"]*(\"\))/\${1}$new_version\${2}/" asdf.lisp
 if [ ! "$?" == "0" ]; then
     echo "Unable to perl replace version"
     exit -3
