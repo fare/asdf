@@ -71,7 +71,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.144") ;; bump this version when you modify this file.
+  (let* ((asdf-version "2.145") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3280,9 +3280,9 @@ with a different configuration, so the configuration would be re-read then."
   (let* ((directory (ensure-directory-pathname directory))
          #-cormanlisp
          (wild (merge-pathnames*
-                #-(or abcl allegro scl)
+                #-(or abcl allegro lispworks scl)
                 (make-pathname :directory '(:relative :wild) :name nil :type nil :version nil)
-                #+(or abcl allegro scl) "*.*"
+                #+(or abcl allegro lispworks scl) "*.*"
                 directory))
          (dirs
           #-cormanlisp
@@ -3295,10 +3295,11 @@ with a different configuration, so the configuration would be re-read then."
                     #+digitool '(:directories t)
                     #+sbcl '(:resolve-symlinks nil))))
           #+cormanlisp (cl::directory-subdirs directory))
-         #+(or abcl allegro scl)
+         #+(or abcl allegro lispworks scl)
          (dirs (remove-if-not #+abcl #'extensions:probe-directory
                               #+allegro #'excl:probe-directory
-                              #+scl #'directory-pathname-p
+                              #+lispworks #'lw:file-directory-p
+                              #-(or abcl allegro lispworks) #'directory-pathname-p
                               dirs)))
     dirs))
 
