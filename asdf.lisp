@@ -71,7 +71,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.145") ;; bump this version when you modify this file.
+  (let* ((asdf-version "2.146") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3303,18 +3303,18 @@ with a different configuration, so the configuration would be re-read then."
                               dirs)))
     dirs))
 
-(defun collect-subdirs (directory collectp recursep collector)
+(defun collect-sub*directories (directory collectp recursep collector)
   (when (funcall collectp directory)
     (funcall collector directory))
   (dolist (subdir (subdirectories directory))
     (when (funcall recursep subdir)
-      (collect-subdirs subdir collectp recursep collector))))
+      (collect-sub*directories subdir collectp recursep collector))))
 
 (defun collect-sub*directories-with-asd
     (directory &key
      (exclude *default-source-registry-exclusions*)
      collect)
-  (collect-subdirs
+  (collect-sub*directories
    directory
    #'directory-has-asd-files-p
    #'(lambda (x) (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
