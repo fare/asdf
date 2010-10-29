@@ -46,8 +46,6 @@
 
 (cl-user::quit-on-error
 
-(format t "~&subdirectories of dir2/: ~S~%" (subdirectories (under-test-directory "dir2/")))
-(assert (= 2 (length (subdirectories (under-test-directory "dir2/")))))
 (assert
  (equal (parse-output-translations-string "/foo:/bar::/baz:/quux")
         '(:output-translations
@@ -71,6 +69,9 @@
 
 (create-asd-files)
 (create-conf-files)
+
+(format t "~&subdirectories of dir2/: ~S~%" (subdirectories (under-test-directory "dir2/")))
+(assert (= 2 (length (subdirectories (under-test-directory "dir2/")))))
 
 (initialize-source-registry
  `(:source-registry (:include ,(under-test-directory "conf.d/"))

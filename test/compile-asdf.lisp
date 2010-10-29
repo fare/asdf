@@ -1,5 +1,7 @@
 (in-package #:common-lisp-user)
 
+(proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)))
+
 (load (make-pathname :name "script-support" :defaults *load-pathname*))
 
 (cond
