@@ -64,7 +64,6 @@
                   ("**;*.*.*"
                    ,(make-pathname :directory (src-dir :wild-inferiors)
                                    :name :wild :type :wild))))
-
           (let ((failures nil)
                 (systems `(,(make-pathname :directory (src-dir "system1") :name nil :type nil)
                            ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system1"))
@@ -209,13 +208,12 @@
                                          pathname))
                                      (test-module (module)
                                        (incf directory-count)
-                                       (unless #-clisp (probe-file (asdf:component-pathname module))
-                                               #+clisp (ext:probe-directory (asdf:component-pathname module))
+                                       (unless (asdf::probe-file* (asdf:component-pathname module))
                                          (incf directory-failures)
                                          (push (list (type-of module) (asdf:component-name module)
                                                      (translate-if-needed (asdf:component-pathname module))
                                                      configuration
-                                                     (list (when (asdf:component-parent module) (asdf:component-pathname  (asdf:component-parent module)))))
+                                                     (list (when (asdf:component-parent module) (asdf:component-pathname (asdf:component-parent module)))))
                                                failures)))
                                      (test-file (file)
                                        (incf file-count)
@@ -280,7 +278,8 @@
  (asdf:initialize-output-translations)
  (format t "output translations: ~S~%" (asdf::output-translations))
 
- #-(or clisp ecl) ; clisp has problem with the first one having :version :newest
+ #+gcl (format t "~&~A~&" (progn (defvar *x* -1) (incf *x*)))
+
  (progn ; 1- we're testing with unix, are we not?
    (assert (equal (asdf::resolve-location '(:home)) (truename (user-homedir-pathname))))
    (assert (equal (asdf::resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz"))

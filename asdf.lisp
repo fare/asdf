@@ -49,6 +49,8 @@
 
 (cl:in-package :cl-user)
 
+#+gcl (defpackage :asdf (:use :cl)) ;; GCL treats defpackage magically and needs this
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   ;;; make package if it doesn't exist yet.
   ;;; DEFPACKAGE may cause errors on discrepancies, so we avoid it.
@@ -71,7 +73,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.146") ;; bump this version when you modify this file.
+  (let* ((asdf-version "2.147") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -323,19 +325,14 @@
          (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p)))))
    (when (find-class 'module nil)
      (eval
-      '(progn
-         (defmethod update-instance-for-redefined-class :after
-             ((m module) added deleted plist &key)
-           (declare (ignorable deleted plist))
-           (when *asdf-verbose* (format *trace-output* "Updating ~A~%" m))
-           (when (member 'components-by-name added)
-             (compute-module-components-by-name m)))
-         (defmethod update-instance-for-redefined-class :after
-             ((s system) added deleted plist &key)
-           (declare (ignorable deleted plist))
-           (when *asdf-verbose* (format *trace-output* "Updating ~A~%" s))
-           (when (member 'source-file added)
-             (%set-system-source-file (probe-asd (component-name s) (component-pathname s)) s)))))))
+      '(defmethod update-instance-for-redefined-class :after
+           ((m module) added deleted plist &key)
+         (declare (ignorable deleted plist))
+         (when *asdf-verbose* (format *trace-output* "Updating ~A~%" m))
+         (when (member 'components-by-name added)
+           (compute-module-components-by-name m))
+         (when (and (typep m 'system) (member 'source-file added))
+           (%set-system-source-file (probe-asd (component-name m) (component-pathname m)) m))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
@@ -535,11 +532,11 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
          (directory (pathname-directory specified))
          (directory
           (cond
-            #-(or sbcl cmu)
+            #-(or sbcl cmu scl)
             ((stringp directory) `(:absolute ,directory) directory)
             #+gcl
-            ((and (consp directory) (stringp (first directory)))
-             `(:absolute ,@directory))
+            ((and (consp directory) (not (member (first directory) '(:absolute :relative))))
+             `(:relative ,@directory))
             ((or (null directory)
                  (and (consp directory) (member (first directory) '(:absolute :relative))))
              directory)
