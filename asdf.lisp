@@ -73,7 +73,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.147") ;; bump this version when you modify this file.
+  (let* ((asdf-version "2.010.1") ;; bump this version when you modify this file. Same as 2.147
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
