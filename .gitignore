@@ -35,6 +35,7 @@ tmp/
 *.lib
 *.[oahcisS]
 *.*fsl
+*.x86f
 *.bak
 *.data
 test/try-reloading-dependency.asd
