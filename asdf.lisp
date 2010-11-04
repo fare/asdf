@@ -73,15 +73,15 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.010.1") ;; bump this version when you modify this file. Same as 2.147
+  (let* ((asdf-version "2.010.2") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
       (when existing-asdf
-        (format *error-output*
-                "~&Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
-                existing-version asdf-version))
+        (format *trace-output*
+         "~&~@<; ~@;Upgrading ASDF package ~@[from version ~A ~]to version ~A~@:>~%"
+         existing-version asdf-version))
       (labels
           ((unlink-package (package)
              (let ((u (find-package package)))
@@ -314,26 +314,6 @@
                                (cons existing-version *upgraded-p*)
                                *upgraded-p*))))))
 
-;; More cleanups in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
-(when *upgraded-p*
-   #+ecl
-   (when (find-class 'compile-op nil)
-     (defmethod update-instance-for-redefined-class :after
-         ((c compile-op) added deleted plist &key)
-       (declare (ignore added deleted))
-       (let ((system-p (getf plist 'system-p)))
-         (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p)))))
-   (when (find-class 'module nil)
-     (eval
-      '(defmethod update-instance-for-redefined-class :after
-           ((m module) added deleted plist &key)
-         (declare (ignorable deleted plist))
-         (when *asdf-verbose* (format *trace-output* "Updating ~A~%" m))
-         (when (member 'components-by-name added)
-           (compute-module-components-by-name m))
-         (when (and (typep m 'system) (member 'source-file added))
-           (%set-system-source-file (probe-asd (component-name m) (component-pathname m)) m))))))
-
 ;;;; -------------------------------------------------------------------------
 ;;;; User-visible parameters
 ;;;;
@@ -375,7 +355,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (setf excl:*warn-on-nested-reader-conditionals* nil)))
 
 ;;;; -------------------------------------------------------------------------
-;;;; ASDF Interface, in terms of generic functions.
+;;;; General Purpose Utilities
+
 (macrolet
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
@@ -386,113 +367,6 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
              (,',def ,name ,formals ,@rest)))))
   (defdef defgeneric* defgeneric)
   (defdef defun* defun))
-
-(defgeneric* find-system (system &optional error-p))
-(defgeneric* perform-with-restarts (operation component))
-(defgeneric* perform (operation component))
-(defgeneric* operation-done-p (operation component))
-(defgeneric* explain (operation component))
-(defgeneric* output-files (operation component))
-(defgeneric* input-files (operation component))
-(defgeneric* component-operation-time (operation component))
-(defgeneric* operation-description (operation component)
-  (:documentation "returns a phrase that describes performing this operation
-on this component, e.g. \"loading /a/b/c\".
-You can put together sentences using this phrase."))
-
-(defgeneric* system-source-file (system)
-  (:documentation "Return the source file in which system is defined."))
-
-(defgeneric* component-system (component)
-  (:documentation "Find the top-level system containing COMPONENT"))
-
-(defgeneric* component-pathname (component)
-  (:documentation "Extracts the pathname applicable for a particular component."))
-
-(defgeneric* component-relative-pathname (component)
-  (:documentation "Returns a pathname for the component argument intended to be
-interpreted relative to the pathname of that component's parent.
-Despite the function's name, the return value may be an absolute
-pathname, because an absolute pathname may be interpreted relative to
-another pathname in a degenerate way."))
-
-(defgeneric* component-property (component property))
-
-(defgeneric* (setf component-property) (new-value component property))
-
-(defgeneric* version-satisfies (component version))
-
-(defgeneric* find-component (base path)
-  (:documentation "Finds the component with PATH starting from BASE module;
-if BASE is nil, then the component is assumed to be a system."))
-
-(defgeneric* source-file-type (component system))
-
-(defgeneric* operation-ancestor (operation)
-  (:documentation
-   "Recursively chase the operation's parent pointer until we get to
-the head of the tree"))
-
-(defgeneric* component-visited-p (operation component)
-  (:documentation "Returns the value stored by a call to
-VISIT-COMPONENT, if that has been called, otherwise NIL.
-This value stored will be a cons cell, the first element
-of which is a computed key, so not interesting.  The
-CDR wil be the DATA value stored by VISIT-COMPONENT; recover
-it as (cdr (component-visited-p op c)).
-  In the current form of ASDF, the DATA value retrieved is
-effectively a boolean, indicating whether some operations are
-to be performed in order to do OPERATION X COMPONENT.  If the
-data value is NIL, the combination had been explored, but no
-operations needed to be performed."))
-
-(defgeneric* visit-component (operation component data)
-  (:documentation "Record DATA as being associated with OPERATION
-and COMPONENT.  This is a side-effecting function:  the association
-will be recorded on the ROOT OPERATION \(OPERATION-ANCESTOR of the
-OPERATION\).
-  No evidence that DATA is ever interesting, beyond just being
-non-NIL.  Using the data field is probably very risky; if there is
-already a record for OPERATION X COMPONENT, DATA will be quietly
-discarded instead of recorded.
-  Starting with 2.006, TRAVERSE will store an integer in data,
-so that nodes can be sorted in decreasing order of traversal."))
-
-
-(defgeneric* (setf visiting-component) (new-value operation component))
-
-(defgeneric* component-visiting-p (operation component))
-
-(defgeneric* component-depends-on (operation component)
-  (:documentation
-   "Returns a list of dependencies needed by the component to perform
-    the operation.  A dependency has one of the following forms:
-
-      (<operation> <component>*), where <operation> is a class
-        designator and each <component> is a component
-        designator, which means that the component depends on
-        <operation> having been performed on each <component>; or
-
-      (FEATURE <feature>), which means that the component depends
-        on <feature>'s presence in *FEATURES*.
-
-    Methods specialized on subclasses of existing component types
-    should usually append the results of CALL-NEXT-METHOD to the
-    list."))
-
-(defgeneric* component-self-dependencies (operation component))
-
-(defgeneric* traverse (operation component)
-  (:documentation
-"Generate and return a plan for performing OPERATION on COMPONENT.
-
-The plan returned is a list of dotted-pairs. Each pair is the CONS
-of ASDF operation object and a COMPONENT object. The pairs will be
-processed in order by OPERATE."))
-
-
-;;;; -------------------------------------------------------------------------
-;;;; General Purpose Utilities
 
 (defmacro while-collecting ((&rest collectors) &body body)
   "COLLECTORS should be a list of names for collections.  A collector
@@ -720,7 +594,8 @@ actually-existing directory."
                    :defaults pathspec))))
 
 (defun* absolute-pathname-p (pathspec)
-  (and pathspec (eq :absolute (car (pathname-directory (pathname pathspec))))))
+  (and (typep pathspec '(or pathname string))
+       (eq :absolute (car (pathname-directory (pathname pathspec))))))
 
 (defun* length=n-p (x n) ;is it that (= (length x) n) ?
   (check-type n (integer 0 *))
@@ -854,6 +729,134 @@ with given pathname and if it exists return its truename."
              (make-pathname :defaults root
                             :directory `(:absolute ,@path))))
         (translate-pathname absolute-pathname wild-root (wilden new-base))))))
+
+;;;; -------------------------------------------------------------------------
+;;;; ASDF Interface, in terms of generic functions.
+(defgeneric* find-system (system &optional error-p))
+(defgeneric* perform-with-restarts (operation component))
+(defgeneric* perform (operation component))
+(defgeneric* operation-done-p (operation component))
+(defgeneric* explain (operation component))
+(defgeneric* output-files (operation component))
+(defgeneric* input-files (operation component))
+(defgeneric* component-operation-time (operation component))
+(defgeneric* operation-description (operation component)
+  (:documentation "returns a phrase that describes performing this operation
+on this component, e.g. \"loading /a/b/c\".
+You can put together sentences using this phrase."))
+
+(defgeneric* system-source-file (system)
+  (:documentation "Return the source file in which system is defined."))
+
+(defgeneric* component-system (component)
+  (:documentation "Find the top-level system containing COMPONENT"))
+
+(defgeneric* component-pathname (component)
+  (:documentation "Extracts the pathname applicable for a particular component."))
+
+(defgeneric* component-relative-pathname (component)
+  (:documentation "Returns a pathname for the component argument intended to be
+interpreted relative to the pathname of that component's parent.
+Despite the function's name, the return value may be an absolute
+pathname, because an absolute pathname may be interpreted relative to
+another pathname in a degenerate way."))
+
+(defgeneric* component-property (component property))
+
+(defgeneric* (setf component-property) (new-value component property))
+
+(defgeneric* version-satisfies (component version))
+
+(defgeneric* find-component (base path)
+  (:documentation "Finds the component with PATH starting from BASE module;
+if BASE is nil, then the component is assumed to be a system."))
+
+(defgeneric* source-file-type (component system))
+
+(defgeneric* operation-ancestor (operation)
+  (:documentation
+   "Recursively chase the operation's parent pointer until we get to
+the head of the tree"))
+
+(defgeneric* component-visited-p (operation component)
+  (:documentation "Returns the value stored by a call to
+VISIT-COMPONENT, if that has been called, otherwise NIL.
+This value stored will be a cons cell, the first element
+of which is a computed key, so not interesting.  The
+CDR wil be the DATA value stored by VISIT-COMPONENT; recover
+it as (cdr (component-visited-p op c)).
+  In the current form of ASDF, the DATA value retrieved is
+effectively a boolean, indicating whether some operations are
+to be performed in order to do OPERATION X COMPONENT.  If the
+data value is NIL, the combination had been explored, but no
+operations needed to be performed."))
+
+(defgeneric* visit-component (operation component data)
+  (:documentation "Record DATA as being associated with OPERATION
+and COMPONENT.  This is a side-effecting function:  the association
+will be recorded on the ROOT OPERATION \(OPERATION-ANCESTOR of the
+OPERATION\).
+  No evidence that DATA is ever interesting, beyond just being
+non-NIL.  Using the data field is probably very risky; if there is
+already a record for OPERATION X COMPONENT, DATA will be quietly
+discarded instead of recorded.
+  Starting with 2.006, TRAVERSE will store an integer in data,
+so that nodes can be sorted in decreasing order of traversal."))
+
+
+(defgeneric* (setf visiting-component) (new-value operation component))
+
+(defgeneric* component-visiting-p (operation component))
+
+(defgeneric* component-depends-on (operation component)
+  (:documentation
+   "Returns a list of dependencies needed by the component to perform
+    the operation.  A dependency has one of the following forms:
+
+      (<operation> <component>*), where <operation> is a class
+        designator and each <component> is a component
+        designator, which means that the component depends on
+        <operation> having been performed on each <component>; or
+
+      (FEATURE <feature>), which means that the component depends
+        on <feature>'s presence in *FEATURES*.
+
+    Methods specialized on subclasses of existing component types
+    should usually append the results of CALL-NEXT-METHOD to the
+    list."))
+
+(defgeneric* component-self-dependencies (operation component))
+
+(defgeneric* traverse (operation component)
+  (:documentation
+"Generate and return a plan for performing OPERATION on COMPONENT.
+
+The plan returned is a list of dotted-pairs. Each pair is the CONS
+of ASDF operation object and a COMPONENT object. The pairs will be
+processed in order by OPERATE."))
+
+
+;;;; -------------------------------------------------------------------------
+;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
+(when *upgraded-p*
+   #+ecl
+   (when (find-class 'compile-op nil)
+     (defmethod update-instance-for-redefined-class :after
+         ((c compile-op) added deleted plist &key)
+       (declare (ignore added deleted))
+       (let ((system-p (getf plist 'system-p)))
+         (when system-p (setf (getf (slot-value c 'flags) :system-p) system-p)))))
+   (when (find-class 'module nil)
+     (eval
+      `(defmethod update-instance-for-redefined-class :after
+           ((m module) added deleted plist &key)
+         (declare (ignorable deleted plist))
+         (when (or *asdf-verbose* *load-verbose*)
+           (asdf-message "~&~@<; ~@; Updating ~A for ASDF ~A~@:>~%" m ,(asdf-version)))
+         (when (member 'components-by-name added)
+           (compute-module-components-by-name m))
+         (when (and (typep m 'system) (member 'source-file added))
+           (%set-system-source-file (probe-asd (component-name m) (component-pathname m)) m))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Classes, Conditions
@@ -1292,7 +1295,7 @@ Going forward, we recommend new users should be using the source-registry.
                                     :condition condition))))
                  (let ((*package* package))
                    (asdf-message
-                    "~&~@<; ~@;loading system definition from ~A into ~A~@:>~%"
+                    "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%"
                     on-disk *package*)
                    (load on-disk)))
             (delete-package package))))
@@ -1306,7 +1309,7 @@ Going forward, we recommend new users should be using the source-registry.
            (error 'missing-component :requires name)))))))
 
 (defun* register-system (name system)
-  (asdf-message "~&~@<; ~@;registering ~A as ~A~@:>~%" system name)
+  (asdf-message "~&~@<; ~@;Registering ~A as ~A~@:>~%" system name)
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
 
@@ -2387,8 +2390,8 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
                  #+mswindows "sh" #-mswindows "/bin/sh" command)
          :input nil :whole nil
          #+mswindows :show-window #+mswindows :hide)
-      (format *verbose-out* "~{~&; ~a~%~}~%" stderr)
-      (format *verbose-out* "~{~&; ~a~%~}~%" stdout)
+      (asdf-message "~{~&; ~a~%~}~%" stderr)
+      (asdf-message "~{~&; ~a~%~}~%" stdout)
       exit-code)
 
     #+clisp                     ;XXX not exactly *verbose-out*, I know
