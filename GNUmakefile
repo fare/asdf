@@ -44,7 +44,7 @@ website:
 	make -C doc website
 
 clean_dirs = $(sourceDirectory)
-clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl o bak
+clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl o bak x86f
 
 clean: FORCE
 	@for dir in $(clean_dirs); do \

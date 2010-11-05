@@ -73,7 +73,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.010.2") ;; bump this version when you modify this file.
+  (let* ((asdf-version "2.010.3") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2201,7 +2201,7 @@ details."
 
 (defun* class-for-type (parent type)
   (or (loop :for symbol :in (list
-                             (unless (keywordp type) type)
+                             type
                              (find-symbol (symbol-name type) *package*)
                              (find-symbol (symbol-name type) :asdf))
         :for class = (and symbol (find-class symbol nil))
@@ -3548,7 +3548,7 @@ with a different configuration, so the configuration would be re-read then."
   (clear-output-translations))
 
 ;;;; -----------------------------------------------------------------
-;;;; Hook into REQUIRE for ABCL, ClozureCL, CMUCL, ECL and SBCL
+;;;; Hook into REQUIRE for ABCL, CLISP, ClozureCL, CMUCL, ECL and SBCL
 ;;;;
 (defun* module-provide-asdf (name)
   (handler-bind
