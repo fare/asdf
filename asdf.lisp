@@ -73,7 +73,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.010.3") ;; bump this version when you modify this file.
+  (let* ((asdf-version "2.010.4") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -546,9 +546,8 @@ pathnames."
     :append (list k v)))
 
 (defun* getenv (x)
-  (#+abcl ext:getenv
+  (#+(or abcl clisp) ext:getenv
    #+allegro sys:getenv
-   #+clisp ext:getenv
    #+clozure ccl:getenv
    #+(or cmu scl) (lambda (x) (cdr (assoc x ext:*environment-list* :test #'string=)))
    #+ecl si:getenv

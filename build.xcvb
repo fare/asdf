@@ -6,4 +6,5 @@
   :description "ASDF"
   :long-description "Another System Definition Facility."
   :depends-on ("asdf" (:when (:featurep :ecl) "asdf-ecl"))
+  :supersedes-asdf ("asdf")
   :build-image nil))
