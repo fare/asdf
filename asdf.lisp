@@ -73,7 +73,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.010.4") ;; bump this version when you modify this file.
+  (let* ((asdf-version "2.010.5") ;; bump this version when you modify this file.
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1314,7 +1314,10 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
   (setf fallback (coerce-name fallback)
-        source-file (or source-file *compile-file-truename* *load-truename*)
+        source-file (or source-file
+                        (if *resolve-symlinks*
+                            (or *compile-file-truename* *load-truename*)
+                            (or *compile-file-pathname* *load-pathname*)))
         requested (coerce-name requested))
   (when (equal requested fallback)
     (let* ((registered (cdr (gethash fallback *defined-systems*)))
