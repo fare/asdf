@@ -73,7 +73,11 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (let* ((asdf-version "2.010.5") ;; bump this version when you modify this file.
+  (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
+         ;; "2.345" would be an official release
+         ;; "2.345.6" would be a development version in the official upstream
+         ;; "2.345.0.7" or "2.345.6.7" would be your local modification of one of the above.
+         (asdf-version "2.010.6")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -236,6 +240,7 @@
             #:system-relative-pathname
             #:map-systems
 
+            #:operation-description
             #:operation-on-warnings
             #:operation-on-failure
             #:component-visited-p
