@@ -2190,10 +2190,8 @@ output files and find they need to get familiar with output-translations first.
 
 
 @section Backward Compatibility
+@cindex ASDF-BINARY-LOCATIONS compatibility
 
-@c FIXME -- I think we should provide an easy way
-@c to get behavior equivalent to A-B-L and
-@c I will propose a technique for doing this.
 
 We purposefully do NOT provide backward compatibility with earlier versions of
 @code{ASDF-Binary-Locations} (8 Sept 2009),
@@ -2221,7 +2219,7 @@ as configured by the system distributor, or by default.
 Nevertheless, if you are a fan of @code{ASDF-Binary-Locations},
 we provide a limited emulation mode:
 
-@defun asdf:enable-asdf-binary-locations-compatibility @&key centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
+@defun enable-asdf-binary-locations-compatibility @&key centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
 This function will initialize the new @code{asdf-output-translations} facility in a way
 that emulates the behavior of the old @code{ASDF-Binary-Locations} facility.
 Where you would previously set global variables
