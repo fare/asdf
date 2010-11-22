@@ -2674,6 +2674,9 @@ located."
   (equal (first-char (pathname-name pathname)) #\.))
 
 (defun* validate-configuration-directory (directory tag validator)
+  "Map the VALIDATOR across the .conf files in DIRECTORY, the TAG will
+be applied to the results to yield a configuration form.  Current
+values of TAG include :source-registry and :output-translations."
   (let ((files (sort (ignore-errors
                        (remove-if
                         'hidden-file-p
@@ -3350,7 +3353,7 @@ with a different configuration, so the configuration would be re-read then."
       (or (member directive '(:default-registry (:default-registry)) :test 'equal)
           (destructuring-bind (kw &rest rest) directive
             (case kw
-              ((:include :directory :tree)
+              ((:include :directory :tree :here)
                (and (length=n-p rest 1)
                     (location-designator-p (first rest))))
               ((:exclude :also-exclude)
@@ -3470,16 +3473,23 @@ with a different configuration, so the configuration would be re-read then."
 (declaim (ftype (function (t &key (:register (or symbol function)) (:inherit list)) t)
                 process-source-registry-directive))
 
+(defvar *here-directory* nil
+  "This special variable is bound to the currect directory during calls to
+PROCESS-SOURCE-REGISTRY in order that we be able to interpret the :here
+directive.")
+
 (defmethod process-source-registry ((x symbol) &key inherit register)
   (process-source-registry (funcall x) :inherit inherit :register register))
 (defmethod process-source-registry ((pathname pathname) &key inherit register)
   (cond
     ((directory-pathname-p pathname)
-     (process-source-registry (validate-source-registry-directory pathname)
-                              :inherit inherit :register register))
+     (let ((*here-directory* pathname))
+       (process-source-registry (validate-source-registry-directory pathname)
+                                :inherit inherit :register register)))
     ((probe-file pathname)
-     (process-source-registry (validate-source-registry-file pathname)
-                              :inherit inherit :register register))
+     (let ((*here-directory* (pathname-directory-pathname pathname)))
+       (process-source-registry (validate-source-registry-file pathname)
+                                :inherit inherit :register register)))
     (t
      (inherit-source-registry inherit :register register))))
 (defmethod process-source-registry ((string string) &key inherit register)
@@ -3512,6 +3522,11 @@ with a different configuration, so the configuration would be re-read then."
          (when pathname
            (funcall register (resolve-location pathname :directory t)
                     :recurse t :exclude *source-registry-exclusions*))))
+      ((:here)
+       (destructuring-bind (pathname) rest
+         (when pathname
+             ;; interpret the rest as relative pathnames
+             (funcall register (resolve-location pathname :directory t)))))
       ((:exclude)
        (setf *source-registry-exclusions* rest))
       ((:also-exclude)
