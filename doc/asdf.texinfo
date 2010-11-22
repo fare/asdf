@@ -1811,6 +1811,10 @@ DIRECTIVE :=
     ;; add a directory hierarchy, recursing but excluding specified patterns
     (:tree DIRECTORY-PATHNAME-DESIGNATOR) |
 
+    ;; add a directory relative to the location of the configuration
+    ;; file being read.
+    (:here RELATIVE-COMPONENT-DESIGNATOR?) |
+
     ;; override the defaults for exclusion patterns
     (:exclude PATTERN ...) |
     ;; augment the defaults for exclusion patterns
@@ -1863,7 +1867,7 @@ once contained:
 
 @section Configuration Directories
 
-Configuration directories consist in files each contains
+Configuration directories consist in files each containing
 a list of directives without any enclosing @code{(:source-registry ...)} form.
 The files will be sorted by namestring as if by @code{string<} and
 the lists of directives of these files with be concatenated in order.
@@ -1897,6 +1901,34 @@ alone in its directory with the following contents:
 (:tree "/home/fare/cl/")
 @end example
 
+@subsection The :here directive
+
+The @code{:here} directive is intended to simplify the delivery of
+complex libraries, and for easy configuration of projects shared through
+revision control systems, in accordance with our design principle that
+each participant should be able to provide all and only the information
+available to him or her.
+
+Consider a person X who has set up the source code repository for a
+complex project with a master directory @file{dir/}.  Ordinarily, one
+might simply have the user add a directive that would look something
+like this:
+@example
+   (:tree  "path/to/dir")
+@end example
+But what if X knows that there are very large subtrees
+under dir that are filled with, e.g., Java source code, image files for
+icons, etc.?  All of the asdf system definitions are contained in the
+subdirectories @file{dir/src/lisp/} and @file{dir/extlib/lisp/}, and
+these are the only directories that should be searched.
+
+In this case, X can put into @file{dir/} a file @file{asdf.conf} that
+contains the following:
+@example
+(:source-registry
+   (:here "src/lisp/")
+   (:here "extlib/lisp"))
+@end example
 
 @section Shell-friendly syntax for configuration
 
