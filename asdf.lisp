@@ -3526,7 +3526,7 @@ directive.")
        (destructuring-bind (pathname) rest
          (when pathname
              ;; interpret the rest as relative pathnames
-             (funcall register (resolve-location pathname :directory t)))))
+             (funcall register (resolve-location (ensure-directory-pathname (merge-pathnames* *here-directory* pathname)) :directory t)))))
       ((:exclude)
        (setf *source-registry-exclusions* rest))
       ((:also-exclude)
