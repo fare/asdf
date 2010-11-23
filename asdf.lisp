@@ -77,7 +77,7 @@
          ;; "2.345" would be an official release
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" or "2.345.6.7" would be your local modification of one of the above.
-         (asdf-version "2.010.6")
+         (asdf-version "2.010.9")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -186,7 +186,8 @@
             #:apply-output-translations #:translate-pathname* #:resolve-location)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
-            #:split #:make-collector)
+            #:split #:make-collector
+            #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :fmakunbound
            (#:system-source-file
             #:component-relative-pathname #:system-relative-pathname
@@ -302,6 +303,7 @@
             #:getenv
             ;; #:get-uid
             ;; #:length=n-p
+            ;; #:find-symbol*
             #:merge-pathnames*
             #:pathname-directory-pathname
             #:read-file-forms
@@ -653,6 +655,9 @@ actually-existing directory."
                  :directory '(:absolute)
                  :name nil :type nil :version nil))
 
+(defun* find-symbol* (s p)
+  (find-symbol (string s) p))
+
 (defun* probe-file* (p)
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
@@ -661,7 +666,7 @@ with given pathname and if it exists return its truename."
    (string (probe-file* (parse-namestring p)))
    (pathname (unless (wild-pathname-p p)
                #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
-               #+clisp (aif (find-symbol (string :probe-pathname) :ext) `(ignore-errors (,it p)))
+               #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
 	       '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
@@ -1004,7 +1009,7 @@ processed in order by OPERATE."))
   (format s "~@<component ~S not found~@[ in ~A~]~@:>"
           (missing-requires c)
           (when (missing-parent c)
-            (component-name (missing-parent c)))))
+            (coerce-name (missing-parent c)))))
 
 (defmethod print-object ((c missing-component-of-version) s)
   (format s "~@<component ~S does not match version ~A~@[ in ~A~]~@:>"
@@ -2209,8 +2214,8 @@ details."
 (defun* class-for-type (parent type)
   (or (loop :for symbol :in (list
                              type
-                             (find-symbol (symbol-name type) *package*)
-                             (find-symbol (symbol-name type) :asdf))
+                             (find-symbol* type *package*)
+                             (find-symbol* type :asdf))
         :for class = (and symbol (find-class symbol nil))
         :when (and class (subtypep class 'component))
         :return class)
@@ -3128,6 +3133,18 @@ effectively disabling the output translation facility."
 ;;;; -----------------------------------------------------------------
 ;;;; Compatibility mode for ASDF-Binary-Locations
 
+(defmethod operate :before (operation-class system &rest args &key &allow-other-keys)
+  (declare (ignorable operation-class system args))
+  (when (find-symbol* '#:output-files-for-system-and-operation :asdf)
+    (error "ASDF 2 is not compatible with ASDF-BINARY-LOCATIONS, which you are using.
+ASDF 2 now achieves the same purpose with its builtin ASDF-OUTPUT-TRANSLATIONS,
+which should be easier to configure. Please stop using ASDF-BINARY-LOCATIONS,
+and instead use ASDF-OUTPUT-TRANSLATIONS. See the ASDF manual for details.
+In case you insist on preserving your previous A-B-L configuration, but
+do not know how to achieve the same effect with A-O-T, you may use function
+ASDF:ENABLE-ASDF-BINARY-LOCATIONS-COMPATIBILITY as documented in the manual;
+call that function where you would otherwise have loaded and configured A-B-L.")))
+
 (defun* enable-asdf-binary-locations-compatibility
     (&key
      (centralize-lisp-binaries nil)
@@ -3571,7 +3588,7 @@ with a different configuration, so the configuration would be re-read then."
         t))))
 
 #+(or abcl clisp clozure cmu ecl sbcl)
-(let ((x (and #+clisp (find-symbol "*MODULE-PROVIDER-FUNCTIONS*" :custom))))
+(let ((x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom))))
   (when x
     (eval `(pushnew 'module-provide-asdf
             #+abcl sys::*module-provider-functions*
