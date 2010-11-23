@@ -77,7 +77,7 @@
          ;; "2.345" would be an official release
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" or "2.345.6.7" would be your local modification of one of the above.
-         (asdf-version "2.010.7")
+         (asdf-version "2.010.8")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1009,7 +1009,7 @@ processed in order by OPERATE."))
   (format s "~@<component ~S not found~@[ in ~A~]~@:>"
           (missing-requires c)
           (when (missing-parent c)
-            (component-name (missing-parent c)))))
+            (coerce-name (missing-parent c)))))
 
 (defmethod print-object ((c missing-component-of-version) s)
   (format s "~@<component ~S does not match version ~A~@[ in ~A~]~@:>"
