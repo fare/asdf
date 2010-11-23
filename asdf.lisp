@@ -77,7 +77,7 @@
          ;; "2.345" would be an official release
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" or "2.345.6.7" would be your local modification of one of the above.
-         (asdf-version "2.010.8")
+         (asdf-version "2.010.9")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -666,7 +666,7 @@ with given pathname and if it exists return its truename."
    (string (probe-file* (parse-namestring p)))
    (pathname (unless (wild-pathname-p p)
                #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
-               #+clisp (aif (find-symbol* '#:probe-pathname :ext) `(ignore-errors (,it p)))
+               #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
 	       '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
@@ -3134,6 +3134,7 @@ effectively disabling the output translation facility."
 ;;;; Compatibility mode for ASDF-Binary-Locations
 
 (defmethod operate :before (operation-class system &rest args &key &allow-other-keys)
+  (declare (ignorable operation-class system args))
   (when (find-symbol* '#:output-files-for-system-and-operation :asdf)
     (error "ASDF 2 is not compatible with ASDF-BINARY-LOCATIONS, which you are using.
 ASDF 2 now achieves the same purpose with its builtin ASDF-OUTPUT-TRANSLATIONS,
