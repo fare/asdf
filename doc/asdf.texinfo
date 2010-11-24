@@ -1904,8 +1904,12 @@ alone in its directory with the following contents:
 
 @subsection The :here directive
 
+The @code{:here} directive is an absolute pathname designator that
+refers to the directory containing the configuration file currently
+being processed.
+
 The @code{:here} directive is intended to simplify the delivery of
-complex libraries, and for easy configuration of projects shared through
+complex CL systems, and for easy configuration of projects shared through
 revision control systems, in accordance with our design principle that
 each participant should be able to provide all and only the information
 available to him or her.
@@ -1931,6 +1935,17 @@ contains the following:
    (:tree (:here "extlib/lisp"))
    (:directory (:here "outlier/")))
 @end example
+
+Then when someone else (call her Y) checks out a copy of this
+repository, she need only add 
+@example
+(:include "/path/to/my/checkout/directory/asdf.conf")
+@end example
+to one of her previously-existing asdf source location configuration
+files, or invoke @code{initialize-source-registry} with a configuration
+form containing that s-expression.  ASDF will find the .conf file that X
+has provided, and then set up source locations within the working
+directory according to X's (relative) instructions.
 
 @section Shell-friendly syntax for configuration
 
