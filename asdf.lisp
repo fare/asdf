@@ -3356,12 +3356,6 @@ with a different configuration, so the configuration would be re-read then."
               ((:include :directory :tree)
                (and (length=n-p rest 1)
                     (location-designator-p (first rest))))
-              ((:here)
-               ;; additional pathname components in :here directives are
-               ;; optional
-               (or (and (length=n-p rest 1)
-                        (location-designator-p (first rest)))
-                   (length=n-p rest 0)))
               ((:exclude :also-exclude)
                (every #'stringp rest))
               (null rest))))
@@ -3528,13 +3522,6 @@ directive.")
          (when pathname
            (funcall register (resolve-location pathname :directory t)
                     :recurse t :exclude *source-registry-exclusions*))))
-      ((:here)
-       (destructuring-bind (&optional pathname) rest
-         (if pathname
-             ;; interpret the rest as relative pathnames
-             (funcall register (resolve-location (ensure-directory-pathname (merge-pathnames* *here-directory* pathname)) :directory t))
-             ;; else just the *here-directory*
-             (funcall register (resolve-location (ensure-directory-pathname *here-directory*) :directory t)))))
       ((:exclude)
        (setf *source-registry-exclusions* rest))
       ((:also-exclude)
