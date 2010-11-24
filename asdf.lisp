@@ -2801,7 +2801,7 @@ directive.")
                                it
                                ;; this is used to give semantics to :here when used
                                ;; interactively.
-                               *default-pathname-defaults*)
+                               (default-directory))
                           :directory t :wilden nil))
             ((eql :user-cache) (resolve-location *user-cache* :directory t :wilden nil))
             ((eql :system-cache) (resolve-location *system-cache* :directory t :wilden nil))
