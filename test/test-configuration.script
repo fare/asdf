@@ -18,9 +18,11 @@
               ((:tree ,(under-test-directory "dir2/"))))
              ;; this is for testing the :here directive
              ("dir5/conf.conf"
-              ((:here "dir6")))
+              ((:directory (:here "dir6"))))
              ("dir8/conf.conf"
-              ((:here))))))
+              ((:directory (:here))))
+             ("dir9/dira/conf.conf"
+              ((:tree (:here)))))))
     (loop
       :for (file contents) :in v
       :for name = (under-test-directory file path)
@@ -35,12 +37,18 @@
 (defparameter *test-asd-directories*
   (loop
     :for dir
-    :in '("dir1/" "dir2/dir3/" "dir2/dir4/" "dir2/"
+    :in '("dir1/"                       ; foo0
+          "dir2/dir3/"                  ; foo1
+          "dir2/dir4/"                  ; foo2
+          "dir2/"                       ; foo3
           ;; system here should be found because of :here directive
-          "dir5/dir6/"
+          "dir5/dir6/"                  ; foo4
           ;; system here should /not/ be found because of :here directive
-          "dir5/dir7/"
-          "dir8/")
+          "dir5/dir7/"                  ; foo5
+          "dir8/"                       ; foo6
+          "dir9/dira/"                  ; foo7 should be found because of :here :tree
+          "dir9/dira/dirc"              ; foo8 ditto
+          "dir9/dirb/")                 ; foo9 should /not/ be found -- not under :here :tree
     :collect (under-test-directory dir)))
 
 (defun create-asd-files ()
@@ -86,11 +94,12 @@
 (format t "~&subdirectories of dir5/: ~S~%" (subdirectories (under-test-directory "dir5/")))
 (assert (= 2 (length (subdirectories (under-test-directory "dir5/")))))
 
-(trace asdf::process-source-registry)
+;; (trace asdf::process-source-registry)
 (initialize-source-registry
  `(:source-registry (:include ,(under-test-directory "conf.d/"))
                     (:include ,(under-test-directory "dir5/"))
                     (:include ,(under-test-directory "dir8/"))
+                    (:include ,(under-test-directory "dir9/dira/"))
                     :ignore-inherited-configuration))
 
 (format t "~&Source Registry: ~S~%"
@@ -102,6 +111,9 @@
 (assert (find-system :foo4 nil))
 (assert (not (find-system :foo5 nil)))
 (assert (find-system :foo6 nil))
+(assert (find-system :foo7 nil))
+(assert (find-system :foo8 nil))
+(assert (not (find-system :foo9 nil)))
 
 (assert
  (equal (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
