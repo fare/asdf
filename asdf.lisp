@@ -2769,6 +2769,11 @@ with a different configuration, so the configuration would be re-read then."
       (error "pathname ~S is not relative to ~S" s super))
     (merge-pathnames* s super)))
 
+(defvar *here-directory* nil
+  "This special variable is bound to the currect directory during calls to
+PROCESS-SOURCE-REGISTRY in order that we be able to interpret the :here
+directive.")
+
 (defun* resolve-absolute-location-component (x &key directory wilden)
   (let* ((r
           (etypecase x
@@ -2791,6 +2796,13 @@ with a different configuration, so the configuration would be re-read then."
                (let ((p (make-pathname :directory '(:relative))))
                  (if wilden (wilden p) p))))
             ((eql :home) (user-homedir))
+            ((eql :here) (resolve-location
+                          (aif *here-directory*
+                               it
+                               ;; this is used to give semantics to :here when used
+                               ;; interactively.
+                               *default-pathname-defaults*)
+                          :directory t :wilden nil))
             ((eql :user-cache) (resolve-location *user-cache* :directory t :wilden nil))
             ((eql :system-cache) (resolve-location *system-cache* :directory t :wilden nil))
             ((eql :default-directory) (default-directory))))
@@ -3472,11 +3484,6 @@ with a different configuration, so the configuration would be re-read then."
                 inherit-source-registry))
 (declaim (ftype (function (t &key (:register (or symbol function)) (:inherit list)) t)
                 process-source-registry-directive))
-
-(defvar *here-directory* nil
-  "This special variable is bound to the currect directory during calls to
-PROCESS-SOURCE-REGISTRY in order that we be able to interpret the :here
-directive.")
 
 (defmethod process-source-registry ((x symbol) &key inherit register)
   (process-source-registry (funcall x) :inherit inherit :register register))
