@@ -1790,7 +1790,10 @@ but will take precedence over the new mechanism if you do use it.
 
 @section Configuration DSL
 
-Here is the grammar of the s-expression (SEXP) DSL for source-registry configuration:
+Here is the grammar of the s-expression (SEXP) DSL for source-registry
+configuration:
+
+@c FIXME: This is too wide for happy compilation into pdf.
 
 @example
 ;; A configuration is a single SEXP starting with keyword :source-registry
@@ -1810,10 +1813,6 @@ DIRECTIVE :=
 
     ;; add a directory hierarchy, recursing but excluding specified patterns
     (:tree DIRECTORY-PATHNAME-DESIGNATOR) |
-
-    ;; add a directory relative to the location of the configuration
-    ;; file being read.
-    (:here RELATIVE-COMPONENT-DESIGNATOR?) |
 
     ;; override the defaults for exclusion patterns
     (:exclude PATTERN ...) |
@@ -1841,7 +1840,9 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
     PATHNAME | ;; pathname (better be an absolute path, or bust)
     :HOME | ;; designates the user-homedir-pathname ~/
     :USER-CACHE | ;; designates the default location for the user cache
-    :SYSTEM-CACHE ;; designates the default location for the system cache
+    :SYSTEM-CACHE | ;; designates the default location for the system cache
+    :HERE  ;; designates the location of the configuration file
+           ;; (or *default-pathname-defaults*, if invoked interactively)
 
 RELATIVE-COMPONENT-DESIGNATOR :=
     STRING | ;; namestring (directory assumed where applicable)
@@ -1926,8 +1927,9 @@ In this case, X can put into @file{dir/} a file @file{asdf.conf} that
 contains the following:
 @example
 (:source-registry
-   (:here "src/lisp/")
-   (:here "extlib/lisp"))
+   (:tree (:here "src/lisp/"))
+   (:tree (:here "extlib/lisp"))
+   (:directory (:here "outlier/")))
 @end example
 
 @section Shell-friendly syntax for configuration
