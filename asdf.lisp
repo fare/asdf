@@ -68,7 +68,7 @@
 
 ;;;; Create packages in a way that is compatible with hot-upgrade.
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
-;;;; See more at the end of the file.
+;;;; See more near the end of the file.
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
@@ -76,8 +76,9 @@
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; "2.345" would be an official release
          ;; "2.345.6" would be a development version in the official upstream
-         ;; "2.345.0.7" or "2.345.6.7" would be your local modification of one of the above.
-         (asdf-version "2.010.9")
+         ;; "2.345.0.7" would be your local modification of an official release
+         ;; "2.345.6.7" would be your local modification of a development version
+         (asdf-version "2.011")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -294,7 +295,7 @@
 
             ;; Utilities
             #:absolute-pathname-p
-	    ;; #:aif #:it
+            ;; #:aif #:it
             ;; #:appendf
             #:coerce-name
             #:directory-pathname-p
@@ -307,8 +308,8 @@
             #:merge-pathnames*
             #:pathname-directory-pathname
             #:read-file-forms
-	    ;; #:remove-keys
-	    ;; #:remove-keyword
+            ;; #:remove-keys
+            ;; #:remove-keyword
             #:resolve-symlinks
             #:split-string
             #:component-name-to-pathname-components
@@ -633,7 +634,7 @@ actually-existing directory."
   (defun* get-uid ()
     #+allegro (excl.osi:getuid)
     #+clisp (loop :for s :in '("posix:uid" "LINUX:getuid")
-	          :for f = (ignore-errors (read-from-string s))
+                  :for f = (ignore-errors (read-from-string s))
                   :when f :return (funcall f))
     #+(or cmu scl) (unix:unix-getuid)
     #+ecl #.(cl:if (cl:< ext:+ecl-version-number+ 100601)
@@ -667,7 +668,7 @@ with given pathname and if it exists return its truename."
    (pathname (unless (wild-pathname-p p)
                #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
                #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
-	       '(ignore-errors (truename p)))))))
+               '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
   "Resolve as much of a pathname as possible"
@@ -1333,7 +1334,7 @@ Going forward, we recommend new users should be using the source-registry.
     (let* ((registered (cdr (gethash fallback *defined-systems*)))
            (system (or registered
                        (apply 'make-instance 'system
-			      :name fallback :source-file source-file keys))))
+                              :name fallback :source-file source-file keys))))
       (unless registered
         (register-system fallback system))
       (throw 'find-system system))))

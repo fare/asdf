@@ -1,3 +1,14 @@
+cl-asdf (2:2.011-1) unstable; urgency=low
+
+  * Mostly same as 2.010.9: several minor tweaks and bug fixes since 2.010.
+  * Will be happier: users of implementations ACL, GCL; users of libraries
+    CL-Launch, XCVB; future former users of ASDF-Binary-Locations; people
+    with missing dependencies (in lieu of error-in-error); people extending
+    ASDF (notably Stelian Ionescu), who'd like to use keywords to name
+    component classes.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 28 Nov 2010 13:21:34 -0500
+
 cl-asdf (2:2.010-1) unstable; urgency=low
 
   * same as 2.146
