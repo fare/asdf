@@ -3544,13 +3544,14 @@ with a different configuration, so the configuration would be re-read then."
 (defun* flatten-source-registry (&optional parameter)
   (remove-duplicates
    (while-collecting (collect)
-     (inherit-source-registry
-      `(wrapping-source-registry
-        ,parameter
-        ,@*default-source-registries*)
-      :register (lambda (directory &key recurse exclude)
-                  (collect (list directory :recurse recurse :exclude exclude)))))
-   :test 'equal :from-end t))
+     (let ((*default-pathname-defaults* (default-directory)))                
+       (inherit-source-registry
+        `(wrapping-source-registry
+          ,parameter
+          ,@*default-source-registries*)
+        :register (lambda (directory &key recurse exclude)
+                    (collect (list directory :recurse recurse :exclude exclude)))))
+     :test 'equal :from-end t)))
 
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.
