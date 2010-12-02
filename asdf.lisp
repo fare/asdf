@@ -2796,12 +2796,10 @@ directive.")
                (let ((p (make-pathname :directory '(:relative))))
                  (if wilden (wilden p) p))))
             ((eql :home) (user-homedir))
-            ((eql :here) (resolve-location
-                          (aif *here-directory*
-                               it
-                               ;; this is used to give semantics to :here when used
-                               ;; interactively.
-                               (default-directory))
+            ((eql :here)
+             (resolve-location (or *here-directory*
+                                   ;; give semantics in the case of use interactively
+                                   :default-directory)
                           :directory t :wilden nil))
             ((eql :user-cache) (resolve-location *user-cache* :directory t :wilden nil))
             ((eql :system-cache) (resolve-location *system-cache* :directory t :wilden nil))
@@ -3490,7 +3488,7 @@ with a different configuration, so the configuration would be re-read then."
 (defmethod process-source-registry ((pathname pathname) &key inherit register)
   (cond
     ((directory-pathname-p pathname)
-     (let ((*here-directory* pathname))
+     (let ((*here-directory* (truenamize pathname)))
        (process-source-registry (validate-source-registry-directory pathname)
                                 :inherit inherit :register register)))
     ((probe-file pathname)
@@ -3544,7 +3542,7 @@ with a different configuration, so the configuration would be re-read then."
 (defun* flatten-source-registry (&optional parameter)
   (remove-duplicates
    (while-collecting (collect)
-     (let ((*default-pathname-defaults* (default-directory)))                
+     (let ((*default-pathname-defaults* (default-directory)))
        (inherit-source-registry
         `(wrapping-source-registry
           ,parameter
