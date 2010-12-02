@@ -78,7 +78,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your local modification of an official release
          ;; "2.345.6.7" would be your local modification of a development version
-         (asdf-version "2.011")
+         (asdf-version "2.011.1")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
