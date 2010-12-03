@@ -47,7 +47,7 @@
           "dir5/dir7/"                  ; foo5
           "dir8/"                       ; foo6
           "dir9/dira/"                  ; foo7 should be found because of :here :tree
-          "dir9/dira/dirc"              ; foo8 ditto
+          "dir9/dira/dirc/"              ; foo8 ditto
           "dir9/dirb/")                 ; foo9 should /not/ be found -- not under :here :tree
     :collect (under-test-directory dir)))
 

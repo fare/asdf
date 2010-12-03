@@ -1937,7 +1937,7 @@ contains the following:
 @end example
 
 Then when someone else (call her Y) checks out a copy of this
-repository, she need only add 
+repository, she need only add
 @example
 (:include "/path/to/my/checkout/directory/asdf.conf")
 @end example

@@ -78,7 +78,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your local modification of an official release
          ;; "2.345.6.7" would be your local modification of a development version
-         (asdf-version "2.011.1")
+         (asdf-version "2.011.2")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -496,7 +496,7 @@ starting the separation from the end, e.g. when called with arguments
          ;; Giving :unspecific as argument to make-pathname is not portable.
          ;; See CLHS make-pathname and 19.2.2.2.3.
          ;; We only use it on implementations that support it.
-         (or #+(or ccl ecl gcl lispworks sbcl) :unspecific)))
+         (or #+(or ccl gcl lispworks sbcl) :unspecific)))
     (destructuring-bind (name &optional (type unspecific))
         (split-string filename :max 2 :separator ".")
       (if (equal name "")
