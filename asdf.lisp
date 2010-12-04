@@ -78,7 +78,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your local modification of an official release
          ;; "2.345.6.7" would be your local modification of a development version
-         (asdf-version "2.011.2")
+         (asdf-version "2.011.3")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1289,27 +1289,34 @@ Going forward, we recommend new users should be using the source-registry.
 (defmethod find-system (name &optional (error-p t))
   (find-system (coerce-name name) error-p))
 
+(defun load-sysdef (name pathname)
+  ;; Tries to load system definition with canonical NAME from PATHNAME.
+  (let ((package (make-temporary-package)))
+    (unwind-protect
+         (handler-bind
+             ((error (lambda (condition)
+                       (error 'load-system-definition-error
+                              :name name :pathname pathname
+                              :condition condition))))
+           (let ((*package* package))
+             (asdf-message
+              "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%"
+              pathname package)
+             (load pathname)))
+      (delete-package package))))
+
 (defmethod find-system ((name string) &optional (error-p t))
   (catch 'find-system
-    (let* ((in-memory (system-registered-p name))
+    (let* ((in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
            (on-disk (system-definition-pathname name)))
       (when (and on-disk
                  (or (not in-memory)
-                     (< (car in-memory) (safe-file-write-date on-disk))))
-        (let ((package (make-temporary-package)))
-          (unwind-protect
-               (handler-bind
-                   ((error (lambda (condition)
-                             (error 'load-system-definition-error
-                                    :name name :pathname on-disk
-                                    :condition condition))))
-                 (let ((*package* package))
-                   (asdf-message
-                    "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%"
-                    on-disk *package*)
-                   (load on-disk)))
-            (delete-package package))))
-      (let ((in-memory (system-registered-p name)))
+                     ;; don't reload if it's already been loaded,
+                     ;; or its filestamp is in the future which means some clock is skewed
+                     ;; and trying to load might cause an infinite loop.
+                     (< (car in-memory) (safe-file-write-date on-disk) (get-universal-time))))
+        (load-sysdef name on-disk))
+      (let ((in-memory (system-registered-p name))) ; try again after loading from disk
         (cond
           (in-memory
            (when on-disk
