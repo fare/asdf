@@ -2379,8 +2379,23 @@ in the beginning of the directory component of the source pathname
 before it is translated.
 
 When the second designator is @code{t}, the mapping is the identity.
-When the second designator starts with @code{root},
+When the second designator starts with @code{:root},
 the mapping preserves the host and device of the original pathname.
+Notably, this allows you to map files
+to a subdirectory of the whichever directory the file is in.
+Though the syntax is not quite as easy to use as we'd like,
+you can have an (source destination) mapping entry such as follows
+in your configuration file,
+or you may use @code{enable-asdf-binary-locations-compatibility}
+with @code{:centralize-lisp-binaries nil}
+which will do the same thing internally for you:
+@verbatim
+  #.(let ((wild-subdir (make-pathname :directory '(:relative :wild-inferiors)))
+          (wild-file (make-pathname :name :wild :version :wild :type :wild)))
+     `((:root ,wild-subdir ,wild-file) ;; Or using the implicit wildcard, just :root
+       (:root ,wild-subdir :implementation ,wild-file)))
+@end verbatim
+
 
 @code{:include} statements cause the search to recurse with the path specifications
 from the file specified.
@@ -2968,7 +2983,7 @@ or to override its configuration.
 The new ASDF output translations are incompatible with ASDF-Binary-Locations.
 They replace A-B-L, and there is compatibility mode to emulate
 your previous A-B-L configuration.
-See @code{asdf:enable-asdf-binary-locations-compatibility} in
+See @code{enable-asdf-binary-locations-compatibility} in
 @pxref{Controlling where ASDF saves compiled files,,Backward Compatibility}.
 But thou shall not load ABL on top of ASDF 2.
 
