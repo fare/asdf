@@ -78,7 +78,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.011.4")
+         (asdf-version "2.011.5")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -870,8 +870,12 @@ processed in order by OPERATE."))
            (asdf-message "~&~@<; ~@; Updating ~A for ASDF ~A~@:>~%" m ,(asdf-version)))
          (when (member 'components-by-name added)
            (compute-module-components-by-name m))
-         (when (and (typep m 'system) (member 'source-file added))
-           (%set-system-source-file (probe-asd (component-name m) (component-pathname m)) m))))))
+         (when (typep m 'system)
+           (when (member 'source-file added)
+             (%set-system-source-file
+              (probe-asd (component-name m) (component-pathname m)) m)
+             (when (equal (component-name m) "asdf")
+               (setf (component-version m) *asdf-version*))))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Classes, Conditions
@@ -1367,7 +1371,8 @@ Going forward, we recommend new users should be using the source-registry.
       (throw 'find-system system))))
 
 (defun* sysdef-find-asdf (name)
-  (find-system-fallback name "asdf")) ;; :version *asdf-version* wouldn't be updated when ASDF is updated.
+  ;; Bug: :version *asdf-version* won't be updated when ASDF is updated.
+  (find-system-fallback name "asdf" :version *asdf-version*))
 
 
 ;;;; -------------------------------------------------------------------------
