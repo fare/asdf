@@ -76,9 +76,9 @@
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; "2.345" would be an official release
          ;; "2.345.6" would be a development version in the official upstream
-         ;; "2.345.0.7" would be your local modification of an official release
-         ;; "2.345.6.7" would be your local modification of a development version
-         (asdf-version "2.011.3")
+         ;; "2.345.0.7" would be your seventh local modification of official release 2.345
+         ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
+         (asdf-version "2.011.4")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -713,9 +713,14 @@ with given pathname and if it exists return its truename."
 (defun* lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
 
+(defparameter *wild-file*
+  (make-pathname :name :wild :type :wild :version :wild :directory nil))
+(defparameter *wild-directory*
+  (make-pathname :directory '(:relative :wild) :name nil :type nil :version nil))
+(defparameter *wild-inferiors*
+  (make-pathname :directory '(:relative :wild-inferiors) :name nil :type nil :version nil))
 (defparameter *wild-path*
-  (make-pathname :directory '(:relative :wild-inferiors)
-                 :name :wild :type :wild :version :wild))
+  (merge-pathnames *wild-file* *wild-inferiors*))
 
 (defun* wilden (path)
   (merge-pathnames* *wild-path* path))
@@ -938,6 +943,21 @@ processed in order by OPERATE."))
 (define-condition compile-error (operation-error) ())
 (define-condition compile-failed (compile-error) ())
 (define-condition compile-warned (compile-error) ())
+
+(define-condition invalid-configuration ()
+  ((form :reader condition-form :initarg :form)
+   (location :reader condition-location :initarg :location)
+   (format :reader condition-format :initarg :format)
+   (arguments :reader condition-arguments :initarg :arguments :initform nil))
+  (:report (lambda (c s)
+             (format s "~@<~? (will be skipped)~@:>"
+                     (condition-format c)
+                     (list* (condition-form c) (condition-location c)
+                            (condition-arguments c))))))
+(define-condition invalid-source-registry (invalid-configuration warning)
+  ((format :initform "~@<invalid source registry ~S~@[ in ~S~]~@{ ~@?~}~>")))
+(define-condition invalid-output-translation (invalid-configuration warning)
+  ((format :initform "~@<invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~>")))
 
 (defclass component ()
   ((name :accessor component-name :initarg :name :documentation
@@ -2593,7 +2613,8 @@ located."
                             *implementation-features*))
           (os   (maybe-warn (first-feature *os-features*)
                             "No os feature found in ~a." *os-features*))
-          (arch (maybe-warn (first-feature *architecture-features*)
+          (arch #+clisp "" #-clisp
+                (maybe-warn (first-feature *architecture-features*)
                             "No architecture feature found in ~a."
                             *architecture-features*))
           (version (maybe-warn (lisp-version-string)
@@ -2601,7 +2622,6 @@ located."
       (substitute-if
        #\_ (lambda (x) (find x " /:\\(){}[]$#`'\""))
        (format nil "~(~@{~a~^-~}~)" lisp version os arch)))))
-
 
 
 ;;; ---------------------------------------------------------------------------
@@ -2656,43 +2676,88 @@ located."
     (or (member x kw)
         (and (length=n-p x 1) (member (car x) kw)))))
 
+(defun* report-invalid-form (reporter &rest args)
+  (etypecase reporter
+    (null
+     (apply 'error 'invalid-configuration args))
+    (function
+     (apply reporter args))
+    ((or symbol string)
+     (apply 'error reporter args))
+    (cons
+     (apply 'apply (append reporter args)))))
+
+(defvar *ignored-configuration-form* nil)
+
 (defun* validate-configuration-form (form tag directive-validator
-                                    &optional (description tag))
+                                    &key location invalid-form-reporter)
   (unless (and (consp form) (eq (car form) tag))
-    (error "Error: Form doesn't specify ~A ~S~%" description form))
-  (loop :with inherit = 0
-    :for directive :in (cdr form) :do
-    (if (configuration-inheritance-directive-p directive)
-        (incf inherit)
-        (funcall directive-validator directive))
+    (setf *ignored-configuration-form* t)
+    (report-invalid-form invalid-form-reporter :form form :location location)
+    (return-from validate-configuration-form nil))
+  (loop :with inherit = 0 :with ignore-invalid-p = nil :with x = (list tag)
+    :for directive :in (cdr form)
+    :when (cond
+            ((configuration-inheritance-directive-p directive)
+             (incf inherit) t)
+            ((eq directive :ignore-invalid-entries)
+             (setf ignore-invalid-p t) t)
+            ((funcall directive-validator directive)
+             t)
+            (ignore-invalid-p
+             nil)
+            (t
+             (setf *ignored-configuration-form* t)
+             (report-invalid-form invalid-form-reporter :form directive :location location)
+             nil))
+    :do (push directive x)
     :finally
     (unless (= inherit 1)
-      (error "One and only one of ~S or ~S is required"
-             :inherit-configuration :ignore-inherited-configuration)))
-  form)
+      (report-invalid-form invalid-form-reporter
+             :arguments (list "One and only one of ~S or ~S is required"
+                              :inherit-configuration :ignore-inherited-configuration)))
+    (return (nreverse x))))
 
-(defun* validate-configuration-file (file validator description)
+(defun* validate-configuration-file (file validator &key description)
   (let ((forms (read-file-forms file)))
     (unless (length=n-p forms 1)
       (error "One and only one form allowed for ~A. Got: ~S~%" description forms))
-    (funcall validator (car forms))))
+    (funcall validator (car forms) :location file)))
 
 (defun* hidden-file-p (pathname)
   (equal (first-char (pathname-name pathname)) #\.))
 
-(defun* validate-configuration-directory (directory tag validator)
+(defun* directory* (pathname-spec &rest keys &key &allow-other-keys)
+  (apply 'directory pathname-spec
+         (append keys '#.(or #+allegro '(:directories-are-files nil :follow-symbolic-links nil)
+                             #+ccl '(:follow-links nil)
+                             #+clisp '(:circle t :if-does-not-exist :ignore)
+                             #+(or cmu scl) '(:follow-links nil :truenamep nil)
+                             #+sbcl '(:resolve-symlinks nil)))))
+
+(defun* validate-configuration-directory (directory tag validator &key invalid-form-reporter)
   "Map the VALIDATOR across the .conf files in DIRECTORY, the TAG will
 be applied to the results to yield a configuration form.  Current
 values of TAG include :source-registry and :output-translations."
   (let ((files (sort (ignore-errors
                        (remove-if
                         'hidden-file-p
-                        (directory (make-pathname :name :wild :type "conf" :defaults directory)
-                                   #+sbcl :resolve-symlinks #+sbcl nil)))
+                        (directory* (make-pathname :name :wild :type "conf" :defaults directory))))
                      #'string< :key #'namestring)))
     `(,tag
       ,@(loop :for file :in files :append
-          (mapcar validator (read-file-forms file)))
+          (loop :with ignore-invalid-p = nil
+            :for form :in (read-file-forms file)
+            :when (eq form :ignore-invalid-entries)
+              :do (setf ignore-invalid-p t)
+            :else
+              :when (funcall validator form)
+                :collect form
+              :else
+                :when ignore-invalid-p
+                  :do (setf *ignored-configuration-form* t)
+                :else
+                  :do (report-invalid-form invalid-form-reporter :form form :location file)))
       :inherit-configuration)))
 
 
@@ -2732,7 +2797,8 @@ and the order is by decreasing length of namestring of the source pathname.")
                              (etypecase (car x)
                                ((eql t) -1)
                                (pathname
-                                (length (pathname-directory (car x)))))))))
+                                (let ((directory (pathname-directory (car x))))
+                                  (if (listp directory) (length directory) 0))))))))
   new-value)
 
 (defun* output-translations-initialized-p ()
@@ -2766,6 +2832,9 @@ with a different configuration, so the configuration would be re-read then."
                        (merge-pathnames* cdr car)))))
               ((eql :default-directory)
                (relativize-pathname-directory (default-directory)))
+              ((eql :*/) *wild-directory*)
+              ((eql :**/) *wild-inferiors*)
+              ((eql :*.*.*) *wild-file*)
               ((eql :implementation) (implementation-identifier))
               ((eql :implementation-type) (string-downcase (implementation-type)))
               #-(and (or win32 windows mswindows mingw32) (not cygwin))
@@ -2832,8 +2901,17 @@ directive.")
         :finally (return path))))
 
 (defun* location-designator-p (x)
-  (flet ((componentp (c) (typep c '(or string pathname keyword))))
-    (or (typep x 'boolean) (componentp x) (and (consp x) (every #'componentp x)))))
+  (flet ((absolute-component-p (c)
+           (typep c '(or string pathname
+                      (member :root :home :here :user-cache :system-cache :default-directory))))
+         (relative-component-p (c)
+           (typep c '(or string pathname
+                      (member :default-directory :*/ :**/ :*.*.*
+                        :implementation :implementation-type
+                        #-(and (or win32 windows mswindows mingw32) (not cygwin)) :uid)))))
+    (or (typep x 'boolean)
+        (absolute-component-p x)
+        (and (consp x) (absolute-component-p (first x)) (every #'relative-component-p (rest x))))))
 
 (defun* location-function-p (x)
   (and
@@ -2846,47 +2924,43 @@ directive.")
             (length=n-p (second x) 2)))))
 
 (defun* validate-output-translations-directive (directive)
-  (unless
-      (or (member directive '(:inherit-configuration
-                              :ignore-inherited-configuration
-                              :enable-user-cache :disable-cache nil))
-          (and (consp directive)
-               (or (and (length=n-p directive 2)
-                        (or (and (eq (first directive) :include)
-                                 (typep (second directive) '(or string pathname null)))
-                            (and (location-designator-p (first directive))
-                                 (or (location-designator-p (second directive))
-                                     (location-function-p (second directive))))))
-                   (and (length=n-p directive 1)
-                        (location-designator-p (first directive))))))
-    (error "Invalid directive ~S~%" directive))
-  directive)
+  (or (member directive '(:enable-user-cache :disable-cache nil))
+      (and (consp directive)
+           (or (and (length=n-p directive 2)
+                    (or (and (eq (first directive) :include)
+                             (typep (second directive) '(or string pathname null)))
+                        (and (location-designator-p (first directive))
+                             (or (location-designator-p (second directive))
+                                 (location-function-p (second directive))))))
+               (and (length=n-p directive 1)
+                    (location-designator-p (first directive)))))))
 
-(defun* validate-output-translations-form (form)
+(defun* validate-output-translations-form (form &key location)
   (validate-configuration-form
    form
    :output-translations
    'validate-output-translations-directive
-   "output translations"))
+   :location location :invalid-form-reporter 'invalid-output-translation))
 
 (defun* validate-output-translations-file (file)
   (validate-configuration-file
-   file 'validate-output-translations-form "output translations"))
+   file 'validate-output-translations-form :description "output translations"))
 
 (defun* validate-output-translations-directory (directory)
   (validate-configuration-directory
-   directory :output-translations 'validate-output-translations-directive))
+   directory :output-translations 'validate-output-translations-directive
+   :invalid-form-reporter 'invalid-output-translation))
 
-(defun* parse-output-translations-string (string)
+(defun* parse-output-translations-string (string &key location)
   (cond
     ((or (null string) (equal string ""))
      '(:output-translations :inherit-configuration))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
     ((eql (char string 0) #\")
-     (parse-output-translations-string (read-from-string string)))
+     (parse-output-translations-string (read-from-string string) :location location))
     ((eql (char string 0) #\()
-     (validate-output-translations-form (read-from-string string)))
+     (validate-output-translations-form (read-from-string string) :location location))
     (t
      (loop
       :with inherit = nil
@@ -2994,7 +3068,7 @@ directive.")
          (process-output-translations-directive '(t t) :collect collect))
         ((:inherit-configuration)
          (inherit-output-translations inherit :collect collect))
-        ((:ignore-inherited-configuration nil)
+        ((:ignore-inherited-configuration :ignore-invalid-entries nil)
          nil))
       (let ((src (first directive))
             (dst (second directive)))
@@ -3017,9 +3091,7 @@ directive.")
                   (t
                    (let* ((trudst (make-pathname
                                    :defaults (if dst (resolve-location dst :directory t :wilden t) trusrc)))
-                          (wilddst (make-pathname
-                                    :name :wild :type :wild :version :wild
-                                    :defaults trudst)))
+                          (wilddst (merge-pathnames* *wild-file* trudst)))
                      (funcall collect (list wilddst t))
                      (funcall collect (list trusrc trudst)))))))))))
 
@@ -3180,21 +3252,19 @@ call that function where you would otherwise have loaded and configured A-B-L.")
   (when (null map-all-source-files)
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on ECL and CLISP"))
   (let* ((fasl-type (pathname-type (compile-file-pathname "foo.lisp")))
-         (wild-inferiors (make-pathname :directory '(:relative :wild-inferiors)))
-         (mapped-files (make-pathname
-                        :name :wild :version :wild
-                        :type (if map-all-source-files :wild fasl-type)))
+         (mapped-files (if map-all-source-files *wild-file*
+                           (make-pathname :name :wild :version :wild :type fasl-type)))
          (destination-directory
           (if centralize-lisp-binaries
               `(,default-toplevel-directory
                 ,@(when include-per-user-information
                         (cdr (pathname-directory (user-homedir))))
-                :implementation ,wild-inferiors)
-              `(:root ,wild-inferiors :implementation))))
+                :implementation ,*wild-inferiors*)
+              `(:root ,*wild-inferiors* :implementation))))
     (initialize-output-translations
      `(:output-translations
        ,@source-to-target-mappings
-       ((:root ,wild-inferiors ,mapped-files)
+       ((:root ,*wild-inferiors* ,mapped-files)
         (,@destination-directory ,mapped-files))
        (t t)
        :ignore-inherited-configuration))))
@@ -3314,31 +3384,23 @@ with a different configuration, so the configuration would be re-read then."
   (make-pathname :directory nil :name :wild :type "asd" :version :newest))
 
 (defun directory-has-asd-files-p (directory)
-  (and (ignore-errors
-         (directory (merge-pathnames* *wild-asd* directory)
-                    #+sbcl #+sbcl :resolve-symlinks nil
-                    #+ccl #+ccl :follow-links nil
-                    #+clisp #+clisp :circle t))
-       t))
+  (ignore-errors
+    (directory* (merge-pathnames* *wild-asd* directory))
+    t))
 
 (defun subdirectories (directory)
   (let* ((directory (ensure-directory-pathname directory))
          #-cormanlisp
          (wild (merge-pathnames*
                 #-(or abcl allegro lispworks scl)
-                (make-pathname :directory '(:relative :wild) :name nil :type nil :version nil)
+                *wild-directory*
                 #+(or abcl allegro lispworks scl) "*.*"
                 directory))
          (dirs
           #-cormanlisp
           (ignore-errors
-            (directory wild .
-              #.(or #+allegro '(:directories-are-files nil :follow-symbolic-links nil)
-                    #+ccl '(:follow-links nil :directories t :files nil)
-                    #+clisp '(:circle t :if-does-not-exist :ignore)
-                    #+(or cmu scl) '(:follow-links nil :truenamep nil)
-                    #+digitool '(:directories t)
-                    #+sbcl '(:resolve-symlinks nil))))
+            (directory* wild . #.(or #+ccl '(:directories t :files nil)
+                                     #+digitool '(:directories t))))
           #+cormanlisp (cl::directory-subdirs directory))
          #+(or abcl allegro lispworks scl)
          (dirs (remove-if-not #+abcl #'extensions:probe-directory
@@ -3366,39 +3428,40 @@ with a different configuration, so the configuration would be re-read then."
    collect))
 
 (defun* validate-source-registry-directive (directive)
-  (unless
-      (or (member directive '(:default-registry (:default-registry)) :test 'equal)
-          (destructuring-bind (kw &rest rest) directive
-            (case kw
-              ((:include :directory :tree)
-               (and (length=n-p rest 1)
-                    (location-designator-p (first rest))))
-              ((:exclude :also-exclude)
-               (every #'stringp rest))
-              (null rest))))
-    (error "Invalid directive ~S~%" directive))
-  directive)
+  (or (member directive '(:default-registry))
+      (and (consp directive)
+           (let ((rest (rest directive)))
+             (case (first directive)
+               ((:include :directory :tree)
+                (and (length=n-p rest 1)
+                     (location-designator-p (first rest))))
+               ((:exclude :also-exclude)
+                (every #'stringp rest))
+               ((:default-registry)
+                (null rest)))))))
 
-(defun* validate-source-registry-form (form)
+(defun* validate-source-registry-form (form &key location)
   (validate-configuration-form
-   form :source-registry 'validate-source-registry-directive "a source registry"))
+   form :source-registry 'validate-source-registry-directive
+   :location location :invalid-form-reporter 'invalid-source-registry))
 
 (defun* validate-source-registry-file (file)
   (validate-configuration-file
-   file 'validate-source-registry-form "a source registry"))
+   file 'validate-source-registry-form :description "a source registry"))
 
 (defun* validate-source-registry-directory (directory)
   (validate-configuration-directory
-   directory :source-registry 'validate-source-registry-directive))
+   directory :source-registry 'validate-source-registry-directive
+   :invalid-form-reporter 'invalid-source-registry))
 
-(defun* parse-source-registry-string (string)
+(defun* parse-source-registry-string (string &key location)
   (cond
     ((or (null string) (equal string ""))
      '(:source-registry :inherit-configuration))
     ((not (stringp string))
      (error "environment string isn't: ~S" string))
     ((find (char string 0) "\"(")
-     (validate-source-registry-form (read-from-string string)))
+     (validate-source-registry-form (read-from-string string) :location location))
     (t
      (loop
       :with inherit = nil
@@ -3639,6 +3702,11 @@ with a different configuration, so the configuration would be re-read then."
                                            &key system-p &allow-other-keys)
       (declare (ignorable initargs))
       (when system-p (appendf (compile-op-flags op) (list :system-p system-p))))))
+
+;;; If a previous version of ASDF failed to read some configuration, try again.
+(when *ignored-configuration-form*
+  (clear-configuration)
+  (setf *ignored-configuration-form* nil))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Done!

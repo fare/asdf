@@ -1808,6 +1808,11 @@ DIRECTIVE :=
     :inherit-configuration | ; splices inherited configuration (often specified last)
     :ignore-inherited-configuration | ; drop inherited configuration (specified anywhere)
 
+    ;; forward compatibility directive (since ASDF 2.011.4), useful when
+    ;; you want to use new configuration features but have to bootstrap a
+    ;; the newer required ASDF from an older release that doesn't sport said features:
+    :ignore-invalid-entries | ; drops subsequent invalid entries instead of erroring out
+
     ;; add a single directory to be scanned (no recursion)
     (:directory DIRECTORY-PATHNAME-DESIGNATOR) |
 
@@ -1847,7 +1852,7 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
 RELATIVE-COMPONENT-DESIGNATOR :=
     STRING | ;; namestring (directory assumed where applicable)
     PATHNAME | ;; pathname
-    :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.32.30-linux-x86-64
+    :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.45-linux-amd64
     :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
     :UID | ;; current UID -- not available on Windows
     :USER ;; current USER name -- NOT IMPLEMENTED(!)
@@ -2311,10 +2316,15 @@ DIRECTIVE :=
     :inherit-configuration | ; splices inherited configuration (often specified last)
     :ignore-inherited-configuration | ; drop inherited configuration (specified anywhere)
 
+    ;; forward compatibility directive (since ASDF 2.011.4), useful when
+    ;; you want to use new configuration features but have to bootstrap a
+    ;; the newer required ASDF from an older release that doesn't sport said features:
+    :ignore-invalid-entries | ; drops subsequent invalid entries instead of erroring out
+
     ;; include a configuration file or directory
     (:include PATHNAME-DESIGNATOR) |
 
-    ;; enable global cache in ~/.common-lisp/cache/sbcl-1.0.35-x86-64/ or something.
+    ;; enable global cache in ~/.common-lisp/cache/sbcl-1.0.45-linux-amd64/ or something.
     :enable-user-cache |
     ;; Disable global cache. Map / to /
     :disable-cache |
@@ -2342,8 +2352,11 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
 RELATIVE-COMPONENT-DESIGNATOR :=
     STRING | ;; namestring, directory is assumed. If the last component, /**/*.* is added
     PATHNAME | ;; pathname unless last component, directory is assumed.
-    :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.32.30-linux-x86-64
+    :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.45-linux-amd64
     :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
+    :*/ | ;; any direct subdirectory (since ASDF 2.011.4)
+    :**/ | ;; any recursively inferior subdirectory (since ASDF 2.011.4)
+    :*.*.* | ;; any file (since ASDF 2.011.4)
     :UID | ;; current UID -- not available on Windows
     :USER ;; current USER name -- NOT IMPLEMENTED(!)
 
@@ -2395,6 +2408,9 @@ which will do the same thing internally for you:
      `((:root ,wild-subdir ,wild-file) ;; Or using the implicit wildcard, just :root
        (:root ,wild-subdir :implementation ,wild-file)))
 @end verbatim
+Starting with ASDF 2.011.4, you can use the simpler:
+	@code{`(:root (:root :**/ :implementation :*.*.*))}
+
 
 
 @code{:include} statements cause the search to recurse with the path specifications
@@ -2594,7 +2610,7 @@ But so are good design ideas and elegant implementation tricks.
 
 @c @itemize
 @c @item
-@c SBCL, version 1.0 on Mac OS X for intel: @code{sbcl-1.0-darwin-x86}
+@c SBCL, version 1.0.45 on Mac OS X for Intel: @code{sbcl-1.0.45-darwin-x86}
 
 @c @item
 @c Franz Allegro, version 8.0, ANSI Common Lisp: @code{allegro-8.0a-macosx-x86}
