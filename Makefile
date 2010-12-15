@@ -90,7 +90,7 @@ fix-local-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git tag -d $$i ; done
 
 # Delete wrongful tags from remote repository
-fix-local-git-tags:
+fix-remote-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git push $${REMOTE:-cl.net} :refs/tags/$$i ; done
 
 FORCE:
