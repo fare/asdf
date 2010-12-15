@@ -78,7 +78,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.011.5")
+         (asdf-version "2.011.6")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1175,11 +1175,8 @@ of which is a system object.")
 Note that this does NOT in any way cause the code of the system to be unloaded."
   ;; There is no "unload" operation in Common Lisp, and a general such operation
   ;; cannot be portably written, considering how much CL relies on side-effects
-  ;; of global data structures.
-  ;; Note that this does a setf gethash instead of a remhash
-  ;; this way there remains a hint in the *defined-systems* table
-  ;; that the system was loaded at some point.
-  (setf (gethash (coerce-name name) *defined-systems*) nil))
+  ;; to global data structures.
+  (remhash (coerce-name name) *defined-systems*))
 
 (defun* map-systems (fn)
   "Apply FN to each defined system.
