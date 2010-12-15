@@ -8,9 +8,9 @@ clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
 lisps ?= ccl clisp sbcl ecl allegro abcl scl
-## not tested by me: allegromodern cmucl lisworks
-## FAIL: gclcvs
-## maybe supported by asdf, not supported yet by our tests: cormancl mcl scl
+## not tested by me: allegromodern cmucl lispworks
+## FAIL: gclcvs (condition handling)
+## maybe supported by asdf, not supported yet by our tests: cormancl mcl
 
 lisp ?= sbcl
 
@@ -71,7 +71,8 @@ test-all: FORCE
 	done
 
 debian-package: mrproper
-	git-buildpackage --git-debian-branch=release --git-upstream-branch=RELEASE --git-tag --git-retag
+	RELEASE="$(git tag -l '2.0[0-9][0-9]' | tail -n 1)" ; \
+	git-buildpackage --git-debian-branch=release --git-upstream-branch=$RELEASE --git-tag --git-retag
 
 # Replace SBCL's ASDF with the current one.
 # not recommended: just use (asdf:load-system :asdf)
@@ -82,5 +83,14 @@ replace-sbcl-asdf:
 # not recommended: just use (asdf:load-system :asdf)
 replace-ccl-asdf:
 	ccl --eval '(progn(compile-file "asdf.lisp" :output-file (format nil "~Atools/asdf.lx64fsl" (ccl::ccl-directory)))(quit))'
+
+WRONGFUL_TAGS := 1.1720 README RELEASE STABLE
+# Delete wrongful tags from local repository
+fix-local-git-tags:
+	for i in ${WRONGFUL_TAGS} ; do git tag -d $$i ; done
+
+# Delete wrongful tags from remote repository
+fix-local-git-tags:
+	for i in ${WRONGFUL_TAGS} ; do git push $${REMOTE:-cl.net} :refs/tags/$$i ; done
 
 FORCE:
