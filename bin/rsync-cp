@@ -3,7 +3,7 @@
 #        --extended-attributes \
 
 rsync \
- 	--archive \
+	--archive \
 	--rsh=ssh \
 	--compress \
 	--partial \

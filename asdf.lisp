@@ -74,11 +74,13 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
+         ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
+         ;; can help you do these changes in synch (look at the source for documentation).
          ;; "2.345" would be an official release
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.011.6")
+         (asdf-version "2.011.7")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2735,7 +2737,7 @@ located."
                              #+ccl '(:follow-links nil)
                              #+clisp '(:circle t :if-does-not-exist :ignore)
                              #+(or cmu scl) '(:follow-links nil :truenamep nil)
-                             #+sbcl '(:resolve-symlinks nil)))))
+                             #+sbcl (when (find-symbol "RESOLVE-SYMLINKS" "SB-IMPL") '(:resolve-symlinks nil))))))
 
 (defun* validate-configuration-directory (directory tag validator &key invalid-form-reporter)
   "Map the VALIDATOR across the .conf files in DIRECTORY, the TAG will

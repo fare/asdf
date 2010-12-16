@@ -21,13 +21,13 @@ install: archive-copy
 archive: FORCE
 	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 		--eval "(rewrite-license)" --eval "(quit)"
-	bin/build-tarball.sh
+	bin/make-tarball
 
 archive-copy: archive
 	git checkout release
-	bin/rsync-cp.sh tmp/asdf*.tar.gz $(webhome_private)/archives
-	bin/link-tarball.sh $(clnet_home) $(user)
-	bin/rsync-cp.sh tmp/asdf.lisp $(webhome_private)
+	bin/rsync-cp tmp/asdf*.tar.gz $(webhome_private)/archives
+	bin/link-tarball $(clnet_home) $(user)
+	bin/rsync-cp tmp/asdf.lisp $(webhome_private)
 	${MAKE} push
 
 push:
