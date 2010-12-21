@@ -1,0 +1,10 @@
+;;; -*- Lisp -*-
+(load "script-support")
+(load-asdf)
+
+;;; test asdf run-shell-command function
+;;; Stas Bokuraev found (and fixed) a bug where on clisp asdf:run-shell-command might not return
+;;; the right value.  This attemtps to test for that.
+(quit-on-error
+ (assert (eql 1 (asdf:run-shell-command "/usr/bin/false")))
+ (assert (eql 0 (asdf:run-shell-command "/usr/bin/true"))))
