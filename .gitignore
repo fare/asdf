@@ -51,3 +51,5 @@ debian/cl-asdf/
 debian/files
 debian/patches/
 .pc
+
+/.DS_Store
