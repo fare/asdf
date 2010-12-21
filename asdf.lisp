@@ -80,7 +80,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.011.7")
+         (asdf-version "2.011.8")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2439,7 +2439,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
       exit-code)
 
     #+clisp                     ;XXX not exactly *verbose-out*, I know
-    (ext:run-shell-command  command :output :terminal :wait t)
+    (or (ext:run-shell-command  command :output :terminal :wait t) 0)
 
     #+clozure
     (nth-value 1
