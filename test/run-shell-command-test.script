@@ -3,7 +3,7 @@
 (load-asdf)
 
 ;;; test asdf run-shell-command function
-;;; Stas Bokuraev found (and fixed) a bug where on clisp asdf:run-shell-command might not return
+;;; Stas Boukarev found (and fixed) a bug where on clisp asdf:run-shell-command might not return
 ;;; the right value.  This attemtps to test for that.
 (quit-on-error
  (assert (eql 1 (asdf:run-shell-command "/usr/bin/false")))
