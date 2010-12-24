@@ -4,7 +4,14 @@
 
 ;;; test asdf run-shell-command function
 ;;; Stas Boukarev found (and fixed) a bug where on clisp asdf:run-shell-command might not return
-;;; the right value.  This attemtps to test for that.
-(quit-on-error
- (assert (eql 1 (asdf:run-shell-command "/usr/bin/false")))
- (assert (eql 0 (asdf:run-shell-command "/usr/bin/true"))))
+;;; the right value.  This attempts to test for that.
+(unless (some #'(lambda (x) (member x *features*))
+              '(:win :windows :mswindows :win32 :mingw32))
+  (quit-on-error
+   (let ((true-false-dir
+          (cond ((probe-file "/bin/true") "/bin/")
+                ((probe-file "/usr/bin/true") "/usr/bin/")
+                (t (error "Unable to find the standard true binary.")))))
+     (assert (eql 1 (asdf:run-shell-command (concatenate 'string true-false-dir "false"))))
+     (assert (eql 0 (asdf:run-shell-command (concatenate 'string true-false-dir "true")))))))
+
