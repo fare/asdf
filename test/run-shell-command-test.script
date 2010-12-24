@@ -8,10 +8,7 @@
 (unless (some #'(lambda (x) (member x *features*))
               '(:win :windows :mswindows :win32 :mingw32))
   (quit-on-error
-   (let ((true-false-dir
-          (cond ((probe-file "/bin/true") "/bin/")
-                ((probe-file "/usr/bin/true") "/usr/bin/")
-                (t (error "Unable to find the standard true binary.")))))
-     (assert (eql 1 (asdf:run-shell-command (concatenate 'string true-false-dir "false"))))
-     (assert (eql 0 (asdf:run-shell-command (concatenate 'string true-false-dir "true")))))))
+   (assert (eql 1 (asdf:run-shell-command "false")))
+   (assert (eql 0 (asdf:run-shell-command "true")))))
+
 
