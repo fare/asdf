@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; package: asdf; -*-
-;;; This is ASDF: Another System Definition Facility.
+;;; This is ASDF 2.012.1: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -10,9 +10,9 @@
 ;;; trouble using it, or find bugs, you may want to check at the
 ;;; location above for a more recent version (and for documentation
 ;;; and test files, if your copy came without them) before reporting
-;;; bugs.  There are usually two "supported" revisions - the git HEAD
-;;; is the latest development version, whereas the revision tagged
-;;; RELEASE may be slightly older but is considered `stable'
+;;; bugs.  There are usually two "supported" revisions - the git master
+;;; branch is the latest development version, whereas the git release
+;;; branch may be slightly older but is considered `stable'
 
 ;;; -- LICENSE START
 ;;; (This is the MIT / X Consortium license as taken from
@@ -62,7 +62,9 @@
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car))
-  #+ecl (require :cmp))
+  #+ecl (require :cmp)
+  #+(and (or win32 windows mswindows mingw32) (not cygwin)) (pushnew :asdf-windows *features*)
+  #+(or unix cygwin) (pushnew :asdf-unix *features*))
 
 (in-package :asdf)
 
@@ -76,11 +78,12 @@
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
          ;; can help you do these changes in synch (look at the source for documentation).
+         ;; Relying on its automation, the version is now redundantly present on top of this file.
          ;; "2.345" would be an official release
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012")
+         (asdf-version "2.012.1")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -629,7 +632,7 @@ actually-existing directory."
      :until (eq form eof)
      :collect form)))
 
-#-(and (or win32 windows mswindows mingw32) (not cygwin))
+#+asdf-unix
 (progn
   #+ecl #.(cl:and (cl:< ext:+ecl-version-number+ 100601)
                   '(ffi:clines "#include <sys/types.h>" "#include <unistd.h>"))
@@ -1232,7 +1235,7 @@ Going forward, we recommend new users should be using the source-registry.
               :type "asd")))
         (when (probe-file file)
           (return file)))
-      #+(and (or win32 windows mswindows mingw32) (not cygwin) (not clisp))
+      #+(and asdf-windows (not clisp))
       (let ((shortcut
              (make-pathname
               :defaults defaults :version :newest :case :local
@@ -1935,10 +1938,10 @@ recursive calls to traverse.")
 (defmethod output-files ((operation compile-op) (c cl-source-file))
   (declare (ignorable operation))
   (let ((p (lispize-pathname (component-pathname c))))
-    #-:broken-fasl-loader
+    #-broken-fasl-loader
     (list (compile-file-pathname p #+ecl :type #+ecl :object)
           #+ecl (compile-file-pathname p :type :fasl))
-    #+:broken-fasl-loader (list p)))
+    #+broken-fasl-loader (list p)))
 
 (defmethod perform ((operation compile-op) (c static-file))
   (declare (ignorable operation c))
@@ -2631,8 +2634,8 @@ located."
 ;;; Generic support for configuration files
 
 (defparameter *inter-directory-separator*
-  #+(or unix cygwin) #\:
-  #-(or unix cygwin) #\;)
+  #+asdf-unix #\:
+  #-asdf-unix #\;)
 
 (defun* user-homedir ()
   (truename (user-homedir-pathname)))
@@ -2651,7 +2654,7 @@ located."
        ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
            :for dir :in (split-string dirs :separator ":")
            :collect (try dir "common-lisp/"))
-       #+(and (or win32 windows mswindows mingw32) (not cygwin))
+       #+asdf-windows
         ,@`(#+lispworks ,(try (sys:get-folder-path :common-appdata) "common-lisp/config/")
             ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
            ,(try (getenv "APPDATA") "common-lisp/config/"))
@@ -2660,7 +2663,7 @@ located."
   (remove-if
    #'null
    (append
-    #+(and (or win32 windows mswindows mingw32) (not cygwin))
+    #+asdf-windows
     (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
       `(,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
@@ -2781,7 +2784,7 @@ and the order is by decreasing length of namestring of the source pathname.")
   (flet ((try (x &rest sub) (and x `(,x ,@sub))))
     (or
      (try (getenv "XDG_CACHE_HOME") "common-lisp" :implementation)
-     #+(and (or win32 windows mswindows mingw32) (not cygwin))
+     #+asdf-windows
      (try (getenv "APPDATA") "common-lisp" "cache" :implementation)
      '(:home ".cache" "common-lisp" :implementation))))
 (defvar *system-cache*
@@ -2840,7 +2843,7 @@ with a different configuration, so the configuration would be re-read then."
               ((eql :*.*.*) *wild-file*)
               ((eql :implementation) (implementation-identifier))
               ((eql :implementation-type) (string-downcase (implementation-type)))
-              #-(and (or win32 windows mswindows mingw32) (not cygwin))
+              #+asdf-unix
               ((eql :uid) (princ-to-string (get-uid)))))
          (d (if (or (pathnamep x) (not directory)) r (ensure-directory-pathname r)))
          (s (if (or (pathnamep x) (not wilden)) d (wilden d))))
@@ -2911,7 +2914,7 @@ directive.")
            (typep c '(or string pathname
                       (member :default-directory :*/ :**/ :*.*.*
                         :implementation :implementation-type
-                        #-(and (or win32 windows mswindows mingw32) (not cygwin)) :uid)))))
+                        #+asdf-unix :uid)))))
     (or (typep x 'boolean)
         (absolute-component-p x)
         (and (consp x) (absolute-component-p (first x)) (every #'relative-component-p (rest x))))))
@@ -3278,7 +3281,7 @@ call that function where you would otherwise have loaded and configured A-B-L.")
 ;;;; Jesse Hager: The Windows Shortcut File Format.
 ;;;; http://www.wotsit.org/list.asp?fc=13
 
-#+(and (or win32 windows mswindows mingw32) (not cygwin) (not clisp))
+#+(and asdf-windows (not clisp))
 (progn
 (defparameter *link-initial-dword* 76)
 (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
@@ -3517,23 +3520,23 @@ with a different configuration, so the configuration would be re-read then."
   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
     `(:source-registry
       #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir)))
-      (:directory ,(truenamize (directory-namestring *default-pathname-defaults*)))
+      (:directory ,(default-directory))
       ,@(let*
-         #+(or unix cygwin)
+         #+asdf-unix
          ((datahome
            (or (getenv "XDG_DATA_HOME")
                (try (user-homedir) ".local/share/")))
           (datadirs
            (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
           (dirs (cons datahome (split-string datadirs :separator ":"))))
-         #+(and (or win32 windows mswindows mingw32) (not cygwin))
+         #+asdf-windows
          ((datahome (getenv "APPDATA"))
           (datadir
            #+lispworks (sys:get-folder-path :local-appdata)
            #-lispworks (try (getenv "ALLUSERSPROFILE")
                             "Application Data"))
           (dirs (list datahome datadir)))
-         #-(or unix win32 windows mswindows mingw32 cygwin)
+         #-(or asdf-unix asdf-windows)
          ((dirs ()))
          (loop :for dir :in dirs
            :collect `(:directory ,(try dir "common-lisp/systems/"))

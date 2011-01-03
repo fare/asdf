@@ -12,8 +12,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.012"
-  ;;:version #.(asdf:asdf-version) ; how do we make that the *described* ASDF's version rather than the *previously loaded* ASDF's version?
+  :version "2.012.1" ;; to be automatically updated by bin/bump-revision
   :depends-on ()
   :components
   ((:file "asdf")
