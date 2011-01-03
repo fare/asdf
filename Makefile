@@ -71,8 +71,8 @@ test-all: FORCE
 	done
 
 debian-package: mrproper
-	RELEASE="$(git tag -l '2.0[0-9][0-9]' | tail -n 1)" ; \
-	git-buildpackage --git-debian-branch=release --git-upstream-branch=$RELEASE --git-tag --git-retag
+	RELEASE="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)" ; \
+	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag
 
 # Replace SBCL's ASDF with the current one.
 # not recommended: just use (asdf:load-system :asdf)

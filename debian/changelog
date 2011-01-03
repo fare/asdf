@@ -1,3 +1,18 @@
+cl-asdf (2:2.012-1) unstable; urgency=low
+
+  * Blessing 2.011.9: more fixes to corner cases.
+  * Added :here directive to pathname DSL,
+    robustified ECL support,
+    fixed infinite loop when filesystem clock is in the future,
+    extended the AOT DSL and made it more futureproof,
+    fixed how clear-system interacts with map-systems,
+    used of directory under old SBCLs,
+    fixed run-shell-command status and version string under clisp,
+    fixed error messages.
+  * Synchronized version of asdf.asd and asdf.lisp, automatically.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 03 Jan 2011 06:59:17 +0100
+
 cl-asdf (2:2.011-1) unstable; urgency=low
 
   * Mostly same as 2.010.9: several minor tweaks and bug fixes since 2.010.
