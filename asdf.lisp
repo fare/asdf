@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; package: asdf; -*-
-;;; This is ASDF 2.012.1: Another System Definition Facility.
+;;; This is ASDF 2.012.2: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.1")
+         (asdf-version "2.012.2")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2619,15 +2619,15 @@ located."
                             *implementation-features*))
           (os   (maybe-warn (first-feature *os-features*)
                             "No os feature found in ~a." *os-features*))
-          (arch #+clisp "" #-clisp
-                (maybe-warn (first-feature *architecture-features*)
-                            "No architecture feature found in ~a."
-                            *architecture-features*))
+          (arch (or #-clisp
+                    (maybe-warn (first-feature *architecture-features*)
+                                "No architecture feature found in ~a."
+                                *architecture-features*)))
           (version (maybe-warn (lisp-version-string)
                                "Don't know how to get Lisp implementation version.")))
       (substitute-if
        #\_ (lambda (x) (find x " /:\\(){}[]$#`'\""))
-       (format nil "~(~@{~a~^-~}~)" lisp version os arch)))))
+       (format nil "~(~a~@{~@[-~a~]~}~)" lisp version os arch)))))
 
 
 ;;; ---------------------------------------------------------------------------
