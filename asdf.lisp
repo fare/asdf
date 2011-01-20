@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; package: asdf; -*-
-;;; This is ASDF 2.012.2: Another System Definition Facility.
+;;; This is ASDF 2.012.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.2")
+         (asdf-version "2.012.3")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -501,7 +501,7 @@ starting the separation from the end, e.g. when called with arguments
          ;; Giving :unspecific as argument to make-pathname is not portable.
          ;; See CLHS make-pathname and 19.2.2.2.3.
          ;; We only use it on implementations that support it.
-         (or #+(or ccl gcl lispworks sbcl) :unspecific)))
+         (or #+(or clozure gcl lispworks sbcl) :unspecific)))
     (destructuring-bind (name &optional (type unspecific))
         (split-string filename :max 2 :separator ".")
       (if (equal name "")
@@ -558,6 +558,17 @@ pathnames."
     :unless (eq k key)
     :append (list k v)))
 
+#+mcl
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (ccl:define-entry-point (_getenv "getenv") ((name :string)) :string))
+
+#+mcl
+(defun %getenv (x)
+  (ccl:with-cstrs ((name x))
+    (let ((value (_getenv name)))
+      (unless (ccl:%null-ptr-p value)
+        (ccl:%get-cstring value)))))
+
 (defun* getenv (x)
   (#+(or abcl clisp) ext:getenv
    #+allegro sys:getenv
@@ -566,7 +577,10 @@ pathnames."
    #+ecl si:getenv
    #+gcl system:getenv
    #+lispworks lispworks:environment-variable
+   #+mcl %getenv
    #+sbcl sb-ext:posix-getenv
+   #-(or abcl allegro clisp clozure cmu ecl gcl lispworks mcl sbcl scl)
+   (lambda (x) (declare (ignore x)) (error "getenv not available on your implementation"))
    x))
 
 (defun* directory-pathname-p (pathname)
@@ -2528,7 +2542,7 @@ located."
 (defparameter *implementation-features*
   '((:acl :allegro)
     (:lw :lispworks)
-    (:digitool) ; before clozure, so it won't get preempted by ccl
+    (:mcl :digitool) ; before clozure, so it won't get preempted by ccl
     (:ccl :clozure)
     (:corman :cormanlisp)
     (:abcl :armedbear)
@@ -2576,7 +2590,6 @@ located."
                       ccl::*openmcl-minor-version*
                       (logand ccl::fasl-version #xFF))
     #+cmu (substitute #\- #\/ s)
-    #+digitool (subseq s 8)
     #+ecl (format nil "~A~@[-~A~]" s
                   (let ((vcs-id (ext:lisp-implementation-vcs-id)))
                     (when (>= (length vcs-id) 8)
@@ -2585,8 +2598,9 @@ located."
     #+lispworks (format nil "~A~@[~A~]" s
                         (when (member :lispworks-64bit *features*) "-64bit"))
     ;; #+sbcl (format nil "~a-fasl~d" s sb-fasl:+fasl-file-version+) ; f-f-v redundant w/ version
-    #+(or cormanlisp mcl sbcl scl) s
-    #-(or allegro armedbear clisp clozure cmu cormanlisp digitool
+    #+mcl (subseq s 8)
+    #+(or cormanlisp sbcl scl) s
+    #-(or allegro armedbear clisp clozure cmu cormanlisp
           ecl gcl lispworks mcl sbcl scl) s))
 
 (defun* first-feature (features)
@@ -2736,7 +2750,7 @@ located."
 (defun* directory* (pathname-spec &rest keys &key &allow-other-keys)
   (apply 'directory pathname-spec
          (append keys '#.(or #+allegro '(:directories-are-files nil :follow-symbolic-links nil)
-                             #+ccl '(:follow-links nil)
+                             #+clozure '(:follow-links nil)
                              #+clisp '(:circle t :if-does-not-exist :ignore)
                              #+(or cmu scl) '(:follow-links nil :truenamep nil)
                              #+sbcl (when (find-symbol "RESOLVE-SYMLINKS" "SB-IMPL") '(:resolve-symlinks nil))))))
@@ -3405,8 +3419,8 @@ with a different configuration, so the configuration would be re-read then."
          (dirs
           #-cormanlisp
           (ignore-errors
-            (directory* wild . #.(or #+ccl '(:directories t :files nil)
-                                     #+digitool '(:directories t))))
+            (directory* wild . #.(or #+clozure '(:directories t :files nil)
+                                     #+mcl '(:directories t))))
           #+cormanlisp (cl::directory-subdirs directory))
          #+(or abcl allegro lispworks scl)
          (dirs (remove-if-not #+abcl #'extensions:probe-directory
