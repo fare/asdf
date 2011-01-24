@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; package: asdf; -*-
-;;; This is ASDF 2.012.3: Another System Definition Facility.
+;;; This is ASDF 2.012.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.3")
+         (asdf-version "2.012.4")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -686,8 +686,8 @@ with given pathname and if it exists return its truename."
    (string (probe-file* (parse-namestring p)))
    (pathname (unless (wild-pathname-p p)
                #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
-               #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
-               '(ignore-errors (truename p)))))))
+                     #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
+                     '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
   "Resolve as much of a pathname as possible"
@@ -744,12 +744,15 @@ with given pathname and if it exists return its truename."
 (defun* wilden (path)
   (merge-pathnames* *wild-path* path))
 
+(defun directory-separator-for-host (&optional (pathname *default-pathname-defaults*))
+  (let ((foo (make-pathname :directory '(:absolute "FOO") :defaults pathname)))
+    (last-char (namestring foo))))
+
 (defun* directorize-pathname-host-device (pathname)
   (let* ((root (pathname-root pathname))
          (wild-root (wilden root))
          (absolute-pathname (merge-pathnames* pathname root))
-         (foo (make-pathname :directory '(:absolute "FOO") :defaults root))
-         (separator (last-char (namestring foo)))
+         (separator (directory-separator-for-host root))
          (root-namestring (namestring root))
          (root-string
           (substitute-if #\/
@@ -1899,7 +1902,11 @@ recursive calls to traverse.")
     (first files)))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
-  (map nil #'ensure-directories-exist (output-files operation c)))
+   (loop :for file :in (asdf:output-files operation c)
+     :for pathname = (if (typep file 'logical-pathname)
+                         (translate-logical-pathname file)
+                         file)
+     :do (ensure-directories-exist pathname)))
 
 #+ecl
 (defmethod perform :after ((o compile-op) (c cl-source-file))
@@ -2584,7 +2591,7 @@ located."
                        (:+ics ""))
                       (if (member :64bit *features*) "-64bit" ""))
     #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
-    #+clisp (subseq s 0 (position #\space s))
+    #+clisp (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
     #+clozure (format nil "~d.~d-f~d" ; shorten for windows
                       ccl::*openmcl-major-version*
                       ccl::*openmcl-minor-version*
@@ -2598,7 +2605,7 @@ located."
     #+lispworks (format nil "~A~@[~A~]" s
                         (when (member :lispworks-64bit *features*) "-64bit"))
     ;; #+sbcl (format nil "~a-fasl~d" s sb-fasl:+fasl-file-version+) ; f-f-v redundant w/ version
-    #+mcl (subseq s 8)
+    #+mcl (subseq s 8) ; strip the leading "Version "
     #+(or cormanlisp sbcl scl) s
     #-(or allegro armedbear clisp clozure cmu cormanlisp
           ecl gcl lispworks mcl sbcl scl) s))

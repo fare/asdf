@@ -2351,7 +2351,7 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
 
 RELATIVE-COMPONENT-DESIGNATOR :=
     STRING | ;; namestring, directory is assumed. If the last component, /**/*.* is added
-    PATHNAME | ;; pathname unless last component, directory is assumed.
+    PATHNAME | ;; pathname; unless last component, directory is assumed.
     :IMPLEMENTATION | ;; a directory based on implementation, e.g. sbcl-1.0.45-linux-amd64
     :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
     :*/ | ;; any direct subdirectory (since ASDF 2.011.4)
