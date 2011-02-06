@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; package: asdf; -*-
-;;; This is ASDF 2.012.5: Another System Definition Facility.
+;;; This is ASDF 2.012.6: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.5")
+         (asdf-version "2.012.6")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -766,8 +766,6 @@ with given pathname and if it exists return its truename."
              (make-pathname :defaults root
                             :directory `(:absolute ,@path))))
         (translate-pathname absolute-pathname wild-root (wilden new-base))))))
-
-(defgeneric* compile-file* (x &key output-file &allow-other-keys))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
@@ -1907,6 +1905,9 @@ recursive calls to traverse.")
   (setf (gethash (type-of operation) (component-operation-times c))
         (get-universal-time)))
 
+(defvar *compile-op-compile-file-function* 'compile-file*
+  "Function used to compile lisp files.")
+
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
 (defmethod perform ((operation compile-op) (c cl-source-file))
@@ -1918,7 +1919,7 @@ recursive calls to traverse.")
         (*compile-file-warnings-behaviour* (operation-on-warnings operation))
         (*compile-file-failure-behaviour* (operation-on-failure operation)))
     (multiple-value-bind (output warnings-p failure-p)
-        (apply #'compile-file* source-file :output-file output-file
+        (apply *compile-op-compile-file-function* source-file :output-file output-file
                (compile-op-flags operation))
       (when warnings-p
         (case (operation-on-warnings operation)
@@ -1940,9 +1941,7 @@ recursive calls to traverse.")
 (defmethod output-files ((operation compile-op) (c cl-source-file))
   (declare (ignorable operation))
   (let ((p (lispize-pathname (component-pathname c))))
-    #-broken-fasl-loader
-    (list (compile-file-pathname p #+ecl :type #+ecl :object)
-          #+ecl (compile-file-pathname p :type :fasl))
+    #-broken-fasl-loader (list (compile-file-pathname p))
     #+broken-fasl-loader (list p)))
 
 (defmethod perform ((operation compile-op) (c static-file))
@@ -1969,11 +1968,7 @@ recursive calls to traverse.")
 (defclass load-op (basic-load-op) ())
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  (map () #'load
-       #-ecl (input-files o c)
-       #+ecl (loop :for i :in (input-files o c)
-               :unless (string= (pathname-type i) "fas")
-               :collect (compile-file-pathname (lispize-pathname i)))))
+  (map () #'load (input-files o c)))
 
 (defmethod perform-with-restarts (operation component)
   (perform operation component))
@@ -3193,7 +3188,7 @@ effectively disabling the output translation facility."
   (when (and x (probe-file x))
     (delete-file x)))
 
-(defmethod compile-file* (input-file &rest keys &key output-file &allow-other-keys)
+(defun* compile-file* (input-file &rest keys &key output-file &allow-other-keys)
   (let* ((output-file (or output-file (apply 'compile-file-pathname* input-file keys)))
          (tmp-file (tmpize-pathname output-file))
          (status :error))
@@ -3216,18 +3211,6 @@ effectively disabling the output translation facility."
          (delete-file-if-exists output-truename)
          (setf output-truename nil)))
       (values output-truename warnings-p failure-p))))
-
-#+(and ecl (not ecl-bytecmp))
-(defmethod compile-file* :around (input-file &rest keys &key output-file &allow-other-keys)
-  (declare (ignore output-file))
-  (multiple-value-bind (object-file flags1 flags2)
-      (apply #'call-next-method input-file :system-p t keys)
-    (values (and object-file
-                 (c::build-fasl (compile-file-pathname object-file :type :fasl)
-                                :lisp-files (list object-file))
-                           object-file)
-            flags1
-            flags2)))
 
 #+abcl
 (defun* translate-jar-pathname (source wildcard)

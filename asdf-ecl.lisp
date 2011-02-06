@@ -12,7 +12,36 @@
 #+xcvb (module (:depends-on ("asdf")))
 
 (in-package :asdf)
-(require :cmp)
+
+;;;
+;;; We rewrite a subset of ASDF functions so that instead of generating one
+;;; FASL file per lisp file, ASDF creates an object file and a FASL file. The
+;;; object file is reused by the extensions below.
+;;;
+
+(setf *compile-op-compile-file-function*
+      (lambda (input-file &rest keys &key output-file &allow-other-keys)
+        (declare (ignore output-file))
+        (multiple-value-bind (object-file flags1 flags2)
+            (apply #'compile-file* input-file :system-p t keys)
+          (values (and object-file
+                       (c::build-fasl (compile-file-pathname object-file :type :fasl)
+                                      :lisp-files (list object-file))
+                       object-file)
+                  flags1
+                  flags2))))
+
+(defmethod output-files ((operation compile-op) (c cl-source-file))
+  (declare (ignorable operation))
+  (let ((p (lispize-pathname (component-pathname c))))
+    (list (compile-file-pathname p :type :object)
+          (compile-file-pathname p :type :fasl))))
+
+(defmethod perform ((o load-op) (c cl-source-file))
+  (map () #'load
+       (loop :for i :in (input-files o c)
+          :unless (string= (pathname-type i) "fas")
+          :collect (compile-file-pathname (lispize-pathname i)))))
 
 ;;;
 ;;; COMPILE-OP / LOAD-OP
@@ -96,11 +125,11 @@
          (*force-load-p* t)
          (tree (traverse (make-instance 'load-op) system)))
     (append
-     (loop for (op . component) in tree
-        when (and (typep op 'load-op)
+     (loop :for (op . component) :in tree
+       :when (and (typep op 'load-op)
                   (typep component filter-type)
                   (or (not filter-system) (eq (component-system component) filter-system)))
-        collect (progn
+       :collect (progn
                   (when (eq component system) (setf include-self nil))
                   (cons operation component)))
      (and include-self (list (cons operation system))))))
@@ -414,7 +443,6 @@
 (export '(make-build load-fasl-op prebuilt-system))
 (push '("fasb" . si::load-binary) si::*load-hooks*)
 
-(require 'cmp)
 (defvar *require-asdf-operator* 'load-op)
 
 (defun module-provide-asdf (name)
@@ -430,9 +458,9 @@
                                        :source-file nil)))
 
 (setf si::*module-provider-functions*
-      (loop for f in si::*module-provider-functions*
-         unless (eq f 'module-provide-asdf)
-         collect #'(lambda (name)
+      (loop :for f :in si::*module-provider-functions*
+        :unless (eq f 'module-provide-asdf)
+        :collect #'(lambda (name)
                      (let ((l (multiple-value-list (funcall f name))))
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
@@ -440,4 +468,4 @@
 (pushnew 'module-provide-asdf ext:*module-provider-functions*)
 (pushnew (translate-logical-pathname "SYS:") *central-registry*)
 
-(provide 'asdf)
+(provide :asdf)
