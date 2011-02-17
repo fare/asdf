@@ -3051,7 +3051,7 @@ and you would
 @code{(defmethod source-file-type ((component cl-source-file) (system (eql (find-system 'foo))))
   (declare (ignorable component system)) "cl")}.
 Now, the pathname for a component is eagerly computed when defining the system,
-and instead you will @code{(defclass my-cl-source-file (cl-source-file) ((type :iniform "cl")))}
+and instead you will @code{(defclass my-cl-source-file (cl-source-file) ((type :initform "cl")))}
 and use @code{:default-component-class my-cl-source-file} as argument to @code{defsystem},
 as detailed in a @pxref{FAQ,How do I create a system definition where all the source files have a .cl extension?} below.
 
