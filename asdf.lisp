@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; package: asdf; -*-
-;;; This is ASDF 2.012.6: Another System Definition Facility.
+;;; This is ASDF 2.012.7: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.6")
+         (asdf-version "2.012.7")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2210,7 +2210,9 @@ details."
   ;; 3. taken from the *default-pathname-defaults* via default-directory
   (let* ((file-pathname (load-pathname))
          (directory-pathname (and file-pathname (pathname-directory-pathname file-pathname))))
-    (or (and pathname-supplied-p (merge-pathnames* pathname directory-pathname))
+    (or (and pathname-supplied-p
+             (merge-pathnames* (merge-component-name-type pathname :type :directory)
+                               directory-pathname))
         directory-pathname
         (default-directory))))
 
