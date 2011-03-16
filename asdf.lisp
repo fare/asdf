@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.012.8: Another System Definition Facility.
+;;; This is ASDF 2.012.9: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.8")
+         (asdf-version "2.012.9")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -289,6 +289,7 @@
             #:remove-entry-from-registry
 
             #:clear-configuration
+            #:*output-translations-parameter*
             #:initialize-output-translations
             #:disable-output-translations
             #:clear-output-translations
@@ -298,6 +299,7 @@
             #:compile-file-pathname*
             #:enable-asdf-binary-locations-compatibility
             #:*default-source-registries*
+            #:*source-registry-parameter*
             #:initialize-source-registry
             #:compute-source-registry
             #:clear-source-registry
@@ -330,9 +332,7 @@
             #:subdirectories
             #:truenamize
             #:while-collecting)))
-	#+genera
-        (dolist (s '(scl:boolean))
-          (import s :asdf))
+	#+genera (import 'scl:boolean :asdf)
         (setf *asdf-version* asdf-version
               *upgraded-p* (if existing-version
                                (cons existing-version *upgraded-p*)
@@ -344,7 +344,7 @@
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
 You can compare this string with e.g.:
-(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"2.000\")."
+(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"2.013\")."
   *asdf-version*)
 
 (defvar *resolve-symlinks* t
@@ -3050,7 +3050,7 @@ directive.")
   `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
-    #+sbcl ,(let ((h (getenv "SBCL_HOME"))) (when (plusp (length h)) `(,h ())))
+    #+sbcl ,(let ((h (getenv "SBCL_HOME"))) (when (plusp (length h)) `(,(truenamize h) ())))
     #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; not needed: no precompiled ASDF system
     #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ())) ; not needed: no precompiled ASDF system
     ;; All-import, here is where we want user stuff to be:
@@ -3564,7 +3564,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun* wrapping-source-registry ()
   `(:source-registry
-    #+sbcl (:tree ,(getenv "SBCL_HOME"))
+    #+sbcl (:tree ,(truenamize (getenv "SBCL_HOME")))
     :inherit-configuration
     #+cmu (:tree #p"modules:")))
 (defun* default-source-registry ()
