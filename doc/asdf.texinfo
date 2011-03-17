@@ -2706,20 +2706,21 @@ useful for system definition and development. These include:
 
 It's often handy to locate a file relative to some system.
 The @code{system-relative-pathname} function meets this need.
-It takes two arguments: the name of a system and a relative pathname.
-It returns a pathname built from the location of the system's source file
-and the relative pathname. For example
+
+It takes two mandatory arguments @var{system} and @var{name}
+and a keyword argument @var{type}:
+@var{system} is name of a system, whereas @var{name} and optionally @var{type}
+specify a relative pathname, interpreted like a component pathname specifier
+by @code{merge-component-name-type}. @xref{The defsystem grammar,,Pathname specifiers}.
+
+It returns a pathname built from the location of the system's
+source directory and the relative pathname. For example:
 
 @lisp
-> (asdf:system-relative-pathname 'cl-ppcre #p"regex.data")
+> (asdf:system-relative-pathname 'cl-ppcre "regex.data")
 #P"/repository/other/cl-ppcre/regex.data"
 @end lisp
 
-Instead of a pathname, you can provide a symbol or a string,
-and optionally a keyword argument @code{type}.
-The arguments will then be interpreted in the same way
-as pathname specifiers for components.
-@xref{The defsystem grammar,,Pathname specifiers}.
 @end defun
 
 @defun system-source-directory system-designator
