@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.012.9: Another System Definition Facility.
+;;; This is ASDF 2.012.10: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.9")
+         (asdf-version "2.012.10")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -731,7 +731,7 @@ with given pathname and if it exists return its truename."
 (defun* truenamize (p)
   "Resolve as much of a pathname as possible"
   (block nil
-    (when (typep p 'logical-pathname) (return p))
+    (when (typep p '(or null logical-pathname)) (return p))
     (let* ((p (merge-pathnames* p))
            (directory (pathname-directory p)))
       (when (typep p 'logical-pathname) (return p))
@@ -951,7 +951,10 @@ processed in order by OPERATE."))
                 duplicate-names-name
                 error-component error-operation
                 module-components module-components-by-name
-                circular-dependency-components)
+                circular-dependency-components
+                condition-arguments condition-form
+                condition-format condition-location
+                coerce-name)
          (ftype (function (t t) t) (setf module-components-by-name)))
 
 
@@ -3050,7 +3053,8 @@ directive.")
   `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
-    #+sbcl ,(let ((h (getenv "SBCL_HOME"))) (when (plusp (length h)) `(,(truenamize h) ())))
+    #+sbcl ,(let ((h (getenv "SBCL_HOME")))
+                 (when (plusp (length h)) `((,(truenamize h) ,*wild-inferiors*) ())))
     #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; not needed: no precompiled ASDF system
     #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ())) ; not needed: no precompiled ASDF system
     ;; All-import, here is where we want user stuff to be:
