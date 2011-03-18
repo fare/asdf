@@ -35,11 +35,11 @@ for Common Lisp programs and libraries.
 You can find the latest version of this manual at
 @url{http://common-lisp.net/project/asdf/asdf.html}.
 
-ASDF Copyright @copyright{} 2001-2010 Daniel Barlow and contributors.
+ASDF Copyright @copyright{} 2001-2011 Daniel Barlow and contributors.
 
-This manual Copyright @copyright{} 2001-2010 Daniel Barlow and contributors.
+This manual Copyright @copyright{} 2001-2011 Daniel Barlow and contributors.
 
-This manual revised @copyright{} 2009-2010 Robert P. Goldman and Francois-Rene Rideau.
+This manual revised @copyright{} 2009-2011 Robert P. Goldman and Francois-Rene Rideau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -2702,6 +2702,35 @@ The valid values for these variables are
 ASDF includes several additional features that are generally
 useful for system definition and development. These include:
 
+@defun coerce-pathname name @&key type defaults
+
+This function takes an argument, and portably interprets it as a pathname.
+If the argument @var{name} is a pathname or @code{nil}, it is passed through;
+if it's a symbol, it's interpreted as a string by downcasing it;
+if it's a string, it is first separated using @code{/} into substrings;
+the leading substrings denote subdirectories of a relative pathname.
+If @var{type} is @code{:directory} or the string ends with @codE{/},
+the last substring is also a subdirectory;
+if @var{type} is a string, it is used as the type of the pathname, and
+the last substring is the name component of the pathname;
+if @var{type} is @code{nil}, the last substring specifies both name and type components
+of the pathname, with the last @code{.} separating them, or only the name component
+if there's no last @code{.} or if there is only one dot and it's the first character.
+The host, device and version components come from @var{defaults}, which defaults to
+@var{*default-pathname-defaults*}; but that shouldn't matter if you use @code{merge-pathnames*}.
+
+@end defun
+
+@defun merge-pathnames* @&key specified defaults
+
+This function is a replacement for @code{merge-pathnames} that uses the host and device
+from the @var{defaults} rather than the @var{specified} pathname when the latter
+is a relative pathname. This allows ASDF and its users to create and use relative pathnames
+without having to know beforehand what are the host and device
+of the absolute pathnames they are relative to.
+
+@end defun
+
 @defun system-relative-pathname system name @&key type
 
 It's often handy to locate a file relative to some system.
@@ -2711,7 +2740,7 @@ It takes two mandatory arguments @var{system} and @var{name}
 and a keyword argument @var{type}:
 @var{system} is name of a system, whereas @var{name} and optionally @var{type}
 specify a relative pathname, interpreted like a component pathname specifier
-by @code{merge-component-name-type}. @xref{The defsystem grammar,,Pathname specifiers}.
+by @code{coerce-pathname}. @xref{The defsystem grammar,,Pathname specifiers}.
 
 It returns a pathname built from the location of the system's
 source directory and the relative pathname. For example:
@@ -2842,8 +2871,8 @@ leading to much confusion and greavance.
 ASDF 2 implements its own portable syntax for strings as pathname specifiers.
 Naming files within a system definition becomes easy and portable again.
 @xref{Miscellaneous additional functionality,asdf:system-relative-pathname},
-@code{asdf-utilities:merge-pathnames*},
-@code{asdf::merge-component-name-type}.
+@code{merge-pathnames*},
+@code{coerce-pathname}.
 
 On the other hand, there are places where systems used to accept namestrings
 where you must now use an explicit pathname object:

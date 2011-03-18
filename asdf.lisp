@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.012.10: Another System Definition Facility.
+;;; This is ASDF 2.012.11: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.10")
+         (asdf-version "2.012.11")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -321,6 +321,7 @@
             ;; #:length=n-p
             ;; #:find-symbol*
             #:merge-pathnames*
+            #:coerce-pathname
             #:pathname-directory-pathname
             #:read-file-forms
             ;; #:remove-keys
@@ -508,9 +509,15 @@ and NIL NAME, TYPE and VERSION components"
 (defun* last-char (s)
   (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
+(defun* errfmt (out format-string &rest format-args)
+  (declare (dynamic-extent format-args))
+  (apply #'format out
+         #-genera (format nil "~~@<~A~~:>" format-string) #+genera format-string
+         format-args))
+
 (defun* asdf-message (format-string &rest format-args)
   (declare (dynamic-extent format-args))
-  (apply #'format *verbose-out* format-string format-args))
+  (apply #'errfmt *verbose-out* format-string format-args))
 
 (defun* split-string (string &key max (separator '(#\Space #\Tab)))
   "Split STRING into a list of components separated by
@@ -962,25 +969,25 @@ processed in order by OPERATE."))
   ((format-control :initarg :format-control :reader format-control)
    (format-arguments :initarg :format-arguments :reader format-arguments))
   (:report (lambda (c s)
-               (apply #'format s (format-control c) (format-arguments c)))))
+               (apply #'errfmt s (format-control c) (format-arguments c)))))
 
 (define-condition load-system-definition-error (system-definition-error)
   ((name :initarg :name :reader error-name)
    (pathname :initarg :pathname :reader error-pathname)
    (condition :initarg :condition :reader error-condition))
   (:report (lambda (c s)
-	     (format s "Error while trying to load definition for system ~A from pathname ~A: ~A"
+	     (errfmt s "Error while trying to load definition for system ~A from pathname ~A: ~A"
 		     (error-name c) (error-pathname c) (error-condition c)))))
 
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components :reader circular-dependency-components))
   (:report (lambda (c s)
-	     (format s "Circular dependency: ~S" (circular-dependency-components c)))))
+	     (errfmt s "Circular dependency: ~S" (circular-dependency-components c)))))
 
 (define-condition duplicate-names (system-definition-error)
   ((name :initarg :name :reader duplicate-names-name))
   (:report (lambda (c s)
-	     (format s "Error while defining system: multiple components are given same name ~A"
+	     (errfmt s "Error while defining system: multiple components are given same name ~A"
 		     (duplicate-names-name c)))))
 
 (define-condition missing-component (system-definition-error)
@@ -1001,7 +1008,7 @@ processed in order by OPERATE."))
   ((component :reader error-component :initarg :component)
    (operation :reader error-operation :initarg :operation))
   (:report (lambda (c s)
-               (format s "erred while invoking ~A on ~A"
+               (errfmt s "erred while invoking ~A on ~A"
                        (error-operation c) (error-component c)))))
 (define-condition compile-error (operation-error) ())
 (define-condition compile-failed (compile-error) ())
@@ -1013,7 +1020,7 @@ processed in order by OPERATE."))
    (format :reader condition-format :initarg :format)
    (arguments :reader condition-arguments :initarg :arguments :initform nil))
   (:report (lambda (c s)
-               (format s "~? (will be skipped)"
+               (errfmt s "~? (will be skipped)"
                        (condition-format c)
                        (list* (condition-form c) (condition-location c)
                               (condition-arguments c))))))
@@ -1317,7 +1324,7 @@ Going forward, we recommend new users should be using the source-registry.
                         (restart-case
                             (let* ((*print-circle* nil)
                                    (message
-                                    (format nil
+                                    (errfmt nil
                                             "While searching for system ~S: ~S evaluated to ~S which is not a directory."
                                             system dir defaults)))
                               (error message))
@@ -1326,7 +1333,7 @@ Going forward, we recommend new users should be using the source-registry.
                             (push dir to-remove))
                           (coerce-entry-to-directory ()
                             :report (lambda (s)
-				      (format s "Coerce entry to ~a, replace ~a and continue."
+				      (errfmt s "Coerce entry to ~a, replace ~a and continue."
 					      (ensure-directory-pathname defaults) dir))
                             (push (cons dir (ensure-directory-pathname defaults)) to-replace))))))))
         ;; cleanup
@@ -1485,6 +1492,20 @@ Going forward, we recommend new users should be using the source-registry.
   (source-file-explicit-type component))
 
 (defun* merge-component-name-type (name &key type defaults)
+  ;; For backwards compatibility only, for people using internals.
+  ;; Will be removed in a future release, e.g. 2.014.
+  (coerce-pathname name :type type :defaults defaults))
+
+(defun* coerce-pathname (name &key type defaults)
+  "coerce NAME into a PATHNAME.
+When given a string, portably decompose it into a relative pathname:
+#\\/ separates subdirectories. The last #\\/-separated string is as follows:
+if TYPE is NIL, its last #\\. if any separates name and type from from type;
+if TYPE is a string, it is the type, and the whole string is the name;
+if TYPE is :DIRECTORY, the string is a directory component;
+if the string is empty, it's a directory.
+Any directory named .. is read as :BACK.
+Host, device and version components are taken from DEFAULTS."
   ;; The defaults are required notably because they provide the default host
   ;; to the below make-pathname, which may crucially matter to people using
   ;; merge-pathnames with non-default hosts,  e.g. for logical-pathnames.
@@ -1493,10 +1514,10 @@ Going forward, we recommend new users should be using the source-registry.
   ;; (b) later merge relative pathnames with CL:MERGE-PATHNAMES instead of
   ;; ASDF:MERGE-PATHNAMES*
   (etypecase name
-    (pathname
+    ((or null pathname)
      name)
     (symbol
-     (merge-component-name-type (string-downcase name) :type type :defaults defaults))
+     (coerce-pathname (string-downcase name) :type type :defaults defaults))
     (string
      (multiple-value-bind (relative path filename)
          (component-name-to-pathname-components name :force-directory (eq type :directory)
@@ -1517,7 +1538,7 @@ Going forward, we recommend new users should be using the source-registry.
                           :host host :device device)))))))
 
 (defmethod component-relative-pathname ((component component))
-  (merge-component-name-type
+  (coerce-pathname
    (or (slot-value component 'relative-pathname)
        (component-name component))
    :type (source-file-type component (component-system component))
@@ -1738,7 +1759,7 @@ recursive calls to traverse.")
                              required-op required-c required-v))
       (retry ()
         :report (lambda (s)
-		  (format s "Retry loading component ~S." required-c))
+		  (errfmt s "Retry loading component ~S." required-c))
         :test
         (lambda (c)
 	  (or (null c)
@@ -2171,11 +2192,11 @@ recursive calls to traverse.")
               (retry ()
                 :report
                 (lambda (s)
-		  (format s "Retry ~A." (operation-description op component))))
+		  (errfmt s "Retry ~A." (operation-description op component))))
               (accept ()
                 :report
                 (lambda (s)
-		  (format s "Continue, treating ~A as having been successful."
+		  (errfmt s "Continue, treating ~A as having been successful."
 			  (operation-description op component)))
                 (setf (gethash (type-of op)
                                (component-operation-times component))
@@ -2255,7 +2276,7 @@ details."
   (let* ((file-pathname (load-pathname))
          (directory-pathname (and file-pathname (pathname-directory-pathname file-pathname))))
     (or (and pathname-supplied-p
-             (merge-pathnames* (merge-component-name-type pathname :type :directory)
+             (merge-pathnames* (coerce-pathname pathname :type :directory)
                                directory-pathname))
         directory-pathname
         (default-directory))))
@@ -2558,7 +2579,7 @@ located."
 
 (defun* system-relative-pathname (system name &key type)
   (merge-pathnames*
-   (merge-component-name-type name :type type)
+   (coerce-pathname name :type type)
    (system-source-directory system)))
 
 
@@ -2690,7 +2711,7 @@ located."
 (defun* try-directory-subpath (x sub &key type)
   (let* ((p (and x (ensure-directory-pathname x)))
          (tp (and p (probe-file* p)))
-         (sp (and tp (merge-pathnames* (merge-component-name-type sub :type type) p)))
+         (sp (and tp (merge-pathnames* (coerce-pathname sub :type type) p)))
          (ts (and sp (probe-file* sp))))
     (and ts (values sp ts))))
 (defun* user-configuration-directories ()
@@ -2715,6 +2736,7 @@ located."
       `(,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
         ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))))
+    #+asdf-unix
     (list #p"/etc/common-lisp/"))))
 (defun* in-first-directory (dirs x)
   (loop :for dir :in dirs
@@ -3065,8 +3087,8 @@ directive.")
     ;; We enable the user cache by default, and here is the place we do:
     :enable-user-cache))
 
-(defparameter *output-translations-file* #p"asdf-output-translations.conf")
-(defparameter *output-translations-directory* #p"asdf-output-translations.conf.d/")
+(defparameter *output-translations-file* (coerce-pathname "asdf-output-translations.conf"))
+(defparameter *output-translations-directory* (coerce-pathname "asdf-output-translations.conf.d/"))
 
 (defun* user-output-translations-pathname ()
   (in-user-configuration-directory *output-translations-file* ))
@@ -3442,8 +3464,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun directory-has-asd-files-p (directory)
   (ignore-errors
-    (directory* (merge-pathnames* *wild-asd* directory))
-    t))
+    (and (directory* (merge-pathnames* *wild-asd* directory)) t)))
 
 (defun subdirectories (directory)
   (let* ((directory (ensure-directory-pathname directory))
@@ -3563,8 +3584,8 @@ with a different configuration, so the configuration would be re-read then."
     system-source-registry-directory
     default-source-registry))
 
-(defparameter *source-registry-file* #p"source-registry.conf")
-(defparameter *source-registry-directory* #p"source-registry.conf.d/")
+(defparameter *source-registry-file* (coerce-pathname "source-registry.conf"))
+(defparameter *source-registry-directory* (coerce-pathname "source-registry.conf.d/"))
 
 (defun* wrapping-source-registry ()
   `(:source-registry
@@ -3730,7 +3751,7 @@ with a different configuration, so the configuration would be re-read then."
       ((style-warning #'muffle-warning)
        (missing-component (constantly nil))
        (error #'(lambda (e)
-                  (format *error-output* "ASDF could not load ~(~A~) because ~A.~%"
+                  (errfmt *error-output* "ASDF could not load ~(~A~) because ~A.~%"
                           name e))))
     (let* ((*verbose-out* (make-broadcast-stream))
            (system (find-system (string-downcase name) nil)))
