@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.012.11: Another System Definition Facility.
+;;; This is ASDF 2.012.12: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.012.11")
+         (asdf-version "2.012.12")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1033,9 +1033,12 @@ processed in order by OPERATE."))
   ((name :accessor component-name :initarg :name :documentation
          "Component name: designator for a string composed of portable pathname characters")
    (version :accessor component-version :initarg :version)
-   ;; This one is used by POIU. Maybe in the future by ASDF instead of in-order-to?
-   ;; POIU is a parallel (multi-process build) extension of ASDF.  See
-   ;; http://www.cliki.net/poiu
+   (description :accessor component-description :initarg :description)
+   (long-description :accessor component-long-description :initarg :long-description)
+   ;; This one below is used by POIU - http://www.cliki.net/poiu
+   ;; a parallelizing extension of ASDF that compiles in multiple parallel
+   ;; slave processes (forked on demand) and loads in the master process.
+   ;; Maybe in the future ASDF may use it internally instead of in-order-to.
    (load-dependencies :accessor component-load-dependencies :initform nil)
    ;; In the ASDF object model, dependencies exist between *actions*
    ;; (an action is a pair of operation and component). They are represented
@@ -1054,6 +1057,7 @@ processed in order by OPERATE."))
    ;; it needn't be recompiled just because one of these dependencies
    ;; hasn't yet been loaded in the current image (do-first).
    ;; The names are crap, but they have been the official API since Dan Barlow's ASDF 1.52!
+   ;; See our ASDF 2 paper for more complete explanations.
    (in-order-to :initform nil :initarg :in-order-to
                 :accessor component-in-order-to)
    (do-first :initform nil :initarg :do-first
@@ -1180,9 +1184,10 @@ processed in order by OPERATE."))
   new-value)
 
 (defclass system (module)
-  ((description :accessor system-description :initarg :description)
-   (long-description
-    :accessor system-long-description :initarg :long-description)
+  (;; description and long-description are now available for all component's,
+   ;; but now also inherited from component, but we add the legacy accessor
+   (description :accessor system-description :initarg :description)
+   (long-description :accessor system-long-description :initarg :long-description)
    (author :accessor system-author :initarg :author)
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
