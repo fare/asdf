@@ -2709,7 +2709,7 @@ If the argument @var{name} is a pathname or @code{nil}, it is passed through;
 if it's a symbol, it's interpreted as a string by downcasing it;
 if it's a string, it is first separated using @code{/} into substrings;
 the leading substrings denote subdirectories of a relative pathname.
-If @var{type} is @code{:directory} or the string ends with @codE{/},
+If @var{type} is @code{:directory} or the string ends with @code{/},
 the last substring is also a subdirectory;
 if @var{type} is a string, it is used as the type of the pathname, and
 the last substring is the name component of the pathname;

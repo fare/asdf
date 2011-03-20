@@ -1,3 +1,18 @@
+cl-asdf (2:2.013-1) unstable; urgency=low
+
+  * Blessing 2.012.12: many small improvements since 2.012.
+  * Fixes and cleanups for CLISP, ECL, SBCL.
+  * Added support for two legacy platforms: (R)MCL, Genera
+  * Cleanup features: now using #+asdf-unix and #+asdf-window
+  * Many cleanups and improvements regarding our portable pathname layer
+  * Fixes a regression in source-registry scanning from 2.011.4
+  * Remember *source-registry-parameter* and *output-translations-parameter*
+  * Export and document coerce-pathname (f.k.a merge-component-name-type)
+  * allow description and long-description for all components
+  * Several documentation updates
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sat, 19 Mar 2011 20:01:34 -0400
+
 cl-asdf (2:2.012-1) unstable; urgency=low
 
   * Blessing 2.011.9: more fixes to corner cases.
