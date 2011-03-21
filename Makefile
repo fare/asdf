@@ -18,7 +18,7 @@ lisp ?= sbcl
 
 install: archive-copy
 
-archive: FORCE
+archive:
 	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 		--eval "(rewrite-license)" --eval "(quit)"
 	bin/make-tarball
@@ -43,7 +43,7 @@ website:
 clean_dirs = $(sourceDirectory)
 clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl o bak x86f
 
-clean: FORCE
+clean:
 	@for dir in $(clean_dirs); do \
 	     if test -d $$dir; then \
 	     	 echo Cleaning $$dir; \
