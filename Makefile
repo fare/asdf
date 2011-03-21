@@ -62,10 +62,13 @@ mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
 
-test: FORCE
+test-forward-references: FORCE
+	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
+
+test: test-forward-references
 	@cd test; make clean;./run-tests.sh ${lisp} ${test-glob}
 
-test-all: FORCE
+test-all: test-forward-references
 	@for lisp in ${lisps} ; do \
 		make test lisp=$$lisp || exit 1 ; \
 	done
