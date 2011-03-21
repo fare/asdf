@@ -1,3 +1,14 @@
+cl-asdf (2:2.013.3-1) unstable; urgency=low
+
+  * Packaging 2.013.3 because 2.013 had important issues.
+  * Fix important upgradability issue with 2.013 (unable to upgrade from
+  versions 2.00[0-8] that have a separate ASDF-UTILITIES)
+  * Fix minor verbosity issue (forward reference makes sbcl noisy
+  when loading asdf.lisp directly as does quicklisp.)
+  * Also, enhance support for SCL.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 21 Mar 2011 16:24:27 -0400
+
 cl-asdf (2:2.013-1) unstable; urgency=low
 
   * Blessing 2.012.12: many small improvements since 2.012.
