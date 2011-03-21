@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.013.2: Another System Definition Facility.
+;;; This is ASDF 2.013.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.013.2")
+         (asdf-version "2.013.3")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -719,14 +719,10 @@ actually-existing directory."
           (error () (error "Unable to find out user ID")))))))
 
 (defun* pathname-root (pathname)
-  (make-pathname :host (pathname-host pathname)
-                 :device (pathname-device pathname)
-                 :directory '(:absolute)
+  (make-pathname :directory '(:absolute)
                  :name nil :type nil :version nil
-                 . #.(or #+scl '(:scheme (ext:pathname-scheme pathname)
-                                 :port (ext:pathname-port pathname)
-                                 :username (ext:pathname-username pathname)
-                                 :password (ext:pathname-password pathname)))))
+                 :defaults pathname ;; host device, and on scl scheme scheme-specific-part port username password
+                 . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
 
 (defun* find-symbol* (s p)
   (find-symbol (string s) p))
@@ -1503,11 +1499,6 @@ Going forward, we recommend new users should be using the source-registry.
   (declare (ignorable s))
   (source-file-explicit-type component))
 
-(defun* merge-component-name-type (name &key type defaults)
-  ;; For backwards compatibility only, for people using internals.
-  ;; Will be removed in a future release, e.g. 2.014.
-  (coerce-pathname name :type type :defaults defaults))
-
 (defun* coerce-pathname (name &key type defaults)
   "coerce NAME into a PATHNAME.
 When given a string, portably decompose it into a relative pathname:
@@ -1543,6 +1534,11 @@ Host, device and version components are taken from DEFAULTS."
               (split-name-type filename)))
          (make-pathname :directory `(,relative ,@path) :name name :type type
                         :defaults (or defaults *default-pathname-defaults*)))))))
+
+(defun* merge-component-name-type (name &key type defaults)
+  ;; For backwards compatibility only, for people using internals.
+  ;; Will be removed in a future release, e.g. 2.014.
+  (coerce-pathname name :type type :defaults defaults))
 
 (defmethod component-relative-pathname ((component component))
   (coerce-pathname
@@ -3760,11 +3756,10 @@ with a different configuration, so the configuration would be re-read then."
        (error #'(lambda (e)
                   (errfmt *error-output* "ASDF could not load ~(~A~) because ~A.~%"
                           name e))))
-    (let* ((*verbose-out* (make-broadcast-stream))
+    (let ((*verbose-out* (make-broadcast-stream))
            (system (find-system (string-downcase name) nil)))
       (when system
-        (load-system system)
-        t))))
+        (load-system system)))))
 
 #+(or abcl clisp clozure cmu ecl sbcl)
 (let ((x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom))))
