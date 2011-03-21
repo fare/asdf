@@ -61,8 +61,17 @@ clean: FORCE
 mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
+test-upgrade:
+	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then \
+		SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; \
+	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` ; do \
+	  echo "Testing upgrade from ASDF $${tag}" ; \
+	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
+	  $${SBCL:-sbcl} --noinform --eval \
+	'(progn (handler-bind ((t #'"'"'muffle-warning)) (load "tmp/asdf-'$${tag}'.lisp")) (handler-bind ((sb-kernel:redefinition-warning #'"'"'muffle-warning)((or warning error) (lambda (c) (format t "~A~%" c) #|(defparameter *c* c) (break)|# (sb-ext:quit :unix-status 1)))) (load "asdf.lisp") (format t "Successfully upgraded from '$${tag}'~%") (sb-ext:quit :unix-status 0)))' || \
+	{ echo "FAILED" ; exit 1 ; } ; done
 
-test-forward-references: FORCE
+test-forward-references:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
 
 test: test-forward-references
@@ -96,4 +105,9 @@ fix-local-git-tags:
 fix-remote-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git push $${REMOTE:-cl.net} :refs/tags/$$i ; done
 
-FORCE:
+
+.PHONY: install archive archive-copy push website clean mrproper
+	upgrade-test test-forward-references test test-all \
+	debian-package \
+	replace-sbcl-asdf replace-ccl-asdf \
+	fix-local-git-tags fix-remote-git-tags
