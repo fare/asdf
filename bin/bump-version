@@ -1,4 +1,7 @@
 #!/bin/sh
+# Takes one optional argument: the new version number.
+# If not provided, increment previous patch number,
+# e.g. 3.45.6 ==> 3.45.7, or 3.56 ==> 3.56.1
 NEWVER="${1}"
 PROG="$0"
 ASDFDIR="$(readlink -f $(dirname $PROG)/..)"

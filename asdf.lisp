@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.013.1: Another System Definition Facility.
+;;; This is ASDF 2.013.2: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,14 +83,14 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.013.1")
+         (asdf-version "2.013.2")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
       (when existing-asdf
         (format *trace-output*
-         "~&; Upgrading ASDF package ~@[from version ~A ~]to version ~A~%"
+         "~&; Upgrading ASDF ~@[from version ~A ~]to version ~A~%"
          existing-version asdf-version))
       (labels
           ((present-symbol-p (symbol package)
@@ -422,7 +422,7 @@ and NIL NAME, TYPE and VERSION components"
 
 (defun* normalize-pathname-directory-component (directory)
   (cond
-    #-(or sbcl cmu)
+    #-(or cmu sbcl scl)
     ((stringp directory) `(:absolute ,directory) directory)
     #+gcl
     ((and (consp directory) (stringp (first directory)))
@@ -461,6 +461,9 @@ does not have an absolute directory, then the HOST and DEVICE come from the DEFA
 Also, if either argument is NIL, then the other argument is returned unmodified."
   (when (null specified) (return-from merge-pathnames* defaults))
   (when (null defaults) (return-from merge-pathnames* specified))
+  #+scl
+  (ext:resolve-pathname specified defaults)
+  #-scl
   (let* ((specified (pathname specified))
          (defaults (pathname defaults))
          (directory (normalize-pathname-directory-component (pathname-directory specified)))
@@ -719,7 +722,11 @@ actually-existing directory."
   (make-pathname :host (pathname-host pathname)
                  :device (pathname-device pathname)
                  :directory '(:absolute)
-                 :name nil :type nil :version nil))
+                 :name nil :type nil :version nil
+                 . #.(or #+scl '(:scheme (ext:pathname-scheme pathname)
+                                 :port (ext:pathname-port pathname)
+                                 :username (ext:pathname-username pathname)
+                                 :password (ext:pathname-password pathname)))))
 
 (defun* find-symbol* (s p)
   (find-symbol (string s) p))
@@ -744,7 +751,7 @@ with given pathname and if it exists return its truename."
       (when (typep p 'logical-pathname) (return p))
       (let ((found (probe-file* p)))
         (when found (return found)))
-      #-(or sbcl cmu) (when (stringp directory) (return p))
+      #-(or cmu sbcl scl) (when (stringp directory) (return p))
       (when (not (eq :absolute (car directory))) (return p))
       (let ((sofar (probe-file* (pathname-root p))))
         (unless sofar (return p))
@@ -1515,9 +1522,8 @@ Host, device and version components are taken from DEFAULTS."
   ;; to the below make-pathname, which may crucially matter to people using
   ;; merge-pathnames with non-default hosts,  e.g. for logical-pathnames.
   ;; NOTE that the host and device slots will be taken from the defaults,
-  ;; but that should only matter if you either (a) use absolute pathnames, or
-  ;; (b) later merge relative pathnames with CL:MERGE-PATHNAMES instead of
-  ;; ASDF:MERGE-PATHNAMES*
+  ;; but that should only matter if you later merge relative pathnames with
+  ;; CL:MERGE-PATHNAMES instead of ASDF:MERGE-PATHNAMES*
   (etypecase name
     ((or null pathname)
      name)
@@ -1535,12 +1541,8 @@ Host, device and version components are taken from DEFAULTS."
               (values filename type))
              (t
               (split-name-type filename)))
-         (let* ((defaults (pathname (or defaults *default-pathname-defaults*)))
-                (host (pathname-host defaults))
-                (device (pathname-device defaults)))
-           (make-pathname :directory `(,relative ,@path)
-                          :name name :type type
-                          :host host :device device)))))))
+         (make-pathname :directory `(,relative ,@path) :name name :type type
+                        :defaults (or defaults *default-pathname-defaults*)))))))
 
 (defmethod component-relative-pathname ((component component))
   (coerce-pathname
