@@ -74,12 +74,14 @@ test-upgrade:
 test-forward-references:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
 
-test: test-forward-references
+do-test:
 	@cd test; make clean;./run-tests.sh ${lisp} ${test-glob}
+
+test: do-test test-forward-references
 
 test-all: test-forward-references
 	@for lisp in ${lisps} ; do \
-		make test lisp=$$lisp || exit 1 ; \
+		make do-test lisp=$$lisp || exit 1 ; \
 	done
 
 debian-package: mrproper
@@ -107,7 +109,7 @@ fix-remote-git-tags:
 
 
 .PHONY: install archive archive-copy push website clean mrproper \
-	upgrade-test test-forward-references test test-all \
+	upgrade-test test-forward-references test do-test test-all \
 	debian-package \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags
