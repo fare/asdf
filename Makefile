@@ -106,7 +106,7 @@ fix-remote-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git push $${REMOTE:-cl.net} :refs/tags/$$i ; done
 
 
-.PHONY: install archive archive-copy push website clean mrproper
+.PHONY: install archive archive-copy push website clean mrproper \
 	upgrade-test test-forward-references test test-all \
 	debian-package \
 	replace-sbcl-asdf replace-ccl-asdf \

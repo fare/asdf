@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.013.3: Another System Definition Facility.
+;;; This is ASDF 2.013.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.013.3")
+         (asdf-version "2.013.4")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -795,10 +795,12 @@ with given pathname and if it exists return its truename."
 (defun* wilden (path)
   (merge-pathnames* *wild-path* path))
 
+#-scl
 (defun directory-separator-for-host (&optional (pathname *default-pathname-defaults*))
   (let ((foo (make-pathname :directory '(:absolute "FOO") :defaults pathname)))
     (last-char (namestring foo))))
 
+#-scl
 (defun* directorize-pathname-host-device (pathname)
   (let* ((root (pathname-root pathname))
          (wild-root (wilden root))
@@ -817,6 +819,31 @@ with given pathname and if it exists return its truename."
              (make-pathname :defaults root
                             :directory `(:absolute ,@path))))
         (translate-pathname absolute-pathname wild-root (wilden new-base))))))
+
+#+scl
+(defun* directorize-pathname-host-device (pathname)
+  (let ((scheme (ext:pathname-scheme pathname))
+	(host (pathname-host pathname))
+	(port (ext:pathname-port pathname))
+	(directory (pathname-directory pathname)))
+    (flet ((not-unspecific (component)
+	     (and (not (eq component :unspecific)) component)))
+      (cond ((or (not-unspecific port)
+		 (and (not-unspecific host) (plusp (length host)))
+		 (not-unspecific scheme))
+	     (let ((prefix ""))
+	       (when (not-unspecific port)
+		 (setf prefix (format nil ":~D" port)))
+	       (when (and (not-unspecific host) (plusp (length host)))
+		 (setf prefix (concatenate 'string host prefix)))
+	       (setf prefix (concatenate 'string ":" prefix))
+	       (when (not-unspecific scheme)
+	       (setf prefix (concatenate 'string scheme prefix)))
+	       (assert (and directory (eq (first directory) :absolute)))
+	       (make-pathname :directory `(:absolute ,prefix ,@(rest directory))
+			      :defaults pathname)))
+	    (t
+	     pathname)))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
