@@ -79,7 +79,7 @@ do-test:
 
 test: do-test test-forward-references
 
-test-all: test-forward-references
+test-all: test-forward-references test-upgrade
 	@for lisp in ${lisps} ; do \
 		make do-test lisp=$$lisp || exit 1 ; \
 	done

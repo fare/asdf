@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.013.5: Another System Definition Facility.
+;;; This is ASDF 2.013.6: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.013.5")
+         (asdf-version "2.013.6")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1450,10 +1450,10 @@ Going forward, we recommend new users should be using the source-registry.
            (error 'missing-component :requires name)))))))
 
 (defun* register-system (name system)
-  (asdf-message #-genera "~&~@<; ~@;Registering ~A as ~A~@:>~%"
-                #+genera "~&; Registering ~A as ~A~%" system name)
-  (setf (gethash (coerce-name name) *defined-systems*)
-        (cons (get-universal-time) system)))
+  (setf name (coerce-name name))
+  (assert (equal name (component-name system)))
+  (asdf-message "~&; Registering ~A~%" system)
+  (setf (gethash name *defined-systems*) (cons (get-universal-time) system)))
 
 (defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
   (setf fallback (coerce-name fallback)
@@ -2315,6 +2315,7 @@ details."
         (default-directory))))
 
 (defmacro defsystem (name &body options)
+  (setf name (coerce-name name))
   (destructuring-bind (&key (pathname nil pathname-arg-p) (class 'system)
                             defsystem-depends-on &allow-other-keys)
       options
@@ -2324,7 +2325,7 @@ details."
          ;; we recur when trying to find an existing system of the same name
          ;; to reuse options (e.g. pathname) from
          ,@(loop :for system :in defsystem-depends-on
-             :collect `(load-system ,system))
+             :collect `(load-system ',(coerce-name system)))
          (let ((s (system-registered-p ',name)))
            (cond ((and s (eq (type-of (cdr s)) ',class))
                   (setf (car s) (get-universal-time)))
