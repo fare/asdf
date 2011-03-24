@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.013.4: Another System Definition Facility.
+;;; This is ASDF 2.013.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -83,7 +83,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.013.4")
+         (asdf-version "2.013.5")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -520,7 +520,7 @@ and NIL NAME, TYPE and VERSION components"
 
 (defun* asdf-message (format-string &rest format-args)
   (declare (dynamic-extent format-args))
-  (apply #'errfmt *verbose-out* format-string format-args))
+  (apply #'format *verbose-out* format-string format-args))
 
 (defun* split-string (string &key max (separator '(#\Space #\Tab)))
   "Split STRING into a list of components separated by
@@ -960,7 +960,9 @@ processed in order by OPERATE."))
            ((m module) added deleted plist &key)
          (declare (ignorable deleted plist))
          (when (or *asdf-verbose* *load-verbose*)
-           (asdf-message "~&; Updating ~A for ASDF ~A~%" m ,(asdf-version)))
+           (asdf-message
+            #-genera "~&~@<; ~@; Updating ~A for ASDF ~A~@:>~%"
+            #+genera "~&; Updating ~A for ASDF ~A~%" m ,(asdf-version)))
          (when (member 'components-by-name added)
            (compute-module-components-by-name m))
          (when (typep m 'system)
@@ -1422,8 +1424,8 @@ Going forward, we recommend new users should be using the source-registry.
                                 :condition condition))))
            (let ((*package* package))
              (asdf-message
-              "~&; Loading system definition from ~A into ~A~%"
-              pathname package)
+              #-genera "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%"
+              #+genera "~&; Loading system definition from ~A into ~A~%" pathname package)
              (load pathname)))
       (delete-package package))))
 
@@ -1448,7 +1450,8 @@ Going forward, we recommend new users should be using the source-registry.
            (error 'missing-component :requires name)))))))
 
 (defun* register-system (name system)
-  (asdf-message "~&; Registering ~A as ~A~%" system name)
+  (asdf-message #-genera "~&~@<; ~@;Registering ~A as ~A~@:>~%"
+                #+genera "~&; Registering ~A as ~A~%" system name)
   (setf (gethash (coerce-name name) *defined-systems*)
         (cons (get-universal-time) system)))
 
