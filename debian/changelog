@@ -1,3 +1,16 @@
+cl-asdf (2:2.014-1) unstable; urgency=low
+
+  * Blessing 2.013.7 as 2.014.
+  * Fixed bug preventing upgrade from 2.000 to 2.008 (test added)
+  * Better support for URL pathnames on SCL (test added)
+  * Robustified defsystem-depends-on
+  * Cosmetic changes:
+    * better more portably readable error messages.
+    * remove forward references, again (test added)
+    * canonicalize system names earlier (slight robustness improvement)
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 27 Mar 2011 16:45:58 -0400
+
 cl-asdf (2:2.013.3-1) unstable; urgency=low
 
   * Packaging 2.013.3 because 2.013 had important issues.
