@@ -1,3 +1,9 @@
+cl-asdf (2:2.014-3) unstable; urgency=low
+
+  * another attempt with my new GPG key
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 27 Mar 2011 19:33:43 -0400
+
 cl-asdf (2:2.014-2) unstable; urgency=low
 
   * tweak Makefile for debian packaging.
