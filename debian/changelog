@@ -1,3 +1,9 @@
+cl-asdf (2:2.014-2) unstable; urgency=low
+
+  * tweak Makefile for debian packaging.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 27 Mar 2011 17:17:15 -0400
+
 cl-asdf (2:2.014-1) unstable; urgency=low
 
   * Blessing 2.013.7 as 2.014.
