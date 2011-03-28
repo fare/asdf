@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014: Another System Definition Facility.
+;;; This is ASDF 2.014.1: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -99,7 +99,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014")
+         (asdf-version "2.014.1")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3521,9 +3521,9 @@ with a different configuration, so the configuration would be re-read then."
   (let* ((directory (ensure-directory-pathname directory))
          #-(or cormanlisp genera)
          (wild (merge-pathnames*
-                #-(or abcl allegro lispworks scl)
+                #-(or abcl allegro cmu lispworks scl)
                 *wild-directory*
-                #+(or abcl allegro lispworks scl) "*.*"
+                #+(or abcl allegro cmu lispworks scl) "*.*"
                 directory))
          (dirs
           #-(or cormanlisp genera)
@@ -3532,7 +3532,7 @@ with a different configuration, so the configuration would be re-read then."
                                      #+mcl '(:directories t))))
           #+cormanlisp (cl::directory-subdirs directory)
           #+genera (fs:directory-list directory))
-         #+(or abcl allegro genera lispworks scl)
+         #+(or abcl allegro cmu genera lispworks scl)
          (dirs (remove-if-not #+abcl #'extensions:probe-directory
                               #+allegro #'excl:probe-directory
                               #+lispworks #'lw:file-directory-p
