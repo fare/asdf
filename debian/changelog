@@ -1,3 +1,10 @@
+cl-asdf (2:2.014.1-1) unstable; urgency=low
+
+  * new attempt for a debian package.
+  * while I'm at it, update to 2.014.1 which will make CMUCL happy.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 29 Mar 2011 18:19:19 -0400
+
 cl-asdf (2:2.014-3) unstable; urgency=low
 
   * another attempt with my new GPG key
