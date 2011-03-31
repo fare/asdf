@@ -1,3 +1,10 @@
+cl-asdf (2:2.014.2-1) unstable; urgency=low
+
+  * yet another attempt at a debian package.
+  * update to 2.014.2, adds XCL support.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 31 Mar 2011 14:08:09 -0400
+
 cl-asdf (2:2.014.1-1) unstable; urgency=low
 
   * new attempt for a debian package.

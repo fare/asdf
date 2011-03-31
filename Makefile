@@ -8,7 +8,7 @@ endif
 webhome_private := ${userat}common-lisp.net:/project/asdf/public_html/
 webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
-gpg		:= /home/fare/bin/dpkg-gpg
+gpg		:= gpg
 sourceDirectory := $(shell pwd)
 
 lisps ?= ccl clisp sbcl ecl abcl allegro scl
@@ -92,7 +92,7 @@ do-test-all:
 test-all: test-forward-references test-upgrade do-test-all
 
 debian-package: mrproper
-	RELEASE="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)" ; \
+	: $${RELEASE:="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)"} ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch -sgpg -p${gpg}
 
 # Replace SBCL's ASDF with the current one.
