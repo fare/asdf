@@ -31,7 +31,8 @@
                     #+gcl :gcl
                     #+lispworks :lispworks
                     #+sbcl :sbcl
-                    #+scl :scl))))
+                    #+scl :scl
+                    #+xcl :xcl))))
      (merge-pathnames
       (make-pathname :directory `(:relative "tmp" "fasls" ,impl)
                      :defaults *asdf-directory*)
@@ -43,8 +44,7 @@
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
 
-;;; code adapted from cl-launch (any errors in transcription are mine!)
-;; http://www.cliki.net/cl-launch
+;;; code adapted from cl-launch http://www.cliki.net/cl-launch
 (defun leave-lisp (message return)
   (fresh-line *error-output*)
   (when message
@@ -70,6 +70,11 @@
   (sb-ext:quit :unix-status return)
   #+abcl
   (ext:quit :status return)
+  #+xcl
+  (progn
+    (unless (zerop return)
+      (format *error-output* "~&XCL won't let me exit with error return code ~D~%" return))
+    (ext:quit))
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
 
@@ -82,16 +87,16 @@ is bound, write a message and exit on an error.  If
 *asdf-test-debug* is true, enter the debugger."
   (handler-bind
       ((error (lambda (c)
-                (format *error-output* "~a" c)
+                (format *error-output* "~&~a~&" c)
                 (cond
                   ((ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
                    (break))
                   (t
-                   (format *error-output* "ABORTING:~% ~S~%" c)
+                   (format *error-output* "~&ABORTING:~% ~S~%" c)
                    #+sbcl (sb-debug:backtrace 69)
                    #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
                    #+clisp (system::print-backtrace)
-                   (format *error-output* "ABORTING:~% ~S~%" c)
+                   (format *error-output* "~&ABORTING:~% ~S~%" c)
                    (leave-lisp "~&Script failed~%" 1))))))
     (funcall thunk)
     (leave-lisp "~&Script succeeded~%" 0)))

@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 #+(or f1 f2) (error "This test cannot run if :f1 or :f2 are on *features*")
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 (in-package :asdf)
 (cl-user::quit-on-error

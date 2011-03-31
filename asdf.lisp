@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.1: Another System Definition Facility.
+;;; This is ASDF 2.014.2: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -19,7 +19,7 @@
 ;;;  http://www.opensource.org/licenses/mit-license.html on or about
 ;;;  Monday; July 13, 2009)
 ;;;
-;;; Copyright (c) 2001-2010 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2011 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -99,7 +99,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.1")
+         (asdf-version "2.014.2")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -361,7 +361,7 @@
 (defun asdf-version ()
   "Exported interface to the version of ASDF currently installed. A string.
 You can compare this string with e.g.:
-(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"2.013\")."
+(ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"2.345\")."
   *asdf-version*)
 
 (defvar *resolve-symlinks* t
@@ -403,8 +403,9 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
        `(defmacro ,def* (name formals &rest rest)
           `(progn
              #+(or ecl gcl) (fmakunbound ',name)
-             ,(when (and #+ecl (symbolp name))
-                `(declaim (notinline ,name))) ; fails for setf functions on ecl
+             #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
+             ,(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
+                `(declaim (notinline ,name)))
              (,',def ,name ,formals ,@rest)))))
   (defdef defgeneric* defgeneric)
   (defdef defun* defun))
@@ -528,7 +529,7 @@ and NIL NAME, TYPE and VERSION components"
 (defun* last-char (s)
   (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
-	  
+
 (defun* asdf-message (format-string &rest format-args)
   (declare (dynamic-extent format-args))
   (apply #'format *verbose-out* format-string format-args))
@@ -622,7 +623,7 @@ pathnames."
 
 (defun* getenv (x)
   (declare (ignorable x))
-  #+(or abcl clisp) (ext:getenv x)
+  #+(or abcl clisp xcl) (ext:getenv x)
   #+allegro (sys:getenv x)
   #+clozure (ccl:getenv x)
   #+(or cmu scl) (cdr (assoc x ext:*environment-list* :test #'string=))
@@ -635,7 +636,7 @@ pathnames."
             (unless (ccl:%null-ptr-p value)
               (ccl:%get-cstring value))))
   #+sbcl (sb-ext:posix-getenv x)
-  #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl sbcl scl)
+  #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl sbcl scl xcl)
   (error "getenv not available on your implementation"))
 
 (defun* directory-pathname-p (pathname)
@@ -967,12 +968,12 @@ processed in order by OPERATE."))
 (when *upgraded-p*
    (when (find-class 'module nil)
      (eval
-      `(defmethod update-instance-for-redefined-class :after
+      '(defmethod update-instance-for-redefined-class :after
            ((m module) added deleted plist &key)
          (declare (ignorable deleted plist))
          (when (or *asdf-verbose* *load-verbose*)
            (asdf-message (compatfmt "~&~@<; ~@;Updating ~A for ASDF ~A~@:>~%")
-			 m ,(asdf-version)))
+			 m (asdf-version)))
          (when (member 'components-by-name added)
            (compute-module-components-by-name m))
          (when (typep m 'system)
@@ -1572,12 +1573,14 @@ Host, device and version components are taken from DEFAULTS."
               (values filename type))
              (t
               (split-name-type filename)))
-         (make-pathname :directory `(,relative ,@path) :name name :type type
+         (make-pathname :directory (cons relative path) :name name :type type
+                        #-xcl #-xcl ;; 0.0.0.291 has a bug, behaves like merge-pathnames.
                         :defaults (or defaults *default-pathname-defaults*)))))))
 
 (defun* merge-component-name-type (name &key type defaults)
   ;; For backwards compatibility only, for people using internals.
-  ;; Will be removed in a future release, e.g. 2.014.
+  ;; Will be removed in a future release, e.g. 2.016.
+  (warn "Please don't use ASDF::MERGE-COMPONENT-NAME-TYPE. Use ASDF:COERCE-PATHNAME.")
   (coerce-pathname name :type type :defaults defaults))
 
 (defmethod component-relative-pathname ((component component))
@@ -2591,7 +2594,10 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
       (list  "-c" command)
       :input nil :output *verbose-out*))
 
-    #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl)
+    #+xcl
+    (ext:run-shell-command command)
+
+    #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl xcl)
     (error "RUN-SHELL-COMMAND not implemented for this Lisp")))
 
 ;;;; ---------------------------------------------------------------------------
@@ -2644,7 +2650,7 @@ located."
     (:ccl :clozure)
     (:corman :cormanlisp)
     (:lw :lispworks)
-    :clisp :cmu :ecl :gcl :sbcl :scl :symbolics))
+    :clisp :cmu :ecl :gcl :sbcl :scl :symbolics :xcl))
 
 (defparameter *os-features*
   '((:win :windows :mswindows :win32 :mingw32) ;; shorten things on windows
@@ -3142,7 +3148,7 @@ directive.")
 (defparameter *output-translations-directory* (coerce-pathname "asdf-output-translations.conf.d/"))
 
 (defun* user-output-translations-pathname ()
-  (in-user-configuration-directory *output-translations-file* ))
+  (in-user-configuration-directory *output-translations-file*))
 (defun* system-output-translations-pathname ()
   (in-system-configuration-directory *output-translations-file*))
 (defun* user-output-translations-directory-pathname ()
@@ -3519,28 +3525,30 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun subdirectories (directory)
   (let* ((directory (ensure-directory-pathname directory))
-         #-(or cormanlisp genera)
+         #-(or cormanlisp genera xcl)
          (wild (merge-pathnames*
-                #-(or abcl allegro cmu lispworks scl)
+                #-(or abcl allegro cmu lispworks scl xcl)
                 *wild-directory*
-                #+(or abcl allegro cmu lispworks scl) "*.*"
+                #+(or abcl allegro cmu lispworks scl xcl) "*.*"
                 directory))
          (dirs
-          #-(or cormanlisp genera)
+          #-(or cormanlisp genera xcl)
           (ignore-errors
             (directory* wild . #.(or #+clozure '(:directories t :files nil)
                                      #+mcl '(:directories t))))
           #+cormanlisp (cl::directory-subdirs directory)
-          #+genera (fs:directory-list directory))
-         #+(or abcl allegro cmu genera lispworks scl)
-         (dirs (remove-if-not #+abcl #'extensions:probe-directory
-                              #+allegro #'excl:probe-directory
-                              #+lispworks #'lw:file-directory-p
-                              #+genera #'(lambda (x) (getf (cdr x) :directory))
-                              #-(or abcl allegro genera lispworks) #'directory-pathname-p
-                              dirs))
-         #+genera
-         (dirs (mapcar #'(lambda (x) (ensure-directory-pathname (first x))) dirs)))
+          #+genera (fs:directory-list directory)
+          #+xcl (system:list-directory directory))
+         #+(or abcl allegro cmu genera lispworks scl xcl)
+         (dirs (loop :for x :in dirs
+                 :for d = #+(or abcl xcl) (extensions:probe-directory x)
+                          #+allegro (excl:probe-directory x)
+                          #+(or cmu scl) (directory-pathname-p x)
+                          #+genera (getf (cdr x) :directory)
+                          #+lispworks (lw:file-directory-p x)
+                 :when d :collect #+(or abcl allegro xcl) d
+                                  #+genera (ensure-directory-pathname (first x))
+                                  #+(or cmu lispworks scl) x)))
     dirs))
 
 (defun collect-sub*directories (directory collectp recursep collector)

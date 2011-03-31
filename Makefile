@@ -1,14 +1,19 @@
 system	 	:= "asdf"
 #user 		:= $(shell basename `echo "$home"`)
-user := "frideau"
-webhome_private := $(user)@common-lisp.net:/project/asdf/public_html/
+ifeq (${user},)
+userat :=
+else
+userat := ${user}@
+endif
+webhome_private := ${userat}common-lisp.net:/project/asdf/public_html/
 webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
 gpg		:= /home/fare/bin/dpkg-gpg
 sourceDirectory := $(shell pwd)
 
-lisps ?= ccl clisp sbcl ecl allegro abcl scl
+lisps ?= ccl clisp sbcl ecl abcl allegro scl
 ## not tested by me: allegromodern cmucl lispworks
+## will pass tests but not return proper exit value: xcl 0.0.0.291
 ## FAIL: gclcvs (condition handling)
 ## maybe supported by asdf, not supported yet by our tests: cormancl mcl genera
 
@@ -26,7 +31,7 @@ archive:
 archive-copy: archive
 	git checkout release
 	bin/rsync-cp tmp/asdf*.tar.gz $(webhome_private)/archives
-	bin/link-tarball $(clnet_home) $(user)
+	bin/link-tarball $(clnet_home) ${user}
 	bin/rsync-cp tmp/asdf.lisp $(webhome_private)
 	${MAKE} push
 
@@ -79,10 +84,12 @@ do-test:
 
 test: do-test test-forward-references
 
-test-all: test-forward-references test-upgrade
+do-test-all:
 	@for lisp in ${lisps} ; do \
 		make do-test lisp=$$lisp || exit 1 ; \
 	done
+
+test-all: test-forward-references test-upgrade do-test-all
 
 debian-package: mrproper
 	RELEASE="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)" ; \
@@ -107,9 +114,13 @@ fix-local-git-tags:
 fix-remote-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git push $${REMOTE:-cl.net} :refs/tags/$$i ; done
 
+TODO:
+	exit 2
+
+release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
 .PHONY: install archive archive-copy push website clean mrproper \
-	upgrade-test test-forward-references test do-test test-all \
-	debian-package \
+	upgrade-test test-forward-references test do-test test-all do-test-all \
+	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags

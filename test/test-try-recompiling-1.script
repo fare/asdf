@@ -2,7 +2,7 @@
 
 ;;; test asdf:try-recompiling restart
 
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 (defvar *caught-error* nil)
 

@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 
 (quit-on-error

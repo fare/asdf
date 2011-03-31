@@ -320,7 +320,7 @@
 (defclass compiled-file (component) ())
 (defmethod component-relative-pathname ((component compiled-file))
   (compile-file-pathname
-   (merge-component-name-type
+   (coerce-pathname
     (or (slot-value component 'relative-pathname)
         (component-name component))
     :type "fas")))

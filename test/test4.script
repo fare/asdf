@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 ;;; -*- Lisp -*-
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 (in-package :asdf)
 (cl-user::quit-on-error

@@ -2,7 +2,7 @@
 
 ;;; make sure we get a missing-component-of-version error
 
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 (in-package #:common-lisp-user)
 

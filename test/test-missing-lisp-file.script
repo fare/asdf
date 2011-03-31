@@ -6,7 +6,7 @@
 ;;; fasl when the source file is lost.
 ;;;---------------------------------------------------------------------------
 
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 
 (quit-on-error

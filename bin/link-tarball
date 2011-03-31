@@ -1,20 +1,25 @@
 #!/bin/sh
 
-if [ -z $1 ]; then
+if [ -n $1 ]; then
+  clnet_home="$1"
+else
   echo "Remote directory must be specified."
-  exit 1
+  exit 2
 fi
-if [ -z $2 ]; then
-  echo "Remote username must be specified."
-  exit 1
+if [ -n "$2" ]; then
+  user="${2}@"
+else
+  echo "Remote username not specified"
+  echo "Assuming remote user is same as local"
+  echo "and/or you configured your .ssh/config with:"
+  echo "Host common-lisp.net"
+  echo "   User = foo"
 fi
-clnet_home="$1"
-user=$2
 
 tarball=`ls tmp/asdf*.tar.gz`
 tarball=`basename $tarball`
 latest="asdf.tar.gz"
 
 echo "Link $tarball to $latest"
-ssh $user@common-lisp.net "rm -f $clnet_home$latest; \
+ssh ${user}common-lisp.net "rm -f $clnet_home$latest; \
   ln -s $clnet_home/archives/$tarball $clnet_home$latest"

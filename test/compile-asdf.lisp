@@ -33,7 +33,7 @@
        (cond
          (errors-p
           (leave-lisp "Testsuite failed: ASDF compiled with ERRORS" 2))
-         #-ecl ;; ECL 11.1.1 has spurious warnings
+         #-(or ecl xcl) ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291
          (warnings-p
           (leave-lisp "Testsuite failed: ASDF compiled with warnings" 1))
          (t

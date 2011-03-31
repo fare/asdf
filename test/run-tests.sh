@@ -158,6 +158,10 @@ case "$lisp" in
     flags="-noinit"
     nodebug="-batch"
     eval="-eval" ;;
+  xcl)
+    command="${XCL:-xcl}"
+    flags="--no-userinit --no-siteinit"
+    eval="--eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2
     echo "Please add support to run-tests.sh" >&2

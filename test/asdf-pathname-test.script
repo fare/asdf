@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 
 ;;; test asdf pathname specifications

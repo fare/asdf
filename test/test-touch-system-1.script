@@ -3,7 +3,7 @@
 ;;; test system def reloading if touched
 ;;; system that can be found using *system-definition-search-functions*
 
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 (quit-on-error
  (flet ((system-load-time (name)

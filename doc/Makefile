@@ -1,5 +1,10 @@
-user=frideau
-website:=${user}@common-lisp.net:/project/asdf/public_html/
+#user=frideau
+ifeq (${user},)
+userat :=
+else
+userat := ${user}@
+endif
+website:=${userat}common-lisp.net:/project/asdf/public_html/
 output = asdf.html asdf asdf.pdf asdf.info
 webfiles = index.html .htaccess style.css cclan.png lisp-logo120x80.png favicon.ico ${output}
 intermediate = asdf.cps asdf.log asdf.vr asdf.aux asdf.fn asdf.toc asdf.vrs \

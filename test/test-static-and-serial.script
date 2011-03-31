@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))

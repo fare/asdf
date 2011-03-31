@@ -2,7 +2,7 @@
 
 ;;; check that added nesting via modules doesn't confuse ASDF
 
-(load "script-support")
+(load "script-support.lisp")
 (load-asdf)
 (in-package #:common-lisp-user)
 
