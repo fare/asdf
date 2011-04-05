@@ -1,16 +1,8 @@
 system	 	:= "asdf"
-#user 		:= $(shell basename `echo "$home"`)
-ifeq (${user},)
-userat :=
-else
-userat := ${user}@
-endif
-webhome_private := ${userat}common-lisp.net:/project/asdf/public_html/
+webhome_private := common-lisp.net:/project/asdf/public_html/
 webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
-gpg		:= gpg
 sourceDirectory := $(shell pwd)
-keyid ?= 4D822AA2
 
 lisps ?= ccl clisp sbcl ecl abcl xcl scl allegro
 ## not tested by me: allegromodern cmucl lispworks
@@ -31,7 +23,7 @@ archive:
 archive-copy: archive
 	git checkout release
 	bin/rsync-cp tmp/asdf*.tar.gz $(webhome_private)/archives
-	bin/link-tarball $(clnet_home) ${user}
+	bin/link-tarball $(clnet_home)
 	bin/rsync-cp tmp/asdf.lisp $(webhome_private)
 	${MAKE} push
 
@@ -93,7 +85,7 @@ test-all: test-forward-references test-upgrade do-test-all
 
 debian-package: mrproper
 	: $${RELEASE:="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)"} ; \
-	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch -s${gpg} -k${keyid}
+	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
 # Replace SBCL's ASDF with the current one.
 # not recommended: just use (asdf:load-system :asdf)
