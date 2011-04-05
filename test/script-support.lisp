@@ -68,13 +68,8 @@
   (ccl::quit return)
   #+sbcl
   (sb-ext:quit :unix-status return)
-  #+abcl
+  #+(or abcl xcl)
   (ext:quit :status return)
-  #+xcl
-  (progn
-    (unless (zerop return)
-      (format *error-output* "~&XCL won't let me exit with error return code ~D~%" return))
-    (ext:quit))
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
 

@@ -10,10 +10,10 @@ webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
 gpg		:= gpg
 sourceDirectory := $(shell pwd)
+keyid ?= 4D822AA2
 
-lisps ?= ccl clisp sbcl ecl abcl allegro scl
+lisps ?= ccl clisp sbcl ecl abcl xcl scl allegro
 ## not tested by me: allegromodern cmucl lispworks
-## will pass tests but not return proper exit value: xcl 0.0.0.291
 ## FAIL: gclcvs (condition handling)
 ## maybe supported by asdf, not supported yet by our tests: cormancl mcl genera
 
@@ -93,7 +93,7 @@ test-all: test-forward-references test-upgrade do-test-all
 
 debian-package: mrproper
 	: $${RELEASE:="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)"} ; \
-	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch -sgpg -p${gpg}
+	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch -s${gpg} -k${keyid}
 
 # Replace SBCL's ASDF with the current one.
 # not recommended: just use (asdf:load-system :asdf)

@@ -1,3 +1,10 @@
+cl-asdf (2:2.014.3-1) unstable; urgency=low
+
+  * yet another debian package attempt
+  * update to 2.014.3, workaround for ABCL make-pathname bug (same as on XCL).
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 04 Apr 2011 23:27:30 -0400
+
 cl-asdf (2:2.014.2-1) unstable; urgency=low
 
   * yet another attempt at a debian package.

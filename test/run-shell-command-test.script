@@ -7,5 +7,5 @@
 ;;; the right value.  This attempts to test for that.
 (quit-on-error
  (unless (or #+asdf-windows t)
-   (assert (eql #-xcl 1 #+xcl 256 (asdf:run-shell-command "false")))
+   (assert (eql 1 (asdf:run-shell-command "false")))
    (assert (eql 0 (asdf:run-shell-command "true")))))
