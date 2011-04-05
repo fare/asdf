@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.3: Another System Definition Facility.
+;;; This is ASDF 2.014.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -99,7 +99,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.3")
+         (asdf-version "2.014.4")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1963,8 +1963,6 @@ recursive calls to traverse.")
   ;; ever since danb created it in his 2003-03-16 commit e0d02781.
   ;; It was both fixed and disabled in the 1.700 rewrite.
   (when (consp (operation-forced operation))
-    (cerror "Continue nonetheless."
-            "Congratulations, you're the first ever user of the :force (list of system names) feature! Please contact the asdf-devel mailing-list to collect a cookie.")
     (setf (operation-forced operation)
           (mapcar #'coerce-name (operation-forced operation))))
   (flatten-tree
