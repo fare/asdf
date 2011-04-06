@@ -202,14 +202,20 @@ You can usually load this copy using Common Lisp's @code{require} function:
 (require :asdf)
 @end lisp
 
-Consult your Lisp implementation's documentation for details.
+As of the writing of this manual,
+the following implementations provide ASDF 2 this way:
+abcl allegro ccl clisp cmucl ecl sbcl xcl.
+The following implementations don't provide it yet but might in a future release:
+lispworks scl.
+The following implementations are obsolete and most probably will never bundle it:
+cormancl gcl genera mcl.
 
-Hopefully, ASDF 2 will soon be bundled with every Common Lisp implementation,
-and you can load it that way.
-If it is not, see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
-if you are using the latest version of your Lisp vendor's software,
-you may also send a bug report to your Lisp vendor and complain about
-their failing to provide ASDF.
+If the implementation you are using doesn't provide ASDF 2,
+see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
+If that implementation is still actively maintained,
+you may also send a bug report to your Lisp vendor and complain
+about their failing to provide ASDF.
+
 
 @section Checking whether ASDF is loaded
 
@@ -242,8 +248,10 @@ If it returns the keyword @code{:OLD},
 then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
 
-If you are running a version older than 2.008,
-we recommend that you load a newer ASDF using the method below.
+If you are experiencing problems with ASDF,
+please try upgrading to the latest released version,
+using the method below,
+before you contact us and raise an issue.
 
 
 @section Upgrading ASDF
@@ -279,11 +287,15 @@ and make sure you're not using it
 for multiple mutually incompatible implementations.
 At worst, you may have to have multiple copies of the new ASDF,
 e.g. one per implementation installation, to avoid clashes.
+Note that to our knowledge all implementations that provide ASDF
+provide ASDF 2 in their latest release, so
+you may want to upgrade your implementation rather than go through that hoop.
 
 Finally, note that there are some limitations to upgrading ASDF:
 @itemize
 @item
 Any ASDF extension is invalidated, and will need to be reloaded.
+This applies to e.g. CFFI-Grovel, or to hacks used by ironclad, etc.
 @item
 It is safer if you upgrade ASDF and its extensions as a special step
 at the very beginning of whatever script you are running,

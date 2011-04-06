@@ -9,7 +9,7 @@ Build-Depends: debhelper (>> 7)
 Build-Depends-Indep: texinfo, texlive-extra-utils, texlive, texlive-generic-recommended
 Standards-Version: 3.9.1.0
 Homepage: http://common-lisp.net/project/asdf/
-Vcs-Git: git://git.debian.org/git/pkg-common-lisp/cl-asdf.git
+Vcs-Git: git://common-lisp.net/projects/asdf/asdf.git
 
 Package: cl-asdf
 Architecture: all

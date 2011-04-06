@@ -5,9 +5,9 @@ clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
 lisps ?= ccl clisp sbcl ecl abcl xcl scl allegro
-## not tested by me: allegromodern cmucl lispworks
+## occasionally tested by not me: allegromodern cmucl lispworks
 ## FAIL: gclcvs (condition handling)
-## maybe supported by asdf, not supported yet by our tests: cormancl mcl genera
+## tentatively supported by asdf, not supported by our tests: cormancl mcl genera
 
 lisp ?= sbcl
 
@@ -83,17 +83,19 @@ do-test-all:
 
 test-all: test-forward-references test-upgrade do-test-all
 
+# Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
+# as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
 debian-package: mrproper
 	: $${RELEASE:="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)"} ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
 # Replace SBCL's ASDF with the current one.
-# not recommended: just use (asdf:load-system :asdf)
+# for casual users, just use (asdf:load-system :asdf)
 replace-sbcl-asdf:
 	sbcl --eval '(compile-file "asdf.lisp" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
 
 # Replace CCL's ASDF with the current one.
-# not recommended: just use (asdf:load-system :asdf)
+# for casual users, just use (asdf:load-system :asdf)
 replace-ccl-asdf:
 	ccl --eval '(progn(compile-file "asdf.lisp" :output-file (format nil "~Atools/asdf.lx64fsl" (ccl::ccl-directory)))(quit))'
 
