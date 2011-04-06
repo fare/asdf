@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.4: Another System Definition Facility.
+;;; This is ASDF 2.014.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -99,7 +99,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.4")
+         (asdf-version "2.014.5")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -713,6 +713,7 @@ actually-existing directory."
                   '(ffi:clines "#include <sys/types.h>" "#include <unistd.h>"))
   (defun* get-uid ()
     #+allegro (excl.osi:getuid)
+    #+ccl (ccl::getuid)
     #+clisp (loop :for s :in '("posix:uid" "LINUX:getuid")
                   :for f = (ignore-errors (read-from-string s))
                   :when f :return (funcall f))
@@ -721,7 +722,7 @@ actually-existing directory."
                    '(ffi:c-inline () () :int "getuid()" :one-liner t)
                    '(ext::getuid))
     #+sbcl (sb-unix:unix-getuid)
-    #-(or allegro clisp cmu ecl sbcl scl)
+    #-(or allegro ccl clisp cmu ecl sbcl scl)
     (let ((uid-string
            (with-output-to-string (*verbose-out*)
              (run-shell-command "id -ur"))))
@@ -1858,11 +1859,11 @@ recursive calls to traverse.")
   (funcall collect x))
 
 (defmethod do-traverse ((operation operation) (c component) collect)
-  (let ((flag nil)) ;; return value: must we rebuild this and its dependencies?
+  (let ((*forcing* *forcing*)
+        (flag nil)) ;; return value: must we rebuild this and its dependencies?
     (labels
         ((update-flag (x)
-           (when x
-             (setf flag t)))
+           (orf flag x))
          (dep (op comp)
            (update-flag (do-dep operation c collect op comp))))
       ;; Have we been visited yet? If so, just process the result.
@@ -1876,6 +1877,13 @@ recursive calls to traverse.")
       (setf (visiting-component operation c) t)
       (unwind-protect
            (progn
+             (let ((f (operation-forced
+                       (operation-ancestor operation))))
+               (when (and f (or (not (consp f)) ;; T or :ALL
+                                (and (typep c 'system) ;; list of names of systems to force
+                                     (member (component-name c) f
+                                             :test #'string=))))
+                 (setf *forcing* t)))
              ;; first we check and do all the dependencies for the module.
              ;; Operations planned in this loop will show up
              ;; in the results, and are consumed below.
@@ -1915,22 +1923,13 @@ recursive calls to traverse.")
                                          :try-next)
                                      (not at-least-one))
                             (error error)))))))
-               (update-flag
-                (or
-                 *forcing*
-                 (not (operation-done-p operation c))
+               (update-flag (or *forcing* (not (operation-done-p operation c))))
                  ;; For sub-operations, check whether
                  ;; the original ancestor operation was forced,
                  ;; or names us amongst an explicit list of things to force...
                  ;; except that this check doesn't distinguish
                  ;; between all the things with a given name. Sigh.
                  ;; BROKEN!
-                 (let ((f (operation-forced
-                           (operation-ancestor operation))))
-                   (and f (or (not (consp f)) ;; T or :ALL
-                              (and (typep c 'system) ;; list of names of systems to force
-                                   (member (component-name c) f
-                                           :test #'string=)))))))
                (when flag
                  (let ((do-first (cdr (assoc (class-name (class-of operation))
                                              (component-do-first c)))))
@@ -1959,9 +1958,6 @@ recursive calls to traverse.")
       (r* l))))
 
 (defmethod traverse ((operation operation) (c component))
-  ;; cerror'ing a feature that seems to have NEVER EVER worked
-  ;; ever since danb created it in his 2003-03-16 commit e0d02781.
-  ;; It was both fixed and disabled in the 1.700 rewrite.
   (when (consp (operation-forced operation))
     (setf (operation-forced operation)
           (mapcar #'coerce-name (operation-forced operation))))
@@ -2553,8 +2549,8 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
       (asdf-message "~{~&; ~a~%~}~%" stdout)
       exit-code)
 
-    #+clisp                     ;XXX not exactly *verbose-out*, I know
-    (or (ext:run-shell-command  command :output :terminal :wait t) 0)
+    #+clisp                    ;XXX not exactly *verbose-out*, I know
+    (or (ext:run-shell-command command :output (and *verbose-out* :terminal) :wait t) 0)
 
     #+clozure
     (nth-value 1
