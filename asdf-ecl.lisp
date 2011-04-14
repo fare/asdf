@@ -14,45 +14,6 @@
 (in-package :asdf)
 
 ;;;
-;;; We rewrite a subset of ASDF functions so that instead of generating one
-;;; FASL file per lisp file, ASDF creates an object file and a FASL file. The
-;;; object file is reused by the extensions below.
-;;;
-
-(setf *compile-op-compile-file-function*
-      (lambda (input-file &rest keys &key output-file &allow-other-keys)
-        (declare (ignore output-file))
-        (multiple-value-bind (object-file flags1 flags2)
-            (apply #'compile-file* input-file :system-p t keys)
-          (values (and object-file
-                       (c::build-fasl (compile-file-pathname object-file :type :fasl)
-                                      :lisp-files (list object-file))
-                       object-file)
-                  flags1
-                  flags2))))
-
-(defmethod output-files ((operation compile-op) (c cl-source-file))
-  (declare (ignorable operation))
-  (let ((p (lispize-pathname (component-pathname c))))
-    (list (compile-file-pathname p :type :object)
-          (compile-file-pathname p :type :fasl))))
-
-(defmethod perform ((o load-op) (c cl-source-file))
-  (map () #'load
-       (loop :for i :in (input-files o c)
-          :unless (string= (pathname-type i) "fas")
-          :collect (compile-file-pathname (lispize-pathname i)))))
-
-;;;
-;;; COMPILE-OP / LOAD-OP
-;;;
-;;; In ECL, these operations produce both FASL files and the
-;;; object files that they are built from. Having both of them allows
-;;; us to later on reuse the object files for bundles, libraries,
-;;; standalone executables, etc.
-;;;
-
-;;;
 ;;; BUNDLE-OP
 ;;;
 ;;; This operation takes all components from one or more systems and
@@ -443,19 +404,8 @@
 (export '(make-build load-fasl-op prebuilt-system))
 (push '("fasb" . si::load-binary) si::*load-hooks*)
 
-(defvar *require-asdf-operator* 'load-op)
-
-(defun module-provide-asdf (name)
-  (handler-bind ((style-warning #'muffle-warning))
-    (let* ((*verbose-out* (make-broadcast-stream))
-           (system (asdf:find-system name nil)))
-      (when system
-        (asdf:operate *require-asdf-operator* name)
-        t))))
-
 (defun register-pre-built-system (name)
-  (register-system name (make-instance 'system :name name
-                                       :source-file nil)))
+  (register-system name (make-instance 'system :name name :source-file nil)))
 
 (setf si::*module-provider-functions*
       (loop :for f :in si::*module-provider-functions*
@@ -465,7 +415,7 @@
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
 #+win32 (push '("asd" . si::load-source) si::*load-hooks*)
-(pushnew 'module-provide-asdf ext:*module-provider-functions*)
+(pushnew 'module-provide-asdf si:*module-provider-functions*)
 (pushnew (translate-logical-pathname "SYS:") *central-registry*)
 
 (provide :asdf)

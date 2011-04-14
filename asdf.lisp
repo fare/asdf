@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.6: Another System Definition Facility.
+;;; This is ASDF 2.014.7: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -91,6 +91,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
+  (defvar *asdf-verbose* t)
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
          ;; can help you do these changes in synch (look at the source for documentation).
@@ -99,15 +100,15 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.6")
+         (asdf-version "2.014.7")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
-      (when existing-asdf
+      (when (and existing-asdf *asdf-verbose*)
         (format *trace-output*
-		(compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
-		existing-version asdf-version))
+                (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
+                existing-version asdf-version))
       (labels
           ((present-symbol-p (symbol package)
              (member (nth-value 1 (find-sym symbol package)) '(:internal :external)))
@@ -216,7 +217,7 @@
             #:compile-file*)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
-            #:split #:make-collector
+            #:split #:make-collector #:system-definition-pathname
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :fmakunbound
            (#:system-source-file
@@ -225,7 +226,7 @@
             #:inherit-source-registry #:process-source-registry-directive)
            :export
            (#:defsystem #:oos #:operate #:find-system #:run-shell-command
-            #:system-definition-pathname #:find-component ; miscellaneous
+            #:search-for-system-definition #:find-component ; miscellaneous
             #:compile-system #:load-system #:test-system #:clear-system
             #:compile-op #:load-op #:load-source-op
             #:test-op
@@ -233,6 +234,7 @@
             #:feature                 ; sort-of operation
             #:version                 ; metaphorically sort-of an operation
             #:version-satisfies
+            #:upgrade-asdf
 
             #:input-files #:output-files #:output-file #:perform ; operation methods
             #:operation-done-p #:explain
@@ -381,8 +383,6 @@ when compiling a file?  Valid values are :error, :warn, and :ignore.
 Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling.")
 
 (defvar *verbose-out* nil)
-
-(defvar *asdf-verbose* t)
 
 (defparameter +asdf-methods+
   '(perform-with-restarts perform explain output-files operation-done-p))
@@ -1310,16 +1310,14 @@ called with an object of type asdf:system."
 ;;; convention that functions in this list are prefixed SYSDEF-
 
 (defparameter *system-definition-search-functions*
-  '(sysdef-central-registry-search sysdef-source-registry-search sysdef-find-asdf))
+  '(sysdef-central-registry-search
+    sysdef-source-registry-search
+    sysdef-find-asdf))
 
-(defun* system-definition-pathname (system)
+(defun* search-for-system-definition (system)
   (let ((system-name (coerce-name system)))
-    (or
-     (some #'(lambda (x) (funcall x system-name))
-           *system-definition-search-functions*)
-     (let ((system-pair (system-registered-p system-name)))
-       (and system-pair
-            (system-source-file (cdr system-pair)))))))
+    (some #'(lambda (x) (funcall x system-name))
+          *system-definition-search-functions*)))
 
 (defvar *central-registry* nil
 "A list of 'system directory designators' ASDF uses to find systems.
@@ -1442,24 +1440,27 @@ Going forward, we recommend new users should be using the source-registry.
       (delete-package package))))
 
 (defmethod find-system ((name string) &optional (error-p t))
-  (catch 'find-system
-    (let* ((in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
-           (on-disk (system-definition-pathname name)))
-      (when (and on-disk
-                 (or (not in-memory)
-                     ;; don't reload if it's already been loaded,
-                     ;; or its filestamp is in the future which means some clock is skewed
-                     ;; and trying to load might cause an infinite loop.
-                     (< (car in-memory) (safe-file-write-date on-disk) (get-universal-time))))
-        (load-sysdef name on-disk))
-      (let ((in-memory (system-registered-p name))) ; try again after loading from disk
-        (cond
-          (in-memory
-           (when on-disk
-             (setf (car in-memory) (safe-file-write-date on-disk)))
-           (cdr in-memory))
-          (error-p
-           (error 'missing-component :requires name)))))))
+  (let* ((in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
+         (found (search-for-system-definition name))
+         (pathname (cond
+                     ((pathnamep found) found)
+                     (in-memory (system-source-file (cdr in-memory)))
+                     ((typep found 'system) (system-source-file found)))))
+    (when (and pathname
+               (or (not in-memory)
+                   ;; don't reload if it's already been loaded,
+                   ;; or its filestamp is in the future which means some clock is skewed
+                   ;; and trying to load might cause an infinite loop.
+                   (< (car in-memory) (safe-file-write-date pathname) (get-universal-time))))
+      (load-sysdef name pathname))
+    (let ((in-memory (system-registered-p name))) ; try again after loading from disk
+      (cond
+        (in-memory
+         (when pathname
+           (setf (car in-memory) (safe-file-write-date pathname)))
+         (cdr in-memory))
+        (error-p
+         (error 'missing-component :requires name))))))
 
 (defun* register-system (name system)
   (setf name (coerce-name name))
@@ -1469,10 +1470,6 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
   (setf fallback (coerce-name fallback)
-        source-file (or source-file
-                        (if *resolve-symlinks*
-                            (or *compile-file-truename* *load-truename*)
-                            (or *compile-file-pathname* *load-pathname*)))
         requested (coerce-name requested))
   (when (equal requested fallback)
     (let* ((registered (cdr (gethash fallback *defined-systems*)))
@@ -1481,7 +1478,7 @@ Going forward, we recommend new users should be using the source-registry.
                               :name fallback :source-file source-file keys))))
       (unless registered
         (register-system fallback system))
-      (throw 'find-system system))))
+      system)))
 
 (defun* sysdef-find-asdf (name)
   ;; Bug: :version *asdf-version* won't be updated when ASDF is updated.
@@ -1574,9 +1571,9 @@ Host, device and version components are taken from DEFAULTS."
               (values filename type))
              (t
               (split-name-type filename)))
-         (make-pathname :directory (cons relative path) :name name :type type
-                        . #.(or #-(or xcl abcl) ;; xcl 0.0.0.291 and abcl 0.25 have a bug, whereby make-pathname merges directories like merge-pathnames.
-                                '(:defaults (or defaults *default-pathname-defaults*)))))))))
+         (apply 'make-pathname :directory (cons relative path) :name name :type type
+                ;; XCL 0.0.0.291 and ABCL 0.25 have a bug, whereby make-pathname merges directories like merge-pathnames when a :defaults is provided. Fixed in the latest XCL.
+                (when defaults `(:defaults ,defaults))))))))
 
 (defun* merge-component-name-type (name &key type defaults)
   ;; For backwards compatibility only, for people using internals.
@@ -2278,12 +2275,32 @@ created with the same initargs as the original one.
   (setf (documentation 'operate 'function)
         operate-docstring))
 
-(defun* load-system (system &rest args &key force verbose version
-                    &allow-other-keys)
-  "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for
-details."
+;;;; Magic upgrade of ASDF before we operate on anything.
+(defun* upgrade-asdf ()
+  (let ((version (asdf:asdf-version)))
+    (handler-bind (((or style-warning warning) #'muffle-warning))
+      (operate 'load-op :asdf :verbose nil))
+    (let ((new-version (asdf:asdf-version)))
+      (cond
+        ((equal version new-version)
+         nil)
+        ((version-satisfies new-version version)
+         (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
+                       version new-version)
+         t)
+        ((version-satisfies version new-version)
+         (warn (compatfmt "~&~@<Downgraded ASDF from version ~A to version ~A~@:>~%")
+               version new-version))
+        (t
+         (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
+                       version new-version)
+         t)))))
+
+(defun* load-system (system &rest args &key force verbose version &allow-other-keys)
+  "Shorthand for `(operate 'asdf:load-op system)`.
+See OPERATE for details."
   (declare (ignore force verbose version))
-  (apply #'operate 'load-op system args)
+  (apply 'operate 'load-op system args)
   t)
 
 (defun* compile-system (system &rest args &key force verbose version
@@ -3489,33 +3506,26 @@ call that function where you would otherwise have loaded and configured A-B-L.")
 
 (defvar *source-registry-exclusions* *default-source-registry-exclusions*)
 
-(defvar *source-registry* ()
-  "Either NIL (for uninitialized), or a list of one element,
-said element itself being a list of directory pathnames where to look for .asd files")
-
-(defun* source-registry ()
-  (car *source-registry*))
-
-(defun* (setf source-registry) (new-value)
-  (setf *source-registry* (list new-value))
-  new-value)
+(defvar *source-registry* nil
+  "Either NIL (for uninitialized), or an equal hash-table, mapping
+system names to pathnames of .asd files")
 
 (defun* source-registry-initialized-p ()
-  (and *source-registry* t))
+  (typep *source-registry* 'hash-table))
 
 (defun* clear-source-registry ()
   "Undoes any initialization of the source registry.
 You might want to call that before you dump an image that would be resumed
 with a different configuration, so the configuration would be re-read then."
-  (setf *source-registry* '())
+  (setf *source-registry* nil)
   (values))
 
 (defparameter *wild-asd*
   (make-pathname :directory nil :name :wild :type "asd" :version :newest))
 
-(defun directory-has-asd-files-p (directory)
+(defun directory-asd-files (directory)
   (ignore-errors
-    (and (directory* (merge-pathnames* *wild-asd* directory)) t)))
+    (directory* (merge-pathnames* *wild-asd* directory))))
 
 (defun subdirectories (directory)
   (let* ((directory (ensure-directory-pathname directory))
@@ -3545,6 +3555,9 @@ with a different configuration, so the configuration would be re-read then."
                                   #+(or cmu lispworks scl) x)))
     dirs))
 
+(defun collect-asds-in-directory (directory collect)
+  (map () collect (directory-asd-files directory)))
+
 (defun collect-sub*directories (directory collectp recursep collector)
   (when (funcall collectp directory)
     (funcall collector directory))
@@ -3552,15 +3565,15 @@ with a different configuration, so the configuration would be re-read then."
     (when (funcall recursep subdir)
       (collect-sub*directories subdir collectp recursep collector))))
 
-(defun collect-sub*directories-with-asd
+(defun collect-sub*directories-asd-files
     (directory &key
      (exclude *default-source-registry-exclusions*)
      collect)
   (collect-sub*directories
    directory
-   #'directory-has-asd-files-p
+   (constantly t)
    #'(lambda (x) (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
-   collect))
+   #'(lambda (dir) (collect-asds-in-directory dir collect))))
 
 (defun* validate-source-registry-directive (directive)
   (or (member directive '(:default-registry))
@@ -3626,8 +3639,8 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun* register-asd-directory (directory &key recurse exclude collect)
   (if (not recurse)
-      (funcall collect directory)
-      (collect-sub*directories-with-asd
+      (collect-asds-in-directory directory collect)
+      (collect-sub*directories-asd-files
        directory :exclude exclude :collect collect)))
 
 (defparameter *default-source-registries*
@@ -3759,19 +3772,34 @@ with a different configuration, so the configuration would be re-read then."
 
 ;; Will read the configuration and initialize all internal variables,
 ;; and return the new configuration.
-(defun* compute-source-registry (&optional parameter)
-  (while-collecting (collect)
-    (dolist (entry (flatten-source-registry parameter))
-      (destructuring-bind (directory &key recurse exclude) entry
+(defun* compute-source-registry (&optional parameter (registry *source-registry*))
+  (dolist (entry (flatten-source-registry parameter))
+    (destructuring-bind (directory &key recurse exclude) entry
+      (let* ((h (make-hash-table :test 'equal)))
         (register-asd-directory
-         directory
-         :recurse recurse :exclude exclude :collect #'collect)))))
+         directory :recurse recurse :exclude exclude :collect
+         #'(lambda (asd)
+             (let ((name (pathname-name asd)))
+               (cond
+                 ((gethash name registry) ; already shadowed by something else
+                  nil)
+                 ((gethash name h) ; conflict at current level
+                  (when *asdf-verbose*
+                    (warn (compatfmt "~@<In source-registry entry ~A~@[/~*~] ~
+				found several entries for ~A - picking ~S over ~S~:>")
+                          directory recurse name (gethash name h) asd)))
+                 (t
+                  (setf (gethash name registry) asd)
+                  (setf (gethash name h) asd))))))
+        h)))
+  (values))
 
 (defvar *source-registry-parameter* nil)
 
 (defun* initialize-source-registry (&optional (parameter *source-registry-parameter*))
-  (setf *source-registry-parameter* parameter
-        (source-registry) (compute-source-registry parameter)))
+  (setf *source-registry-parameter* parameter)
+  (setf *source-registry* (make-hash-table :test 'equal))
+  (compute-source-registry parameter))
 
 ;; Checks an initial variable to see whether the state is initialized
 ;; or cleared. In the former case, return current configuration; in
@@ -3782,24 +3810,60 @@ with a different configuration, so the configuration would be re-read then."
 ;; you may override the configuration explicitly by calling
 ;; initialize-source-registry directly with your parameter.
 (defun* ensure-source-registry (&optional parameter)
-  (if (source-registry-initialized-p)
-      (source-registry)
-      (initialize-source-registry parameter)))
+  (unless (source-registry-initialized-p)
+    (initialize-source-registry parameter))
+  (values))
 
 (defun* sysdef-source-registry-search (system)
   (ensure-source-registry)
-  (loop :with name = (coerce-name system)
-    :for defaults :in (source-registry)
-    :for file = (probe-asd name defaults)
-    :when file :return file))
+  (values (gethash (coerce-name system) *source-registry*)))
 
 (defun* clear-configuration ()
   (clear-source-registry)
   (clear-output-translations))
 
+
+;;; ECL support for COMPILE-OP / LOAD-OP
+;;;
+;;; In ECL, these operations produce both FASL files and the
+;;; object files that they are built from. Having both of them allows
+;;; us to later on reuse the object files for bundles, libraries,
+;;; standalone executables, etc.
+;;;
+;;; This has to be in asdf.lisp and not asdf-ecl.lisp, or else it becomes
+;;; a problem for asdf on ECL to compile asdf-ecl.lisp after loading asdf.lisp.
+;;;
+#+ecl
+(progn
+  (setf *compile-op-compile-file-function*
+        (lambda (input-file &rest keys &key output-file &allow-other-keys)
+          (declare (ignore output-file))
+          (multiple-value-bind (object-file flags1 flags2)
+              (apply #'compile-file* input-file :system-p t keys)
+            (values (and object-file
+                         (c::build-fasl (compile-file-pathname object-file :type :fasl)
+                                        :lisp-files (list object-file))
+                         object-file)
+                    flags1
+                    flags2))))
+
+  (defmethod output-files ((operation compile-op) (c cl-source-file))
+    (declare (ignorable operation))
+    (let ((p (lispize-pathname (component-pathname c))))
+      (list (compile-file-pathname p :type :object)
+            (compile-file-pathname p :type :fasl))))
+
+  (defmethod perform ((o load-op) (c cl-source-file))
+    (map () #'load
+         (loop :for i :in (input-files o c)
+           :unless (string= (pathname-type i) "fas")
+           :collect (compile-file-pathname (lispize-pathname i))))))
+
 ;;;; -----------------------------------------------------------------
 ;;;; Hook into REQUIRE for ABCL, CLISP, ClozureCL, CMUCL, ECL and SBCL
 ;;;;
+(defvar *require-asdf-operator* 'load-op)
+
 (defun* module-provide-asdf (name)
   (handler-bind
       ((style-warning #'muffle-warning)
@@ -3810,7 +3874,8 @@ with a different configuration, so the configuration would be re-read then."
     (let ((*verbose-out* (make-broadcast-stream))
            (system (find-system (string-downcase name) nil)))
       (when system
-        (load-system system)))))
+        (operate *require-asdf-operator* system)
+        t))))
 
 #+(or abcl clisp clozure cmu ecl sbcl)
 (let ((x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom))))

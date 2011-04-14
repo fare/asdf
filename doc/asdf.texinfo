@@ -300,6 +300,21 @@ This applies to e.g. CFFI-Grovel, or to hacks used by ironclad, etc.
 It is safer if you upgrade ASDF and its extensions as a special step
 at the very beginning of whatever script you are running,
 before you start using ASDF to load anything else.
+@item
+It is unsafe to upgrade ASDF as part of loading a system
+that depends on a more recent version of ASDF,
+since the new one might shadow the old one while the old one is running,
+and the running old one will be confused
+when extensions are loaded into the new one.
+We recommend that your systems should @emph{not} specify
+@code{:depends-on (:asdf)}, or @code{:depends-on ((:version :asdf "2.010"))},
+but instead that they check that a recent enough ASDF is installed,
+with such code as:
+@example
+(unless (or #+asdf2 (asdf:version-satisfies
+                     (asdf:asdf-version) *required-asdf-version*))
+  (error "FOO requires ASDF ~A or later." *required-asdf-version*))
+@end example
 @end itemize
 
 
