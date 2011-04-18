@@ -294,14 +294,19 @@ you may want to upgrade your implementation rather than go through that hoop.
 Finally, note that there are some limitations to upgrading ASDF:
 @itemize
 @item
-Any ASDF extension is invalidated, and will need to be reloaded.
+Any ASDF extension becomes invalid, and will need to be reloaded.
 This applies to e.g. CFFI-Grovel, or to hacks used by ironclad, etc.
+Starting with ASDF 2.014.8, ASDF will actually invalidate
+all previously loaded systems when it is loaded on top of
+a different ASDF version.
 @item
-It is safer if you upgrade ASDF and its extensions as a special step
+Until all implementations provide ASDF 2.015 or later,
+it is safer if you upgrade ASDF and its extensions as a special step
 at the very beginning of whatever script you are running,
 before you start using ASDF to load anything else.
 @item
-It is unsafe to upgrade ASDF as part of loading a system
+Until all implementations provide ASDF 2.015 or later,
+it is unsafe to upgrade ASDF as part of loading a system
 that depends on a more recent version of ASDF,
 since the new one might shadow the old one while the old one is running,
 and the running old one will be confused

@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.7: Another System Definition Facility.
+;;; This is ASDF 2.014.8: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -100,7 +100,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.7")
+         (asdf-version "2.014.8")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -217,7 +217,7 @@
             #:compile-file*)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
-            #:split #:make-collector #:system-definition-pathname
+            #:split #:make-collector
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :fmakunbound
            (#:system-source-file
@@ -226,6 +226,7 @@
             #:inherit-source-registry #:process-source-registry-directive)
            :export
            (#:defsystem #:oos #:operate #:find-system #:run-shell-command
+            #:system-definition-pathname
             #:search-for-system-definition #:find-component ; miscellaneous
             #:compile-system #:load-system #:test-system #:clear-system
             #:compile-op #:load-op #:load-source-op
@@ -532,7 +533,7 @@ and NIL NAME, TYPE and VERSION components"
 
 (defun* asdf-message (format-string &rest format-args)
   (declare (dynamic-extent format-args))
-  (apply #'format *verbose-out* format-string format-args))
+  (apply 'format *verbose-out* format-string format-args))
 
 (defun* split-string (string &key max (separator '(#\Space #\Tab)))
   "Split STRING into a list of components separated by
@@ -1013,7 +1014,7 @@ processed in order by OPERATE."))
   ((format-control :initarg :format-control :reader format-control)
    (format-arguments :initarg :format-arguments :reader format-arguments))
   (:report (lambda (c s)
-               (apply #'format s (format-control c) (format-arguments c)))))
+               (apply 'format s (format-control c) (format-arguments c)))))
 
 (define-condition load-system-definition-error (system-definition-error)
   ((name :initarg :name :reader error-name)
@@ -1075,9 +1076,9 @@ processed in order by OPERATE."))
   ((format :initform (compatfmt "~@<Invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
 
 (defclass component ()
-  ((name :accessor component-name :initarg :name :documentation
+  ((name :accessor component-name :initarg :name :type string :documentation
          "Component name: designator for a string composed of portable pathname characters")
-   (version :accessor component-version :initarg :version)
+   (version :accessor component-version :initarg :version :type string)
    (description :accessor component-description :initarg :description)
    (long-description :accessor component-long-description :initarg :long-description)
    ;; This one below is used by POIU - http://www.cliki.net/poiu
@@ -1249,18 +1250,26 @@ processed in order by OPERATE."))
     (return-from version-satisfies t))
   (version-satisfies (component-version c) version))
 
+(defun parse-version (string)
+  "Parse a version string as a series of natural integers separated by dots.
+Return a (non-null) list of integers if the string is valid, NIL otherwise.
+NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
+  (and (loop :for prev = nil :then c :for c :across string
+         :always (or (digit-char-p c)
+                     (and (eql c #\.) prev (not (eql prev #\.))))
+         :finally (return (and c (digit-char-p c))))
+       (mapcar #'parse-integer (split-string string :separator "."))))
+
 (defmethod version-satisfies ((cver string) version)
-  (let ((x (mapcar #'parse-integer
-                   (split-string cver :separator ".")))
-        (y (mapcar #'parse-integer
-                   (split-string version :separator "."))))
+  (let ((x (parse-version cver))
+        (y (parse-version version)))
     (labels ((bigger (x y)
                (cond ((not y) t)
                      ((not x) nil)
                      ((> (car x) (car y)) t)
                      ((= (car x) (car y))
                       (bigger (cdr x) (cdr y))))))
-      (and (= (car x) (car y))
+      (and x y (= (car x) (car y))
            (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
 
 ;;;; -------------------------------------------------------------------------
@@ -1286,12 +1295,21 @@ of which is a system object.")
 (defun* system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
 
+(defun* register-system (system)
+  (check-type system system)
+  (let ((name (component-name system)))
+    (check-type name string)
+    (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
+    (unless (eq system (cdr (gethash name *defined-systems*)))
+      (setf (gethash name *defined-systems*)
+            (cons (get-universal-time) system)))))
+
 (defun* clear-system (name)
   "Clear the entry for a system in the database of systems previously loaded.
 Note that this does NOT in any way cause the code of the system to be unloaded."
-  ;; There is no "unload" operation in Common Lisp, and a general such operation
-  ;; cannot be portably written, considering how much CL relies on side-effects
-  ;; to global data structures.
+  ;; There is no "unload" operation in Common Lisp, and
+  ;; a general such operation cannot be portably written,
+  ;; considering how much CL relies on side-effects to global data structures.
   (remhash (coerce-name name) *defined-systems*))
 
 (defun* map-systems (fn)
@@ -1441,17 +1459,24 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defmethod find-system ((name string) &optional (error-p t))
   (let* ((in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
+         (previous (cdr in-memory))
+         (previous-time (car in-memory))
          (found (search-for-system-definition name))
          (pathname (cond
                      ((pathnamep found) found)
-                     (in-memory (system-source-file (cdr in-memory)))
+                     (in-memory (system-source-file previous))
                      ((typep found 'system) (system-source-file found)))))
+    (when (typep found 'system)
+      (if previous
+          (unless (equal (system-source-file previous) pathname)
+            (%set-system-source-file pathname previous))
+          (register-system found)))
     (when (and pathname
-               (or (not in-memory)
+               (or (not previous)
                    ;; don't reload if it's already been loaded,
                    ;; or its filestamp is in the future which means some clock is skewed
                    ;; and trying to load might cause an infinite loop.
-                   (< (car in-memory) (safe-file-write-date pathname) (get-universal-time))))
+                   (< previous-time (safe-file-write-date pathname) (get-universal-time))))
       (load-sysdef name pathname))
     (let ((in-memory (system-registered-p name))) ; try again after loading from disk
       (cond
@@ -1462,23 +1487,14 @@ Going forward, we recommend new users should be using the source-registry.
         (error-p
          (error 'missing-component :requires name))))))
 
-(defun* register-system (name system)
-  (setf name (coerce-name name))
-  (assert (equal name (component-name system)))
-  (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
-  (setf (gethash name *defined-systems*) (cons (get-universal-time) system)))
-
 (defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
   (setf fallback (coerce-name fallback)
         requested (coerce-name requested))
   (when (equal requested fallback)
-    (let* ((registered (cdr (gethash fallback *defined-systems*)))
-           (system (or registered
-                       (apply 'make-instance 'system
-                              :name fallback :source-file source-file keys))))
-      (unless registered
-        (register-system fallback system))
-      system)))
+    (let ((registered (cdr (gethash fallback *defined-systems*))))
+      (or registered
+          (apply 'make-instance 'system
+                 :name fallback :source-file source-file keys)))))
 
 (defun* sysdef-find-asdf (name)
   ;; Bug: :version *asdf-version* won't be updated when ASDF is updated.
@@ -1644,13 +1660,13 @@ class specifier, not an operation."
                 (not (eql c dep-c)))
            (when (eql force-p t)
              (setf (getf args :force) nil))
-           (apply #'make-instance dep-o
+           (apply 'make-instance dep-o
                   :parent o
                   :original-initargs args args))
           ((subtypep (type-of o) dep-o)
            o)
           (t
-           (apply #'make-instance dep-o
+           (apply 'make-instance dep-o
                   :parent o :original-initargs args args)))))
 
 
@@ -2207,14 +2223,64 @@ recursive calls to traverse.")
 ;;;; Invoking Operations
 
 (defgeneric* operate (operation-class system &key &allow-other-keys))
+(defgeneric* perform-plan (plan &key))
+
+;;;; Try to upgrade of ASDF. If a different version was used, return T.
+;;;; We need do that before we operate on anything that depends on ASDF.
+(defun* upgrade-asdf ()
+  (let ((version (asdf:asdf-version)))
+    (handler-bind (((or style-warning warning) #'muffle-warning))
+      (operate 'load-op :asdf :verbose nil))
+    (let ((new-version (asdf:asdf-version)))
+      (block nil
+        (cond
+          ((equal version new-version)
+           (return nil))
+          ((version-satisfies new-version version)
+           (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
+                         version new-version))
+          ((version-satisfies version new-version)
+           (warn (compatfmt "~&~@<Downgraded ASDF from version ~A to version ~A~@:>~%")
+                 version new-version))
+          (t
+           (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
+                         version new-version)))
+        (let ((asdf (find-system :asdf)))
+          ;; invalidate all systems but ASDF itself
+          (setf *defined-systems* (make-defined-systems-table))
+          (register-system asdf)
+          t)))))
+
+(defmethod perform-plan ((steps list) &key)
+  (let ((*package* *package*)
+        (*readtable* *readtable*))
+    (with-compilation-unit ()
+      (loop :for (op . component) :in steps :do
+        (loop
+          (restart-case
+              (progn
+                (perform-with-restarts op component)
+                (return))
+            (retry ()
+              :report
+              (lambda (s)
+                (format s (compatfmt "~@<Retry ~A.~@:>")
+                        (operation-description op component))))
+            (accept ()
+              :report
+              (lambda (s)
+                (format s (compatfmt "~@<Continue, treating ~A as having been successful.~@:>")
+                        (operation-description op component)))
+              (setf (gethash (type-of op)
+                             (component-operation-times component))
+                    (get-universal-time))
+              (return))))))))
 
 (defmethod operate (operation-class system &rest args
                     &key ((:verbose *asdf-verbose*) *asdf-verbose*) version force
                     &allow-other-keys)
   (declare (ignore force))
-  (let* ((*package* *package*)
-         (*readtable* *readtable*)
-         (op (apply #'make-instance operation-class
+  (let* ((op (apply 'make-instance operation-class
                     :original-initargs args
                     args))
          (*verbose-out* (if *asdf-verbose* *standard-output* (make-broadcast-stream)))
@@ -2222,33 +2288,26 @@ recursive calls to traverse.")
     (unless (version-satisfies system version)
       (error 'missing-component-of-version :requires system :version version))
     (let ((steps (traverse op system)))
-      (with-compilation-unit ()
-        (loop :for (op . component) :in steps :do
-          (loop
-            (restart-case
-                (progn
-                  (perform-with-restarts op component)
-                  (return))
-              (retry ()
-                :report
-                (lambda (s)
-		  (format s (compatfmt "~@<Retry ~A.~@:>")
-			  (operation-description op component))))
-              (accept ()
-                :report
-                (lambda (s)
-		  (format s (compatfmt "~@<Continue, treating ~A as having been successful.~@:>")
-			  (operation-description op component)))
-                (setf (gethash (type-of op)
-                               (component-operation-times component))
-                      (get-universal-time))
-                (return))))))
+      (when (and (not (equal '("asdf") (component-find-path system)))
+                 (find-if (lambda (x) (equal '("asdf")
+                                             (component-find-path (cdr x))))
+                          steps)
+                 (upgrade-asdf))
+        ;; If we needed to upgrade ASDF to achieve our goal,
+        ;; then do it specially as the first thing, then
+        ;; invalidate all existing system
+        ;; retry the whole thing with the new OPERATE function,
+        ;; which on some implementations
+        ;; has a new symbol shadowing the current one.
+        (return-from operate
+          (apply (find-symbol* 'operate :asdf) operation-class system args)))
+      (perform-plan steps)
       (values op steps))))
 
 (defun* oos (operation-class system &rest args &key force verbose version
             &allow-other-keys)
   (declare (ignore force verbose version))
-  (apply #'operate operation-class system args))
+  (apply 'operate operation-class system args))
 
 (let ((operate-docstring
   "Operate does three things:
@@ -2275,27 +2334,6 @@ created with the same initargs as the original one.
   (setf (documentation 'operate 'function)
         operate-docstring))
 
-;;;; Magic upgrade of ASDF before we operate on anything.
-(defun* upgrade-asdf ()
-  (let ((version (asdf:asdf-version)))
-    (handler-bind (((or style-warning warning) #'muffle-warning))
-      (operate 'load-op :asdf :verbose nil))
-    (let ((new-version (asdf:asdf-version)))
-      (cond
-        ((equal version new-version)
-         nil)
-        ((version-satisfies new-version version)
-         (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
-                       version new-version)
-         t)
-        ((version-satisfies version new-version)
-         (warn (compatfmt "~&~@<Downgraded ASDF from version ~A to version ~A~@:>~%")
-               version new-version))
-        (t
-         (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
-                       version new-version)
-         t)))))
-
 (defun* load-system (system &rest args &key force verbose version &allow-other-keys)
   "Shorthand for `(operate 'asdf:load-op system)`.
 See OPERATE for details."
@@ -2308,7 +2346,7 @@ See OPERATE for details."
   "Shorthand for `(operate 'asdf:compile-op system)`. See OPERATE
 for details."
   (declare (ignore force verbose version))
-  (apply #'operate 'compile-op system args)
+  (apply 'operate 'compile-op system args)
   t)
 
 (defun* test-system (system &rest args &key force verbose version
@@ -2316,7 +2354,7 @@ for details."
   "Shorthand for `(operate 'asdf:test-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
-  (apply #'operate 'test-op system args)
+  (apply 'operate 'test-op system args)
   t)
 
 ;;;; -------------------------------------------------------------------------
@@ -2360,8 +2398,7 @@ details."
                  (s
                   (change-class (cdr s) ',class))
                  (t
-                  (register-system (quote ,name)
-                                   (make-instance ',class :name ',name))))
+                  (register-system (make-instance ',class :name ',name))))
            (%set-system-source-file (load-pathname)
                                     (cdr (system-registered-p ',name))))
          (parse-component-form
@@ -2498,7 +2535,7 @@ Returns the new tree (which probably shares structure with the old one)"
         (appendf depends-on (remove-if (complement #'find-system) weakly-depends-on)))
       (when *serial-depends-on*
         (push *serial-depends-on* depends-on))
-      (apply #'reinitialize-instance ret
+      (apply 'reinitialize-instance ret
              :name (coerce-name name)
              :pathname pathname
              :parent parent
@@ -2548,7 +2585,7 @@ Returns the new tree (which probably shares structure with the old one)"
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
 output to *VERBOSE-OUT*.  Returns the shell's exit code."
-  (let ((command (apply #'format nil control-string args)))
+  (let ((command (apply 'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
 
     #+abcl
@@ -2592,7 +2629,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
     #+sbcl
     (sb-ext:process-exit-code
-     (apply #'sb-ext:run-program
+     (apply 'sb-ext:run-program
             #+win32 "sh" #-win32 "/bin/sh"
             (list  "-c" command)
             :input nil :output *verbose-out*
@@ -2613,6 +2650,16 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
 ;;;; ---------------------------------------------------------------------------
 ;;;; system-relative-pathname
+
+(defun* system-definition-pathname (x)
+  (cerror "Use ASDF:SYSTEM-SOURCE-FILE instead"
+          "Function ASDF:SYSTEM-DEFINITION-PATHNAME is obsolete.
+It used to expose ASDF internals with subtle differences with respect to
+user expectations, that have been refactored away since.
+We recommend you use ASDF:SYSTEM-SOURCE-FILE instead
+for a mostly compatible replacement that we're supporting,
+or even ASDF:SYSTEM-SOURCE-DIRECTORY if that's whay you mean.")
+  (system-source-file x))
 
 (defmethod system-source-file ((system-name string))
   (system-source-file (find-system system-name)))
@@ -2745,7 +2792,7 @@ located."
   (labels
       ((maybe-warn (value fstring &rest args)
          (cond (value)
-               (t (apply #'warn fstring args)
+               (t (apply 'warn fstring args)
                   "unknown"))))
     (let ((lisp (maybe-warn (implementation-type)
                             (compatfmt "~@<No implementation feature found in ~a.~@:>")
@@ -3839,7 +3886,7 @@ with a different configuration, so the configuration would be re-read then."
         (lambda (input-file &rest keys &key output-file &allow-other-keys)
           (declare (ignore output-file))
           (multiple-value-bind (object-file flags1 flags2)
-              (apply #'compile-file* input-file :system-p t keys)
+              (apply 'compile-file* input-file :system-p t keys)
             (values (and object-file
                          (c::build-fasl (compile-file-pathname object-file :type :fasl)
                                         :lisp-files (list object-file))
