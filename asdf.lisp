@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.8: Another System Definition Facility.
+;;; This is ASDF 2.014.9: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -58,6 +58,7 @@
     (make-package :asdf :use '(:common-lisp)))
   ;;; Implementation-dependent tweaks
   ;; (declaim (optimize (speed 2) (debug 2) (safety 3))) ; NO: rely on the implementation defaults.
+  (declaim (optimize (speed 2) (debug 3) (safety 3))) ; XXXXX debug only
   #+allegro
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
@@ -100,7 +101,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.8")
+         (asdf-version "2.014.9")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -791,6 +792,15 @@ with given pathname and if it exists return its truename."
                 path
                 (excl:pathname-resolve-symbolic-links path)))
 
+(defun ensure-pathname-absolute (path)
+  (cond
+    ((absolute-pathname-p path) path)
+    ((stringp path) (ensure-pathname-absolute (pathname path)))
+    ((not (pathnamep path)) (error "not a valid pathname designator ~S" path))
+    (t (let ((resolved (resolve-symlinks path)))
+         (assert (absolute-pathname-p resolved))
+         resolved))))
+
 (defun* default-directory ()
   (truenamize (pathname-directory-pathname *default-pathname-defaults*)))
 
@@ -1439,6 +1449,10 @@ Going forward, we recommend new users should be using the source-registry.
                 pathname))
         0)))
 
+(defmethod find-system ((name null) &optional (error-p t))
+  (when error-p
+    (sysdef-error (compatfmt "~@<NIL is not a valid system name~@:>"))))
+
 (defmethod find-system (name &optional (error-p t))
   (find-system (coerce-name name) error-p))
 
@@ -1460,19 +1474,24 @@ Going forward, we recommend new users should be using the source-registry.
 (defmethod find-system ((name string) &optional (error-p t))
   (let* ((in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
          (previous (cdr in-memory))
+         (previous (and (typep previous 'system) previous))
          (previous-time (car in-memory))
          (found (search-for-system-definition name))
-         (pathname (cond
-                     ((pathnamep found) found)
-                     (in-memory (system-source-file previous))
-                     ((typep found 'system) (system-source-file found)))))
-    (when (typep found 'system)
-      (if previous
-          (unless (equal (system-source-file previous) pathname)
-            (%set-system-source-file pathname previous))
-          (register-system found)))
+         (found-system (and (typep found 'system) found))
+         (pathname (or (and (typep found '(or pathname string)) (pathname found))
+                       (and found-system (system-source-file found-system))
+                       (and previous (system-source-file previous)))))
+    (when (and pathname (not (absolute-pathname-p pathname)))
+      (setf pathname (ensure-pathname-absolute pathname))
+      (when found-system
+        (%set-system-source-file pathname found-system)))
+    (when (and previous (not (equal (system-source-file previous) pathname)))
+      (%set-system-source-file pathname previous)
+      (setf previous-time nil))
+    (when (and found-system (not previous))
+      (register-system found-system))
     (when (and pathname
-               (or (not previous)
+               (or (not previous-time)
                    ;; don't reload if it's already been loaded,
                    ;; or its filestamp is in the future which means some clock is skewed
                    ;; and trying to load might cause an infinite loop.
@@ -2284,7 +2303,9 @@ recursive calls to traverse.")
                     :original-initargs args
                     args))
          (*verbose-out* (if *asdf-verbose* *standard-output* (make-broadcast-stream)))
-         (system (if (typep system 'component) system (find-system system))))
+         (system (etypecase system
+                   (system system)
+                   ((or string symbol) (find-system system)))))
     (unless (version-satisfies system version)
       (error 'missing-component-of-version :requires system :version version))
     (let ((steps (traverse op system)))
@@ -2652,13 +2673,16 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 ;;;; system-relative-pathname
 
 (defun* system-definition-pathname (x)
-  (cerror "Use ASDF:SYSTEM-SOURCE-FILE instead"
-          "Function ASDF:SYSTEM-DEFINITION-PATHNAME is obsolete.
+  ;; As of 2.014.8, we mean to make this function obsolete,
+  ;; but that won't happen until all clients have been updated.
+  ;;(cerror "Use ASDF:SYSTEM-SOURCE-FILE instead"
+  "Function ASDF:SYSTEM-DEFINITION-PATHNAME is obsolete.
 It used to expose ASDF internals with subtle differences with respect to
 user expectations, that have been refactored away since.
 We recommend you use ASDF:SYSTEM-SOURCE-FILE instead
 for a mostly compatible replacement that we're supporting,
-or even ASDF:SYSTEM-SOURCE-DIRECTORY if that's whay you mean.")
+or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
+if that's whay you mean." ;;)
   (system-source-file x))
 
 (defmethod system-source-file ((system-name string))

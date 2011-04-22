@@ -1395,12 +1395,16 @@ or @code{nil} is returned if @code{error-p} is false.
 
 To find and update systems, @code{find-system} funcalls each element
 in the @code{*system-definition-search-functions*} list,
-expecting a pathname to be returned.
-The resulting pathname is loaded if either of the following conditions is true:
+expecting a pathname to be returned, or a system object,
+from which a pathname may be extracted, and that will be registered.
+The resulting pathname (if any) is loaded
+if one of the following conditions is true:
 
 @itemize
 @item
 there is no system of that name in memory
+@item
+the pathname is different from that which was previously loaded
 @item
 the file's @code{last-modified} time exceeds the @code{last-modified} time
 of the system in memory

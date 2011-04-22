@@ -4,7 +4,7 @@
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
- (asdf:operate 'asdf:load-op 'test1)
+ (asdf:load-system 'test1)
  ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
