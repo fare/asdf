@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.9: Another System Definition Facility.
+;;; This is ASDF 2.014.10: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -58,7 +58,6 @@
     (make-package :asdf :use '(:common-lisp)))
   ;;; Implementation-dependent tweaks
   ;; (declaim (optimize (speed 2) (debug 2) (safety 3))) ; NO: rely on the implementation defaults.
-  (declaim (optimize (speed 2) (debug 3) (safety 3))) ; XXXXX debug only
   #+allegro
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
@@ -101,7 +100,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.9")
+         (asdf-version "2.014.10")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1088,7 +1087,7 @@ processed in order by OPERATE."))
 (defclass component ()
   ((name :accessor component-name :initarg :name :type string :documentation
          "Component name: designator for a string composed of portable pathname characters")
-   (version :accessor component-version :initarg :version :type string)
+   (version :accessor component-version :initarg :version) ;; :type string -- not until we fix all systems that don't use it correctly!
    (description :accessor component-description :initarg :description)
    (long-description :accessor component-long-description :initarg :long-description)
    ;; This one below is used by POIU - http://www.cliki.net/poiu
@@ -1264,11 +1263,13 @@ processed in order by OPERATE."))
   "Parse a version string as a series of natural integers separated by dots.
 Return a (non-null) list of integers if the string is valid, NIL otherwise.
 NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
-  (and (loop :for prev = nil :then c :for c :across string
-         :always (or (digit-char-p c)
-                     (and (eql c #\.) prev (not (eql prev #\.))))
-         :finally (return (and c (digit-char-p c))))
-       (mapcar #'parse-integer (split-string string :separator "."))))
+  (and
+   (stringp string)
+   (loop :for prev = nil :then c :for c :across string
+     :always (or (digit-char-p c)
+                 (and (eql c #\.) prev (not (eql prev #\.))))
+     :finally (return (and c (digit-char-p c))))
+   (mapcar #'parse-integer (split-string string :separator "."))))
 
 (defmethod version-satisfies ((cver string) version)
   (let ((x (parse-version cver))
@@ -2530,6 +2531,7 @@ Returns the new tree (which probably shares structure with the old one)"
               perform explain output-files operation-done-p
               weakly-depends-on
               depends-on serial in-order-to
+              (version nil versionp)
               ;; list ends
               &allow-other-keys) options
     (declare (ignorable perform explain output-files operation-done-p))
@@ -2542,6 +2544,11 @@ Returns the new tree (which probably shares structure with the old one)"
                 (typep (find-component parent name)
                        (class-for-type parent type))))
       (error 'duplicate-names :name name))
+
+    (when versionp
+      (unless (parse-version version)
+        (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
+              version name parent)))
 
     (let* ((other-args (remove-keys
                         '(components pathname default-component-class
