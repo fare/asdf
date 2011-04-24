@@ -7,6 +7,13 @@
  (asdf:load-system 'test-source-file-type-1 :verbose t)
  (let ((sym (read-from-string "test-package::*test-tmp-cl*")))
   (assert (symbol-value sym))
+  ;; (assert
+  ;;  (equalp (mapcar #'asdf::source-file-explicit-type (asdf:module-components (asdf:find-system :test-source-file-type-1)))
+  ;;          '("cl" "cl")))
+  (assert
+   (equalp (mapcar #'pathname-type
+                  (mapcar #'asdf:component-pathname (asdf:module-components (asdf:find-system :test-source-file-type-1))))
+          '("cl" "cl")))
   (set sym nil)
   (asdf:load-system 'test-source-file-type-2 :verbose t)
   (assert (symbol-value sym))))
