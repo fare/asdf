@@ -2,14 +2,14 @@
 (load "script-support.lisp")
 (load-asdf)
 
-#+allegro
-(trace asdf::source-file-explicit-type asdf::source-file-type
-       asdf:component-pathname asdf:component-relative-pathname)
-
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-source-file-type-1 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
+ (assert
+   (equal (mapcar #'pathname-type
+                  (mapcar #'asdf:component-pathname (asdf:module-components (asdf:find-system :test-source-file-type-1))))
+          '("lisp" "cl")))
  (delete-package :test-package)
  (asdf:load-system 'test-source-file-type-2 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*"))))
