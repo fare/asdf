@@ -13,7 +13,7 @@
   (assert
    (equalp (mapcar #'pathname-type
                   (mapcar #'asdf:component-pathname (asdf:module-components (asdf:find-system :test-source-file-type-1))))
-          '("cl" "cl")))
+          '("lisp" "cl")))
   (set sym nil)
   (asdf:load-system 'test-source-file-type-2 :verbose t)
   (assert (symbol-value sym))))
