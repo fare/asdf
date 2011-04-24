@@ -1,5 +1,5 @@
-;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.10: Another System Definition Facility.
+;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
+;;; This is ASDF 2.014.11: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -52,19 +52,19 @@
 #+gcl (defpackage :asdf (:use :cl)) ;; GCL treats defpackage magically and needs this
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  ;;; make package if it doesn't exist yet.
-  ;;; DEFPACKAGE may cause errors on discrepancies, so we avoid it.
-  (unless (find-package :asdf)
-    (make-package :asdf :use '(:common-lisp)))
   ;;; Implementation-dependent tweaks
   ;; (declaim (optimize (speed 2) (debug 2) (safety 3))) ; NO: rely on the implementation defaults.
   #+allegro
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
-                :test 'equalp :key 'car))
+                :test 'equalp :key 'car)) ; need that BEFORE any mention of package ASDF as below
   #+(and ecl (not ecl-bytecmp)) (require :cmp)
   #+(and (or win32 windows mswindows mingw32) (not cygwin)) (pushnew :asdf-windows *features*)
-  #+(or unix cygwin) (pushnew :asdf-unix *features*))
+  #+(or unix cygwin) (pushnew :asdf-unix *features*)
+  ;;; make package if it doesn't exist yet.
+  ;;; DEFPACKAGE may cause errors on discrepancies, so we avoid it.
+  (unless (find-package :asdf)
+    (make-package :asdf :use '(:common-lisp))))
 
 (in-package :asdf)
 
@@ -100,7 +100,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.10")
+         (asdf-version "2.014.11")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -214,7 +214,7 @@
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
-            #:compile-file*)
+            #:compile-file* #:source-file-type)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
             #:split #:make-collector
@@ -1087,7 +1087,7 @@ processed in order by OPERATE."))
 (defclass component ()
   ((name :accessor component-name :initarg :name :type string :documentation
          "Component name: designator for a string composed of portable pathname characters")
-   (version :accessor component-version :initarg :version) ;; :type string -- not until we fix all systems that don't use it correctly!
+   (version :accessor component-version :initarg :version) ;; :type (and string (satisfies parse-version)) -- not until we fix all systems that don't use it correctly!
    (description :accessor component-description :initarg :description)
    (long-description :accessor component-long-description :initarg :long-description)
    ;; This one below is used by POIU - http://www.cliki.net/poiu
@@ -1256,24 +1256,34 @@ processed in order by OPERATE."))
 
 (defmethod version-satisfies ((c component) version)
   (unless (and version (slot-boundp c 'version))
+    (when version
+      (warn "Requested version ~S but component ~S has no version" version c))
     (return-from version-satisfies t))
   (version-satisfies (component-version c) version))
 
-(defun parse-version (string)
+(defun parse-version (string &optional on-error)
   "Parse a version string as a series of natural integers separated by dots.
 Return a (non-null) list of integers if the string is valid, NIL otherwise.
+If on-error is error, warn, or designates a function of compatible signature,
+the function is called with an explanation of what is wrong with the argument.
 NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
   (and
-   (stringp string)
-   (loop :for prev = nil :then c :for c :across string
-     :always (or (digit-char-p c)
-                 (and (eql c #\.) prev (not (eql prev #\.))))
-     :finally (return (and c (digit-char-p c))))
+   (or (stringp string)
+       (when on-error
+         (funcall on-error "~S: ~S is not a string"
+                  'parse-version string)) nil)
+   (or (loop :for prev = nil :then c :for c :across string
+         :always (or (digit-char-p c)
+                     (and (eql c #\.) prev (not (eql prev #\.))))
+         :finally (return (and c (digit-char-p c))))
+       (when on-error
+         (funcall on-error "~S: ~S doesn't follow asdf version numbering convention"
+                  'parse-version string)) nil)
    (mapcar #'parse-integer (split-string string :separator "."))))
 
 (defmethod version-satisfies ((cver string) version)
-  (let ((x (parse-version cver))
-        (y (parse-version version)))
+  (let ((x (parse-version cver 'warn))
+        (y (parse-version version 'warn)))
     (labels ((bigger (x y)
                (cond ((not y) t)
                      ((not x) nil)
@@ -1839,7 +1849,7 @@ recursive calls to traverse.")
                              required-op required-c required-v))
       (retry ()
         :report (lambda (s)
-		  (format s "~@<Retry loading component ~3i~_~S.~@:>" required-c))
+		  (format s "~@<Retry loading ~3i~_~A.~@:>" required-c))
         :test
         (lambda (c)
 	  (or (null c)
@@ -2009,11 +2019,12 @@ recursive calls to traverse.")
   nil)
 
 (defmethod explain ((operation operation) (component component))
-  (asdf-message "~&;;; ~A~%" (operation-description operation component)))
+  (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%")
+                (operation-description operation component)))
 
 (defmethod operation-description (operation component)
-  (format nil (compatfmt "~@<~A on component ~S~@:>")
-	  (class-of operation) (component-find-path component)))
+  (format nil (compatfmt "~@<~A on ~A~@:>")
+	  (class-of operation) component))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; compile-op
@@ -2097,7 +2108,7 @@ recursive calls to traverse.")
 
 (defmethod operation-description ((operation compile-op) component)
   (declare (ignorable operation))
-  (format nil "compiling component ~S" (component-find-path component)))
+  (format nil "compiling ~A" component))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; load-op
@@ -2110,6 +2121,8 @@ recursive calls to traverse.")
   (map () #'load (input-files o c)))
 
 (defmethod perform-with-restarts (operation component)
+  (when *asdf-verbose*
+    (explain operation component))
   (perform operation component))
 
 (defmethod perform-with-restarts ((o load-op) (c cl-source-file))
@@ -2172,8 +2185,8 @@ recursive calls to traverse.")
 
 (defmethod operation-description ((operation load-op) component)
   (declare (ignorable operation))
-  (format nil (compatfmt "~@<Loading component: ~3i~_~S~@:>")
-	  (component-find-path component)))
+  (format nil (compatfmt "~@<Loading ~3i~_~A~@:>")
+	  component))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -2216,8 +2229,8 @@ recursive calls to traverse.")
 
 (defmethod operation-description ((operation load-source-op) component)
   (declare (ignorable operation))
-  (format nil (compatfmt "~@<Loading component: ~3i~_~S~@:>")
-	  (component-find-path component)))
+  (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>")
+	  component))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -2546,7 +2559,7 @@ Returns the new tree (which probably shares structure with the old one)"
       (error 'duplicate-names :name name))
 
     (when versionp
-      (unless (parse-version version)
+      (unless (parse-version version nil)
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
               version name parent)))
 
