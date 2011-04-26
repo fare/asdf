@@ -1,5 +1,5 @@
 ;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.11: Another System Definition Facility.
+;;; This is ASDF 2.014.12: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -100,7 +100,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.11")
+         (asdf-version "2.014.12")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -982,7 +982,7 @@ processed in order by OPERATE."))
       '(defmethod update-instance-for-redefined-class :after
            ((m module) added deleted plist &key)
          (declare (ignorable deleted plist))
-         (when (or *asdf-verbose* *load-verbose*)
+         (when *asdf-verbose*
            (asdf-message (compatfmt "~&~@<; ~@;Updating ~A for ASDF ~A~@:>~%")
 			 m (asdf-version)))
          (when (member 'components-by-name added)
@@ -2108,7 +2108,12 @@ recursive calls to traverse.")
 
 (defmethod operation-description ((operation compile-op) component)
   (declare (ignorable operation))
-  (format nil "compiling ~A" component))
+  (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") component))
+
+(defmethod operation-description ((operation compile-op) (component module))
+  (declare (ignorable operation))
+  (format nil (compatfmt "~@<compiled ~3i~_~A~@:>") component))
+
 
 ;;;; -------------------------------------------------------------------------
 ;;;; load-op
@@ -2121,8 +2126,7 @@ recursive calls to traverse.")
   (map () #'load (input-files o c)))
 
 (defmethod perform-with-restarts (operation component)
-  (when *asdf-verbose*
-    (explain operation component))
+  ;;(when *asdf-verbose* (explain operation component)) ; TOO verbose, especially as the default.
   (perform operation component))
 
 (defmethod perform-with-restarts ((o load-op) (c cl-source-file))
@@ -2185,9 +2189,18 @@ recursive calls to traverse.")
 
 (defmethod operation-description ((operation load-op) component)
   (declare (ignorable operation))
-  (format nil (compatfmt "~@<Loading ~3i~_~A~@:>")
+  (format nil (compatfmt "~@<loading ~3i~_~A~@:>")
 	  component))
 
+(defmethod operation-description ((operation load-op) (component cl-source-file))
+  (declare (ignorable operation))
+  (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>")
+	  component))
+
+(defmethod operation-description ((operation load-op) (component module))
+  (declare (ignorable operation))
+  (format nil (compatfmt "~@<loaded ~3i~_~A~@:>")
+	  component))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; load-source-op
@@ -2231,6 +2244,10 @@ recursive calls to traverse.")
   (declare (ignorable operation))
   (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>")
 	  component))
+
+(defmethod operation-description ((operation load-source-op) (component module))
+  (declare (ignorable operation))
+  (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") component))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -3965,7 +3982,7 @@ with a different configuration, so the configuration would be re-read then."
     (let ((*verbose-out* (make-broadcast-stream))
            (system (find-system (string-downcase name) nil)))
       (when system
-        (operate *require-asdf-operator* system)
+        (operate *require-asdf-operator* system :verbose nil)
         t))))
 
 #+(or abcl clisp clozure cmu ecl sbcl)
