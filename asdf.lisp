@@ -1,5 +1,5 @@
 ;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.12: Another System Definition Facility.
+;;; This is ASDF 2.014.13: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -91,7 +91,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
-  (defvar *asdf-verbose* t)
+  (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
          ;; can help you do these changes in synch (look at the source for documentation).
@@ -100,7 +100,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.12")
+         (asdf-version "2.014.13")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1640,15 +1640,14 @@ Host, device and version components are taken from DEFAULTS."
 ;;; one of these is instantiated whenever #'operate is called
 
 (defclass operation ()
-  (
-   ;; as of danb's 2003-03-16 commit e0d02781, :force can be:
-   ;; T to force the inside of existing system,
+  (;; as of danb's 2003-03-16 commit e0d02781, :force can be:
+   ;; T to force the inside of the specified system,
    ;;   but not recurse to other systems we depend on.
    ;; :ALL (or any other atom) to force all systems
    ;;   including other systems we depend on.
    ;; (SYSTEM1 SYSTEM2 ... SYSTEMN)
    ;;   to force systems named in a given list
-   ;; However, but this feature never worked before ASDF 1.700 and is currently cerror'ed out.
+   ;; However, but this feature has only ever worked but starting with ASDF 2.014.5
    (forced :initform nil :initarg :force :accessor operation-forced)
    (original-initargs :initform nil :initarg :original-initargs
                       :accessor operation-original-initargs)
@@ -1728,11 +1727,13 @@ class specifier, not an operation."
     (gethash node (operation-visiting-nodes (operation-ancestor o)))))
 
 (defmethod component-depends-on ((op-spec symbol) (c component))
+  ;; Note: we go from op-spec to operation via make-instance
+  ;; to allow for specialization through defmethod's, even though
+  ;; it's a detour in the default case below.
   (component-depends-on (make-instance op-spec) c))
 
 (defmethod component-depends-on ((o operation) (c component))
-  (cdr (assoc (class-name (class-of o))
-              (component-in-order-to c))))
+  (cdr (assoc (type-of o) (component-in-order-to c))))
 
 (defmethod component-self-dependencies ((o operation) (c component))
   (let ((all-deps (component-depends-on o c)))
@@ -2141,7 +2142,7 @@ recursive calls to traverse.")
        (setf state :success))
       (:failed-load
        (setf state :recompiled)
-       (perform (make-instance 'compile-op) c))
+       (perform (make-sub-operation c o c 'compile-op) c))
       (t
        (with-simple-restart
            (try-recompiling "Recompile ~a and try loading it again"
@@ -2225,13 +2226,9 @@ recursive calls to traverse.")
 ;;; FIXME: we simply copy load-op's dependencies.  this is Just Not Right.
 (defmethod component-depends-on ((o load-source-op) (c component))
   (declare (ignorable o))
-  (let ((what-would-load-op-do (cdr (assoc 'load-op
-                                           (component-in-order-to c)))))
-    (mapcar #'(lambda (dep)
-                (if (eq (car dep) 'load-op)
-                    (cons 'load-source-op (cdr dep))
-                    dep))
-            what-would-load-op-do)))
+  (loop :with what-would-load-op-do = (component-depends-on 'load-op c)
+    :for (op co) :in what-would-load-op-do
+    :when (eq op 'load-op) :collect (cons 'load-source-op co)))
 
 (defmethod operation-done-p ((o load-source-op) (c source-file))
   (declare (ignorable o))
