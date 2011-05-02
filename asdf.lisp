@@ -244,7 +244,7 @@
 
             #:component #:source-file
             #:c-source-file #:cl-source-file #:java-source-file
-            #:cl-source-file.cl #:cl-source-file.lisp
+            #:cl-source-file.cl #:cl-source-file.lsp
             #:static-file
             #:doc-file
             #:html-file
@@ -355,7 +355,7 @@
             #:subdirectories
             #:truenamize
             #:while-collecting)))
-	#+genera (import 'scl:boolean :asdf)
+        #+genera (import 'scl:boolean :asdf)
         (setf *asdf-version* asdf-version
               *upgraded-p* (if existing-version
                                (cons existing-version *upgraded-p*)
@@ -849,27 +849,27 @@ with given pathname and if it exists return its truename."
 #+scl
 (defun* directorize-pathname-host-device (pathname)
   (let ((scheme (ext:pathname-scheme pathname))
-	(host (pathname-host pathname))
-	(port (ext:pathname-port pathname))
-	(directory (pathname-directory pathname)))
+        (host (pathname-host pathname))
+        (port (ext:pathname-port pathname))
+        (directory (pathname-directory pathname)))
     (flet ((not-unspecific (component)
-	     (and (not (eq component :unspecific)) component)))
+             (and (not (eq component :unspecific)) component)))
       (cond ((or (not-unspecific port)
-		 (and (not-unspecific host) (plusp (length host)))
-		 (not-unspecific scheme))
-	     (let ((prefix ""))
-	       (when (not-unspecific port)
-		 (setf prefix (format nil ":~D" port)))
-	       (when (and (not-unspecific host) (plusp (length host)))
-		 (setf prefix (concatenate 'string host prefix)))
-	       (setf prefix (concatenate 'string ":" prefix))
-	       (when (not-unspecific scheme)
-	       (setf prefix (concatenate 'string scheme prefix)))
-	       (assert (and directory (eq (first directory) :absolute)))
-	       (make-pathname :directory `(:absolute ,prefix ,@(rest directory))
-			      :defaults pathname)))
-	    (t
-	     pathname)))))
+                 (and (not-unspecific host) (plusp (length host)))
+                 (not-unspecific scheme))
+             (let ((prefix ""))
+               (when (not-unspecific port)
+                 (setf prefix (format nil ":~D" port)))
+               (when (and (not-unspecific host) (plusp (length host)))
+                 (setf prefix (concatenate 'string host prefix)))
+               (setf prefix (concatenate 'string ":" prefix))
+               (when (not-unspecific scheme)
+               (setf prefix (concatenate 'string scheme prefix)))
+               (assert (and directory (eq (first directory) :absolute)))
+               (make-pathname :directory `(:absolute ,prefix ,@(rest directory))
+                              :defaults pathname)))
+            (t
+             pathname)))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
@@ -987,7 +987,7 @@ processed in order by OPERATE."))
          (declare (ignorable deleted plist))
          (when *asdf-verbose*
            (asdf-message (compatfmt "~&~@<; ~@;Updating ~A for ASDF ~A~@:>~%")
-			 m (asdf-version)))
+                         m (asdf-version)))
          (when (member 'components-by-name added)
            (compute-module-components-by-name m))
          (when (typep m 'system)
@@ -1033,20 +1033,20 @@ processed in order by OPERATE."))
    (pathname :initarg :pathname :reader error-pathname)
    (condition :initarg :condition :reader error-condition))
   (:report (lambda (c s)
-	     (format s (compatfmt "~@<Error while trying to load definition for system ~A from pathname ~A: ~3i~_~A~@:>")
-		     (error-name c) (error-pathname c) (error-condition c)))))
+             (format s (compatfmt "~@<Error while trying to load definition for system ~A from pathname ~A: ~3i~_~A~@:>")
+                     (error-name c) (error-pathname c) (error-condition c)))))
 
 (define-condition circular-dependency (system-definition-error)
   ((components :initarg :components :reader circular-dependency-components))
   (:report (lambda (c s)
-	     (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
-		     (circular-dependency-components c)))))
+             (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
+                     (circular-dependency-components c)))))
 
 (define-condition duplicate-names (system-definition-error)
   ((name :initarg :name :reader duplicate-names-name))
   (:report (lambda (c s)
-	     (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~A~@:>")
-		     (duplicate-names-name c)))))
+             (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~A~@:>")
+                     (duplicate-names-name c)))))
 
 (define-condition missing-component (system-definition-error)
   ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)
@@ -1423,8 +1423,8 @@ Going forward, we recommend new users should be using the source-registry.
                             (push dir to-remove))
                           (coerce-entry-to-directory ()
                             :report (lambda (s)
-				      (format s (compatfmt "~@<Coerce entry to ~a, replace ~a and continue.~@:>")
-					      (ensure-directory-pathname defaults) dir))
+                                      (format s (compatfmt "~@<Coerce entry to ~a, replace ~a and continue.~@:>")
+                                              (ensure-directory-pathname defaults) dir))
                             (push (cons dir (ensure-directory-pathname defaults)) to-replace))))))))
         ;; cleanup
         (dolist (dir to-remove)
@@ -1481,7 +1481,7 @@ Going forward, we recommend new users should be using the source-registry.
                                 :condition condition))))
            (let ((*package* package))
              (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
-			   pathname package)
+                           pathname package)
              (load pathname)))
       (delete-package package))))
 
@@ -1857,13 +1857,13 @@ recursive calls to traverse.")
                              required-op required-c required-v))
       (retry ()
         :report (lambda (s)
-		  (format s "~@<Retry loading ~3i~_~A.~@:>" required-c))
+                  (format s "~@<Retry loading ~3i~_~A.~@:>" required-c))
         :test
         (lambda (c)
-	  (or (null c)
-	      (and (typep c 'missing-dependency)
-		   (equalp (missing-requires c)
-			   required-c))))))))
+          (or (null c)
+              (and (typep c 'missing-dependency)
+                   (equalp (missing-requires c)
+                           required-c))))))))
 
 (defun* do-dep (operation c collect op dep)
   ;; type of arguments uncertain:
@@ -2032,7 +2032,7 @@ recursive calls to traverse.")
 
 (defmethod operation-description (operation component)
   (format nil (compatfmt "~@<~A on ~A~@:>")
-	  (class-of operation) component))
+          (class-of operation) component))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; compile-op
@@ -2198,17 +2198,17 @@ recursive calls to traverse.")
 (defmethod operation-description ((operation load-op) component)
   (declare (ignorable operation))
   (format nil (compatfmt "~@<loading ~3i~_~A~@:>")
-	  component))
+          component))
 
 (defmethod operation-description ((operation load-op) (component cl-source-file))
   (declare (ignorable operation))
   (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>")
-	  component))
+          component))
 
 (defmethod operation-description ((operation load-op) (component module))
   (declare (ignorable operation))
   (format nil (compatfmt "~@<loaded ~3i~_~A~@:>")
-	  component))
+          component))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; load-source-op
@@ -2247,7 +2247,7 @@ recursive calls to traverse.")
 (defmethod operation-description ((operation load-source-op) component)
   (declare (ignorable operation))
   (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>")
-	  component))
+          component))
 
 (defmethod operation-description ((operation load-source-op) (component module))
   (declare (ignorable operation))
@@ -2974,7 +2974,7 @@ located."
   (let ((forms (read-file-forms file)))
     (unless (length=n-p forms 1)
       (error (compatfmt "~@<One and only one form allowed for ~A. Got: ~3i~_~S~@:>~%")
-	     description forms))
+             description forms))
     (funcall validator (car forms) :location file)))
 
 (defun* hidden-file-p (pathname)
@@ -3230,7 +3230,7 @@ directive.")
           ((equal "" s)
            (when inherit
              (error (compatfmt "~@<Only one inherited configuration allowed: ~3i~_~S~@:>")
-		    string))
+                    string))
            (setf inherit t)
            (push :inherit-configuration directives))
           (t
@@ -3239,7 +3239,7 @@ directive.")
         (when (> start end)
           (when source
             (error (compatfmt "~@<Uneven number of components in source to destination mapping: ~3i~_~S~@:>")
-		   string))
+                   string))
           (unless inherit
             (push :ignore-inherited-configuration directives))
           (return `(:output-translations ,@(nreverse directives)))))))))
@@ -3734,7 +3734,7 @@ with a different configuration, so the configuration would be re-read then."
          ((equal "" s) ; empty element: inherit
           (when inherit
             (error (compatfmt "~@<Only one inherited configuration allowed: ~3i~_~S~@:>")
-		   string))
+                   string))
           (setf inherit t)
           (push ':inherit-configuration directives))
          ((ends-with s "//")
@@ -3898,7 +3898,7 @@ with a different configuration, so the configuration would be re-read then."
                  ((gethash name h) ; conflict at current level
                   (when *asdf-verbose*
                     (warn (compatfmt "~@<In source-registry entry ~A~@[/~*~] ~
-				found several entries for ~A - picking ~S over ~S~:>")
+                                found several entries for ~A - picking ~S over ~S~:>")
                           directory recurse name (gethash name h) asd)))
                  (t
                   (setf (gethash name registry) asd)
