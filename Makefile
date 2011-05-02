@@ -61,6 +61,7 @@ mrproper: clean
 test-upgrade:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then \
 		SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; \
+	mkdir -p tmp/ ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` ; do \
 	  echo "Testing upgrade from ASDF $${tag}" ; \
 	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \

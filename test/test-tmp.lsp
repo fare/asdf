@@ -5,6 +5,6 @@
 (defparameter *test-tmp-cl* t)
 
 (eval-when (:compile-toplevel :execute)
-  (format t "compiling test-tmp.cl~%"))
+  (format t "compiling test-tmp.lsp~%"))
 (eval-when (:load-toplevel :execute)
-  (format t "loading test-tmp.cl~%"))
+  (format t "loading test-tmp.lsp~%"))

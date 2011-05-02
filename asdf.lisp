@@ -1,5 +1,5 @@
-;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.14: Another System Definition Facility.
+;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
+;;; This is ASDF 2.014.15: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -48,6 +48,9 @@
 #+xcvb (module ())
 
 (cl:in-package #-genera :common-lisp-user #+genera :future-common-lisp-user)
+
+#-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl sbcl scl xcl)
+(error "ASDF is not supported on your implementation. Please help us with it.")
 
 #+gcl (defpackage :asdf (:use :cl)) ;; GCL treats defpackage magically and needs this
 
@@ -101,7 +104,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.14")
+         (asdf-version "2.014.15")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -149,7 +152,7 @@
            (remove-symbol (symbol package)
              (let ((sym (find-sym symbol package)))
                (when sym
-                 (unexport sym package)
+                 #-cormanlisp (unexport sym package)
                  (unintern sym package)
                  sym)))
            (ensure-unintern (package symbols)
@@ -400,6 +403,41 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (setf excl:*warn-on-nested-reader-conditionals* nil)))
 
 ;;;; -------------------------------------------------------------------------
+;;;; Resolve forward references
+
+(declaim (ftype (function (t) t)
+                format-arguments format-control
+                error-name error-pathname error-condition
+                duplicate-names-name
+                error-component error-operation
+                module-components module-components-by-name
+                circular-dependency-components
+                condition-arguments condition-form
+                condition-format condition-location
+                coerce-name)
+         #-cormanlisp
+         (ftype (function (t t) t) (setf module-components-by-name)))
+
+;;;; -------------------------------------------------------------------------
+;;;; Compatibility with Corman Lisp
+#+cormanlisp
+(progn
+  (deftype logical-pathname () nil)
+  (defun make-broadcast-stream () *error-output*)
+  (defun file-namestring (p)
+    (setf p (pathname p))
+    (format nil "~@[~A~]~@[.~A~]" (pathname-name p) (pathname-type p)))
+  (defparameter *count* 3)
+  (defun dbg (&rest x)
+    (format *error-output* "~S~%" x)))
+#+cormanlisp
+(defun maybe-break ()
+  (decf *count*)
+  (unless (plusp *count*)
+    (setf *count* 3)
+    (break)))
+
+;;;; -------------------------------------------------------------------------
 ;;;; General Purpose Utilities
 
 (macrolet
@@ -544,10 +582,10 @@ any of the characters in the sequence SEPARATOR.
 If MAX is specified, then no more than max(1,MAX) components will be returned,
 starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
-  (block nil
+  (catch nil
     (let ((list nil) (words 0) (end (length string)))
       (flet ((separatorp (char) (find char separator))
-             (done () (return (cons (subseq string 0 end) list))))
+             (done () (throw nil (cons (subseq string 0 end) list))))
         (loop
           :for start = (if (and max (>= words (1- max)))
                            (done)
@@ -631,6 +669,16 @@ pathnames."
   #+allegro (sys:getenv x)
   #+clozure (ccl:getenv x)
   #+(or cmu scl) (cdr (assoc x ext:*environment-list* :test #'string=))
+  #+cormanlisp
+  (let* ((buffer (ct:malloc 1))
+         (cname (ct:lisp-string-to-c-string x))
+         (needed-size (win:getenvironmentvariable cname buffer 0))
+         (buffer1 (ct:malloc (1+ needed-size))))
+    (prog1 (if (zerop (win:getenvironmentvariable cname buffer1 needed-size))
+               nil
+               (ct:c-string-to-lisp-string buffer1))
+      (ct:free buffer)
+      (ct:free buffer1)))
   #+ecl (si:getenv x)
   #+gcl (system:getenv x)
   #+genera nil
@@ -640,8 +688,8 @@ pathnames."
             (unless (ccl:%null-ptr-p value)
               (ccl:%get-cstring value))))
   #+sbcl (sb-ext:posix-getenv x)
-  #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl sbcl scl xcl)
-  (error "getenv not available on your implementation"))
+  #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl sbcl scl xcl)
+  (error "~S is not supported on your implementation" 'getenv))
 
 (defun* directory-pathname-p (pathname)
   "Does PATHNAME represent a directory?
@@ -748,12 +796,12 @@ actually-existing directory."
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
   (etypecase p
-   (null nil)
-   (string (probe-file* (parse-namestring p)))
-   (pathname (unless (wild-pathname-p p)
-               #.(or #+(or allegro clozure cmu ecl sbcl scl) '(probe-file p)
-                     #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
-                     '(ignore-errors (truename p)))))))
+    (null nil)
+    (string (probe-file* (parse-namestring p)))
+    (pathname (unless (wild-pathname-p p)
+                #.(or #+(or allegro clozure cmu cormanlisp ecl sbcl scl) '(probe-file p)
+                      #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
+                      '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
   "Resolve as much of a pathname as possible"
@@ -809,10 +857,11 @@ with given pathname and if it exists return its truename."
 (defun* lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
 
+(defparameter *wild* #-cormanlisp :wild #+cormanlisp "*")
 (defparameter *wild-file*
-  (make-pathname :name :wild :type :wild :version :wild :directory nil))
+  (make-pathname :name *wild* :type *wild* :version *wild* :directory nil))
 (defparameter *wild-directory*
-  (make-pathname :directory '(:relative :wild) :name nil :type nil :version nil))
+  (make-pathname :directory `(:relative ,*wild*) :name nil :type nil :version nil))
 (defparameter *wild-inferiors*
   (make-pathname :directory '(:relative :wild-inferiors) :name nil :type nil :version nil))
 (defparameter *wild-path*
@@ -905,6 +954,9 @@ another pathname in a degenerate way."))
 (defgeneric* component-property (component property))
 
 (defgeneric* (setf component-property) (new-value component property))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defgeneric* (setf module-components-by-name) (new-value module)))
 
 (defgeneric* version-satisfies (component version))
 
@@ -1008,19 +1060,6 @@ processed in order by OPERATE."))
   ;; run-time.  fortunately, inheritance means we only need this kludge here in
   ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
   #+cmu (:report print-object))
-
-(declaim (ftype (function (t) t)
-                format-arguments format-control
-                error-name error-pathname error-condition
-                duplicate-names-name
-                error-component error-operation
-                module-components module-components-by-name
-                circular-dependency-components
-                condition-arguments condition-form
-                condition-format condition-location
-                coerce-name)
-         (ftype (function (t t) t) (setf module-components-by-name)))
-
 
 (define-condition formatted-system-definition-error (system-definition-error)
   ((format-control :initarg :format-control :reader format-control)
@@ -1456,7 +1495,7 @@ Going forward, we recommend new users should be using the source-registry.
   ;; and we can survive and we will continue the planning
   ;; as if the file were very old.
   ;; (or should we treat the case in a different, special way?)
-  (or (and pathname (probe-file* pathname) (file-write-date pathname))
+  (or (and pathname (probe-file* pathname) (ignore-errors (file-write-date pathname)))
       (progn
         (when (and pathname *asdf-verbose*)
           (warn (compatfmt "~@<Missing FILE-WRITE-DATE for ~S, treating it as zero.~@:>")
@@ -1499,7 +1538,8 @@ Going forward, we recommend new users should be using the source-registry.
       (setf pathname (ensure-pathname-absolute pathname))
       (when found-system
         (%set-system-source-file pathname found-system)))
-    (when (and previous (not (equal (system-source-file previous) pathname)))
+    (when (and previous (not (#-cormanlisp equal #+cormanlisp equalp
+                              (system-source-file previous) pathname)))
       (%set-system-source-file pathname previous)
       (setf previous-time nil))
     (when (and found-system (not previous))
@@ -2470,7 +2510,9 @@ details."
                              (find-symbol* type *package*)
                              (find-symbol* type :asdf))
         :for class = (and symbol (find-class symbol nil))
-        :when (and class (subtypep class 'component))
+        :when (and class
+                   (#-cormanlisp subtypep #+cormanlisp cl::subclassp
+                                 class (find-class 'component)))
         :return class)
       (and (eq type :file)
            (or (module-default-component-class parent)
@@ -2787,14 +2829,13 @@ located."
 (defparameter *architecture-features*
   '((:amd64 :x86-64 :x86_64 :x8664-target)
     (:x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
-    :hppa64
-    :hppa
-    (:ppc64 :ppc64-target)
-    (:ppc32 :ppc32-target :ppc :powerpc)
-    :sparc64
-    (:sparc32 :sparc)
+    :hppa64 :hppa
+    (:ppc64 :ppc64-target) (:ppc32 :ppc32-target :ppc :powerpc)
+    :sparc64 (:sparc32 :sparc)
     (:arm :arm-target)
     (:java :java-1.4 :java-1.5 :java-1.6 :java-1.7)
+    :mipsel :mipseb :mips
+    :alpha
     :imach))
 
 (defun* lisp-version-string ()
@@ -3400,6 +3441,7 @@ effectively disabling the output translation facility."
 
 (defun* apply-output-translations (path)
   (etypecase path
+    #+cormanlisp (t (truenamize path))
     (logical-pathname
      path)
     ((or pathname string)
@@ -3633,7 +3675,7 @@ with a different configuration, so the configuration would be re-read then."
   (values))
 
 (defparameter *wild-asd*
-  (make-pathname :directory nil :name :wild :type "asd" :version :newest))
+  (make-pathname :directory nil :name *wild* :type "asd" :version :newest))
 
 (defun directory-asd-files (directory)
   (ignore-errors
@@ -3984,7 +4026,7 @@ with a different configuration, so the configuration would be re-read then."
                   (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
                           name e))))
     (let ((*verbose-out* (make-broadcast-stream))
-           (system (find-system (string-downcase name) nil)))
+          (system (find-system (string-downcase name) nil)))
       (when system
         (operate *require-asdf-operator* system :verbose nil)
         t))))
