@@ -171,9 +171,15 @@ the ASDF internals and how to extend ASDF.
 
 @emph{Nota Bene}:
 We have released ASDF 2.000 on May 31st 2010.
-It hopefully will have been it included
-in all CL maintained implementations shortly afterwards.
+Subsequent releases of ASDF 2 have since then been included
+in all actively maintained CL implementations that bundle ASDF,
+and made to work with all actively used CL implementations and a few more.
 @xref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
+Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 on the fly.
+For this reason, we have stopped supporting ASDF 1;
+if you are using ASDF 1 and are experiencing any kind of issues or limitations,
+we recommend you upgrade to ASDF 2
+--- and we explain how to do it. @xref{Loading ASDF}.
 
 
 @node Loading ASDF, Configuring ASDF, Introduction, Top
@@ -311,7 +317,7 @@ that depends on a more recent version of ASDF,
 since the new one might shadow the old one while the old one is running,
 and the running old one will be confused
 when extensions are loaded into the new one.
-We recommend that your systems should @emph{not} specify
+In the meantime, we recommend that your systems should @emph{not} specify
 @code{:depends-on (:asdf)}, or @code{:depends-on ((:version :asdf "2.010"))},
 but instead that they check that a recent enough ASDF is installed,
 with such code as:
@@ -1721,18 +1727,16 @@ We create a subclass of
   ())
 @end lisp
 
-A hypothetical function @code{system-dependent-dirname}
+Function @code{asdf:implementation-type} (exported since 2.014.14)
 gives us the name of the subdirectory.
 All that's left is to define how to calculate the pathname
 of an @code{unportable-cl-source-file}.
 
 @lisp
 (defmethod component-pathname ((component unportable-cl-source-file))
-  (let ((pathname (call-next-method))
-        (name (string-downcase (system-dependent-dirname))))
-    (merge-pathnames*
-     (make-pathname :directory (list :relative name))
-     pathname)))
+  (merge-pathnames*
+   (coerce-pathname (format nil "~(~A~)/" (asdf:implementation-type)))
+   (call-next-method)))
 @end lisp
 
 The new component type is used in a @code{defsystem} form in this way:
@@ -2740,7 +2744,8 @@ useful for system definition and development. These include:
 
 @defun coerce-pathname name @&key type defaults
 
-This function takes an argument, and portably interprets it as a pathname.
+This function (available starting with ASDF 2.012.11)
+takes an argument, and portably interprets it as a pathname.
 If the argument @var{name} is a pathname or @code{nil}, it is passed through;
 if it's a symbol, it's interpreted as a string by downcasing it;
 if it's a string, it is first separated using @code{/} into substrings;
@@ -3159,8 +3164,8 @@ and you would
 @code{(defmethod source-file-type ((component cl-source-file) (system (eql (find-system 'foo))))
   (declare (ignorable component system)) "cl")}.
 Now, the pathname for a component is eagerly computed when defining the system,
-and instead you will @code{(defclass my-cl-source-file (cl-source-file) ((type :initform "cl")))}
-and use @code{:default-component-class my-cl-source-file} as argument to @code{defsystem},
+and instead you will @code{(defclass cl-source-file.lis (cl-source-file) ((type :initform "lis")))}
+and use @code{:default-component-class cl-source-file.lis} as argument to @code{defsystem},
 as detailed in a @pxref{FAQ,How do I create a system definition where all the source files have a .cl extension?} below.
 
 @findex source-file-type
@@ -3435,35 +3440,71 @@ or as a name component plus optional dot-separated type component
 
 @subsection How do I create a system definition where all the source files have a .cl extension?
 
-First, create a new @code{cl-source-file} subclass that provides an
-initform for the @code{type} slot:
-
-@lisp
-(defclass my-cl-source-file (cl-source-file)
-   ((type :initform "cl")))
-@end lisp
-
-To support both ASDF 1 and ASDF 2,
-you may omit the above @code{type} slot definition and instead define:
-
-@lisp
-(defmethod source-file-type ((f my-cl-source-file) (m module))
-  (declare (ignorable f m))
-  "cl")
-@end lisp
-
-Then make your system use this subclass in preference to the standard one:
+Starting with ASDF 2.014.14, you may just pass
+the builtin class @code{cl-source-file.cl} as
+the @code{:default-component-class} argument to @code{defsystem}:
 
 @lisp
 (defsystem my-cl-system
-  :default-component-class my-cl-source-file
-   ....
-)
+  :default-component-class cl-source-file.cl
+  ...)
 @end lisp
 
-We assume that these definitions are loaded into a package that uses
-@code{ASDF} --- which will be the case by default
-if your @file{.asd} file doesn't specify an @code{in-package} statement.
+Another builtin class @code{cl-source-file.lsp} is offered
+for files ending in @file{.lsp}.
+
+If you want to use a different extension
+for which ASDF doesn't provide builtin support,
+or want to support versions of ASDF
+earlier than 2.014.14 (but later than 2.000),
+you can define a class as follows:
+
+@lisp
+;; Prologue: make sure we're using a sane package.
+(defpackage :my-asdf-extension
+   (:use :asdf :common-lisp)
+   (:export #:cl-source-file.lis))
+(in-package :my-asdf-extension)
+
+(defclass cl-source-file.lis (cl-source-file)
+   ((type :initform "lis")))
+@end lisp
+
+Then you can use it as follows:
+@lisp
+(defsystem my-cl-system
+  :default-component-class my-asdf-extension:cl-source-file.lis
+  ...)
+@end lisp
+
+Of course, if you're in the same package, e.g. in the same file,
+you won't need to use the package qualifier before @code{cl-source-file.lis}.
+Actually, if all you're doing is defining this class
+and using it in the same file without other fancy definitions,
+you might skip package complications:
+
+@lisp
+(in-package :asdf)
+(defclass cl-source-file.lis (cl-source-file)
+   ((type :initform "lis")))
+(defsystem my-cl-system
+  :default-component-class cl-source-file.lis
+  ...)
+@end lisp
+
+It is possible to achieve the same effect
+in a way that supports both ASDF 1 and ASDF 2,
+but really, friends don't let friends use ASDF 1.
+Please upgrade to ASDF 2.
+In short, though: do same as above, but
+@emph{before} you use the class in a @code{defsystem},
+you also define the following method:
+
+@lisp
+(defmethod source-file-type ((f cl-source-file.lis) (m module))
+  (declare (ignorable f m))
+  "lis")
+@end lisp
 
 
 @node  TODO list, Inspiration, FAQ, Top
