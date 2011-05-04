@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.15: Another System Definition Facility.
+;;; This is ASDF 2.014.16: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -104,7 +104,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.15")
+         (asdf-version "2.014.16")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -842,6 +842,11 @@ with given pathname and if it exists return its truename."
                 path
                 (excl:pathname-resolve-symbolic-links path)))
 
+(defun* resolve-symlinks* (path)
+  (if *resolve-symlinks*
+      (and path (resolve-symlinks path))
+      path))
+
 (defun ensure-pathname-absolute (path)
   (cond
     ((absolute-pathname-p path) path)
@@ -1534,6 +1539,7 @@ Going forward, we recommend new users should be using the source-registry.
          (pathname (or (and (typep found '(or pathname string)) (pathname found))
                        (and found-system (system-source-file found-system))
                        (and previous (system-source-file previous)))))
+    (setf pathname (resolve-symlinks* pathname))
     (when (and pathname (not (absolute-pathname-p pathname)))
       (setf pathname (ensure-pathname-absolute pathname))
       (when found-system
@@ -2457,10 +2463,7 @@ details."
 ;;;; Defsystem
 
 (defun* load-pathname ()
-  (let ((pn (or *load-pathname* *compile-file-pathname*)))
-    (if *resolve-symlinks*
-        (and pn (resolve-symlinks pn))
-        pn)))
+  (resolve-symlinks* (or *load-pathname* *compile-file-pathname*)))
 
 (defun* determine-system-pathname (pathname pathname-supplied-p)
   ;; The defsystem macro calls us to determine
