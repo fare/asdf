@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.014.16: Another System Definition Facility.
+;;; This is ASDF 2.014.17: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -75,27 +75,27 @@
 ;;;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;;; See more near the end of the file.
 
-;;; Strip out formatting that is not supported on Genera.
-(defmacro compatfmt (format)
-  #-genera format
-  #+genera
-  (loop :for (unsupported . replacement) :in
-    '(("~@<" . "")
-      ("; ~@;" . "; ")
-      ("~3i~_" . "")
-      ("~@:>" . "")
-      ("~:>" . "")) :do
-    (loop :for found = (search unsupported format) :while found :do
-      (setf format
-            (concatenate 'simple-string
-                         (subseq format 0 found) replacement
-                         (subseq format (+ found (length unsupported)))))))
-  format)
-
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
+  ;; Strip out formatting that is not supported on Genera.
+  ;; Has to be inside the eval-when to make Lispworks happy (!)
+  (defmacro compatfmt (format)
+    #-genera format
+    #+genera
+    (loop :for (unsupported . replacement) :in
+      '(("~@<" . "")
+        ("; ~@;" . "; ")
+        ("~3i~_" . "")
+        ("~@:>" . "")
+        ("~:>" . "")) :do
+      (loop :for found = (search unsupported format) :while found :do
+        (setf format
+              (concatenate 'simple-string
+                           (subseq format 0 found) replacement
+                           (subseq format (+ found (length unsupported)))))))
+    format)
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
          ;; can help you do these changes in synch (look at the source for documentation).
@@ -104,7 +104,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.014.16")
+         (asdf-version "2.014.17")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))

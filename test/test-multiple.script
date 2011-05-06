@@ -1,0 +1,16 @@
+;;; -*- Lisp -*-
+(load "script-support.lisp")
+(load-asdf)
+
+(quit-on-error
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (asdf:load-system 'test-multiple)
+ (let* ((asd (asdf:merge-pathnames* (asdf:coerce-pathname "test-multiple.asd")
+                                    *test-directory*))
+        (asd2 (asdf:merge-pathnames* (asdf:coerce-pathname "../tmp/test-multiple-too.asd")
+                                     *test-directory*))
+        (file1 (asdf:compile-file-pathname* "file1")))
+   (assert (= 0 (asdf:run-shell-command
+                 (format nil "/bin/ln -sf ~A ~A" asd asd2))))
+   (asdf:load-system 'test-multiple-too)
+   (assert (asdf::probe-file* file1))))

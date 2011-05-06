@@ -38,6 +38,7 @@ tmp/
 *.x86f
 *.bak
 *.data
+*.ufasl
 test/try-reloading-dependency.asd
 test/fileMissing.lisp
 
