@@ -1,3 +1,33 @@
+cl-asdf (2:2.015-1) unstable; urgency=low
+
+  Promoting 2.014.17 as 2.015. Since 2.014, we have the following improvements:
+  * Portability: support cormanlisp, xcl;
+    fixes for cmucl, ecl; tweaks for abcl, allegro, clisp, genera, lispworks.
+  * Feature: un-cerror and actually fix the :force '(sys1 sys2 sys3) feature,
+    introduced in 2002 and never working before.
+  * Feature: classes asdf:cl-source-file.cl and asdf:cl-source-file.lsp
+    for people who use these file type extensions.
+  * Semantic change: the source-registry eagerly gathers a list of .asd,
+    rather than querying the filesystem over and over again.
+  * API change: exposing function asdf:search-for-system-definition as looking
+    through asdf:*system-definition-search-functions* for either pathnames *or*
+    (new feature) system objects. Should make quicklisp happier.
+  * Better support for asdf upgrading itself, with new function
+    asdf:upgrade-asdf that knows to invalidate old systems when necessary,
+    and is magically invoked before to build any system that :depends-on asdf.
+    Make upgrade smoother some cases that were previously broken.
+  * More robust handling of version strings.
+  * Declaring function asdf:system-definition-pathname obsolete, but still
+    supporting it for now, as an alias for asdf:system-source-file.
+  * Various refactorings of internals. Splitting a function asdf::perform-plan
+    out of the default asdf:operate method.
+    asdf::register-system now takes only one argument.
+  * Tests to prevent the regressions experienced during this development cycle
+  * Tried and reverted: attempts to make asdf more verbose when it's verbose,
+    but not verbose by default.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sat, 07 May 2011 14:34:40 -0400
+
 cl-asdf (2:2.014.3-1) unstable; urgency=low
 
   * yet another debian package attempt
