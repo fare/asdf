@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.015.3: Another System Definition Facility.
+;;; This is ASDF 2.015.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -104,7 +104,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.015.3")
+         (asdf-version "2.015.4")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2950,8 +2950,19 @@ located."
   #+asdf-unix #\:
   #-asdf-unix #\;)
 
+;; Note: ASDF may expect user-homedir-pathname to provide the pathname of
+;; the current user's home directory, while MCL by default provides the
+;; directory from which MCL was started.
+;; See http://code.google.com/p/mcl/wiki/Portability
+#.(or #+mcl ;; the #$ doesn't work on other implementations, even inside #+mcl
+      `(defun current-user-homedir-pathname ()
+         ,(read-from-string "(ccl::findfolder #$kuserdomain #$kCurrentUserFolderType))")))
+
 (defun* user-homedir ()
-  (truenamize (pathname-directory-pathname (user-homedir-pathname))))
+  (truenamize
+   (pathname-directory-pathname
+    #+mcl (current-user-homedir-pathname)
+    #-mcl (user-homedir-pathname))))
 
 (defun* try-directory-subpath (x sub &key type)
   (let* ((p (and x (ensure-directory-pathname x)))

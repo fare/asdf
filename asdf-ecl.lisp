@@ -1,4 +1,4 @@
-;;; Copyright (c) 2005, Michael Goffioul (michael dot goffioul at swing dot be)
+;;; Copyright (c) 2005-2011 Michael Goffioul (michael dot goffioul at swing dot be)
 ;;;
 ;;;   This program is free software; you can redistribute it and/or
 ;;;   modify it under the terms of the GNU Library General Public
@@ -345,12 +345,10 @@
   ())
 
 (defun binary-op-dependencies (o s)
-  (let (lib-op fasl-op)
-    (if (bundle-op-monolithic-p o)
-        (setf lib-op 'monolithic-lib-op
-              fasl-op 'monolithic-fasl-op)
-        (setf lib-op 'lib-op
-              fasl-op 'fasl-op))
+  (multiple-value-bind (lib-op fasl-op)
+      (if (bundle-op-monolithic-p o)
+          (values 'monolithic-lib-op 'monolithic-fasl-op)
+          (values 'lib-op 'fasl-op))
     (list (list (make-instance lib-op :args (bundle-op-build-args o))
                 s)
           (list (make-instance fasl-op :args (bundle-op-build-args o))
@@ -405,7 +403,7 @@
 (push '("fasb" . si::load-binary) si::*load-hooks*)
 
 (defun register-pre-built-system (name)
-  (register-system name (make-instance 'system :name name :source-file nil)))
+  (register-system (make-instance 'system :name name :source-file nil)))
 
 (setf si::*module-provider-functions*
       (loop :for f :in si::*module-provider-functions*
