@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.015.4: Another System Definition Facility.
+;;; This is ASDF 2.015.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -79,6 +79,8 @@
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
+  (defun find-symbol* (s p)
+    (find-symbol (string s) p))
   ;; Strip out formatting that is not supported on Genera.
   ;; Has to be inside the eval-when to make Lispworks happy (!)
   (defmacro compatfmt (format)
@@ -104,7 +106,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.015.4")
+         (asdf-version "2.015.5")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -115,7 +117,7 @@
                 existing-version asdf-version))
       (labels
           ((present-symbol-p (symbol package)
-             (member (nth-value 1 (find-sym symbol package)) '(:internal :external)))
+             (member (nth-value 1 (find-symbol* symbol package)) '(:internal :external)))
            (present-symbols (package)
              ;; #-genera (loop :for s :being :the :present-symbols :in package :collect s) #+genera
              (let (l)
@@ -145,12 +147,10 @@
                     p)
                    (t
                     (make-package name :nicknames nicknames :use use))))))
-           (find-sym (symbol package)
-             (find-symbol (string symbol) package))
            (intern* (symbol package)
              (intern (string symbol) package))
            (remove-symbol (symbol package)
-             (let ((sym (find-sym symbol package)))
+             (let ((sym (find-symbol* symbol package)))
                (when sym
                  #-cormanlisp (unexport sym package)
                  (unintern sym package)
@@ -161,19 +161,19 @@
                :for removed = (remove-symbol sym package)
                :when removed :do
                (loop :for p :in packages :do
-                 (when (eq removed (find-sym sym p))
+                 (when (eq removed (find-symbol* sym p))
                    (unintern removed p)))))
            (ensure-shadow (package symbols)
              (shadow symbols package))
            (ensure-use (package use)
              (dolist (used (reverse use))
                (do-external-symbols (sym used)
-                 (unless (eq sym (find-sym sym package))
+                 (unless (eq sym (find-symbol* sym package))
                    (remove-symbol sym package)))
                (use-package used package)))
            (ensure-fmakunbound (package symbols)
              (loop :for name :in symbols
-               :for sym = (find-sym name package)
+               :for sym = (find-symbol* name package)
                :when sym :do (fmakunbound sym)))
            (ensure-export (package export)
              (let ((formerly-exported-symbols nil)
@@ -189,7 +189,7 @@
                (loop :for user :in (package-used-by-list package)
                  :for shadowing = (package-shadowing-symbols user) :do
                  (loop :for new :in newly-exported-symbols
-                   :for old = (find-sym new user)
+                   :for old = (find-symbol* new user)
                    :when (and old (not (member old shadowing)))
                    :do (unintern old user)))
                (loop :for x :in newly-exported-symbols :do
@@ -555,7 +555,8 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
 and NIL NAME, TYPE and VERSION components"
   (when pathname
     (make-pathname :name nil :type nil :version nil
-                   :directory (merge-pathname-directory-components '(:relative :back) (pathname-directory pathname))
+                   :directory (merge-pathname-directory-components
+                               '(:relative :back) (pathname-directory pathname))
                    :defaults pathname)))
 
 
@@ -786,11 +787,9 @@ actually-existing directory."
 (defun* pathname-root (pathname)
   (make-pathname :directory '(:absolute)
                  :name nil :type nil :version nil
-                 :defaults pathname ;; host device, and on scl scheme scheme-specific-part port username password
+                 :defaults pathname ;; host device, and on scl, *some*
+                 ;; scheme-specific parts: port username password, not others:
                  . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
-
-(defun* find-symbol* (s p)
-  (find-symbol (string s) p))
 
 (defun* probe-file* (p)
   "when given a pathname P, probes the filesystem for a file or directory
@@ -800,7 +799,8 @@ with given pathname and if it exists return its truename."
     (string (probe-file* (parse-namestring p)))
     (pathname (unless (wild-pathname-p p)
                 #.(or #+(or allegro clozure cmu cormanlisp ecl sbcl scl) '(probe-file p)
-                      #+clisp (aif (find-symbol (string '#:probe-pathname) :ext) `(ignore-errors (,it p)))
+                      #+clisp (aif (find-symbol* '#:probe-pathname :ext)
+                                   `(ignore-errors (,it p)))
                       '(ignore-errors (truename p)))))))
 
 (defun* truenamize (p)
@@ -864,7 +864,8 @@ with given pathname and if it exists return its truename."
 
 (defparameter *wild* #-cormanlisp :wild #+cormanlisp "*")
 (defparameter *wild-file*
-  (make-pathname :name *wild* :type *wild* :version *wild* :directory nil))
+  (make-pathname :name *wild* :type *wild*
+                 :version (or #-(or abcl xcl) *wild*) :directory nil))
 (defparameter *wild-directory*
   (make-pathname :directory `(:relative ,*wild*) :name nil :type nil :version nil))
 (defparameter *wild-inferiors*
@@ -1134,7 +1135,10 @@ processed in order by OPERATE."))
 (defclass component ()
   ((name :accessor component-name :initarg :name :type string :documentation
          "Component name: designator for a string composed of portable pathname characters")
-   (version :accessor component-version :initarg :version) ;; :type (and string (satisfies parse-version)) -- not until we fix all systems that don't use it correctly!
+   ;; We might want to constrain version with
+   ;; :type (and string (satisfies parse-version))
+   ;; but we cannot until we fix all systems that don't use it correctly!
+   (version :accessor component-version :initarg :version)
    (description :accessor component-description :initarg :description)
    (long-description :accessor component-long-description :initarg :long-description)
    ;; This one below is used by POIU - http://www.cliki.net/poiu
@@ -1689,7 +1693,6 @@ Host, device and version components are taken from DEFAULTS."
              (t
               (split-name-type filename)))
          (apply 'make-pathname :directory (cons relative path) :name name :type type
-                ;; XCL 0.0.0.291 and ABCL 0.25 have a bug, whereby make-pathname merges directories like merge-pathnames when a :defaults is provided. Fixed in the latest XCL.
                 (when defaults `(:defaults ,defaults))))))))
 
 (defun* merge-component-name-type (name &key type defaults)
@@ -2294,7 +2297,7 @@ recursive calls to traverse.")
   (declare (ignorable operation c))
   nil)
 
-;;; FIXME: we simply copy load-op's dependencies.  this is Just Not Right.
+;;; FIXME: We simply copy load-op's dependencies.  This is Just Not Right.
 (defmethod component-depends-on ((o load-source-op) (c component))
   (declare (ignorable o))
   (loop :with what-would-load-op-do = (component-depends-on 'load-op c)
@@ -2410,9 +2413,8 @@ recursive calls to traverse.")
         (error 'missing-component-of-version :requires system :version version))
       (let ((steps (traverse op system)))
         (when (and (not (equal '("asdf") (component-find-path system)))
-                   (find-if #'(lambda (x) (equal '("asdf")
-                                                 (component-find-path (cdr x))))
-                            steps)
+                   (find '("asdf") (mapcar 'cdr steps)
+                         :test 'equal :key 'component-find-path)
                    (upgrade-asdf))
           ;; If we needed to upgrade ASDF to achieve our goal,
           ;; then do it specially as the first thing, then
@@ -3065,7 +3067,8 @@ located."
                              #+clozure '(:follow-links nil)
                              #+clisp '(:circle t :if-does-not-exist :ignore)
                              #+(or cmu scl) '(:follow-links nil :truenamep nil)
-                             #+sbcl (when (find-symbol "RESOLVE-SYMLINKS" "SB-IMPL") '(:resolve-symlinks nil))))))
+                             #+sbcl (when (find-symbol* :resolve-symlinks '#:sb-impl)
+                                      '(:resolve-symlinks nil))))))
 
 (defun* validate-configuration-directory (directory tag validator &key invalid-form-reporter)
   "Map the VALIDATOR across the .conf files in DIRECTORY, the TAG will
@@ -3336,8 +3339,9 @@ directive.")
     ;; so we must disable translations for implementation paths.
     #+sbcl ,(let ((h (getenv "SBCL_HOME")))
                  (when (plusp (length h)) `((,(truenamize h) ,*wild-inferiors*) ())))
-    #+ecl (,(translate-logical-pathname "SYS:**;*.*") ()) ; not needed: no precompiled ASDF system
-    #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ())) ; not needed: no precompiled ASDF system
+    ;; The below two are not needed: no precompiled ASDF system there
+    ;; #+ecl (,(translate-logical-pathname "SYS:**;*.*") ())
+    ;; #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ()))
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
     ;; These are for convenience, and can be overridden by the user:
@@ -3424,8 +3428,9 @@ directive.")
                   ((eq dst t)
                    (funcall collect (list trusrc t)))
                   (t
-                   (let* ((trudst (make-pathname
-                                   :defaults (if dst (resolve-location dst :directory t :wilden t) trusrc)))
+                   (let* ((trudst (if dst
+                                      (resolve-location dst :directory t :wilden t)
+                                      trusrc))
                           (wilddst (merge-pathnames* *wild-file* trudst)))
                      (funcall collect (list wilddst t))
                      (funcall collect (list trusrc trudst)))))))))))
@@ -3592,7 +3597,7 @@ call that function where you would otherwise have loaded and configured A-B-L.")
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on ECL and CLISP"))
   (let* ((fasl-type (pathname-type (compile-file-pathname "foo.lisp")))
          (mapped-files (if map-all-source-files *wild-file*
-                           (make-pathname :name :wild :version :wild :type fasl-type)))
+                           (make-pathname :type fasl-type :defaults *wild-file*)))
          (destination-directory
           (if centralize-lisp-binaries
               `(,default-toplevel-directory
@@ -3626,8 +3631,7 @@ call that function where you would otherwise have loaded and configured A-B-L.")
       :do (write-char (code-char code) out))))
 
 (defun* read-little-endian (s &optional (bytes 4))
-  (loop
-    :for i :from 0 :below bytes
+  (loop :for i :from 0 :below bytes
     :sum (ash (read-byte s) (* 8 i))))
 
 (defun* parse-file-location-info (s)
@@ -3694,7 +3698,7 @@ call that function where you would otherwise have loaded and configured A-B-L.")
     ;; "~.dep" "~.dot" "~.nib" "~.plst" ; we don't support ack wildcards
     ".git" ".hg" ".pc" ".svn" "CVS" "RCS" "SCCS" "_darcs"
     "_sgbak" "autom4te.cache" "cover_db" "_build"
-    "debian")) ;; debian often build stuff under the debian directory... BAD.
+    "debian")) ;; debian often builds stuff under the debian directory... BAD.
 
 (defvar *source-registry-exclusions* *default-source-registry-exclusions*)
 
@@ -3721,20 +3725,20 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun subdirectories (directory)
   (let* ((directory (ensure-directory-pathname directory))
-         #-(or cormanlisp genera xcl)
+         #-(or abcl cormanlisp genera xcl)
          (wild (merge-pathnames*
                 #-(or abcl allegro cmu lispworks scl xcl)
                 *wild-directory*
                 #+(or abcl allegro cmu lispworks scl xcl) "*.*"
                 directory))
          (dirs
-          #-(or cormanlisp genera xcl)
+          #-(or abcl cormanlisp genera xcl)
           (ignore-errors
             (directory* wild . #.(or #+clozure '(:directories t :files nil)
                                      #+mcl '(:directories t))))
+          #+(or abcl xcl) (system:list-directory directory)
           #+cormanlisp (cl::directory-subdirs directory)
-          #+genera (fs:directory-list directory)
-          #+xcl (system:list-directory directory))
+          #+genera (fs:directory-list directory))
          #+(or abcl allegro cmu genera lispworks scl xcl)
          (dirs (loop :for x :in dirs
                  :for d = #+(or abcl xcl) (extensions:probe-directory x)
