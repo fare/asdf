@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.015.5: Another System Definition Facility.
+;;; This is ASDF 2.015.6: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -106,7 +106,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.015.5")
+         (asdf-version "2.015.6")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2973,29 +2973,34 @@ located."
          (ts (and sp (probe-file* sp))))
     (and ts (values sp ts))))
 (defun* user-configuration-directories ()
-  (remove-if
-   #'null
-   (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
-     `(,(try (getenv "XDG_CONFIG_HOME") "common-lisp/")
-       ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
-           :for dir :in (split-string dirs :separator ":")
-           :collect (try dir "common-lisp/"))
-       #+asdf-windows
-        ,@`(#+lispworks ,(try (sys:get-folder-path :common-appdata) "common-lisp/config/")
-            ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
-           ,(try (getenv "APPDATA") "common-lisp/config/"))
-       ,(try (user-homedir) ".config/common-lisp/")))))
+  (let ((dirs
+         (flet ((try (x sub) (try-directory-subpath x sub)))
+           `(,(try (getenv "XDG_CONFIG_HOME") "common-lisp/")
+             ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
+                 :for dir :in (split-string dirs :separator ":")
+                 :collect (try dir "common-lisp/"))
+             #+asdf-windows
+             ,@`(,(try (or #+lispworks (sys:get-folder-path :local-appdata)
+                           (getenv "LOCALAPPDATA"))
+                       "common-lisp/config/")
+                 ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
+                 ,(try (or #+lispworks (sys:get-folder-path :appdata)
+                           (getenv "APPDATA"))
+                           "common-lisp/config/"))
+             ,(try (user-homedir) ".config/common-lisp/")))))
+    (remove-duplicates (remove-if #'null dirs) :from-end t :test 'equal)))
 (defun* system-configuration-directories ()
   (remove-if
    #'null
-   (append
-    #+asdf-windows
-    (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
-      `(,@`(#+lispworks ,(try (sys:get-folder-path :local-appdata) "common-lisp/config/")
-           ;;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
-        ,(try (getenv "ALLUSERSPROFILE") "Application Data/common-lisp/config/"))))
-    #+asdf-unix
-    (list #p"/etc/common-lisp/"))))
+   `(#+asdf-windows
+     ,(flet ((try (x sub) (try-directory-subpath x sub)))
+        ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
+        (try (or #+lispworks (sys:get-folder-path :common-appdata)
+                 (getenv "COMMONAPPDATA")
+                 (try (getenv "ALLUSERSPROFILE") "Application Data/"))
+             "common-lisp/config/"))
+     #+asdf-unix #p"/etc/common-lisp/")))
+
 (defun* in-first-directory (dirs x)
   (loop :for dir :in dirs
     :thereis (and dir (probe-file* (merge-pathnames* x (ensure-directory-pathname dir))))))
@@ -3114,7 +3119,11 @@ and the order is by decreasing length of namestring of the source pathname.")
     (or
      (try (getenv "XDG_CACHE_HOME") "common-lisp" :implementation)
      #+asdf-windows
-     (try (getenv "APPDATA") "common-lisp" "cache" :implementation)
+     (try (or #+lispworks (sys:get-folder-path :local-appdata)
+              (getenv "LOCALAPPDATA")
+              #+lispworks (sys:get-folder-path :appdata)
+              (getenv "APPDATA"))
+          "common-lisp" "cache" :implementation)
      '(:home ".cache" "common-lisp" :implementation))))
 (defvar *system-cache*
   ;; No good default, plus there's a security problem
@@ -3213,7 +3222,10 @@ directive.")
                                    :default-directory)
                           :directory t :wilden nil))
             ((eql :user-cache) (resolve-location *user-cache* :directory t :wilden nil))
-            ((eql :system-cache) (resolve-location *system-cache* :directory t :wilden nil))
+            ((eql :system-cache)
+             (warn "Using the :system-cache is deprecated. ~%~
+Please remove it from your ASDF configuration")
+             (resolve-location *system-cache* :directory t :wilden nil))
             ((eql :default-directory) (default-directory))))
          (s (if (and wilden (not (pathnamep x)))
                 (wilden r)
@@ -3814,17 +3826,21 @@ with a different configuration, so the configuration would be re-read then."
       :with end = (length string)
       :for pos = (position *inter-directory-separator* string :start start) :do
       (let ((s (subseq string start (or pos end))))
-        (cond
-         ((equal "" s) ; empty element: inherit
-          (when inherit
-            (error (compatfmt "~@<Only one inherited configuration allowed: ~3i~_~S~@:>")
-                   string))
-          (setf inherit t)
-          (push ':inherit-configuration directives))
-         ((ends-with s "//")
-          (push `(:tree ,(subseq s 0 (1- (length s)))) directives))
-         (t
-          (push `(:directory ,s) directives)))
+        (flet ((check (dir)
+                 (unless (absolute-pathname-p dir)
+                   (error (compatfmt "~@<source-registry string must specify absolute pathnames: ~3i~_~S~@:>") string))
+                 dir))
+          (cond
+            ((equal "" s) ; empty element: inherit
+             (when inherit
+               (error (compatfmt "~@<Only one inherited configuration allowed: ~3i~_~S~@:>")
+                      string))
+             (setf inherit t)
+             (push ':inherit-configuration directives))
+            ((ends-with s "//") ;; TODO: allow for doubling of separator even outside Unix?
+             (push `(:tree ,(check (subseq s 0 (- (length s) 2)))) directives))
+            (t
+             (push `(:directory ,(check s)) directives))))
         (cond
           (pos
            (setf start (1+ pos)))
@@ -3856,30 +3872,23 @@ with a different configuration, so the configuration would be re-read then."
     :inherit-configuration
     #+cmu (:tree #p"modules:")))
 (defun* default-source-registry ()
-  (flet ((try (x sub) (try-directory-subpath x sub :type :directory)))
+  (flet ((try (x sub) (try-directory-subpath x sub)))
     `(:source-registry
-      #+sbcl (:directory ,(merge-pathnames* ".sbcl/systems/" (user-homedir)))
+      #+sbcl (:directory ,(try (user-homedir) ".sbcl/systems/"))
       (:directory ,(default-directory))
-      ,@(let*
-         #+asdf-unix
-         ((datahome
-           (or (getenv "XDG_DATA_HOME")
-               (try (user-homedir) ".local/share/")))
-          (datadirs
-           (or (getenv "XDG_DATA_DIRS") "/usr/local/share:/usr/share"))
-          (dirs (cons datahome (split-string datadirs :separator ":"))))
-         #+asdf-windows
-         ((datahome (getenv "APPDATA"))
-          (datadir
-           #+lispworks (sys:get-folder-path :local-appdata)
-           #-lispworks (try (getenv "ALLUSERSPROFILE")
-                            "Application Data"))
-          (dirs (list datahome datadir)))
-         #-(or asdf-unix asdf-windows)
-         ((dirs ()))
-         (loop :for dir :in dirs
-           :collect `(:directory ,(try dir "common-lisp/systems/"))
-           :collect `(:tree ,(try dir "common-lisp/source/"))))
+      ,@(loop :for dir :in
+          `(#+asdf-unix
+            ,@`(,(or (getenv "XDG_DATA_HOME")
+                     (try (user-homedir) ".local/share/"))
+                ,@(split-string (or (getenv "XDG_DATA_DIRS")
+                                    "/usr/local/share:/usr/share")
+                                :separator ":"))
+            #+asdf-windows
+            ,@`(,(getenv "APPDATA")
+                ,@`(#+lispworks ,(sys:get-folder-path :common-appdata)
+                    ,(try (getenv "ALLUSERSPROFILE") "Application Data/"))))
+          :collect `(:directory ,(try dir "common-lisp/systems/"))
+          :collect `(:tree ,(try dir "common-lisp/source/")))
       :inherit-configuration)))
 (defun* user-source-registry ()
   (in-user-configuration-directory *source-registry-file*))
@@ -3971,7 +3980,7 @@ with a different configuration, so the configuration would be re-read then."
 (defun* compute-source-registry (&optional parameter (registry *source-registry*))
   (dolist (entry (flatten-source-registry parameter))
     (destructuring-bind (directory &key recurse exclude) entry
-      (let* ((h (make-hash-table :test 'equal)))
+      (let* ((h (make-hash-table :test 'equal))) ; table to detect duplicates
         (register-asd-directory
          directory :recurse recurse :exclude exclude :collect
          #'(lambda (asd)
