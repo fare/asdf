@@ -1021,7 +1021,7 @@ API) and patch level.
 @xref{Common attributes of components}.
 
 
-@subsection Warning about logical pathnames
+@subsection ASDF and logical pathnames: instructions and some cautions
 @cindex logical pathnames
 
 We recommend that you not use logical pathnames
