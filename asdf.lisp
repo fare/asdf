@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.015.7: Another System Definition Facility.
+;;; This is ASDF 2.015.8: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -106,7 +106,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.015.7")
+         (asdf-version "2.015.8")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2847,7 +2847,7 @@ located."
     :clisp :cmu :ecl :gcl :sbcl :scl :symbolics :xcl))
 
 (defparameter *os-features*
-  '((:win :windows :mswindows :win32 :mingw32) ;; shorten things on windows
+  '(:cygwin (:win :windows :mswindows :win32 :mingw32) ;; shorten things on windows
     (:solaris :sunos)
     (:linux :linux-target) ;; for GCL at least, must appear before :bsd.
     (:macosx :darwin :darwin-target :apple)
@@ -2856,7 +2856,7 @@ located."
     :genera))
 
 (defparameter *architecture-features*
-  '((:amd64 :x86-64 :x86_64 :x8664-target)
+  '((:x64 :amd64 :x86-64 :x86_64 :x8664-target)
     (:x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
     :hppa64 :hppa
     (:ppc64 :ppc64-target) (:ppc32 :ppc32-target :ppc :powerpc)
@@ -2869,40 +2869,35 @@ located."
 
 (defun* lisp-version-string ()
   (let ((s (lisp-implementation-version)))
-    (declare (ignorable s))
-    #+allegro (format nil
-                      "~A~A~A~A"
-                      excl::*common-lisp-version-number*
-                      ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
-                      (if (eq excl:*current-case-mode*
-                              :case-sensitive-lower) "M" "A")
-                      ;; Note if not using International ACL
-                      ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
-                      (excl:ics-target-case
-                       (:-ics "8")
-                       (:+ics ""))
-                      (if (member :64bit *features*) "-64bit" ""))
-    #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
-    #+clisp (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
-    #+clozure (format nil "~d.~d-f~d" ; shorten for windows
-                      ccl::*openmcl-major-version*
-                      ccl::*openmcl-minor-version*
-                      (logand ccl::fasl-version #xFF))
-    #+cmu (substitute #\- #\/ s)
-    #+ecl (format nil "~A~@[-~A~]" s
-                  (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-                    (when (>= (length vcs-id) 8)
-                      (subseq vcs-id 0 8))))
-    #+gcl (subseq s (1+ (position #\space s)))
-    #+genera (multiple-value-bind (major minor) (sct:get-system-version "System")
-               (format nil "~D.~D" major minor))
-    #+lispworks (format nil "~A~@[~A~]" s
-                        (when (member :lispworks-64bit *features*) "-64bit"))
-    ;; #+sbcl (format nil "~a-fasl~d" s sb-fasl:+fasl-file-version+) ; f-f-v redundant w/ version
-    #+mcl (subseq s 8) ; strip the leading "Version "
-    #+(or cormanlisp sbcl scl) s
-    #-(or allegro armedbear clisp clozure cmu cormanlisp
-          ecl gcl genera lispworks mcl sbcl scl) s))
+    (or
+     #+allegro (format nil
+                       "~A~A~A"
+                       excl::*common-lisp-version-number*
+                       ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
+                       (if (eq excl:*current-case-mode*
+                               :case-sensitive-lower) "M" "A")
+                       ;; Note if not using International ACL
+                       ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
+                       (excl:ics-target-case
+                        (:-ics "8")
+                        (:+ics ""))) ; redundant? (if (member :64bit *features*) "-64bit" ""))
+     #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
+     #+clisp (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
+     #+clozure (format nil "~d.~d-f~d" ; shorten for windows
+                       ccl::*openmcl-major-version*
+                       ccl::*openmcl-minor-version*
+                       (logand ccl::fasl-version #xFF))
+     #+cmu (substitute #\- #\/ s)
+     #+ecl (format nil "~A~@[-~A~]" s
+                   (let ((vcs-id (ext:lisp-implementation-vcs-id)))
+                     (when (>= (length vcs-id) 8)
+                       (subseq vcs-id 0 8))))
+     #+gcl (subseq s (1+ (position #\space s)))
+     #+genera (multiple-value-bind (major minor) (sct:get-system-version "System")
+                (format nil "~D.~D" major minor))
+     ;; #+lispworks (format nil "~A~@[~A~]" s (when (member :lispworks-64bit *features*) "-64bit")     #+mcl (subseq s 8) ; strip the leading "Version "
+     ;; #+sbcl (format nil "~a-fasl~d" s sb-fasl:+fasl-file-version+) ; f-f-v redundant w/ version
+     s)))
 
 (defun* first-feature (features)
   (labels
@@ -2996,7 +2991,7 @@ located."
      ,(flet ((try (x sub) (try-directory-subpath x sub)))
         ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
         (try (or #+lispworks (sys:get-folder-path :common-appdata)
-                 (getenv "COMMONAPPDATA")
+                 (getenv "ALLUSERSAPPDATA")
                  (try (getenv "ALLUSERSPROFILE") "Application Data/"))
              "common-lisp/config/"))
      #+asdf-unix #p"/etc/common-lisp/")))
@@ -3889,7 +3884,7 @@ with a different configuration, so the configuration would be re-read then."
                 ,(or #+lispworks (sys:get-folder-path :appdata)
                      (getenv "APPDATA"))
                 ,(or #+lispworks (sys:get-folder-path :common-appdata)
-                     (getenv "COMMONAPPDATA")
+                     (getenv "ALLUSERSAPPDATA")
                      (try (getenv "ALLUSERSPROFILE") "Application Data/"))))
           :collect `(:directory ,(try dir "common-lisp/systems/"))
           :collect `(:tree ,(try dir "common-lisp/source/")))

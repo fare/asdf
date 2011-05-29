@@ -172,14 +172,23 @@ the ASDF internals and how to extend ASDF.
 @emph{Nota Bene}:
 We have released ASDF 2.000 on May 31st 2010.
 Subsequent releases of ASDF 2 have since then been included
-in all actively maintained CL implementations that bundle ASDF,
-and made to work with all actively used CL implementations and a few more.
+in all actively maintained CL implementations that used to bundle ASDF 1,
+plus some implementations that didn't use to,
+and has been made to work with all actively used CL implementations and a few more.
 @xref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
 Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 on the fly.
 For this reason, we have stopped supporting ASDF 1;
 if you are using ASDF 1 and are experiencing any kind of issues or limitations,
 we recommend you upgrade to ASDF 2
---- and we explain how to do it. @xref{Loading ASDF}.
+--- and we explain how to do that. @xref{Loading ASDF}.
+
+Also note that ASDF is not to be confused with ASDF-Install.
+ASDF-Install is not part of ASDF, but a separate piece of software.
+ASDF-Install is also unmaintained and obsolete.
+We recommend you use Quicklisp instead,
+which works great and is being actively maintained.
+If you want to download software from version control instead of tarballs,
+so you may more easily modify it, we recommend clbuild.
 
 
 @node Loading ASDF, Configuring ASDF, Introduction, Top
@@ -375,14 +384,15 @@ The default location for a user to install Common Lisp software is under
 If you install software there, you don't need further configuration.
 If you're installing software yourself at a location that isn't standard,
 you have to tell ASDF where you installed it. See below.
-If you're using some tool to install software,
+If you're using some tool to install software (e.g. Quicklisp),
 the authors of that tool should already have configured ASDF.
 
 The simplest way to add a path to your search path,
 say @file{/home/luser/.asd-link-farm/}
 is to create the directory
 @file{~/.config/common-lisp/source-registry.conf.d/}
-and there create a file with any name of your choice but the type @file{conf},
+and there create a file with any name of your choice,
+and with the type @file{conf},
 for instance @file{42-asd-link-farm.conf}
 containing the line:
 
@@ -984,7 +994,7 @@ or @code{#.(make-pathname ...)}.
 Note however, that @code{#p...} is a shorthand for @code{#.(parse-namestring ...)}
 and that the behavior of @code{parse-namestring} is completely non-portable,
 unless you are using Common Lisp @code{logical-pathname}s
-(@pxref{The defsystem grammar,,Warning about logical pathnames}, below).
+(@pxref{The defsystem grammar,,Using logical pathnames}, below).
 Pathnames made with @code{#.(make-pathname ...)}
 can usually be done more easily with the string syntax above.
 The only case that you really need a pathname object is to override
@@ -1021,38 +1031,59 @@ API) and patch level.
 @xref{Common attributes of components}.
 
 
-@subsection ASDF and logical pathnames: instructions and some cautions
+@subsection Using logical pathnames
 @cindex logical pathnames
 
-We recommend that you not use logical pathnames
-in your asdf system definitions at this point,
-but logical pathnames @emph{are} supported.
+We do not generally recommend the use of logical pathnames,
+especially not so to newcomers to Common Lisp.
+However, we do support the use of logical pathnames by old timers,
+when such is their preference.
 
 To use logical pathnames,
 you will have to provide a pathname object as a @code{:pathname} specifier
 to components that use it, using such syntax as
 @code{#p"LOGICAL-HOST:absolute;path;to;component.lisp"}.
 
-You only have to specify such logical pathname for your system or
-some top-level component.  Sub-components' relative pathnames, specified
-using the string syntax
-for names, will be properly merged with the pathnames of their parents.
+You only have to specify such logical pathname
+for your system or some top-level component.
+Sub-components' relative pathnames,
+specified using the string syntax for names,
+will be properly merged with the pathnames of their parents.
 The specification of a logical pathname host however is @emph{not}
 otherwise directly supported in the ASDF syntax
 for pathname specifiers as strings.
 
 The @code{asdf-output-translation} layer will
-avoid trying to resolve and translate logical-pathnames.
-The advantage of this is that you can define yourself what translations you want to use
+avoid trying to resolve and translate logical pathnames.
+The advantage of this is that
+you can define yourself what translations you want to use
 with the logical pathname facility.
-The disadvantage is that if you do not define such translations, any
-system that uses logical pathnames will behave differently under
+The disadvantage is that if you do not define such translations,
+any system that uses logical pathnames will behave differently under
 asdf-output-translations than other systems you use.
 
 If you wish to use logical pathnames you will have to configure the
 translations yourself before they may be used.
 ASDF currently provides no specific support
 for defining logical pathname translations.
+
+Note that the reasons we do not recommend logical pathnames are that
+(1) there is no portable way to set up logical pathnames before they are used,
+(2) logical pathnames are limited to only portably use
+a single character case, digits and hyphens.
+While you can solve the first issue on your own,
+describing how to do it on each of fifteen implementations supported by ASDF
+is more than we can document.
+As for the second issue, mind that the limitation is notably enforced on SBCL,
+and that you therefore can't portably violate the limitations
+but must instead define some encoding of your own and add individual mappings
+to name physical pathnames that do not fit the restrictions.
+This can notably be a problem when your Lisp files are part of a larger project
+in which it is common to name files or directories in a way that
+includes the version numbers of supported protocols,
+or in which files are shared with software written
+in different programming languages where conventions include the use of
+underscores, dots or CamelCase in pathnames.
 
 
 @subsection Serial dependencies
