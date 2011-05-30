@@ -3076,7 +3076,7 @@ or take great pains to have the correct version of ASDF installed.
 With ASDF 2, we provide a new stable set of working features
 that everyone can rely on from now on.
 Use @code{#+asdf2} to detect presence of ASDF 2,
-@code{(asdf:version-satisfies (asdf:asdf-version) "2.000")}
+@code{(asdf:version-satisfies (asdf:asdf-version) "2.345.67")}
 to check the availability of a version no earlier than required.
 
 
@@ -3085,7 +3085,7 @@ to check the availability of a version no earlier than required.
 When an old version of ASDF was loaded,
 it was very hard to upgrade ASDF in your current image
 without breaking everything.
-Instead you have to exit the Lisp process and
+Instead you had to exit the Lisp process and
 somehow arrange to start a new one from a simpler image.
 Something that can't be done from within Lisp,
 making automation of it difficult,
@@ -3179,11 +3179,13 @@ and not use any deep @code{:tree} entry but only @code{:directory} entries
 or shallow @code{:tree} entries.
 Or you can fix your implementation to not be quite that slow
 when recursing through directories.
+@underline{Update}: performance bug fixed the hard way in 2.010.
 
 @item
 On Windows, only LispWorks supports proper default configuration pathnames
 based on the Windows registry.
-Other implementations make do with environment variables.
+Other implementations make do with environment variables,
+that you may have to define yourself if you're using an older version of Windows.
 Windows support is somewhat less tested than Unix support.
 Please help report and fix bugs.
 
@@ -3193,7 +3195,7 @@ may use a different extension from the default @file{.lisp} has changed.
 Previously, the pathname for a component was lazily computed when operating on a system,
 and you would
 @code{(defmethod source-file-type ((component cl-source-file) (system (eql (find-system 'foo))))
-  (declare (ignorable component system)) "cl")}.
+  (declare (ignorable component system)) "lis")}.
 Now, the pathname for a component is eagerly computed when defining the system,
 and instead you will @code{(defclass cl-source-file.lis (cl-source-file) ((type :initform "lis")))}
 and use @code{:default-component-class cl-source-file.lis} as argument to @code{defsystem},

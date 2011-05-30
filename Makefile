@@ -66,7 +66,8 @@ test-upgrade:
 	  echo "Testing upgrade from ASDF $${tag}" ; \
 	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
 	  $${SBCL:-sbcl} --noinform --eval \
-	'(progn (handler-bind ((t #'"'"'muffle-warning)) (load "tmp/asdf-'$${tag}'.lisp")) (handler-bind ((sb-kernel:redefinition-warning #'"'"'muffle-warning)((or warning error) (lambda (c) (format t "~A~%" c) #|(defparameter *c* c) (break)|# (sb-ext:quit :unix-status 1)))) (load "asdf.lisp") (format t "Successfully upgraded from '$${tag}'~%") (sb-ext:quit :unix-status 0)))' || \
+	'(progn (handler-bind ((t #'"'"'muffle-warning)) (load "tmp/asdf-'$${tag}'.lisp")) (handler-bind ((sb-kernel:redefinition-warning #'"'"'muffle-warning)((or warning error) (lambda (c) (format t "~A~%" c) #|(defparameter *c* c) (break)|# (sb-ext:quit :unix-status 1)))) (load "asdf.lisp") (format t "Successfully upgraded from '$${tag}'~%")))' \
+	--eval '(progn (push #p"${sourceDirectory}/test/" asdf:*central-registry*) (asdf:load-system :test-module-depend) (sb-ext:quit :unix-status 0))' || \
 	{ echo "FAILED" ; exit 1 ; } ; done
 
 test-forward-references:
