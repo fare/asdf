@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.015.8: Another System Definition Facility.
+;;; This is ASDF 2.015.9: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -106,7 +106,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.015.8")
+         (asdf-version "2.015.9")
          (existing-asdf (fboundp 'find-system))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3521,7 +3521,8 @@ effectively disabling the output translation facility."
    t))
 
 (defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
-  (or output-file
+  (if (absolute-pathname-p output-file)
+      (apply 'compile-file-pathname (lispize-pathname input-file) keys)
       (apply-output-translations
        (apply 'compile-file-pathname
               (truenamize (lispize-pathname input-file))
@@ -3537,7 +3538,7 @@ effectively disabling the output translation facility."
     (delete-file x)))
 
 (defun* compile-file* (input-file &rest keys &key output-file &allow-other-keys)
-  (let* ((output-file (or output-file (apply 'compile-file-pathname* input-file keys)))
+  (let* ((output-file (apply 'compile-file-pathname* input-file :output-file output-file keys))
          (tmp-file (tmpize-pathname output-file))
          (status :error))
     (multiple-value-bind (output-truename warnings-p failure-p)
