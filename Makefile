@@ -62,13 +62,22 @@ test-upgrade:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then \
 		SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; \
 	mkdir -p tmp/ ; \
+        fa=tmp/fasls/sbcl/upasdf.fasl ; \
+        ll="(handler-bind ((sb-kernel:redefinition-warning #'muffle-warning)) (load \"asdf.lisp\"))" ; \
+	cf="(handler-bind ((warning #'muffle-warning)) (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose nil :print nil))" ; \
+        lf="(handler-bind ((sb-kernel:redefinition-warning #'muffle-warning)) (load \"$$fa\"))" ; \
+        te="(quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (asdf:oos 'asdf:load-op :test-module-depend :verbose nil))" ; \
+        sb="$${SBCL:-sbcl} --noinform --load test/script-support" ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` ; do \
+	  lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
 	  echo "Testing upgrade from ASDF $${tag}" ; \
 	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
-	  $${SBCL:-sbcl} --noinform --eval \
-	'(progn (handler-bind ((t #'"'"'muffle-warning)) (load "tmp/asdf-'$${tag}'.lisp")) (handler-bind ((sb-kernel:redefinition-warning #'"'"'muffle-warning)((or warning error) (lambda (c) (format t "~A~%" c) #|(defparameter *c* c) (break)|# (sb-ext:quit :unix-status 1)))) (load "asdf.lisp") (format t "Successfully upgraded from '$${tag}'~%")))' \
-	--eval '(progn (push #p"${sourceDirectory}/test/" asdf:*central-registry*) (asdf:load-system :test-module-depend) (sb-ext:quit :unix-status 0))' || \
-	{ echo "FAILED" ; exit 1 ; } ; done
+          rm -f $$fa ; \
+          ( set -x ; $$sb --eval "$$lo" --eval "$$ll" --eval "$$te" && \
+          $$sb --eval "$$lo" --eval "$$cf" --eval "$$lf" --eval "$$te" && \
+          $$sb --eval "$$lo" --eval "$$lf" --eval "$$te" && \
+          $$sb --eval "$$lf" --eval "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;}; \
+        done
 
 test-forward-references:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
