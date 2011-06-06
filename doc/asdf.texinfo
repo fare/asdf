@@ -214,13 +214,13 @@ Many Lisp implementations include a copy of ASDF.
 You can usually load this copy using Common Lisp's @code{require} function:
 
 @lisp
-(require :asdf)
+(require "asdf")
 @end lisp
 
 As of the writing of this manual,
 the following implementations provide ASDF 2 this way:
 abcl allegro ccl clisp cmucl ecl sbcl xcl.
-The following implementations don't provide it yet but might in a future release:
+The following implementations don't provide it yet but will in a future release:
 lispworks scl.
 The following implementations are obsolete and most probably will never bundle it:
 cormancl gcl genera mcl.
@@ -230,6 +230,10 @@ see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
 If that implementation is still actively maintained,
 you may also send a bug report to your Lisp vendor and complain
 about their failing to provide ASDF.
+
+NB: all implementations except clisp also accept
+@code{(require "ASDF")}, @code{(require 'asdf)} and @code{(require :asdf)}.
+For portability's sake, you probably want to use @code{(require "asdf")}.
 
 
 @section Checking whether ASDF is loaded
@@ -279,7 +283,7 @@ configure ASDF as usual (see @pxref{Configuring ASDF} below),
 and upgrade with:
 
 @lisp
-(require :asdf)
+(require "asdf")
 (asdf:load-system :asdf)
 @end lisp
 
@@ -287,7 +291,7 @@ If on the other hand, your implementation only provides an old ASDF,
 you will require a special configuration step and an old-style loading:
 
 @lisp
-(require :asdf)
+(require "asdf")
 (push #p"@var{/path/to/new/asdf/}" asdf:*central-registry*)
 (asdf:oos 'asdf:load-op :asdf)
 @end lisp
@@ -452,7 +456,7 @@ search forward for
 
 For instance, if you wanted ASDF to find the @file{.asd} file
 @file{/home/me/src/foo/foo.asd} your initialization script
-could after it loads ASDF with @code{(require :asdf)}
+could after it loads ASDF with @code{(require "asdf")}
 configure it with:
 
 @lisp
@@ -660,7 +664,7 @@ To use ASDF:
 @itemize
 @item
 Load ASDF itself into your Lisp image, either through
-@code{(require :asdf)} or else through
+@code{(require "asdf")} or else through
 @code{(load "/path/to/asdf.lisp")}.
 
 @item
@@ -3234,7 +3238,7 @@ As to how to include ASDF, we recommend the following:
 
 @itemize
 @item
-If ASDF isn't loaded yet, then @code{(require :asdf)}
+If ASDF isn't loaded yet, then @code{(require "asdf")}
 should load the version of ASDF that is bundled with your system.
 You may have it load some other version configured by the user,
 if you allow such configuration.

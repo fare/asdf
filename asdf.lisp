@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.015.10: Another System Definition Facility.
+;;; This is ASDF 2.015.11: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -106,7 +106,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.015.10")
+         (asdf-version "2.015.11")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2856,7 +2856,7 @@ located."
     :genera))
 
 (defparameter *architecture-features*
-  '((:x64 :amd64 :x86-64 :x86_64 :x8664-target)
+  '((:x64 :amd64 :x86-64 :x86_64 :x8664-target #+(and clisp word-size=64) :pc386)
     (:x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
     :hppa64 :hppa
     (:ppc64 :ppc64-target) (:ppc32 :ppc32-target :ppc :powerpc)
