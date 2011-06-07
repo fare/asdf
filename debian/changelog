@@ -1,3 +1,21 @@
+cl-asdf (2:2.016-1) unstable; urgency=low
+
+  Promoting 2.015.12 as 2.016. Since 2.015, we have the following improvements:
+  * Portability: fixes for ECL, RMCL, CLISP.
+    Improvements to Windows configuration.
+  * Fix to load-source-op (broken in 2.014.13).
+  * Avoid infinite loops in defsystem in cases of bad interference
+    between quicklisp and your source-registry.
+  * Small fixes regarding upgrade, compile-file* :output-file.
+  * Make defsystem-depends-on much more useful by allowing a system
+    thus depended on to define the class of the system depending on it.
+  * Some documentation updates.
+    Notably, for the sake of CLISP, (require "asdf") is the new canonical way
+    to load ASDF, instead of (require :asdf). Sigh.
+  * Better tests, notably wrt hot upgrade.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 07 Jun 2011 17:46:15 -0400
+
 cl-asdf (2:2.015-1) unstable; urgency=low
 
   Promoting 2.014.17 as 2.015. Since 2.014, we have the following improvements:
@@ -26,7 +44,7 @@ cl-asdf (2:2.015-1) unstable; urgency=low
   * Tried and reverted: attempts to make asdf more verbose when it's verbose,
     but not verbose by default.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Sat, 07 May 2011 14:34:40 -0400
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 07 Jun 2011 17:38:50 -0400
 
 cl-asdf (2:2.014.3-1) unstable; urgency=low
 
