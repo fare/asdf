@@ -34,8 +34,11 @@ push:
 	git fetch
 	git status
 
+doc:
+	${MAKE} -C doc
+
 website:
-	make -C doc website
+	${MAKE} -C doc website
 
 clean_dirs = $(sourceDirectory)
 clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl ufasl o bak x86f
@@ -53,7 +56,7 @@ clean:
 	     fi; \
 	done
 	rm -rf tmp/ LICENSE test/try-reloading-dependency.asd
-	make -C doc clean
+	${MAKE} -C doc clean
 
 mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
@@ -83,13 +86,13 @@ test-forward-references:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
 
 do-test:
-	@cd test; make clean;./run-tests.sh ${lisp} ${test-glob}
+	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
 
-test: do-test test-forward-references
+test: do-test test-forward-references doc
 
 do-test-all:
 	@for lisp in ${lisps} ; do \
-		make do-test lisp=$$lisp || exit 1 ; \
+		${MAKE} do-test lisp=$$lisp || exit 1 ; \
 	done
 
 test-all: test-forward-references test-upgrade do-test-all
@@ -100,12 +103,12 @@ debian-package: mrproper
 	: $${RELEASE:="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)"} ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
-# Replace SBCL's ASDF with the current one.
+# Replace SBCL's ASDF with the current one. -- Not recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
 replace-sbcl-asdf:
 	sbcl --eval '(compile-file "asdf.lisp" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
 
-# Replace CCL's ASDF with the current one.
+# Replace CCL's ASDF with the current one. -- Not recommended now that CCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
 replace-ccl-asdf:
 	ccl --eval '(progn(compile-file "asdf.lisp" :output-file (format nil "~Atools/asdf.lx64fsl" (ccl::ccl-directory)))(quit))'
@@ -124,8 +127,9 @@ TODO:
 
 release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
-.PHONY: install archive archive-copy push website clean mrproper \
+.PHONY: install archive archive-copy push doc website clean mrproper \
 	upgrade-test test-forward-references test do-test test-all do-test-all \
+	test-upgrade test-forward-references \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags

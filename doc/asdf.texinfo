@@ -3183,7 +3183,7 @@ and not use any deep @code{:tree} entry but only @code{:directory} entries
 or shallow @code{:tree} entries.
 Or you can fix your implementation to not be quite that slow
 when recursing through directories.
-@underline{Update}: performance bug fixed the hard way in 2.010.
+@emph{Update}: performance bug fixed the hard way in 2.010.
 
 @item
 On Windows, only LispWorks supports proper default configuration pathnames
