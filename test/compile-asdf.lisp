@@ -1,5 +1,6 @@
 (in-package #:common-lisp-user)
 
+(declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)))
 (proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)))
 
 (load (make-pathname :name "script-support" :defaults *load-pathname*))

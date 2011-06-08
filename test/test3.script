@@ -10,6 +10,7 @@
         (ns2 (#-scl namestring #+scl ext:unix-namestring fasl2)))
      (asdf:run-shell-command "rm -f ~A ~A" ns1 ns2)
      (setf asdf:*central-registry* '(*default-pathname-defaults*))
+     #-gcl
      (handler-case
          (asdf:oos 'asdf:load-op 'test3)
        (asdf:missing-dependency (c)

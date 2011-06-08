@@ -4,9 +4,9 @@ webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
-lisps ?= ccl clisp sbcl ecl abcl xcl scl allegro
-## occasionally tested by not me: allegromodern cmucl lispworks
-## FAIL: gclcvs (condition handling)
+lisps ?= ccl clisp sbcl ecl cmucl abcl xcl scl allegro
+## occasionally tested by not me: allegromodern lispworks
+## FAIL: gclcvs (COMPILER BUGS!!!)
 ## tentatively supported by asdf, not supported by our tests: cormancl mcl genera
 
 lisp ?= sbcl
@@ -64,7 +64,7 @@ mrproper: clean
 test-upgrade:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then \
 		SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; \
-	mkdir -p tmp/ ; \
+	mkdir -p tmp/fasls/sbcl/ ; \
         fa=tmp/fasls/sbcl/upasdf.fasl ; \
         ll="(handler-bind ((sb-kernel:redefinition-warning #'muffle-warning)) (load \"asdf.lisp\"))" ; \
 	cf="(handler-bind ((warning #'muffle-warning)) (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose nil :print nil))" ; \

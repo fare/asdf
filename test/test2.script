@@ -12,6 +12,7 @@
  (assert (and (probe-file (asdf:compile-file-pathname* (truename "file3.lisp")))
               (probe-file (asdf:compile-file-pathname* (truename "file4.lisp")))))
  (format t "test2 3~%")
+ #-gcl
  (handler-case
      (asdf:oos 'asdf:load-op 'test2b2)
    (asdf:missing-dependency (c)
@@ -20,6 +21,7 @@
      (declare (ignore c))
      (error "should have failed, oops")))
  (format t "test2 4~%")
+ #-gcl
  (handler-case
      (asdf:oos 'asdf:load-op 'test2b3)
    (asdf:missing-dependency (c)

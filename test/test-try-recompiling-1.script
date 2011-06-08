@@ -11,6 +11,7 @@
                          (namestring
                           (compile-file-pathname "try-recompiling-1")))
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ #-gcl
  (handler-bind ((error (lambda (c)
                          (setf *caught-error* t)
                          (multiple-value-bind (name mode)

@@ -8,5 +8,4 @@
  (assert (not (component-property (find-system 'test3) :foo)))
  (assert (equal (component-property (find-system 'test3) :prop1) "value"))
  (setf (component-property (find-system 'test3) :foo) "bar")
- (assert (equal (component-property (find-system 'test3) :foo) "bar"))
- )
+ (assert (equal (component-property (find-system 'test3) :foo) "bar")))

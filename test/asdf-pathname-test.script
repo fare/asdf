@@ -2,6 +2,8 @@
 (load "script-support.lisp")
 (load-asdf)
 
+#+gcl (trace asdf:compile-file-pathname*)
+
 ;;; test asdf pathname specifications
 ;;;
 ;;; this is intended to run in a directory like '/test/20100310T000000Z/sbcl', in which it creates a
@@ -34,6 +36,7 @@
                                  (delete-host t)
                                  (support-string-pathnames nil)
                                  (support-absolute-string-pathnames nil))
+  #+gcl (format t "root: ~S~%" root)
   (unwind-protect
     (let* ((bin-type (pathname-type (compile-file-pathname "test.lisp")))
            (root-directory-namestring (format nil "~{/~a~}/" (rest (pathname-directory root))))
@@ -49,8 +52,10 @@
       (with-open-file (result-stream (asdf::merge-pathnames* "output.txt" root)
                                      :direction :output
                                      :if-exists :supersede :if-does-not-exist :create)
-        (flet ((src-dir (&rest path) (append (pathname-directory root) (cons "asdf-src" path)))
-               (bin-dir (&rest path) (append (pathname-directory root) (cons "asdf-bin" path))))
+        (flet ((src-dir (&rest path) (append (or (pathname-directory root) (list :relative))
+                                             (cons "asdf-src" path)))
+               (bin-dir (&rest path) (append (or (pathname-directory root) (list :relative))
+                                             (cons "asdf-bin" path))))
           (setf (logical-pathname-translations "ASDFTEST")
                 `((,(format nil "**;*.~a" bin-type)
                    ,(make-pathname :directory (bin-dir :wild-inferiors)
@@ -290,6 +295,7 @@
    (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory t) #p"/foo/bar/baz/"))
    (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory t :wilden t) (asdf::wilden #p"/foo/bar/baz/")))
    (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory nil :wilden t) (asdf::wilden #p"/foo/bar/")))
+   #-gcl
    (assert (equal (asdf::resolve-location '("/foo" "bar" #p"**/" "baz" #p"*.*") :directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
 
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)

@@ -17,6 +17,8 @@
     <div class="system-links">
       <ul>
         <li><a href="#what_it_is">What it is</a></li>
+        <li><a href="#what_it_is_not">What it is not</a></li>
+        <li><a href="#implementations">Supported Implementations</a></li>
         <li><a href="#documentation">Documentation</a></li>
         <li><a href="#downloads">Getting it</a></li>
         <li><a href="#bugs">Reporting Bugs</a></li>
@@ -30,16 +32,6 @@
         <h3>ASDF 2</h3>
         <p>We released ASDF 2 on May 31st 2010.
           It has since been widely adopted by the CL community.
-        </p><p>
-          These implementations provide ASDF 2 in their latest release
-          so you can just <tt>(require "asdf")</tt>:
-          (free) abcl ccl clisp cmucl ecl sbcl xcl; (proprietary) allegro.
-        </p><p>
-          These implementations work with ASDF 2 but don't bundle ASDF 2 yet:
-	  (proprietary) lispworks scl.
-        </p><p>
-          These implementations are obsolete, yet are somewhat supported by ASDF 2:
-	  (free) gcl mcl; (proprietary) cormanlisp genera.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -56,14 +48,73 @@
         <h3>What it is not</h3>
         <p>ASDF will not download missing software components for you.
           For that, you want <a href="http://quicklisp.org/">Quicklisp</a>,
-          that builds upon ASDF, and is great for pulling
-          a tarballs of packages you may depend upon,
-          or <a href="http://common-lisp.net/project/clbuild/">clbuild</a>,
-          that now builds upon Quicklisp, and is great for pulling
-          packages you need to modify from version control.
+          that builds upon ASDF, and is great for pulling and installing
+          tarballs of packages you may depend upon;
+          we also recommend <a href="http://common-lisp.net/project/clbuild/">clbuild</a>,
+          that now builds upon Quicklisp, as a great tool for pulling from version control
+          packages you need to modify or want to contribute to.
           We recommend you should not use ASDF-Install anymore,
-          another such piece of software that is both unmaintained and obsolete.
+          as it is another such piece of software that is both unmaintained and obsolete.
         </p>
+        <a id="implmementations"></a>
+        <h3>Supported Implementations</h3>
+        <p>ASDF 2 now supports all CL implementations
+          that seem to have any current user base.
+        </p><p>
+          Most implementations provide ASDF 2 as a module,
+          and you can simply <tt>(require :asdf)</tt> or <tt>(require "asdf")</tt>.
+          Note that most implementations accept
+          <tt>:asdf</tt>, <tt>"ASDF"</tt> and <tt>"asdf"</tt>
+          indiscriminately, but that as exceptions,
+          CMUCL accepts only upper-case (or a case-converted symbol),
+          whereas CLISP accepts only lower-case
+          (in a string, or again a case-converted symbol again).
+        </p><p>
+          A few implementations don't provide ASDF yet,
+          but have announced they will in their next release.
+          As for remaining implementations,
+          they are obsolete or mostly unmaintained,
+          ASDF 2 supports them if you load it manually,
+          though there might never be a next release
+          to provide it through <tt>require</tt>.
+        </p>
+        <table>
+          <tr><th></th>
+            <th align="left">Provide "asdf"</th>
+            <th align="left">Will provide it</th>
+            <th align="left">Obsolete</th></tr>
+          <tr><th align="left">Free</th>
+            <td align="left">abcl ccl clisp cmucl ecl sbcl xcl</td>
+            <td> </td>
+            <td align="left">gcl mcl</td></tr>
+          <tr><th align="left">Proprietary</th>
+            <td align="left">allegro</td>
+            <td align="left">lispworks scl</td>
+            <td align="left">cormanlisp genera</td></tr>
+        </table>
+        <!-- Note to self:
+             The maintainers of the following implementations follow asdf-announce:
+             allegro	Gary King <gwking@franz.com>
+             clisp	(sds)
+             ecl	(juanjo)
+
+             The maintainers of the following implementations require direct notification:
+             abcl ccl cmucl gcl lispworks sbcl scl xcl
+Armed Bear <armedbear-devel@common-lisp.net>,
+openmcl-devel@clozure.com,
+cmucl-imp@cons.org,
+gcl-devel@gnu.org,
+lisp-support@lispworks.com,
+SBCL Devel-list <sbcl-devel@lists.sourceforge.net>,
+Douglas Crosher <dtc3@scieneer.com>,
+Peter Graves <gnooth@gmail.com>
+          -->
+        <p>
+          If there is an old or new implementation that we are missing,
+          it shouldn't hard to adapt ASDF to support it.
+          Ask us!
+        </p>
+
         <a id="documentation"></a>
         <h3>Documentation</h3>
         <p>You can read our manual:</p>
@@ -73,11 +124,16 @@
           <li><a href="asdf.pdf">as a PDF document</a></li>
           <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=doc/asdf.texinfo">as texinfo source</a></li>
         </ul>
-        <p>Regarding the internal design of ASDF and the work we did on ASDF 2,
+        <p>Regarding the internal design of ASDF in general and the work we did on ASDF 2,
           see the last draft version of our paper for
           <a href="http://www.international-lisp-conference.org/2010/index">ILC 2010</a>,
           <cite><a href="ilc2010draft.pdf"
                    >Evolving ASDF: More Cooperation, Less Coordination</a></cite></p>
+        <p>Finally, while the manual covers all the basics,
+          some advanced or new features remain underdocumented.
+          Please contact our mailing-list (see below)
+          for any issue that isn't well-documented enough.
+        </p>
 
         <a id="downloads"></a>
         <h3>Getting it</h3>
@@ -111,7 +167,7 @@
 
         <a id="bugs">
         <h3>Reporting Bugs</h3>
-        <p>To report bugs, you can use our 
+        <p>To report bugs, you can use our
           <a href="https://launchpad.net/asdf/">launchpad project</a>.
           If you're unsure about the bug or want to discuss how to fix it,
           you can send email to the project mailing-list below.
@@ -176,9 +232,9 @@
         <a class="nav" href="http://www.catb.org/hacker-emblem/" title="hacker"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/hacker.png" width="80" height="15" title="hacker emblem" alt="hacker button" /></a>
         <a class="nav" href="http://www.lisp.org/" title="Association of Lisp Users"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lambda-lisp.png" width="80" height="15" title="ALU emblem" alt="ALU button" /></a>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
-        <p><span class="copyright"Copyright &copy; 2001-2010 Daniel Barlow and contributors</span></p>
+        <p><span class="copyright"Copyright &copy; 2001-2011 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2011-05-08</div>
+        <div id="timestamp">Last updated 2011-06-08</div>
     </div>
   </body>
 </html>
