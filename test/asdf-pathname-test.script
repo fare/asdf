@@ -289,14 +289,19 @@
 
  #+gcl (format t "~&~A~&" (progn (defvar *x* -1) (incf *x*)))
 
- (progn ; 1- we're testing with unix, are we not?
-   (assert (equal (asdf::resolve-location '(:home)) (truename (user-homedir-pathname))))
-   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz"))
-   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory t) #p"/foo/bar/baz/"))
-   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory t :wilden t) (asdf::wilden #p"/foo/bar/baz/")))
-   (assert (equal (asdf::resolve-location '("/foo" "bar" "baz") :directory nil :wilden t) (asdf::wilden #p"/foo/bar/")))
-   #-gcl
-   (assert (equal (asdf::resolve-location '("/foo" "bar" #p"**/" "baz" #p"*.*") :directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
+ (flet ((same (s1 s2 p1 p2)
+          (unless (equal (namestring p1) (namestring p2))
+            (describe p1) (describe p2)
+            (error "Not the same: ~S vs ~S"  s1 s2))))
+   (macrolet ((x (s1 s2) `(same ',s1 ',s2 ,s1 ,s2)))
+     ;; we're testing with unix, are we not?
+     (x (asdf::resolve-location '(:home)) (truename (user-homedir-pathname)))
+     (x (asdf::resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz")
+     (x (asdf::resolve-location '("/foo" "bar" "baz") :directory t) #p"/foo/bar/baz/")
+     (x (asdf::resolve-location '("/foo" "bar" "baz") :directory t :wilden t) (asdf::wilden #p"/foo/bar/baz/"))
+     (x (asdf::resolve-location '("/foo" "bar" "baz") :directory nil :wilden t) (asdf::wilden #p"/foo/bar/"))
+     #-gcl
+     (x (asdf::resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
 
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
      (leave-lisp "test failed" 1)))
