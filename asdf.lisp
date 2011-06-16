@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.016.2: Another System Definition Facility.
+;;; This is ASDF 2.016.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -112,7 +112,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.016.2")
+         (asdf-version "2.016.3")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -200,12 +200,13 @@
                    :do (unintern old user)))
                (loop :for x :in newly-exported-symbols :do
                  (export (intern* x package)))))
-           (ensure-package (name &key nicknames use unintern fmakunbound shadow export)
+           (ensure-package (name &key nicknames use unintern fmakunbound
+				 shadow export redefined-functions)
              (let* ((p (ensure-exists name nicknames use)))
                (ensure-unintern p unintern)
                (ensure-shadow p shadow)
                (ensure-export p export)
-               (ensure-fmakunbound p fmakunbound)
+               (ensure-fmakunbound p (append fmakunbound redefined-functions))
                p)))
         (macrolet
             ((pkgdcl (name &key nicknames use export
@@ -213,8 +214,9 @@
                  `(ensure-package
                    ',name :nicknames ',nicknames :use ',use :export ',export
                    :shadow ',shadow
-                   :unintern ',(append #-(or gcl ecl) redefined-functions unintern)
-                   :fmakunbound ',(append fmakunbound))))
+                   :unintern ',unintern
+		   :redefined-functions ',redefined-functions
+                   :fmakunbound ',fmakunbound)))
           (pkgdcl
            :asdf
            :nicknames (:asdf-utilities) ;; DEPRECATED! Do not use, for backward compatibility only.
@@ -570,7 +572,6 @@ and NIL NAME, TYPE and VERSION components"
                    :directory (merge-pathname-directory-components
                                '(:relative :back) (pathname-directory pathname))
                    :defaults pathname)))
-
 
 (define-modify-macro appendf (&rest args)
   append "Append onto list") ;; only to be used on short lists.
@@ -2359,7 +2360,7 @@ recursive calls to traverse.")
           (t
            (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
                          version new-version)))
-        (let ((asdf (find-system :asdf)))
+        (let ((asdf (funcall (find-symbol* 'find-system :asdf) :asdf)))
           ;; invalidate all systems but ASDF itself
           (setf *defined-systems* (make-defined-systems-table))
           (register-system asdf)
@@ -2595,7 +2596,7 @@ Returns the new tree (which probably shares structure with the old one)"
               components pathname default-component-class
               perform explain output-files operation-done-p
               weakly-depends-on
-              depends-on serial in-order-to
+              depends-on serial in-order-to do-first
               (version nil versionp)
               ;; list ends
               &allow-other-keys) options
@@ -2656,7 +2657,10 @@ Returns the new tree (which probably shares structure with the old one)"
              in-order-to
              `((compile-op (compile-op ,@depends-on))
                (load-op (load-op ,@depends-on)))))
-      (setf (component-do-first ret) `((compile-op (load-op ,@depends-on))))
+      (setf (component-do-first ret)
+            (union-of-dependencies
+             do-first
+	     `((compile-op (load-op ,@depends-on)))))
 
       (%refresh-component-inline-methods ret rest)
       ret)))
@@ -2803,9 +2807,7 @@ if that's whay you mean." ;;)
   "Return a pathname object corresponding to the
 directory in which the system specification (.asd file) is
 located."
-     (make-pathname :name nil
-                 :type nil
-                 :defaults (system-source-file system-designator)))
+  (pathname-directory-pathname (system-source-file system-designator)))
 
 (defun* relativize-directory (directory)
   (cond

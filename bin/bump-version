@@ -4,7 +4,7 @@
 # e.g. 3.45.6 ==> 3.45.7, or 3.56 ==> 3.56.1
 NEWVER="${1}"
 PROG="$0"
-ASDFDIR="$(readlink -f $(dirname $PROG)/..)"
+ASDFDIR="$(cd $(dirname $PROG)/.. ; /bin/pwd)" ## readlink -f doesn't work on BSD
 ASDFLISP=${ASDFDIR}/asdf.lisp
 ASDFASD=${ASDFDIR}/asdf.asd
 
