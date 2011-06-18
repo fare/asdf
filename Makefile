@@ -4,8 +4,8 @@ webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
-lisps ?= ccl clisp sbcl ecl cmucl abcl xcl scl allegro
-## occasionally tested by not me: allegromodern lispworks
+lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro
+## occasionally tested by not me: allegromodern lispworks xcl
 ## FAIL: gclcvs (COMPILER BUGS!!!)
 ## tentatively supported by asdf, not supported by our tests: cormancl mcl genera
 
@@ -95,7 +95,7 @@ do-test-all:
 		${MAKE} do-test lisp=$$lisp || exit 1 ; \
 	done
 
-test-all: test-forward-references test-upgrade do-test-all
+test-all: test-forward-references doc test-upgrade do-test-all
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
@@ -113,7 +113,7 @@ replace-sbcl-asdf:
 replace-ccl-asdf:
 	ccl --eval '(progn(compile-file "asdf.lisp" :output-file (format nil "~Atools/asdf.lx64fsl" (ccl::ccl-directory)))(quit))'
 
-WRONGFUL_TAGS := 1.1720 README RELEASE STABLE
+WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE
 # Delete wrongful tags from local repository
 fix-local-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git tag -d $$i ; done
