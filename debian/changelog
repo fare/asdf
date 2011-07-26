@@ -1,3 +1,28 @@
+cl-asdf (2:2.017-1) unstable; urgency=low
+
+  Promoting 2.016.3 as 2.017. Since 2.016, we have the following improvements:
+  * ABCL: jar translation happier with recent compile-file-pathname* change.
+  * CCL: see truenamize change below.
+  * GCL: vain partially reverted attempts at making GCL 2.6 and 2.7 fail less.
+  * LispWorks: use probe-file for probe-file*
+  * RMCL: location strings are now POSIX namestrings.
+    You can thus share configuration files and environment variables
+    between RMCL and other Lisp implementations on same host.
+    Use #p"" syntax when you insist on using MacOS 9 style MCL pathnames.
+  * truenamize: happier when e.g. the *default-pathname-defaults* is #p"",
+    which is the case notably on CCL.
+  * Logical pathnames: now preserved by the source-registry's tree directive.
+  * Upgrade: instead of unintern'ing symbols, use fmakunbound;
+    however, treat compilation of asdf specially, by always making sure
+    it is loaded as source before it is compiled,
+    so that compilation is never an upgrade and never calls fmakunbound, thus
+    ensuring functions in the continuation of compilation are always fbound.
+  * Obsolete: dropped support for *system-cache* and get-uid.
+  * Internals: refactored resolve-relative-location-component.
+  * Documentation: update wrt to the location DSL.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 26 Jul 2011 12:52:49 -0400
+
 cl-asdf (2:2.016-1) unstable; urgency=low
 
   Promoting 2.015.12 as 2.016. Since 2.015, we have the following improvements:

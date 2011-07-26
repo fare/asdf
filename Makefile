@@ -26,6 +26,7 @@ archive-copy: archive
 	bin/link-tarball $(clnet_home)
 	bin/rsync-cp tmp/asdf.lisp $(webhome_private)
 	${MAKE} push
+	git checkout master
 
 push:
 	git status
@@ -121,6 +122,13 @@ fix-local-git-tags:
 # Delete wrongful tags from remote repository
 fix-remote-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git push $${REMOTE:-cl.net} :refs/tags/$$i ; done
+
+release-push:
+	git checkout master
+	git merge release
+	git checkout release
+	git merge master
+	git checkout master
 
 TODO:
 	exit 2
