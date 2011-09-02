@@ -10,11 +10,9 @@
    (push (merge-pathnames #p"xach-foo-1/") asdf:*central-registry*)
    (asdf:load-system "foo")
    (assert (symbol-value (find-symbol (string :loaded) :first-version)))
-   (progn
-     (push (merge-pathnames #p"xach-foo-2/") asdf:*central-registry*)
-     (asdf:load-system "foo")
-     (assert (symbol-value (find-symbol (string :loaded) :second-version)))
-     (assert (eql 42 (funcall (find-symbol (string :wtf) :second-version)))))
-   )
- )
+   (push (merge-pathnames #p"xach-foo-2/") asdf:*central-registry*)
+   (asdf:load-system "foo")
+   (assert (symbol-value (find-symbol (string :loaded) :second-version)))
+   (assert (eql 42 (funcall (find-symbol (string :wtf) :second-version))))))
+
 
