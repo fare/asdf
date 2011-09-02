@@ -1175,10 +1175,43 @@ processed in order by OPERATE."))
    (properties :accessor component-properties :initarg :properties
                :initform nil)))
 
-(defmethod reinitialize-instance :after ((obj component) &rest initargs &key)
-  "When a component is reloaded, it may have a new location, so the
-ABSOLUTE-PATHNAME should be recompiled."
-  (slot-makunbound obj 'absolute-pathname))
+;;; I believe that the following could probably be more efficiently done
+;;; by a primary method that invokes SHARED-INITIALIZE in a way that would
+;;; appropriately pass the slots to have their initforms re-applied, but I
+;;; do not know how to write such a method. [2011/09/02:rpg]
+(defmethod reinitialize-instance :after ((obj component) &rest initargs
+                                         &key (version nil version-suppliedp)
+                                              (description nil description-suppliedp)
+                                              (long-description nil
+                                                                long-description-suppliedp)
+                                              (load-dependencies nil
+                                                                 ld-suppliedp)
+                                              in-order-to
+                                              do-first
+                                              inline-methods
+                                              parent
+                                              properties)
+  "We reuse component objects from previously-existing systems, so we need to
+make sure we clear them thoroughly."
+  (declare (ignore initargs load-dependencies
+                   long-description description version))
+  ;; this is a cache and should be cleared
+  (slot-makunbound obj 'absolute-pathname)
+  ;; component operation times are no longer valid when the component changes
+  (clrhash (component-operation-times obj))
+  (unless version-suppliedp (slot-makunbound obj 'version))
+  (unless description-suppliedp
+    (slot-makunbound obj 'description))
+  (unless long-description-suppliedp
+    (slot-makunbound obj 'long-description))
+  ;; replicate the logic of the initforms...
+  (unless ld-suppliedp (setf load-dependencies nil))
+  (setf (component-in-order-to obj) in-order-to
+        (component-do-first obj) do-first
+        (component-inline-methods obj) inline-methods
+        (slot-value obj 'parent) parent
+        (slot-value obj 'properties) properties))
+
 
 (defun* component-find-path (component)
   (reverse
@@ -1252,6 +1285,21 @@ ABSOLUTE-PATHNAME should be recompiled."
     :initarg :default-component-class
     :accessor module-default-component-class)))
 
+;;; see comment with REINITIALIZE-INSTANCE method on COMPONENT
+;;; [2011/09/02:rpg]
+(defmethod reinitialize-instance :after ((obj module) &rest initargs &key)
+  "Clear MODULE's slots so it can be reused."
+  (slot-makunbound obj 'components-by-name)
+  ;; this may be a more elegant approach than in the
+  ;; COMPONENT method [2011/09/02:rpg]
+  (loop :for (initarg slot-name default) :in
+        `((:components components nil)
+          (:if-component-dep-fails if-component-dep-fails :fail)
+          (:default-component-class default-component-class
+              ,*default-component-class*))
+        :unless (member initarg initargs)
+        :do (setf (slot-value obj slot-name) default)))
+
 (defun* component-parent-pathname (component)
   ;; No default anymore (in particular, no *default-pathname-defaults*).
   ;; If you force component to have a NULL pathname, you better arrange
@@ -1297,6 +1345,22 @@ ABSOLUTE-PATHNAME should be recompiled."
    (source-file :reader system-source-file :initarg :source-file
                 :writer %set-system-source-file)
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
+
+
+;;; see comment with REINITIALIZE-INSTANCE method on COMPONENT
+;;; [2011/09/02:rpg]
+(defmethod reinitialize-instance :after ((obj system) &rest initargs &key)
+  "Clear SYSTEM's slots so it can be reused."
+  ;; this may be a more elegant approach than in the
+  ;; COMPONENT method [2011/09/02:rpg]
+  (loop :for (initarg slot-name) :in
+        `((:author author)
+          (:maintainer maintainer)
+          (:licence licence)
+          (:source-file source-file)
+          (:defsystem-depends-on defsystem-depends-on))
+        :unless (member initarg initargs)
+        :do (slot-makunbound obj slot-name)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; version-satisfies
@@ -2628,18 +2692,23 @@ Returns the new tree (which probably shares structure with the old one)"
                           weakly-depends-on
                           depends-on serial in-order-to)
                         rest))
-           (ret
-            (or (find-component parent name)
-                (make-instance (class-for-type parent type)))))
+           (ret (find-component parent name)))
       (when weakly-depends-on
         (appendf depends-on (remove-if (complement #'find-system) weakly-depends-on)))
       (when *serial-depends-on*
         (push *serial-depends-on* depends-on))
-      (apply 'reinitialize-instance ret
-             :name (coerce-name name)
-             :pathname pathname
-             :parent parent
-             other-args)
+      (if ret
+          (apply 'reinitialize-instance ret
+                 :name (coerce-name name)
+                 :pathname pathname
+                 :parent parent
+                 other-args)
+          (setf ret
+                (apply 'make-instance (class-for-type parent type)
+                       :name (coerce-name name)
+                       :pathname pathname
+                       :parent parent
+                       other-args)))
       (component-pathname ret) ; eagerly compute the absolute pathname
       (when (typep ret 'module)
         (setf (module-default-component-class ret)
