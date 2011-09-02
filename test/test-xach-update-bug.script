@@ -1,0 +1,20 @@
+;;; -*- Lisp -*-
+(load "script-support.lisp")
+(load-asdf)
+
+(quit-on-error
+ (let ((*default-pathname-defaults* (make-pathname :name nil
+                                                   :type nil
+                                                   :defaults *load-truename*)))
+   (setf asdf:*central-registry* nil)
+   (push (merge-pathnames #p"xach-foo-1/") asdf:*central-registry*)
+   (asdf:load-system "foo")
+   (assert (symbol-value (find-symbol (string :loaded) :first-version)))
+   (progn
+     (push (merge-pathnames #p"xach-foo-2/") asdf:*central-registry*)
+     (asdf:load-system "foo")
+     (assert (symbol-value (find-symbol (string :loaded) :second-version)))
+     (assert (eql 42 (funcall (find-symbol (string :wtf) :second-version)))))
+   )
+ )
+
