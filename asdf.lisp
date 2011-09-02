@@ -201,7 +201,7 @@
                (loop :for x :in newly-exported-symbols :do
                  (export (intern* x package)))))
            (ensure-package (name &key nicknames use unintern fmakunbound
-				 shadow export redefined-functions)
+                                 shadow export redefined-functions)
              (let* ((p (ensure-exists name nicknames use)))
                (ensure-unintern p unintern)
                (ensure-shadow p shadow)
@@ -215,7 +215,7 @@
                    ',name :nicknames ',nicknames :use ',use :export ',export
                    :shadow ',shadow
                    :unintern ',unintern
-		   :redefined-functions ',redefined-functions
+                   :redefined-functions ',redefined-functions
                    :fmakunbound ',fmakunbound)))
           (pkgdcl
            :asdf
@@ -1166,6 +1166,7 @@ processed in order by OPERATE."))
    ;; no direct accessor for pathname, we do this as a method to allow
    ;; it to default in funky ways if not supplied
    (relative-pathname :initarg :pathname)
+   ;; the absolute-pathname is computed based on relative-pathname...
    (absolute-pathname)
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
@@ -1173,6 +1174,11 @@ processed in order by OPERATE."))
    ;; component properties
    (properties :accessor component-properties :initarg :properties
                :initform nil)))
+
+(defmethod reinitialize-instance :after ((obj component) &rest initargs &key)
+  "When a component is reloaded, it may have a new location, so the
+ABSOLUTE-PATHNAME should be recompiled."
+  (slot-makunbound obj 'absolute-pathname))
 
 (defun* component-find-path (component)
   (reverse
@@ -2660,7 +2666,7 @@ Returns the new tree (which probably shares structure with the old one)"
       (setf (component-do-first ret)
             (union-of-dependencies
              do-first
-	     `((compile-op (load-op ,@depends-on)))))
+             `((compile-op (load-op ,@depends-on)))))
 
       (%refresh-component-inline-methods ret rest)
       ret)))
@@ -2869,24 +2875,24 @@ located."
     (or
      #+allegro
      (format nil "~A~A~@[~A~]"
-	     excl::*common-lisp-version-number*
-	     ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
-	     (if (eq excl:*current-case-mode* :case-sensitive-lower) "M" "A")
-	     ;; Note if not using International ACL
-	     ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
-	     (excl:ics-target-case (:-ics "8")))
+             excl::*common-lisp-version-number*
+             ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
+             (if (eq excl:*current-case-mode* :case-sensitive-lower) "M" "A")
+             ;; Note if not using International ACL
+             ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
+             (excl:ics-target-case (:-ics "8")))
      #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
      #+clisp
      (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
      #+clozure
      (format nil "~d.~d-f~d" ; shorten for windows
-	     ccl::*openmcl-major-version*
-	     ccl::*openmcl-minor-version*
-	     (logand ccl::fasl-version #xFF))
+             ccl::*openmcl-major-version*
+             ccl::*openmcl-minor-version*
+             (logand ccl::fasl-version #xFF))
      #+cmu (substitute #\- #\/ s)
      #+ecl (format nil "~A~@[-~A~]" s
-		   (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-		     (subseq vcs-id 0 (min (length vcs-id) 8))))
+                   (let ((vcs-id (ext:lisp-implementation-vcs-id)))
+                     (subseq vcs-id 0 (min (length vcs-id) 8))))
      #+gcl (subseq s (1+ (position #\space s)))
      #+genera
      (multiple-value-bind (major minor) (sct:get-system-version "System")
@@ -2901,7 +2907,7 @@ located."
   (substitute-if
    #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
    (format nil "~(~a~@{~@[-~a~]~}~)"
-	   (or *implementation-type* (lisp-implementation-type))
+           (or *implementation-type* (lisp-implementation-type))
            (or *lisp-version-string* (lisp-implementation-version))
            (or *operating-system* (software-type))
            (or *architecture* (machine-type)))))
