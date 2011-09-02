@@ -1,4 +1,4 @@
-;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
+;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
 ;;; This is ASDF 2.017: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
@@ -1205,7 +1205,8 @@ make sure we clear them thoroughly."
   (unless long-description-suppliedp
     (slot-makunbound obj 'long-description))
   ;; replicate the logic of the initforms...
-  (unless ld-suppliedp (setf load-dependencies nil))
+  (unless ld-suppliedp
+    (setf (component-load-dependencies obj) nil))
   (setf (component-in-order-to obj) in-order-to
         (component-do-first obj) do-first
         (component-inline-methods obj) inline-methods
@@ -1351,13 +1352,16 @@ make sure we clear them thoroughly."
 ;;; [2011/09/02:rpg]
 (defmethod reinitialize-instance :after ((obj system) &rest initargs &key)
   "Clear SYSTEM's slots so it can be reused."
-  ;; this may be a more elegant approach than in the
-  ;; COMPONENT method [2011/09/02:rpg]
+  ;; note that SYSTEM-SOURCE-FILE is very specially handled,
+  ;; by DO-DEFSYSTEM, so we need to *PRESERVE* its value and
+  ;; not squash it.  SYSTEM COMPONENTS are handled very specially,
+  ;; because they are always, effectively, reused, since the system component
+  ;; is made early in DO-DEFSYSTEM, instead of being made later, in
+  ;; PARSE-COMPONENT-FORM [2011/09/02:rpg]
   (loop :for (initarg slot-name) :in
         `((:author author)
           (:maintainer maintainer)
           (:licence licence)
-          (:source-file source-file)
           (:defsystem-depends-on defsystem-depends-on))
         :unless (member initarg initargs)
         :do (slot-makunbound obj slot-name)))
