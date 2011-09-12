@@ -1,4 +1,5 @@
-;;; Copyright (c) 2005-2011 Michael Goffioul (michael dot goffioul at swing dot be)
+;;; Copyright (c) 2005 - 2007, Michael Goffioul (michael dot goffioul at swing dot be)
+;;; Copyright (c) 2008, Juan Jose Garcia Ripoll
 ;;;
 ;;;   This program is free software; you can redistribute it and/or
 ;;;   modify it under the terms of the GNU Library General Public
@@ -12,6 +13,15 @@
 #+xcvb (module (:depends-on ("asdf")))
 
 (in-package :asdf)
+
+;;;
+;;; COMPILE-OP / LOAD-OP (in asdf.lisp)
+;;;
+;;; In ECL, these operations produce both FASL files and the
+;;; object files that they are built from. Having both of them allows
+;;; us to later on reuse the object files for bundles, libraries,
+;;; standalone executables, etc.
+;;;
 
 ;;;
 ;;; BUNDLE-OP
@@ -71,6 +81,11 @@
   (setf (bundle-op-build-args instance)
         (remove-keys '(type monolithic name-suffix)
                      (slot-value instance 'original-initargs))))
+
+(defmethod bundle-op-build-args :around ((op lib-op))
+  (let ((args (call-next-method)))
+    (remf args :ld-flags)
+    args))
 
 (defvar *force-load-p* nil)
 
@@ -413,7 +428,6 @@
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
 #+win32 (push '("asd" . si::load-source) si::*load-hooks*)
-(pushnew 'module-provide-asdf si:*module-provider-functions*)
 (pushnew (translate-logical-pathname "SYS:") *central-registry*)
 
 (provide :asdf)
