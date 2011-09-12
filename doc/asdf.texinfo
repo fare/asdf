@@ -517,7 +517,7 @@ control what directories are added to the ASDF search path.
 
 
 @section Configuring where ASDF stores object files
-@findex clear-output-locations
+@findex clear-output-translations
 
 ASDF lets you configure where object files will be stored.
 Sensible defaults are provided and
@@ -595,6 +595,33 @@ to just delegate this functionality to ASDF.
 
 @node Using ASDF, Defining systems with defsystem, Configuring ASDF, Top
 @comment  node-name,  next,  previous,  up
+
+
+@section Resetting Configuration
+
+When you dump and restore an image, or when you tweak your configuration,
+you may want to reset the ASDF configuration.
+For that you may use the following function:
+
+@defun clear-configuration
+   undoes any ASDF configuration,
+   regarding source-registry or output-translations.
+@end defun
+
+If you use SBCL, CMUCL or SCL, you may use this snippet
+so that the ASDF configuration be cleared automatically as you dump an image:
+
+@example
+#+(or cmu sbcl scl)
+(pushnew 'clear-configuration
+         #+(or cmu scl) ext:*before-save-initializations*
+         #+sbcl sb-ext:*save-hooks*)
+@end example
+
+For compatibility with all Lisp implementations, however,
+you might want instead your build script to explicitly call
+@code{(asdf:clear-configuration)} at an appropriate moment before dumping.
+
 
 @chapter Using ASDF
 
