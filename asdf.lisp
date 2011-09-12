@@ -1,5 +1,5 @@
-;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.3: Another System Definition Facility.
+;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
+;;; This is ASDF 2.017.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -112,7 +112,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.3")
+         (asdf-version "2.017.4")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -4121,18 +4121,22 @@ with a different configuration, so the configuration would be re-read then."
 ;;;
 #+ecl
 (progn
-  (setf *compile-op-compile-file-function*
-        (lambda (input-file &rest keys &key &allow-other-keys)
-          (if (use-ecl-byte-compiler-p)
-              (apply 'compile-file input-file keys)
-              (multiple-value-bind (object-file flags1 flags2)
-                  (apply 'compile-file* input-file :system-p t keys)
-                (values (and object-file
-                             (c::build-fasl (compile-file-pathname object-file :type :fasl)
-                                            :lisp-files (list object-file))
-                             object-file)
-                        flags1
-                        flags2)))))
+  (setf *compile-op-compile-file-function* 'ecl-compile-file)
+
+  (defun use-ecl-byte-compiler-p ()
+    (member :ecl-bytecmp *features*))
+
+  (defun ecl-compile-file (input-file &rest keys &key &allow-other-keys)
+    (if (use-ecl-byte-compiler-p)
+        (apply 'compile-file* input-file keys)
+        (multiple-value-bind (object-file flags1 flags2)
+            (apply 'compile-file* input-file :system-p t keys)
+          (values (and object-file
+                       (c::build-fasl (compile-file-pathname object-file :type :fasl)
+                                      :lisp-files (list object-file))
+                       object-file)
+                  flags1
+                  flags2))))
 
   (defmethod output-files ((operation compile-op) (c cl-source-file))
     (declare (ignorable operation))
@@ -4147,16 +4151,6 @@ with a different configuration, so the configuration would be re-read then."
          (loop :for i :in (input-files o c)
            :unless (string= (pathname-type i) "fas")
                :collect (compile-file-pathname (lispize-pathname i))))))
-
-;;;---------------------------------------------------------------------------
-;;; ECL logic for switching between conventional and byte compiling
-;;;---------------------------------------------------------------------------
-#+ecl
-(defun use-ecl-byte-compiler-p ()
-  (member :ecl-bytecmp *features*))
-#-ecl
-(defun use-ecl-byte-compiler-p ()
-  nil)
 
 ;;;; -----------------------------------------------------------------
 ;;;; Hook into REQUIRE for ABCL, CLISP, ClozureCL, CMUCL, ECL and SBCL
