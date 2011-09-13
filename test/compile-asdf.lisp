@@ -1,7 +1,9 @@
 (in-package #:common-lisp-user)
 
-(declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)))
-(proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)))
+(declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)
+		   #+(or cmu scl) (c::brevity 2)))
+(proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)
+		     #+(or cmu scl) (c::brevity 2)))
 
 (load (make-pathname :name "script-support" :defaults *load-pathname*))
 (defun my-compile-file (&rest args) (apply 'compile-file args))
@@ -23,6 +25,7 @@
                         #+ecl ((or c:compiler-note c::compiler-debug-note
                                    c:compiler-warning) ;; ECL emits more serious warnings than it should.
                                #'muffle-warning)
+			#-(or cmu scl)
                         (style-warning
                          #'(lambda (w)
                              ;; escalate style-warnings to warnings - we don't want them.
@@ -34,7 +37,8 @@
        (cond
          (errors-p
           (leave-lisp "Testsuite failed: ASDF compiled with ERRORS" 2))
-         #-(or ecl xcl) ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291
+         #-(or ecl xcl)
+	 ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
          (warnings-p
           (leave-lisp "Testsuite failed: ASDF compiled with warnings" 1))
          (t
