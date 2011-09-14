@@ -1,5 +1,5 @@
 ;;; -*- mode: common-lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.4: Another System Definition Facility.
+;;; This is ASDF 2.017.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -67,8 +67,11 @@
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
     (pushnew :gcl-pre2.7 *features*))
-  #+(and (or win32 windows mswindows mingw32) (not cygwin)) (pushnew :asdf-windows *features*)
-  #+(or unix cygwin) (pushnew :asdf-unix *features*)
+  (cond
+    ((intersection *features* '(:asdf-unix :unix :cygwin :darwin))
+     (pushnew :asdf-unix *features*))
+    ((intersection *features* '(:asdf-windows :win32 :windows :mswindows :mingw32))
+     (pushnew :asdf-windows *features*)))
   ;;; make package if it doesn't exist yet.
   ;;; DEFPACKAGE may cause errors on discrepancies, so we avoid it.
   (unless (find-package :asdf)
@@ -112,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.4")
+         (asdf-version "2.017.5")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
