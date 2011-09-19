@@ -3,9 +3,68 @@
 (load-asdf)
 
 ;;; test asdf run-shell-command function
-;;; Stas Boukarev found (and fixed) a bug where on clisp asdf:run-shell-command might not return
-;;; the right value.  This attempts to test for that.
 (quit-on-error
  (unless (or #+asdf-windows t)
    (assert (eql 1 (asdf:run-shell-command "false")))
-   (assert (eql 0 (asdf:run-shell-command "true")))))
+   (assert (eql 0 (asdf:run-shell-command "true")))
+   (unless (= 2 (asdf:run-shell-command "./bad-shell-command"))
+     (error "Failed to capture exit status indicating shell command failure."))
+   (unless (zerop (asdf:run-shell-command "./good-shell-command"))
+     (error "Failed to capture exit status indicating shell command failure."))
+   ;; make sure we capture stderr from ASDF:RUN-SHELL-COMMAND to *VERBOSE-OUT*
+   #-clisp
+   (let ((string
+          (with-output-to-string (str)
+            (let ((asdf:*verbose-out* str))
+              (asdf:run-shell-command "./stderr")))))
+     (with-input-from-string (str string)
+       (loop for string = (read-line str nil nil)
+             while string
+             if (equalp "Writing to standard error." string)
+             return t
+             finally (format t "Actual content read was:~%")
+             (pprint string)
+             (error "Failed to capture output to standard error using *VERBOSE-OUT*"))))
+   ;; make sure we /don't/ capture stderr from ASDF:RUN-SHELL-COMMAND when
+   ;; *VERBOSE-OUT* is NIL
+   #-clisp
+   (let ((string
+          (with-output-to-string (str)
+            (let ((*error-output* str))
+              (let ((asdf:*verbose-out* nil))
+                (asdf:run-shell-command "./stderr"))))))
+     (unless (equalp string "")
+       (with-input-from-string (str string)
+         (format t "Actual content written to *error-output* was:~%")
+         (pprint string)
+         (error "Failed to capture output to standard error using *VERBOSE-OUT*"))))
+   (let* ((retval nil)
+          (string
+           (with-output-to-string (str)
+             (let ((asdf:*verbose-out* str))
+               (setf retval
+                     (asdf:run-shell-command "echo \"Writing to standard output.\""))))))
+     (unless (zerop retval)
+       (error "echo did not run successfully in the shell."))
+     (with-input-from-string (str string)
+       (loop for s = (read-line str nil nil)
+             while s
+             if (equalp "Writing to standard output." s)
+             return t
+             finally (format t "Actual content read was:~%")
+             (pprint string)
+             (error "Failed to capture output to standard output using *VERBOSE-OUT*"))))
+   (let* ((retval nil)
+          (string
+           (with-output-to-string (str)
+             (let ((*standard-output* str))
+               (let ((asdf:*verbose-out* nil))
+                 (setf retval
+                       (asdf:run-shell-command "echo \"Writing to standard output.\"")))))))
+     (unless (zerop retval)
+       (error "echo did not run successfully in the shell."))
+     (unless (equalp string "")
+       (with-input-from-string (str string)
+         (format t "Actual content written to standard output was:~%")
+         (pprint string)
+         (error "Incorrectly captured output to standard output when not using *VERBOSE-OUT*"))))))
