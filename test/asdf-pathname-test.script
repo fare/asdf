@@ -59,18 +59,23 @@
           (setf (logical-pathname-translations "ASDFTEST")
                 `((,(format nil "**;*.~a" bin-type)
                    ,(make-pathname :directory (bin-dir :wild-inferiors)
-                                   :name :wild :type bin-type :version nil))
+                                   :name :wild :type bin-type :version nil
+				   :defaults root))
                   (,(format nil "**;*.~a.*" bin-type)
                    ,(make-pathname :directory (bin-dir :wild-inferiors)
-                                   :name :wild :type bin-type))
+                                   :name :wild :type bin-type
+				   :defaults root))
                   ("**;*.*"
                    ,(make-pathname :directory (src-dir :wild-inferiors)
-                                   :name :wild :type :wild :version nil))
+                                   :name :wild :type :wild :version nil
+				   :defaults root))
                   ("**;*.*.*"
                    ,(make-pathname :directory (src-dir :wild-inferiors)
-                                   :name :wild :type :wild))))
+                                   :name :wild :type :wild
+				   :defaults root))))
           (let ((failures nil)
-                (systems `(,(make-pathname :directory (src-dir "system1") :name nil :type nil)
+                (systems `(,(make-pathname :directory (src-dir "system1") :name nil :type nil
+					   :defaults root)
                            ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system1"))
                            ,(parse-namestring "ASDFTEST:system1;")
                            ,@(when support-string-pathnames
@@ -80,7 +85,8 @@
                            ,(make-pathname :directory '(:relative) :name nil :type nil)
                            ,(make-pathname :directory '(:relative "module2") :name nil :type nil)
                            ,(make-pathname :directory '(:relative "module2" "module3") :name nil :type nil)
-                           ,(make-pathname :directory (src-dir "system2" "module4") :name nil :type nil)
+                           ,(make-pathname :directory (src-dir "system2" "module4") :name nil :type nil
+					   :defaults root)
                            ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4") :name nil :type nil)
                            ,(parse-namestring "ASDFTEST:system2;module4;")
                            ,@(when support-string-pathnames
@@ -103,13 +109,20 @@
                          ,(make-pathname :directory '(:relative "module2") :name  "untyped-file" :type nil)
                          ,(make-pathname :directory '(:relative "module2") :name  "file" :type "lisp")
                          ,(make-pathname :directory '(:relative "module2" "module3") :name  "file" :type "lisp")
-                         ,(make-pathname :directory (src-dir "system1" "module1") :name "untyped-file" :type nil)
-                         ,(make-pathname :directory (src-dir "system1" "module1") :name "file" :type "lisp")
-                         ,(make-pathname :directory (src-dir "system1" "module2") :name "untyped-file" :type nil)
-                         ,(make-pathname :directory (src-dir "system1" "module2") :name "file" :type "lisp")
-                         ,(make-pathname :directory (src-dir "system1" "module2" "module3") :name "file" :type "lisp")
-                         ,(make-pathname :directory (src-dir "system2" "module4") :name "file" :type "lisp")
-                         ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4") :name "file" :type "lisp")
+                         ,(make-pathname :directory (src-dir "system1" "module1") :name "untyped-file" :type nil
+					 :defaults root)
+                         ,(make-pathname :directory (src-dir "system1" "module1") :name "file" :type "lisp"
+					 :defaults root)
+                         ,(make-pathname :directory (src-dir "system1" "module2") :name "untyped-file" :type nil
+					 :defaults root)
+                         ,(make-pathname :directory (src-dir "system1" "module2") :name "file" :type "lisp"
+					 :defaults root)
+                         ,(make-pathname :directory (src-dir "system1" "module2" "module3") :name "file" :type "lisp"
+					 :defaults root)
+                         ,(make-pathname :directory (src-dir "system2" "module4") :name "file" :type "lisp"
+					 :defaults root)
+                         ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4") :name "file" :type "lisp"
+					 :defaults root)
                          ,(parse-namestring "ASDFTEST:system2;module4;file.lisp")
                          ,@(when support-string-pathnames
                              `(,(concatenate 'string root-directory-namestring "asdf-src/system1/module1/file.lisp")))))
@@ -125,30 +138,45 @@
                                                             (src-dir "system1" "module2" "module3")
                                                             (src-dir "system2" "module4"))
                                      ;; :pathname #p"untyped-file"
-                                     collect (make-pathname :directory directory :name "untyped-file" :type nil)
+                                     collect (make-pathname :directory directory :name "untyped-file" :type nil
+							    :defaults root)
                                      ;; :file "file"
-                                     collect (make-pathname :directory directory :name "file" :type "lisp")     ; for source files
-                                     collect (make-pathname :directory directory :name "file" :type nil)        ; for static files
+                                     collect (make-pathname :directory directory :name "file" :type "lisp"
+							    :defaults root)     ; for source files
+                                     collect (make-pathname :directory directory :name "file" :type nil
+							    :defaults root)        ; for static files
                                      ;; :file "typed-file.type"
-                                     collect (make-pathname :directory directory :name "typed-file.type" :type "lisp")  ; for source files
-                                     collect (make-pathname :directory directory :name "typed-file" :type "type")       ; for static files for :pathname arg
+                                     collect (make-pathname :directory directory :name "typed-file.type" :type "lisp"
+							    :defaults root)  ; for source files
+                                     collect (make-pathname :directory directory :name "typed-file" :type "type"
+							    :defaults root)       ; for static files for :pathname arg
                                      ;; :static-file "static-file.type"
-                                     collect (make-pathname :directory directory :name "static-file" :type "type")
+                                     collect (make-pathname :directory directory :name "static-file" :type "type"
+							    :defaults root)
                                      ;; :file "module2/file"
-                                     collect (make-pathname :directory directory :name "file" :type "lisp")
+                                     collect (make-pathname :directory directory :name "file" :type "lisp"
+							    :defaults root)
                                      ;; :file "module2/typed-file.type"
-                                     collect (make-pathname :directory directory :name "typed-file.type" :type "lisp")          ; for source files
+                                     collect (make-pathname :directory directory :name "typed-file.type" :type "lisp"
+							    :defaults root)          ; for source files
                                      ;;collect (make-pathname :directory directory :name "typed-file.type" :type nil)          ; for static files ;; invalid as static file, unlike the below.
                                      ;; :static-file "module2/static-file.type"
-                                     collect (make-pathname :directory directory :name "static-file" :type "type")
+                                     collect (make-pathname :directory directory :name "static-file" :type "type"
+							    :defaults root)
 
                                      ;;; source file pathname variations
-                                     collect (make-pathname :directory (append directory '("module2")) :name  "untyped-file" :type nil)
-                                     collect (make-pathname :directory (append directory '("module2")) :name  "file" :type "lisp")
-                                         collect (make-pathname :directory (append directory '("module2")) :name  "typed-file.type" :type "lisp")
-                                     collect (make-pathname :directory (append directory '("module2")) :name  "static-file" :type "type")
-                                     collect (make-pathname :directory (append directory '("module2" "module3")) :name  "file" :type "lisp")
-                                     collect (make-pathname :directory (append directory '("module2" "module3")) :name  "file" :type "lisp"))
+                                     collect (make-pathname :directory (append directory '("module2")) :name  "untyped-file" :type nil
+							    :defaults root)
+                                     collect (make-pathname :directory (append directory '("module2")) :name  "file" :type "lisp"
+							    :defaults root)
+                                         collect (make-pathname :directory (append directory '("module2")) :name  "typed-file.type" :type "lisp"
+								:defaults root)
+                                     collect (make-pathname :directory (append directory '("module2")) :name  "static-file" :type "type"
+							    :defaults root)
+                                     collect (make-pathname :directory (append directory '("module2" "module3")) :name  "file" :type "lisp"
+							    :defaults root)
+                                     collect (make-pathname :directory (append directory '("module2" "module3")) :name  "file" :type "lisp"
+							    :defaults root))
                                    #'string-lessp
                                    ;; generate an alternative key in case namestring fails on a name w/ a dot
                                    :key #'(lambda (p) (format nil "~{~a~^.~}~@[.~a~]~@[.~a~]" (rest (pathname-directory p)) (pathname-name p) (pathname-type p))))
