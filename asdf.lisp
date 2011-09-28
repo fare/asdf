@@ -2880,7 +2880,7 @@ user expectations, that have been refactored away since.
 We recommend you use ASDF:SYSTEM-SOURCE-FILE instead
 for a mostly compatible replacement that we're supporting,
 or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
-if that's whay you mean." ;;)
+if that's what you mean." ;;)
   (system-source-file x))
 
 (defmethod system-source-file ((system-name string))
