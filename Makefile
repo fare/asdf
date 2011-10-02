@@ -7,7 +7,7 @@ sourceDirectory := $(shell pwd)
 lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro
 ## occasionally tested by not me: allegromodern lispworks xcl
 ## FAIL: gclcvs (COMPILER BUGS!!!)
-## tentatively supported by asdf, not supported by our tests: cormancl mcl genera
+## tentatively supported by asdf, not supported by our tests: ecl-bytecmp cormancl mcl genera
 
 lisp ?= sbcl
 

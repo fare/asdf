@@ -133,7 +133,11 @@ case "$lisp" in
     eval="-eval" ;;
   ecl)
     command="${ECL:-ecl}"
-    flags="-norc"
+    flags="-norc -load sys:cmp"
+    eval="-eval" ;;
+  ecl-bytecodes)
+    command="${ECL:-ecl}"
+    flags="-norc -eval (ext::install-bytecodes-compiler)"
     eval="-eval" ;;
   gclcvs)
     export GCL_ANSI=t
