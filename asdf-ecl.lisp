@@ -1,5 +1,5 @@
 ;;; Copyright (c) 2005 - 2007, Michael Goffioul (michael dot goffioul at swing dot be)
-;;; Copyright (c) 2008, Juan Jose Garcia Ripoll
+;;; Copyright (c) 2008 - 2011, Juan Jose Garcia Ripoll
 ;;;
 ;;;   This program is free software; you can redistribute it and/or
 ;;;   modify it under the terms of the GNU Library General Public
