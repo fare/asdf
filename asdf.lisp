@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.7: Another System Definition Facility.
+;;; This is ASDF 2.017.8: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.7")
+         (asdf-version "2.017.8")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2168,8 +2168,29 @@ recursive calls to traverse.")
   nil)
 
 (defmethod perform-with-restarts (operation component)
-  ;;(when *asdf-verbose* (explain operation component)) ; TOO verbose, especially as the default.
+  ;; TOO verbose, especially as the default. Add your own :before method
+  ;; to perform-with-restart or perform if you want that:
+  #|(when *asdf-verbose* (explain operation component))|#
   (perform operation component))
+
+(defmethod perform-with-restarts :around (operation component)
+  (loop
+    (restart-case
+        (return (call-next-method))
+      (retry ()
+        :report
+        (lambda (s)
+          (format s (compatfmt "~@<Retry ~A.~@:>")
+                  (operation-description operation component))))
+      (accept ()
+        :report
+        (lambda (s)
+          (format s (compatfmt "~@<Continue, treating ~A as having been successful.~@:>")
+                  (operation-description operation component)))
+        (setf (gethash (type-of operation)
+                       (component-operation-times component))
+              (get-universal-time))
+        (return)))))
 
 (defmethod explain ((operation operation) (component component))
   (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%")
@@ -2196,13 +2217,6 @@ recursive calls to traverse.")
   (let ((files (output-files operation component)))
     (assert (length=n-p files 1))
     (first files)))
-
-(defmethod perform-with-restarts ((o compile-op) (c cl-source-file))
-  (loop
-    (with-simple-restart
-        (try-recompiling "Try recompiling ~a"
-                         (component-name c))
-      (return (perform o c)))))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
    (loop :for file :in (asdf:output-files operation c)
@@ -2283,14 +2297,14 @@ recursive calls to traverse.")
 (defclass load-op (basic-load-op) ())
 
 (defmethod perform-with-restarts ((o load-op) (c cl-source-file))
-  (restart-case
-      (perform o c)
-    (try-recompiling ()
-      :report (lambda (s)
-                (format s "Recompile ~a and try loading it again"
-                        (component-name c)))
-      (perform (make-sub-operation c o c 'compile-op) c)
-      (perform o c))))
+  (loop
+    (restart-case
+        (return (call-next-method))
+      (try-recompiling ()
+        :report (lambda (s)
+                  (format s "Recompile ~a and try loading it again"
+                          (component-name c)))
+        (perform (make-sub-operation c o c 'compile-op) c)))))
 
 (defmethod perform ((o load-op) (c cl-source-file))
   (map () #'load (input-files o c)))
@@ -2427,25 +2441,7 @@ recursive calls to traverse.")
         (*readtable* *readtable*))
     (with-compilation-unit ()
       (loop :for (op . component) :in steps :do
-        (loop
-          (restart-case
-              (progn
-                (perform-with-restarts op component)
-                (return))
-            (retry ()
-              :report
-              (lambda (s)
-                (format s (compatfmt "~@<Retry ~A.~@:>")
-                        (operation-description op component))))
-            (accept ()
-              :report
-              (lambda (s)
-                (format s (compatfmt "~@<Continue, treating ~A as having been successful.~@:>")
-                        (operation-description op component)))
-              (setf (gethash (type-of op)
-                             (component-operation-times component))
-                    (get-universal-time))
-              (return))))))))
+        (perform-with-restarts op component)))))
 
 (defmethod operate (operation-class system &rest args
                     &key ((:verbose *asdf-verbose*) *asdf-verbose*) version force
