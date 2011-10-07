@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.8: Another System Definition Facility.
+;;; This is ASDF 2.017.9: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.8")
+         (asdf-version "2.017.9")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -926,6 +926,7 @@ with given pathname and if it exists return its truename."
 (defgeneric* perform-with-restarts (operation component))
 (defgeneric* perform (operation component))
 (defgeneric* operation-done-p (operation component))
+(defgeneric* mark-operation-done (operation component))
 (defgeneric* explain (operation component))
 (defgeneric* output-files (operation component))
 (defgeneric* input-files (operation component))
@@ -2167,6 +2168,12 @@ recursive calls to traverse.")
   (declare (ignorable operation c))
   nil)
 
+(defmethod mark-operation-done ((operation operation) (c component))
+  (setf (gethash (type-of operation) (component-operation-times c))
+    (reduce #'max
+            (cons (get-universal-time)
+                  (mapcar #'safe-file-write-date (input-files operation c))))))
+
 (defmethod perform-with-restarts (operation component)
   ;; TOO verbose, especially as the default. Add your own :before method
   ;; to perform-with-restart or perform if you want that:
@@ -2187,9 +2194,7 @@ recursive calls to traverse.")
         (lambda (s)
           (format s (compatfmt "~@<Continue, treating ~A as having been successful.~@:>")
                   (operation-description operation component)))
-        (setf (gethash (type-of operation)
-                       (component-operation-times component))
-              (get-universal-time))
+        (mark-operation-done operation component)
         (return)))))
 
 (defmethod explain ((operation operation) (component component))
@@ -2226,8 +2231,7 @@ recursive calls to traverse.")
      :do (ensure-directories-exist pathname)))
 
 (defmethod perform :after ((operation operation) (c component))
-  (setf (gethash (type-of operation) (component-operation-times c))
-        (get-universal-time)))
+  (mark-operation-done operation c))
 
 (defvar *compile-op-compile-file-function* 'compile-file*
   "Function used to compile lisp files.")
