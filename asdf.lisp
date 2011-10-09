@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.9: Another System Definition Facility.
+;;; This is ASDF 2.017.10: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.9")
+         (asdf-version "2.017.10")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -679,7 +679,7 @@ pathnames."
 
 (defun* getenv (x)
   (declare (ignorable x))
-  #+(or abcl clisp xcl) (ext:getenv x)
+  #+(or abcl clisp ecl xcl) (ext:getenv x)
   #+allegro (sys:getenv x)
   #+clozure (ccl:getenv x)
   #+(or cmu scl) (cdr (assoc x ext:*environment-list* :test #'string=))
@@ -693,7 +693,6 @@ pathnames."
                (ct:c-string-to-lisp-string buffer1))
       (ct:free buffer)
       (ct:free buffer1)))
-  #+ecl (si:getenv x)
   #+gcl (system:getenv x)
   #+genera nil
   #+lispworks (lispworks:environment-variable x)
@@ -2813,7 +2812,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
       :input nil :output *verbose-out*))
 
     #+ecl ;; courtesy of Juan Jose Garcia Ripoll
-    (si:system command)
+    (ext:system command)
 
     #+gcl
     (lisp:system command)
@@ -4158,8 +4157,7 @@ with a different configuration, so the configuration would be re-read then."
             #+abcl sys::*module-provider-functions*
             #+clisp ,x
             #+clozure ccl:*module-provider-functions*
-            #+cmu ext:*module-provider-functions*
-            #+ecl si:*module-provider-functions*
+            #+(or cmu ecl) ext:*module-provider-functions*
             #+sbcl sb-ext:*module-provider-functions*))))
 
 

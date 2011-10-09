@@ -5,9 +5,9 @@ clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
 lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro
-## occasionally tested by not me: allegromodern lispworks xcl
-## FAIL: gclcvs (COMPILER BUGS!!!)
-## tentatively supported by asdf, not supported by our tests: ecl-bytecmp cormancl mcl genera
+## occasionally tested by not me: allegromodern lispworks
+## FAIL: gclcvs (COMPILER BUGS!!!), ecl-bytecodes (one failed test for now), xcl (pathname issues)
+## tentatively supported by asdf, not supported by our tests: cormancl genera rmcl
 
 lisp ?= sbcl
 

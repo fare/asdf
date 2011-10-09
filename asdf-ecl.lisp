@@ -141,6 +141,10 @@
   (gather-components 'compile-op c
                      :filter-system (and (not (bundle-op-monolithic-p o)) c)
                      :filter-type '(not system)))
+(defmethod bundle-sub-operations ((o monolithic-lib-op) c)
+  (gather-components 'compile-op c
+                     :filter-system nil
+                     :filter-type '(not system)))
 ;;;
 ;;; SHARED LIBRARIES
 ;;;
@@ -415,19 +419,19 @@
 ;;;
 
 (export '(make-build load-fasl-op prebuilt-system))
-(push '("fasb" . si::load-binary) si::*load-hooks*)
+(push '("fasb" . si::load-binary) ext:*load-hooks*)
 
 (defun register-pre-built-system (name)
   (register-system (make-instance 'system :name name :source-file nil)))
 
-(setf si::*module-provider-functions*
-      (loop :for f :in si::*module-provider-functions*
+(setf ext:*module-provider-functions*
+      (loop :for f :in ext:*module-provider-functions*
         :unless (eq f 'module-provide-asdf)
         :collect #'(lambda (name)
                      (let ((l (multiple-value-list (funcall f name))))
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
-#+win32 (push '("asd" . si::load-source) si::*load-hooks*)
+#+win32 (push '("asd" . si::load-source) ext:*load-hooks*)
 (pushnew (translate-logical-pathname "SYS:") *central-registry*)
 
 (provide :asdf)
