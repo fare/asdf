@@ -5,9 +5,12 @@ clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
 lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro
-## occasionally tested by not me: allegromodern lispworks
-## FAIL: gclcvs (COMPILER BUGS!!!), ecl-bytecodes (one failed test for now), xcl (pathname issues)
-## tentatively supported by asdf, not supported by our tests: cormancl genera rmcl
+## MINOR FAIL: ecl-bytecodes (failure in test-compile-file-failure.script)
+## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
+## OCCASIONALLY TESTED BY NOT ME: allegromodern (not in my free demo version)
+## OCCASIONALLY TESTED BY NOT ME: lispworks (testing requires Pro version)
+## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but it won't compile for me.
+## NOT SUPPORTED BY OUR TESTS: cormancl genera rmcl. Manually tested once in a while.
 
 lisp ?= sbcl
 
@@ -86,17 +89,17 @@ test-upgrade:
 test-forward-references:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
 
-do-test:
+test-lisp:
 	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
 
-test: do-test test-forward-references doc
+test: test-lisp test-forward-references doc
 
-do-test-all:
+test-all-lisps:
 	@for lisp in ${lisps} ; do \
-		${MAKE} do-test lisp=$$lisp || exit 1 ; \
+		${MAKE} test-lisp lisp=$$lisp || exit 1 ; \
 	done
 
-test-all: test-forward-references doc test-upgrade do-test-all
+test-all: test-forward-references doc test-upgrade test-all-lisps
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
@@ -136,7 +139,7 @@ TODO:
 release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
 .PHONY: install archive archive-copy push doc website clean mrproper \
-	upgrade-test test-forward-references test do-test test-all do-test-all \
+	upgrade-test test-forward-references test test-lisp test-all test-all-lisps \
 	test-upgrade test-forward-references \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \

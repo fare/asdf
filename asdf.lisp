@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.10: Another System Definition Facility.
+;;; This is ASDF 2.017.11: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.10")
+         (asdf-version "2.017.11")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2766,11 +2766,25 @@ Returns the new tree (which probably shares structure with the old one)"
 ;;;; gratefully accepted, if they do the same thing.
 ;;;; If the docstring is ambiguous, send a bug report.
 ;;;;
+;;;; WARNING! The function below is mostly dysfunctional.
+;;;; For instance, it will probably run fine on most implementations on Unix,
+;;;; which will hopefully use the shell /bin/sh (which we force in some cases)
+;;;; which is hopefully reasonably compatible with a POSIX *or* Bourne shell.
+;;;; But behavior on Windows may vary wildly between implementations,
+;;;; either relying on your having installed a POSIX sh, or going through
+;;;; the CMD.EXE interpreter, for a totally different meaning, depending on
+;;;; what is easily expressible in said implementation.
+;;;;
 ;;;; We probably should move this functionality to its own system and deprecate
 ;;;; use of it from the asdf package. However, this would break unspecified
 ;;;; existing software, so until a clear alternative exists, we can't deprecate
 ;;;; it, and even after it's been deprecated, we will support it for a few
 ;;;; years so everyone has time to migrate away from it. -- fare 2009-12-01
+;;;;
+;;;; As a suggested replacement which is portable to all ASDF-supported
+;;;; implementations and operating systems except Genera, I recommend
+;;;; xcvb-driver's xcvb-driver:run-program/process-output-stream and its
+;;;; derivatives such as xcvb-driver:run-program/for-side-effects.
 
 (defun* run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
@@ -2786,8 +2800,8 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     ;; will this fail if command has embedded quotes - it seems to work
     (multiple-value-bind (stdout stderr exit-code)
         (excl.osi:command-output
-         (format nil "~a -c \"~a\""
-                 #+mswindows "sh" #-mswindows "/bin/sh" command)
+         #-mswindows (vector "/bin/sh" "/bin/sh" "-c" command)
+         #+mswindows command ; BEWARE!
          :input nil :whole nil
          #+mswindows :show-window #+mswindows :hide)
       (asdf-message "~{~&; ~a~%~}~%" stderr)
@@ -2800,15 +2814,18 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     #+clozure
     (nth-value 1
                (ccl:external-process-status
-                (ccl:run-program "/bin/sh" (list "-c" command)
-                                 :input nil :output *verbose-out*
-                                 :wait t)))
+                (ccl:run-program
+                 #+asdf-unix "/bin/sh"
+                 #+asdf-unix (list "-c" command)
+                 #+asdf-windows (format nil "CMD /C ~A" command)
+                 #+asdf-windows () ; BEWARE!
+                 :input nil :output *verbose-out* :wait t)))
 
     #+(or cmu scl)
     (ext:process-exit-code
      (ext:run-program
       "/bin/sh"
-      (list  "-c" command)
+      (list "-c" command)
       :input nil :output *verbose-out*))
 
     #+ecl ;; courtesy of Juan Jose Garcia Ripoll
@@ -2820,7 +2837,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     #+lispworks
     (system:call-system-showing-output
      command
-     :shell-type "/bin/sh"
+     #+asdf-unix :shell-type #+asdf-unix "/bin/sh"
      :show-cmd nil
      :prefix ""
      :output-stream *verbose-out*)
@@ -2926,33 +2943,34 @@ located."
 
 (defparameter *lisp-version-string*
   (let ((s (lisp-implementation-version)))
-    (or
-     #+allegro
-     (format nil "~A~A~@[~A~]"
-             excl::*common-lisp-version-number*
-             ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
-             (if (eq excl:*current-case-mode* :case-sensitive-lower) "M" "A")
-             ;; Note if not using International ACL
-             ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
-             (excl:ics-target-case (:-ics "8")))
-     #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
-     #+clisp
-     (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
-     #+clozure
-     (format nil "~d.~d-f~d" ; shorten for windows
-             ccl::*openmcl-major-version*
-             ccl::*openmcl-minor-version*
-             (logand ccl::fasl-version #xFF))
-     #+cmu (substitute #\- #\/ s)
-     #+ecl (format nil "~A~@[-~A~]" s
-                   (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-                     (subseq vcs-id 0 (min (length vcs-id) 8))))
-     #+gcl (subseq s (1+ (position #\space s)))
-     #+genera
-     (multiple-value-bind (major minor) (sct:get-system-version "System")
-       (format nil "~D.~D" major minor))
-     #+mcl (subseq s 8) ; strip the leading "Version "
-     s)))
+    (car
+     (list
+      #+allegro
+      (format nil "~A~A~@[~A~]"
+              excl::*common-lisp-version-number*
+              ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
+              (if (eq excl:*current-case-mode* :case-sensitive-lower) "M" "A")
+              ;; Note if not using International ACL
+              ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
+              (excl:ics-target-case (:-ics "8")))
+      #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
+      #+clisp
+      (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
+      #+clozure
+      (format nil "~d.~d-f~d" ; shorten for windows
+              ccl::*openmcl-major-version*
+              ccl::*openmcl-minor-version*
+              (logand ccl::fasl-version #xFF))
+      #+cmu (substitute #\- #\/ s)
+      #+ecl (format nil "~A~@[-~A~]" s
+                    (let ((vcs-id (ext:lisp-implementation-vcs-id)))
+                      (subseq vcs-id 0 (min (length vcs-id) 8))))
+      #+gcl (subseq s (1+ (position #\space s)))
+      #+genera
+      (multiple-value-bind (major minor) (sct:get-system-version "System")
+        (format nil "~D.~D" major minor))
+      #+mcl (subseq s 8) ; strip the leading "Version "
+      s))))
 
 (defun* implementation-type ()
   *implementation-type*)
