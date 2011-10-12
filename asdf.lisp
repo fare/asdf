@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.11: Another System Definition Facility.
+;;; This is ASDF 2.017.12: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.11")
+         (asdf-version "2.017.12")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1931,7 +1931,7 @@ class specifier, not an operation."
          ;; e.g. LOAD-OP or LOAD-SOURCE-OP of some CL-SOURCE-FILE.
          (and op-time (>= op-time (latest-in))))
         ((not in-files)
-         ;; an operation without output-files and no input-files
+         ;; an operation with output-files and no input-files
          ;; is probably meant for its side-effects on the file-system,
          ;; assumed to have to be done everytime.
          ;; (I don't think there is any such case in ASDF unless extended)
@@ -1973,76 +1973,89 @@ recursive calls to traverse.")
 
 (defgeneric* do-traverse (operation component collect))
 
-(defun* %do-one-dep (operation c collect required-op required-c required-v)
-  ;; collects a partial plan that results from performing required-op
-  ;; on required-c, possibly with a required-vERSION
-  (let* ((dep-c (or (let ((d (find-component (component-parent c) required-c)))
-                      (and d (version-satisfies d required-v) d))
-                    (if required-v
-                        (error 'missing-dependency-of-version
-                               :required-by c
-                               :version required-v
-                               :requires required-c)
-                        (error 'missing-dependency
-                               :required-by c
-                               :requires required-c))))
-         (op (make-sub-operation c operation dep-c required-op)))
-    (do-traverse op dep-c collect)))
-
-(defun* do-one-dep (operation c collect required-op required-c required-v)
-  ;; this function is a thin, error-handling wrapper around %do-one-dep.
-  ;; Collects a partial plan per that function.
+(defun* resolve-dependency-name (component name &optional version)
   (loop
     (restart-case
-        (return (%do-one-dep operation c collect
-                             required-op required-c required-v))
+        (return
+          (let ((comp (find-component (component-parent component) name)))
+            (unless comp
+              (error 'missing-dependency
+                     :required-by component
+                     :requires name))
+            (when version
+              (unless (version-satisfies comp version)
+                (error 'missing-dependency-of-version
+                       :required-by component
+                       :version version
+                       :requires name)))
+            comp))
       (retry ()
         :report (lambda (s)
-                  (format s "~@<Retry loading ~3i~_~A.~@:>" required-c))
+                  (format s "~@<Retry loading ~3i~_~A.~@:>" name))
         :test
         (lambda (c)
           (or (null c)
               (and (typep c 'missing-dependency)
-                   (equalp (missing-requires c)
-                           required-c))))))))
+                   (eq (missing-required-by c) component)
+                   (equal (missing-requires c) name))))))))
 
-(defun* do-dep (operation c collect op dep)
-  ;; type of arguments uncertain:
-  ;; op seems to at least potentially be a symbol, rather than an operation
-  ;; dep is a list of component names
-  (cond ((eq op 'feature)
-         (if (member (car dep) *features*)
+(defun* resolve-dependency-spec (component dep-spec)
+  (cond
+    ((atom dep-spec)
+     (resolve-dependency-name component dep-spec))
+    ;; Structured dependencies --- this parses keywords.
+    ;; The keywords could conceivably be broken out and cleanly (extensibly)
+    ;; processed by EQL methods. But for now, here's what we've got.
+    ((eq :version (first dep-spec))
+     ;; https://bugs.launchpad.net/asdf/+bug/527788
+     (resolve-dependency-name component (second dep-spec) (third dep-spec)))
+    ((eq :feature (first dep-spec))
+     ;; This particular subform is not documented and
+     ;; has always been broken in the past.
+     ;; Therefore no one uses it, and I'm cerroring it out,
+     ;; after fixing it
+     ;; See https://bugs.launchpad.net/asdf/+bug/518467
+     (cerror "Continue nonetheless."
+             "Congratulations, you're the first ever user of FEATURE dependencies! Please contact the asdf-devel mailing-list.")
+     (when (find (second dep-spec) *features* :test 'string-equal)
+       (resolve-dependency-name component (third dep-spec))))
+    (t
+     (error (compatfmt "~@<Bad dependency ~s.  Dependencies must be (:version <name> <version>), (:feature <feature> <name>), or <name>.~@:>") dep-spec))))
+
+(defun* do-one-dep (op c collect dep-op dep-c)
+  ;; Collects a partial plan for performing dep-op on dep-c
+  ;; as dependencies of a larger plan involving op and c.
+  ;; Returns t if this should force recompilation of those who depend on us.
+  ;; dep-op is an operation class name (not an operation object),
+  ;; whereas dep-c is a component object.n
+  (do-traverse (make-sub-operation c op dep-c dep-op) dep-c collect))
+
+(defun* do-dep (op c collect dep-op-spec dep-c-specs)
+  ;; Collects a partial plan for performing dep-op-spec on each of dep-c-specs
+  ;; as dependencies of a larger plan involving op and c.
+  ;; Returns t if this should force recompilation of those who depend on us.
+  ;; dep-op-spec is either an operation class name (not an operation object),
+  ;; or the magic symbol asdf:feature.
+  ;; If dep-op-spec is asdf:feature, then the first dep-c-specs is a keyword,
+  ;; and the plan will succeed if that keyword is present in *feature*,
+  ;; or fail if it isn't
+  ;; (at which point c's :if-component-dep-fails will kick in).
+  ;; If dep-op-spec is an operation class name,
+  ;; then dep-c-specs specifies a list of sibling component of c,
+  ;; as per resolve-dependency-spec, such that operating op on c
+  ;; depends on operating dep-op-spec on each of them.
+  (cond ((eq dep-op-spec 'feature)
+         (if (member (car dep-c-specs) *features*)
              nil
              (error 'missing-dependency
                     :required-by c
-                    :requires (car dep))))
+                    :requires (list :feature (car dep-c-specs)))))
         (t
          (let ((flag nil))
-           (flet ((dep (op comp ver)
-                    (when (do-one-dep operation c collect
-                                      op comp ver)
-                      (setf flag t))))
-             (dolist (d dep)
-               (if (atom d)
-                   (dep op d nil)
-                   ;; structured dependencies --- this parses keywords
-                   ;; the keywords could be broken out and cleanly (extensibly)
-                   ;; processed by EQL methods
-                   (cond ((eq :version (first d))
-                          ;; https://bugs.launchpad.net/asdf/+bug/527788
-                          (dep op (second d) (third d)))
-                         ;; This particular subform is not documented and
-                         ;; has always been broken in the past.
-                         ;; Therefore no one uses it, and I'm cerroring it out,
-                         ;; after fixing it
-                         ;; See https://bugs.launchpad.net/asdf/+bug/518467
-                         ((eq :feature (first d))
-                          (cerror "Continue nonetheless."
-                                  "Congratulations, you're the first ever user of FEATURE dependencies! Please contact the asdf-devel mailing-list.")
-                          (when (find (second d) *features* :test 'string-equal)
-                            (dep op (third d) nil)))
-                         (t
-                          (error (compatfmt "~@<Bad dependency ~a.  Dependencies must be (:version <version>), (:feature <feature> [version]), or a name.~@:>") d))))))
+           (dolist (d dep-c-specs)
+             (when (do-one-dep op c collect dep-op-spec
+                               (resolve-dependency-spec c d))
+               (setf flag t)))
            flag))))
 
 (defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
@@ -2222,12 +2235,15 @@ recursive calls to traverse.")
     (assert (length=n-p files 1))
     (first files)))
 
-(defmethod perform :before ((operation compile-op) (c source-file))
-   (loop :for file :in (asdf:output-files operation c)
-     :for pathname = (if (typep file 'logical-pathname)
-                         (translate-logical-pathname file)
-                         file)
+(defun* ensure-all-directories-exist (pathnames)
+   (loop :for pn :in pathnames
+     :for pathname = (if (typep pn 'logical-pathname)
+                         (translate-logical-pathname pn)
+                         pn)
      :do (ensure-directories-exist pathname)))
+
+(defmethod perform :before ((operation compile-op) (c source-file))
+  (ensure-all-directories-exist (asdf:output-files operation c)))
 
 (defmethod perform :after ((operation operation) (c component))
   (mark-operation-done operation c))

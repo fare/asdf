@@ -34,7 +34,6 @@ archive-copy: archive
 push:
 	git status
 	git push --tags cl.net release master
-	git push --tags xcvb release master
 	git fetch
 	git status
 
