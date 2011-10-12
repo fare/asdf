@@ -1237,6 +1237,7 @@ and @emph{operations}, the actions that can be performed on a system.
 @menu
 * Operations::
 * Components::
+* Functions::
 @end menu
 
 @node  Operations, Components, The object model of ASDF, The object model of ASDF
@@ -1437,7 +1438,7 @@ if you don't like the default one
 Operations that print output should send that output to the standard
 CL stream @code{*standard-output*}, as the Lisp compiler and loader do.
 
-@node Components,  , Operations, The object model of ASDF
+@node Components, Functions, Operations, The object model of ASDF
 @comment  node-name,  next,  previous,  up
 @section Components
 @cindex component
@@ -1600,11 +1601,14 @@ The syntax is approximately
 @verbatim
 (this-op {(other-op required-components)}+)
 
-required-components := component-name
+simple-component-name := string
+                      |  symbol
+
+required-components := simple-component-name
                      | (required-components required-components)
 
-component-name := string
-                | (:version string minimum-version-object)
+component-name := simple-component-name
+                | (:version simple-component-name minimum-version-object)
 @end verbatim
 
 Side note:
@@ -1814,6 +1818,25 @@ The new component type is used in a @code{defsystem} form in this way:
      ...
     )
 @end lisp
+
+@node Functions,  , Components, The object model of ASDF
+@comment  node-name,  next,  previous,  up
+@section Functions
+@findex version-satisfies
+
+@deffn version-satisfies @var{version} @var{version-spec}
+Does @var{version} satisfy the @var{version-spec}.  A generic function.
+ASDF provides built-in methods for @var{version} being a
+@code{component} or @code{string}.  @var{version-spec} should be a
+string.
+
+In the wild, we typically see version numbering only on components of
+type @code{system}.
+
+For more information about how @code{version-satisfies} interprets
+version strings and specifications, @pxref{The defsystem grammar} and
+@ref{Common attributes of components}.
+@end deffn
 
 @node Controlling where ASDF searches for systems, Controlling where ASDF saves compiled files, The object model of ASDF, Top
 @comment  node-name,  next,  previous,  up
