@@ -2893,10 +2893,11 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
 #+clisp
 (defconstant +clisp-status-prefix-length+ (length "ASDF-EXIT-STATUS "))
+#+clisp
 (defconstant +clisp-status-prefix+  "ASDF-EXIT-STATUS ")
 
 #+clisp
-(defun parse-clisp-shell-output (stream)
+(defun* parse-clisp-shell-output (stream)
   "Helper function for running shell commands under clisp.  Parses a specially-
 crafted output string to recover the exit status of the shell command and a
 list of lines of output."
