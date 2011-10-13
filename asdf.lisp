@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.14: Another System Definition Facility.
+;;; This is ASDF 2.017.15: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.14")
+         (asdf-version "2.017.15")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2827,9 +2827,21 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
     #+clisp                    ;XXX not exactly *verbose-out*, I know
     ;; CLISP returns NIL for exit status zero.
-    (let ((retval (ext:run-shell-command command :output (and *verbose-out* :terminal) :wait t)))
-        (if (null retval) 0
-            retval))
+    (if *verbose-out*
+        (let* ((new-command (concatenate 'string
+                                        command
+                                        "; echo \"ASDF-EXIT-STATUS $?\""))
+               (outstream (ext:run-shell-command new-command :output :stream :wait t)))
+            (multiple-value-bind (retval out-lines)
+                (unwind-protect
+                     (parse-clisp-shell-output outstream)
+                  (ignore-errors (close outstream)))
+              (asdf-message "~{~&~a~%~}~%" out-lines)
+              retval))
+        ;; there will be no output, just grab up the exit status
+        (let ((retval (ext:run-shell-command command :output nil :wait t)))
+          (if (null retval) 0
+              retval)))
 
     #+clozure
     (nth-value 1
@@ -2878,6 +2890,25 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
 
     #-(or abcl allegro clisp clozure cmu ecl gcl lispworks mcl sbcl scl xcl)
     (error "RUN-SHELL-COMMAND not implemented for this Lisp")))
+
+#+clisp
+(defconstant +clisp-status-prefix-length+ (length "ASDF-EXIT-STATUS "))
+(defconstant +clisp-status-prefix+  "ASDF-EXIT-STATUS ")
+
+#+clisp
+(defun parse-clisp-shell-output (stream)
+  "Helper function for running shell commands under clisp.  Parses a specially-
+crafted output string to recover the exit status of the shell command and a
+list of lines of output."
+  (loop for line = (read-line stream nil nil)
+        with exit-status
+        while line
+        if (equal (subseq line 0 +clisp-status-prefix-length+)
+                  +clisp-status-prefix+)
+        do (setf exit-status (parse-integer line :start +clisp-status-prefix-length+
+                                            :junk-allowed t))
+        else collect line into output-lines
+        finally (return (values exit-status output-lines))))
 
 ;;;; ---------------------------------------------------------------------------
 ;;;; system-relative-pathname
