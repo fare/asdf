@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.13: Another System Definition Facility.
+;;; This is ASDF 2.017.14: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.13")
+         (asdf-version "2.017.14")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2821,12 +2821,15 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
          #+mswindows command ; BEWARE!
          :input nil :whole nil
          #+mswindows :show-window #+mswindows :hide)
-      (asdf-message "~{~&; ~a~%~}~%" stderr)
-      (asdf-message "~{~&; ~a~%~}~%" stdout)
+      (asdf-message "~{~&~a~%~}~%" stderr)
+      (asdf-message "~{~&~a~%~}~%" stdout)
       exit-code)
 
     #+clisp                    ;XXX not exactly *verbose-out*, I know
-    (or (ext:run-shell-command command :output (and *verbose-out* :terminal) :wait t) 0)
+    ;; CLISP returns NIL for exit status zero.
+    (let ((retval (ext:run-shell-command command :output (and *verbose-out* :terminal) :wait t)))
+        (if (null retval) 0
+            retval))
 
     #+clozure
     (nth-value 1
