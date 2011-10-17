@@ -2824,8 +2824,6 @@ The valid values for these variables are
 @comment  node-name,  next,  previous,  up
 @chapter Miscellaneous additional functionality
 
-@emph{FIXME:  Add discussion of @code{run-shell-command}?  Others?}
-
 ASDF includes several additional features that are generally
 useful for system definition and development. These include:
 
@@ -2921,6 +2919,33 @@ ASDF itself goes through notable pains to make such a hot upgrade possible
 with respect to its own code, and what it does is ridiculously complex;
 look at the beginning of @file{asdf.lisp} to see what it does.
 @end defun
+
+@defun run-shell-command
+
+This function is obsolete and present only for the sake of backwards-compatibility:
+``If it's not backwards, it's not compatible''. We strongly discourage its use.
+Its current behavior is only well-defined on Unix platforms
+(which includes MacOS X and cygwin). On Windows, anything goes.
+
+Instead we recommend the use of such a function as
+@code{xcvb-driver:run-program/process-output-stream}
+from the @code{xcvb-driver} system that is distributed with XCVB:
+@url{http://common-lisp.net/project/xcvb}.
+It's only alternative that supports
+as many implementations and operating systems as ASDF does,
+and provides well-defined behavior outside Unix (i.e. on Windows).
+(The only unsupported exception is Genera, since on it
+@code{run-shell-command} doesn't make sense anyway on that platform).
+
+This function takes as arguments a @code{format} control-string
+and arguments to be passed to @code{format} after this control-string
+to produce a string.
+This string is a command that will be evaluated with a POSIX shell if possible;
+yet, on Windows, some implementations will use CMD.EXE,
+while others (like SBCL) will make an attempt at invoking a POSIX shell
+(and fail if it is not present).
+@end defun
+
 
 @node Getting the latest version, FAQ, Miscellaneous additional functionality, Top
 @comment  node-name,  next,  previous,  up
