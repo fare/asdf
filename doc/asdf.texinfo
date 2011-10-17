@@ -2825,7 +2825,36 @@ The valid values for these variables are
 @chapter Miscellaneous additional functionality
 
 ASDF includes several additional features that are generally
-useful for system definition and development. These include:
+useful for system definition and development.
+
+@section Controlling file compilation
+
+When declaring a component (system, module, file),
+you can specify a keyword argument @code{:around-compile some-symbol}.
+If left unspecified, the value will be inherited from the parent component if any,
+or with a default of @code{nil} if no value is specified in any transitive parent.
+
+The argument must be a either fbound symbol or @code{nil}.
+@code{nil} means the normal compile-file function will be called.
+A symbol means the function fbound to it will be called with a single argument,
+a thunk that calls the compile-file function;
+the function you specify must then funcall that thunk
+inside whatever wrapping you want.
+
+Using this hook, you may achieve such effects as:
+locally renaming packages,
+binding @var{*readtables*} and other syntax-controlling variables,
+handling warnings and other conditions,
+proclaiming consistent optimization settings,
+saving code coverage information,
+maintaining meta-data about compilation timings,
+setting gensym counters and PRNG seeds and other sources of non-determinism,
+overriding the source-location and/or timestamping systems,
+checking that some compile-time side-effects were properly balanced,
+etc.
+
+
+@section Miscellaneous Exported Functions
 
 @defun coerce-pathname name @&key type defaults
 

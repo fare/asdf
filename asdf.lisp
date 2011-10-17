@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.17: Another System Definition Facility.
+;;; This is ASDF 2.017.18: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.17")
+         (asdf-version "2.017.18")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1175,6 +1175,7 @@ processed in order by OPERATE."))
    (absolute-pathname)
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
+   (around-compile :initarg :around-compile)
    ;; XXX we should provide some atomic interface for updating the
    ;; component properties
    (properties :accessor component-properties :initarg :properties
@@ -2249,6 +2250,22 @@ recursive calls to traverse.")
 (defmethod perform :after ((operation operation) (c component))
   (mark-operation-done operation c))
 
+(defgeneric* call-with-around-compile-hook (component thunk))
+(defgeneric* around-compile-hook (component))
+
+(defmethod around-compile-hook ((c component))
+  (cond
+    ((slot-boundp c 'around-compile)
+     (slot-value c 'around-compile))
+    ((component-parent c)
+     (around-compile-hook (component-parent c)))))
+
+(defmethod call-with-around-compile-hook ((c component) thunk)
+  (let ((hook (around-compile-hook c)))
+    (if hook
+        (funcall hook thunk)
+        (funcall thunk))))
+
 (defvar *compile-op-compile-file-function* 'compile-file*
   "Function used to compile lisp files.")
 
@@ -2263,8 +2280,10 @@ recursive calls to traverse.")
         (*compile-file-warnings-behaviour* (operation-on-warnings operation))
         (*compile-file-failure-behaviour* (operation-on-failure operation)))
     (multiple-value-bind (output warnings-p failure-p)
-        (apply *compile-op-compile-file-function* source-file
-               :output-file output-file (compile-op-flags operation))
+        (call-with-around-compile-hook
+         c (lambda ()
+             (apply *compile-op-compile-file-function* source-file
+                    :output-file output-file (compile-op-flags operation))))
       (unless output
         (error 'compile-error :component c :operation operation))
       (when failure-p
