@@ -13,8 +13,8 @@
    (setf asdf:*central-registry* `(*default-pathname-defaults* ,tmp))
    (assert (= 0 (asdf:run-shell-command
                  (format nil "/bin/ln -sf ~A ~A"
-                         (#-scl namestring #+scl ext:unix-namestring asd)
-                         (#-scl namestring #+scl ext:unix-namestring asd2 #+scl nil)))))
+                         (native-namestring asd)
+                         (native-namestring asd2)))))
    (asdf:oos 'asdf:load-source-op 'test-multiple-too)
    (assert (symbol-value (find-symbol (string :*file3*) :test-package)))
    (asdf:load-system 'test-multiple-free)

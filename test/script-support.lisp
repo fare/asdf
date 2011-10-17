@@ -44,6 +44,13 @@
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
 
+(defun native-namestring (x)
+  (let* ((p (pathname x)))
+    #+clozure (ccl:native-translated-namestring p)
+    #+(or cmu scl) (ext:unix-namestring p)
+    #+sbcl (sb-ext:native-namestring p)
+    #-(or clozure cmu sbcl scl) (namestring p)))
+
 ;;; code adapted from cl-launch http://www.cliki.net/cl-launch
 (defun leave-lisp (message return)
   (fresh-line *error-output*)
