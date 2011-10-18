@@ -78,17 +78,20 @@ test-upgrade:
 	use_cmucl () { li="cmucl -load test/script-support" ; ev="-eval" ; } ; \
 	use_abcl () { li="abcl --noinform --load test/script-support" ; ev="--eval" ; } ; \
 	use_scl () { li="scl -load test/script-support" ; ev="-eval" ; } ; \
-	use_allegro () { li="allegro -L test/script-support" ; ev="-e" ; } ; \
+	use_allegro () { li="alisp -L test/script-support" ; ev="-e" ; } ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` ; do \
 	  use_${lisp} ; \
 	  lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
 	  echo "Testing upgrade from ASDF $${tag}" ; \
 	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
 	  rm -f $$fa ; \
+	  case ${lisp}:$$tag in \
+	    ecl:2.00[0-9]|ecl:2.01[0-6]) : Skip, because of get-uid ugliness ;; *) \
 	  ( set -x ; $$li $$ev "$$lo" $$ev "$$ll" $$ev "$$te" && \
 	    $$li $$ev "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" && \
 	    $$li $$ev "$$lo" $$ev "$$lf" $$ev "$$te" && \
 	    $$li $$ev "$$lf" $$ev "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;} \
+	  ;; esac ; \
 	done
 
 test-forward-references:
