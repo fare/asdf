@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.18: Another System Definition Facility.
+;;; This is ASDF 2.017.19: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.18")
+         (asdf-version "2.017.19")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -203,23 +203,22 @@
                    :do (unintern old user)))
                (loop :for x :in newly-exported-symbols :do
                  (export (intern* x package)))))
-           (ensure-package (name &key nicknames use unintern fmakunbound
+           (ensure-package (name &key nicknames use unintern
                                  shadow export redefined-functions)
              (let* ((p (ensure-exists name nicknames use)))
                (ensure-unintern p unintern)
                (ensure-shadow p shadow)
                (ensure-export p export)
-               (ensure-fmakunbound p (append fmakunbound redefined-functions))
+               (ensure-fmakunbound p redefined-functions)
                p)))
         (macrolet
             ((pkgdcl (name &key nicknames use export
-                           redefined-functions unintern fmakunbound shadow)
+                           redefined-functions unintern shadow)
                  `(ensure-package
                    ',name :nicknames ',nicknames :use ',use :export ',export
                    :shadow ',shadow
                    :unintern ',unintern
-                   :redefined-functions ',redefined-functions
-                   :fmakunbound ',fmakunbound)))
+                   :redefined-functions ',redefined-functions)))
           (pkgdcl
            :asdf
            :nicknames (:asdf-utilities) ;; DEPRECATED! Do not use, for backward compatibility only.
@@ -229,16 +228,14 @@
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
+            #:system-relative-pathname
+            #:inherit-source-registry #:process-source-registry
+            #:process-source-registry-directive
             #:compile-file* #:source-file-type)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
             #:split #:make-collector
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
-           :fmakunbound
-           (#:system-source-file
-            #:component-relative-pathname #:system-relative-pathname
-            #:process-source-registry
-            #:inherit-source-registry #:process-source-registry-directive)
            :export
            (#:defsystem #:oos #:operate #:find-system #:run-shell-command
             #:system-definition-pathname #:with-system-definitions
@@ -1352,7 +1349,6 @@ make sure we clear them thoroughly."
    (source-file :reader system-source-file :initarg :source-file
                 :writer %set-system-source-file)
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
-
 
 ;;; see comment with REINITIALIZE-INSTANCE method on COMPONENT
 ;;; [2011/09/02:rpg]
