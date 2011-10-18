@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.20: Another System Definition Facility.
+;;; This is ASDF 2.017.21: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.20")
+         (asdf-version "2.017.21")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1346,7 +1346,7 @@ make sure we clear them thoroughly."
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
             :accessor system-license :initarg :license)
-   (source-file :reader system-source-file :initarg :source-file
+   (source-file :reader %system-source-file :initarg :source-file ; for CLISP upgrade
                 :writer %set-system-source-file)
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
 
@@ -2938,10 +2938,12 @@ or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
 if that's whay you mean." ;;)
   (system-source-file x))
 
+(defmethod system-source-file ((system system))
+  (%system-source-file system))
 (defmethod system-source-file ((system-name string))
-  (system-source-file (find-system system-name)))
+  (%system-source-file (find-system system-name)))
 (defmethod system-source-file ((system-name symbol))
-  (system-source-file (find-system system-name)))
+  (%system-source-file (find-system system-name)))
 
 (defun* system-source-directory (system-designator)
   "Return a pathname object corresponding to the
