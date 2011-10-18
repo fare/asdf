@@ -44,6 +44,7 @@
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
 
+#-sbcl
 (defun native-namestring (x)
   (let* ((p (pathname x)))
     #+clozure (ccl:native-translated-namestring p)
