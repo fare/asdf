@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.19: Another System Definition Facility.
+;;; This is ASDF 2.017.20: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.19")
+         (asdf-version "2.017.20")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2246,8 +2246,8 @@ recursive calls to traverse.")
 (defmethod perform :after ((operation operation) (c component))
   (mark-operation-done operation c))
 
-(defgeneric* call-with-around-compile-hook (component thunk))
 (defgeneric* around-compile-hook (component))
+(defgeneric* call-with-around-compile-hook (component thunk))
 
 (defmethod around-compile-hook ((c component))
   (cond
@@ -2385,7 +2385,7 @@ recursive calls to traverse.")
   (declare (ignorable o))
   (let ((source (component-pathname c)))
     (setf (component-property c 'last-loaded-as-source)
-          (and (load source)
+          (and (call-with-around-compile-hook c (lambda () (load source)))
                (get-universal-time)))))
 
 (defmethod perform ((operation load-source-op) (c static-file))
