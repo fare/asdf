@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.21: Another System Definition Facility.
+;;; This is ASDF 2.017.22: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -67,11 +67,6 @@
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
     (pushnew :gcl-pre2.7 *features*))
-  (cond
-    ((intersection *features* '(:asdf-unix :unix :cygwin :darwin))
-     (pushnew :asdf-unix *features*))
-    ((intersection *features* '(:asdf-windows :win32 :windows :mswindows :mingw32))
-     (pushnew :asdf-windows *features*)))
   ;;; make package if it doesn't exist yet.
   ;;; DEFPACKAGE may cause errors on discrepancies, so we avoid it.
   (unless (find-package :asdf)
@@ -115,7 +110,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.21")
+         (asdf-version "2.017.22")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1416,6 +1411,81 @@ NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
       (and x y (= (car x) (car y))
            (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
 
+;;;; -----------------------------------------------------------------
+;;;; Windows shortcut support.  Based on:
+;;;;
+;;;; Jesse Hager: The Windows Shortcut File Format.
+;;;; http://www.wotsit.org/list.asp?fc=13
+
+#-clisp
+(progn
+(defparameter *link-initial-dword* 76)
+(defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
+
+(defun* read-null-terminated-string (s)
+  (with-output-to-string (out)
+    (loop :for code = (read-byte s)
+      :until (zerop code)
+      :do (write-char (code-char code) out))))
+
+(defun* read-little-endian (s &optional (bytes 4))
+  (loop :for i :from 0 :below bytes
+    :sum (ash (read-byte s) (* 8 i))))
+
+(defun* parse-file-location-info (s)
+  (let ((start (file-position s))
+        (total-length (read-little-endian s))
+        (end-of-header (read-little-endian s))
+        (fli-flags (read-little-endian s))
+        (local-volume-offset (read-little-endian s))
+        (local-offset (read-little-endian s))
+        (network-volume-offset (read-little-endian s))
+        (remaining-offset (read-little-endian s)))
+    (declare (ignore total-length end-of-header local-volume-offset))
+    (unless (zerop fli-flags)
+      (cond
+        ((logbitp 0 fli-flags)
+          (file-position s (+ start local-offset)))
+        ((logbitp 1 fli-flags)
+          (file-position s (+ start
+                              network-volume-offset
+                              #x14))))
+      (concatenate 'string
+        (read-null-terminated-string s)
+        (progn
+          (file-position s (+ start remaining-offset))
+          (read-null-terminated-string s))))))
+
+(defun* parse-windows-shortcut (pathname)
+  (with-open-file (s pathname :element-type '(unsigned-byte 8))
+    (handler-case
+        (when (and (= (read-little-endian s) *link-initial-dword*)
+                   (let ((header (make-array (length *link-guid*))))
+                     (read-sequence header s)
+                     (equalp header *link-guid*)))
+          (let ((flags (read-little-endian s)))
+            (file-position s 76)        ;skip rest of header
+            (when (logbitp 0 flags)
+              ;; skip shell item id list
+              (let ((length (read-little-endian s 2)))
+                (file-position s (+ length (file-position s)))))
+            (cond
+              ((logbitp 1 flags)
+                (parse-file-location-info s))
+              (t
+                (when (logbitp 2 flags)
+                  ;; skip description string
+                  (let ((length (read-little-endian s 2)))
+                    (file-position s (+ length (file-position s)))))
+                (when (logbitp 3 flags)
+                  ;; finally, our pathname
+                  (let* ((length (read-little-endian s 2))
+                         (buffer (make-array length)))
+                    (read-sequence buffer s)
+                    (map 'string #'code-char buffer)))))))
+      (end-of-file ()
+        nil)))))
+
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding systems
 
@@ -1496,6 +1566,26 @@ This is for backward compatibilily.
 Going forward, we recommend new users should be using the source-registry.
 ")
 
+(defun* featurep (x &optional (features *features*))
+  (cond
+    ((atom x)
+     (and (member x features) t))
+    ((eq 'not (car x))
+     (assert (null (cddr x)))
+     (not (featurep (cadr x) features)))
+    ((eq 'or (car x))
+     (some #'(lambda (x) (featurep x features)) (cdr x)))
+    ((eq 'and (car x))
+     (every #'(lambda (x) (featurep x features)) (cdr x)))
+    (t
+     (error "Malformed feature specification ~S" x))))
+
+(defun* os-unix-p ()
+  (featurep '(or :unix :cygwin :darwin)))
+
+(defun* os-windows-p ()
+  (and (not (os-unix-p)) (featurep '(or :win32 :windows :mswindows :mingw32))))
+
 (defun* probe-asd (name defaults)
   (block nil
     (when (directory-pathname-p defaults)
@@ -1504,16 +1594,17 @@ Going forward, we recommend new users should be using the source-registry.
                    :version :newest :case :local :type "asd")))
         (when (probe-file* file)
           (return file)))
-      #+(and asdf-windows (not clisp))
-      (let ((shortcut
-             (make-pathname
-              :defaults defaults :version :newest :case :local
-              :name (concatenate 'string name ".asd")
-              :type "lnk")))
-        (when (probe-file* shortcut)
-          (let ((target (parse-windows-shortcut shortcut)))
-            (when target
-              (return (pathname target)))))))))
+      #-clisp
+      (when (os-windows-p)
+        (let ((shortcut
+               (make-pathname
+                :defaults defaults :version :newest :case :local
+                :name (concatenate 'string name ".asd")
+                :type "lnk")))
+          (when (probe-file* shortcut)
+            (let ((target (parse-windows-shortcut shortcut)))
+              (when target
+                (return (pathname target))))))))))
 
 (defun* sysdef-central-registry-search (system)
   (let ((name (coerce-name system))
@@ -2859,10 +2950,11 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     (nth-value 1
                (ccl:external-process-status
                 (ccl:run-program
-                 #+asdf-unix "/bin/sh"
-                 #+asdf-unix (list "-c" command)
-                 #+asdf-windows (format nil "CMD /C ~A" command)
-                 #+asdf-windows () ; BEWARE!
+                 (cond
+                   ((os-unix-p) "/bin/sh")
+                   ((os-windows-p) (format nil "CMD /C ~A" command)) ; BEWARE!
+                   (t (error "Unsupported OS")))
+                 (if (os-unix-p) (list "-c" command) '())
                  :input nil :output *verbose-out* :wait t)))
 
     #+(or cmu scl)
@@ -2879,12 +2971,9 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     (lisp:system command)
 
     #+lispworks
-    (system:call-system-showing-output
-     command
-     #+asdf-unix :shell-type #+asdf-unix "/bin/sh"
-     :show-cmd nil
-     :prefix ""
-     :output-stream *verbose-out*)
+    (apply 'system:call-system-showing-output command
+           :show-cmd nil :prefix "" :output-stream *verbose-out*
+           (when (os-unix-p) '(:shell-type "/bin/sh")))
 
     #+mcl
     (ccl::with-cstrs ((%command command)) (_system %command))
@@ -3053,9 +3142,8 @@ located."
 ;;; ---------------------------------------------------------------------------
 ;;; Generic support for configuration files
 
-(defparameter *inter-directory-separator*
-  #+asdf-unix #\:
-  #-asdf-unix #\;)
+(defun inter-directory-separator ()
+  (if (os-unix-p) #\: #\;))
 
 (defun* user-homedir ()
   (truenamize
@@ -3076,27 +3164,28 @@ located."
              ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
                  :for dir :in (split-string dirs :separator ":")
                  :collect (try dir "common-lisp/"))
-             #+asdf-windows
-             ,@`(,(try (or #+lispworks (sys:get-folder-path :local-appdata)
-                           (getenv "LOCALAPPDATA"))
-                       "common-lisp/config/")
-                 ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
-                 ,(try (or #+lispworks (sys:get-folder-path :appdata)
-                           (getenv "APPDATA"))
-                           "common-lisp/config/"))
+             ,@(when (os-windows-p)
+                 `(,(try (or #+lispworks (sys:get-folder-path :local-appdata)
+                             (getenv "LOCALAPPDATA"))
+                         "common-lisp/config/")
+                    ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
+                   ,(try (or #+lispworks (sys:get-folder-path :appdata)
+                             (getenv "APPDATA"))
+                         "common-lisp/config/")))
              ,(try (user-homedir) ".config/common-lisp/")))))
     (remove-duplicates (remove-if #'null dirs) :from-end t :test 'equal)))
 (defun* system-configuration-directories ()
-  (remove-if
-   #'null
-   `(#+asdf-windows
-     ,(flet ((try (x sub) (try-directory-subpath x sub)))
+  (cond
+    ((os-unix-p) '(#p"/etc/common-lisp/"))
+    ((os-windows-p)
+     (aif
+      (flet ((try (x sub) (try-directory-subpath x sub)))
         ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
         (try (or #+lispworks (sys:get-folder-path :common-appdata)
                  (getenv "ALLUSERSAPPDATA")
                  (try (getenv "ALLUSERSPROFILE") "Application Data/"))
              "common-lisp/config/"))
-     #+asdf-unix #p"/etc/common-lisp/")))
+      (list it)))))
 
 (defun* in-first-directory (dirs x)
   (loop :for dir :in dirs
@@ -3215,12 +3304,12 @@ and the order is by decreasing length of namestring of the source pathname.")
   (flet ((try (x &rest sub) (and x `(,x ,@sub))))
     (or
      (try (getenv "XDG_CACHE_HOME") "common-lisp" :implementation)
-     #+asdf-windows
-     (try (or #+lispworks (sys:get-folder-path :local-appdata)
-              (getenv "LOCALAPPDATA")
-              #+lispworks (sys:get-folder-path :appdata)
-              (getenv "APPDATA"))
-          "common-lisp" "cache" :implementation)
+     (when (os-windows-p)
+       (try (or #+lispworks (sys:get-folder-path :local-appdata)
+                (getenv "LOCALAPPDATA")
+                #+lispworks (sys:get-folder-path :appdata)
+                (getenv "APPDATA"))
+            "common-lisp" "cache" :implementation))
      '(:home ".cache" "common-lisp" :implementation))))
 
 (defun* output-translations ()
@@ -3347,8 +3436,7 @@ Please remove it from your ASDF configuration"))
          (relative-component-p (c)
            (typep c '(or string pathname
                       (member :default-directory :*/ :**/ :*.*.*
-                        :implementation :implementation-type
-                        #+asdf-unix :uid)))))
+                        :implementation :implementation-type)))))
     (or (typep x 'boolean)
         (absolute-component-p x)
         (and (consp x) (absolute-component-p (first x)) (every #'relative-component-p (rest x))))))
@@ -3408,7 +3496,8 @@ Please remove it from your ASDF configuration"))
       :with start = 0
       :with end = (length string)
       :with source = nil
-      :for i = (or (position *inter-directory-separator* string :start start) end) :do
+      :with separator = (inter-directory-separator)
+      :for i = (or (position separator string :start start) end) :do
       (let ((s (subseq string start i)))
         (cond
           (source
@@ -3722,81 +3811,6 @@ call that function where you would otherwise have loaded and configured A-B-L.")
        :ignore-inherited-configuration))))
 
 ;;;; -----------------------------------------------------------------
-;;;; Windows shortcut support.  Based on:
-;;;;
-;;;; Jesse Hager: The Windows Shortcut File Format.
-;;;; http://www.wotsit.org/list.asp?fc=13
-
-#+(and asdf-windows (not clisp))
-(progn
-(defparameter *link-initial-dword* 76)
-(defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
-
-(defun* read-null-terminated-string (s)
-  (with-output-to-string (out)
-    (loop :for code = (read-byte s)
-      :until (zerop code)
-      :do (write-char (code-char code) out))))
-
-(defun* read-little-endian (s &optional (bytes 4))
-  (loop :for i :from 0 :below bytes
-    :sum (ash (read-byte s) (* 8 i))))
-
-(defun* parse-file-location-info (s)
-  (let ((start (file-position s))
-        (total-length (read-little-endian s))
-        (end-of-header (read-little-endian s))
-        (fli-flags (read-little-endian s))
-        (local-volume-offset (read-little-endian s))
-        (local-offset (read-little-endian s))
-        (network-volume-offset (read-little-endian s))
-        (remaining-offset (read-little-endian s)))
-    (declare (ignore total-length end-of-header local-volume-offset))
-    (unless (zerop fli-flags)
-      (cond
-        ((logbitp 0 fli-flags)
-          (file-position s (+ start local-offset)))
-        ((logbitp 1 fli-flags)
-          (file-position s (+ start
-                              network-volume-offset
-                              #x14))))
-      (concatenate 'string
-        (read-null-terminated-string s)
-        (progn
-          (file-position s (+ start remaining-offset))
-          (read-null-terminated-string s))))))
-
-(defun* parse-windows-shortcut (pathname)
-  (with-open-file (s pathname :element-type '(unsigned-byte 8))
-    (handler-case
-        (when (and (= (read-little-endian s) *link-initial-dword*)
-                   (let ((header (make-array (length *link-guid*))))
-                     (read-sequence header s)
-                     (equalp header *link-guid*)))
-          (let ((flags (read-little-endian s)))
-            (file-position s 76)        ;skip rest of header
-            (when (logbitp 0 flags)
-              ;; skip shell item id list
-              (let ((length (read-little-endian s 2)))
-                (file-position s (+ length (file-position s)))))
-            (cond
-              ((logbitp 1 flags)
-                (parse-file-location-info s))
-              (t
-                (when (logbitp 2 flags)
-                  ;; skip description string
-                  (let ((length (read-little-endian s 2)))
-                    (file-position s (+ length (file-position s)))))
-                (when (logbitp 3 flags)
-                  ;; finally, our pathname
-                  (let* ((length (read-little-endian s 2))
-                         (buffer (make-array length)))
-                    (read-sequence buffer s)
-                    (map 'string #'code-char buffer)))))))
-      (end-of-file ()
-        nil)))))
-
-;;;; -----------------------------------------------------------------
 ;;;; Source Registry Configuration, by Francois-Rene Rideau
 ;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
@@ -3956,7 +3970,8 @@ with a different configuration, so the configuration would be re-read then."
       :with directives = ()
       :with start = 0
       :with end = (length string)
-      :for pos = (position *inter-directory-separator* string :start start) :do
+      :with separator = (inter-directory-separator)
+      :for pos = (position separator string :start start) :do
       (let ((s (subseq string start (or pos end))))
         (flet ((check (dir)
                  (unless (absolute-pathname-p dir)
@@ -4009,20 +4024,20 @@ with a different configuration, so the configuration would be re-read then."
       #+sbcl (:directory ,(try (user-homedir) ".sbcl/systems/"))
       (:directory ,(default-directory))
       ,@(loop :for dir :in
-          `(#+asdf-unix
-            ,@`(,(or (getenv "XDG_DATA_HOME")
-                     (try (user-homedir) ".local/share/"))
-                ,@(split-string (or (getenv "XDG_DATA_DIRS")
-                                    "/usr/local/share:/usr/share")
-                                :separator ":"))
-            #+asdf-windows
-            ,@`(,(or #+lispworks (sys:get-folder-path :local-appdata)
-                     (getenv "LOCALAPPDATA"))
-                ,(or #+lispworks (sys:get-folder-path :appdata)
-                     (getenv "APPDATA"))
-                ,(or #+lispworks (sys:get-folder-path :common-appdata)
-                     (getenv "ALLUSERSAPPDATA")
-                     (try (getenv "ALLUSERSPROFILE") "Application Data/"))))
+          `(,@(when (os-unix-p)
+                `(,(or (getenv "XDG_DATA_HOME")
+                       (try (user-homedir) ".local/share/"))
+                  ,@(split-string (or (getenv "XDG_DATA_DIRS")
+                                      "/usr/local/share:/usr/share")
+                                  :separator ":")))
+            ,@(when (os-windows-p)
+                `(,(or #+lispworks (sys:get-folder-path :local-appdata)
+                       (getenv "LOCALAPPDATA"))
+                  ,(or #+lispworks (sys:get-folder-path :appdata)
+                       (getenv "APPDATA"))
+                  ,(or #+lispworks (sys:get-folder-path :common-appdata)
+                       (getenv "ALLUSERSAPPDATA")
+                       (try (getenv "ALLUSERSPROFILE") "Application Data/")))))
           :collect `(:directory ,(try dir "common-lisp/systems/"))
           :collect `(:tree ,(try dir "common-lisp/source/")))
       :inherit-configuration)))
