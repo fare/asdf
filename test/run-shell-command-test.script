@@ -4,13 +4,15 @@
 
 ;;; test asdf run-shell-command function
 (quit-on-error
- (unless (or #+asdf-windows t)
+ #+asdf-unix
+ (progn
    (assert (eql 1 (asdf:run-shell-command "false")))
    (assert (eql 0 (asdf:run-shell-command "true")))
    (unless (= 2 (asdf:run-shell-command "./bad-shell-command"))
      (error "Failed to capture exit status indicating shell command failure."))
    (unless (zerop (asdf:run-shell-command "./good-shell-command"))
      (error "Failed to capture exit status indicating shell command failure."))
+   (format t "~&a~%")
    ;; make sure we capture stderr from ASDF:RUN-SHELL-COMMAND to *VERBOSE-OUT*
    #-(or clisp ecl)
    (let ((string
@@ -38,6 +40,7 @@
          (format t "Actual content written to *error-output* was:~%")
          (pprint string)
          (error "Failed to capture output to standard error using *VERBOSE-OUT*"))))
+   #-ecl
    (let* ((retval nil)
           (string
            (with-output-to-string (str)
@@ -54,6 +57,7 @@
              finally (format t "Actual content read was:~%")
              (pprint string)
              (error "Failed to capture output to standard output using *VERBOSE-OUT*"))))
+   #-ecl
    (let* ((retval nil)
           (string
            (with-output-to-string (str)

@@ -65,25 +65,34 @@ mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
 test-upgrade:
-	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then \
-		SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; \
-	mkdir -p tmp/fasls/sbcl/ ; \
-        fa=tmp/fasls/sbcl/upasdf.fasl ; \
-        ll="(handler-bind ((sb-kernel:redefinition-warning #'muffle-warning)) (load \"asdf.lisp\"))" ; \
-	cf="(handler-bind ((warning #'muffle-warning)) (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose nil :print nil))" ; \
-        lf="(handler-bind ((sb-kernel:redefinition-warning #'muffle-warning)) (load \"$$fa\"))" ; \
-        te="(quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (asdf:oos 'asdf:load-op :test-module-depend :verbose nil))" ; \
-        sb="$${SBCL:-sbcl} --noinform --load test/script-support" ; \
+	mkdir -p tmp/fasls/${lisp} ; \
+	fa=tmp/fasls/sbcl/upasdf.fasl ; \
+	ll="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"ll~%\") (load \"asdf.lisp\"))" ; \
+	cf="(handler-bind ((warning #'muffle-warning)) (format t \"cf~%\") (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose t :print t))" ; \
+	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
+	te="(quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
+	use_ccl () { li="ccl --quiet --load test/script-support" ; ev="--eval" ; } ; \
+	use_clisp () { li="/usr/bin/clisp --quiet --quiet -i test/script-support" ; ev="-x" ; } ; \
+	use_sbcl () { li="sbcl --noinform --load test/script-support" ; ev="--eval" ; } ; \
+	use_ecl () { li="ecl -load test/script-support" ; ev="-eval" ; } ; \
+	use_cmucl () { li="cmucl -load test/script-support" ; ev="-eval" ; } ; \
+	use_abcl () { li="abcl --noinform --load test/script-support" ; ev="--eval" ; } ; \
+	use_scl () { li="scl -load test/script-support" ; ev="-eval" ; } ; \
+	use_allegro () { li="alisp -L test/script-support" ; ev="-e" ; } ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` ; do \
+	  use_${lisp} ; \
 	  lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
 	  echo "Testing upgrade from ASDF $${tag}" ; \
 	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
-          rm -f $$fa ; \
-          ( set -x ; $$sb --eval "$$lo" --eval "$$ll" --eval "$$te" && \
-          $$sb --eval "$$lo" --eval "$$cf" --eval "$$lf" --eval "$$te" && \
-          $$sb --eval "$$lo" --eval "$$lf" --eval "$$te" && \
-          $$sb --eval "$$lf" --eval "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;}; \
-        done
+	  rm -f $$fa ; \
+	  case ${lisp}:$$tag in \
+	    ecl:2.00[0-9]|ecl:2.01[0-6]) : Skip, because of get-uid ugliness ;; *) \
+	  ( set -x ; $$li $$ev "$$lo" $$ev "$$ll" $$ev "$$te" && \
+	    $$li $$ev "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" && \
+	    $$li $$ev "$$lo" $$ev "$$lf" $$ev "$$te" && \
+	    $$li $$ev "$$lf" $$ev "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;} \
+	  ;; esac ; \
+	done
 
 test-forward-references:
 	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
@@ -95,10 +104,10 @@ test: test-lisp test-forward-references doc
 
 test-all-lisps:
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp lisp=$$lisp || exit 1 ; \
+		${MAKE} test-lisp test-upgrade lisp=$$lisp || exit 1 ; \
 	done
 
-test-all: test-forward-references doc test-upgrade test-all-lisps
+test-all: test-forward-references doc test-all-lisps
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
