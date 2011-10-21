@@ -12,7 +12,7 @@
    (unless (zerop (asdf:run-shell-command "./good-shell-command"))
      (error "Failed to capture exit status indicating shell command failure."))
    ;; make sure we capture stderr from ASDF:RUN-SHELL-COMMAND to *VERBOSE-OUT*
-   #-clisp
+   #-(or clisp ecl)
    (let ((string
           (with-output-to-string (str)
             (let ((asdf:*verbose-out* str))
@@ -27,7 +27,7 @@
              (error "Failed to capture output to standard error using *VERBOSE-OUT*"))))
    ;; make sure we /don't/ capture stderr from ASDF:RUN-SHELL-COMMAND when
    ;; *VERBOSE-OUT* is NIL
-   #-clisp
+   #-(or clisp ecl)
    (let ((string
           (with-output-to-string (str)
             (let ((*error-output* str))
