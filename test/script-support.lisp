@@ -46,9 +46,9 @@
 
 #-sbcl
 (defun native-namestring (x)
-  (let* ((p (pathname x)))
+  (let ((p (pathname x)))
     #+clozure (ccl:native-translated-namestring p)
-    #+(or cmu scl) (ext:unix-namestring p)
+    #+(or cmu scl) (ext:unix-namestring p nil)
     #+sbcl (sb-ext:native-namestring p)
     #-(or clozure cmu sbcl scl) (namestring p)))
 

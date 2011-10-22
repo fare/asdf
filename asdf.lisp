@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.22: Another System Definition Facility.
+;;; This is ASDF 2.017.23: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -110,7 +110,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.22")
+         (asdf-version "2.017.23")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3116,6 +3116,9 @@ located."
               ccl::*openmcl-minor-version*
               (logand ccl::fasl-version #xFF))
       #+cmu (substitute #\- #\/ s)
+      #+scl (format nil "~A~A" s
+		    ;; ANSI upper case vs lower case.
+		    (ecase ext:*case-mode* (:upper "") (:lower "l")))
       #+ecl (format nil "~A~@[-~A~]" s
                     (let ((vcs-id (ext:lisp-implementation-vcs-id)))
                       (subseq vcs-id 0 (min (length vcs-id) 8))))
@@ -4017,7 +4020,8 @@ with a different configuration, so the configuration would be re-read then."
   `(:source-registry
     #+sbcl (:tree ,(truenamize (getenv "SBCL_HOME")))
     :inherit-configuration
-    #+cmu (:tree #p"modules:")))
+    #+cmu (:tree #p"modules:")
+    #+scl (:tree #p"file://modules/")))
 (defun* default-source-registry ()
   (flet ((try (x sub) (try-directory-subpath x sub)))
     `(:source-registry
