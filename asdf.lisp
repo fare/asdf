@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.23: Another System Definition Facility.
+;;; This is ASDF 2.017.24: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -110,7 +110,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.23")
+         (asdf-version "2.017.24")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2368,9 +2368,9 @@ recursive calls to traverse.")
         (*compile-file-failure-behaviour* (operation-on-failure operation)))
     (multiple-value-bind (output warnings-p failure-p)
         (call-with-around-compile-hook
-         c (lambda ()
-             (apply *compile-op-compile-file-function* source-file
-                    :output-file output-file (compile-op-flags operation))))
+         c #'(lambda ()
+               (apply *compile-op-compile-file-function* source-file
+                      :output-file output-file (compile-op-flags operation))))
       (unless output
         (error 'compile-error :component c :operation operation))
       (when failure-p
@@ -2476,7 +2476,7 @@ recursive calls to traverse.")
   (declare (ignorable o))
   (let ((source (component-pathname c)))
     (setf (component-property c 'last-loaded-as-source)
-          (and (call-with-around-compile-hook c (lambda () (load source)))
+          (and (call-with-around-compile-hook c #'(lambda () (load source)))
                (get-universal-time)))))
 
 (defmethod perform ((operation load-source-op) (c static-file))
