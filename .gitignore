@@ -39,6 +39,8 @@ tmp/
 *.bak
 *.data
 *.ufasl
+*.vbin
+*.~*~
 test/try-reloading-dependency.asd
 test/fileMissing.lisp
 

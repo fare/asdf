@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.24: Another System Definition Facility.
+;;; This is ASDF 2.017.25: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -90,12 +90,9 @@
     #-(or gcl genera) format
     #+(or gcl genera)
     (loop :for (unsupported . replacement) :in
-      `(("~3i~_" . "")
-        #+genera
-        ,@(("~@<" . "")
-           ("; ~@;" . "; ")
-           ("~@:>" . "")
-           ("~:>" . ""))) :do
+      (append
+       '(("~3i~_" . ""))
+       #+genera '(("~@<" . "") ("; ~@;" . "; ") ("~@:>" . "") ("~:>" . ""))) :do
       (loop :for found = (search unsupported format) :while found :do
         (setf format
               (concatenate 'simple-string
@@ -110,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.24")
+         (asdf-version "2.017.25")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1417,7 +1414,7 @@ NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
 ;;;; Jesse Hager: The Windows Shortcut File Format.
 ;;;; http://www.wotsit.org/list.asp?fc=13
 
-#-clisp
+#-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera.
 (progn
 (defparameter *link-initial-dword* 76)
 (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
@@ -1594,7 +1591,7 @@ Going forward, we recommend new users should be using the source-registry.
                    :version :newest :case :local :type "asd")))
         (when (probe-file* file)
           (return file)))
-      #-clisp
+      #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
       (when (os-windows-p)
         (let ((shortcut
                (make-pathname
@@ -2205,6 +2202,7 @@ recursive calls to traverse.")
                             (handler-case
                                 (update-flag
                                  (do-traverse operation kid #'internal-collect))
+                              #-genera
                               (missing-dependency (condition)
                                 (when (eq (module-if-component-dep-fails c)
                                           :fail)
@@ -3702,7 +3700,7 @@ effectively disabling the output translation facility."
 
 (defmethod output-files :around (operation component)
   "Translate output files, unless asked not to"
-  (declare (ignorable operation component))
+  operation component ;; hush genera, not convinced by declare ignorable(!)
   (values
    (multiple-value-bind (files fixedp) (call-next-method)
      (if fixedp
@@ -4242,6 +4240,7 @@ with a different configuration, so the configuration would be re-read then."
 (defun* module-provide-asdf (name)
   (handler-bind
       ((style-warning #'muffle-warning)
+       #-genera
        (missing-component (constantly nil))
        (error #'(lambda (e)
                   (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
