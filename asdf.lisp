@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.25: Another System Definition Facility.
+;;; This is ASDF 2.017.26: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.25")
+         (asdf-version "2.017.26")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1567,21 +1567,21 @@ Going forward, we recommend new users should be using the source-registry.
   (cond
     ((atom x)
      (and (member x features) t))
-    ((eq 'not (car x))
+    ((eq :not (car x))
      (assert (null (cddr x)))
      (not (featurep (cadr x) features)))
-    ((eq 'or (car x))
+    ((eq :or (car x))
      (some #'(lambda (x) (featurep x features)) (cdr x)))
-    ((eq 'and (car x))
+    ((eq :and (car x))
      (every #'(lambda (x) (featurep x features)) (cdr x)))
     (t
      (error "Malformed feature specification ~S" x))))
 
 (defun* os-unix-p ()
-  (featurep '(or :unix :cygwin :darwin)))
+  (featurep '(:or :unix :cygwin :darwin)))
 
 (defun* os-windows-p ()
-  (and (not (os-unix-p)) (featurep '(or :win32 :windows :mswindows :mingw32))))
+  (and (not (os-unix-p)) (featurep '(:or :win32 :windows :mswindows :mingw32))))
 
 (defun* probe-asd (name defaults)
   (block nil
@@ -3064,38 +3064,41 @@ located."
 ;;;
 ;;; produce a string to identify current implementation.
 ;;; Initially stolen from SLIME's SWANK, rewritten since.
-;;; The (car '(...)) idiom avoids unreachable code warnings.
+;;; We're back to runtime checking, for the sake of e.g. ABCL.
 
-(defparameter *implementation-type*
-  (car '(#+abcl :abcl #+allegro :acl
-         #+clozure :ccl #+clisp :clisp #+cormanlisp :corman #+cmu :cmu
-         #+ecl :ecl #+gcl :gcl #+lispworks :lw #+mcl :mcl
-         #+sbcl :sbcl #+scl :scl #+symbolics :symbolic #+xcl :xcl)))
+(defun* first-feature (features)
+  (dolist (x features)
+    (multiple-value-bind (val feature)
+        (if (consp x) (values (first x) (cons :or (rest x))) (values x x))
+      (when (featurep feature) (return val)))))
 
-(defparameter *operating-system*
-  (car '(#+cygwin :cygwin #+(or windows mswindows win32 mingw32) :win
-         #+(or linux linux-target) :linux ;; for GCL at least, must appear before :bsd.
-         #+(or macosx darwin darwin-target apple) :macosx ; also before :bsd
-         #+(or solaris sunos) :solaris
-         #+(or freebsd netbsd openbsd bsd) :bsd
-         #+unix :unix
-         #+genera :genera)))
+(defun implementation-type ()
+  (first-feature
+   '(:abcl (:acl :allegro) (:ccl :clozure) :clisp (:corman :cormanlisp) :cmu
+     :ecl :gcl (:lw :lispworks) :mcl :sbcl :scl :symbolics :xcl)))
 
-(defparameter *architecture*
-  (car '(#+(or amd64 x86-64 x86_64 x8664-target (and word-size=64 pc386)) :x64
-         #+(or x86 i386 i486 i586 i686 pentium3 pentium4 pc386 iapx386 x8632-target) :x86
-         #+hppa64 :hppa64 #+hppa :hppa
-         #+(or ppc64 ppc64-target) :ppc64
-         #+(or ppc32 ppc32-target ppc powerpc) :ppc32
-         #+sparc64 :sparc64 #+(or sparc32 sparc) :sparc32
-         #+(or arm arm-target) :arm
-         #+(or java java-1.4 java-1.5 java-1.6 java-1.7) :java
-         #+mipsel :mispel #+mipseb :mipseb #+mips :mips
-         #+alpha :alpha #+imach :imach)))
+(defun operating-system ()
+  (first-feature
+   '(:cygwin (:win :windows :mswindows :win32 :mingw32) ;; try cygwin first!
+     (:linux :linux :linux-target) ;; for GCL at least, must appear before :bsd
+     (:macosx :macosx :darwin :darwin-target :apple) ; also before :bsd
+     (:solaris :solaris :sunos) (:bsd :bsd :freebsd :netbsd :openbsd) :unix
+     :genera)))
 
-(defparameter *lisp-version-string*
+(defun architecture ()
+  (first-feature
+   '((:x64 :amd64 :x86-64 :x86_64 :x8664-target (:and :word-size=64 :pc386))
+     (:x86 :x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
+     (:ppc64 :ppc64 :ppc64-target) (:ppc32 :ppc32 :ppc32-target :ppc :powerpc)
+     :hppa64 :hppa :sparc64 (:sparc32 :sparc32 :sparc)
+     :mipsel :mipseb :mips :alpha (:arm :arm :arm-target) :imach
+     ;; Java comes last: if someone uses C via CFFI or otherwise JNA or JNI,
+     ;; we may have to segregate the code still by architecture.
+     (:java :java :java-1.4 :java-1.5 :java-1.6 :java-1.7))))
+
+(defun lisp-version-string ()
   (let ((s (lisp-implementation-version)))
-    (car
+    (car ; as opposed to OR, this idiom prevents some unreachable code warning
      (list
       #+allegro
       (format nil "~A~A~@[~A~]"
@@ -3127,17 +3130,14 @@ located."
       #+mcl (subseq s 8) ; strip the leading "Version "
       s))))
 
-(defun* implementation-type ()
-  *implementation-type*)
-
 (defun* implementation-identifier ()
   (substitute-if
    #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
    (format nil "~(~a~@{~@[-~a~]~}~)"
-           (or *implementation-type* (lisp-implementation-type))
-           (or *lisp-version-string* (lisp-implementation-version))
-           (or *operating-system* (software-type))
-           (or *architecture* (machine-type)))))
+           (or (implementation-type) (lisp-implementation-type))
+           (or (lisp-version-string) (lisp-implementation-version))
+           (or (operating-system) (software-type))
+           (or (architecture) (machine-type)))))
 
 
 ;;; ---------------------------------------------------------------------------
