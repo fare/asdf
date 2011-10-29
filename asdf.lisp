@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.017.26: Another System Definition Facility.
+;;; This is ASDF 2.017.27: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.017.26")
+         (asdf-version "2.017.27")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -348,6 +348,7 @@
             ;; #:find-symbol*
             #:merge-pathnames*
             #:coerce-pathname
+            #:subpathname
             #:pathname-directory-pathname
             #:read-file-forms
             ;; #:remove-keys
@@ -1868,6 +1869,17 @@ Host, device and version components are taken from DEFAULTS."
    :type (source-file-type component (component-system component))
    :defaults (component-parent-pathname component)))
 
+(defun* subpathname (pathname subpath &key type)
+  (and pathname (merge-pathnames* (coerce-pathname subpath :type type)
+                                  (pathname-directory-pathname pathname))))
+
+(defun* try-subpathname (pathname subpath &key type)
+  (let* ((sp (and pathname (probe-file* pathname)
+                  (subpathname pathname subpath :type type)))
+         (ts (and sp (probe-file* sp))))
+    (and ts (values sp ts))))
+
+
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
 
@@ -2656,7 +2668,7 @@ details."
 (defun* load-pathname ()
   (resolve-symlinks* (or *load-pathname* *compile-file-pathname*)))
 
-(defun* determine-system-pathname (pathname pathname-supplied-p)
+(defun* determine-system-pathname (pathname)
   ;; The defsystem macro calls us to determine
   ;; the pathname of a system as follows:
   ;; 1. the one supplied,
@@ -2664,9 +2676,7 @@ details."
   ;; 3. taken from the *default-pathname-defaults* via default-directory
   (let* ((file-pathname (load-pathname))
          (directory-pathname (and file-pathname (pathname-directory-pathname file-pathname))))
-    (or (and pathname-supplied-p
-             (merge-pathnames* (coerce-pathname pathname :type :directory)
-                               directory-pathname))
+    (or (and pathname (subpathname directory-pathname pathname :type :directory))
         directory-pathname
         (default-directory))))
 
@@ -2847,7 +2857,7 @@ Returns the new tree (which probably shares structure with the old one)"
       ret)))
 
 (defun* do-defsystem (name &rest options
-                           &key (pathname nil pathname-arg-p) (class 'system)
+                           &key pathname (class 'system)
                            defsystem-depends-on &allow-other-keys)
   ;; The system must be registered before we parse the body,
   ;; otherwise we recur when trying to find an existing system
@@ -2874,7 +2884,7 @@ Returns the new tree (which probably shares structure with the old one)"
       (parse-component-form
        nil (list*
             :module name
-            :pathname (determine-system-pathname pathname pathname-arg-p)
+            :pathname (determine-system-pathname pathname)
             component-options)))))
 
 (defmacro defsystem (name &body options)
@@ -3054,9 +3064,7 @@ located."
      :defaults p)))
 
 (defun* system-relative-pathname (system name &key type)
-  (merge-pathnames*
-   (coerce-pathname name :type type)
-   (system-source-directory system)))
+  (subpathname (system-source-directory system) name :type type))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -3152,40 +3160,33 @@ located."
     #+mcl (current-user-homedir-pathname)
     #-mcl (user-homedir-pathname))))
 
-(defun* try-directory-subpath (x sub &key type)
-  (let* ((p (and x (ensure-directory-pathname x)))
-         (tp (and p (probe-file* p)))
-         (sp (and tp (merge-pathnames* (coerce-pathname sub :type type) p)))
-         (ts (and sp (probe-file* sp))))
-    (and ts (values sp ts))))
 (defun* user-configuration-directories ()
   (let ((dirs
-         (flet ((try (x sub) (try-directory-subpath x sub)))
-           `(,(try (getenv "XDG_CONFIG_HOME") "common-lisp/")
-             ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
-                 :for dir :in (split-string dirs :separator ":")
-                 :collect (try dir "common-lisp/"))
-             ,@(when (os-windows-p)
-                 `(,(try (or #+lispworks (sys:get-folder-path :local-appdata)
-                             (getenv "LOCALAPPDATA"))
-                         "common-lisp/config/")
-                    ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
-                   ,(try (or #+lispworks (sys:get-folder-path :appdata)
-                             (getenv "APPDATA"))
-                         "common-lisp/config/")))
-             ,(try (user-homedir) ".config/common-lisp/")))))
+         `(,(try-subpathname (getenv "XDG_CONFIG_HOME") "common-lisp/")
+           ,@(loop :with dirs = (getenv "XDG_CONFIG_DIRS")
+               :for dir :in (split-string dirs :separator ":")
+               :collect (try-subpathname dir "common-lisp/"))
+           ,@(when (os-windows-p)
+               `(,(try-subpathname (or #+lispworks (sys:get-folder-path :local-appdata)
+                                       (getenv "LOCALAPPDATA"))
+                                   "common-lisp/config/")
+                 ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
+                 ,(try-subpathname (or #+lispworks (sys:get-folder-path :appdata)
+                                       (getenv "APPDATA"))
+                                   "common-lisp/config/")))
+           ,(try-subpathname (user-homedir) ".config/common-lisp/"))))
     (remove-duplicates (remove-if #'null dirs) :from-end t :test 'equal)))
+
 (defun* system-configuration-directories ()
   (cond
     ((os-unix-p) '(#p"/etc/common-lisp/"))
     ((os-windows-p)
      (aif
-      (flet ((try (x sub) (try-directory-subpath x sub)))
-        ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
-        (try (or #+lispworks (sys:get-folder-path :common-appdata)
-                 (getenv "ALLUSERSAPPDATA")
-                 (try (getenv "ALLUSERSPROFILE") "Application Data/"))
-             "common-lisp/config/"))
+      ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
+      (try-subpathname (or #+lispworks (sys:get-folder-path :common-appdata)
+                           (getenv "ALLUSERSAPPDATA")
+                           (subpathname (getenv "ALLUSERSPROFILE") "Application Data/"))
+                       "common-lisp/config/")
       (list it)))))
 
 (defun* in-first-directory (dirs x)
@@ -3784,9 +3785,7 @@ call that function where you would otherwise have loaded and configured A-B-L.")
     (&key
      (centralize-lisp-binaries nil)
      (default-toplevel-directory
-         ;; Use ".cache/common-lisp" instead ???
-         (merge-pathnames* (make-pathname :directory '(:relative ".fasls"))
-                           (user-homedir)))
+         (subpathname (user-homedir) ".fasls/")) ;; Use ".cache/common-lisp/" instead ???
      (include-per-user-information nil)
      (map-all-source-files (or #+(or ecl clisp) t nil))
      (source-to-target-mappings nil))
@@ -4021,14 +4020,13 @@ with a different configuration, so the configuration would be re-read then."
     #+cmu (:tree #p"modules:")
     #+scl (:tree #p"file://modules/")))
 (defun* default-source-registry ()
-  (flet ((try (x sub) (try-directory-subpath x sub)))
-    `(:source-registry
-      #+sbcl (:directory ,(try (user-homedir) ".sbcl/systems/"))
-      (:directory ,(default-directory))
+  `(:source-registry
+    #+sbcl (:directory ,(try-subpathname (user-homedir) ".sbcl/systems/"))
+    (:directory ,(default-directory))
       ,@(loop :for dir :in
           `(,@(when (os-unix-p)
                 `(,(or (getenv "XDG_DATA_HOME")
-                       (try (user-homedir) ".local/share/"))
+                       (try-subpathname (user-homedir) ".local/share/"))
                   ,@(split-string (or (getenv "XDG_DATA_DIRS")
                                       "/usr/local/share:/usr/share")
                                   :separator ":")))
@@ -4039,10 +4037,10 @@ with a different configuration, so the configuration would be re-read then."
                        (getenv "APPDATA"))
                   ,(or #+lispworks (sys:get-folder-path :common-appdata)
                        (getenv "ALLUSERSAPPDATA")
-                       (try (getenv "ALLUSERSPROFILE") "Application Data/")))))
-          :collect `(:directory ,(try dir "common-lisp/systems/"))
-          :collect `(:tree ,(try dir "common-lisp/source/")))
-      :inherit-configuration)))
+                       (try-subpathname (getenv "ALLUSERSPROFILE") "Application Data/")))))
+          :collect `(:directory ,(try-subpathname dir "common-lisp/systems/"))
+          :collect `(:tree ,(try-subpathname dir "common-lisp/source/")))
+      :inherit-configuration))
 (defun* user-source-registry ()
   (in-user-configuration-directory *source-registry-file*))
 (defun* system-source-registry ()
