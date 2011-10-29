@@ -1,3 +1,45 @@
+cl-asdf (2:2.018-1) unstable; urgency=low
+
+ Bugs:
+  * Solved a bug due to ASDF reusing components even when the ASDF definition
+   has changed wildly, leading to bad behavior in incremental compilation
+   and sometimes total failure of compilation of a new version.
+   (Thanks to Xach for reporting and RPGoldman for fixing.)
+  * Fix an issue with ASDF doing the wrong thing in case of a clock skew,
+   thanks to Andreas Fuchs.
+  * Simplification of the internals of perform-with-restarts and
+   traverse's do-dep, that should fix some corner cases and make it
+   easier to extend or further fix. There scarily doesn't remain
+   any unedited code from Dan Barlow's original ASDF, though
+   much of the interface design is preserved.
+  * Upgrade code slightly simplified, with a particular fix for CLISP;
+   it is now tested on all supported implementations, not just SBCL.
+  * Improvements to tests and documentation.
+
+ Portability:
+  * Many implementation specific improvements for ECL:
+   merge with the ECL upstream version, support for the bytecode compiler.
+  * Because it is required at least on ABCL, made the Unix vs Windows detection
+   a runtime rather than compile-time distinction
+   No more asdf-unix or asdf-windows feature, but
+   (asdf::os-unix-p) and (asdf::os-windows-p) functions (not exported for now).
+   Also recognize darwin as Unix ECL.
+  * Also small improvements for SCL.
+
+ Features:
+  * Bind *default-pathname-defaults* around load-sysdef,
+   to increase chances of successful pathname parsing in defsystem.
+  * Fixed run-shell-command on allegro/unix and clisp,
+   documented the function, noted how it mightn't do what you think on Windows,
+   marked it as obsolete, promoted as an official replacement my new
+       xcvb-driver:run-program/process-output-stream
+  * New :around-compile hook so you can control the syntax, optimization,
+   and warning level, rename packages and balance compile-time side-effects,
+   etc., around the compilation of files in your own modules.
+  * Now exporting function subpathname, to portably make subpathnames.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sat, 29 Oct 2011 12:46:22 -0400
+
 cl-asdf (2:2.017-1) unstable; urgency=low
 
   Promoting 2.016.3 as 2.017. Since 2.016, we have the following improvements:
