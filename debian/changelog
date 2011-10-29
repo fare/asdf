@@ -1,12 +1,12 @@
 cl-asdf (2:2.018-1) unstable; urgency=low
 
- Bugs:
+  Bugs:
   * Solved a bug due to ASDF reusing components even when the ASDF definition
-   has changed wildly, leading to bad behavior in incremental compilation
-   and sometimes total failure of compilation of a new version.
-   (Thanks to Xach for reporting and RPGoldman for fixing.)
+    has changed wildly, leading to bad behavior in incremental compilation
+    and sometimes total failure of compilation of a new version.
+    (Thanks to Xach for reporting and RPGoldman for fixing.)
   * Fix an issue with ASDF doing the wrong thing in case of a clock skew,
-   thanks to Andreas Fuchs.
+    thanks to Andreas Fuchs.
   * Simplification of the internals of perform-with-restarts and
    traverse's do-dep, that should fix some corner cases and make it
    easier to extend or further fix. There scarily doesn't remain
@@ -16,7 +16,7 @@ cl-asdf (2:2.018-1) unstable; urgency=low
    it is now tested on all supported implementations, not just SBCL.
   * Improvements to tests and documentation.
 
- Portability:
+  Portability:
   * Many implementation specific improvements for ECL:
    merge with the ECL upstream version, support for the bytecode compiler.
   * Because it is required at least on ABCL, made the Unix vs Windows detection
@@ -26,7 +26,7 @@ cl-asdf (2:2.018-1) unstable; urgency=low
    Also recognize darwin as Unix ECL.
   * Also small improvements for SCL.
 
- Features:
+  Features:
   * Bind *default-pathname-defaults* around load-sysdef,
    to increase chances of successful pathname parsing in defsystem.
   * Fixed run-shell-command on allegro/unix and clisp,
