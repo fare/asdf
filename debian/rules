@@ -12,6 +12,9 @@ build-stamp:
 	make -C doc all
 	touch build-stamp
 
+build-arch:
+build-indep: build
+
 clean:
 	dh_testdir
 	dh_testroot
