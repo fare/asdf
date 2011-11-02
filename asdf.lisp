@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.2: Another System Definition Facility.
+;;; This is ASDF 2.018.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.2")
+         (asdf-version "2.018.3")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -520,6 +520,9 @@ and NIL NAME, TYPE and VERSION components"
               :do (pop reldir) (pop defrev)
               :finally (return (cons defabs (append (reverse defrev) reldir)))))))))))
 
+(defun* ununspecific (x)
+  (if (eq x :unspecific) nil x))
+
 (defun* merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
   "MERGE-PATHNAMES* is like MERGE-PATHNAMES except that
 if the SPECIFIED pathname does not have an absolute directory,
@@ -538,9 +541,7 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
          (name (or (pathname-name specified) (pathname-name defaults)))
          (type (or (pathname-type specified) (pathname-type defaults)))
          (version (or (pathname-version specified) (pathname-version defaults))))
-    (labels ((ununspecific (x)
-               (if (eq x :unspecific) nil x))
-             (unspecific-handler (p)
+    (labels ((unspecific-handler (p)
                (if (typep p 'logical-pathname) #'ununspecific #'identity)))
       (multiple-value-bind (host device directory unspecific-handler)
           (ecase (first directory)
@@ -3869,9 +3870,8 @@ with a different configuration, so the configuration would be re-read then."
      directory entries
      #'(lambda (f)
          (make-pathname :defaults directory
-                        :name (pathname-name f) :type (pathname-type f)
-                        :version (let ((it (pathname-version f)))
-                                   (unless (eq it :unspecific) it)))))))
+                        :name (pathname-name f) :type (ununspecific (pathname-type f))
+                        :version (ununspecific (pathname-version f)))))))
 
 (defun* directory-asd-files (directory)
   (directory-files directory *wild-asd*))
