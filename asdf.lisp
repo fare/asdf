@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.3: Another System Definition Facility.
+;;; This is ASDF 2.018.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.3")
+         (asdf-version "2.018.4")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2703,7 +2703,7 @@ Returns the new tree (which probably shares structure with the old one)"
     (if first-op-tree
         (progn
           (aif (assoc op2 (cdr first-op-tree))
-               (if (find c (cdr it))
+               (if (find c (cdr it) :test #'equal)
                    nil
                    (setf (cdr it) (cons c (cdr it))))
                (setf (cdr first-op-tree)
