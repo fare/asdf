@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.4: Another System Definition Facility.
+;;; This is ASDF 2.018.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -86,6 +86,8 @@
     (find-symbol (string s) p))
   ;; Strip out formatting that is not supported on Genera.
   ;; Has to be inside the eval-when to make Lispworks happy (!)
+  (defun strcat (&rest strings)
+    (apply 'concatenate 'string strings))
   (defmacro compatfmt (format)
     #-(or gcl genera) format
     #+(or gcl genera)
@@ -94,10 +96,8 @@
        '(("~3i~_" . ""))
        #+genera '(("~@<" . "") ("; ~@;" . "; ") ("~@:>" . "") ("~:>" . ""))) :do
       (loop :for found = (search unsupported format) :while found :do
-        (setf format
-              (concatenate 'simple-string
-                           (subseq format 0 found) replacement
-                           (subseq format (+ found (length unsupported)))))))
+        (setf format (strcat (subseq format 0 found) replacement
+                             (subseq format (+ found (length unsupported)))))))
     format)
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.4")
+         (asdf-version "2.018.5")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -185,7 +185,7 @@
                      (push sym bothly-exported-symbols)
                      (push sym formerly-exported-symbols)))
                (loop :for sym :in export :do
-                 (unless (member sym bothly-exported-symbols :test 'string-equal)
+                 (unless (member sym bothly-exported-symbols :test 'equal)
                    (push sym newly-exported-symbols)))
                (loop :for user :in (package-used-by-list package)
                  :for shadowing = (package-shadowing-symbols user) :do
@@ -892,24 +892,21 @@ with given pathname and if it exists return its truename."
         (host (pathname-host pathname))
         (port (ext:pathname-port pathname))
         (directory (pathname-directory pathname)))
-    (flet ((not-unspecific (component)
-             (and (not (eq component :unspecific)) component)))
-      (cond ((or (not-unspecific port)
-                 (and (not-unspecific host) (plusp (length host)))
-                 (not-unspecific scheme))
-             (let ((prefix ""))
-               (when (not-unspecific port)
-                 (setf prefix (format nil ":~D" port)))
-               (when (and (not-unspecific host) (plusp (length host)))
-                 (setf prefix (concatenate 'string host prefix)))
-               (setf prefix (concatenate 'string ":" prefix))
-               (when (not-unspecific scheme)
-               (setf prefix (concatenate 'string scheme prefix)))
-               (assert (and directory (eq (first directory) :absolute)))
-               (make-pathname :directory `(:absolute ,prefix ,@(rest directory))
-                              :defaults pathname)))
-            (t
-             pathname)))))
+    (if (or (ununspecific port)
+            (and (ununspecific host) (plusp (length host)))
+            (ununspecific scheme))
+        (let ((prefix ""))
+          (when (ununspecific port)
+            (setf prefix (format nil ":~D" port)))
+          (when (and (ununspecific host) (plusp (length host)))
+            (setf prefix (strcat host prefix)))
+          (setf prefix (strcat ":" prefix))
+          (when (ununspecific scheme)
+            (setf prefix (strcat scheme prefix)))
+          (assert (and directory (eq (first directory) :absolute)))
+          (make-pathname :directory `(:absolute ,prefix ,@(rest directory))
+                         :defaults pathname)))
+    pathname))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
@@ -1449,11 +1446,10 @@ NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
           (file-position s (+ start
                               network-volume-offset
                               #x14))))
-      (concatenate 'string
-        (read-null-terminated-string s)
-        (progn
-          (file-position s (+ start remaining-offset))
-          (read-null-terminated-string s))))))
+      (strcat (read-null-terminated-string s)
+              (progn
+                (file-position s (+ start remaining-offset))
+                (read-null-terminated-string s))))))
 
 (defun* parse-windows-shortcut (pathname)
   (with-open-file (s pathname :element-type '(unsigned-byte 8))
@@ -1598,7 +1594,7 @@ Going forward, we recommend new users should be using the source-registry.
         (let ((shortcut
                (make-pathname
                 :defaults defaults :version :newest :case :local
-                :name (concatenate 'string name ".asd")
+                :name (strcat name ".asd")
                 :type "lnk")))
           (when (probe-file* shortcut)
             (let ((target (parse-windows-shortcut shortcut)))
@@ -2635,7 +2631,7 @@ created with the same initargs as the original one.
 "))
   (setf (documentation 'oos 'function)
         (format nil
-                "Short for _operate on system_ and an alias for the OPERATE function. ~&~&~a"
+                "Short for _operate on system_ and an alias for the OPERATE function.~%~%~a"
                 operate-docstring))
   (setf (documentation 'operate 'function)
         operate-docstring))
@@ -2725,8 +2721,7 @@ Returns the new tree (which probably shares structure with the old one)"
 (defvar *serial-depends-on* nil)
 
 (defun* sysdef-error-component (msg type name value)
-  (sysdef-error (concatenate 'string msg
-                             (compatfmt "~&~@<The value specified for ~(~A~) ~A is ~S~@:>"))
+  (sysdef-error (strcat msg (compatfmt "~&~@<The value specified for ~(~A~) ~A is ~S~@:>"))
                 type name value))
 
 (defun* check-component-input (type name weakly-depends-on
@@ -2961,7 +2956,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
                 (ccl:run-program
                  (cond
                    ((os-unix-p) "/bin/sh")
-                   ((os-windows-p) (format nil "CMD /C ~A" command)) ; BEWARE!
+                   ((os-windows-p) (strcat "CMD /C " command)) ; BEWARE!
                    (t (error "Unsupported OS")))
                  (if (os-unix-p) (list "-c" command) '())
                  :input nil :output *verbose-out* :wait t)))
@@ -3725,7 +3720,7 @@ effectively disabling the output translation facility."
 
 (defun* tmpize-pathname (x)
   (make-pathname
-   :name (format nil "ASDF-TMP-~A" (pathname-name x))
+   :name (strcat "ASDF-TMP-" (pathname-name x))
    :defaults x))
 
 (defun* delete-file-if-exists (x)
