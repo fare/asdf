@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.6: Another System Definition Facility.
+;;; This is ASDF 2.018.7: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.6")
+         (asdf-version "2.018.7")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -329,6 +329,14 @@
             #:process-source-registry
             #:system-registered-p
             #:asdf-message
+            #:user-output-translations-pathname
+            #:system-output-translations-pathname
+            #:user-output-translations-directory-pathname
+            #:system-output-translations-directory-pathname
+            #:user-source-registry
+            #:system-source-registry
+            #:user-source-registry-directory
+            #:system-source-registry-directory
 
             ;; Utilities
             #:absolute-pathname-p
@@ -3194,13 +3202,17 @@ located."
                        "common-lisp/config/")
       (list it)))))
 
-(defun* in-first-directory (dirs x)
-  (loop :for dir :in dirs
-    :thereis (and dir (probe-file* (merge-pathnames* x (ensure-directory-pathname dir))))))
-(defun* in-user-configuration-directory (x)
-  (in-first-directory (user-configuration-directories) x))
-(defun* in-system-configuration-directory (x)
-  (in-first-directory (system-configuration-directories) x))
+(defun* in-first-directory (dirs x &key (direction :input))
+  (loop :with fun = (ecase direction
+                      ((nil :input :probe) 'probe-file*)
+                      ((:output :io) 'identity))
+    :for dir :in dirs
+    :thereis (and dir (funcall fun (merge-pathnames* x (ensure-directory-pathname dir))))))
+
+(defun* in-user-configuration-directory (x &key (direction :input))
+  (in-first-directory (user-configuration-directories) x :direction direction))
+(defun* in-system-configuration-directory (x &key (direction :input))
+  (in-first-directory (system-configuration-directories) x :direction direction))
 
 (defun* configuration-inheritance-directive-p (x)
   (let ((kw '(:inherit-configuration :ignore-inherited-configuration)))
@@ -3554,14 +3566,14 @@ Please remove it from your ASDF configuration"))
 (defparameter *output-translations-file* (coerce-pathname "asdf-output-translations.conf"))
 (defparameter *output-translations-directory* (coerce-pathname "asdf-output-translations.conf.d/"))
 
-(defun* user-output-translations-pathname ()
-  (in-user-configuration-directory *output-translations-file*))
-(defun* system-output-translations-pathname ()
-  (in-system-configuration-directory *output-translations-file*))
-(defun* user-output-translations-directory-pathname ()
-  (in-user-configuration-directory *output-translations-directory*))
-(defun* system-output-translations-directory-pathname ()
-  (in-system-configuration-directory *output-translations-directory*))
+(defun* user-output-translations-pathname (&key (direction :input))
+  (in-user-configuration-directory *output-translations-file* :direction direction))
+(defun* system-output-translations-pathname (&key (direction :input))
+  (in-system-configuration-directory *output-translations-file* :direction direction))
+(defun* user-output-translations-directory-pathname (&key (direction :input))
+  (in-user-configuration-directory *output-translations-directory* :direction direction))
+(defun* system-output-translations-directory-pathname (&key (direction :input))
+  (in-system-configuration-directory *output-translations-directory* :direction direction))
 (defun* environment-output-translations ()
   (getenv "ASDF_OUTPUT_TRANSLATIONS"))
 
@@ -4048,14 +4060,14 @@ with a different configuration, so the configuration would be re-read then."
           :collect `(:directory ,(subpathname dir "common-lisp/systems/"))
           :collect `(:tree ,(subpathname dir "common-lisp/source/")))
       :inherit-configuration))
-(defun* user-source-registry ()
-  (in-user-configuration-directory *source-registry-file*))
-(defun* system-source-registry ()
-  (in-system-configuration-directory *source-registry-file*))
-(defun* user-source-registry-directory ()
-  (in-user-configuration-directory *source-registry-directory*))
-(defun* system-source-registry-directory ()
-  (in-system-configuration-directory *source-registry-directory*))
+(defun* user-source-registry (&key (direction :input))
+  (in-user-configuration-directory *source-registry-file* :direction direction))
+(defun* system-source-registry (&key (direction :input))
+  (in-system-configuration-directory *source-registry-file* :direction direction))
+(defun* user-source-registry-directory (&key (direction :input))
+  (in-user-configuration-directory *source-registry-directory* :direction direction))
+(defun* system-source-registry-directory (&key (direction :input))
+  (in-system-configuration-directory *source-registry-directory* :direction direction))
 (defun* environment-source-registry ()
   (getenv "CL_SOURCE_REGISTRY"))
 
