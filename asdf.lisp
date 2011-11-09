@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.8: Another System Definition Facility.
+;;; This is ASDF 2.018.9: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.8")
+         (asdf-version "2.018.9")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3906,16 +3906,16 @@ with a different configuration, so the configuration would be re-read then."
           #+(or abcl xcl) (system:list-directory directory)
           #+cormanlisp (cl::directory-subdirs directory)
           #+genera (fs:directory-list directory))
-         #+(or abcl allegro cmu genera lispworks scl xcl)
+         #+(or abcl allegro cmu genera lispworks sbcl scl xcl)
          (dirs (loop :for x :in dirs
                  :for d = #+(or abcl xcl) (extensions:probe-directory x)
                           #+allegro (excl:probe-directory x)
-                          #+(or cmu scl) (directory-pathname-p x)
+                          #+(or cmu sbcl scl) (directory-pathname-p x)
                           #+genera (getf (cdr x) :directory)
                           #+lispworks (lw:file-directory-p x)
                  :when d :collect #+(or abcl allegro xcl) d
                                   #+genera (ensure-directory-pathname (first x))
-                                  #+(or cmu lispworks scl) x)))
+                                  #+(or cmu lispworks sbcl scl) x)))
     (filter-logical-directory-results
      directory dirs
      (let ((prefix (normalize-pathname-directory-component
