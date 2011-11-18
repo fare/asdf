@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.10: Another System Definition Facility.
+;;; This is ASDF 2.018.11: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.10")
+         (asdf-version "2.018.11")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2374,10 +2374,17 @@ recursive calls to traverse.")
     ((component-parent c)
      (around-compile-hook (component-parent c)))))
 
+(defun ensure-function (fun &key (package :asdf))
+  (etypecase fun
+    ((or symbol function) fun)
+    (string (eval `(function ,(with-standard-io-syntax
+                               (let ((*package* (find-package package)))
+                                 (read-from-string fun))))))))
+
 (defmethod call-with-around-compile-hook ((c component) thunk)
   (let ((hook (around-compile-hook c)))
     (if hook
-        (funcall hook thunk)
+        (funcall (ensure-function hook) thunk)
         (funcall thunk))))
 
 (defvar *compile-op-compile-file-function* 'compile-file*
