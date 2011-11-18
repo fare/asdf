@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.9: Another System Definition Facility.
+;;; This is ASDF 2.018.10: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.9")
+         (asdf-version "2.018.10")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -412,6 +412,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                 condition-arguments condition-form
                 condition-format condition-location
                 coerce-name)
+         (ftype (function (&optional t) t) initialize-source-registry)
          #-(or cormanlisp gcl-pre2.7)
          (ftype (function (t t) t) (setf module-components-by-name)))
 
@@ -1723,46 +1724,54 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (previous (cdr in-memory))
          (previous (and (typep previous 'system) previous))
          (previous-time (car in-memory))
-         (found (search-for-system-definition name))
+           (found (search-for-system-definition name))
          (found-system (and (typep found 'system) found))
          (pathname (or (and (typep found '(or pathname string)) (pathname found))
                        (and found-system (system-source-file found-system))
                        (and previous (system-source-file previous))))
          (foundp (and (or found-system pathname previous) t)))
     (check-type found (or null pathname system))
-    (setf pathname (resolve-symlinks* pathname))
-    (when (and pathname (not (absolute-pathname-p pathname)))
-      (setf pathname (ensure-pathname-absolute pathname))
-      (when found-system
-        (%set-system-source-file pathname found-system)))
-    (when (and previous (not (#-cormanlisp equal #+cormanlisp equalp
-                                           (system-source-file previous) pathname)))
+    (when foundp
+      (setf pathname (resolve-symlinks* pathname))
+      (when (and pathname (not (absolute-pathname-p pathname)))
+        (setf pathname (ensure-pathname-absolute pathname))
+        (when found-system
+          (%set-system-source-file pathname found-system)))
+      (when (and previous (not (#-cormanlisp equal #+cormanlisp equalp
+                                             (system-source-file previous) pathname)))
         (%set-system-source-file pathname previous)
         (setf previous-time nil))
-    (values foundp found-system pathname previous previous-time)))
+      (values foundp found-system pathname previous previous-time))))
 
 (defmethod find-system ((name string) &optional (error-p t))
   (with-system-definitions ()
-    (multiple-value-bind (foundp found-system pathname previous previous-time)
-        (locate-system name)
-      (declare (ignore foundp))
-      (when (and found-system (not previous))
-        (register-system found-system))
-      (when (and pathname
-                 (or (not previous-time)
-                     ;; don't reload if it's already been loaded,
-                     ;; or its filestamp is in the future which means some clock is skewed
-                     ;; and trying to load might cause an infinite loop.
-                     (< previous-time (safe-file-write-date pathname) (get-universal-time))))
-        (load-sysdef name pathname))
-      (let ((in-memory (system-registered-p name))) ; try again after loading from disk
-        (cond
-          (in-memory
-           (when pathname
-             (setf (car in-memory) (safe-file-write-date pathname)))
-           (cdr in-memory))
-          (error-p
-           (error 'missing-component :requires name)))))))
+    (loop
+      (restart-case
+          (multiple-value-bind (foundp found-system pathname previous previous-time)
+              (locate-system name)
+            (declare (ignore foundp))
+            (when (and found-system (not previous))
+              (register-system found-system))
+            (when (and pathname
+                       (or (not previous-time)
+                           ;; don't reload if it's already been loaded,
+                           ;; or its filestamp is in the future which means some clock is skewed
+                           ;; and trying to load might cause an infinite loop.
+                           (< previous-time (safe-file-write-date pathname) (get-universal-time))))
+              (load-sysdef name pathname))
+            (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
+              (return
+                (cond
+                  (in-memory
+                   (when pathname
+                     (setf (car in-memory) (safe-file-write-date pathname)))
+                   (cdr in-memory))
+                  (error-p
+                   (error 'missing-component :requires name))))))
+        (reinitialize-source-registry-and-retry ()
+          :report (lambda (s)
+                    (format s "~@<Retry finding system ~A after reinitializing the source-registry.~@:>" name))
+          (initialize-source-registry))))))
 
 (defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
   (setf fallback (coerce-name fallback)
