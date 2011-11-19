@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.13: Another System Definition Facility.
+;;; This is ASDF 2.018.14: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.13")
+         (asdf-version "2.018.14")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1538,15 +1538,25 @@ called with an object of type asdf:system."
 ;;; for the sake of keeping things reasonably neat, we adopt a
 ;;; convention that functions in this list are prefixed SYSDEF-
 
-(defparameter *system-definition-search-functions*
-  '(sysdef-central-registry-search
-    sysdef-source-registry-search
-    sysdef-find-asdf))
+(defvar *system-definition-search-functions* '())
+
+(setf *system-definition-search-functions*
+      (append
+       ;; Remove known-incompatible sysdef functions from ancient sbcl asdf.
+       (remove 'contrib-sysdef-search *system-definition-search-functions*)
+       ;; Tuck our defaults at the end of the list if they were absent.
+       ;; This is imperfect, in case they were removed on purpose,
+       ;; but then it will be the responsibility of whoever does that
+       ;; to upgrade asdf before he does such a thing rather than after.
+       (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
+                  '(sysdef-central-registry-search
+                    sysdef-source-registry-search
+                    sysdef-find-asdf))))
 
 (defun* search-for-system-definition (system)
-  (let ((system-name (coerce-name system)))
-    (some #'(lambda (x) (funcall x system-name))
-          (cons 'find-system-if-being-defined *system-definition-search-functions*))))
+  (some (let ((name (coerce-name system))) #'(lambda (x) (funcall x name)))
+        (cons 'find-system-if-being-defined
+              *system-definition-search-functions*)))
 
 (defvar *central-registry* nil
 "A list of 'system directory designators' ASDF uses to find systems.
@@ -2571,31 +2581,38 @@ recursive calls to traverse.")
 (defgeneric* operate (operation-class system &key &allow-other-keys))
 (defgeneric* perform-plan (plan &key))
 
+;;;; Separating this into a different function makes it more forward-compatible
+(defun* cleanup-upgraded-asdf (old-version)
+  (let ((new-version (asdf:asdf-version)))
+    (unless (equal old-version new-version)
+      (cond
+        ((version-satisfies new-version old-version)
+         (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
+                       old-version new-version))
+        ((version-satisfies old-version new-version)
+         (warn (compatfmt "~&~@<; ~@;Downgraded ASDF from version ~A to version ~A~@:>~%")
+               old-version new-version))
+        (t
+         (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
+                       old-version new-version)))
+      (let ((asdf (funcall (find-symbol* 'find-system :asdf) :asdf)))
+        ;; Invalidate all systems but ASDF itself.
+        (setf *defined-systems* (make-defined-systems-table))
+        (register-system asdf)
+        ;; If we're in the middle of something, restart it.
+        (when *systems-being-defined*
+          (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
+            (clrhash *systems-being-defined*)
+            (dolist (s l) (find-system s nil))))
+        t))))
+    
 ;;;; Try to upgrade of ASDF. If a different version was used, return T.
 ;;;; We need do that before we operate on anything that depends on ASDF.
 (defun* upgrade-asdf ()
   (let ((version (asdf:asdf-version)))
     (handler-bind (((or style-warning warning) #'muffle-warning))
       (operate 'load-op :asdf :verbose nil))
-    (let ((new-version (asdf:asdf-version)))
-      (block nil
-        (cond
-          ((equal version new-version)
-           (return nil))
-          ((version-satisfies new-version version)
-           (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
-                         version new-version))
-          ((version-satisfies version new-version)
-           (warn (compatfmt "~&~@<Downgraded ASDF from version ~A to version ~A~@:>~%")
-                 version new-version))
-          (t
-           (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
-                         version new-version)))
-        (let ((asdf (funcall (find-symbol* 'find-system :asdf) :asdf)))
-          ;; invalidate all systems but ASDF itself
-          (setf *defined-systems* (make-defined-systems-table))
-          (register-system asdf)
-          t)))))
+    (cleanup-upgraded-asdf version)))
 
 (defmethod perform-plan ((steps list) &key)
   (let ((*package* *package*)
