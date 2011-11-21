@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.18: Another System Definition Facility.
+;;; This is ASDF 2.018.19: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.18")
+         (asdf-version "2.018.19")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1276,7 +1276,12 @@ processed in order by OPERATE."))
               (acons property new-value (slot-value c 'properties)))))
   new-value)
 
-(defclass system (module)
+(defclass proto-system () ; slots to keep when resetting a system
+  ;; To preserve identity for all objects, we'd need keep the components slots
+  ;; but also to modify parse-component-form to reset the recycled objects.
+  ((name) #|(components) (components-by-names)|#))
+
+(defclass system (module proto-system)
   (;; description and long-description are now available for all component's,
    ;; but now also inherited from component, but we add the legacy accessor
    (description :accessor system-description :initarg :description)
@@ -2824,8 +2829,8 @@ Returns the new tree (which probably shares structure with the old one)"
       (%refresh-component-inline-methods ret rest)
       ret)))
 
-(defun* reset-class (object class &rest keys &key &allow-other-keys)
-  (apply 'change-class (change-class object 'standard-object) class keys))
+(defun* reset-system (system &rest keys &key &allow-other-keys)
+  (apply 'change-class (change-class system 'proto-system) 'system keys))
 
 (defun* do-defsystem (name &rest options
                            &key pathname (class 'system)
@@ -2842,7 +2847,7 @@ Returns the new tree (which probably shares structure with the old one)"
            (registered! (if registered
                             (rplaca registered (get-universal-time))
                             (register-system (make-instance 'system :name name))))
-           (system (reset-class (cdr registered!) 'system
+           (system (reset-system (cdr registered!)
                                 :name name :source-file (load-pathname)))
            (component-options (remove-keys '(:class) options)))
       (setf (gethash name *systems-being-defined*) system)
