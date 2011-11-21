@@ -112,7 +112,7 @@ test-upgrade:
 	done
 
 test-forward-references:
-	${SBCL} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
+	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
 
 test-lisp:
 	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}

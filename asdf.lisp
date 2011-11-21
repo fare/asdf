@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.15: Another System Definition Facility.
+;;; This is ASDF 2.018.16: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.15")
+         (asdf-version "2.018.16")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -229,9 +229,9 @@
             #:split #:make-collector #:do-dep #:do-one-dep
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :export
-           (#:defsystem #:oos #:operate #:find-system #:run-shell-command
+           (#:defsystem #:oos #:operate #:find-system #:locate-system #:run-shell-command
             #:system-definition-pathname #:with-system-definitions
-            #:search-for-system-definition #:find-component #:locate-system
+            #:search-for-system-definition #:find-component #:component-find-path
             #:compile-system #:load-system #:load-systems #:test-system #:clear-system
             #:operation #:compile-op #:load-op #:load-source-op #:test-op
             #:feature #:version #:version-satisfies
@@ -1171,45 +1171,6 @@ processed in order by OPERATE."))
    (properties :accessor component-properties :initarg :properties
                :initform nil)))
 
-;;; I believe that the following could probably be more efficiently done
-;;; by a primary method that invokes SHARED-INITIALIZE in a way that would
-;;; appropriately pass the slots to have their initforms re-applied, but I
-;;; do not know how to write such a method. [2011/09/02:rpg]
-(defmethod reinitialize-instance :after ((obj component) &rest initargs
-                                         &key (version nil version-suppliedp)
-                                              (description nil description-suppliedp)
-                                              (long-description nil
-                                                                long-description-suppliedp)
-                                              (load-dependencies nil
-                                                                 ld-suppliedp)
-                                              in-order-to
-                                              do-first
-                                              inline-methods
-                                              parent
-                                              properties)
-  "We reuse component objects from previously-existing systems, so we need to
-make sure we clear them thoroughly."
-  (declare (ignore initargs load-dependencies
-                   long-description description version))
-  ;; this is a cache and should be cleared
-  (slot-makunbound obj 'absolute-pathname)
-  ;; component operation times are no longer valid when the component changes
-  (clrhash (component-operation-times obj))
-  (unless version-suppliedp (slot-makunbound obj 'version))
-  (unless description-suppliedp
-    (slot-makunbound obj 'description))
-  (unless long-description-suppliedp
-    (slot-makunbound obj 'long-description))
-  ;; replicate the logic of the initforms...
-  (unless ld-suppliedp
-    (setf (component-load-dependencies obj) nil))
-  (setf (component-in-order-to obj) in-order-to
-        (component-do-first obj) do-first
-        (component-inline-methods obj) inline-methods
-        (slot-value obj 'parent) parent
-        (slot-value obj 'properties) properties))
-
-
 (defun* component-find-path (component)
   (reverse
    (loop :for c = component :then (component-parent c)
@@ -1282,21 +1243,6 @@ make sure we clear them thoroughly."
     :initarg :default-component-class
     :accessor module-default-component-class)))
 
-;;; see comment with REINITIALIZE-INSTANCE method on COMPONENT
-;;; [2011/09/02:rpg]
-(defmethod reinitialize-instance :after ((obj module) &rest initargs &key)
-  "Clear MODULE's slots so it can be reused."
-  (slot-makunbound obj 'components-by-name)
-  ;; this may be a more elegant approach than in the
-  ;; COMPONENT method [2011/09/02:rpg]
-  (loop :for (initarg slot-name default) :in
-        `((:components components nil)
-          (:if-component-dep-fails if-component-dep-fails :fail)
-          (:default-component-class default-component-class
-              ,*default-component-class*))
-        :unless (member initarg initargs)
-        :do (setf (slot-value obj slot-name) default)))
-
 (defun* component-parent-pathname (component)
   ;; No default anymore (in particular, no *default-pathname-defaults*).
   ;; If you force component to have a NULL pathname, you better arrange
@@ -1342,24 +1288,6 @@ make sure we clear them thoroughly."
    (source-file :reader %system-source-file :initarg :source-file ; for CLISP upgrade
                 :writer %set-system-source-file)
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
-
-;;; see comment with REINITIALIZE-INSTANCE method on COMPONENT
-;;; [2011/09/02:rpg]
-(defmethod reinitialize-instance :after ((obj system) &rest initargs &key)
-  "Clear SYSTEM's slots so it can be reused."
-  ;; note that SYSTEM-SOURCE-FILE is very specially handled,
-  ;; by DO-DEFSYSTEM, so we need to *PRESERVE* its value and
-  ;; not squash it.  SYSTEM COMPONENTS are handled very specially,
-  ;; because they are always, effectively, reused, since the system component
-  ;; is made early in DO-DEFSYSTEM, instead of being made later, in
-  ;; PARSE-COMPONENT-FORM [2011/09/02:rpg]
-  (loop :for (initarg slot-name) :in
-        `((:author author)
-          (:maintainer maintainer)
-          (:licence licence)
-          (:defsystem-depends-on defsystem-depends-on))
-        :unless (member initarg initargs)
-        :do (slot-makunbound obj slot-name)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; version-satisfies
@@ -2605,7 +2533,7 @@ recursive calls to traverse.")
             (clrhash *systems-being-defined*)
             (dolist (s l) (find-system s nil))))
         t))))
-    
+
 ;;;; Try to upgrade of ASDF. If a different version was used, return T.
 ;;;; We need do that before we operate on anything that depends on ASDF.
 (defun* upgrade-asdf ()
@@ -2846,29 +2774,22 @@ Returns the new tree (which probably shares structure with the old one)"
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
               version name parent)))
 
-    (let* ((other-args (remove-keys
-                        '(components pathname default-component-class
-                          perform explain output-files operation-done-p
-                          weakly-depends-on
-                          depends-on serial in-order-to)
-                        rest))
+    (let* ((args (list* :name (coerce-name name)
+                        :pathname pathname
+                        :parent parent
+                        (remove-keys
+                         '(components pathname default-component-class
+                           perform explain output-files operation-done-p
+                           weakly-depends-on depends-on serial in-order-to)
+                         rest)))
            (ret (find-component parent name)))
       (when weakly-depends-on
         (appendf depends-on (remove-if (complement #'find-system) weakly-depends-on)))
       (when *serial-depends-on*
         (push *serial-depends-on* depends-on))
-      (if ret
-          (apply 'reinitialize-instance ret
-                 :name (coerce-name name)
-                 :pathname pathname
-                 :parent parent
-                 other-args)
-          (setf ret
-                (apply 'make-instance (class-for-type parent type)
-                       :name (coerce-name name)
-                       :pathname pathname
-                       :parent parent
-                       other-args)))
+      (if ret ; preserve identity
+          (apply 'reinitialize-instance ret args)
+          (setf ret (apply 'make-instance (class-for-type parent type) args)))
       (component-pathname ret) ; eagerly compute the absolute pathname
       (when (typep ret 'module)
         (setf (module-default-component-class ret)
@@ -2900,6 +2821,9 @@ Returns the new tree (which probably shares structure with the old one)"
       (%refresh-component-inline-methods ret rest)
       ret)))
 
+(defun* reset-class (object class &rest keys &key &allow-other-keys)
+  (apply 'change-class (change-class object 'standard-object) class keys))
+
 (defun* do-defsystem (name &rest options
                            &key pathname (class 'system)
                            defsystem-depends-on &allow-other-keys)
@@ -2912,13 +2836,13 @@ Returns the new tree (which probably shares structure with the old one)"
   (with-system-definitions ()
     (let* ((name (coerce-name name))
            (registered (system-registered-p name))
-           (system (cdr (or registered
-                            (register-system (make-instance 'system :name name)))))
+           (registered! (if registered
+                            (rplaca registered (get-universal-time))
+                            (register-system (make-instance 'system :name name))))
+           (system (reset-class (cdr registered!) 'system
+                                :name name :source-file (load-pathname)))
            (component-options (remove-keys '(:class) options)))
-      (%set-system-source-file (load-pathname) system)
       (setf (gethash name *systems-being-defined*) system)
-      (when registered
-        (setf (car registered) (get-universal-time)))
       (apply 'load-systems defsystem-depends-on)
       ;; We change-class (when necessary) AFTER we load the defsystem-dep's
       ;; since the class might not be defined as part of those.
