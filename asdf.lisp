@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.018.17: Another System Definition Facility.
+;;; This is ASDF 2.018.18: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.018.17")
+         (asdf-version "2.018.18")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1835,6 +1835,9 @@ Host, device and version components are taken from DEFAULTS."
   (and pathname (merge-pathnames* (coerce-pathname subpath :type type)
                                   (pathname-directory-pathname pathname))))
 
+(defun subpathname* (pathname subpath &key type)
+  (and pathname
+       (subpathname (ensure-directory-pathname pathname) subpath :type type)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
@@ -3135,18 +3138,18 @@ located."
   (let ((dirs
          `(,@(when (os-unix-p)
                (cons
-                (subpathname (getenv "XDG_CONFIG_HOME") "common-lisp/")
+                (subpathname* (getenv "XDG_CONFIG_HOME") "common-lisp/")
                 (loop :with dirs = (getenv "XDG_CONFIG_DIRS")
                   :for dir :in (split-string dirs :separator ":")
-                  :collect (subpathname dir "common-lisp/"))))
+                  :collect (subpathname* dir "common-lisp/"))))
            ,@(when (os-windows-p)
-               `(,(subpathname (or #+lispworks (sys:get-folder-path :local-appdata)
-                                   (getenv "LOCALAPPDATA"))
+               `(,(subpathname* (or #+lispworks (sys:get-folder-path :local-appdata)
+                                    (getenv "LOCALAPPDATA"))
                                "common-lisp/config/")
                  ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
-                 ,(subpathname (or #+lispworks (sys:get-folder-path :appdata)
-                                   (getenv "APPDATA"))
-                               "common-lisp/config/")))
+                 ,(subpathname* (or #+lispworks (sys:get-folder-path :appdata)
+                                    (getenv "APPDATA"))
+                                "common-lisp/config/")))
            ,(subpathname (user-homedir) ".config/common-lisp/"))))
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs)
                        :from-end t :test 'equal)))
@@ -3157,10 +3160,10 @@ located."
     ((os-windows-p)
      (aif
       ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
-      (subpathname (or #+lispworks (sys:get-folder-path :common-appdata)
-                           (getenv "ALLUSERSAPPDATA")
-                           (subpathname (getenv "ALLUSERSPROFILE") "Application Data/"))
-                       "common-lisp/config/")
+      (subpathname* (or #+lispworks (sys:get-folder-path :common-appdata)
+                        (getenv "ALLUSERSAPPDATA")
+                        (subpathname* (getenv "ALLUSERSPROFILE") "Application Data/"))
+                    "common-lisp/config/")
       (list it)))))
 
 (defun* in-first-directory (dirs x &key (direction :input))
@@ -4017,9 +4020,9 @@ with a different configuration, so the configuration would be re-read then."
                        (getenv "APPDATA"))
                   ,(or #+lispworks (sys:get-folder-path :common-appdata)
                        (getenv "ALLUSERSAPPDATA")
-                       (subpathname (getenv "ALLUSERSPROFILE") "Application Data/")))))
-          :collect `(:directory ,(subpathname dir "common-lisp/systems/"))
-          :collect `(:tree ,(subpathname dir "common-lisp/source/")))
+                       (subpathname* (getenv "ALLUSERSPROFILE") "Application Data/")))))
+          :collect `(:directory ,(subpathname* dir "common-lisp/systems/"))
+          :collect `(:tree ,(subpathname* dir "common-lisp/source/")))
       :inherit-configuration))
 (defun* user-source-registry (&key (direction :input))
   (in-user-configuration-directory *source-registry-file* :direction direction))
