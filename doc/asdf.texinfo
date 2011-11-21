@@ -2856,15 +2856,23 @@ the value will be inherited from the parent component if any,
 or with a default of @code{nil}
 if no value is specified in any transitive parent.
 
-The argument must be a either @code{nil}, a function, a fbound symbol,
+The argument must be a either @code{nil}, a fbound symbol,
+a lambda-expression (e.g. @code{(lambda (thunk) ...(funcall thunk) ...)})
+a function object (e.g. using @code{#.#'} but that's discouraged
+because it prevents the introspection done by e.g. asdf-dependency-grovel),
 or a string that when read yields a symbol or a lambda-expression.
 @code{nil} means the normal compile-file function will be called.
 A non-nil value designates a function of one argument
 that will be called with a thunk for calling
 the compile-file function with proper arguments.
-Note that by using a string, you may reference a symbol and/or package
+
+Note that by using a string, you may reference
+a function, symbol and/or package
 that will only be created later during the build, but
-isn't present at the time the defsystem form is evaluated.
+isn't yet present at the time the defsystem form is evaluated.
+However, if your entire system is using such a hook, you may have to
+explicitly override the hook with @code{nil} for all the modules and files
+that are compiled before the hook is defined.
 
 Using this hook, you may achieve such effects as:
 locally renaming packages,
