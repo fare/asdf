@@ -104,7 +104,7 @@ command= flags= nodebug= eval=
 case "$lisp" in
   abcl)
     command="${ABCL:-abcl}"
-    flags="--noinit --noinform"
+    flags="--noinit --nosystem --noinform"
     eval="--eval" ;;
   allegro)
     command="${ALLEGRO:-alisp}"

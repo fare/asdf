@@ -91,7 +91,7 @@ test-upgrade:
 	use_sbcl () { li="${SBCL} --noinform --no-userinit --load" ; ev="--eval" ; } ; \
 	use_ecl () { li="${ECL} -norc -load" ; ev="-eval" ; } ; \
 	use_cmucl () { li="${CMUCL} -noinit -load" ; ev="-eval" ; } ; \
-	use_abcl () { li="${ABCL} -noinit --noinform --load" ; ev="--eval" ; } ; \
+	use_abcl () { li="${ABCL} --noinit --nosystem --noinform --load" ; ev="--eval" ; } ; \
 	use_scl () { li="${SCL} -noinit -load" ; ev="-eval" ; } ; \
 	use_allegro () { li="${ALLEGRO} -q -L" ; ev="-e" ; } ; \
 	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; } ; \
