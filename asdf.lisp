@@ -3104,11 +3104,11 @@ located."
       (format nil "~d.~d-f~d" ; shorten for windows
               ccl::*openmcl-major-version*
               ccl::*openmcl-minor-version*
-              (logand ccl::fasl-version #xFF))
+              (logand (ccl-fasl-version) #xFF))
       #+cmu (substitute #\- #\/ s)
       #+scl (format nil "~A~A" s
-		    ;; ANSI upper case vs lower case.
-		    (ecase ext:*case-mode* (:upper "") (:lower "l")))
+                    ;; ANSI upper case vs lower case.
+                    (ecase ext:*case-mode* (:upper "") (:lower "l")))
       #+ecl (format nil "~A~@[-~A~]" s
                     (let ((vcs-id (ext:lisp-implementation-vcs-id)))
                       (subseq vcs-id 0 (min (length vcs-id) 8))))
@@ -3118,6 +3118,14 @@ located."
         (format nil "~D.~D" major minor))
       #+mcl (subseq s 8) ; strip the leading "Version "
       s))))
+
+#+clozure
+(defun* ccl-fasl-version ()
+   (or (and (fboundp 'ccl::target-fasl-version)
+            (funcall 'ccl::target-fasl-version))
+       (and (boundp 'ccl::fasl-version)
+            (symbol-value 'ccl::fasl-version))
+       (error "Can't determine fasl version.")))
 
 (defun* implementation-identifier ()
   (substitute-if
