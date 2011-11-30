@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.019.1: Another System Definition Facility.
+;;; This is ASDF 2.019.2: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.019.1")
+         (asdf-version "2.019.2")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3085,6 +3085,15 @@ located."
      ;; we may have to segregate the code still by architecture.
      (:java :java :java-1.4 :java-1.5 :java-1.6 :java-1.7))))
 
+#+clozure
+(defun* ccl-fasl-version ()
+  ;; the fasl version is target-dependent from CCL 1.8 on.
+  (or (and (fboundp 'ccl::target-fasl-version)
+           (funcall 'ccl::target-fasl-version))
+      (and (boundp 'ccl::fasl-version)
+           (symbol-value 'ccl::fasl-version))
+      (error "Can't determine fasl version.")))
+
 (defun lisp-version-string ()
   (let ((s (lisp-implementation-version)))
     (car ; as opposed to OR, this idiom prevents some unreachable code warning
@@ -3118,14 +3127,6 @@ located."
         (format nil "~D.~D" major minor))
       #+mcl (subseq s 8) ; strip the leading "Version "
       s))))
-
-#+clozure
-(defun* ccl-fasl-version ()
-   (or (and (fboundp 'ccl::target-fasl-version)
-            (funcall 'ccl::target-fasl-version))
-       (and (boundp 'ccl::fasl-version)
-            (symbol-value 'ccl::fasl-version))
-       (error "Can't determine fasl version.")))
 
 (defun* implementation-identifier ()
   (substitute-if
