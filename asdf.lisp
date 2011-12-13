@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.019.3: Another System Definition Facility.
+;;; This is ASDF 2.019.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.019.3")
+         (asdf-version "2.019.4")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3150,21 +3150,35 @@ located."
     #+mcl (current-user-homedir-pathname)
     #-mcl (user-homedir-pathname))))
 
+(defun* ensure-absolute-pathname* (x fmt &rest args)
+  (and (plusp (length x))
+       (or (absolute-pathname-p x)
+           (cerror "ignore relative pathname"
+                   "Invalid relative pathname ~A~@[ ~?~]" x fmt args))
+       x))
+(defun* split-absolute-pathnames (x fmt &rest args)
+  (loop :for dir :in (split-string x :separator (inter-directory-separator))
+    :do (apply 'ensure-absolute-pathname* dir fmt args)
+    :collect dir))
+(defun getenv-absolute-pathname (x &aux (s (getenv x)))
+  (ensure-absolute-pathname* s "from (getenv ~S)" x))
+(defun getenv-absolute-pathnames (x &aux (s (getenv x)))
+  (split-absolute-pathnames s "from (getenv ~S) = ~S" x s))
+
 (defun* user-configuration-directories ()
   (let ((dirs
          `(,@(when (os-unix-p)
                (cons
-                (subpathname* (getenv "XDG_CONFIG_HOME") "common-lisp/")
-                (loop :with dirs = (getenv "XDG_CONFIG_DIRS")
-                  :for dir :in (split-string dirs :separator ":")
+                (subpathname* (getenv-absolute-pathname "XDG_CONFIG_HOME") "common-lisp/")
+                (loop :for dir :in (getenv-absolute-pathnames "XDG_CONFIG_DIRS")
                   :collect (subpathname* dir "common-lisp/"))))
            ,@(when (os-windows-p)
                `(,(subpathname* (or #+lispworks (sys:get-folder-path :local-appdata)
-                                    (getenv "LOCALAPPDATA"))
+                                    (getenv-absolute-pathname "LOCALAPPDATA"))
                                "common-lisp/config/")
                  ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
                  ,(subpathname* (or #+lispworks (sys:get-folder-path :appdata)
-                                    (getenv "APPDATA"))
+                                    (getenv-absolute-pathname "APPDATA"))
                                 "common-lisp/config/")))
            ,(subpathname (user-homedir) ".config/common-lisp/"))))
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs)
@@ -3177,8 +3191,8 @@ located."
      (aif
       ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
       (subpathname* (or #+lispworks (sys:get-folder-path :common-appdata)
-                        (getenv "ALLUSERSAPPDATA")
-                        (subpathname* (getenv "ALLUSERSPROFILE") "Application Data/"))
+                        (getenv-absolute-pathname "ALLUSERSAPPDATA")
+                        (subpathname* (getenv-absolute-pathname "ALLUSERSPROFILE") "Application Data/"))
                     "common-lisp/config/")
       (list it)))))
 
@@ -3302,12 +3316,12 @@ and the order is by decreasing length of namestring of the source pathname.")
 (defvar *user-cache*
   (flet ((try (x &rest sub) (and x `(,x ,@sub))))
     (or
-     (try (getenv "XDG_CACHE_HOME") "common-lisp" :implementation)
+     (try (getenv-absolute-pathname "XDG_CACHE_HOME") "common-lisp" :implementation)
      (when (os-windows-p)
        (try (or #+lispworks (sys:get-folder-path :local-appdata)
-                (getenv "LOCALAPPDATA")
+                (getenv-absolute-pathname "LOCALAPPDATA")
                 #+lispworks (sys:get-folder-path :appdata)
-                (getenv "APPDATA"))
+                (getenv-absolute-pathname "APPDATA"))
             "common-lisp" "cache" :implementation))
      '(:home ".cache" "common-lisp" :implementation))))
 
@@ -4024,19 +4038,18 @@ with a different configuration, so the configuration would be re-read then."
     (:directory ,(default-directory))
       ,@(loop :for dir :in
           `(,@(when (os-unix-p)
-                `(,(or (getenv "XDG_DATA_HOME")
+                `(,(or (getenv-absolute-pathname "XDG_DATA_HOME")
                        (subpathname (user-homedir) ".local/share/"))
-                  ,@(split-string (or (getenv "XDG_DATA_DIRS")
-                                      "/usr/local/share:/usr/share")
-                                  :separator ":")))
+                  ,@(or (getenv-absolute-pathnames "XDG_DATA_DIRS")
+                        '("/usr/local/share" "/usr/share"))))
             ,@(when (os-windows-p)
                 `(,(or #+lispworks (sys:get-folder-path :local-appdata)
-                       (getenv "LOCALAPPDATA"))
+                       (getenv-absolute-pathname "LOCALAPPDATA"))
                   ,(or #+lispworks (sys:get-folder-path :appdata)
-                       (getenv "APPDATA"))
+                       (getenv-absolute-pathname "APPDATA"))
                   ,(or #+lispworks (sys:get-folder-path :common-appdata)
-                       (getenv "ALLUSERSAPPDATA")
-                       (subpathname* (getenv "ALLUSERSPROFILE") "Application Data/")))))
+                       (getenv-absolute-pathname "ALLUSERSAPPDATA")
+                       (subpathname* (getenv-absolute-pathname "ALLUSERSPROFILE") "Application Data/")))))
           :collect `(:directory ,(subpathname* dir "common-lisp/systems/"))
           :collect `(:tree ,(subpathname* dir "common-lisp/source/")))
       :inherit-configuration))
