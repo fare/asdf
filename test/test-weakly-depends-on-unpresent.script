@@ -1,10 +1,17 @@
 ;;; -*- Lisp -*-
+
+;;;---------------------------------------------------------------------------
+;;; This test verifies that if you have a system with a weakly-depends-on
+;;; dependency, and the weakly-depended-on system is NOT THERE, the depending
+;;; system will still load successfully. [2011/12/14:rpg]
+;;;---------------------------------------------------------------------------
+
 (load "script-support.lisp")
 (load-asdf)
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
- (asdf:load-system 'test-weakly-depends-on)
+ (asdf:load-system 'test-weakly-depends-on-unpresent)
  ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file1-date (file-write-date file1)))
