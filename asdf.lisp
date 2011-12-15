@@ -3157,7 +3157,8 @@ located."
                    "Invalid relative pathname ~A~@[ ~?~]" x fmt args))
        x))
 (defun* split-absolute-pathnames (x fmt &rest args)
-  (loop :for dir :in (split-string x :separator (inter-directory-separator))
+  (loop :for dir :in (split-string
+                      x :separator (string (inter-directory-separator)))
     :do (apply 'ensure-absolute-pathname* dir fmt args)
     :collect dir))
 (defun getenv-absolute-pathname (x &aux (s (getenv x)))
