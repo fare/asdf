@@ -42,4 +42,6 @@
  (asdf::version-satisfies (asdf:asdf-version) "2.000"))
 (assert
  (not (asdf::version-satisfies (asdf:asdf-version) "666")))
+(assert
+  (equal (asdf::split-absolute-pathnames "/foo:/bar" "baz") '("/foo" "/bar")))
 )
