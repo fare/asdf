@@ -31,6 +31,8 @@ ALLEGROMODERN ?= mlisp
 
 # website, tag, install
 
+default: test
+
 install: archive-copy
 
 archive:

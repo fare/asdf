@@ -44,4 +44,14 @@
  (not (asdf::version-satisfies (asdf:asdf-version) "666")))
 (assert
   (equal (asdf::split-absolute-pathnames "/foo:/bar" "baz") '("/foo" "/bar")))
+(assert (equal (mapcar 'location-function-p
+                       '((:function f)
+                         (:function (lambda (path absolute-source)
+                                      (declare (ignore absolute-source))
+                                      path))
+                         (function previous-isnt-keyword)
+                         (:function f too many arguments)
+                         (:function (:lambda isnt lambda))
+                         (:function (lambda (too many args) blah))))
+               '(t t nil nil nil nil)))
 )

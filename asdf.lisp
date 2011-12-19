@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.019.7: Another System Definition Facility.
+;;; This is ASDF 2.019.8: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -107,7 +107,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.019.7")
+         (asdf-version "2.019.8")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3457,13 +3457,12 @@ Please remove it from your ASDF configuration"))
 
 (defun* location-function-p (x)
   (and
-   (consp x)
    (length=n-p x 2)
-   (or (and (equal (first x) :function)
-            (typep (second x) 'symbol))
-       (and (equal (first x) 'lambda)
-            (cddr x)
-            (length=n-p (second x) 2)))))
+   (eq (car x) :function)
+   (or (symbolp (cadr x))
+       (and (consp (cadr x))
+            (eq (caadr x) 'lambda)
+            (length=n-p (cadadr x) 2)))))
 
 (defun* validate-output-translations-directive (directive)
   (or (member directive '(:enable-user-cache :disable-cache nil))
