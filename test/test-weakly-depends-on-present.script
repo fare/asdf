@@ -1,0 +1,31 @@
+;;; -*- Lisp -*-
+(load "script-support.lisp")
+(load-asdf)
+
+;;;---------------------------------------------------------------------------
+;;; Check to see if a weakly-depended-on system, which is present in the
+;;; directory, actually gets loaded.
+;;;---------------------------------------------------------------------------
+
+
+(quit-on-error
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (asdf:load-system 'test-weakly-depends-on-present)
+ ;; The weakly-depended-on system, file3-only, should be loaded...
+ (let* ((file3 (asdf:compile-file-pathname* "file3"))
+        (file3-date (file-write-date file3)))
+
+   ;; (format t "~&test1 1: ~S ~S~%" file1 file1-date)
+   (assert file3-date)
+   ;; and loaded
+   (assert (symbol-value (find-symbol (symbol-name :*file3*) :test-package)))))
+
+ ;; The depending system (test-weakly-depends-on-present) loads
+ ;; successfully. [2011/12/14:rpg]
+ (let* ((file1 (asdf:compile-file-pathname* "file1"))
+        (file1-date (file-write-date file1)))
+
+   ;; (format t "~&test1 1: ~S ~S~%" file1 file1-date)
+   (assert file1-date)
+   ;; and loaded
+   (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))))

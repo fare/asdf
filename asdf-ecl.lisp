@@ -1,5 +1,5 @@
 ;;; Copyright (c) 2005 - 2007, Michael Goffioul (michael dot goffioul at swing dot be)
-;;; Copyright (c) 2008, Juan Jose Garcia Ripoll
+;;; Copyright (c) 2008 - 2011, Juan Jose Garcia Ripoll
 ;;;
 ;;;   This program is free software; you can redistribute it and/or
 ;;;   modify it under the terms of the GNU Library General Public
@@ -140,6 +140,10 @@
 (defmethod bundle-sub-operations ((o lib-op) c)
   (gather-components 'compile-op c
                      :filter-system (and (not (bundle-op-monolithic-p o)) c)
+                     :filter-type '(not system)))
+(defmethod bundle-sub-operations ((o monolithic-lib-op) c)
+  (gather-components 'compile-op c
+                     :filter-system nil
                      :filter-type '(not system)))
 ;;;
 ;;; SHARED LIBRARIES
@@ -415,19 +419,19 @@
 ;;;
 
 (export '(make-build load-fasl-op prebuilt-system))
-(push '("fasb" . si::load-binary) si::*load-hooks*)
+(push '("fasb" . si::load-binary) ext:*load-hooks*)
 
 (defun register-pre-built-system (name)
   (register-system (make-instance 'system :name name :source-file nil)))
 
-(setf si::*module-provider-functions*
-      (loop :for f :in si::*module-provider-functions*
+(setf ext:*module-provider-functions*
+      (loop :for f :in ext:*module-provider-functions*
         :unless (eq f 'module-provide-asdf)
         :collect #'(lambda (name)
                      (let ((l (multiple-value-list (funcall f name))))
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
-#+win32 (push '("asd" . si::load-source) si::*load-hooks*)
+#+win32 (push '("asd" . si::load-source) ext:*load-hooks*)
 (pushnew (translate-logical-pathname "SYS:") *central-registry*)
 
 (provide :asdf)

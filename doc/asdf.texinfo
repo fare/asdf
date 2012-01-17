@@ -896,6 +896,8 @@ For more details on what these methods do, @pxref{Operations} in
 system-definition := ( defsystem system-designator @var{system-option}* )
 
 system-option := :defsystem-depends-on system-list
+                 | :weakly-depends-on @var{system-list}
+                 | :class class-name (see discussion below)
                  | module-option
                  | option
 
@@ -959,13 +961,49 @@ the current package.  So a component type @code{my-component-type}, in
 the current package @code{my-system-asd} can be specified as
 @code{:my-component-type}, or @code{my-component-type}.
 
+@subsection System class names
+
+A system class name will be looked up in the same way as a Component
+type (see above).  Typically, one will not need to specify a system
+class name, unless using a non-standard system class defined in some
+ASDF extension, typically loaded through @code{DEFSYSTEM-DEPENDS-ON},
+see below.  For such class names in the ASDF package, we recommend that
+the @code{:class} option be specified using a keyword symbol, such as
+
+@example
+:class :MY-NEW-SYSTEM-SUBCLASS
+@end example
+
+This practice will ensure that package name conflicts are avoided.
+Otherwise, the symbol @code{MY-NEW-SYSTEM-SUBCLASS} will be read into
+the current package @emph{before} it has been exported from the ASDF
+extension loaded by @code{:defsystem-depends-on}, causing a name
+conflict in the current package.
+
 @subsection Defsystem depends on
+@cindex :defsystem-depends-on
 
 The @code{:defsystem-depends-on} option to @code{defsystem} allows the
 programmer to specify another ASDF-defined system or set of systems that
 must be loaded @emph{before} the system definition is processed.
 Typically this is used to load an ASDF extension that is used in the
 system definition.
+
+@subsection Weakly depends on 
+@cindex :weakly-depends-on
+
+The @code{:weakly-depends-on} option to @code{defsystem} allows the
+programmer to specify another ASDF-defined system or set of systems that
+ASDF should @emph{try} to load, but need not load in order to be
+successful.  Typically this is used if there are a number of systems
+that, if present, could provide additional functionality, but which are
+not necessary for basic function.
+
+Currently, although it is specified to be an option only to
+@code{defsystem}, this option is accepted at any component, but it probably
+only makes sense at the @code{defsystem} level. Programmers are cautioned not
+to use this component option except at the @code{defsystem} level, as
+this anomalous behavior may be removed without warning.
 
 @subsection Pathname specifiers
 @cindex pathname specifiers
@@ -1237,6 +1275,7 @@ and @emph{operations}, the actions that can be performed on a system.
 @menu
 * Operations::
 * Components::
+* Functions::
 @end menu
 
 @node  Operations, Components, The object model of ASDF, The object model of ASDF
@@ -1437,7 +1476,7 @@ if you don't like the default one
 Operations that print output should send that output to the standard
 CL stream @code{*standard-output*}, as the Lisp compiler and loader do.
 
-@node Components,  , Operations, The object model of ASDF
+@node Components, Functions, Operations, The object model of ASDF
 @comment  node-name,  next,  previous,  up
 @section Components
 @cindex component
@@ -1600,11 +1639,14 @@ The syntax is approximately
 @verbatim
 (this-op {(other-op required-components)}+)
 
-required-components := component-name
+simple-component-name := string
+                      |  symbol
+
+required-components := simple-component-name
                      | (required-components required-components)
 
-component-name := string
-                | (:version string minimum-version-object)
+component-name := simple-component-name
+                | (:version simple-component-name minimum-version-object)
 @end verbatim
 
 Side note:
@@ -1814,6 +1856,25 @@ The new component type is used in a @code{defsystem} form in this way:
      ...
     )
 @end lisp
+
+@node Functions,  , Components, The object model of ASDF
+@comment  node-name,  next,  previous,  up
+@section Functions
+@findex version-satisfies
+
+@deffn version-satisfies @var{version} @var{version-spec}
+Does @var{version} satisfy the @var{version-spec}.  A generic function.
+ASDF provides built-in methods for @var{version} being a
+@code{component} or @code{string}.  @var{version-spec} should be a
+string.
+
+In the wild, we typically see version numbering only on components of
+type @code{system}.
+
+For more information about how @code{version-satisfies} interprets
+version strings and specifications, @pxref{The defsystem grammar} and
+@ref{Common attributes of components}.
+@end deffn
 
 @node Controlling where ASDF searches for systems, Controlling where ASDF saves compiled files, The object model of ASDF, Top
 @comment  node-name,  next,  previous,  up
@@ -2801,10 +2862,50 @@ The valid values for these variables are
 @comment  node-name,  next,  previous,  up
 @chapter Miscellaneous additional functionality
 
-@emph{FIXME:  Add discussion of @code{run-shell-command}?  Others?}
-
 ASDF includes several additional features that are generally
-useful for system definition and development. These include:
+useful for system definition and development.
+
+@section Controlling file compilation
+
+When declaring a component (system, module, file),
+you can specify a keyword argument @code{:around-compile function}.
+If left unspecified,
+the value will be inherited from the parent component if any,
+or with a default of @code{nil}
+if no value is specified in any transitive parent.
+
+The argument must be a either @code{nil}, a fbound symbol,
+a lambda-expression (e.g. @code{(lambda (thunk) ...(funcall thunk) ...)})
+a function object (e.g. using @code{#.#'} but that's discouraged
+because it prevents the introspection done by e.g. asdf-dependency-grovel),
+or a string that when read yields a symbol or a lambda-expression.
+@code{nil} means the normal compile-file function will be called.
+A non-nil value designates a function of one argument
+that will be called with a thunk for calling
+the compile-file function with proper arguments.
+
+Note that by using a string, you may reference
+a function, symbol and/or package
+that will only be created later during the build, but
+isn't yet present at the time the defsystem form is evaluated.
+However, if your entire system is using such a hook, you may have to
+explicitly override the hook with @code{nil} for all the modules and files
+that are compiled before the hook is defined.
+
+Using this hook, you may achieve such effects as:
+locally renaming packages,
+binding @var{*readtables*} and other syntax-controlling variables,
+handling warnings and other conditions,
+proclaiming consistent optimization settings,
+saving code coverage information,
+maintaining meta-data about compilation timings,
+setting gensym counters and PRNG seeds and other sources of non-determinism,
+overriding the source-location and/or timestamping systems,
+checking that some compile-time side-effects were properly balanced,
+etc.
+
+
+@section Miscellaneous Exported Functions
 
 @defun coerce-pathname name @&key type defaults
 
@@ -2898,6 +2999,33 @@ ASDF itself goes through notable pains to make such a hot upgrade possible
 with respect to its own code, and what it does is ridiculously complex;
 look at the beginning of @file{asdf.lisp} to see what it does.
 @end defun
+
+@defun run-shell-command
+
+This function is obsolete and present only for the sake of backwards-compatibility:
+``If it's not backwards, it's not compatible''. We strongly discourage its use.
+Its current behavior is only well-defined on Unix platforms
+(which includes MacOS X and cygwin). On Windows, anything goes.
+
+Instead we recommend the use of such a function as
+@code{xcvb-driver:run-program/process-output-stream}
+from the @code{xcvb-driver} system that is distributed with XCVB:
+@url{http://common-lisp.net/project/xcvb}.
+It's only alternative that supports
+as many implementations and operating systems as ASDF does,
+and provides well-defined behavior outside Unix (i.e. on Windows).
+(The only unsupported exception is Genera, since on it
+@code{run-shell-command} doesn't make sense anyway on that platform).
+
+This function takes as arguments a @code{format} control-string
+and arguments to be passed to @code{format} after this control-string
+to produce a string.
+This string is a command that will be evaluated with a POSIX shell if possible;
+yet, on Windows, some implementations will use CMD.EXE,
+while others (like SBCL) will make an attempt at invoking a POSIX shell
+(and fail if it is not present).
+@end defun
+
 
 @node Getting the latest version, FAQ, Miscellaneous additional functionality, Top
 @comment  node-name,  next,  previous,  up
@@ -3571,6 +3699,8 @@ you also define the following method:
   (declare (ignorable f m))
   "lis")
 @end lisp
+
+@comment FIXME: Add a FAQ about how to use a new system class...
 
 
 @node  TODO list, Inspiration, FAQ, Top

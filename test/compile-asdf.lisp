@@ -22,8 +22,9 @@
      (multiple-value-bind (result warnings-p errors-p)
          ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
          (handler-bind (#+sbcl (sb-c::simple-compiler-note #'muffle-warning)
-                        #+ecl ((or c:compiler-note c::compiler-debug-note
-                                   c:compiler-warning) ;; ECL emits more serious warnings than it should.
+                        #+(and ecl (not ecl-bytecmp))
+			((or c:compiler-note c::compiler-debug-note
+			     c:compiler-warning) ;; ECL emits more serious warnings than it should.
                                #'muffle-warning)
 			#-(or cmu scl)
                         (style-warning

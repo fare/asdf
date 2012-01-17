@@ -4,19 +4,39 @@ webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
+ifdef ASDF_TEST_LISPS
+lisps ?= ${ASDF_TEST_LISPS}
+else
 lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro
-## occasionally tested by not me: allegromodern lispworks xcl
-## FAIL: gclcvs (COMPILER BUGS!!!)
-## tentatively supported by asdf, not supported by our tests: cormancl mcl genera
+endif
+
+## MINOR FAIL: ecl-bytecodes (failure in test-compile-file-failure.script)
+## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
+## OCCASIONALLY TESTED BY NOT ME: allegromodern (not in my free demo version)
+## OCCASIONALLY TESTED BY NOT ME: lispworks (testing requires Pro version)
+## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but it won't compile for me.
+## NOT SUPPORTED BY OUR TESTS: cormancl genera rmcl. Manually tested once in a while.
 
 lisp ?= sbcl
 
+CCL ?= ccl
+CLISP ?= clisp
+SBCL ?= sbcl
+ECL ?= ecl
+CMUCL ?= cmucl
+ABCL ?= abcl
+SCL ?= scl
+ALLEGRO ?= alisp
+ALLEGROMODERN ?= mlisp
+
 # website, tag, install
+
+default: test
 
 install: archive-copy
 
 archive:
-	sbcl --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
+	${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 		--eval "(rewrite-license)" --eval "(quit)"
 	bin/make-tarball
 
@@ -31,7 +51,6 @@ archive-copy: archive
 push:
 	git status
 	git push --tags cl.net release master
-	git push --tags xcvb release master
 	git fetch
 	git status
 
@@ -42,7 +61,7 @@ website:
 	${MAKE} -C doc website
 
 clean_dirs = $(sourceDirectory)
-clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl ufasl o bak x86f
+clean_extensions = fasl dfsl cfsl fasl fas lib dx32fsl lx64fsl lx32fsl ufasl o bak x86f vbin amd64f sparcf sparc64f hpf hp64f
 
 clean:
 	@for dir in $(clean_dirs); do \
@@ -63,40 +82,57 @@ mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
 test-upgrade:
-	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then \
-		SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; \
-	mkdir -p tmp/fasls/sbcl/ ; \
-        fa=tmp/fasls/sbcl/upasdf.fasl ; \
-        ll="(handler-bind ((sb-kernel:redefinition-warning #'muffle-warning)) (load \"asdf.lisp\"))" ; \
-	cf="(handler-bind ((warning #'muffle-warning)) (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose nil :print nil))" ; \
-        lf="(handler-bind ((sb-kernel:redefinition-warning #'muffle-warning)) (load \"$$fa\"))" ; \
-        te="(quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (asdf:oos 'asdf:load-op :test-module-depend :verbose nil))" ; \
-        sb="$${SBCL:-sbcl} --noinform --load test/script-support" ; \
+	mkdir -p tmp/fasls/${lisp} ; \
+	fa=tmp/fasls/sbcl/upasdf.fasl ; \
+	ll="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"ll~%\") (load \"asdf.lisp\"))" ; \
+	cf="(handler-bind ((warning #'muffle-warning)) (format t \"cf~%\") (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose t :print t))" ; \
+	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
+	te="(quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
+	use_ccl () { li="${CCL} --no-init --quiet --load" ; ev="--eval" ; } ; \
+	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet -i" ; ev="-x" ; } ; \
+	use_sbcl () { li="${SBCL} --noinform --no-userinit --load" ; ev="--eval" ; } ; \
+	use_ecl () { li="${ECL} -norc -load" ; ev="-eval" ; } ; \
+	use_cmucl () { li="${CMUCL} -noinit -load" ; ev="-eval" ; } ; \
+	use_abcl () { li="${ABCL} --noinit --nosystem --noinform --load" ; ev="--eval" ; } ; \
+	use_scl () { li="${SCL} -noinit -load" ; ev="-eval" ; } ; \
+	use_allegro () { li="${ALLEGRO} -q -L" ; ev="-e" ; } ; \
+	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; } ; \
+	su=test/script-support ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` ; do \
+	  use_${lisp} ; \
 	  lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
 	  echo "Testing upgrade from ASDF $${tag}" ; \
 	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
-          rm -f $$fa ; \
-          ( set -x ; $$sb --eval "$$lo" --eval "$$ll" --eval "$$te" && \
-          $$sb --eval "$$lo" --eval "$$cf" --eval "$$lf" --eval "$$te" && \
-          $$sb --eval "$$lo" --eval "$$lf" --eval "$$te" && \
-          $$sb --eval "$$lf" --eval "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;}; \
-        done
-
-test-forward-references:
-	if [ -f /usr/lib/sbcl/sbcl-dist.core ] ; then SBCL="/usr/bin/sbcl --core /usr/lib/sbcl/sbcl-dist.core" ; fi ; $${SBCL:-sbcl} --noinform --load ~/cl/asdf/asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
-
-do-test:
-	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
-
-test: do-test test-forward-references doc
-
-do-test-all:
-	@for lisp in ${lisps} ; do \
-		${MAKE} do-test lisp=$$lisp || exit 1 ; \
+	  rm -f $$fa ; lv="$$li $$su $$ev" ; \
+	  case ${lisp}:$$tag in \
+	    ecl:2.00[0-9]|ecl:2.01[0-6]) : Skip, because of get-uid ugliness ;; *) \
+	  ( set -x ; $$lv "$$lo" $$ev "$$ll" $$ev "$$te" && \
+	    $$lv "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" && \
+	    $$lv "$$lo" $$ev "$$lf" $$ev "$$te" && \
+	    $$lv "$$lf" $$ev "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;} \
+	  ;; esac ; \
 	done
 
-test-all: test-forward-references doc test-upgrade do-test-all
+test-forward-references:
+	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
+
+test-lisp:
+	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
+
+test: test-lisp test-forward-references doc
+
+test-all-lisps:
+	@for lisp in ${lisps} ; do \
+		${MAKE} test-lisp test-upgrade lisp=$$lisp || exit 1 ; \
+	done
+
+# test upgrade is a very long run... This does just the regression tests
+test-all-noupgrade:
+	@for lisp in ${lisps} ; do \
+		${MAKE} test-lisp lisp=$$lisp || exit 1 ; \
+	done
+
+test-all: test-forward-references doc test-all-lisps
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
@@ -107,12 +143,12 @@ debian-package: mrproper
 # Replace SBCL's ASDF with the current one. -- Not recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
 replace-sbcl-asdf:
-	sbcl --eval '(compile-file "asdf.lisp" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
+	${SBCL} --eval '(compile-file "asdf.lisp" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
 
 # Replace CCL's ASDF with the current one. -- Not recommended now that CCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
 replace-ccl-asdf:
-	ccl --eval '(progn(compile-file "asdf.lisp" :output-file (format nil "~Atools/asdf.lx64fsl" (ccl::ccl-directory)))(quit))'
+	${CCL} --eval '(progn(compile-file "asdf.lisp" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
 
 WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE
 # Delete wrongful tags from local repository
@@ -136,8 +172,8 @@ TODO:
 release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
 .PHONY: install archive archive-copy push doc website clean mrproper \
-	upgrade-test test-forward-references test do-test test-all do-test-all \
-	test-upgrade test-forward-references \
+	upgrade-test test-forward-references test test-lisp test-upgrade test-forward-references \
+	test-all test-all-lisps test-all-noupgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags

@@ -104,7 +104,7 @@ command= flags= nodebug= eval=
 case "$lisp" in
   abcl)
     command="${ABCL:-abcl}"
-    flags="--noinit --noinform"
+    flags="--noinit --nosystem --noinform"
     eval="--eval" ;;
   allegro)
     command="${ALLEGRO:-alisp}"
@@ -133,7 +133,11 @@ case "$lisp" in
     eval="-eval" ;;
   ecl)
     command="${ECL:-ecl}"
-    flags="-norc"
+    flags="-norc -load sys:cmp"
+    eval="-eval" ;;
+  ecl-bytecodes)
+    command="${ECL:-ecl}"
+    flags="-norc -eval (ext::install-bytecodes-compiler)"
     eval="-eval" ;;
   gclcvs)
     export GCL_ANSI=t

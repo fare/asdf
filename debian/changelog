@@ -1,3 +1,80 @@
+cl-asdf (2:2.019-1) unstable; urgency=low
+
+  * UI: Create and use a load-systems abstraction,
+   in view of using it in a system-granular parallelizing backend. (.15)
+  * Usability: when a system can't be found, there's now a restart to retry
+   finding a system after reinitializing the source-registry (.10).
+  * Feature: :around-compile now accepts lambda expressions, and also strings,
+   so you can specify future wrappers that can't even be read yet. (.11, .12).
+  * Filesystem: recursing through logical pathnames in LispWorks (.2, .3),
+   on SBCL as on CMUCL, have asdf:subdirectories follow symlinks (.8., .9)
+  * Configuration: modify user-configuration-directories and
+   system-configuration-directories to return all valid directory names
+   even when they don't exist yet so you may create them (.6), also output
+   name of non-existing configuration file when opening them for writing (.7),
+  * Internals: strcat (.5), split locate-systems from find-systems (.6)
+  * Portability: Debugged CormanLisp support (.1).
+   Fix type declaration for SCL (.17).
+  * Bug fix: don't drop pathname components without a / at the end
+   when reading a path using GETENV (.18). (Bug from 2.017.27)
+  Closes: #647544.
+  * Bug fix: don't redefine reinitialize-instance in ways that break
+   its contract and its clients (such as asdf-dependency-grovel).
+   Use change-class to reset slots (.16), but not to 'standard-object,
+   which breaks ecl, rather to a proto-system class (.19), and not
+   using keys with breaks genera (.21). (Bug from 2.017.3)
+  * Bug fix: buglet in maybe-add-tree (.4)
+  * Upgrade: unintern internals of signature changed in 2.017.12 (.13),
+   have *system-definition-search-functions* not be a defparameter,
+   but a defvar with a fixup (.14), clear *systems-being-defined* when
+   upgrading asdf but re-find them immediately because they may be needed
+   as part of a higher operation (.14).
+   Unintern some more functions that have changed signature (.20).
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 27 Nov 2011 16:09:42 -0500
+
+cl-asdf (2:2.018-1) unstable; urgency=low
+
+  Bugs:
+  * Solved a bug due to ASDF reusing components even when the ASDF definition
+    has changed wildly, leading to bad behavior in incremental compilation
+    and sometimes total failure of compilation of a new version.
+    (Thanks to Xach for reporting and RPGoldman for fixing.)
+  * Fix an issue with ASDF doing the wrong thing in case of a clock skew,
+    thanks to Andreas Fuchs.
+  * Simplification of the internals of perform-with-restarts and
+   traverse's do-dep, that should fix some corner cases and make it
+   easier to extend or further fix. There scarily doesn't remain
+   any unedited code from Dan Barlow's original ASDF, though
+   much of the interface design is preserved.
+  * Upgrade code slightly simplified, with a particular fix for CLISP;
+   it is now tested on all supported implementations, not just SBCL.
+  * Improvements to tests and documentation.
+
+  Portability:
+  * Many implementation specific improvements for ECL:
+   merge with the ECL upstream version, support for the bytecode compiler.
+  * Because it is required at least on ABCL, made the Unix vs Windows detection
+   a runtime rather than compile-time distinction
+   No more asdf-unix or asdf-windows feature, but
+   (asdf::os-unix-p) and (asdf::os-windows-p) functions (not exported for now).
+   Also recognize darwin as Unix ECL.
+  * Also small improvements for SCL.
+
+  Features:
+  * Bind *default-pathname-defaults* around load-sysdef,
+   to increase chances of successful pathname parsing in defsystem.
+  * Fixed run-shell-command on allegro/unix and clisp,
+   documented the function, noted how it mightn't do what you think on Windows,
+   marked it as obsolete, promoted as an official replacement my new
+       xcvb-driver:run-program/process-output-stream
+  * New :around-compile hook so you can control the syntax, optimization,
+   and warning level, rename packages and balance compile-time side-effects,
+   etc., around the compilation of files in your own modules.
+  * Now exporting function subpathname, to portably make subpathnames.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sat, 29 Oct 2011 12:46:22 -0400
+
 cl-asdf (2:2.017-1) unstable; urgency=low
 
   Promoting 2.016.3 as 2.017. Since 2.016, we have the following improvements:
