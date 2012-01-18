@@ -1,3 +1,12 @@
+cl-asdf (2:2.20-1) unstable; urgency=low
+
+  * Portability: support the new CCL fasl numbering API
+  * Bug fixes: handle various configuration corner cases better
+   (thanks to Sergey Katrevich and Rupert Warwick).
+  * Feature: Robert Goldman fixed and documented WEAKLY-DEPENDS-ON.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 13 Jan 2012 14:40:12 -0500
+
 cl-asdf (2:2.019-1) unstable; urgency=low
 
   * UI: Create and use a load-systems abstraction,
