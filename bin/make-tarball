@@ -4,7 +4,7 @@
 # annotated tag
 
 
-tag=`git describe --tags --match '[0-9].[0-9][0-9][0-9]'`
+tag=`git describe --tags --match '[0-9].[0-9][0-9]'`
 if [ "$tag" == "" ]; then
     echo "Unable to find most recent tag, exiting"
     exit 1
