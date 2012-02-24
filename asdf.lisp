@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.019.8: Another System Definition Facility.
+;;; This is ASDF 2.20: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -61,7 +61,8 @@
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car)) ; need that BEFORE any mention of package ASDF as below
-  #+ecl (unless (member :ecl-bytecmp *features*) (require :cmp))
+  #+ecl (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
+  #+ecl (unless (use-ecl-byte-compiler-p) (require :cmp))
   #+gcl ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff, but can run ASDF 2.011
   (when (or (< system::*gcl-major-version* 2) ;; GCL 2.6 fails to fully compile ASDF at all
             (and (= system::*gcl-major-version* 2)
@@ -107,7 +108,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.019.8")
+         (asdf-version "2.20")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -4211,9 +4212,6 @@ with a different configuration, so the configuration would be re-read then."
 #+ecl
 (progn
   (setf *compile-op-compile-file-function* 'ecl-compile-file)
-
-  (defun use-ecl-byte-compiler-p ()
-    (member :ecl-bytecmp *features*))
 
   (defun ecl-compile-file (input-file &rest keys &key &allow-other-keys)
     (if (use-ecl-byte-compiler-p)

@@ -98,7 +98,7 @@ test-upgrade:
 	use_allegro () { li="${ALLEGRO} -q -L" ; ev="-e" ; } ; \
 	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; } ; \
 	su=test/script-support ; \
-	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` ; do \
+	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
 	  use_${lisp} ; \
 	  lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
 	  echo "Testing upgrade from ASDF $${tag}" ; \
@@ -137,7 +137,7 @@ test-all: test-forward-references doc test-all-lisps
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
 debian-package: mrproper
-	: $${RELEASE:="$$(git tag -l '2.0[0-9][0-9]' | tail -n 1)"} ; \
+	: $${RELEASE:="$$(git tag -l '2.[0-9][0-9]' | tail -n 1)"} ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
 # Replace SBCL's ASDF with the current one. -- Not recommended now that SBCL has ASDF2.

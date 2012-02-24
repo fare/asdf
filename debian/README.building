@@ -10,7 +10,7 @@ As upstream maintainer, I do all development in master, and sometimes update rel
 	git merge master
 
 * Don't forget to renumber the version, if needed
-	./bin/bump-version.sh 2.0xx
+	./bin/bump-version.sh 2.xx
 
 * Commit any relevant files, if needed
 	git add ...
@@ -18,7 +18,7 @@ As upstream maintainer, I do all development in master, and sometimes update rel
 	git commit
 
 * do the releasing:
-	git tag 2.0xx ; make archive-copy ; make website ;
+	git tag 2.xx ; make archive-copy ; make website ;
         make push
 
 * edit debian files, then:
