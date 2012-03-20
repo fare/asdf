@@ -263,6 +263,8 @@
             #:component-parent
             #:component-property
             #:component-system
+            #:*utf-8-external-format*
+            #:component-external-format
 
             #:component-depends-on
 
@@ -948,6 +950,10 @@ another pathname in a degenerate way."))
 
 (defgeneric* (setf component-property) (new-value component property))
 
+(defgeneric* component-external-format (component))
+
+(defgeneric* (setf component-external-format) (new-value component))
+
 (eval-when (#-gcl :compile-toplevel :load-toplevel :execute)
   (defgeneric* (setf module-components-by-name) (new-value module)))
 
@@ -1277,6 +1283,20 @@ processed in order by OPERATE."))
         (setf (slot-value c 'properties)
               (acons property new-value (slot-value c 'properties)))))
   new-value)
+
+(defparameter *utf-8-external-format*
+  #+sbcl :utf-8
+  #-sbcl :default
+  "External-format argument to pass for CL:OPEN to accept UTF-8
+encoded source code.")
+
+(defmethod component-external-format ((c component))
+  (or (component-property c 'external-format)
+      (component-property (component-system c) 'external-format)
+      *utf-8-external-format*))
+
+(defmethod (setf component-external-format) (new-value (c component))
+  (setf (component-property c 'external-format) new-value))
 
 (defclass proto-system () ; slots to keep when resetting a system
   ;; To preserve identity for all objects, we'd need keep the components slots
@@ -2344,6 +2364,7 @@ recursive calls to traverse.")
 (defmethod perform ((operation compile-op) (c cl-source-file))
   #-:broken-fasl-loader
   (let ((source-file (component-pathname c))
+        (external-format (component-external-format c))
         ;; on some implementations, there are more than one output-file,
         ;; but the first one should always be the primary fasl that gets loaded.
         (output-file (first (output-files operation c)))
@@ -2353,7 +2374,9 @@ recursive calls to traverse.")
         (call-with-around-compile-hook
          c #'(lambda ()
                (apply *compile-op-compile-file-function* source-file
-                      :output-file output-file (compile-op-flags operation))))
+                      :output-file output-file
+                      :external-format external-format
+                      (compile-op-flags operation))))
       (unless output
         (error 'compile-error :component c :operation operation))
       (when failure-p
@@ -2457,9 +2480,11 @@ recursive calls to traverse.")
 
 (defmethod perform ((o load-source-op) (c cl-source-file))
   (declare (ignorable o))
-  (let ((source (component-pathname c)))
+  (let ((source (component-pathname c))
+        (external-format (component-external-format c)))
     (setf (component-property c 'last-loaded-as-source)
-          (and (call-with-around-compile-hook c #'(lambda () (load source)))
+          (and (call-with-around-compile-hook
+                c #'(lambda () (load source :external-format external-format)))
                (get-universal-time)))))
 
 (defmethod perform ((operation load-source-op) (c static-file))
@@ -2763,8 +2788,9 @@ Returns the new tree (which probably shares structure with the old one)"
               ;; remove-keys form.  important to keep them in sync
               components pathname default-component-class
               perform explain output-files operation-done-p
-              weakly-depends-on
-              depends-on serial in-order-to do-first
+              weakly-depends-on depends-on serial in-order-to
+              external-format
+              do-first
               (version nil versionp)
               ;; list ends
               &allow-other-keys) options
@@ -2790,7 +2816,8 @@ Returns the new tree (which probably shares structure with the old one)"
                         (remove-keys
                          '(components pathname default-component-class
                            perform explain output-files operation-done-p
-                           weakly-depends-on depends-on serial in-order-to)
+                           weakly-depends-on depends-on serial in-order-to
+                           external-format)
                          rest)))
            (ret (find-component parent name)))
       (when weakly-depends-on
@@ -2827,6 +2854,9 @@ Returns the new tree (which probably shares structure with the old one)"
             (union-of-dependencies
              do-first
              `((compile-op (load-op ,@depends-on)))))
+
+      (when external-format
+        (setf (component-external-format ret) external-format))
 
       (%refresh-component-inline-methods ret rest)
       ret)))
