@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20: Another System Definition Facility.
+;;; This is ASDF 2.20.1: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -52,17 +52,19 @@
 #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl sbcl scl xcl)
 (error "ASDF is not supported on your implementation. Please help us port it.")
 
+;;;; Create and setup packages in a way that is compatible with hot-upgrade.
+;;;; See https://bugs.launchpad.net/asdf/+bug/485687
+;;;; See these two eval-when forms, and more near the end of the file.
+
 #+gcl (defpackage :asdf (:use :cl)) ;; GCL treats defpackage magically and needs this
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  ;;; Implementation-dependent tweaks
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  ;;; Before we do anything, some implementation-dependent tweaks
   ;; (declaim (optimize (speed 1) (debug 3) (safety 3))) ; NO: trust implementation defaults.
   #+allegro
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car)) ; need that BEFORE any mention of package ASDF as below
-  #+ecl (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
-  #+ecl (unless (use-ecl-byte-compiler-p) (require :cmp))
   #+gcl ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff, but can run ASDF 2.011
   (when (or (< system::*gcl-major-version* 2) ;; GCL 2.6 fails to fully compile ASDF at all
             (and (= system::*gcl-major-version* 2)
@@ -75,11 +77,13 @@
 
 (in-package :asdf)
 
-;;;; Create packages in a way that is compatible with hot-upgrade.
-;;;; See https://bugs.launchpad.net/asdf/+bug/485687
-;;;; See more near the end of the file.
-
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  ;;; This would belong amongst implementation-dependent tweaks above,
+  ;;; except that the defun has to be asdf.
+  #+ecl (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
+  #+ecl (unless (use-ecl-byte-compiler-p) (require :cmp))
+
+  ;;; Package setup, step 2.
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
   (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
@@ -108,7 +112,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20")
+         (asdf-version "2.20.1")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1285,18 +1289,21 @@ processed in order by OPERATE."))
   new-value)
 
 (defparameter *utf-8-external-format*
-  #+sbcl :utf-8
-  #-sbcl :default
-  "External-format argument to pass for CL:OPEN to accept UTF-8
-encoded source code.")
+  (or
+   #+(or abcl allegro clozure cmu ecl lispworks (and sbcl sb-unicode) scl) :utf-8
+   #+(and clisp unicode) charset:utf-8
+   :default)
+  "External-format argument to pass for CL:OPEN to accept UTF-8 encoded
+source code.")
 
 (defmethod component-external-format ((c component))
-  (or (component-property c 'external-format)
-      (component-property (component-system c) 'external-format)
-      *utf-8-external-format*))
+  (or (component-property c :external-format)
+      (aif (component-parent c)
+           (component-external-format it)
+           *utf-8-external-format*)))
 
 (defmethod (setf component-external-format) (new-value (c component))
-  (setf (component-property c 'external-format) new-value))
+  (setf (component-property c :external-format) new-value))
 
 (defclass proto-system () ; slots to keep when resetting a system
   ;; To preserve identity for all objects, we'd need keep the components slots
