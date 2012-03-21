@@ -1303,7 +1303,11 @@ source code.")
            *utf-8-external-format*)))
 
 (defmethod (setf component-external-format) (new-value (c component))
-  (setf (component-property c :external-format) new-value))
+  (setf (component-property c :external-format)
+        (or
+         #+clisp (and (keywordp new-value)
+                      (intern (symbol-name new-value) :charset))
+         new-value)))
 
 (defclass proto-system () ; slots to keep when resetting a system
   ;; To preserve identity for all objects, we'd need keep the components slots
