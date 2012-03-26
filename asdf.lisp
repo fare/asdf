@@ -268,7 +268,8 @@
             #:component-property
             #:component-system
             #:*utf-8-external-format*
-            #:component-external-format
+            #:component-encoding
+            #:*encoding-external-format-hook*
 
             #:component-depends-on
 
@@ -954,9 +955,9 @@ another pathname in a degenerate way."))
 
 (defgeneric* (setf component-property) (new-value component property))
 
-(defgeneric* component-external-format (component))
+(defgeneric* component-encoding (component))
 
-(defgeneric* (setf component-external-format) (new-value component))
+(defgeneric* (setf component-encoding) (new-value component))
 
 (eval-when (#-gcl :compile-toplevel :load-toplevel :execute)
   (defgeneric* (setf module-components-by-name) (new-value module)))
@@ -1160,6 +1161,8 @@ processed in order by OPERATE."))
    ;; it needn't be recompiled just because one of these dependencies
    ;; hasn't yet been loaded in the current image (do-first).
    ;; The names are crap, but they have been the official API since Dan Barlow's ASDF 1.52!
+   ;; LispWorks's defsystem has caused-by and requires for in-order-to and do-first respectively.
+   ;; Maybe rename the slots in ASDF? But that's not very backwards compatible.
    ;; See our ASDF 2 paper for more complete explanations.
    (in-order-to :initform nil :initarg :in-order-to
                 :accessor component-in-order-to)
@@ -1178,6 +1181,7 @@ processed in order by OPERATE."))
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
+   (%encoding :accessor %component-encoding :initform nil)
    ;; XXX we should provide some atomic interface for updating the
    ;; component properties
    (properties :accessor component-properties :initarg :properties
@@ -1293,21 +1297,33 @@ processed in order by OPERATE."))
    #+(or abcl allegro clozure cmu ecl lispworks (and sbcl sb-unicode) scl) :utf-8
    #+(and clisp unicode) charset:utf-8
    :default)
-  "External-format argument to pass for CL:OPEN to accept UTF-8 encoded
-source code.")
+  "Default :external-format argument to pass for CL:OPEN.
+For modern implementations, this should be UTF-8.
+On legacy implementations, we may fall back on some 8-bit encoding,
+with non-ASCII code points being read as several CL characters;
+hopefully, if done consistently, it won't affect program behavior too much.")
 
-(defmethod component-external-format ((c component))
-  (or (component-property c :external-format)
+(defmethod component-encoding ((c component))
+  (or (%component-encoding c)
       (aif (component-parent c)
-           (component-external-format it)
-           *utf-8-external-format*)))
+           (component-encoding it)
+           :utf-8)))
 
-(defmethod (setf component-external-format) (new-value (c component))
-  (setf (component-property c :external-format)
-        (or
-         #+clisp (and (keywordp new-value)
-                      (find-symbol* new-value :charset))
-         new-value)))
+(defmethod (setf component-encoding) (new-value (c component))
+  (setf (%component-encoding c) new-value))
+
+(defun default-encoding-external-format-hook (encoding)
+  (unless (eq encoding :utf-8)
+    (warn (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings). Falling back to UTF-8.~:>") encoding))
+  *utf-8-external-format*)
+
+(defvar *encoding-external-format-hook*
+  #'default-encoding-external-format-hook
+  "Hook for an extension to define a mapping between non-default encodings
+and implementation-defined external-format's")
+
+(defun encoding-external-format (encoding)
+  (funcall *encoding-external-format-hook* encoding))
 
 (defclass proto-system () ; slots to keep when resetting a system
   ;; To preserve identity for all objects, we'd need keep the components slots
@@ -2375,7 +2391,7 @@ recursive calls to traverse.")
 (defmethod perform ((operation compile-op) (c cl-source-file))
   #-:broken-fasl-loader
   (let ((source-file (component-pathname c))
-        (external-format (component-external-format c))
+        (external-format (encoding-external-format (component-encoding c)))
         ;; on some implementations, there are more than one output-file,
         ;; but the first one should always be the primary fasl that gets loaded.
         (output-file (first (output-files operation c)))
@@ -2492,7 +2508,7 @@ recursive calls to traverse.")
 (defmethod perform ((o load-source-op) (c cl-source-file))
   (declare (ignorable o))
   (let ((source (component-pathname c))
-        (external-format (component-external-format c)))
+        (external-format (encoding-external-format (component-encoding c))))
     (setf (component-property c 'last-loaded-as-source)
           (and (call-with-around-compile-hook
                 c #'(lambda () (load source :external-format external-format)))
@@ -2827,8 +2843,7 @@ Returns the new tree (which probably shares structure with the old one)"
                         (remove-keys
                          '(components pathname default-component-class
                            perform explain output-files operation-done-p
-                           weakly-depends-on depends-on serial in-order-to
-                           external-format)
+                           weakly-depends-on depends-on serial in-order-to)
                          rest)))
            (ret (find-component parent name)))
       (when weakly-depends-on
@@ -2865,9 +2880,6 @@ Returns the new tree (which probably shares structure with the old one)"
             (union-of-dependencies
              do-first
              `((compile-op (load-op ,@depends-on)))))
-
-      (when external-format
-        (setf (component-external-format ret) external-format))
 
       (%refresh-component-inline-methods ret rest)
       ret)))
