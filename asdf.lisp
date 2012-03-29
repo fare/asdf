@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20.5: Another System Definition Facility.
+;;; This is ASDF 2.20.6: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -112,7 +112,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.5")
+         (asdf-version "2.20.6")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1295,10 +1295,12 @@ processed in order by OPERATE."))
 (defparameter *utf-8-external-format*
   (progn ;; (or ... :default) triggers a warning on acl. Sigh.
     :default
-    #+(or abcl allegro clozure cmu ecl lispworks (and sbcl sb-unicode) scl) :utf-8
+    #+(or abcl (and allegro ics) clozure (and cmu unicode)
+          (and ecl unicode) lispworks (and sbcl sb-unicode) scl) :utf-8
     #+(and clisp unicode) charset:utf-8)
-  "Default :external-format argument to pass for CL:OPEN.
-For modern implementations, this should be UTF-8.
+  "Default :external-format argument to pass to CL:OPEN and also
+CL:LOAD or CL:COMPILE-FILE to best process a UTF-8 encoded file.
+On modern implementations, this will decode UTF-8 code points as CL characters.
 On legacy implementations, we may fall back on some 8-bit encoding,
 with non-ASCII code points being read as several CL characters;
 hopefully, if done consistently, it won't affect program behavior too much.")
