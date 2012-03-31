@@ -222,7 +222,8 @@ the following implementations provide ASDF 2 this way:
 abcl allegro ccl clisp cmucl ecl sbcl xcl.
 The following implementations don't provide it yet but will in a future release:
 lispworks scl.
-The following implementations are obsolete and most probably will never bundle it:
+The following implementations are obsolete, not actively maintained,
+and most probably will never bundle it:
 cormancl gcl genera mcl.
 
 If the implementation you are using doesn't provide ASDF 2,
@@ -2903,6 +2904,69 @@ setting gensym counters and PRNG seeds and other sources of non-determinism,
 overriding the source-location and/or timestamping systems,
 checking that some compile-time side-effects were properly balanced,
 etc.
+
+Note that there is no around-load hook. This is on purpose.
+Some implementations such as ECL or GCL link object files,
+which allows for no such hook.
+Other implementations allow for concatenating FASL files,
+which doesn't allow for such a hook either.
+We aim to discourage something that's not portable,
+and has some dubious impact on performance and semantics
+even when it is possible.
+Things you might want to do with an around-load hook
+are better done around-compile,
+though it may at times require some creativity
+(see e.g. the @code{package-renaming} system).
+
+
+@section Controlling source file character encoding
+
+Starting with ASDF 2.21, components accept a @code{:encoding} option.
+By default, only @code{:utf-8} is accepted, and
+utf-8 is assumed for all source code processed by ASDF.
+Source code that only use the ASCII subset is of course
+directly supported without modification.
+
+Source code that uses more than the ASCII character set
+wasn't portably supported previously, although in practice,
+utf-8 worked everywhere and was backhandedly enforced by
+a lot of people using SBCL and utf-8 and sending reports to authors
+so they make their packages compatible.
+This change therefore only formalizes a de facto standard,
+and allows for extension and customization
+where no such thing was previously possible.
+
+On implementations that do not support unicode,
+the @code{:default} external-format is used to read source files.
+Non-ASCII characters intended to be read as one CL character
+may end up being read as multiple CL characters on these implementations.
+In most cases, this shouldn't affect the software's semantics:
+comments will be skipped just the same, strings with be read and printed
+with slightly different lengths, symbol names will be accordingly longer,
+but none of it should matter.
+But a few systems may fail to work properly, that actually depend
+on unicode characters (for instance @code{lambda-reader}).
+The @code{#+asdf-unicode} feature tells you if unicode was detected.
+
+In the future, there will be a @code{asdf-encoding} extension system,
+that will register support for more encodings using the
+@code{*encoding-external-format-hook*} facility.
+If you need such an extension already,
+you may contact the authors of ASDF for support.
+
+For backwards compatibility with users who insist on a non-UTF-8 encoding,
+but cannot immediately transition to using @code{asdf-encoding}
+(maybe because it isn't ready), the @code{:encoding :default} option
+used in your @code{defsystem} form will restore
+the behavior of ASDF 2.20 and earlier.
+This shouldn't be required in libraries,
+because user pressure as mentioned above will already have pushed
+library authors towards using UTF-8;
+but authors of end-user programs might care.
+
+Finally, since this feature depends on ASDF 2.21,
+you may want to wait for ASDF 2.21 or later being widely available
+(hopefully later in 2012) before you start using this feature.
 
 
 @section Miscellaneous Exported Functions

@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20.6: Another System Definition Facility.
+;;; This is ASDF 2.20.7: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -70,6 +70,9 @@
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
     (pushnew :gcl-pre2.7 *features*))
+  #+(or abcl (and allegro ics) (and clisp unicode) clozure (and cmu unicode)
+        (and ecl unicode) lispworks (and sbcl sb-unicode) scl)
+  (pushnew :asdf-unicode *features*)
   ;;; make package if it doesn't exist yet.
   ;;; DEFPACKAGE may cause errors on discrepancies, so we avoid it.
   (unless (find-package :asdf)
@@ -112,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.6")
+         (asdf-version "2.20.7")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -955,9 +958,9 @@ another pathname in a degenerate way."))
 
 (defgeneric* (setf component-property) (new-value component property))
 
-(defgeneric* component-encoding (component))
+(defgeneric* component-external-format (component))
 
-(defgeneric* (setf component-encoding) (new-value component))
+(defgeneric* component-encoding (component))
 
 (eval-when (#-gcl :compile-toplevel :load-toplevel :execute)
   (defgeneric* (setf module-components-by-name) (new-value module)))
@@ -1293,11 +1296,9 @@ processed in order by OPERATE."))
   new-value)
 
 (defparameter *utf-8-external-format*
-  (progn ;; (or ... :default) triggers a warning on acl. Sigh.
-    :default
-    #+(or abcl (and allegro ics) clozure (and cmu unicode)
-          (and ecl unicode) lispworks (and sbcl sb-unicode) scl) :utf-8
-    #+(and clisp unicode) charset:utf-8)
+  #+(and asdf-unicode (not clisp)) :utf-8
+  #+(and asdf-unicode clisp) charset:utf-8
+  #-asdf-unicode :default
   "Default :external-format argument to pass to CL:OPEN and also
 CL:LOAD or CL:COMPILE-FILE to best process a UTF-8 encoded file.
 On modern implementations, this will decode UTF-8 code points as CL characters.
@@ -1311,21 +1312,24 @@ hopefully, if done consistently, it won't affect program behavior too much.")
            (component-encoding it)
            :utf-8)))
 
-(defmethod (setf component-encoding) (new-value (c component))
-  (setf (%component-encoding c) new-value))
-
-(defun default-encoding-external-format-hook (encoding)
-  (unless (eq encoding :utf-8)
-    (warn (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings). Falling back to UTF-8.~:>") encoding))
-  *utf-8-external-format*)
+(defun default-encoding-external-format (encoding)
+  (case encoding
+    (:utf-8 *utf-8-external-format*)
+    (:default :default) ;; for backwards compatibility only. Usage discouraged.
+    (otherwise
+     (cerror "Continue using :external-format :default" (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings).~:>") encoding)
+     :default)))
 
 (defvar *encoding-external-format-hook*
-  #'default-encoding-external-format-hook
+  #'default-encoding-external-format
   "Hook for an extension to define a mapping between non-default encodings
 and implementation-defined external-format's")
 
 (defun encoding-external-format (encoding)
   (funcall *encoding-external-format-hook* encoding))
+
+(defmethod component-external-format ((c component))
+  (encoding-external-format (component-encoding c)))
 
 (defclass proto-system () ; slots to keep when resetting a system
   ;; To preserve identity for all objects, we'd need keep the components slots
@@ -2393,7 +2397,6 @@ recursive calls to traverse.")
 (defmethod perform ((operation compile-op) (c cl-source-file))
   #-:broken-fasl-loader
   (let ((source-file (component-pathname c))
-        (external-format (encoding-external-format (component-encoding c)))
         ;; on some implementations, there are more than one output-file,
         ;; but the first one should always be the primary fasl that gets loaded.
         (output-file (first (output-files operation c)))
@@ -2404,7 +2407,7 @@ recursive calls to traverse.")
          c #'(lambda ()
                (apply *compile-op-compile-file-function* source-file
                       :output-file output-file
-                      :external-format external-format
+                      :external-format (component-external-format c)
                       (compile-op-flags operation))))
       (unless output
         (error 'compile-error :component c :operation operation))
@@ -2509,11 +2512,10 @@ recursive calls to traverse.")
 
 (defmethod perform ((o load-source-op) (c cl-source-file))
   (declare (ignorable o))
-  (let ((source (component-pathname c))
-        (external-format (encoding-external-format (component-encoding c))))
+  (let ((source (component-pathname c)))
     (setf (component-property c 'last-loaded-as-source)
           (and (call-with-around-compile-hook
-                c #'(lambda () (load source :external-format external-format)))
+                c #'(lambda () (load source :external-format (component-external-format c))))
                (get-universal-time)))))
 
 (defmethod perform ((operation load-source-op) (c static-file))
