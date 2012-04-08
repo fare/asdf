@@ -2948,14 +2948,24 @@ But a few systems may fail to work properly, that actually depend
 on unicode characters (for instance @code{lambda-reader}).
 The @code{#+asdf-unicode} feature tells you if unicode was detected.
 
-In the future, there will be a @code{asdf-encoding} extension system,
-that will register support for more encodings using the
+If you need non-standard character encodings for your source code,
+use the extension system @code{asdf-encodings}, by specifying
+@code{:defsystem-depends-on (:asdf-encodings)} in your @code{defsystem}.
+This extension system will register support for more encodings using the
 @code{*encoding-external-format-hook*} facility.
-If you need such an extension already,
-you may contact the authors of ASDF for support.
+You can then specify @code{:encoding :latin1}
+or any of tens of supported encodings,
+and it will work on all implementations that support this encoding.
+If you're not using a recent version of Quicklisp that has it,
+you may get the source for @code{asdf-encodings} using git:
+@kbd{git clone git://common-lisp.net/projects/asdf/asdf-encodings.git}
+or
+@kbd{git clone ssh://common-lisp.net/project/asdf/git/asdf-encodings.git}.
+You can also browse the repository on
+@url{http://common-lisp.net/gitweb?p=projects/asdf/asdf-encodings.git}.
 
 For backwards compatibility with users who insist on a non-UTF-8 encoding,
-but cannot immediately transition to using @code{asdf-encoding}
+but cannot immediately transition to using @code{asdf-encodings}
 (maybe because it isn't ready), the @code{:encoding :default} option
 used in your @code{defsystem} form will restore
 the behavior of ASDF 2.20 and earlier.
@@ -2967,6 +2977,14 @@ but authors of end-user programs might care.
 Finally, since this feature depends on ASDF 2.21,
 you may want to wait for ASDF 2.21 or later being widely available
 (hopefully later in 2012) before you start using this feature.
+This is particularly true for library authors who want
+to not inconvenience their user base:
+we invite you to convert your source code to UTF-8,
+but not use @code{:encoding :utf-8}.
+One way to make your code compatible with older versions of ASDF
+and older implementations that don't support unicode
+is to use @code{#+asdf-unicode #+asdf-unicode}
+to protect your @code{:encoding @emph{encoding}} statements.
 
 
 @section Miscellaneous Exported Functions
