@@ -224,9 +224,18 @@ Peter Graves <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>In April 2012</dt>
+          <dd>
+            ASDF 2.21 will control the character encoding used by Lisp source files.
+            The <i>de facto</i> standard, UTF-8,
+            will be blessed and enforced as the default encoding for all files.
+            You will be able to specify different encodings
+            in your defsystem, e.g. <kbd>:encoding :latin1</kbd>,
+            if you <kbd>:defsystem-depends-on (:asdf-encodings)</kbd>.
+          </dd>
           <dt>Since December 2009</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau is de facto maintainer,
-            with notable contributions from Robert P. Goldman,
+            with notable contributions from Robert P. Goldman, but also
             Juanjo Garcia-Ripoll and James Anderson.
             ASDF 2 released
             with many clean-ups, better configurability

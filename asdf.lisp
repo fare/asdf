@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20.7: Another System Definition Facility.
+;;; This is ASDF 2.20.8: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.7")
+         (asdf-version "2.20.8")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1768,7 +1768,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                    (error 'missing-component :requires name))))))
         (reinitialize-source-registry-and-retry ()
           :report (lambda (s)
-                    (format s "~@<Retry finding system ~A after reinitializing the source-registry.~@:>" name))
+                    (format s (compatfmt "~@<Retry finding system ~A after reinitializing the source-registry.~@:>") name))
           (initialize-source-registry))))))
 
 (defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
@@ -2107,7 +2107,7 @@ recursive calls to traverse.")
             comp))
       (retry ()
         :report (lambda (s)
-                  (format s "~@<Retry loading ~3i~_~A.~@:>" name))
+                  (format s (compatfmt "~@<Retry loading ~3i~_~A.~@:>") name))
         :test
         (lambda (c)
           (or (null c)
@@ -2360,7 +2360,7 @@ recursive calls to traverse.")
      :do (ensure-directories-exist pathname)))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
-  (ensure-all-directories-exist (asdf:output-files operation c)))
+  (ensure-all-directories-exist (output-files operation c)))
 
 (defmethod perform :after ((operation operation) (c component))
   (mark-operation-done operation c))
@@ -2577,7 +2577,7 @@ recursive calls to traverse.")
 
 ;;;; Separating this into a different function makes it more forward-compatible
 (defun* cleanup-upgraded-asdf (old-version)
-  (let ((new-version (asdf:asdf-version)))
+  (let ((new-version (asdf-version)))
     (unless (equal old-version new-version)
       (cond
         ((version-satisfies new-version old-version)
@@ -2603,7 +2603,7 @@ recursive calls to traverse.")
 ;;;; Try to upgrade of ASDF. If a different version was used, return T.
 ;;;; We need do that before we operate on anything that depends on ASDF.
 (defun* upgrade-asdf ()
-  (let ((version (asdf:asdf-version)))
+  (let ((version (asdf-version)))
     (handler-bind (((or style-warning warning) #'muffle-warning))
       (operate 'load-op :asdf :verbose nil))
     (cleanup-upgraded-asdf version)))
@@ -2687,7 +2687,7 @@ See OPERATE for details."
 
 (defun* compile-system (system &rest args &key force verbose version
                        &allow-other-keys)
-  "Shorthand for `(operate 'asdf:compile-op system)`. See OPERATE
+  "Shorthand for `(asdf:operate 'asdf:compile-op system)`. See OPERATE
 for details."
   (declare (ignore force verbose version))
   (apply 'operate 'compile-op system args)
@@ -2695,7 +2695,7 @@ for details."
 
 (defun* test-system (system &rest args &key force verbose version
                     &allow-other-keys)
-  "Shorthand for `(operate 'asdf:test-op system)`. See OPERATE for
+  "Shorthand for `(asdf:operate 'asdf:test-op system)`. See OPERATE for
 details."
   (declare (ignore force verbose version))
   (apply 'operate 'test-op system args)
