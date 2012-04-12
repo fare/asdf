@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20.9: Another System Definition Facility.
+;;; This is ASDF 2.20.10: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.9")
+         (asdf-version "2.20.10")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -541,6 +541,20 @@ and NIL NAME, TYPE and VERSION components"
 (defun* ununspecific (x)
   (if (eq x :unspecific) nil x))
 
+(defun* make-pathname-component-logical (x)
+  (typecase x
+    ((eql :unspecific) nil)
+    #+clisp (string (string-upcase x))
+    #+clisp (cons (mapcar 'make-pathname-component-logical x))
+    (t x)))
+
+(defun* make-pathname-logical (x)
+  (make-pathname
+   :directory (make-pathname-component-logical (pathname-directory x))
+   :name (make-pathname-component-logical (pathname-name x))
+   :type (make-pathname-component-logical (pathname-type x))
+   :defaults x))
+
 (defun* merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
   "MERGE-PATHNAMES* is like MERGE-PATHNAMES except that
 if the SPECIFIED pathname does not have an absolute directory,
@@ -560,7 +574,7 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
          (type (or (pathname-type specified) (pathname-type defaults)))
          (version (or (pathname-version specified) (pathname-version defaults))))
     (labels ((unspecific-handler (p)
-               (if (typep p 'logical-pathname) #'ununspecific #'identity)))
+               (if (typep p 'logical-pathname) #'make-pathname-component-logical #'identity)))
       (multiple-value-bind (host device directory unspecific-handler)
           (ecase (first directory)
             ((:absolute)
@@ -1588,9 +1602,7 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* probe-asd (name defaults)
   (block nil
     (when (directory-pathname-p defaults)
-      (let ((file (make-pathname
-                   :defaults defaults :name name
-                   :version :newest :case :local :type "asd")))
+      (let ((file (subpathname defaults (strcat name ".asd"))))
         (when (probe-file* file)
           (return file)))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
@@ -2359,9 +2371,7 @@ recursive calls to traverse.")
 
 (defun* ensure-all-directories-exist (pathnames)
    (loop :for pn :in pathnames
-     :for pathname = (if (typep pn 'logical-pathname)
-                         (translate-logical-pathname pn)
-                         pn)
+     :for pathname = (translate-logical-pathname pn)
      :do (ensure-directories-exist pathname)))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
@@ -3925,23 +3935,29 @@ with a different configuration, so the configuration would be re-read then."
       (loop :for f :in entries
         :for p = (or (and (typep f 'logical-pathname) f)
                      (let* ((u (ignore-errors (funcall merger f))))
-                       ;; The first u avoids a cumbersome (truename u) error
-                       (and u (equal (ignore-errors (truename u)) f) u)))
+                       ;; The first u avoids a cumbersome (truename u) error.
+                       ;; At this point f should already be a truename,
+                       ;; but isn't quite in CLISP, for doesn't have :version :newest
+                       (and u (equal (ignore-errors (truename u)) (truename f)) u)))
         :when p :collect p)
       entries))
 
 (defun* directory-files (directory &optional (pattern *wild-file*))
+  (setf directory (pathname directory))
   (when (wild-pathname-p directory)
     (error "Invalid wild in ~S" directory))
   (unless (member (pathname-directory pattern) '(() (:relative)) :test 'equal)
     (error "Invalid file pattern ~S" pattern))
+  (when (typep directory 'logical-pathname)
+    (setf pattern (make-pathname-logical pattern)))
   (let ((entries (ignore-errors (directory* (merge-pathnames* pattern directory)))))
     (filter-logical-directory-results
      directory entries
      #'(lambda (f)
          (make-pathname :defaults directory
-                        :name (pathname-name f) :type (ununspecific (pathname-type f))
-                        :version (ununspecific (pathname-version f)))))))
+                        :name (pathname-name f)
+                        :type (make-pathname-component-logical (pathname-type f))
+                        :version (make-pathname-component-logical (pathname-version f)))))))
 
 (defun* directory-asd-files (directory)
   (directory-files directory *wild-asd*))
@@ -3974,15 +3990,14 @@ with a different configuration, so the configuration would be re-read then."
                                   #+(or cmu lispworks sbcl scl) x)))
     (filter-logical-directory-results
      directory dirs
-     (let ((prefix (normalize-pathname-directory-component
-                    (pathname-directory directory))))
+     (let ((prefix (or (normalize-pathname-directory-component (pathname-directory directory))
+                       '(:absolute)))) ; because allegro returns NIL for #p"FOO:"
        #'(lambda (d)
-           (let ((dir (normalize-pathname-directory-component
-                       (pathname-directory d))))
+           (let ((dir (normalize-pathname-directory-component (pathname-directory d))))
              (and (consp dir) (consp (cdr dir))
                   (make-pathname
                    :defaults directory :name nil :type nil :version nil
-                   :directory (append prefix (last dir))))))))))
+                   :directory (append prefix (make-pathname-component-logical (last dir)))))))))))
 
 (defun* collect-asds-in-directory (directory collect)
   (map () collect (directory-asd-files directory)))
