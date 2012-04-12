@@ -30,14 +30,13 @@
     '(:source-registry (:directory #p"ASDF:test;") :ignore-inherited-configuration))
    (load-system :test-force :force t))
 
- #-allegro ;; Allegro 8.2 seems to have trouble with logical-pathnames. disable for now.
  (progn
    (format t "Test logical pathnames in source-registry, recursive~%")
    (clear-system :test-force)
    (setf *central-registry* '())
    (initialize-source-registry
     ;; Bug: Allegro Express 8.2 incorrectly reads #p"ASDF:" as relative.
-    '(:source-registry (:tree #-allegro #p"ASDF:" #+allegro #.(asdf::pathname-root #p"ASDF"))
+    '(:source-registry (:tree #-allegro #p"ASDF:" #+allegro #.(asdf::pathname-root #p"ASDF:"))
       :ignore-inherited-configuration))
    (load-system :test-force :force t))
 
