@@ -7,10 +7,10 @@
 (defvar *caught-error* nil)
 
 (quit-on-error
- (asdf:run-shell-command "rm -f ~A"
-                         (namestring
-                          (compile-file-pathname "try-recompiling-1")))
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (run-shell-command "rm -f ~A"
+                    (namestring
+                     (compile-file-pathname "try-recompiling-1")))
+ (setf *central-registry* '(*default-pathname-defaults*))
  #-gcl
  (handler-bind ((error (lambda (c)
                          (setf *caught-error* t)
@@ -25,7 +25,5 @@
                              (print (list c restart (compute-restarts c)))
                              (when restart
                                (invoke-restart restart)))))))
-   (asdf:oos 'asdf:load-op 'try-recompiling-1))
- (assert *caught-error*)
- )
-
+   (oos 'load-op 'try-recompiling-1))
+ (assert *caught-error*))

@@ -1,10 +1,9 @@
 ;;; -*- Lisp -*-
 (load "script-support.lisp")
 (load-asdf)
-(in-package :asdf)
 
 (defparameter *test-directory*
-  (merge-pathnames* (coerce-pathname "tmp/") cl-user::*asdf-directory*))
+  (merge-pathnames* (coerce-pathname "tmp/") *asdf-directory*))
 
 (defun under-test-directory (designator &optional (defaults *test-directory*))
   (namestring (merge-pathnames* (coerce-pathname designator) defaults)))
@@ -58,28 +57,28 @@
                        :direction :output
                        :if-exists :rename-and-delete
                        :if-does-not-exist :create)
-      (format s "(asdf:defsystem :foo~D)~%" i))))
+      (format s "(defsystem :foo~D)~%" i))))
 
-(cl-user::quit-on-error
+(quit-on-error
 
 (assert
- (equal (parse-output-translations-string "/foo:/bar::/baz:/quux")
+ (equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")
         '(:output-translations
           ("/foo" "/bar")
           :inherit-configuration
           ("/baz" "/quux"))))
 (assert
- (equal (parse-output-translations-string "/:")
+ (equal (asdf::parse-output-translations-string "/:")
         '(:output-translations ("/" nil) :ignore-inherited-configuration)))
 (assert
- (equal (parse-output-translations-string "/::")
+ (equal (asdf::parse-output-translations-string "/::")
         '(:output-translations ("/" nil) :inherit-configuration)))
 (assert
- (equal (parse-output-translations-string "/:/")
+ (equal (asdf::parse-output-translations-string "/:/")
         '(:output-translations ("/" "/") :ignore-inherited-configuration)))
 
 (assert
- (equal (parse-output-translations-string
+ (equal (asdf::parse-output-translations-string
          "(:output-translations (\"/\" \"/\") :ignore-inherited-configuration)")
         '(:output-translations ("/" "/") :ignore-inherited-configuration)))
 

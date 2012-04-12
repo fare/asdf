@@ -3,6 +3,6 @@
 (load-asdf)
 
 (quit-on-error
-  (setf asdf:*central-registry* '(*default-pathname-defaults*))
-  (asdf:load-system 'test-around-compile :force t)
-  (assert (= 3 (cl-user::add10 1)))) ;; add10 must have been compiled in base 2
+  (setf *central-registry* '(*default-pathname-defaults*))
+  (load-system 'test-around-compile :force t)
+  (assert (= 3 (add10 1)))) ;; add10 must have been compiled in base 2

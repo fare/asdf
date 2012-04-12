@@ -4,7 +4,7 @@
 
 (load "script-support.lisp")
 (load-asdf)
-(in-package #:common-lisp-user)
+(in-package #:asdf-test)
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))

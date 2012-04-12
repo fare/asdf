@@ -1,11 +1,14 @@
 (in-package #:common-lisp-user)
 
+(load (make-pathname :name "script-support" :defaults *load-pathname*))
+
+(in-package #:asdf-test)
+
 (declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)
 		   #+(or cmu scl) (c::brevity 2)))
 (proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)
 		     #+(or cmu scl) (c::brevity 2)))
 
-(load (make-pathname :name "script-support" :defaults *load-pathname*))
 (defun my-compile-file (&rest args) (apply 'compile-file args))
 #+ecl (trace my-compile-file)
 

@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20.8: Another System Definition Facility.
+;;; This is ASDF 2.20.9: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.8")
+         (asdf-version "2.20.9")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -340,6 +340,7 @@
             #:ensure-source-registry
             #:process-source-registry
             #:system-registered-p
+            #:resolve-location
             #:asdf-message
             #:user-output-translations-pathname
             #:system-output-translations-pathname
@@ -354,13 +355,16 @@
             #:absolute-pathname-p
             ;; #:aif #:it
             ;; #:appendf #:orf
+            ;; #:first-char #:last-char
             #:coerce-name
             #:directory-pathname-p
-            ;; #:ends-with
+            #:pathname-root
+            #:ends-with
             #:ensure-directory-pathname
             #:getenv
+            #:probe-file*
             ;; #:length=n-p
-            ;; #:find-symbol*
+            #:find-symbol*
             #:merge-pathnames* #:coerce-pathname #:subpathname
             #:pathname-directory-pathname
             #:read-file-forms
@@ -1703,7 +1707,8 @@ Going forward, we recommend new users should be using the source-registry.
                                   :condition condition))))
              (let ((*package* package)
                    (*default-pathname-defaults*
-                    (pathname-directory-pathname pathname)))
+                    ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
+                    (translate-logical-pathname (pathname-directory-pathname pathname))))
                (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
                              pathname package)
                (load pathname)))

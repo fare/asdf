@@ -3,5 +3,5 @@
 (load-asdf)
 (quit-on-error
  (load "../wild-modules.lisp")
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
- (asdf:operate 'asdf:load-op 'wild-module))
+ (setf *central-registry* '(*default-pathname-defaults*))
+ (load-system :wild-module))

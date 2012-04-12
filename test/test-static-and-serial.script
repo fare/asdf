@@ -2,12 +2,10 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(in-package :asdf)
+#+gcl (trace coerce-pathname)
 
-(trace #+gcl coerce-pathname)
-
-(cl-user::quit-on-error
- (format t "dpd: ~S~%f1: ~S~%" *default-pathname-defaults* (asdf:merge-pathnames* "file1"))
+(quit-on-error
+ (format t "dpd: ~S~%f1: ~S~%" *default-pathname-defaults* (merge-pathnames* "file1"))
 
  (setf *central-registry* '(*default-pathname-defaults*))
 

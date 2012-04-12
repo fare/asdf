@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
-(in-package :cl-user)
 (load "script-support.lisp")
 (load-asdf)
-(quit-on-error 
+(in-package :cl-user)
+(asdf-test::quit-on-error
  (defun module () 1)
  (load "test-package.asd")
  (defclass module () ())

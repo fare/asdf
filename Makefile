@@ -14,7 +14,7 @@ endif
 ## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
 ## OCCASIONALLY TESTED BY NOT ME: allegromodern (not in my free demo version)
 ## OCCASIONALLY TESTED BY NOT ME: lispworks (testing requires Pro version)
-## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but it won't compile for me.
+## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
 ## NOT SUPPORTED BY OUR TESTS: cormancl genera rmcl. Manually tested once in a while.
 
 lisp ?= sbcl

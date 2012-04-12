@@ -1,0 +1,36 @@
+;;; -*- Lisp -*-
+(load "script-support.lisp")
+(load-asdf)
+
+(setf (logical-pathname-translations "ASDF")
+      `(("**;*.asd.*" ,(make-pathname :type "asd" :defaults (resolve-location `(,*asdf-directory* :**/ :*.*.*))))
+        ("**;*.asd" ,(resolve-location `(,*asdf-directory* :**/ #p"*.asd")))
+        ("**;*.lisp.*" ,(make-pathname :type "lisp" :defaults (resolve-location `(,*asdf-directory* :**/ :*.*.*))))
+        ("**;*.lisp" ,(resolve-location `(,*asdf-directory* :**/ #p"*.lisp")))
+        ("**;*.*.*" ,(resolve-location
+                      `(,*asdf-directory* "tmp/fasls" :implementation "logical-host-asdf" :**/ :*.*.*)))))
+
+(quit-on-error
+ (format t "~S~%" (translate-logical-pathname "ASDF:test;test-force.asd"))
+ (format t "~S~%" (truename "ASDF:test;test-force.asd"))
+
+ (format t "Test logical pathnames in central registry~%")
+ (setf *central-registry* '("ASDF:test;"))
+ (initialize-source-registry '(:source-registry :ignore-inherited-configuration))
+ (load-system :test-force :force t)
+
+ (format t "Test logical pathnames in source-registry, non-recursive~%")
+ (clear-system :test-force)
+ (setf *central-registry* '())
+ (initialize-source-registry
+  '(:source-registry (:directory "ASDF:test;") :ignore-inherited-configuration))
+ (load-system :test-force :force t)
+
+ (format t "Test logical pathnames in source-registry, recursive~%")
+ (clear-system :test-force)
+ (setf *central-registry* '())
+ (initialize-source-registry
+  '(:source-registry (:tree "ASDF:") :ignore-inherited-configuration))
+ (load-system :test-force :force t)
+
+ (format t "Done~%"))

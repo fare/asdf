@@ -4,7 +4,6 @@
 
 (load "script-support.lisp")
 (load-asdf)
-(in-package #:common-lisp-user)
 
 (quit-on-error
  (setf asdf:*central-registry* nil)

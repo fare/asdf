@@ -1,4 +1,6 @@
-(in-package #:common-lisp-user)
+(defpackage :asdf-test (:use :common-lisp))
+
+(in-package #:asdf-test)
 
 (declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)))
 (proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)))
@@ -39,12 +41,16 @@
       *asdf-lisp*))))
 
 (defun load-asdf ()
-  (load *asdf-fasl*))
+  (load *asdf-fasl*)
+  (use-package :asdf :asdf-test)
+  (setf *package* (find-package :asdf-test)))
+
+(defun common-lisp-user::load-asdf ()
+  (load-asdf))
 
 #+allegro
 (setf excl:*warn-on-nested-reader-conditionals* nil)
 
-#-sbcl
 (defun native-namestring (x)
   (let ((p (pathname x)))
     #+clozure (ccl:native-translated-namestring p)
@@ -95,11 +101,14 @@ is bound, write a message and exit on an error.  If
                   ((ignore-errors (funcall (find-symbol "GETENV" :asdf) "DEBUG_ASDF_TEST"))
                    (break))
                   (t
+                   (finish-output *standard-output*)
+                   (finish-output *trace-output*)
                    (format *error-output* "~&ABORTING:~% ~S~%" c)
                    #+sbcl (sb-debug:backtrace 69)
                    #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
                    #+clisp (system::print-backtrace)
                    (format *error-output* "~&ABORTING:~% ~S~%" c)
+                   (finish-output *error-output*)
                    (leave-lisp "~&Script failed~%" 1))))))
     (funcall thunk)
     (leave-lisp "~&Script succeeded~%" 0)))

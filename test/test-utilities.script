@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
 (load "script-support.lisp")
 (load-asdf)
-(in-package :asdf)
-(cl-user::quit-on-error
+
+(quit-on-error
 
 (assert
  (every #'directory-pathname-p
@@ -37,14 +37,14 @@
 (assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" :force-directory nil))
                '(:absolute ("aa") "ba")))
 (assert
- (asdf::version-satisfies (asdf:asdf-version) (asdf:asdf-version)))
+ (version-satisfies (asdf-version) (asdf-version)))
 (assert
- (asdf::version-satisfies (asdf:asdf-version) "2.000"))
+ (version-satisfies (asdf-version) "2.000"))
 (assert
- (not (asdf::version-satisfies (asdf:asdf-version) "666")))
+ (not (version-satisfies (asdf-version) "666")))
 (assert
   (equal (asdf::split-absolute-pathnames "/foo:/bar" "baz") '("/foo" "/bar")))
-(assert (equal (mapcar 'location-function-p
+(assert (equal (mapcar 'asdf::location-function-p
                        '((:function f)
                          (:function (lambda (path absolute-source)
                                       (declare (ignore absolute-source))

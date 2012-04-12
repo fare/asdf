@@ -1,5 +1,5 @@
 ;;;; Example lisp code.
-(in-package :cl-user)
+(in-package :asdf-test)
 
 (defun tst (x)
   (1+ x))
