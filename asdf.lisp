@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20.11: Another System Definition Facility.
+;;; This is ASDF 2.20.12: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.11")
+         (asdf-version "2.20.12")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -772,6 +772,56 @@ actually-existing directory."
 (defun* absolute-pathname-p (pathspec)
   (and (typep pathspec '(or pathname string))
        (eq :absolute (car (pathname-directory (pathname pathspec))))))
+
+(defun* coerce-pathname (name &key type defaults)
+  "coerce NAME into a PATHNAME.
+When given a string, portably decompose it into a relative pathname:
+#\\/ separates subdirectories. The last #\\/-separated string is as follows:
+if TYPE is NIL, its last #\\. if any separates name and type from from type;
+if TYPE is a string, it is the type, and the whole string is the name;
+if TYPE is :DIRECTORY, the string is a directory component;
+if the string is empty, it's a directory.
+Any directory named .. is read as :BACK.
+Host, device and version components are taken from DEFAULTS."
+  ;; The defaults are required notably because they provide the default host
+  ;; to the below make-pathname, which may crucially matter to people using
+  ;; merge-pathnames with non-default hosts,  e.g. for logical-pathnames.
+  ;; NOTE that the host and device slots will be taken from the defaults,
+  ;; but that should only matter if you later merge relative pathnames with
+  ;; CL:MERGE-PATHNAMES instead of ASDF:MERGE-PATHNAMES*
+  (etypecase name
+    ((or null pathname)
+     name)
+    (symbol
+     (coerce-pathname (string-downcase name) :type type :defaults defaults))
+    (string
+     (multiple-value-bind (relative path filename)
+         (component-name-to-pathname-components name :force-directory (eq type :directory)
+                                                :force-relative t)
+       (multiple-value-bind (name type)
+           (cond
+             ((or (eq type :directory) (null filename))
+              (values nil nil))
+             (type
+              (values filename type))
+             (t
+              (split-name-type filename)))
+         (apply 'make-pathname :directory (cons relative path) :name name :type type
+                (when defaults `(:defaults ,defaults))))))))
+
+(defun* merge-component-name-type (name &key type defaults)
+  ;; For backwards compatibility only, for people using internals.
+  ;; Will be removed in a future release, e.g. 2.016.
+  (warn "Please don't use ASDF::MERGE-COMPONENT-NAME-TYPE. Use ASDF:COERCE-PATHNAME.")
+  (coerce-pathname name :type type :defaults defaults))
+
+(defun* subpathname (pathname subpath &key type)
+  (and pathname (merge-pathnames* (coerce-pathname subpath :type type)
+                                  (pathname-directory-pathname pathname))))
+
+(defun subpathname* (pathname subpath &key type)
+  (and pathname
+       (subpathname (ensure-directory-pathname pathname) subpath :type type)))
 
 (defun* length=n-p (x n) ;is it that (= (length x) n) ?
   (check-type n (integer 0 *))
@@ -1602,9 +1652,9 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* probe-asd (name defaults)
   (block nil
     (when (directory-pathname-p defaults)
-      (let ((file (subpathname defaults (strcat name ".asd"))))
-        (when (probe-file* file)
-          (return file)))
+      (let* ((file (probe-file* (subpathname defaults (strcat name ".asd")))))
+        (when file)
+          (return file))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
       (when (os-windows-p)
         (let ((shortcut
@@ -1862,62 +1912,12 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (declare (ignorable s))
   (source-file-explicit-type component))
 
-(defun* coerce-pathname (name &key type defaults)
-  "coerce NAME into a PATHNAME.
-When given a string, portably decompose it into a relative pathname:
-#\\/ separates subdirectories. The last #\\/-separated string is as follows:
-if TYPE is NIL, its last #\\. if any separates name and type from from type;
-if TYPE is a string, it is the type, and the whole string is the name;
-if TYPE is :DIRECTORY, the string is a directory component;
-if the string is empty, it's a directory.
-Any directory named .. is read as :BACK.
-Host, device and version components are taken from DEFAULTS."
-  ;; The defaults are required notably because they provide the default host
-  ;; to the below make-pathname, which may crucially matter to people using
-  ;; merge-pathnames with non-default hosts,  e.g. for logical-pathnames.
-  ;; NOTE that the host and device slots will be taken from the defaults,
-  ;; but that should only matter if you later merge relative pathnames with
-  ;; CL:MERGE-PATHNAMES instead of ASDF:MERGE-PATHNAMES*
-  (etypecase name
-    ((or null pathname)
-     name)
-    (symbol
-     (coerce-pathname (string-downcase name) :type type :defaults defaults))
-    (string
-     (multiple-value-bind (relative path filename)
-         (component-name-to-pathname-components name :force-directory (eq type :directory)
-                                                :force-relative t)
-       (multiple-value-bind (name type)
-           (cond
-             ((or (eq type :directory) (null filename))
-              (values nil nil))
-             (type
-              (values filename type))
-             (t
-              (split-name-type filename)))
-         (apply 'make-pathname :directory (cons relative path) :name name :type type
-                (when defaults `(:defaults ,defaults))))))))
-
-(defun* merge-component-name-type (name &key type defaults)
-  ;; For backwards compatibility only, for people using internals.
-  ;; Will be removed in a future release, e.g. 2.016.
-  (warn "Please don't use ASDF::MERGE-COMPONENT-NAME-TYPE. Use ASDF:COERCE-PATHNAME.")
-  (coerce-pathname name :type type :defaults defaults))
-
 (defmethod component-relative-pathname ((component component))
   (coerce-pathname
    (or (slot-value component 'relative-pathname)
        (component-name component))
    :type (source-file-type component (component-system component))
    :defaults (component-parent-pathname component)))
-
-(defun* subpathname (pathname subpath &key type)
-  (and pathname (merge-pathnames* (coerce-pathname subpath :type type)
-                                  (pathname-directory-pathname pathname))))
-
-(defun subpathname* (pathname subpath &key type)
-  (and pathname
-       (subpathname (ensure-directory-pathname pathname) subpath :type type)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
@@ -3163,8 +3163,8 @@ located."
 #+clozure
 (defun* ccl-fasl-version ()
   ;; the fasl version is target-dependent from CCL 1.8 on.
-  (or (and (fboundp 'ccl::target-fasl-version)
-           (funcall 'ccl::target-fasl-version))
+  (or (let ((s 'ccl::target-fasl-version))
+        (and (fboundp s) (funcall s)))
       (and (boundp 'ccl::fasl-version)
            (symbol-value 'ccl::fasl-version))
       (error "Can't determine fasl version.")))

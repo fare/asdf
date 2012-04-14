@@ -87,7 +87,7 @@ test-upgrade:
 	ll="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"ll~%\") (load \"asdf.lisp\"))" ; \
 	cf="(handler-bind ((warning #'muffle-warning)) (format t \"cf~%\") (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose t :print t))" ; \
 	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
-	te="(quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
+	te="(asdf-test::quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
 	use_ccl () { li="${CCL} --no-init --quiet --load" ; ev="--eval" ; } ; \
 	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet -i" ; ev="-x" ; } ; \
 	use_sbcl () { li="${SBCL} --noinform --no-userinit --load" ; ev="--eval" ; } ; \
