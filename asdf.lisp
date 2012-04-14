@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.20.10: Another System Definition Facility.
+;;; This is ASDF 2.20.11: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -115,7 +115,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.10")
+         (asdf-version "2.20.11")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1743,7 +1743,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (found-system (and (typep found 'system) found))
          (pathname (or (and (typep found '(or pathname string)) (pathname found))
                        (and found-system (system-source-file found-system))
-                       (and previous (system-source-file previous))))
+                       (and previous
+                            ;; might be missing when upgrading from ASDF 1.
+                            (slot-boundp previous 'source-file)
+                            (system-source-file previous))))
          (foundp (and (or found-system pathname previous) t)))
     (check-type found (or null pathname system))
     (when foundp
@@ -3209,6 +3212,12 @@ located."
            (or (operating-system) (software-type))
            (or (architecture) (machine-type)))))
 
+(defun* hostname ()
+  #+(or abcl clozure cmucl ecl lispworks sbcl scl xcl) (machine-instance)
+  #+allegro (excl.osi:gethostname)
+  #+clisp (first (split-string (machine-instance) :separator " "))
+  #+gcl (system:gethostname))
+
 
 ;;; ---------------------------------------------------------------------------
 ;;; Generic support for configuration files
@@ -3449,7 +3458,9 @@ with a different configuration, so the configuration would be re-read then."
              ((eql :implementation)
               (coerce-pathname (implementation-identifier) :type :directory))
              ((eql :implementation-type)
-              (coerce-pathname (string-downcase (implementation-type)) :type :directory)))))
+              (coerce-pathname (string-downcase (implementation-type)) :type :directory))
+             ((eql :hostname)
+              (coerce-pathname (hostname) :type :directory)))))
     (when (absolute-pathname-p r)
       (error (compatfmt "~@<pathname ~S is not relative~@:>") x))
     (if (or (pathnamep x) (not wilden)) r (wilden r))))
