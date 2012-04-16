@@ -41,11 +41,14 @@
        (cond
          (errors-p
           (leave-lisp "Testsuite failed: ASDF compiled with ERRORS" 2))
-         #-(or ecl xcl)
+         #-(or ecl scl xcl)
 	 ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
+         ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
          (warnings-p
           (leave-lisp "Testsuite failed: ASDF compiled with warnings" 1))
          (t
+          (when warnings-p
+            (format t "Your implementation raised warnings, but they were ignored~%"))
           (when (probe-file *asdf-fasl*)
             (delete-file *asdf-fasl*))
           (rename-file tmp *asdf-fasl*)

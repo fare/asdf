@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.20.14: Another System Definition Facility.
+;;; This is ASDF 2.20.15: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.14")
+         (asdf-version "2.20.15")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -321,6 +321,7 @@
             #:coerce-entry-to-directory
             #:remove-entry-from-registry
 
+            #:*encoding-detection-hook*
             #:*encoding-external-format-hook*
             #:*default-encoding*
             #:*utf-8-external-format*
@@ -650,8 +651,8 @@ starting the separation from the end, e.g. when called with arguments
          ;; Giving :unspecific as argument to make-pathname is not portable.
          ;; See CLHS make-pathname and 19.2.2.2.3.
          ;; We only use it on implementations that support it,
-         #+(or abcl allegro clozure cmu ecl gcl genera lispworks sbcl scl xcl) :unspecific
-         #+(or clisp #|These haven't been tested:|# cormanlisp mcl) nil))
+         #+(or abcl allegro clozure cmu gcl genera lispworks sbcl scl xcl) :unspecific
+         #+(or clisp ecl #|These haven't been tested:|# cormanlisp mcl) nil))
     (destructuring-bind (name &optional (type unspecific))
         (split-string filename :max 2 :separator ".")
       (if (equal name "")
@@ -1390,13 +1391,22 @@ On legacy implementations, it may fall back on some 8-bit encoding,
 with non-ASCII code points being read as several CL characters;
 hopefully, if done consistently, that won't affect program behavior too much.")
 
-(defmethod component-encoding ((c component))
-  (or (%component-encoding c)
-      (aif (component-parent c)
-           (component-encoding it)
-           *default-encoding*)))
+(defun* always-default-encoding (pathname)
+  (declare (ignore pathname))
+  *default-encoding*)
 
-(defun default-encoding-external-format (encoding)
+(defvar *encoding-detection-hook* #'always-default-encoding
+  "Hook for an extension to define a function to automatically detect a file's encoding")
+
+(defun* detect-encoding (pathname)
+  (funcall *encoding-detection-hook* pathname))
+
+(defmethod component-encoding ((c component))
+  (or (loop :for x = c :then (component-parent x)
+        :while x :thereis (%component-encoding x))
+      (detect-encoding (component-pathname c))))
+
+(defun* default-encoding-external-format (encoding)
   (case encoding
     (:default :default) ;; for backwards compatibility only. Explicit usage discouraged.
     (:utf-8 *utf-8-external-format*)
@@ -1786,10 +1796,11 @@ Going forward, we recommend new users should be using the source-registry.
              (let ((*package* package)
                    (*default-pathname-defaults*
                     ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
-                    (translate-logical-pathname (pathname-directory-pathname pathname))))
+                    (translate-logical-pathname (pathname-directory-pathname pathname)))
+                   (external-format (encoding-external-format (detect-encoding pathname))))
                (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
                              pathname package)
-               (load pathname)))
+               (load pathname :external-format external-format)))
         (delete-package package)))))
 
 (defun* locate-system (name)
@@ -3263,7 +3274,8 @@ located."
 (defun getenv-absolute-pathname (x &aux (s (getenv x)))
   (ensure-absolute-pathname* s "from (getenv ~S)" x))
 (defun getenv-absolute-pathnames (x &aux (s (getenv x)))
-  (split-absolute-pathnames s "from (getenv ~S) = ~S" x s))
+  (and (plusp (length s))
+       (split-absolute-pathnames s "from (getenv ~S) = ~S" x s)))
 
 (defun* user-configuration-directories ()
   (let ((dirs
