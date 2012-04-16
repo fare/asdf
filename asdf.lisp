@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.20.16: Another System Definition Facility.
+;;; This is ASDF 2.20.17: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.16")
+         (asdf-version "2.20.17")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1796,7 +1796,7 @@ Going forward, we recommend new users should be using the source-registry.
              (let ((*package* package)
                    (*default-pathname-defaults*
                     ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
-                    (translate-logical-pathname (pathname-directory-pathname pathname)))
+                    (pathname-directory-pathname (translate-logical-pathname pathname)))
                    (external-format (encoding-external-format (detect-encoding pathname))))
                (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
                              pathname package)
@@ -2400,9 +2400,8 @@ recursive calls to traverse.")
     (first files)))
 
 (defun* ensure-all-directories-exist (pathnames)
-   (loop :for pn :in pathnames
-     :for pathname = (translate-logical-pathname pn)
-     :do (ensure-directories-exist pathname)))
+   (dolist (pathname pathnames)
+     (ensure-directories-exist (translate-logical-pathname pathname))))
 
 (defmethod perform :before ((operation compile-op) (c source-file))
   (ensure-all-directories-exist (output-files operation c)))
