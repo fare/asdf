@@ -3,7 +3,7 @@
 ;;;                                                                  ;;;
 ;;; Free Software available under an MIT-style license.              ;;;
 ;;;                                                                  ;;;
-;;; Copyright (c) 2001-2011 Daniel Barlow and contributors           ;;;
+;;; Copyright (c) 2001-2012 Daniel Barlow and contributors           ;;;
 ;;;                                                                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -14,7 +14,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.20.13" ;; to be automatically updated by bin/bump-revision
+  :version "2.20.14" ;; to be automatically updated by bin/bump-revision
   :depends-on ()
   :components
   ((:file "asdf")
