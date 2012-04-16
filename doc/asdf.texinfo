@@ -2922,47 +2922,86 @@ though it may at times require some creativity
 @section Controlling source file character encoding
 
 Starting with ASDF 2.21, components accept a @code{:encoding} option.
-By default, only @code{:default} and @code{:utf-8} are accepted,
-and @code{*default-encoding*} (which itself defaults to @code{:default})
-is assumed whenever no encoding is specified.
-In practice it means that only source code that only use ASCII
+By default, only @code{:default}, @code{:utf-8}
+and @code{:autodetect} are accepted.
+@code{:autodetect} is the default, and calls
+@code{*encoding-detection-hook*} which by default always returns
+@code{*default-encoding*} which itself defaults to @code{:default}.
+In other words, the default is to preserve the backwards compatible behavior
+of using whichever @code{:default} encoding your implementation uses
+(which may or may not vary based on environment variables
+and other locale settings).
+In practice this means that only source code that only uses ASCII
 is guaranteed to be read the same on all implementations
 independently from any user setting.
-This is the backwards compatible behavior.
 
+Additionally, for backward-compatibility with older versions of ASDF
+and/or with implementations that do not support unicode and its many encodings,
+you may want to use
+the reader conditionals @code{#+asdf-unicode #+asdf-unicode}
+to protect any @code{:encoding @emph{encoding}} statement,
+as @code{:asdf-unicode} will be present in @code{*features*}
+only if you're using a recent ASDF
+on an implementation that supports unicode.
+We recommend that you avoid using unprotected @code{:encoding} specifications
+until after ASDF 2.21 becomes widespread, hopefully by the end of 2012.
+
+While it offers plenty of hooks for extension,
+and one such extension is being developed (see below),
+ASDF itself only recognizes one encoding beside @code{:default},
+and that is @code{:utf-8}, which is the de facto standard,
 On implementations that do not support unicode,
+the feature @code{:asdf-unicode} is absent, and
 the @code{:default} external-format is used
-to read source files declared as @code{utf-8}.
+to read source files declared as @code{:utf-8}.
 Non-ASCII characters intended to be read as one CL character
 may end up being read as multiple CL characters on these implementations.
 In most cases, this shouldn't affect the software's semantics:
 comments will be skipped just the same, strings with be read and printed
 with slightly different lengths, symbol names will be accordingly longer,
 but none of it should matter.
-But a few systems may fail to work properly,
-or will work in a subtly different way,
-that actually depend on unicode characters (for instance @code{lambda-reader}).
-The @code{#+asdf-unicode} feature tells you if unicode was detected.
+But a few systems that actually depend on unicode characters
+(for instance @code{lambda-reader})
+may fail to work properly, or may work in a subtly different way.
+
+We invite you to embrace UTF-8
+as the encoding for non-ASCII characters starting today,
+even without any explicit specification in your @code{.asd} files.
+Indeed, on some implementations and configurations,
+UTF-8 is already the @code{:default},
+and loading your code may cause errors if it is encoded in anything but UTF-8.
+Therefore, even with the legacy behavior,
+non-UTF-8 is guaranteed to break for some users,
+whereas UTF-8 is pretty much guaranteed not to break anywhere,
+although it might be read incorrectly on some implementations.
+In the future, we intend to make @code{:utf-8} the default,
+to be enforced everywhere, so at least the code is guaranteed
+to be read correctly everywhere it can be.
 
 If you need non-standard character encodings for your source code,
 use the extension system @code{asdf-encodings}, by specifying
 @code{:defsystem-depends-on (:asdf-encodings)} in your @code{defsystem}.
 This extension system will register support for more encodings using the
-@code{*encoding-external-format-hook*} facility.
-You can then specify @code{:encoding :latin1}
-or any of tens of supported encodings,
-and it will work on all implementations that support this encoding.
-If you're not using a recent version of Quicklisp that has it,
+@code{*encoding-external-format-hook*} facility,
+so you can explicitly specify @code{:encoding :latin1}
+in your @code{.asd} file.
+Using the @code{*encoding-detection-hook*} it will also
+eventually implement some autodetection of a file's encoding
+from an emacs-style @code{-*- coding: latin1 -*-} declaration,
+or otherwise based on an analysis of octet patterns in the file.
+At this point, asdf-encoding only supports the encodings
+that are supported as part of your implementation.
+Since the list varies depending on implementations,
+we once again recommend you use @code{:utf-8} everywhere,
+which is the most portable (next is @code{:latin1}).
+
+If you're not using a version of Quicklisp that has it,
 you may get the source for @code{asdf-encodings} using git:
 @kbd{git clone git://common-lisp.net/projects/asdf/asdf-encodings.git}
 or
 @kbd{git clone ssh://common-lisp.net/project/asdf/git/asdf-encodings.git}.
 You can also browse the repository on
 @url{http://common-lisp.net/gitweb?p=projects/asdf/asdf-encodings.git}.
-@code{asdf-encodings} will eventually implement as use as a default
-a @code{:autodetect} encoding that detects the encoding of the file
-from an emacs-style @code{-*- coding: utf-8 -*-} declaration,
-or otherwise based on an analysis of octet patterns in the file.
 
 In the future, we intend to change the default @code{*default-encoding*}
 to @code{:utf-8}, which is already the de facto standard
@@ -2973,10 +3012,10 @@ so they make their packages compatible.
 A survey showed only about a handful few libraries
 are incompatible with non-UTF-8, and then, only in comments,
 and we believe that authors will adopt UTF-8 when prompted.
-(See April 2012 discussion on the sbcl-devel mailing-list.)
+See April 2012 discussion on the sbcl-devel mailing-list.
 For backwards compatibility with users who insist on a non-UTF-8 encoding,
 but cannot immediately transition to using @code{asdf-encodings}
-(maybe because it isn't ready), it will be possible to use
+(maybe because it isn't ready), it will still be possible to use
 the @code{:encoding :default} option in your @code{defsystem} form
 to restore the behavior of ASDF 2.20 and earlier.
 This shouldn't be required in libraries,
@@ -2984,28 +3023,23 @@ because user pressure as mentioned above will already have pushed
 library authors towards using UTF-8;
 but authors of end-user programs might care.
 
-There is no current plan to handle any encoding beside
-your implementation's @code{:default} for @code{.asd} files:
-component (path)names are the only real data in these files,
-and non-ASCII characters are not very portable in this setting.
-We do recommend UTF-8 for any non-ASCII characters, though,
-for instance, in meta-data about author's names,
-and that may become the enforced default in the future.
-If autodetection is ever merged into ASDF itself,
-it will be used for @code{.asd} files,
-but there is no current plan to merge it in.
-
-Finally, since this @code{:encoding} feature depends on ASDF 2.21,
-you may want to wait for ASDF 2.21 or later being widely available
-(hopefully later in 2012) before you start using this feature.
-This is particularly true for library authors who want
-to not inconvenience their user base:
-we invite you to convert your source code to UTF-8,
-but not use @code{:encoding :utf-8}.
-One way to make your code compatible with older versions of ASDF
-and older implementations that don't support unicode
-is to use @code{#+asdf-unicode #+asdf-unicode}
-to protect your @code{:encoding @emph{encoding}} statements.
+When you use @code{asdf-encodings}, any further loaded @code{.asd} file
+will use the autodetection algorithm to determine its encoding;
+yet if you depend on this detection happening,
+you may want to explicitly load @code{asdf-encodings} early in your build,
+for by the time you can use @code{:defsystem-depends-on},
+it is already too late to load it.
+In practice, this means that the @code{*default-encoding*}
+is usually used for @code{.asd} files.
+Currently, this defaults to @code{:default} for backwards compatibility,
+and that means that you shouldn't rely on non-ASCII characters in a .asd file.
+Since component (path)names are the only real data in these files,
+and non-ASCII characters are not very portable for file names,
+this isn't too much of an issue.
+We still encourage you to use either plain ASCII or UTF-8
+in @code{.asd} files,
+as we intend to make @code{:utf-8} the default encoding in the future.
+This might matter, for instance, in meta-data about author's names.
 
 
 @section Miscellaneous Exported Functions
