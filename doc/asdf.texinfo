@@ -2927,10 +2927,11 @@ and @code{:autodetect} are accepted.
 @code{:autodetect} is the default, and calls
 @code{*encoding-detection-hook*} which by default always returns
 @code{*default-encoding*} which itself defaults to @code{:default}.
-In other words, the default is to preserve the backwards compatible behavior
-of using whichever @code{:default} encoding your implementation uses
-(which may or may not vary based on environment variables
-and other locale settings).
+In other words, there now are plenty of extension hooks, but
+by default ASDF follows the backwards compatible behavior
+of using whichever @code{:default} encoding your implementation uses,
+which itself may or may not vary based on environment variables
+and other locale settings.
 In practice this means that only source code that only uses ASCII
 is guaranteed to be read the same on all implementations
 independently from any user setting.
@@ -2939,7 +2940,7 @@ Additionally, for backward-compatibility with older versions of ASDF
 and/or with implementations that do not support unicode and its many encodings,
 you may want to use
 the reader conditionals @code{#+asdf-unicode #+asdf-unicode}
-to protect any @code{:encoding @emph{encoding}} statement,
+to protect any @code{:encoding @emph{encoding}} statement
 as @code{:asdf-unicode} will be present in @code{*features*}
 only if you're using a recent ASDF
 on an implementation that supports unicode.
@@ -2949,20 +2950,22 @@ until after ASDF 2.21 becomes widespread, hopefully by the end of 2012.
 While it offers plenty of hooks for extension,
 and one such extension is being developed (see below),
 ASDF itself only recognizes one encoding beside @code{:default},
-and that is @code{:utf-8}, which is the de facto standard,
+and that is @code{:utf-8}, which is the @emph{de facto} standard,
+already used by the vast majority of libraries that use more than ASCII.
 On implementations that do not support unicode,
 the feature @code{:asdf-unicode} is absent, and
 the @code{:default} external-format is used
-to read source files declared as @code{:utf-8}.
-Non-ASCII characters intended to be read as one CL character
-may end up being read as multiple CL characters on these implementations.
+to read even source files declared as @code{:utf-8}.
+On these implementations, non-ASCII characters
+intended to be read as one CL character
+may thus end up being read as multiple CL characters.
 In most cases, this shouldn't affect the software's semantics:
 comments will be skipped just the same, strings with be read and printed
 with slightly different lengths, symbol names will be accordingly longer,
 but none of it should matter.
 But a few systems that actually depend on unicode characters
-(for instance @code{lambda-reader})
 may fail to work properly, or may work in a subtly different way.
+See for instance @code{lambda-reader}.
 
 We invite you to embrace UTF-8
 as the encoding for non-ASCII characters starting today,
@@ -2972,9 +2975,11 @@ UTF-8 is already the @code{:default},
 and loading your code may cause errors if it is encoded in anything but UTF-8.
 Therefore, even with the legacy behavior,
 non-UTF-8 is guaranteed to break for some users,
-whereas UTF-8 is pretty much guaranteed not to break anywhere,
+whereas UTF-8 is pretty much guaranteed not to break anywhere
+(provided you do @emph{not} use a BOM),
 although it might be read incorrectly on some implementations.
-In the future, we intend to make @code{:utf-8} the default,
+In the future, we intend to make @code{:utf-8}
+the default value of @code{*default-encoding*},
 to be enforced everywhere, so at least the code is guaranteed
 to be read correctly everywhere it can be.
 
@@ -3142,10 +3147,10 @@ look at the beginning of @file{asdf.lisp} to see what it does.
 This function is obsolete and present only for the sake of backwards-compatibility:
 ``If it's not backwards, it's not compatible''. We strongly discourage its use.
 Its current behavior is only well-defined on Unix platforms
-(which includes MacOS X and cygwin). On Windows, anything goes.
+(which include MacOS X and cygwin). On Windows, anything goes.
 
 Instead we recommend the use of such a function as
-@code{xcvb-driver:run-program/process-output-stream}
+@code{xcvb-driver:run-program/}
 from the @code{xcvb-driver} system that is distributed with XCVB:
 @url{http://common-lisp.net/project/xcvb}.
 It's only alternative that supports
@@ -3154,7 +3159,7 @@ and provides well-defined behavior outside Unix (i.e. on Windows).
 (The only unsupported exception is Genera, since on it
 @code{run-shell-command} doesn't make sense anyway on that platform).
 
-This function takes as arguments a @code{format} control-string
+@code{run-shell-command} takes as arguments a @code{format} control-string
 and arguments to be passed to @code{format} after this control-string
 to produce a string.
 This string is a command that will be evaluated with a POSIX shell if possible;
