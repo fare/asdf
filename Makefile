@@ -7,13 +7,12 @@ sourceDirectory := $(shell pwd)
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro
+lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro lispworks
 endif
 
 ## MINOR FAIL: ecl-bytecodes (failure in test-compile-file-failure.script)
 ## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
 ## OCCASIONALLY TESTED BY NOT ME: allegromodern (not in my free demo version)
-## OCCASIONALLY TESTED BY NOT ME: lispworks (testing requires Pro version)
 ## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
 ## NOT SUPPORTED BY OUR TESTS: cormancl genera rmcl. Manually tested once in a while.
 
