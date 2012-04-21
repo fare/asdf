@@ -41,7 +41,7 @@
        (cond
          (errors-p
           (leave-lisp "Testsuite failed: ASDF compiled with ERRORS" 2))
-         #-(or ecl scl xcl)
+         #-(or cmu ecl scl xcl)
 	 ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
          ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
          (warnings-p
