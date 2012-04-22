@@ -86,6 +86,7 @@ test-upgrade:
 	ll="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"ll~%\") (load \"asdf.lisp\"))" ; \
 	cf="(handler-bind ((warning #'muffle-warning)) (format t \"cf~%\") (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose t :print t))" ; \
 	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
+	la="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"la\") (push #p\"${sourceDirectory}/\" asdf:*central-registry*) (asdf:oos 'asdf:load-op :asdf :verbose t))" ; \
 	te="(asdf-test::quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
 	use_ccl () { li="${CCL} --no-init --quiet --load" ; ev="--eval" ; } ; \
 	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet -i" ; ev="-x" ; } ; \
@@ -98,19 +99,24 @@ test-upgrade:
 	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; } ; \
 	su=test/script-support ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
-	  use_${lisp} ; \
-	  lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
-	  echo "Testing upgrade from ASDF $${tag}" ; \
-	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
-	  rm -f $$fa ; lv="$$li $$su $$ev" ; \
-	  case ${lisp}:$$tag in \
-	    ecl:2.00[0-9]|ecl:2.01[0-6]) : Skip, because of get-uid ugliness ;; *) \
-	  ( set -x ; $$lv "$$lo" $$ev "$$ll" $$ev "$$te" && \
-	    $$lv "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" && \
-	    $$lv "$$lo" $$ev "$$lf" $$ev "$$te" && \
-	    $$lv "$$lf" $$ev "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;} \
-	  ;; esac ; \
-	done
+	  for x in load-system load-lisp load-lisp-compile-load-fasl load-fasl just-load-fasl ; do \
+	    use_${lisp} ; \
+	    lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
+	    echo "Testing upgrade from ASDF $${tag}" ; \
+	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
+	    rm -f $$fa ; lv="$$li $$su $$ev" ; \
+	    case ${lisp}:$$tag:$$x in \
+	      ecl:2.00[0-9]:*|ecl:2.01[0-6]:*|ecl:2.20:*|cmucl:*:load-system) \
+                : Skip, because of various ASDF issues ;; *) \
+                ( set -x ; \
+                  case $$x in \
+		    load-system) $$lv "$$lo" $$ev "$$la" $$ev "$$te" ;; \
+		    load-lisp) $$lv "$$lo" $$ev "$$ll" $$ev "$$te" ;; \
+		    load-lis-compile-load-fasl) $$lv "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" ;; \
+		    load-fasl) $$lv "$$lo" $$ev "$$lf" $$ev "$$te" ;; \
+		    just-load-fasl) $$lv "$$lf" $$ev "$$te" ;; esac ) || \
+		{ echo "upgrade FAILED" ; exit 1 ;} ;; esac ; \
+	done ; done
 
 test-forward-references:
 	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
@@ -130,6 +136,12 @@ test-all-noupgrade:
 	@for lisp in ${lisps} ; do \
 		${MAKE} test-lisp lisp=$$lisp || exit 1 ; \
 	done
+
+test-all-upgrade:
+	@for lisp in ${lisps} ; do \
+		${MAKE} test-upgrade lisp=$$lisp || exit 1 ; \
+	done
+
 
 test-all: test-forward-references doc test-all-lisps
 
