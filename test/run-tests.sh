@@ -127,7 +127,9 @@ case "$lisp" in
     nodebug="-on-error exit"
     eval="-x" ;;
   cmucl)
-    command="${CMUCL:-lisp}"
+    # cmucl likes to have its executable called lisp, but so does scl
+    # Please use a symlink or an exec ... "$@" trampoline script.
+    command="${CMUCL:-cmucl}"
     flags="-noinit"
     nodebug="-batch"
     eval="-eval" ;;

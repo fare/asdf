@@ -27,6 +27,7 @@ ABCL ?= abcl
 SCL ?= scl
 ALLEGRO ?= alisp
 ALLEGROMODERN ?= mlisp
+LISPWORKS ?= lispworks
 
 # website, tag, install
 
@@ -81,30 +82,33 @@ mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
 test-upgrade:
+	fasl=fasl ; \
+	use_ccl () { li="${CCL} --no-init --quiet --load" ; ev="--eval" ; fasl=lx86fsl ; } ; \
+	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet -i" ; ev="-x" ; fasl=fas ; } ; \
+	use_sbcl () { li="${SBCL} --noinform --no-userinit --load" ; ev="--eval" ; fasl=fasl ; } ; \
+	use_ecl () { li="${ECL} -norc -load" ; ev="-eval" ; fasl=fas ; } ; \
+	use_cmucl () { li="${CMUCL} -noinit -load" ; ev="-eval" ; fasl=sse2f ; } ; \
+	use_abcl () { li="${ABCL} --noinit --nosystem --noinform --load" ; ev="--eval" ; fasl=fasl ; } ; \
+	use_scl () { li="${SCL} -noinit -load" ; ev="-eval" ; fasl=sse2f ; } ; \
+	use_allegro () { li="${ALLEGRO} -q -L" ; ev="-e" ; fasl=fas ; } ; \
+	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; fasl=fas ; } ; \
+	use_lispworks () { li="${LISPWORKS} -siteinit - -init -" ; ev="-eval" ; fasl=ufasl ; } ; \
+	use_${lisp} ; \
 	mkdir -p tmp/fasls/${lisp} ; \
-	fa=tmp/fasls/sbcl/upasdf.fasl ; \
+	fa=tmp/fasls/${lisp}/upasdf.$${fasl} ; \
 	ll="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"ll~%\") (load \"asdf.lisp\"))" ; \
 	cf="(handler-bind ((warning #'muffle-warning)) (format t \"cf~%\") (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose t :print t))" ; \
 	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
 	la="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"la\") (push #p\"${sourceDirectory}/\" asdf:*central-registry*) (asdf:oos 'asdf:load-op :asdf :verbose t))" ; \
 	te="(asdf-test::quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
-	use_ccl () { li="${CCL} --no-init --quiet --load" ; ev="--eval" ; } ; \
-	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet -i" ; ev="-x" ; } ; \
-	use_sbcl () { li="${SBCL} --noinform --no-userinit --load" ; ev="--eval" ; } ; \
-	use_ecl () { li="${ECL} -norc -load" ; ev="-eval" ; } ; \
-	use_cmucl () { li="${CMUCL} -noinit -load" ; ev="-eval" ; } ; \
-	use_abcl () { li="${ABCL} --noinit --nosystem --noinform --load" ; ev="--eval" ; } ; \
-	use_scl () { li="${SCL} -noinit -load" ; ev="-eval" ; } ; \
-	use_allegro () { li="${ALLEGRO} -q -L" ; ev="-e" ; } ; \
-	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; } ; \
 	su=test/script-support ; \
+	lv="$$li $$su $$ev" ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
+	  rm -f $$fa ; \
 	  for x in load-system load-lisp load-lisp-compile-load-fasl load-fasl just-load-fasl ; do \
-	    use_${lisp} ; \
 	    lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
 	    echo "Testing upgrade from ASDF $${tag}" ; \
 	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
-	    rm -f $$fa ; lv="$$li $$su $$ev" ; \
 	    case ${lisp}:$$tag:$$x in \
 	      ecl:2.00[0-9]:*|ecl:2.01[0-6]:*|ecl:2.20:*|cmucl:*:load-system) \
                 : Skip, because of various ASDF issues ;; *) \
@@ -112,9 +116,10 @@ test-upgrade:
                   case $$x in \
 		    load-system) $$lv "$$lo" $$ev "$$la" $$ev "$$te" ;; \
 		    load-lisp) $$lv "$$lo" $$ev "$$ll" $$ev "$$te" ;; \
-		    load-lis-compile-load-fasl) $$lv "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" ;; \
+		    load-lisp-compile-load-fasl) $$lv "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" ;; \
 		    load-fasl) $$lv "$$lo" $$ev "$$lf" $$ev "$$te" ;; \
-		    just-load-fasl) $$lv "$$lf" $$ev "$$te" ;; esac ) || \
+		    just-load-fasl) $$lv "$$lf" $$ev "$$te" ;; \
+		    *) echo "WTF?" ; exit 2 ;; esac ) || \
 		{ echo "upgrade FAILED" ; exit 1 ;} ;; esac ; \
 	done ; done
 
