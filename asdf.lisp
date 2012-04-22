@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.20.18: Another System Definition Facility.
+;;; This is ASDF 2.20.19: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.18")
+         (asdf-version "2.20.19")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1123,22 +1123,22 @@ processed in order by OPERATE."))
 ;;;; -------------------------------------------------------------------------
 ;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
 (when *upgraded-p*
-   (when (find-class 'module nil)
-     (eval
-      '(defmethod update-instance-for-redefined-class :after
-           ((m module) added deleted plist &key)
-         (declare (ignorable deleted plist))
-         (when *asdf-verbose*
-           (asdf-message (compatfmt "~&~@<; ~@;Updating ~A for ASDF ~A~@:>~%")
-                         m (asdf-version)))
-         (when (member 'components-by-name added)
-           (compute-module-components-by-name m))
-         (when (typep m 'system)
-           (when (member 'source-file added)
-             (%set-system-source-file
-              (probe-asd (component-name m) (component-pathname m)) m)
-             (when (equal (component-name m) "asdf")
-               (setf (component-version m) *asdf-version*))))))))
+  (when (find-class 'module nil)
+    (eval
+     '(defmethod update-instance-for-redefined-class :after
+          ((m module) added deleted plist &key)
+        (declare (ignorable deleted plist))
+        (when *asdf-verbose*
+          (asdf-message (compatfmt "~&~@<; ~@;Updating ~A for ASDF ~A~@:>~%")
+                        m (asdf-version)))
+        (when (member 'components-by-name added)
+          (compute-module-components-by-name m))
+        (when (typep m 'system)
+          (when (member 'source-file added)
+            (%set-system-source-file
+             (probe-asd (component-name m) (component-pathname m)) m)
+           (when (equal (component-name m) "asdf")
+             (setf (component-version m) *asdf-version*))))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; Classes, Conditions
@@ -1811,10 +1811,12 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defun* locate-system (name)
   "Given a system NAME designator, try to locate where to load the system from.
-Returns four values: FOUND-SYSTEM PATHNAME PREVIOUS PREVIOUS-TIME
-FOUNDP is true when a new was found, either a new unregistered one or a previously registered one.
+Returns five values: FOUNDP FOUND-SYSTEM PATHNAME PREVIOUS PREVIOUS-TIME
+FOUNDP is true when a system was found,
+either a new unregistered one or a previously registered one.
 FOUND-SYSTEM when not null is a SYSTEM object that may be REGISTER-SYSTEM'ed as is
-PATHNAME when not null is a path from where to load the system, associated with FOUND-SYSTEM, or with the PREVIOUS system.
+PATHNAME when not null is a path from where to load the system,
+either associated with FOUND-SYSTEM, or with the PREVIOUS system.
 PREVIOUS when not null is a previously loaded SYSTEM object of same name.
 PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded."
   (let* ((name (coerce-name name))
@@ -1822,14 +1824,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (previous (cdr in-memory))
          (previous (and (typep previous 'system) previous))
          (previous-time (car in-memory))
-           (found (search-for-system-definition name))
+         (found (search-for-system-definition name))
          (found-system (and (typep found 'system) found))
          (pathname (or (and (typep found '(or pathname string)) (pathname found))
                        (and found-system (system-source-file found-system))
-                       (and previous
-                            ;; might be missing when upgrading from ASDF 1.
-                            (slot-boundp previous 'source-file)
-                            (system-source-file previous))))
+                       (and previous (system-source-file previous))))
          (foundp (and (or found-system pathname previous) t)))
     (check-type found (or null pathname system))
     (when foundp
@@ -3124,6 +3123,10 @@ if that's whay you mean." ;;)
   (system-source-file x))
 
 (defmethod system-source-file ((system system))
+  ;; might be missing when upgrading from ASDF 1 and u-i-f-r-c failed
+  (unless (slot-boundp system 'source-file)
+    (%set-system-source-file
+     (probe-asd (component-name system) (component-pathname system)) system))
   (%system-source-file system))
 (defmethod system-source-file ((system-name string))
   (%system-source-file (find-system system-name)))
