@@ -219,9 +219,9 @@ You can usually load this copy using Common Lisp's @code{require} function:
 
 As of the writing of this manual,
 the following implementations provide ASDF 2 this way:
-abcl allegro ccl clisp cmucl ecl sbcl xcl.
-The following implementations don't provide it yet but will in a future release:
-lispworks scl.
+abcl allegro ccl clisp cmucl ecl lispworks sbcl xcl.
+The following implementation doesn't provide it yet but will in a future release:
+scl.
 The following implementations are obsolete, not actively maintained,
 and most probably will never bundle it:
 cormancl gcl genera mcl.
