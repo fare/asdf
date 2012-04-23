@@ -5,6 +5,8 @@
 (declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)))
 (proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)))
 
+(format t "Evaluating asdf/test/script-support~%")
+
 ;; We can't use asdf:merge-pathnames* because ASDF isn't loaded yet.
 ;; We still want to work despite and host/device funkiness.
 (defparameter *test-directory*

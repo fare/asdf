@@ -83,15 +83,15 @@ mrproper: clean
 
 test-upgrade:
 	fasl=fasl ; \
-	use_ccl () { li="${CCL} --no-init --quiet --load" ; ev="--eval" ; fasl=lx86fsl ; } ; \
-	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet -i" ; ev="-x" ; fasl=fas ; } ; \
-	use_sbcl () { li="${SBCL} --noinform --no-userinit --load" ; ev="--eval" ; fasl=fasl ; } ; \
-	use_ecl () { li="${ECL} -norc -load" ; ev="-eval" ; fasl=fas ; } ; \
-	use_cmucl () { li="${CMUCL} -noinit -load" ; ev="-eval" ; fasl=sse2f ; } ; \
-	use_abcl () { li="${ABCL} --noinit --nosystem --noinform --load" ; ev="--eval" ; fasl=fasl ; } ; \
-	use_scl () { li="${SCL} -noinit -load" ; ev="-eval" ; fasl=sse2f ; } ; \
-	use_allegro () { li="${ALLEGRO} -q -L" ; ev="-e" ; fasl=fas ; } ; \
-	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; fasl=fas ; } ; \
+	use_ccl () { li="${CCL} --no-init --quiet" ; ev="--eval" ; fasl=lx86fsl ; } ; \
+	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet" ; ev="-x" ; fasl=fas ; } ; \
+	use_sbcl () { li="${SBCL} --noinform --no-userinit" ; ev="--eval" ; fasl=fasl ; } ; \
+	use_ecl () { li="${ECL} -norc" ; ev="-eval" ; fasl=fas ; } ; \
+	use_cmucl () { li="${CMUCL} -noinit" ; ev="-eval" ; fasl=sse2f ; } ; \
+	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; fasl=fasl ; } ; \
+	use_scl () { li="${SCL} -noinit" ; ev="-eval" ; fasl=sse2f ; } ; \
+	use_allegro () { li="${ALLEGRO} -q" ; ev="-e" ; fasl=fas ; } ; \
+	use_allegromodern () { li="${ALLEGROMODERN} -q" ; ev="-e" ; fasl=fas ; } ; \
 	use_lispworks () { li="${LISPWORKS} -siteinit - -init -" ; ev="-eval" ; fasl=ufasl ; } ; \
 	use_${lisp} ; \
 	mkdir -p tmp/fasls/${lisp} ; \
@@ -101,18 +101,20 @@ test-upgrade:
 	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
 	la="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"la\") (push #p\"${sourceDirectory}/\" asdf:*central-registry*) (asdf:oos 'asdf:load-op :asdf :verbose t))" ; \
 	te="(asdf-test::quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
-	su=test/script-support ; \
-	lv="$$li $$su $$ev" ; \
+	su=test/script-support ; lu="(load\"$$su\")" ; \
+	lv="$$li $$ev $$lu $$ev" ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
 	  rm -f $$fa ; \
 	  for x in load-system load-lisp load-lisp-compile-load-fasl load-fasl just-load-fasl ; do \
 	    lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
-	    echo "Testing upgrade from ASDF $${tag}" ; \
+	    echo "Testing upgrade from ASDF $${tag} using method $$x" ; \
 	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
 	    case ${lisp}:$$tag:$$x in \
-	      ecl:2.00[0-9]:*|ecl:2.01[0-6]:*|ecl:2.20:*|cmucl:*:load-system) \
-                : Skip, because of various ASDF issues ;; *) \
-                ( set -x ; \
+	      ecl:1.*|ecl:2.00*|ecl:2.01[0-6]:*|ecl:2.20:*) \
+		: Skip, because of various ASDF issues ;; \
+	      cmucl:*:load-system) \
+		: Skip, because of various ASDF issues ;; \
+	      *) (set -x ; \
                   case $$x in \
 		    load-system) $$lv "$$lo" $$ev "$$la" $$ev "$$te" ;; \
 		    load-lisp) $$lv "$$lo" $$ev "$$ll" $$ev "$$te" ;; \
