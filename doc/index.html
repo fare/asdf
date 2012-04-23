@@ -68,7 +68,9 @@
           or its polar opposite,
           Drew McDermott's
           <a href="http://cs-www.cs.yale.edu/homes/dvm/">YTools</a>
-          (trying maintain coherence of the current Lisp image at a fine grain).
+          (trying maintain coherence of the current Lisp image at a fine grain),
+          or the newcomer
+          <a href="http://lisp.ystok.ru/asdlite/">ASDlite</a>.
           Older systems that are not maintained anymore include
           Mark Kantrowitz's <a href="http://www.cliki.net/mk-defsystem">mk-defsystem</a>
           (free software successor of the old proprietary DEFSYSTEM's and predecessor of ASDF),
@@ -81,7 +83,7 @@
           and probably more.
           However, none of these systems seems to ever have had the traction of ASDF.
         </p>
-        <a id="implmementations"></a>
+        <a id="implementations"></a>
         <h3>Supported Implementations</h3>
         <p>ASDF 2 now supports all CL implementations
           that seem to have any current user base.
@@ -227,11 +229,16 @@ Peter Graves <gnooth@gmail.com>
           <dt>In April 2012</dt>
           <dd>
             ASDF 2.21 will control the character encoding used by Lisp source files.
-            The <i>de facto</i> standard, UTF-8,
-            will be blessed and enforced as the default encoding for all files.
             You will be able to specify different encodings
             in your defsystem, e.g. <kbd>:encoding :latin1</kbd>,
             if you <kbd>:defsystem-depends-on (:asdf-encodings)</kbd>.
+            While the default will remain to load and compile file
+            with the <kbd>:default</kbd> external-format,
+            we encourage all library authors to adopt
+            the <i>de facto</i> standard, UTF-8,
+            for all their source files (.lisp and .asd).
+            Our intent is to bless and enforce this standard encoding
+            on all these files by default in a not-to-faraway future.
           </dd>
           <dt>Since December 2009</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau is de facto maintainer,
