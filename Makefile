@@ -112,8 +112,8 @@ test-upgrade:
 	    case ${lisp}:$$tag:$$x in \
 	      ecl:1.*|ecl:2.00*|ecl:2.01[0-6]:*|ecl:2.20:*) \
 		: Skip, because of various ASDF issues ;; \
-	      cmucl:*:load-system) \
-		: Skip, because of various ASDF issues ;; \
+	      cmucl:1.*) \
+		: Skip, CMUCL cannot upgrade from ASDF 1. Happily, it ships ASDF 2 ;; \
 	      *) (set -x ; \
                   case $$x in \
 		    load-system) $$lv "$$lo" $$ev "$$la" $$ev "$$te" ;; \
