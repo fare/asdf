@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.20.20: Another System Definition Facility.
+;;; This is ASDF 2.20.21: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.20.20")
+         (asdf-version "2.20.21")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -349,7 +349,7 @@
             #:clear-source-registry
             #:ensure-source-registry
             #:process-source-registry
-            #:system-registered-p
+            #:system-registered-p #:registered-systems
             #:resolve-location
             #:asdf-message
             #:user-output-translations-pathname
@@ -1594,6 +1594,10 @@ of which is a system object.")
 (defun* system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
 
+(defun* registered-systems ()
+  (loop :for (() . system) :being :the :hash-values :of *defined-systems*
+    :collect (coerce-name system)))
+
 (defun* register-system (system)
   (check-type system system)
   (let ((name (component-name system)))
@@ -1685,8 +1689,8 @@ Going forward, we recommend new users should be using the source-registry.
   (block nil
     (when (directory-pathname-p defaults)
       (let* ((file (probe-file* (subpathname defaults (strcat name ".asd")))))
-        (when file)
-          (return file))
+        (when file
+          (return file)))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
       (when (os-windows-p)
         (let ((shortcut
@@ -1966,6 +1970,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
    ;;   to force systems named in a given list
    ;; However, but this feature has only ever worked but starting with ASDF 2.014.5
    (forced :initform nil :initarg :force :accessor operation-forced)
+   (forced-not :initform nil :initarg :force-not :accessor operation-forced-not)
    (original-initargs :initform nil :initarg :original-initargs
                       :accessor operation-original-initargs)
    (visited-nodes :initform (make-hash-table :test 'equal) :accessor operation-visited-nodes)
@@ -1978,10 +1983,15 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (prin1 (operation-original-initargs o) stream))))
 
 (defmethod shared-initialize :after ((operation operation) slot-names
-                                     &key force
+                                     &key force force-not
                                      &allow-other-keys)
-  (declare (ignorable operation slot-names force))
-  ;; empty method to disable initarg validity checking
+  ;; the &allow-other-keys disables initarg validity checking
+  (declare (ignorable operation slot-names force force-not))
+  (macrolet ((frob (x) ;; normalize forced and forced-not slots
+               `(when (consp (,x operation))
+                  (setf (,x operation)
+                        (mapcar #'coerce-name (,x operation))))))
+    (frob operation-forced) (frob operation-forced-not))
   (values))
 
 (defun* node-for (o c)
@@ -2249,14 +2259,17 @@ recursive calls to traverse.")
         (error 'circular-dependency :components (list c)))
       (setf (visiting-component operation c) t)
       (unwind-protect
-           (progn
-             (let ((f (operation-forced
-                       (operation-ancestor operation))))
-               (when (and f (or (not (consp f)) ;; T or :ALL
-                                (and (typep c 'system) ;; list of names of systems to force
-                                     (member (component-name c) f
-                                             :test #'string=))))
-                 (setf *forcing* t)))
+           (block nil
+             (when (typep c 'system) ;; systems can be forced or forced-not
+               (let ((ancestor (operation-ancestor operation)))
+                 (flet ((match? (f)
+                          (and f (or (not (consp f)) ;; T or :ALL
+                                     (member (component-name c) f :test #'equal)))))
+                   (cond
+                     ((match? (operation-forced ancestor))
+                      (setf *forcing* t))
+                     ((match? (operation-forced-not ancestor))
+                      (return))))))
              ;; first we check and do all the dependencies for the module.
              ;; Operations planned in this loop will show up
              ;; in the results, and are consumed below.
@@ -2311,9 +2324,9 @@ recursive calls to traverse.")
                      :do (do-dep operation c collect required-op deps)))
                  (do-collect collect (vector module-ops))
                  (do-collect collect (cons operation c)))))
-             (setf (visiting-component operation c) nil)))
-      (visit-component operation c (when flag (incf *visit-count*)))
-      flag))
+        (setf (visiting-component operation c) nil)))
+    (visit-component operation c (when flag (incf *visit-count*)))
+    flag))
 
 (defun* flatten-tree (l)
   ;; You collected things into a list.
@@ -2332,9 +2345,6 @@ recursive calls to traverse.")
       (r* l))))
 
 (defmethod traverse ((operation operation) (c component))
-  (when (consp (operation-forced operation))
-    (setf (operation-forced operation)
-          (mapcar #'coerce-name (operation-forced operation))))
   (flatten-tree
    (while-collecting (collect)
      (let ((*visit-count* 0))
@@ -2998,8 +3008,7 @@ Returns the new tree (which probably shares structure with the old one)"
 ;;;;
 ;;;; As a suggested replacement which is portable to all ASDF-supported
 ;;;; implementations and operating systems except Genera, I recommend
-;;;; xcvb-driver's xcvb-driver:run-program/process-output-stream and its
-;;;; derivatives such as xcvb-driver:run-program/for-side-effects.
+;;;; xcvb-driver's xcvb-driver:run-program/ and its derivatives.
 
 (defun* run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
