@@ -32,7 +32,7 @@
         <a id="ASDF 2"></a>
         <h3>ASDF 2</h3>
         <p>ASDF 2, initially released on May 31st 2010,
-          is the current successor of Daniel Barlow's ASDF,
+          is the current successor to Daniel Barlow's ASDF,
           made more portable and more robust, with a somewhat improved API.
           It has since been widely adopted by the CL community,
           and is actively maintained.
@@ -70,7 +70,8 @@
           <a href="http://cs-www.cs.yale.edu/homes/dvm/">YTools</a>
           (trying maintain coherence of the current Lisp image at a fine grain),
           or the newcomer
-          <a href="http://lisp.ystok.ru/asdlite/">ASDlite</a>.
+          <a href="http://lisp.ystok.ru/asdlite/">ASDlite</a>
+          (a somewhat improved incompatible variant of ASDF 1).
           Older systems that are not maintained anymore include
           Mark Kantrowitz's <a href="http://www.cliki.net/mk-defsystem">mk-defsystem</a>
           (free software successor of the old proprietary DEFSYSTEM's and predecessor of ASDF),
@@ -228,9 +229,9 @@ Peter Graves <gnooth@gmail.com>
         <dl>
           <dt>In April 2012</dt>
           <dd>
-            ASDF 2.21 will control the character encoding used by Lisp source files.
-            You will be able to specify different encodings
-            in your defsystem, e.g. <kbd>:encoding :latin1</kbd>,
+            ASDF 2.21 now controls the character encoding used by Lisp source files.
+            You can specify different encodings in your defsystem,
+            e.g. <kbd>:encoding :latin1</kbd>,
             if you <kbd>:defsystem-depends-on (:asdf-encodings)</kbd>.
             While the default will remain to load and compile file
             with the <kbd>:default</kbd> external-format,
@@ -245,7 +246,7 @@ Peter Graves <gnooth@gmail.com>
             with notable contributions from Robert P. Goldman, but also
             Juanjo Garcia-Ripoll and James Anderson.
             ASDF 2 released
-            with many clean-ups, better configurability
+            with many clean-ups, better configurability, some new features,
             and updated documentation.
           </dd>
           <dt>May 2006 to November 2009</dt>
@@ -278,7 +279,7 @@ Peter Graves <gnooth@gmail.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2012 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2012-04-20</div>
+        <div id="timestamp">Last updated 2012-04-28</div>
     </div>
   </body>
 </html>

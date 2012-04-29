@@ -35,11 +35,11 @@ for Common Lisp programs and libraries.
 You can find the latest version of this manual at
 @url{http://common-lisp.net/project/asdf/asdf.html}.
 
-ASDF Copyright @copyright{} 2001-2011 Daniel Barlow and contributors.
+ASDF Copyright @copyright{} 2001-2012 Daniel Barlow and contributors.
 
-This manual Copyright @copyright{} 2001-2011 Daniel Barlow and contributors.
+This manual Copyright @copyright{} 2001-2012 Daniel Barlow and contributors.
 
-This manual revised @copyright{} 2009-2011 Robert P. Goldman and Francois-Rene Rideau.
+This manual revised @copyright{} 2009-2012 Robert P. Goldman and Francois-Rene Rideau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -197,6 +197,7 @@ so you may more easily modify it, we recommend clbuild.
 @vindex *central-registry*
 @cindex link farm
 @findex load-system
+@findex require-system
 @findex compile-system
 @findex test-system
 @cindex system directory designator
@@ -668,6 +669,8 @@ which is reported not to work on some implementations
 
 ASDF provides three commands for the most common system operations:
 @code{load-system}, @code{compile-system} or @code{test-system}.
+It also provides @code{require-system}, a version of @code{load-system}
+that skips trying to update systems that are already loaded.
 
 Because ASDF is an extensible system
 for defining @emph{operations} on @emph{components},
@@ -2082,7 +2085,7 @@ RELATIVE-COMPONENT-DESIGNATOR :=
     STRING | ;; relative directory pathname as interpreted by coerce-pathname.
              ;; In output translations, if last component, **/*.*.* is added
     PATHNAME | ;; pathname; unless last component, directory is assumed.
-    :IMPLEMENTATION | ;; directory based on implementation, e.g. sbcl-1.0.49-linux-x64
+    :IMPLEMENTATION | ;; directory based on implementation, e.g. sbcl-1.0.45-linux-x64
     :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
     :DEFAULT-DIRECTORY | ;; a relativized version of the default directory
     :*/ | ;; any direct subdirectory (since ASDF 2.011.4)
@@ -2992,7 +2995,7 @@ so you can explicitly specify @code{:encoding :latin1}
 in your @code{.asd} file.
 Using the @code{*encoding-detection-hook*} it will also
 eventually implement some autodetection of a file's encoding
-from an emacs-style @code{-*- coding: latin1 -*-} declaration,
+from an emacs-style @code{-*- mode: lisp ; coding: latin1 -*-} declaration,
 or otherwise based on an analysis of octet patterns in the file.
 At this point, asdf-encoding only supports the encodings
 that are supported as part of your implementation.
@@ -3017,7 +3020,7 @@ so they make their packages compatible.
 A survey showed only about a handful few libraries
 are incompatible with non-UTF-8, and then, only in comments,
 and we believe that authors will adopt UTF-8 when prompted.
-See April 2012 discussion on the sbcl-devel mailing-list.
+See the April 2012 discussion on the asdf-devel mailing-list.
 For backwards compatibility with users who insist on a non-UTF-8 encoding,
 but cannot immediately transition to using @code{asdf-encodings}
 (maybe because it isn't ready), it will still be possible to use
