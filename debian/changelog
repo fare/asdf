@@ -29,8 +29,8 @@ cl-asdf (2:2.21-1) unstable; urgency=low
     * logical-pathname support was somewhat broken since 2.017.6,
       due to the way most implementations fail to read physical namestrings
       when *default-pathname-defaults* is a logical-pathname.
-      Fixed, together with other logical-pathname issues,
-      and a test case was added to the test suite to ensure no further regression.
+      Fixed, together with other logical-pathname issues, and
+      a test case was added to the test suite to ensure no further regression.
       Works great modulo quirks around implementation bugs on CLISP and Allegro.
     * Make upgrading ASDF more robust on CMUCL, LispWorks, SBCL.
   * Minor tweaks:
