@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.21: Another System Definition Facility.
+;;; This is ASDF 2.21.1: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.21")
+         (asdf-version "2.21.1")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3687,7 +3687,7 @@ Please remove it from your ASDF configuration"))
     #+sbcl ,(let ((h (getenv "SBCL_HOME")))
                  (when (plusp (length h)) `((,(truenamize h) ,*wild-inferiors*) ())))
     ;; The below two are not needed: no precompiled ASDF system there
-    ;; #+ecl (,(translate-logical-pathname "SYS:**;*.*") ())
+    #+ecl (,(translate-logical-pathname "SYS:**;*.*") ())
     ;; #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ()))
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
@@ -4399,7 +4399,7 @@ with a different configuration, so the configuration would be re-read then."
     (let ((*verbose-out* (make-broadcast-stream))
           (system (find-system (string-downcase name) nil)))
       (when system
-        (operate *require-asdf-operator* system :verbose nil)
+        (operate *require-asdf-operator* system :verbose nil :force-not (loaded-systems))
         t))))
 
 #+(or abcl clisp clozure cmu ecl sbcl)

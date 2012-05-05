@@ -83,6 +83,7 @@
                      (slot-value instance 'original-initargs))))
 
 (defmethod bundle-op-build-args :around ((op lib-op))
+  (declare (ignorable op))
   (let ((args (call-next-method)))
     (remf args :ld-flags)
     args))
@@ -142,6 +143,7 @@
                      :filter-system (and (not (bundle-op-monolithic-p o)) c)
                      :filter-type '(not system)))
 (defmethod bundle-sub-operations ((o monolithic-lib-op) c)
+  (declare (ignorable o))
   (gather-components 'compile-op c
                      :filter-system nil
                      :filter-type '(not system)))
@@ -432,6 +434,3 @@
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
 #+win32 (push '("asd" . si::load-source) ext:*load-hooks*)
-(pushnew (translate-logical-pathname "SYS:") *central-registry*)
-
-(provide :asdf)
