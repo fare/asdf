@@ -83,24 +83,17 @@ mrproper: clean
 
 test-upgrade:
 	fasl=fasl ; \
-	use_ccl () { li="${CCL} --no-init --quiet" ; ev="--eval" ; fasl=lx86fsl ; } ; \
-	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet" ; ev="-x" ; fasl=fas ; } ; \
-	use_sbcl () { li="${SBCL} --noinform --no-userinit" ; ev="--eval" ; fasl=fasl ; } ; \
-	use_ecl () { li="${ECL} -norc" ; ev="-eval" ; fasl=fas ; } ; \
-	use_cmucl () { li="${CMUCL} -noinit" ; ev="-eval" ; fasl=sse2f ; } ; \
-	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; fasl=fasl ; } ; \
-	use_scl () { li="${SCL} -noinit" ; ev="-eval" ; fasl=sse2f ; } ; \
-	use_allegro () { li="${ALLEGRO} -q" ; ev="-e" ; fasl=fas ; } ; \
-	use_allegromodern () { li="${ALLEGROMODERN} -q" ; ev="-e" ; fasl=fas ; } ; \
-	use_lispworks () { li="${LISPWORKS} -siteinit - -init -" ; ev="-eval" ; fasl=ufasl ; } ; \
+	use_ccl () { li="${CCL} --no-init --quiet" ; ev="--eval" ; } ; \
+	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet" ; ev="-x" ; } ; \
+	use_sbcl () { li="${SBCL} --noinform --no-userinit" ; ev="--eval" ; } ; \
+	use_ecl () { li="${ECL} -norc" ; ev="-eval" ; } ; \
+	use_cmucl () { li="${CMUCL} -noinit" ; ev="-eval" ; } ; \
+	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
+	use_scl () { li="${SCL} -noinit" ; ev="-eval" ; } ; \
+	use_allegro () { li="${ALLEGRO} -q" ; ev="-e" ; } ; \
+	use_allegromodern () { li="${ALLEGROMODERN} -q" ; ev="-e" ; } ; \
+	use_lispworks () { li="${LISPWORKS} -siteinit - -init -" ; ev="-eval" ; } ; \
 	use_${lisp} ; \
-	mkdir -p tmp/fasls/${lisp} ; \
-	fa=tmp/fasls/${lisp}/upasdf.$${fasl} ; \
-	ll="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"ll~%\") (load \"asdf.lisp\"))" ; \
-	cf="(handler-bind ((warning #'muffle-warning)) (format t \"cf~%\") (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose t :print t))" ; \
-	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
-	la="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"la\") (push #p\"${sourceDirectory}/\" asdf:*central-registry*) (asdf:oos 'asdf:load-op :asdf :verbose t))" ; \
-	te="(asdf-test::quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
 	su=test/script-support ; lu="(load\"$$su\")" ; \
 	lv="$$li $$ev $$lu $$ev" ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
@@ -112,16 +105,17 @@ test-upgrade:
 	    case ${lisp}:$$tag:$$x in \
 	      ecl:1.*|ecl:2.00*|ecl:2.01[0-6]:*|ecl:2.20:*) \
 		: Skip, because of various ASDF issues ;; \
-	      cmucl:1.*) \
+	      cmucl:1.*|cmucl:2.00*) \
 		: Skip, CMUCL cannot upgrade from ASDF 1. Happily, it ships ASDF 2 ;; \
 	      *) (set -x ; \
                   case $$x in \
-		    load-system) $$lv "$$lo" $$ev "$$la" $$ev "$$te" ;; \
-		    load-lisp) $$lv "$$lo" $$ev "$$ll" $$ev "$$te" ;; \
-		    load-lisp-compile-load-fasl) $$lv "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" ;; \
-		    load-fasl) $$lv "$$lo" $$ev "$$lf" $$ev "$$te" ;; \
-		    just-load-fasl) $$lv "$$lf" $$ev "$$te" ;; \
-		    *) echo "WTF?" ; exit 2 ;; esac ) || \
+		    load-system) l="$$lo (asdf-test::load-asdf-system)" ;; \
+		    load-lisp) l="$$lo (asdf-test::load-asdf-lisp)" ;; \
+		    load-lisp-compile-load-fasl) l="$$lo (asdf-test::compile-load-asdf)" ;; \
+		    load-fasl) l="$$lo (asdf-test::load-asdf-fasl)" ;; \
+		    just-load-fasl) l="(asdf-test::load-asdf-fasl)" ;; \
+		    *) echo "WTF?" ; exit 2 ;; esac ; \
+		  $$lv "(asdf-test::test-asdf $$l)" ) || \
 		{ echo "upgrade FAILED" ; exit 1 ;} ;; esac ; \
 	done ; done
 

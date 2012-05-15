@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.21.1: Another System Definition Facility.
+;;; This is ASDF 2.21.2: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.21.1")
+         (asdf-version "2.21.2")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1343,7 +1343,7 @@ processed in order by OPERATE."))
     :initarg :if-component-dep-fails
     :accessor module-if-component-dep-fails)
    (default-component-class
-    :initform *default-component-class*
+    :initform nil
     :initarg :default-component-class
     :accessor module-default-component-class)))
 
@@ -2799,8 +2799,11 @@ details."
                                  class (find-class 'component)))
         :return class)
       (and (eq type :file)
-           (or (and parent (module-default-component-class parent))
-               (find-class *default-component-class*)))
+           (aif
+            (or (loop :for module = parent :then (component-parent module) :while module
+                  :thereis (module-default-component-class module))
+                *default-component-class*)
+            (find-class it)))
       (sysdef-error "don't recognize component type ~A" type)))
 
 (defun* maybe-add-tree (tree op1 op2 c)
@@ -2886,7 +2889,7 @@ Returns the new tree (which probably shares structure with the old one)"
         (type name &rest rest &key
               ;; the following list of keywords is reproduced below in the
               ;; remove-keys form.  important to keep them in sync
-              components pathname default-component-class
+              components pathname
               perform explain output-files operation-done-p
               weakly-depends-on depends-on serial in-order-to
               do-first
@@ -2913,7 +2916,7 @@ Returns the new tree (which probably shares structure with the old one)"
                         :pathname pathname
                         :parent parent
                         (remove-keys
-                         '(components pathname default-component-class
+                         '(components pathname
                            perform explain output-files operation-done-p
                            weakly-depends-on depends-on serial in-order-to)
                          rest)))
@@ -2927,10 +2930,6 @@ Returns the new tree (which probably shares structure with the old one)"
           (setf ret (apply 'make-instance (class-for-type parent type) args)))
       (component-pathname ret) ; eagerly compute the absolute pathname
       (when (typep ret 'module)
-        (setf (module-default-component-class ret)
-              (or default-component-class
-                  (and (typep parent 'module)
-                       (module-default-component-class parent))))
         (let ((*serial-depends-on* nil))
           (setf (module-components ret)
                 (loop

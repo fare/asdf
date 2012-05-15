@@ -114,3 +114,52 @@ is bound, write a message and exit on an error.  If
                    (leave-lisp "~&Script failed~%" 1))))))
     (funcall thunk)
     (leave-lisp "~&Script succeeded~%" 0)))
+
+
+;;; These are used by the upgrade tests
+
+(defmacro quietly (&body body)
+  `(call-quietly #'(lambda () ,@body)))
+
+(defun call-quietly (thunk)
+  (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
+    (funcall thunk)))
+
+(defun load-asdf-lisp ()
+  (load *asdf-lisp*))
+
+(defun compile-asdf ()
+  (ensure-directories-exist *asdf-fasl*)
+  (compile-file *asdf-lisp* :output-file *asdf-fasl* :verbose t :print t))
+
+(defun load-asdf-fasl ()
+  (load *asdf-fasl*))
+
+(defun compile-load-asdf ()
+  ;; emulate the way asdf upgrades itself: load source, compile, load fasl.
+  (load-asdf-lisp)
+  (compile-asdf)
+  (load-asdf-fasl))
+
+(defun register-directory (dir)
+  (pushnew dir (symbol-value (find-symbol (string :*central-registry*) :asdf))))
+
+(defun asdf-load (x)
+  (let ((xoos (find-symbol (string :oos) :asdf))
+        (xload-op (find-symbol (string :load-op) :asdf)))
+    (funcall xoos xload-op x :verbose t)))
+
+(defun load-asdf-system ()
+  (quietly
+   (register-directory *asdf-directory*)
+   (asdf-load :asdf)))
+
+(defun testing-asdf (thunk)
+  (quit-on-error
+   (quietly
+    (funcall thunk)
+    (register-directory *test-directory*)
+    (asdf-load :test-module-depend))))
+
+(defmacro test-asdf (&body body)
+  `(testing-asdf #'(lambda () ,@body)))
