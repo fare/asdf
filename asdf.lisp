@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.21.4: Another System Definition Facility.
+;;; This is ASDF 2.21.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.21.4")
+         (asdf-version "2.21.5")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -4014,21 +4014,24 @@ with a different configuration, so the configuration would be re-read then."
       entries))
 
 (defun* directory-files (directory &optional (pattern *wild-file*))
-  (setf directory (pathname directory))
-  (when (wild-pathname-p directory)
-    (error "Invalid wild in ~S" directory))
-  (unless (member (pathname-directory pattern) '(() (:relative)) :test 'equal)
-    (error "Invalid file pattern ~S" pattern))
-  (when (typep directory 'logical-pathname)
-    (setf pattern (make-pathname-logical pattern (pathname-host directory))))
-  (let ((entries (ignore-errors (directory* (merge-pathnames* pattern directory)))))
-    (filter-logical-directory-results
-     directory entries
-     #'(lambda (f)
-         (make-pathname :defaults directory
-                        :name (pathname-name f)
-                        :type (make-pathname-component-logical (pathname-type f))
-                        :version (make-pathname-component-logical (pathname-version f)))))))
+  (let ((dir (pathname directory)))
+    (when (typep dir 'logical-pathname)
+      ;; Because of the filtering we do below,
+      ;; logical pathnames have restrictions on wild patterns.
+      ;; Not that the results are very portable when you use these patterns on physical pathnames.
+      (when (wild-pathname-p dir)
+        (error "Invalid wild pattern in logical directory ~S" directory))
+      (unless (member (pathname-directory pattern) '(() (:relative)) :test 'equal)
+        (error "Invalid file pattern ~S for logical directory ~S" pattern directory))
+      (setf pattern (make-pathname-logical pattern (pathname-host dir))))
+    (let ((entries (ignore-errors (directory* (merge-pathnames* pattern dir)))))
+      (filter-logical-directory-results
+       directory entries
+       #'(lambda (f)
+           (make-pathname :defaults dir
+                          :name (make-pathname-component-logical (pathname-name f))
+                          :type (make-pathname-component-logical (pathname-type f))
+                          :version (make-pathname-component-logical (pathname-version f))))))))
 
 (defun* directory-asd-files (directory)
   (directory-files directory *wild-asd*))
