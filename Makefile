@@ -105,8 +105,10 @@ test-upgrade:
 	    case ${lisp}:$$tag:$$x in \
 	      ecl:1.*|ecl:2.00*|ecl:2.01[0-6]:*|ecl:2.20:*) \
 		: Skip, because of various ASDF issues ;; \
-	      cmucl:1.*|cmucl:2.00*) \
-		: Skip, CMUCL cannot upgrade from ASDF 1. Happily, it ships ASDF 2 ;; \
+	      ccl:1.*|ccl:2.0[01]*) \
+		: Skip, because ccl broke old asdf ;; \
+	      cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*) \
+		: Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;; \
 	      *) (set -x ; \
                   case $$x in \
 		    load-system) l="$$lo (asdf-test::load-asdf-system)" ;; \
@@ -120,7 +122,7 @@ test-upgrade:
 	done ; done
 
 test-forward-references:
-	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
+	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
 
 test-lisp:
 	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}

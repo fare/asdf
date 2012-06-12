@@ -5,7 +5,7 @@
 (declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)))
 (proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)))
 
-(format t "Evaluating asdf/test/script-support~%")
+;;(format t "Evaluating asdf/test/script-support~%")
 
 ;; We can't use asdf:merge-pathnames* because ASDF isn't loaded yet.
 ;; We still want to work despite and host/device funkiness.
@@ -61,13 +61,7 @@
     #-(or clozure cmu sbcl scl) (namestring p)))
 
 ;;; code adapted from cl-launch http://www.cliki.net/cl-launch
-(defun leave-lisp (message return)
-  (fresh-line *error-output*)
-  (when message
-    (format *error-output* message)
-    (terpri *error-output*))
-  (finish-output *error-output*)
-  (finish-output *standard-output*)
+(defun exit-lisp (return)
   #+allegro
   (excl:exit return)
   #+clisp
@@ -82,12 +76,23 @@
   (lispworks:quit :status return :confirm nil :return nil :ignore-errors-p t)
   #+(or openmcl mcl)
   (ccl::quit return)
-  #+sbcl
-  (sb-ext:quit :unix-status return)
+  #+sbcl #.(let ((exit (find-symbol "EXIT" :sb-ext))
+                 (quit (find-symbol "QUIT" :sb-ext)))
+             (cond
+               (exit `(,exit :code return :abort t))
+               (quit `(,quit :unix-status return :recklessly-p t))))
   #+(or abcl xcl)
   (ext:quit :status return)
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
+(defun leave-lisp (message return)
+  (fresh-line *error-output*)
+  (when message
+    (format *error-output* message)
+    (terpri *error-output*))
+  (finish-output *error-output*)
+  (finish-output *standard-output*)
+  (exit-lisp return))
 
 (defmacro quit-on-error (&body body)
   `(call-quitting-on-error (lambda () ,@body)))
