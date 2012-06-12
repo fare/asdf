@@ -1,3 +1,13 @@
+cl-asdf (2:2.22-1) unstable; urgency=low
+
+  * require is now mapped to the recently defined require-system,
+   not to load-system anymore.
+  * more sensible inheritance semantics for default-component-class,
+   which can be either a class or a class name.
+  * accept wildcards in directory-files for physical pathnames. lp#1000842
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 12 Jun 2012 11:22:33 -0400
+
 cl-asdf (2:2.21-1) unstable; urgency=low
 
   * New features:
