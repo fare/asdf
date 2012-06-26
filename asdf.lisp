@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.22: Another System Definition Facility.
+;;; This is ASDF 2.22.1: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -116,7 +116,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.22")
+         (asdf-version "2.22.1")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2464,11 +2464,11 @@ recursive calls to traverse.")
         (*compile-file-failure-behaviour* (operation-on-failure operation)))
     (multiple-value-bind (output warnings-p failure-p)
         (call-with-around-compile-hook
-         c #'(lambda ()
+         c #'(lambda (&rest flags)
                (apply *compile-op-compile-file-function* source-file
                       :output-file output-file
                       :external-format (component-external-format c)
-                      (compile-op-flags operation))))
+		      (append flags (compile-op-flags operation)))))
       (unless output
         (error 'compile-error :component c :operation operation))
       (when failure-p
@@ -3882,8 +3882,9 @@ effectively disabling the output translation facility."
   (when (and x (probe-file* x))
     (delete-file x)))
 
-(defun* compile-file* (input-file &rest keys &key output-file &allow-other-keys)
-  (let* ((output-file (apply 'compile-file-pathname* input-file :output-file output-file keys))
+(defun* compile-file* (input-file &rest keys &key compile-check output-file &allow-other-keys)
+  (let* ((keywords (remove-keyword :compile-check keys))
+	 (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
          (tmp-file (tmpize-pathname output-file))
          (status :error))
     (multiple-value-bind (output-truename warnings-p failure-p)
@@ -3895,15 +3896,19 @@ effectively disabling the output translation facility."
          (setf status *compile-file-warnings-behaviour*))
         (t
          (setf status :success)))
-      (ecase status
-        ((:success :warn :ignore)
+      (cond
+	((and (ecase status
+		((:success :warn :ignore) t)
+		((:error nil)))
+	      (or (not compile-check)
+		  (apply compile-check input-file :output-file tmp-file keywords)))
          (delete-file-if-exists output-file)
          (when output-truename
            (rename-file output-truename output-file)
            (setf output-truename output-file)))
-        (:error
+	(t ;; error or failed check
          (delete-file-if-exists output-truename)
-         (setf output-truename nil)))
+         (setf output-truename nil failure-p t)))
       (values output-truename warnings-p failure-p))))
 
 #+abcl
