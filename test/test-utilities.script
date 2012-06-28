@@ -43,7 +43,13 @@
 (assert
  (not (version-satisfies (asdf-version) "666")))
 (assert
-  (equal (asdf::split-absolute-pathnames "/foo:/bar" "baz") '("/foo" "/bar")))
+  (equal (asdf::split-pathnames* "foo:bar" nil nil "baz") '(#p"foo" #p"bar")))
+(assert
+  (equal (asdf::split-pathnames* "foo:bar" nil t "baz") '(#p"foo/" #p"bar/")))
+(assert
+  (equal (asdf::split-pathnames* "/foo:/bar" t nil "baz") '(#p"/foo" #p"/bar")))
+(assert
+  (equal (asdf::split-pathnames* "/foo:/bar" t t "baz") '(#p"/foo/" #p"/bar/")))
 (assert (equal (mapcar 'asdf::location-function-p
                        '((:function f)
                          (:function (lambda (path absolute-source)
