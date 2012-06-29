@@ -22,6 +22,7 @@
         <li><a href="#examples">Examples</a></li>
         <li><a href="#documentation">Documentation</a></li>
         <li><a href="#downloads">Getting it</a></li>
+        <li><a href="#extensions">Extensions</a></li>
         <li><a href="#bugs">Reporting Bugs</a></li>
         <li><a href="#mailing-lists">Mailing Lists</a></li>
         <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=log"
@@ -196,6 +197,40 @@ Peter Graves <gnooth@gmail.com>
             <a href="http://common-lisp.net/project/asdf/archives/">archives</a>
         </li></ul>
 
+        <a id="extensions"></a>
+        <h3>Extensions</h3>
+        <p>Known extensions to ASDF include:</p>
+	<ul>
+	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-contrib.git"
+		 >asdf-contrib</a>,
+	    a collection of most of the below.</li>
+	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-encodings.git"
+		 >asdf-encodings</a>,
+	    to compile Lisp source files with character encodings other than UTF-8.</li>
+	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-bundle.git"
+		 >asdf-bundle</a>,
+	    to bundle one or more systems into a single FASL file, for easier delivery</li>
+	  <li><a href="http://common-lisp.net/gitweb?p=projects/xcvb/xcvb.git"
+		 >asdf-condition-control</a>
+	    (distributed as part of XCVB),
+	    to control which conditions to warn about or to muffle during compilation.</li>
+	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-finalizers.git"
+		 >asdf-finalizers</a>,
+	    to allow macros to include code to be evaluated
+	    at the end of a file being compiled.</li>
+	  <li><a href="http://common-lisp.net/gitweb?p=projects/xcvb/asdf-dependency-grovel.git"
+		 >asdf-dependency-grovel</a>,
+	    to compute the actual dependencies in a big ASDF system.</li>
+	  <li><a href="http://common-lisp.net/project/qitab/"
+		 >poiu</a>,
+	    to compile a system in parallel.</li>
+	</ul>
+
+        <h3>Contributing</h3>
+        <p>Join our mailing list, check the code out from git,
+          send questions, ideas and patches!
+        </p>
+
         <a id="bugs">
         <h3>Reporting Bugs</h3>
         <p>To report bugs, you can use our
@@ -279,7 +314,7 @@ Peter Graves <gnooth@gmail.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2012 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2012-04-28</div>
+        <div id="timestamp">Last updated 2012-06-29</div>
     </div>
   </body>
 </html>
