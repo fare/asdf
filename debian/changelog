@@ -1,3 +1,12 @@
+cl-asdf (2:2.23-1) unstable; urgency=low
+
+  * add new :compile-check argument to compile-file* and around-compile-hook.
+    This allows for consistency check of .fasl output before the file can
+    possibly be seen by other builds (i.e. no race condition).
+  * export more utilities for dealing with pathnames from environment.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 17 Jul 2012 11:03:32 -0400
+
 cl-asdf (2:2.22-1) unstable; urgency=low
 
   * require is now mapped to the recently defined require-system,
