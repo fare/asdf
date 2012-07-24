@@ -36,7 +36,9 @@
   ((type :reader bundle-op-type)
    (monolithic :initform nil :reader bundle-op-monolithic-p)
    (name-suffix :initarg :name-suffix :initform nil)
-   (build-args :initarg :args :initform nil :accessor bundle-op-build-args)))
+   (build-args :initarg :args :initform nil :accessor bundle-op-build-args)
+   (lisp-files :initform nil :accessor bundle-op-lisp-files)))
+
 
 (defclass fasl-op (bundle-op)
   ((type :initform :fasl)))
@@ -72,10 +74,12 @@
           (if (bundle-op-monolithic-p instance) "-mono" "")))
   (when (typep instance 'monolithic-bundle-op)
     (destructuring-bind (&rest original-initargs
-                         &key prologue-code epilogue-code &allow-other-keys)
+			 &key lisp-files prologue-code epilogue-code
+			 &allow-other-keys)
         (slot-value instance 'original-initargs)
       (setf (slot-value instance 'original-initargs)
-            (remove-keys '(epilogue-code prologue-code) original-initargs)
+            (remove-keys '(lisp-files epilogue-code prologue-code) original-initargs)
+            (bundle-op-lisp-files instance) lisp-files
             (monolithic-op-prologue-code instance) prologue-code
             (monolithic-op-epilogue-code instance) epilogue-code)))
   (setf (bundle-op-build-args instance)
@@ -208,7 +212,8 @@
                                :key #'pathname-type :test #'string=))
          (output (output-files o c)))
     (ensure-directories-exist (first output))
-    (apply #'c::builder (bundle-op-type o) (first output) :lisp-files object-files
+    (apply #'c::builder (bundle-op-type o) (first output)
+	   :lisp-files (append object-files (bundle-op-lisp-files o))
            (append (bundle-op-build-args o)
                    (when (and (typep o 'monolithic-bundle-op)
                               (monolithic-op-prologue-code o))
@@ -299,13 +304,8 @@
 ;;; form. Only useful when the dependencies have also been precompiled.
 ;;;
 
-(defclass compiled-file (component) ())
-(defmethod component-relative-pathname ((component compiled-file))
-  (compile-file-pathname
-   (coerce-pathname
-    (or (slot-value component 'relative-pathname)
-        (component-name component))
-    :type "fas")))
+(defclass compiled-file (component)
+  ((type :initform nil)))
 
 (defmethod output-files (o (c compiled-file))
   (declare (ignore o c))
@@ -331,10 +331,8 @@
 
 (defmethod output-files ((o lib-op) (c prebuilt-system))
   (declare (ignore o))
-  (values (list (compile-file-pathname (prebuilt-system-static-library c)
-                                       :type :lib))
-          t ; Advertise that we do not want this path renamed
-          ))
+  (values (list (prebuilt-system-static-library c))
+          t)) ; Advertise that we do not want this path renamed
 
 (defmethod perform ((o lib-op) (c prebuilt-system))
   (car (output-files o c)))
@@ -424,7 +422,7 @@
 (push '("fasb" . si::load-binary) ext:*load-hooks*)
 
 (defun register-pre-built-system (name)
-  (register-system (make-instance 'system :name name :source-file nil)))
+  (register-system (make-instance 'system :name (coerce-name name) :source-file nil)))
 
 (setf ext:*module-provider-functions*
       (loop :for f :in ext:*module-provider-functions*
@@ -433,4 +431,7 @@
                      (let ((l (multiple-value-list (funcall f name))))
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
-#+win32 (push '("asd" . si::load-source) ext:*load-hooks*)
+#+win32
+(unless (assoc "asd" ext:*load-hooks* :test 'equal)
+  (appendf ext:*load-hooks* '(("asd" . si::load-source))))
+
