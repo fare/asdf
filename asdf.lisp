@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.23.2: Another System Definition Facility.
+;;; This is ASDF 2.23.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.23.2")
+         (asdf-version "2.23.3")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -753,8 +753,9 @@ pathnames."
           (let ((value (_getenv name)))
             (unless (ccl:%null-ptr-p value)
               (ccl:%get-cstring value))))
+  #+mkcl (#.(or (find-symbol* 'getenv :si) (find-symbol* 'getenv :mk-ext)) x)
   #+sbcl (sb-ext:posix-getenv x)
-  #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl sbcl scl xcl)
+  #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S is not supported on your implementation" 'getenv))
 
 (defun* directory-pathname-p (pathname)
@@ -3314,14 +3315,14 @@ located."
   (loop :for dir :in (split-string
                       x :separator (string (inter-directory-separator)))
         :collect (apply 'ensure-pathname* dir want-absolute want-directory fmt args)))
-(defun getenv-pathname (x &key want-absolute want-directory &aux (s (getenv x)))
+(defun* getenv-pathname (x &key want-absolute want-directory &aux (s (getenv x)))
   (ensure-pathname* s want-absolute want-directory "from (getenv ~S)" x))
-(defun getenv-pathnames (x &key want-absolute want-directory &aux (s (getenv x)))
+(defun* getenv-pathnames (x &key want-absolute want-directory &aux (s (getenv x)))
   (and (plusp (length s))
        (split-pathnames* s want-absolute want-directory "from (getenv ~S) = ~S" x s)))
-(defun getenv-absolute-directory (x)
+(defun* getenv-absolute-directory (x)
   (getenv-pathname x :want-absolute t :want-directory t))
-(defun getenv-absolute-directories (x)
+(defun* getenv-absolute-directories (x)
   (getenv-pathnames x :want-absolute t :want-directory t))
 
 
