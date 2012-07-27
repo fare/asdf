@@ -11,8 +11,8 @@
 
  (operate 'load-op 'static-and-serial)
  (let* ((file1 (compile-file-pathname* "file1.lisp"))
-        (file1-date (file-write-date file1))
-        (*defined-systems* (make-hash-table :test 'equal))) ;; cheat
+        (file1-date (file-write-date file1)))
+   (clear-system 'static-and-serial)
    (format t "file: ~S~%date: ~S~%" file1 file1-date)
    (assert file1-date)
 
