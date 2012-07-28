@@ -87,7 +87,7 @@
   #+ecl (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
   #+ecl (unless (use-ecl-byte-compiler-p) (require :cmp))
   #+mkcl (require :cmp)
-  #+mkcl (setq clos::*redefine-class-in-place* t) ;; Turn on strict ANSI class redefinition semantics
+  #+mkcl (setq clos::*redefine-class-in-place* t) ;; Make sure we have strict ANSI class redefinition semantics
 
   ;;; Package setup, step 2.
   (defvar *asdf-version* nil)
@@ -4405,16 +4405,16 @@ with a different configuration, so the configuration would be re-read then."
            (f (compile-file-pathname p :type :fasl)))
       (if (use-ecl-byte-compiler-p)
           (list f)
-          (list (compile-file-pathname p :type :object) f))))
+          (list (compile-file-pathname p :type :object) f)))))
 
-  (defmethod perform ((o load-op) (c cl-source-file))
-    (map () #'load
-         #-(or ecl mkcl)
-         (input-files o c)
-         #+(or ecl mkcl)
-         (loop :for i :in (input-files o c)
-           :unless (string= (pathname-type i) "fas")
-           :collect (compile-file-pathname (lispize-pathname i))))))
+(defmethod perform ((o load-op) (c cl-source-file))
+  (map () #'load
+       #-(or ecl mkcl)
+       (input-files o c)
+       #+(or ecl mkcl)
+       (loop :for i :in (input-files o c)
+	     :unless (string= (pathname-type i) "fas")
+	     :collect (compile-file-pathname (lispize-pathname i)))))
 
 #+mkcl
 (progn
@@ -4425,10 +4425,17 @@ with a different configuration, so the configuration would be re-read then."
         (apply 'compile-file* input-file :fasl-p nil keys)
       (values (and object-file
                    (compiler:build-fasl (compile-file-pathname object-file :fasl-p t)
-                                  :lisp-files (list object-file))
+					:lisp-object-files (list object-file))
                    object-file)
               flags1
-              flags2))))
+              flags2)))
+
+  (defmethod output-files ((operation compile-op) (c cl-source-file))
+    (declare (ignorable operation))
+    (let* ((p (lispize-pathname (component-pathname c)))
+           (f (compile-file-pathname p :fasl-p t))
+           (o (compile-file-pathname p :fasl-p nil)))
+      (list o f))))
 
 
 ;;;; -----------------------------------------------------------------
@@ -4479,11 +4486,6 @@ with a different configuration, so the configuration would be re-read then."
 (eval-when (:compile-toplevel :execute)
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
     (setf excl:*warn-on-nested-reader-conditionals* *acl-warn-save*)))
-
-#+mkcl
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  ;; Turn off ANSI class redefinition semantics.
-  (setq clos::*redefine-class-in-place* nil))
 
 (pushnew :asdf *features*)
 (pushnew :asdf2 *features*)
