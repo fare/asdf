@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.23.3: Another System Definition Facility.
+;;; This is ASDF 2.23.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.23.3")
+         (asdf-version "2.23.4")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2498,8 +2498,15 @@ recursive calls to traverse.")
 
 (defmethod output-files ((operation compile-op) (c cl-source-file))
   (declare (ignorable operation))
-  (let ((p (lispize-pathname (component-pathname c))))
-    (list (compile-file-pathname p))))
+  (let* ((p (lispize-pathname (component-pathname c)))
+         (f (compile-file-pathname ;; fasl
+             p #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl))
+         #+mkcl (o (compile-file-pathname p :fasl-p nil))) ;; object file
+    #+ecl (if (use-ecl-byte-compiler-p)
+              (list f)
+              (list (compile-file-pathname p :type :object) f))
+    #+mkcl (list o f)
+    #-(or ecl mkcl) (list f)))
 
 (defmethod perform ((operation compile-op) (c static-file))
   (declare (ignorable operation c))
@@ -2540,7 +2547,13 @@ recursive calls to traverse.")
         (perform (make-sub-operation c o c 'compile-op) c)))))
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  (map () #'load (input-files o c)))
+  (map () #'load
+       #-(or ecl mkcl)
+       (input-files o c)
+       #+(or ecl mkcl)
+       (loop :for i :in (input-files o c)
+	     :unless (string= (pathname-type i) "fas")
+	     :collect (compile-file-pathname (lispize-pathname i)))))
 
 (defmethod perform ((operation load-op) (c static-file))
   (declare (ignorable operation c))
@@ -4385,6 +4398,10 @@ with a different configuration, so the configuration would be re-read then."
 ;;;
 #+ecl
 (progn
+  #+win32
+  (unless (assoc "asd" ext:*load-hooks* :test 'equal)
+    (appendf ext:*load-hooks* '(("asd" . si::load-source))))
+
   (setf *compile-op-compile-file-function* 'ecl-compile-file)
 
   (defun ecl-compile-file (input-file &rest keys &key &allow-other-keys)
@@ -4397,25 +4414,9 @@ with a different configuration, so the configuration would be re-read then."
                                       :lisp-files (list object-file))
                        object-file)
                   flags1
-                  flags2))))
+                  flags2)))))
 
-  (defmethod output-files ((operation compile-op) (c cl-source-file))
-    (declare (ignorable operation))
-    (let* ((p (lispize-pathname (component-pathname c)))
-           (f (compile-file-pathname p :type :fasl)))
-      (if (use-ecl-byte-compiler-p)
-          (list f)
-          (list (compile-file-pathname p :type :object) f)))))
-
-(defmethod perform ((o load-op) (c cl-source-file))
-  (map () #'load
-       #-(or ecl mkcl)
-       (input-files o c)
-       #+(or ecl mkcl)
-       (loop :for i :in (input-files o c)
-	     :unless (string= (pathname-type i) "fas")
-	     :collect (compile-file-pathname (lispize-pathname i)))))
-
+;;; Same thing for MKCL
 #+mkcl
 (progn
   (setf *compile-op-compile-file-function* 'mkcl-compile-file)
@@ -4428,14 +4429,7 @@ with a different configuration, so the configuration would be re-read then."
 					:lisp-object-files (list object-file))
                    object-file)
               flags1
-              flags2)))
-
-  (defmethod output-files ((operation compile-op) (c cl-source-file))
-    (declare (ignorable operation))
-    (let* ((p (lispize-pathname (component-pathname c)))
-           (f (compile-file-pathname p :fasl-p t))
-           (o (compile-file-pathname p :fasl-p nil)))
-      (list o f))))
+              flags2))))
 
 
 ;;;; -----------------------------------------------------------------

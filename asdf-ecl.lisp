@@ -1,5 +1,5 @@
 ;;; Copyright (c) 2005 - 2007, Michael Goffioul (michael dot goffioul at swing dot be)
-;;; Copyright (c) 2008 - 2011, Juan Jose Garcia Ripoll
+;;; Copyright (c) 2008 - 2012, Juan Jose Garcia Ripoll
 ;;;
 ;;;   This program is free software; you can redistribute it and/or
 ;;;   modify it under the terms of the GNU Library General Public
@@ -171,9 +171,9 @@
   (list (cons (make-instance 'lib-op) c)))
 
 (defmethod component-depends-on ((o bundle-op) (c system))
-  (loop for (op . dep) in (bundle-sub-operations o c)
-     when (typep dep 'system)
-     collect (list (class-name (class-of op))
+  (loop :for (op . dep) :in (bundle-sub-operations o c)
+    :when (typep dep 'system)
+    :collect (list (class-name (class-of op))
                    (component-name dep))))
 
 (defmethod component-depends-on ((o lib-op) (c system))
@@ -185,8 +185,8 @@
   nil)
 
 (defmethod input-files ((o bundle-op) (c system))
-  (loop for (sub-op . sub-c) in (bundle-sub-operations o c)
-     nconc (output-files sub-op sub-c)))
+  (loop :for (sub-op . sub-c) :in (bundle-sub-operations o c)
+    :nconc (output-files sub-op sub-c)))
 
 (defmethod output-files ((o bundle-op) (c system))
   (let ((name (concatenate 'base-string (component-name c)
@@ -196,8 +196,8 @@
 
 (defmethod output-files ((o fasl-op) (c system))
   (declare (ignorable o c))
-  (loop for file in (call-next-method)
-     collect (make-pathname :type "fasb" :defaults file)))
+  (loop :for file :in (call-next-method)
+    :collect (make-pathname :type "fasb" :defaults file)))
 
 (defmethod perform ((o bundle-op) (c t))
   (declare (ignorable o c))
@@ -250,16 +250,16 @@
          (files (and system (output-files operation system))))
     (if (or move-here (and (null move-here-p)
                            (member operation-name '(:program :binary))))
-        (loop with dest-path = (truename (ensure-directories-exist move-here-path))
-           for f in files
-           for new-f = (make-pathname :name (pathname-name f)
+        (loop :with dest-path = (truename (ensure-directories-exist move-here-path))
+          :for f in files
+          :for new-f = (make-pathname :name (pathname-name f)
                                       :type (pathname-type f)
                                       :defaults dest-path)
-           do (progn
+          :do (progn
                 (when (probe-file new-f)
                   (delete-file new-f))
                 (rename-file f new-f))
-           collect new-f)
+           :collect new-f)
         files)))
 
 ;;;
@@ -293,8 +293,8 @@
   (let ((l (input-files o c)))
     (and l
          (load (first l))
-         (loop for i in (module-components c)
-            do (setf (gethash 'load-op (component-operation-times i))
+         (loop :for i :in (module-components c)
+           :do (setf (gethash 'load-op (component-operation-times i))
                      (get-universal-time))))))
 
 ;;;
@@ -374,19 +374,19 @@
                 s))))
 
 (defmethod component-depends-on ((o binary-op) (s system))
-  (loop for dep in (binary-op-dependencies o s)
-     append (apply #'component-depends-on dep)))
+  (loop :for dep :in (binary-op-dependencies o s)
+    :append (apply #'component-depends-on dep)))
 
 (defmethod input-files ((o binary-op) (s system))
-  (loop for dep in (binary-op-dependencies o s)
-     append (apply #'input-files dep)))
+  (loop :for dep :in (binary-op-dependencies o s)
+    :append (apply #'input-files dep)))
 
 (defmethod output-files ((o binary-op) (s system))
   (list* (merge-pathnames* (make-pathname :name (component-name s)
                                           :type "asd")
                            (component-relative-pathname s))
-         (loop for dep in (binary-op-dependencies o s)
-            append (apply #'output-files dep))))
+         (loop :for dep :in (binary-op-dependencies o s)
+           :append (apply #'output-files dep))))
 
 (defmethod perform ((o binary-op) (s system))
   (let* ((dependencies (binary-op-dependencies o s))
@@ -395,8 +395,8 @@
          (filename (first (output-files o s)))
          (name (component-name s))
          (name-keyword (intern (string name) (find-package :keyword))))
-    (loop for dep in dependencies
-       do (apply #'perform dep))
+    (loop :for dep :in dependencies
+      :do (apply #'perform dep))
     (with-open-file (s filename :direction :output :if-exists :supersede
                        :if-does-not-exist :create)
       (format s ";;; Prebuilt ASDF definition for system ~A" name)
@@ -419,7 +419,6 @@
 ;;;
 
 (export '(make-build load-fasl-op prebuilt-system))
-(push '("fasb" . si::load-binary) ext:*load-hooks*)
 
 (defun register-pre-built-system (name)
   (register-system (make-instance 'system :name (coerce-name name) :source-file nil)))
@@ -431,7 +430,3 @@
                      (let ((l (multiple-value-list (funcall f name))))
                        (and (first l) (register-pre-built-system name))
                        (values-list l)))))
-#+win32
-(unless (assoc "asd" ext:*load-hooks* :test 'equal)
-  (appendf ext:*load-hooks* '(("asd" . si::load-source))))
-
