@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.23.4: Another System Definition Facility.
+;;; This is ASDF 2.23.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.23.4")
+         (asdf-version "2.23.5")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -369,11 +369,11 @@
             #:appendf #:orf
             #:length=n-p
             #:remove-keys #:remove-keyword
-            #:first-char #:last-char #:ends-with
+            #:first-char #:last-char #:string-suffix-p
             #:coerce-name
             #:directory-pathname-p #:ensure-directory-pathname
             #:absolute-pathname-p #:ensure-pathname-absolute #:pathname-root
-            #:getenv #:getenv-pathname #:getenv-pathname
+            #:getenv #:getenv-pathname #:getenv-pathnames
             #:getenv-absolute-directory #:getenv-absolute-directories
             #:probe-file*
             #:find-symbol* #:strcat
@@ -862,7 +862,7 @@ Host, device and version components are taken from DEFAULTS."
       ((zerop i) (return (null l)))
       ((not (consp l)) (return nil)))))
 
-(defun* ends-with (s suffix)
+(defun* string-suffix-p (s suffix)
   (check-type s string)
   (check-type suffix string)
   (let ((start (- (length s) (length suffix))))
@@ -4185,7 +4185,7 @@ with a different configuration, so the configuration would be re-read then."
                       string))
              (setf inherit t)
              (push ':inherit-configuration directives))
-            ((ends-with s "//") ;; TODO: allow for doubling of separator even outside Unix?
+            ((string-suffix-p s "//") ;; TODO: allow for doubling of separator even outside Unix?
              (push `(:tree ,(check (subseq s 0 (- (length s) 2)))) directives))
             (t
              (push `(:directory ,(check s)) directives))))
