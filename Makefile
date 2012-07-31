@@ -22,6 +22,7 @@ CCL ?= ccl
 CLISP ?= clisp
 SBCL ?= sbcl
 ECL ?= ecl
+MKCL ?= mkcl
 CMUCL ?= cmucl
 ABCL ?= abcl
 SCL ?= scl
@@ -87,6 +88,7 @@ test-upgrade:
 	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet" ; ev="-x" ; } ; \
 	use_sbcl () { li="${SBCL} --noinform --no-userinit" ; ev="--eval" ; } ; \
 	use_ecl () { li="${ECL} -norc" ; ev="-eval" ; } ; \
+	use_mkcl () { li="${MKCL} -norc" ; ev="-eval" ; } ; \
 	use_cmucl () { li="${CMUCL} -noinit" ; ev="-eval" ; } ; \
 	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
 	use_scl () { li="${SCL} -noinit" ; ev="-eval" ; } ; \

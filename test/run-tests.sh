@@ -154,6 +154,10 @@ case "$lisp" in
     # ./lispworks-6-0-0-x86-linux -siteinit - -init - -build /tmp/build.lisp
     flags="-siteinit - -init -"
     eval="-eval" ;;
+  mkcl)
+    command="${MKCL:-mkcl}"
+    flags="-norc"
+    eval="-eval" ;;
   sbcl)
     command="${SBCL:-sbcl}"
     flags="--noinform --userinit /dev/null --sysinit /dev/null"

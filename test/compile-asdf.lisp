@@ -29,6 +29,9 @@
 			((or c:compiler-note c::compiler-debug-note
 			     c:compiler-warning) ;; ECL emits more serious warnings than it should.
                                #'muffle-warning)
+                        #+mkcl
+			((or compiler:compiler-note)
+			 #'muffle-warning)
 			#-(or cmu scl)
                         (style-warning
                          #'(lambda (w)

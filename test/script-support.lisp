@@ -34,6 +34,7 @@
                     #+ecl :ecl
                     #+gcl :gcl
                     #+lispworks :lispworks
+		    #+mkcl :mkcl
                     #+sbcl :sbcl
                     #+scl :scl
                     #+xcl :xcl))))
@@ -76,6 +77,8 @@
   (lispworks:quit :status return :confirm nil :return nil :ignore-errors-p t)
   #+(or openmcl mcl)
   (ccl::quit return)
+  #+mkcl
+  (mk-ext:quit :exit-code return)
   #+sbcl #.(let ((exit (find-symbol "EXIT" :sb-ext))
                  (quit (find-symbol "QUIT" :sb-ext)))
              (cond

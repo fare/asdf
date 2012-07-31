@@ -4223,7 +4223,7 @@ with a different configuration, so the configuration would be re-read then."
 (defun* default-source-registry ()
   `(:source-registry
     #+sbcl (:directory ,(subpathname (user-homedir) ".sbcl/systems/"))
-    #-mkcl (:directory ,(default-directory))
+    (:directory ,(default-directory))
     ,@(loop :for dir :in
         `(,@(when (os-unix-p)
               `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
