@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.23.5: Another System Definition Facility.
+;;; This is ASDF 2.23.6: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.23.5")
+         (asdf-version "2.23.6")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3723,6 +3723,7 @@ Please remove it from your ASDF configuration"))
               (when h `((,(truenamize h) ,*wild-inferiors*) ())))
     ;; The below two are not needed: no precompiled ASDF system there
     #+(or ecl mkcl) (,(translate-logical-pathname "SYS:**;*.*") ())
+    #+mkcl (,(translate-logical-pathname "CONTRIB:") ())
     ;; #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ()))
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
@@ -4216,6 +4217,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun* wrapping-source-registry ()
   `(:source-registry
+    #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
     #+sbcl (:tree ,(truenamize (getenv-pathname "SBCL_HOME" :want-directory t)))
     :inherit-configuration
     #+cmu (:tree #p"modules:")
@@ -4386,54 +4388,55 @@ with a different configuration, so the configuration would be re-read then."
   (clear-output-translations))
 
 
-;;; ECL support for COMPILE-OP / LOAD-OP
+;;; ECL and MKCL support for COMPILE-OP / LOAD-OP
 ;;;
-;;; In ECL, these operations produce both FASL files and the
-;;; object files that they are built from. Having both of them allows
-;;; us to later on reuse the object files for bundles, libraries,
-;;; standalone executables, etc.
+;;; In ECL and MKCL, these operations produce both
+;;; FASL files and the object files that they are built from.
+;;; Having both of them allows us to later on reuse the object files
+;;; for bundles, libraries, standalone executables, etc.
 ;;;
 ;;; This has to be in asdf.lisp and not asdf-ecl.lisp, or else it becomes
 ;;; a problem for asdf on ECL to compile asdf-ecl.lisp after loading asdf.lisp.
 ;;;
-#+ecl
+;;; Also, register-pre-built-system.
+
+#+(or ecl mkcl)
 (progn
-  #+win32
-  (unless (assoc "asd" ext:*load-hooks* :test 'equal)
-    (appendf ext:*load-hooks* '(("asd" . si::load-source))))
+  (defun register-pre-built-system (name)
+    (register-system (make-instance 'system :name (coerce-name name) :source-file nil)))
 
-  (setf *compile-op-compile-file-function* 'ecl-compile-file)
+  #+(or (and ecl win32) (and mkcl windows))
+  (unless (assoc "asd" #+ecl ext:*load-hooks* #+mkcl si::*load-hooks* :test 'equal)
+    (appendf #+ecl ext:*load-hooks* #+mkcl si::*load-hooks* '(("asd" . si::load-source))))
 
-  (defun ecl-compile-file (input-file &rest keys &key &allow-other-keys)
-    (if (use-ecl-byte-compiler-p)
-        (apply 'compile-file* input-file keys)
-        (multiple-value-bind (object-file flags1 flags2)
-            (apply 'compile-file* input-file :system-p t keys)
-          (values (and object-file
-                       (c::build-fasl (compile-file-pathname object-file :type :fasl)
-                                      :lisp-files (list object-file))
-                       object-file)
-                  flags1
-                  flags2)))))
+  (setf #+ecl ext:*module-provider-functions* #+mkcl mk-ext::*module-provider-functions*
+        (loop :for f :in #+ecl ext:*module-provider-functions*
+          #+mkcl mk-ext::*module-provider-functions*
+          :unless (eq f 'module-provide-asdf)
+          :collect #'(lambda (name)
+                       (let ((l (multiple-value-list (funcall f name))))
+                         (and (first l) (register-pre-built-system (coerce-name name)))
+                         (values-list l)))))
 
-;;; Same thing for MKCL
-#+mkcl
-(progn
-  (setf *compile-op-compile-file-function* 'mkcl-compile-file)
+  (setf *compile-op-compile-file-function* 'compile-file-keeping-object)
 
-  (defun mkcl-compile-file (input-file &rest keys &key &allow-other-keys)
-    (multiple-value-bind (object-file flags1 flags2)
-        (apply 'compile-file* input-file :fasl-p nil keys)
-      (values (and object-file
-                   (compiler:build-fasl (compile-file-pathname object-file :fasl-p t)
-					:lisp-object-files (list object-file))
-                   object-file)
-              flags1
-              flags2))))
+  (defun compile-file-keeping-object (input-file &rest keys &key &allow-other-keys)
+    (#+ecl if #+ecl (use-ecl-byte-compiler-p) #+ecl (apply 'compile-file* input-file keys)
+     #+mkcl progn
+     (multiple-value-bind (object-file flags1 flags2)
+         (apply 'compile-file* input-file
+                #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil keys)
+       (values (and object-file
+                    (compiler::build-fasl
+                     (compile-file-pathname object-file
+                                            #+ecl :type #+ecl :fasl #+mkcl :fasl-p #+mkcl t)
+                     #+ecl :lisp-files #+mkcl :lisp-object-files (list object-file))
+                    object-file)
+               flags1
+               flags2)))))
 
-
-;;;; -----------------------------------------------------------------
-;;;; Hook into REQUIRE for ABCL, CLISP, ClozureCL, CMUCL, ECL and SBCL
+;;;; -----------------------------------------------------------------------
+;;;; Hook into REQUIRE for ABCL, CLISP, ClozureCL, CMUCL, ECL, MKCL and SBCL
 ;;;;
 (defun* module-provide-asdf (name)
   (handler-bind
@@ -4449,7 +4452,7 @@ with a different configuration, so the configuration would be re-read then."
         (require-system system :verbose nil)
         t))))
 
-#+(or abcl clisp clozure cmu ecl sbcl)
+#+(or abcl clisp clozure cmu ecl mkcl sbcl)
 (let ((x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom))))
   (when x
     (eval `(pushnew 'module-provide-asdf
@@ -4457,6 +4460,7 @@ with a different configuration, so the configuration would be re-read then."
             #+clisp ,x
             #+clozure ccl:*module-provider-functions*
             #+(or cmu ecl) ext:*module-provider-functions*
+            #+mkcl mk-ext::*module-provider-functions*
             #+sbcl sb-ext:*module-provider-functions*))))
 
 
@@ -4475,6 +4479,21 @@ with a different configuration, so the configuration would be re-read then."
 ;;;; Done!
 (when *load-verbose*
   (asdf-message ";; ASDF, version ~a~%" (asdf-version)))
+
+#+mkcl
+(progn
+  (defvar *loading-asdf-bundle* nil)
+  (unless *loading-asdf-bundle*
+    (let ((*central-registry*
+           (cons (translate-logical-pathname #P"CONTRIB:asdf-bundle;") *central-registry*))
+	  (*loading-asdf-bundle* t))
+      (clear-system :asdf-bundle) ;; we hope to force a reload.
+      (multiple-value-bind (result bundling-error)
+          (ignore-errors (asdf:oos 'asdf:load-op :asdf-bundle))
+        (unless result
+	  (format *error-output*
+		  "~&;;; ASDF: Failed to load package 'asdf-bundle'!~%;;; ASDF: Reason is: ~A.~%"
+		  bundling-error))))))
 
 #+allegro
 (eval-when (:compile-toplevel :execute)

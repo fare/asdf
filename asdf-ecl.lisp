@@ -418,15 +418,6 @@
 ;;; Final integration steps
 ;;;
 
-(export '(make-build load-fasl-op prebuilt-system))
+(export '(make-build load-fasl-op))
 
-(defun register-pre-built-system (name)
-  (register-system (make-instance 'system :name (coerce-name name) :source-file nil)))
-
-(setf ext:*module-provider-functions*
-      (loop :for f :in ext:*module-provider-functions*
-        :unless (eq f 'module-provide-asdf)
-        :collect #'(lambda (name)
-                     (let ((l (multiple-value-list (funcall f name))))
-                       (and (first l) (register-pre-built-system name))
-                       (values-list l)))))
+(pushnew '("fasb" . si::load-binary) ext:*load-hooks* :test 'equal :key 'car)
