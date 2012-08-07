@@ -3256,13 +3256,14 @@ located."
     (car ; as opposed to OR, this idiom prevents some unreachable code warning
      (list
       #+allegro
-      (format nil "~A~A~@[~A~]"
+      (format nil "~A~A~@[~A~]~@[~A~]"
               excl::*common-lisp-version-number*
               ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
               (if (eq excl:*current-case-mode* :case-sensitive-lower) "M" "A")
               ;; Note if not using International ACL
               ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
-              (excl:ics-target-case (:-ics "8")))
+              (excl:ics-target-case (:-ics "8"))
+	      (if (member :smp *features*) "S" nil))
       #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
       #+clisp
       (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
