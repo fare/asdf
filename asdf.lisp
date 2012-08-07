@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.23.6: Another System Definition Facility.
+;;; This is ASDF 2.23.7: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.23.6")
+         (asdf-version "2.23.7")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3256,14 +3256,14 @@ located."
     (car ; as opposed to OR, this idiom prevents some unreachable code warning
      (list
       #+allegro
-      (format nil "~A~A~@[~A~]~@[~A~]"
+      (format nil "~A~@[~A~]~@[~A~]~@[~A~]"
               excl::*common-lisp-version-number*
-              ;; ANSI vs MoDeRn - thanks to Robert Goldman and Charley Cox
-              (if (eq excl:*current-case-mode* :case-sensitive-lower) "M" "A")
+              ;; M means "modern", as opposed to ANSI-compatible mode (which I consider default)
+              (and (eq excl:*current-case-mode* :case-sensitive-lower) "M")
               ;; Note if not using International ACL
               ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
               (excl:ics-target-case (:-ics "8"))
-	      (if (member :smp *features*) "S" nil))
+	      (and (member :smp *features*) "S"))
       #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
       #+clisp
       (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
