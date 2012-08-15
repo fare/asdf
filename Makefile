@@ -105,12 +105,14 @@ test-upgrade:
 	    echo "Testing upgrade from ASDF $${tag} using method $$x" ; \
 	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
 	    case ${lisp}:$$tag:$$x in \
-	      ecl:1.*|ecl:2.00*|ecl:2.01[0-6]:*|ecl:2.20:*) \
-		: Skip, because of various ASDF issues ;; \
 	      ccl:1.*|ccl:2.0[01]*) \
 		: Skip, because ccl broke old asdf ;; \
 	      cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*) \
 		: Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;; \
+	      ecl:1.*|ecl:2.0[01]*|ecl:2.20:*) \
+		: Skip, because of various ASDF issues ;; \
+	      mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) \
+		: Skip, because MKCL is only supported starting with 2.24 ;; \
 	      *) (set -x ; \
                   case $$x in \
 		    load-system) l="$$lo (asdf-test::load-asdf-system)" ;; \

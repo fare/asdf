@@ -152,15 +152,17 @@ is bound, write a message and exit on an error.  If
 (defun register-directory (dir)
   (pushnew dir (symbol-value (find-symbol (string :*central-registry*) :asdf))))
 
-(defun asdf-load (x)
+(defun asdf-load (x &key verbose)
   (let ((xoos (find-symbol (string :oos) :asdf))
-        (xload-op (find-symbol (string :load-op) :asdf)))
-    (funcall xoos xload-op x :verbose t)))
+        (xload-op (find-symbol (string :load-op) :asdf))
+        (*load-print* verbose)
+        (*load-verbose* verbose))
+    (funcall xoos xload-op x :verbose verbose)))
 
-(defun load-asdf-system ()
+(defun load-asdf-system (&rest keys)
   (quietly
    (register-directory *asdf-directory*)
-   (asdf-load :asdf)))
+   (apply 'asdf-load :asdf keys)))
 
 (defun testing-asdf (thunk)
   (quit-on-error
