@@ -3118,7 +3118,15 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     (ccl::with-cstrs ((%command command)) (_system %command))
 
     #+mkcl
-    (si:run-command command ".") ;; run command in current working directory. JCB
+    ;; This has next to no chance of working on basic Windows!
+    ;; Your best hope is that Cygwin or MSYS is somewhere in the PATH.
+    (multiple-value-bind (io process exit-code)
+	(apply #'mkcl:run-program #+windows "sh" #-windows "/bin/sh"
+                                  (list "-c" command)
+                                  :input nil :output t #|*verbose-out*|# ;; will be *verbose-out* when we support it
+                                  #-windows '(:search nil))
+      (declare (ignore io process))
+      exit-code)
 
     #+sbcl
     (sb-ext:process-exit-code
@@ -4461,7 +4469,7 @@ with a different configuration, so the configuration would be re-read then."
             #+clisp ,x
             #+clozure ccl:*module-provider-functions*
             #+(or cmu ecl) ext:*module-provider-functions*
-            #+mkcl mk-ext::*module-provider-functions*
+            #+mkcl mk-ext:*module-provider-functions*
             #+sbcl sb-ext:*module-provider-functions*))))
 
 
