@@ -1,3 +1,26 @@
+cl-asdf (2:2.24-1) unstable; urgency=low
+
+  * ACL: handle SMP vs non-SMP builds in Allegro 9.0
+  * MKCL: add support for ManKai Common Lisp
+  * ECL: merge improvements from ECL git. Refactor ECL support somewhat.
+  * Remove broken-fasl-support: first, cormanlisp is supposed to have fixed it;
+    second, cormanlisp is dead;
+    third, one can now (setf *load-system-operation* 'load-source-op) instead
+    while using asdf:load-system.
+  * renaming ends-with to string-suffix-p to avoid conflict with alexandria.
+  * Refactor load-system to use *load-system-operation*,
+    and change require-system and module-provide-asdf to use that.
+
+  Also note:
+  * We recommend you use asdf-utils to access the utilities in asdf.
+    Some time next year, we may stop exporting the utilities from asdf itself.
+  * To avoid conflicts between alexandria, fare-utils, xcvb-driver,
+    asdf-utils, etc., you can use xcvb-utils that solves the conflicts.
+    Or you can use fare-utils:define-package-mix that will help you
+    automatically resolve them.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sat, 25 Aug 2012 08:05:21 -0400
+
 cl-asdf (2:2.23-1) unstable; urgency=low
 
   * add new :compile-check argument to compile-file* and around-compile-hook.

@@ -105,6 +105,8 @@ test-upgrade:
 	    echo "Testing upgrade from ASDF $${tag} using method $$x" ; \
 	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
 	    case ${lisp}:$$tag:$$x in \
+	      abcl:2.0[01][1-9]|abcl:2.2[1-2]:*) \
+		: Skip, because it is so damn slow ;; \
 	      ccl:1.*|ccl:2.0[01]*) \
 		: Skip, because ccl broke old asdf ;; \
 	      cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*) \
