@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.24.1: Another System Definition Facility.
+;;; This is ASDF 2.24.2: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.24.1")
+         (asdf-version "2.24.2")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -364,9 +364,10 @@
             #:user-source-registry-directory
             #:system-source-registry-directory
 
-            ;; Utilities
+            ;; Utilities: please use asdf-utils instead
+            #|
             ;; #:aif #:it
-            #:appendf #:orf
+            ;; #:appendf #:orf
             #:length=n-p
             #:remove-keys #:remove-keyword
             #:first-char #:last-char #:string-suffix-p
@@ -389,7 +390,7 @@
             #:while-collecting
             #:*wild* #:*wild-file* #:*wild-directory* #:*wild-inferiors*
             #:*wild-path* #:wilden
-            #:directorize-pathname-host-device
+            #:directorize-pathname-host-device|#
             )))
         #+genera (import 'scl:boolean :asdf)
         (setf *asdf-version* asdf-version

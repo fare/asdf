@@ -14,7 +14,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.24.1" ;; to be automatically updated by bin/bump-revision
+  :version "2.24.2" ;; to be automatically updated by bin/bump-revision
   :depends-on ()
   :components
   ((:file "asdf")
