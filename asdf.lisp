@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.24.2: Another System Definition Facility.
+;;; This is ASDF 2.24.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.24.2")
+         (asdf-version "2.24.3")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -463,6 +463,7 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
 (progn
   (deftype logical-pathname () nil)
   (defun make-broadcast-stream () *error-output*)
+  (defun translate-logical-pathname (x) x)
   (defun file-namestring (p)
     (setf p (pathname p))
     (format nil "~@[~A~]~@[.~A~]" (pathname-name p) (pathname-type p))))
@@ -3322,8 +3323,9 @@ located."
 (defun* user-homedir ()
   (truenamize
    (pathname-directory-pathname
+    #+cormanlisp (ensure-directory-pathname (user-homedir-pathname))
     #+mcl (current-user-homedir-pathname)
-    #-mcl (user-homedir-pathname))))
+    #-(or cormanlisp mcl) (user-homedir-pathname))))
 
 (defun* ensure-pathname* (x want-absolute want-directory fmt &rest args)
   (when (plusp (length x))
