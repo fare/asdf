@@ -1,4 +1,14 @@
-(defpackage :asdf-test (:use :common-lisp))
+(defpackage :asdf-test
+  (:use :common-lisp)
+  (:export
+   #:*test-directory* #:*asdf-directory*
+   #:load-asdf
+   #:register-directory #:asdf-load 
+   #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl #:compile-load-asdf #:load-asdf-system
+   #:quit-on-error #:test-asdf
+   #:native-namestring
+   #:exit-lisp #:leave-lisp
+   #:quietly))
 
 (in-package #:asdf-test)
 
@@ -7,7 +17,7 @@
 
 ;;(format t "Evaluating asdf/test/script-support~%")
 
-;; We can't use asdf:merge-pathnames* because ASDF isn't loaded yet.
+;; We can't use asdf::merge-pathnames* because ASDF isn't loaded yet.
 ;; We still want to work despite and host/device funkiness.
 (defparameter *test-directory*
   (make-pathname :name nil :type nil :version nil

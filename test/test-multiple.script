@@ -2,6 +2,9 @@
 (load "script-support.lisp")
 (load-asdf)
 
+(in-package :asdf)
+(use-package :asdf-test)
+
 (quit-on-error
  (let* ((asd (merge-pathnames* (coerce-pathname "test-multiple.asd")
                                *test-directory*))

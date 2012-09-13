@@ -2,6 +2,10 @@
 (load "script-support.lisp")
 (load-asdf)
 
+(in-package :asdf)
+
+(use-package :asdf-test)
+
 (defparameter *test-directory*
   (merge-pathnames* (coerce-pathname "tmp/") *asdf-directory*))
 
@@ -59,7 +63,7 @@
                        :if-does-not-exist :create)
       (format s "(defsystem :foo~D)~%" i))))
 
-(quit-on-error
+(asdf-test:quit-on-error
 
 (assert
  (equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")

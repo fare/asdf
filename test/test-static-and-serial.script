@@ -2,6 +2,9 @@
 (load "script-support.lisp")
 (load-asdf)
 
+(in-package :asdf)
+(use-package :asdf-test)
+
 #+gcl (trace coerce-pathname)
 
 (quit-on-error
