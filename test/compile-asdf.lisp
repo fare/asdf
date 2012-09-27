@@ -20,6 +20,7 @@
         (ignore-errors (load *asdf-fasl*)))
    (leave-lisp "Reusing previously-compiled ASDF" 0))
   (t
+   #+clisp (load-asdf-lisp)
    (let ((tmp (make-pathname :name "asdf-tmp" :defaults *asdf-fasl*)))
      (ensure-directories-exist *asdf-fasl*)
      (multiple-value-bind (result warnings-p errors-p)

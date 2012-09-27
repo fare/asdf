@@ -1,3 +1,11 @@
+cl-asdf (2:2.25-1) unstable; urgency=low
+
+  * Lispworks: avoid professional edition functions in personal edition.
+  * CormanLisp: improve support a little bit.
+  * Exports: don't export utilities anymore. Please use asdf-utils.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 27 Sep 2012 18:35:21 -0400
+
 cl-asdf (2:2.24-1) unstable; urgency=low
 
   * ACL: handle SMP vs non-SMP builds in Allegro 9.0
