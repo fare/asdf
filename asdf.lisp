@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.25: Another System Definition Facility.
+;;; This is ASDF 2.25.1: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.25")
+         (asdf-version "2.25.1")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3350,6 +3350,16 @@ located."
 (defun* getenv-absolute-directories (x)
   (getenv-pathnames x :want-absolute t :want-directory t))
 
+(defun* get-folder-path (folder)
+  (or ;; this semi-portably implements a subset of the functionality of lispworks' sys:get-folder-path
+   #+(and lispworks mswindows (not lispworks-personal-edition))
+   (sys:get-folder-path folder)
+   ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
+   (ecase folder
+    (:local-appdata (getenv-absolute-directory "LOCALAPPDATA"))
+    (:appdata (getenv-absolute-directory "APPDATA"))
+    (:common-appdata (or (getenv-absolute-directory "ALLUSERSAPPDATA")
+			 (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
 
 (defun* user-configuration-directories ()
   (let ((dirs
@@ -3359,15 +3369,8 @@ located."
                 (loop :for dir :in (getenv-absolute-directories "XDG_CONFIG_DIRS")
                   :collect (subpathname* dir "common-lisp/"))))
            ,@(when (os-windows-p)
-               `(,(subpathname* (or #+(and lispworks (not lispworks-personal-edition))
-                                    (sys:get-folder-path :local-appdata)
-                                    (getenv-absolute-directory "LOCALAPPDATA"))
-                               "common-lisp/config/")
-                 ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
-                 ,(subpathname* (or #+(and lispworks (not lispworks-personal-edition))
-                                    (sys:get-folder-path :appdata)
-                                    (getenv-absolute-directory "APPDATA"))
-                                "common-lisp/config/")))
+               `(,(subpathname* (get-folder-path :local-appdata) "common-lisp/config/")
+                 ,(subpathname* (get-folder-path :appdata) "common-lisp/config/")))
            ,(subpathname (user-homedir) ".config/common-lisp/"))))
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs)
                        :from-end t :test 'equal)))
@@ -3378,11 +3381,7 @@ located."
     ((os-windows-p)
      (aif
       ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
-      (subpathname* (or #+(and lispworks (not lispworks-personal-edition))
-                        (sys:get-folder-path :common-appdata)
-                        (getenv-absolute-directory "ALLUSERSAPPDATA")
-                        (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))
-                    "common-lisp/config/")
+      (subpathname* (get-folder-path :common-appdata) "common-lisp/config/")
       (list it)))))
 
 (defun* in-first-directory (dirs x &key (direction :input))
@@ -3507,12 +3506,8 @@ and the order is by decreasing length of namestring of the source pathname.")
     (or
      (try (getenv-absolute-directory "XDG_CACHE_HOME") "common-lisp" :implementation)
      (when (os-windows-p)
-       (try (or #+(and lispworks (not lispworks-personal-edition))
-                (sys:get-folder-path :local-appdata)
-                (getenv-absolute-directory "LOCALAPPDATA")
-                #+(and lispworks (not lispworks-personal-edition))
-                (sys:get-folder-path :appdata)
-                (getenv-absolute-directory "APPDATA"))
+       (try (or (get-folder-path :local-appdata)
+                (get-folder-path :appdata))
             "common-lisp" "cache" :implementation))
      '(:home ".cache" "common-lisp" :implementation))))
 
@@ -4250,16 +4245,7 @@ with a different configuration, so the configuration would be re-read then."
                 ,@(or (getenv-absolute-directories "XDG_DATA_DIRS")
                       '("/usr/local/share" "/usr/share"))))
           ,@(when (os-windows-p)
-              `(,(or #+(and lispworks (not lispworks-personal-edition))
-                     (sys:get-folder-path :local-appdata)
-                     (getenv-absolute-directory "LOCALAPPDATA"))
-                ,(or #+(and lispworks (not lispworks-personal-edition))
-                     (sys:get-folder-path :appdata)
-                     (getenv-absolute-directory "APPDATA"))
-                ,(or #+(and lispworks (not lispworks-personal-edition))
-                     (sys:get-folder-path :common-appdata)
-                     (getenv-absolute-directory "ALLUSERSAPPDATA")
-                     (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/")))))
+              (mapcar 'get-folder-path '(:local-appdata :appdata :common-appdata))))
         :collect `(:directory ,(subpathname* dir "common-lisp/systems/"))
         :collect `(:tree ,(subpathname* dir "common-lisp/source/")))
     :inherit-configuration))
