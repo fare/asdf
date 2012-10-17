@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.25.3: Another System Definition Facility.
+;;; This is ASDF 2.25.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.25.3")
+         (asdf-version "2.25.4")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3910,11 +3910,12 @@ effectively disabling the output translation facility."
   (if (absolute-pathname-p output-file)
       ;; what cfp should be doing, w/ mp* instead of mp
       (let* ((type (pathname-type (apply 'compile-file-pathname "x.lisp" keys)))
-             (defaults (make-pathname
-                        :type type :defaults (merge-pathnames* input-file))))
-        (merge-pathnames* output-file defaults))
+	     (defaults (make-pathname
+			:type type :defaults (merge-pathnames* input-file))))
+	(merge-pathnames* output-file defaults))
       (apply-output-translations
-       (apply 'compile-file-pathname input-file keys))))
+       (apply 'compile-file-pathname input-file
+	      (if output-file keys (remove-keyword :output-file keys))))))
 
 (defun* tmpize-pathname (x)
   (make-pathname
