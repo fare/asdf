@@ -1,3 +1,14 @@
+cl-asdf (2:2.26-1) unstable; urgency=low
+
+  * Package change: removed the old ASDF-UTILITIES package nickname for ASDF.
+    Please use the separate ASDF-UTILS system and package for utilities.
+  * compile-file-pathname* bug fix for :output-file nil. Fixes lp#1067617.
+  * get-folder-path factored out of various functions, thanks Martin Simmons.
+  * Lispworks: enable sys:get-folder-path on Personal Edition for Windows.
+  * ECL: add proper wrapping-source-registry
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 30 Oct 2012 08:09:06 +0900
+
 cl-asdf (2:2.25-1) unstable; urgency=low
 
   * Lispworks: avoid professional edition functions in personal edition.

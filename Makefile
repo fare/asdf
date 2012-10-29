@@ -197,3 +197,12 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags
+
+# RELEASE checklist:
+# make test-all
+# ./bin/bump-version 2.27
+# edit debian/changelog
+# make release-push archive-copy website debian-package
+# dput mentors ../*.changes
+# send debian mentors request
+# send announcement to asdf-announce, asdf-devel, etc.
