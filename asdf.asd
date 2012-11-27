@@ -14,11 +14,10 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26" ;; to be automatically updated by bin/bump-revision
+  :version "2.26.1" ;; to be automatically updated by bin/bump-revision
   :depends-on ()
   :components
-  ((:file "asdf")
-   #+ecl (:file "asdf-ecl" :depends-on ("asdf"))))
+  ((:file "asdf")))
 
 ;; The method below ensures that before we compile asdf, we load it as source.
 ;; This ensures that when we compile asdf, it won't remove symbols and packages

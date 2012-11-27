@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26: Another System Definition Facility.
+;;; This is ASDF 2.26.1: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26")
+         (asdf-version "2.26.1")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1636,12 +1636,8 @@ Note that this does NOT in any way cause the code of the system to be unloaded."
 
 FN should be a function of one argument. It will be
 called with an object of type asdf:system."
-  (maphash #'(lambda (_ datum)
-               (declare (ignore _))
-               (destructuring-bind (_ . def) datum
-                 (declare (ignore _))
-                 (funcall fn def)))
-           *defined-systems*))
+  (loop :for (nil . system) :being :the hash-values :of *defined-systems*
+        :do (funcall fn system)))
 
 ;;; for the sake of keeping things reasonably neat, we adopt a
 ;;; convention that functions in this list are prefixed SYSDEF-
@@ -1795,6 +1791,8 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defvar *systems-being-defined* nil
   "A hash-table of systems currently being defined keyed by name, or NIL")
+(defvar *systems-being-operated* nil
+  "A boolean indicating that some systems are being operated on")
 
 (defun* find-system-if-being-defined (name)
   (when *systems-being-defined*
@@ -2357,7 +2355,7 @@ recursive calls to traverse.")
                    (r* (svref x 0))
                    (c x)))
              (r* (l)
-               (dolist (x l) (r x))))
+               (map () #'r l)))
       (r* l))))
 
 (defmethod traverse ((operation operation) (c component))
@@ -2618,10 +2616,9 @@ recursive calls to traverse.")
 
 (defmethod operation-done-p ((o load-source-op) (c source-file))
   (declare (ignorable o))
-  (if (or (not (component-property c 'last-loaded-as-source))
-          (> (safe-file-write-date (component-pathname c))
-             (component-property c 'last-loaded-as-source)))
-      nil t))
+  (and (component-property c 'last-loaded-as-source)
+       (<= (safe-file-write-date (component-pathname c))
+           (component-property c 'last-loaded-as-source))))
 
 (defmethod operation-description ((operation load-source-op) component)
   (declare (ignorable operation))
@@ -2657,6 +2654,7 @@ recursive calls to traverse.")
 
 (defgeneric* operate (operation-class system &key &allow-other-keys))
 (defgeneric* perform-plan (plan &key))
+(defgeneric* plan-operates-on-p (plan component))
 
 ;;;; Separating this into a different function makes it more forward-compatible
 (defun* cleanup-upgraded-asdf (old-version)
@@ -2691,6 +2689,10 @@ recursive calls to traverse.")
       (operate 'load-op :asdf :verbose nil))
     (cleanup-upgraded-asdf version)))
 
+(defmethod plan-operates-on-p ((plan list) (component-path list))
+  (find component-path (mapcar 'cdr plan)
+        :test 'equal :key 'component-find-path))
+
 (defmethod perform-plan ((steps list) &key)
   (let ((*package* *package*)
         (*readtable* *readtable*))
@@ -2699,34 +2701,40 @@ recursive calls to traverse.")
         (perform-with-restarts op component)))))
 
 (defmethod operate (operation-class system &rest args
-                    &key ((:verbose *asdf-verbose*) *asdf-verbose*) version force
-                    &allow-other-keys)
+                    &key verbose version force &allow-other-keys)
   (declare (ignore force))
   (with-system-definitions ()
-    (let* ((op (apply 'make-instance operation-class
-                      :original-initargs args
-                      args))
-           (*verbose-out* (if *asdf-verbose* *standard-output* (make-broadcast-stream)))
+    (let* ((*asdf-verbose* verbose)
+           (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
+           (op (apply 'make-instance operation-class
+                      :original-initargs args args))
            (system (etypecase system
                      (system system)
-                     ((or string symbol) (find-system system)))))
-      (unless (version-satisfies system version)
-        (error 'missing-component-of-version :requires system :version version))
-      (let ((steps (traverse op system)))
-        (when (and (not (equal '("asdf") (component-find-path system)))
-                   (find '("asdf") (mapcar 'cdr steps)
-                         :test 'equal :key 'component-find-path)
-                   (upgrade-asdf))
-          ;; If we needed to upgrade ASDF to achieve our goal,
-          ;; then do it specially as the first thing, then
-          ;; invalidate all existing system
-          ;; retry the whole thing with the new OPERATE function,
-          ;; which on some implementations
-          ;; has a new symbol shadowing the current one.
-          (return-from operate
-            (apply (find-symbol* 'operate :asdf) operation-class system args)))
-        (perform-plan steps)
-        (values op steps)))))
+                     ((or string symbol) (find-system system))))
+           (systems-being-operated *systems-being-operated*)
+           (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))
+      (check-type system system)
+      (setf (gethash (coerce-name system) *systems-being-operated*) system)
+      (flet ((upgrade ()
+               ;; If we needed to upgrade ASDF to achieve our goal,
+               ;; then do it specially as the first thing,
+               ;; which will invalidate all existing systems;
+               ;; afterwards, retry the whole thing with the new OPERATE function,
+               ;; which on some implementations
+               ;; has a new symbol shadowing the current one.
+               (unless (gethash "asdf" *systems-being-operated*)
+                 (upgrade-asdf)
+                 (return-from operate
+                   (apply (find-symbol* 'operate :asdf) operation-class system args)))))
+        (when systems-being-operated ;; Upgrade if loading a system from another one.
+          (upgrade))
+        (unless (version-satisfies system version)
+          (error 'missing-component-of-version :requires system :version version))
+        (let ((plan (traverse op system)))
+          (when (plan-operates-on-p plan '("asdf"))
+            (upgrade)) ;; Upgrade early if the plan involves upgrading asdf at any time.
+          (perform-plan plan)
+          (values op plan))))))
 
 (defun* oos (operation-class system &rest args &key force verbose version
             &allow-other-keys)
@@ -3918,9 +3926,7 @@ effectively disabling the output translation facility."
 	      (if output-file keys (remove-keyword :output-file keys))))))
 
 (defun* tmpize-pathname (x)
-  (make-pathname
-   :name (strcat "ASDF-TMP-" (pathname-name x))
-   :defaults x))
+  (make-pathname :name (strcat "ASDF-TMP-" (pathname-name x)) :defaults x))
 
 (defun* delete-file-if-exists (x)
   (when (and x (probe-file* x))
@@ -4133,9 +4139,7 @@ with a different configuration, so the configuration would be re-read then."
       (collect-sub*directories subdir collectp recursep collector))))
 
 (defun* collect-sub*directories-asd-files
-    (directory &key
-     (exclude *default-source-registry-exclusions*)
-     collect)
+    (directory &key (exclude *default-source-registry-exclusions*) collect)
   (collect-sub*directories
    directory
    (constantly t)
