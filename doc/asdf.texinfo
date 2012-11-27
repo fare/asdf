@@ -317,9 +317,9 @@ Finally, note that there are some limitations to upgrading ASDF:
 @item
 Any ASDF extension becomes invalid, and will need to be reloaded.
 This applies to e.g. CFFI-Grovel, or to hacks used by ironclad, etc.
-Starting with ASDF 2.014.8, ASDF will actually invalidate
-all previously loaded systems when it is loaded on top of
-a different ASDF version.
+Starting with ASDF 2.014.8 (as far as releases go, 2.015),
+ASDF will actually invalidate all previously loaded systems
+when it is loaded on top of a different ASDF version.
 @item
 Until all implementations provide ASDF 2.015 or later,
 it is safer if you upgrade ASDF and its extensions as a special step
@@ -341,6 +341,13 @@ with such code as:
                      (asdf:asdf-version) *required-asdf-version*))
   (error "FOO requires ASDF ~A or later." *required-asdf-version*))
 @end example
+@item
+Until all implementations provide ASDF 2.27 or later,
+it is unsafe for a system to transitively depend on ASDF
+and not directly depend on ASDF;
+if any of the system you use either depends-on asdf,
+system-depends-on asdf, or transitively does,
+you should also do as well.
 @end itemize
 
 
