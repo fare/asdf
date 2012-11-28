@@ -2893,17 +2893,25 @@ or a string that when read yields a symbol or a lambda-expression.
 @code{nil} means the normal compile-file function will be called.
 A non-nil value designates a function of one argument
 that will be called with a function that
-calls the @code{*compile-op-compile-file-function*} (usually @code{compile-file*})
+calls the @code{*compile-op-compile-file-function*}
+(usually @code{compile-file*})
 with proper arguments;
 the around-compile hook may supply additional arguments
 to pass to that @code{*compile-op-compile-file-function*}.
-One notable argument that is heeded by @code{compile-file*} is
-@code{:compile-check}, a function called when the compilation was otherwise a success,
-with the same arguments as @code{compile-file},
-to determine whether 
-(NB: The ability to pass such extra flags is only available starting with asdf 2.22.1.)
 
-Note that by using a string, you may reference
+One notable argument that is heeded by @code{compile-file*} is
+@code{:compile-check},
+a function called when the compilation was otherwise a success,
+with the same arguments as @code{compile-file};
+the function shall return true if the compilation
+and its resulting compiled file respected all system-specific invariants,
+and false (NIL) if it broke any of those invariants;
+it may issue warnings or errors before it returns NIL.
+(NB: The ability to pass such extra flags
+is only available starting with ASDF 2.22.3.)
+This feature is notably exercised by asdf-finalizers.
+
+By using a string, you may reference
 a function, symbol and/or package
 that will only be created later during the build, but
 isn't yet present at the time the defsystem form is evaluated.
