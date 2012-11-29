@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.2: Another System Definition Facility.
+;;; This is ASDF 2.26.3: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.2")
+         (asdf-version "2.26.3")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -3964,16 +3964,29 @@ effectively disabling the output translation facility."
 #+abcl
 (defun* translate-jar-pathname (source wildcard)
   (declare (ignore wildcard))
-  (let* ((p (pathname (first (pathname-device source))))
-         (root (format nil "/___jar___file___root___/~@[~A/~]"
-                       (and (find :windows *features*)
-                            (pathname-device p)))))
-    (apply-output-translations
-     (merge-pathnames*
-      (relativize-pathname-directory source)
-      (merge-pathnames*
-       (relativize-pathname-directory (ensure-directory-pathname p))
-       root)))))
+  (flet ((normalize-device (pathname)
+           (if (find :windows *features*)
+               pathname
+               (make-pathname :defaults pathname :device :unspecific))))
+    (let* ((jar
+             (pathname (first (pathname-device source))))
+           (target-root-directory-namestring
+             (format nil "/___jar___file___root___/~@[~A/~]"
+                     (and (find :windows *features*)
+                          (pathname-device jar))))
+           (relative-source
+             (relativize-pathname-directory source))
+           (relative-jar
+             (relativize-pathname-directory (ensure-directory-pathname jar)))
+           (target-root-directory
+             (normalize-device
+              (pathname-directory-pathname
+               (parse-namestring target-root-directory-namestring))))
+           (target-root
+             (merge-pathnames* relative-jar target-root-directory))
+           (target
+             (merge-pathnames* relative-source target-root)))
+      (normalize-device (apply-output-translations target)))))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Compatibility mode for ASDF-Binary-Locations
@@ -4014,6 +4027,8 @@ call that function where you would otherwise have loaded and configured A-B-L.")
     (initialize-output-translations
      `(:output-translations
        ,@source-to-target-mappings
+       #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
+       #+abcl (#p"/___jar___file___root___/**/*.*" (,@destination-directory))
        ((:root ,*wild-inferiors* ,mapped-files)
         (,@destination-directory ,mapped-files))
        (t t)
