@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.4: Another System Definition Facility.
+;;; This is ASDF 2.26.5: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.4")
+         (asdf-version "2.26.5")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -215,10 +215,10 @@
            (ensure-package (name &key nicknames use unintern
                                  shadow export redefined-functions)
              (let* ((p (ensure-exists name nicknames use)))
-               (ensure-unintern p (append unintern #+cmu redefined-functions))
+               (ensure-unintern p unintern)
                (ensure-shadow p shadow)
                (ensure-export p export)
-               #-cmu (ensure-fmakunbound p redefined-functions)
+               (ensure-fmakunbound p redefined-functions)
                p)))
         (macrolet
             ((pkgdcl (name &key nicknames use export
@@ -1461,8 +1461,7 @@ and implementation-defined external-format's")
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
             :accessor system-license :initarg :license)
-   (source-file :reader %system-source-file :initarg :source-file ; for CLISP upgrade
-                :writer %set-system-source-file)
+   (source-file :initarg :source-file :writer %set-system-source-file) ; upgrade issues on CLISP, CMUCL
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
 
 ;;;; -------------------------------------------------------------------------
@@ -2002,10 +2001,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ;; the &allow-other-keys disables initarg validity checking
   (declare (ignorable operation slot-names force force-not))
   (macrolet ((frob (x) ;; normalize forced and forced-not slots
-               `(when (consp (,x operation))
-                  (setf (,x operation)
-                        (mapcar #'coerce-name (,x operation))))))
-    (frob operation-forced) (frob operation-forced-not))
+               `(when (consp (slot-value operation ',x))
+                  (setf (slot-value operation ',x)
+                        (mapcar #'coerce-name (slot-value operation ',x))))))
+    (frob forced) (frob forced-not))
   (values))
 
 (defun* node-for (o c)
@@ -3191,11 +3190,11 @@ if that's whay you mean." ;;)
   (unless (slot-boundp system 'source-file)
     (%set-system-source-file
      (probe-asd (component-name system) (component-pathname system)) system))
-  (%system-source-file system))
+  (slot-value system 'source-file))
 (defmethod system-source-file ((system-name string))
-  (%system-source-file (find-system system-name)))
+  (system-source-file (find-system system-name)))
 (defmethod system-source-file ((system-name symbol))
-  (%system-source-file (find-system system-name)))
+  (system-source-file (find-system system-name)))
 
 (defun* system-source-directory (system-designator)
   "Return a pathname object corresponding to the
