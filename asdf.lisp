@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.3: Another System Definition Facility.
+;;; This is ASDF 2.26.4: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.3")
+         (asdf-version "2.26.4")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2738,7 +2738,7 @@ recursive calls to traverse.")
 
 (defun* oos (operation-class system &rest args
              &key force force-not verbose version &allow-other-keys)
-  (declare (ignore force verbose version))
+  (declare (ignore force force-not verbose version))
   (apply 'operate operation-class system args))
 
 (let ((operate-docstring
