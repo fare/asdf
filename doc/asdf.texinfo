@@ -3950,25 +3950,16 @@ but just to add options to the existing syntax.
 Reinstate @code{parse-option} or something akin.
 
 
-** document all the error classes
-
-** what to do with compile-file failure
-
-Should check the primary return value from compile-file and see if
-that gets us any closer to a sensible error handling strategy
-
-** foreign files
-
-lift unix-dso stuff from db-sockets
-
 ** Diagnostics
 
 A ``dry run'' of an operation can be made with the following form:
 
 @lisp
-(traverse (make-instance '<operation-name>)
-          (find-system <system-name>)
-          'explain)
+(let ((asdf::*verbose-out* *standard-output*))
+  (loop :for (op . comp) :in
+    (asdf::traverse (make-instance '<operation-name> :force t)
+                    (asdf:find-system <system-name>))
+    :do (asdf:explain op comp)))
 @end lisp
 
 This uses unexported symbols.
