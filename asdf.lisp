@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.1: Another System Definition Facility.
+;;; This is ASDF 2.26.2: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.1")
+         (asdf-version "2.26.2")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1212,8 +1212,8 @@ processed in order by OPERATE."))
   ((component :reader error-component :initarg :component)
    (operation :reader error-operation :initarg :operation))
   (:report (lambda (c s)
-               (format s (compatfmt "~@<Error while invoking ~A on ~A~@:>")
-                       (error-operation c) (error-component c)))))
+               (format s (compatfmt "~@<~A while invoking ~A on ~A~@:>")
+                       (type-of c) (error-operation c) (error-component c)))))
 (define-condition compile-error (operation-error) ())
 (define-condition compile-failed (compile-error) ())
 (define-condition compile-warned (compile-error) ())
@@ -2456,11 +2456,11 @@ recursive calls to traverse.")
                                (let ((*package* (find-package package)))
                                  (read-from-string fun))))))))
 
-(defmethod call-with-around-compile-hook ((c component) thunk)
-  (let ((hook (around-compile-hook c)))
-    (if hook
-        (funcall (ensure-function hook) thunk)
-        (funcall thunk))))
+(defun call-around-hook (hook function)
+  (funcall (or (ensure-function hook) 'funcall) function))
+
+(defmethod call-with-around-compile-hook ((c component) function)
+  (call-around-hook (around-compile-hook c) function))
 
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
@@ -2701,8 +2701,8 @@ recursive calls to traverse.")
         (perform-with-restarts op component)))))
 
 (defmethod operate (operation-class system &rest args
-                    &key verbose version force &allow-other-keys)
-  (declare (ignore force))
+                    &key force force-not verbose version &allow-other-keys)
+  (declare (ignore force force-not))
   (with-system-definitions ()
     (let* ((*asdf-verbose* verbose)
            (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
@@ -2736,8 +2736,8 @@ recursive calls to traverse.")
           (perform-plan plan)
           (values op plan))))))
 
-(defun* oos (operation-class system &rest args &key force verbose version
-            &allow-other-keys)
+(defun* oos (operation-class system &rest args
+             &key force force-not verbose version &allow-other-keys)
   (declare (ignore force verbose version))
   (apply 'operate operation-class system args))
 
