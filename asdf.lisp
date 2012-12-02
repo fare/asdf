@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.5: Another System Definition Facility.
+;;; This is ASDF 2.26.6: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.5")
+         (asdf-version "2.26.6")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -411,7 +411,7 @@ Defaults to T.")
 Valid values are :error, :warn, and :ignore.")
 
 (defvar *compile-file-failure-behaviour*
-  (or #+sbcl :error #+clisp :ignore :warn)
+  (or #+(or mkcl sbcl) :error #+clisp :ignore :warn)
   "How should ASDF react if it encounters a failure (per the ANSI spec of COMPILE-FILE)
 when compiling a file?  Valid values are :error, :warn, and :ignore.
 Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling.")
@@ -4505,19 +4505,16 @@ with a different configuration, so the configuration would be re-read then."
   (asdf-message ";; ASDF, version ~a~%" (asdf-version)))
 
 #+mkcl
-(progn
-  (defvar *loading-asdf-bundle* nil)
-  (unless *loading-asdf-bundle*
-    (let ((*central-registry*
-           (cons (translate-logical-pathname #P"CONTRIB:asdf-bundle;") *central-registry*))
-	  (*loading-asdf-bundle* t))
-      (clear-system :asdf-bundle) ;; we hope to force a reload.
-      (multiple-value-bind (result bundling-error)
-          (ignore-errors (asdf:oos 'asdf:load-op :asdf-bundle))
-        (unless result
-	  (format *error-output*
-		  "~&;;; ASDF: Failed to load package 'asdf-bundle'!~%;;; ASDF: Reason is: ~A.~%"
-		  bundling-error))))))
+(handler-case
+    (progn
+      (load-sysdef "asdf-bundle"
+                   (subpathname (translate-logical-pathname #P"CONTRIB:")
+                                "asdf-bundle/asdf-bundle.asd"))
+      (load-system "asdf-bundle"))
+  (error (e)
+    (format *error-output*
+            "~&;;; ASDF: Failed to load package 'asdf-bundle'!~%;;; ~A~%"
+            e)))
 
 #+allegro
 (eval-when (:compile-toplevel :execute)
