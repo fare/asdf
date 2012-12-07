@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.7: Another System Definition Facility.
+;;; This is ASDF 2.26.8: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.7")
+         (asdf-version "2.26.8")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -232,7 +232,7 @@
            :asdf
            :use (:common-lisp)
            :redefined-functions
-           (#:perform #:explain #:output-files #:operation-done-p
+           (#:perform #:explain #:output-files #:operation-done-p #:do-traverse
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
@@ -2001,14 +2001,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 ;;; one of these is instantiated whenever #'operate is called
 
 (defclass operation ()
-  (;; as of danb's 2003-03-16 commit e0d02781, :force can be:
-   ;; T to force the inside of the specified system,
-   ;;   but not recurse to other systems we depend on.
-   ;; :ALL (or any other atom) to force all systems
-   ;;   including other systems we depend on.
-   ;; (SYSTEM1 SYSTEM2 ... SYSTEMN)
-   ;;   to force systems named in a given list
-   ;; However, but this feature has only ever worked but starting with ASDF 2.014.5
+  ((verbose :initform nil :initarg :verbose :accessor operation-verbose)
    (forced :initform nil :initarg :force :accessor operation-forced)
    (forced-not :initform nil :initarg :force-not :accessor operation-forced-not)
    (original-initargs :initform nil :initarg :original-initargs
@@ -2022,18 +2015,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     (ignore-errors
       (prin1 (operation-original-initargs o) stream))))
 
-(defmethod shared-initialize :after ((operation operation) slot-names
-                                     &key force force-not
-                                     &allow-other-keys)
-  ;; the &allow-other-keys disables initarg validity checking
-  (declare (ignorable operation slot-names force force-not))
-  (macrolet ((frob (x) ;; normalize forced and forced-not slots
-               `(when (consp (slot-value operation ',x))
-                  (setf (slot-value operation ',x)
-                        (mapcar #'coerce-name (slot-value operation ',x))))))
-    (frob forced) (frob forced-not))
-  (values))
-
 (defun* node-for (o c)
   (cons (class-name (class-of o)) c))
 
@@ -2041,7 +2022,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (aif (operation-parent operation)
        (operation-ancestor it)
        operation))
-
 
 (defun* make-sub-operation (c o dep-c dep-o)
   "C is a component, O is an operation, DEP-C is another
@@ -2173,23 +2153,12 @@ class specifier, not an operation."
           (>= (earliest-out) (latest-in))))))))
 
 
+;;; The TRAVERSE protocol is as follows: we pass around operation, dependency,
+;;; bunch of other stuff, and a force argument. Functions return a force flag.
+;;; The force argument forces rebuilding of all components in current system.
+;;; The returned flag is T if anything has changed that required a rebuild.
 
-;;; For 1.700 I've done my best to refactor TRAVERSE
-;;; by splitting it up in a bunch of functions,
-;;; so as to improve the collection and use-detection algorithm. --fare
-;;; The protocol is as follows: we pass around operation, dependency,
-;;; bunch of other stuff, and a force argument. Return a force flag.
-;;; The returned flag is T if anything has changed that requires a rebuild.
-;;; The force argument is a list of components that will require a rebuild
-;;; if the flag is T, at which point whoever returns the flag has to
-;;; mark them all as forced, and whoever recurses again can use a NIL list
-;;; as a further argument.
-
-(defvar *forcing* nil
-  "This dynamically-bound variable is used to force operations in
-recursive calls to traverse.")
-
-(defgeneric* do-traverse (operation component collect))
+(defgeneric* do-traverse (operation component collect force))
 
 (defun* resolve-dependency-name (component name &optional version)
   (loop
@@ -2240,15 +2209,15 @@ recursive calls to traverse.")
     (t
      (error (compatfmt "~@<Bad dependency ~s.  Dependencies must be (:version <name> <version>), (:feature <feature> <name>), or <name>.~@:>") dep-spec))))
 
-(defun* do-one-dep (op c collect dep-op dep-c)
+(defun* do-one-dep (op c collect dep-op dep-c force)
   ;; Collects a partial plan for performing dep-op on dep-c
   ;; as dependencies of a larger plan involving op and c.
   ;; Returns t if this should force recompilation of those who depend on us.
   ;; dep-op is an operation class name (not an operation object),
   ;; whereas dep-c is a component object.n
-  (do-traverse (make-sub-operation c op dep-c dep-op) dep-c collect))
+  (do-traverse (make-sub-operation c op dep-c dep-op) dep-c collect force))
 
-(defun* do-dep (op c collect dep-op-spec dep-c-specs)
+(defun* do-dep (op c collect dep-op-spec dep-c-specs force)
   ;; Collects a partial plan for performing dep-op-spec on each of dep-c-specs
   ;; as dependencies of a larger plan involving op and c.
   ;; Returns t if this should force recompilation of those who depend on us.
@@ -2272,7 +2241,7 @@ recursive calls to traverse.")
          (let ((flag nil))
            (dolist (d dep-c-specs)
              (when (do-one-dep op c collect dep-op-spec
-                               (resolve-dependency-spec c d))
+                               (resolve-dependency-spec c d) force)
                (setf flag t)))
            flag))))
 
@@ -2281,62 +2250,53 @@ recursive calls to traverse.")
 (defun* do-collect (collect x)
   (funcall collect x))
 
-(defmethod do-traverse ((operation operation) (c component) collect)
-  (let ((*forcing* *forcing*)
-        (flag nil)) ;; return value: must we rebuild this and its dependencies?
+(defmethod do-traverse ((operation operation) (c component) collect force)
+  (let ((flag nil)) ;; return value: must we rebuild this and its dependencies?
     (labels
         ((update-flag (x)
            (orf flag x))
-         (dep (op comp)
-           (update-flag (do-dep operation c collect op comp))))
+         (dep (op comp force)
+           (update-flag (do-dep operation c collect op comp force))))
       ;; Have we been visited yet? If so, just process the result.
       (aif (component-visited-p operation c)
-           (progn
-             (update-flag (cdr it))
-             (return-from do-traverse flag)))
-      ;; dependencies
+           (return-from do-traverse (update-flag (cdr it))))
+      ;; Detect circular dependencies
       (when (component-visiting-p operation c)
         (error 'circular-dependency :components (list c)))
       (setf (visiting-component operation c) t)
       (unwind-protect
            (block nil
-             (when (typep c 'system) ;; systems can be forced or forced-not
-               (let ((ancestor (operation-ancestor operation)))
-                 (flet ((match? (f)
-                          (and f (or (not (consp f)) ;; T or :ALL
-                                     (member (component-name c) f :test #'equal)))))
-                   (cond
+             ;; Systems don't inherit force, but use operation-forced{,-not}.
+             (when (typep c 'system)
+               (let ((ancestor (operation-ancestor operation))
+                     (name (coerce-name c)))
+                 (flet ((match? (f) ;; non-nil means always force{,-not}
+                          (and f (if (typep f 'hash-table) (gethash name f) f))))
+                   (cond ; force takes precedence over force-not
                      ((match? (operation-forced ancestor))
-                      (setf *forcing* t))
+                      (setf force t))
                      ((match? (operation-forced-not ancestor))
-                      (return))))))
-             ;; first we check and do all the dependencies for the module.
-             ;; Operations planned in this loop will show up
-             ;; in the results, and are consumed below.
-             (let ((*forcing* nil))
-               ;; upstream dependencies are never forced to happen just because
-               ;; the things that depend on them are....
-               (loop
-                 :for (required-op . deps) :in (component-depends-on operation c)
-                 :do (dep required-op deps)))
-             ;; constituent bits
+                      (return))
+                     (t
+                      (setf force nil))))))
+             ;; First we recurse over all dependencies.
+             (loop
+               :for (required-op . deps) :in (component-depends-on operation c)
+               :do (dep required-op deps force))
+             ;; Now for internal module bits
              (let ((module-ops
                     (when (typep c 'module)
                       (let ((at-least-one nil)
-                            ;; This is set based on the results of the
-                            ;; dependencies and whether we are in the
-                            ;; context of a *forcing* call...
-                            ;; inter-system dependencies do NOT trigger
-                            ;; building components
-                            (*forcing*
-                             (or *forcing*
-                                 (and flag (not (typep c 'system)))))
+                            ;; This is set based on the results of the dependencies and
+                            ;; whether we are in the context of a forcing call...
+                            ;; inter-system dependencies DO trigger
+                            ;; building components since ASDF 2.26.8 only.
+                            (force (or force flag))
                             (error nil))
                         (while-collecting (internal-collect)
                           (dolist (kid (module-components c))
                             (handler-case
-                                (update-flag
-                                 (do-traverse operation kid #'internal-collect))
+                                (update-flag (do-traverse operation kid #'internal-collect force))
                               #-genera
                               (missing-dependency (condition)
                                 (when (eq (module-if-component-dep-fails c)
@@ -2350,18 +2310,12 @@ recursive calls to traverse.")
                                          :try-next)
                                      (not at-least-one))
                             (error error)))))))
-               (update-flag (or *forcing* (not (operation-done-p operation c))))
-                 ;; For sub-operations, check whether
-                 ;; the original ancestor operation was forced,
-                 ;; or names us amongst an explicit list of things to force...
-                 ;; except that this check doesn't distinguish
-                 ;; between all the things with a given name. Sigh.
-                 ;; BROKEN!
+               (update-flag (or force (not (operation-done-p operation c))))
                (when flag
                  (let ((do-first (cdr (assoc (class-name (class-of operation))
                                              (component-do-first c)))))
                    (loop :for (required-op . deps) :in do-first
-                     :do (do-dep operation c collect required-op deps)))
+                     :do (dep required-op deps force)))
                  (do-collect collect (vector module-ops))
                  (do-collect collect (cons operation c)))))
         (setf (visiting-component operation c) nil)))
@@ -2388,7 +2342,7 @@ recursive calls to traverse.")
   (flatten-tree
    (while-collecting (collect)
      (let ((*visit-count* 0))
-       (do-traverse operation c #'collect)))))
+       (do-traverse operation c #'collect nil)))))
 
 (defmethod perform ((operation operation) (c source-file))
   (sysdef-error
@@ -2726,17 +2680,27 @@ recursive calls to traverse.")
       (loop :for (op . component) :in steps :do
         (perform-with-restarts op component)))))
 
+(defun* list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
+  (dolist (x list h) (setf (gethash x h) t)))
+
+(defun* normalize-forced-systems (x system)
+  (etypecase x
+    ((member nil :all) x)
+    (cons (list-to-hash-set (mapcar #'coerce-name x)))
+    ((eql t) (list-to-hash-set (list (coerce-name system))))))
+
 (defmethod operate (operation-class system &rest args
                     &key force force-not verbose version &allow-other-keys)
-  (declare (ignore force force-not))
   (with-system-definitions ()
     (let* ((*asdf-verbose* verbose)
            (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
-           (op (apply 'make-instance operation-class
-                      :original-initargs args args))
            (system (etypecase system
                      (system system)
                      ((or string symbol) (find-system system))))
+           (op (apply 'make-instance operation-class
+                      :force (normalize-forced-systems force system)
+                      :force-not (normalize-forced-systems force-not system)
+                      :original-initargs args args))
            (systems-being-operated *systems-being-operated*)
            (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))
       (check-type system system)
@@ -2745,9 +2709,8 @@ recursive calls to traverse.")
                ;; If we needed to upgrade ASDF to achieve our goal,
                ;; then do it specially as the first thing,
                ;; which will invalidate all existing systems;
-               ;; afterwards, retry the whole thing with the new OPERATE function,
-               ;; which on some implementations
-               ;; has a new symbol shadowing the current one.
+               ;; afterwards, try again with the new OPERATE function,
+               ;; which on some implementations may be a new symbol.
                (unless (gethash "asdf" *systems-being-operated*)
                  (upgrade-asdf)
                  (return-from operate
@@ -2770,20 +2733,23 @@ recursive calls to traverse.")
 (let ((operate-docstring
   "Operate does three things:
 
-1. It creates an instance of OPERATION-CLASS using any keyword parameters
-as initargs.
-2. It finds the  asdf-system specified by SYSTEM (possibly loading
-it from disk).
+1. It creates an instance of OPERATION-CLASS using any keyword parameters as initargs.
+2. It finds the  asdf-system specified by SYSTEM (possibly loading it from disk).
 3. It then calls TRAVERSE with the operation and system as arguments
 
-The traverse operation is wrapped in WITH-COMPILATION-UNIT and error
-handling code. If a VERSION argument is supplied, then operate also
-ensures that the system found satisfies it using the VERSION-SATISFIES
-method.
+The traverse operation is wrapped in WITH-COMPILATION-UNIT and error handling code.
+If a VERSION argument is supplied, then operate also ensures that the system found
+satisfies it using the VERSION-SATISFIES method.
 
-Note that dependencies may cause the operation to invoke other
-operations on the system or its components: the new operations will be
-created with the same initargs as the original one.
+Note that dependencies may cause the operation to invoke other operations on the system
+or its components: the new operations will be created with the same initargs as the original one.
+
+The :FORCE or :FORCE-NOT argument to OPERATE can be:
+T to force the inside of the specified system to be rebuilt (resp. not),
+  without recursively forcing the other systems we depend on.
+:ALL to force all systems including other systems we depend on to be rebuilt (resp. not).
+(SYSTEM1 SYSTEM2 ... SYSTEMN) to force systems named in a given list
+:FORCE has precedence over :FORCE-NOT.
 "))
   (setf (documentation 'oos 'function)
         (format nil
@@ -2792,10 +2758,9 @@ created with the same initargs as the original one.
   (setf (documentation 'operate 'function)
         operate-docstring))
 
-(defun* load-system (system &rest keys &key force verbose version &allow-other-keys)
-  "Shorthand for `(operate 'asdf:load-op system)`.
-See OPERATE for details."
-  (declare (ignore force verbose version))
+(defun* load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
+  "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
+  (declare (ignore force force-not verbose version))
   (apply 'operate *load-system-operation* system keys)
   t)
 
@@ -2811,19 +2776,15 @@ See OPERATE for details."
 (defun require-system (s &rest keys &key &allow-other-keys)
   (apply 'load-system s :force-not (loaded-systems) keys))
 
-(defun* compile-system (system &rest args &key force verbose version
-                       &allow-other-keys)
-  "Shorthand for `(asdf:operate 'asdf:compile-op system)`. See OPERATE
-for details."
-  (declare (ignore force verbose version))
+(defun* compile-system (system &rest args &key force force-not verbose version &allow-other-keys)
+  "Shorthand for `(asdf:operate 'asdf:compile-op system)`. See OPERATE for details."
+  (declare (ignore force force-not verbose version))
   (apply 'operate 'compile-op system args)
   t)
 
-(defun* test-system (system &rest args &key force verbose version
-                    &allow-other-keys)
-  "Shorthand for `(asdf:operate 'asdf:test-op system)`. See OPERATE for
-details."
-  (declare (ignore force verbose version))
+(defun* test-system (system &rest args &key force force-not verbose version &allow-other-keys)
+  "Shorthand for `(asdf:operate 'asdf:test-op system)`. See OPERATE for details."
+  (declare (ignore force force-not verbose version))
   (apply 'operate 'test-op system args)
   t)
 
@@ -2863,7 +2824,7 @@ details."
       (and (eq type :file)
            (find-class*
             (or (loop :for module = parent :then (component-parent module) :while module
-                  :thereis (module-default-component-class module))
+                      :thereis (module-default-component-class module))
                 *default-component-class*) nil))
       (sysdef-error "don't recognize component type ~A" type)))
 
@@ -2959,20 +2920,16 @@ Returns the new tree (which probably shares structure with the old one)"
               &allow-other-keys) options
     (declare (ignorable perform explain output-files operation-done-p))
     (check-component-input type name weakly-depends-on depends-on components in-order-to)
-
     (when (and parent
                (find-component parent name)
-               ;; ignore the same object when rereading the defsystem
-               (not
+               (not ;; ignore the same object when rereading the defsystem
                 (typep (find-component parent name)
                        (class-for-type parent type))))
       (error 'duplicate-names :name name))
-
     (when versionp
       (unless (parse-version version nil)
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
               version name parent)))
-
     (let* ((args (list* :name (coerce-name name)
                         :pathname pathname
                         :parent parent
@@ -3000,9 +2957,7 @@ Returns the new tree (which probably shares structure with the old one)"
                   :collect c
                   :when serial :do (setf *serial-depends-on* name))))
         (compute-module-components-by-name ret))
-
       (setf (component-load-dependencies ret) depends-on) ;; Used by POIU
-
       (setf (component-in-order-to ret)
             (union-of-dependencies
              in-order-to
@@ -3012,7 +2967,6 @@ Returns the new tree (which probably shares structure with the old one)"
             (union-of-dependencies
              do-first
              `((compile-op (load-op ,@depends-on)))))
-
       (%refresh-component-inline-methods ret rest)
       ret)))
 
@@ -3041,7 +2995,7 @@ Returns the new tree (which probably shares structure with the old one)"
       (setf (gethash name *systems-being-defined*) system)
       (apply 'load-systems defsystem-depends-on)
       ;; We change-class (when necessary) AFTER we load the defsystem-dep's
-      ;; since the class might not be defined as part of those.
+      ;; since the class might be defined as part of those.
       (let ((class (class-for-type nil class)))
         (unless (eq (type-of system) class)
           (change-class system class)))
