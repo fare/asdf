@@ -14,7 +14,6 @@
 ;;; and reloading of "file2," but /not/ of system Y.
 ;;;---------------------------------------------------------------------------
 
-
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:operate 'asdf:load-op 'test-module-excessive-depend)
@@ -47,11 +46,9 @@
      (let ((plan (asdf::traverse
                   (make-instance 'asdf:load-op)
                   (asdf:find-system 'test-module-excessive-depend)))
-           (file3-only (asdf:find-system 'file3-only)))
-;;;    (format t "~%Operation plan is:~%")
-;;;    (pprint plan)
-;;;    (format t "Target system is: ~a" file3-only)
-       (when (find file3-only plan :key #'cdr)
+           (file3 (asdf:find-component :file3-only "file3")))
+       #|(format t "~%Operation plan is:~%")(pprint plan)(terpri)|#
+       (when (loop :for (o . c) :in plan :thereis (and (eq c file3) (typep o 'asdf:compile-op)))
          (error "Excessive operations on file3-only system.  Bad propagation of dependencies.")))
      (asdf:operate 'asdf:load-op 'test-module-excessive-depend)
      (assert (> (file-write-date (asdf:compile-file-pathname* "file2")) before))

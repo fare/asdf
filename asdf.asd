@@ -14,7 +14,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.8" ;; to be automatically updated by bin/bump-revision
+  :version "2.26.9" ;; to be automatically updated by bin/bump-revision
   :depends-on ()
   :components
   ((:file "asdf")))
@@ -25,8 +25,9 @@
 ;; perform'ing the load-op'ing of the newly compiled asdf fasl because
 ;; perform has been undefined during the initial package-frobbing eval-when code,
 ;; but not redefined yet by loading the code rather than merely compiling it.
-;; We could use (:file "asdf" :do-first ((compile-op (load-source-op "asdf"))))
-;; but it's only supported since ASDF 2.016.3. What's below should be more compatible.
+;; Between ASDF 2.016.3 and 2.26.8, we could have used
+;; (:file "asdf" :do-first ((compile-op (load-source-op "asdf"))))
+;; What's below should be more compatible.
 ;; We can't use find-component, because it's not compatible with old versions of ASDF 1.x
 
 (defmethod perform :before ((operation compile-op)

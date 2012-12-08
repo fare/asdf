@@ -229,8 +229,8 @@ http://ilc2009.scheming.org/
  :components ((:test-file "a")
                (:test-file "b"
                            :in-order-to ((asdf:compile-op (asdf:compile-op "a"))
-                                         (asdf:load-op (asdf:load-op "a")))
-                           :do-first    ((asdf:compile-op (asdf:load-op "a"))))))
+                                         (asdf:load-op (asdf:load-op "a"))
+                                         (asdf:compile-op (asdf:load-op "a"))))))
 
 (define-test test-6 system-6
  :operation-name asdf:compile-op
@@ -241,8 +241,6 @@ http://ilc2009.scheming.org/
              (:did-not-load "b")))
 
 ;; Should be just like test-3-b, but a does not get loaded.   Why not?
-;; Because you can't really specify :do-first because it clobbers
-;; the :do-first that you provide!
 (define-test test-6-a system-6
  :operation-name asdf:compile-op
  :already-compiled ()
