@@ -123,18 +123,18 @@ is bound, write a message and exit on an error.  If
                   (t
                    (finish-output *standard-output*)
                    (finish-output *trace-output*)
-                   (format *error-output* "~&ABORTING:~% ~S~%" c)
+                   (format *error-output* "~&ABORTING:~% ~A~%" c)
                    (finish-output *error-output*)
                    #+sbcl (sb-debug:backtrace 69)
                    #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
                    #+clisp (system::print-backtrace)
-                   (format *error-output* "~&ABORTING:~% ~S~%" c)
+                   (format *error-output* "~&ABORTING:~% ~A~%" c)
                    (finish-output *error-output*)
                    (finish-output *standard-output*)
                    (finish-output *trace-output*)
-                   (leave-lisp "~&Script failed~%" 1))))))
+                   (leave-lisp "Script failed" 1))))))
     (funcall thunk)
-    (leave-lisp "~&Script succeeded~%" 0)))
+    (leave-lisp "Script succeeded" 0)))
 
 
 ;;; These are used by the upgrade tests
@@ -204,5 +204,5 @@ outputs a tag plus a list of variable and their values, returns the last value"
          exprs)
       (apply 'values ,res)))))
 
-;    (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files file-op null-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
+   (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files file-op null-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
 |#

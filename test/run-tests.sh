@@ -80,6 +80,8 @@ do_tests() {
 	failed_list="$failed_list $i"
         sok=0
       fi
+      echo >&2
+      echo >&2
     done
     echo >&2
     echo "-#---------------------------------------" >&2
