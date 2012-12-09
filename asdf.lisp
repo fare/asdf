@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.10: Another System Definition Facility.
+;;; This is ASDF 2.26.11: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.10")
+         (asdf-version "2.26.11")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2074,12 +2074,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmacro with-component-being-visited ((o c) &body body)
   `(call-with-component-being-visited ,o ,c #'(lambda () ,@body)))
 
-(defmethod component-depends-on ((op-spec symbol) (c component))
-  ;; Note: we go from op-spec to operation via make-instance
-  ;; to allow for specialization through defmethod's, even though
-  ;; it's a detour in the default case below.
-  (component-depends-on (make-instance op-spec) c))
-
 (defmethod component-depends-on ((o operation) (c component))
   (cdr (assoc (type-of o) (component-in-order-to c))))
 
@@ -2099,8 +2093,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
         ;; original source file, then
         (list (component-pathname c)))))
 
-(defmethod input-files ((operation operation) (c module))
-  (declare (ignorable operation c))
+(defmethod input-files ((o operation) (c module))
+  (declare (ignorable o c))
   nil)
 
 (defmethod component-operation-time ((o operation) (c component))
@@ -2471,8 +2465,8 @@ Returns two values:
           (:error (error 'compile-warned :component c :operation operation))
           (:ignore nil))))))
 
-(defmethod output-files ((operation compile-op) (c cl-source-file))
-  (declare (ignorable operation))
+(defmethod output-files ((o compile-op) (c cl-source-file))
+  (declare (ignorable o))
   (let* ((p (lispize-pathname (component-pathname c)))
          (f (compile-file-pathname ;; fasl
              p #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl))
@@ -2483,25 +2477,25 @@ Returns two values:
     #+mkcl (list o f)
     #-(or ecl mkcl) (list f)))
 
-(defmethod perform ((operation compile-op) (c static-file))
-  (declare (ignorable operation c))
+(defmethod perform ((o compile-op) (c static-file))
+  (declare (ignorable o c))
   nil)
 
-(defmethod output-files ((operation compile-op) (c static-file))
-  (declare (ignorable operation c))
+(defmethod output-files ((o compile-op) (c static-file))
+  (declare (ignorable o c))
   nil)
 
-(defmethod input-files ((operation compile-op) (c static-file))
-  (declare (ignorable operation))
+(defmethod input-files ((o compile-op) (c static-file))
+  (declare (ignorable o))
   nil)
 
-(defmethod operation-description ((operation compile-op) component)
-  (declare (ignorable operation))
-  (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") component))
+(defmethod operation-description ((o compile-op) (c component))
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") c))
 
-(defmethod operation-description ((operation compile-op) (component module))
-  (declare (ignorable operation))
-  (format nil (compatfmt "~@<compiled ~3i~_~A~@:>") component))
+(defmethod operation-description ((o compile-op) (c module))
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<compiled ~3i~_~A~@:>") c))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -2530,33 +2524,31 @@ Returns two values:
 	     :unless (string= (pathname-type i) "fas")
 	     :collect (compile-file-pathname (lispize-pathname i)))))
 
-(defmethod perform ((operation load-op) (c static-file))
-  (declare (ignorable operation c))
+(defmethod perform ((o load-op) (c static-file))
+  (declare (ignorable o c))
   nil)
 
-(defmethod output-files ((operation operation) (c component))
-  (declare (ignorable operation c))
+(defmethod output-files ((o operation) (c component))
+  (declare (ignorable o c))
   nil)
 
-(defmethod component-depends-on ((operation load-op) (c component))
-  (declare (ignorable operation))
+(defmethod component-depends-on ((o load-op) (c component))
+  (declare (ignorable o))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
 
-(defmethod operation-description ((operation load-op) component)
-  (declare (ignorable operation))
+(defmethod operation-description ((o load-op) component)
+  (declare (ignorable o))
   (format nil (compatfmt "~@<loading ~3i~_~A~@:>")
           component))
 
-(defmethod operation-description ((operation load-op) (component cl-source-file))
-  (declare (ignorable operation))
-  (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>")
-          component))
+(defmethod operation-description ((o load-op) (c cl-source-file))
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>") c))
 
-(defmethod operation-description ((operation load-op) (component module))
-  (declare (ignorable operation))
-  (format nil (compatfmt "~@<loaded ~3i~_~A~@:>")
-          component))
+(defmethod operation-description ((o load-op) (c module))
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<loaded ~3i~_~A~@:>") c))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; load-source-op
@@ -2568,29 +2560,27 @@ Returns two values:
   (call-with-around-compile-hook
    c #'(lambda () (load (component-pathname c) :external-format (component-external-format c)))))
 
-(defmethod perform ((operation load-source-op) (c static-file))
-  (declare (ignorable operation c))
+(defmethod perform ((o load-source-op) (c static-file))
+  (declare (ignorable o c))
   nil)
 
-(defmethod output-files ((operation load-source-op) (c component))
-  (declare (ignorable operation c))
+(defmethod output-files ((o load-source-op) (c component))
+  (declare (ignorable o c))
   nil)
 
 ;;; FIXME: We simply copy load-op's dependencies.  This is Just Not Right.
 (defmethod component-depends-on ((o load-source-op) (c component))
-  (declare (ignorable o))
-  (loop :with what-would-load-op-do = (component-depends-on 'load-op c)
+  (loop :with what-would-load-op-do = (component-depends-on (make-sub-operation o 'load-op) c)
     :for (op . co) :in what-would-load-op-do
     :when (eq op 'load-op) :collect (cons 'load-source-op co)))
 
-(defmethod operation-description ((operation load-source-op) component)
-  (declare (ignorable operation))
-  (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>")
-          component))
+(defmethod operation-description ((o load-source-op) c)
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>") c))
 
-(defmethod operation-description ((operation load-source-op) (component module))
-  (declare (ignorable operation))
-  (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") component))
+(defmethod operation-description ((o load-source-op) (c module))
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") c))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -4531,8 +4521,8 @@ with a different configuration, so the configuration would be re-read then."
         (remove-keys '(type monolithic name-suffix)
                      (slot-value instance 'original-initargs))))
 
-(defmethod bundle-op-build-args :around ((op lib-op))
-  (declare (ignorable op))
+(defmethod bundle-op-build-args :around ((o lib-op))
+  (declare (ignorable o))
   (let ((args (call-next-method)))
     (remf args :ld-flags)
     args))
@@ -4543,13 +4533,12 @@ with a different configuration, so the configuration would be re-read then."
   (declare (ignorable o c))
   (not *force-load-p*))
 
-(defun gather-components (op-type system &key filter-system filter-type include-self)
+(defun gather-components (operation system &key filter-system filter-type include-self)
   ;; This function creates a list of components,
   ;; matched together with an operation.
   ;; This list may be restricted to sub-components of SYSTEM
   ;; if GATHER-ALL = NIL (default), and it may include the system itself.
-  (let* ((operation (make-instance op-type))
-         (*force-load-p* t)
+  (let* ((*force-load-p* t)
          (tree (traverse (make-sub-operation operation 'load-op) system)))
     (append
      (loop :for (op . component) :in tree
@@ -4581,8 +4570,7 @@ with a different configuration, so the configuration would be re-read then."
 ;;; Gather the static libraries of all components.
 ;;;
 (defmethod bundle-sub-operations ((o monolithic-bundle-op) c)
-  (declare (ignorable o))
-  (gather-components 'lib-op c :filter-type 'system :include-self t))
+  (gather-components (make-sub-operation o 'lib-op) c :filter-type 'system :include-self t))
 
 ;;;
 ;;; STATIC LIBRARIES
@@ -4591,12 +4579,11 @@ with a different configuration, so the configuration would be re-read then."
 ;;; and, if monolithic, also of systems and subsystems.
 ;;;
 (defmethod bundle-sub-operations ((o lib-op) c)
-  (gather-components 'compile-op c
+  (gather-components (make-sub-operation o 'compile-op) c
                      :filter-system (and (not (bundle-op-monolithic-p o)) c)
                      :filter-type '(not system)))
 (defmethod bundle-sub-operations ((o monolithic-lib-op) c)
-  (declare (ignorable o))
-  (gather-components 'compile-op c
+  (gather-components (make-sub-operation o 'compile-op) c
                      :filter-system nil
                      :filter-type '(not system)))
 ;;;
@@ -4728,30 +4715,24 @@ with a different configuration, so the configuration would be re-read then."
 ;;;
 
 (defclass compiled-file (component)
-  ((type :initform nil)))
+  ((type :initform #-(or ecl mkcl) (fasl-type) #+(or ecl mkcl) "fasb")))
 
 (defmethod trivial-system-p ((s module))
   (every #'(lambda (c) (typep c 'compiled-file)) (module-components s)))
-
-(defmethod component-relative-pathname ((component compiled-file))
-  (coerce-pathname
-   (or (slot-value component 'relative-pathname)
-       (component-name component))
-   :type (fasl-type)
-   :defaults (component-parent-pathname component)))
 
 (defmethod output-files (o (c compiled-file))
   (declare (ignore o c))
   nil)
 (defmethod input-files (o (c compiled-file))
-  (declare (ignore o c))
-  nil)
+  (declare (ignore o))
+  (load (component-pathname c)))
 (defmethod perform ((o load-op) (c compiled-file))
   (declare (ignore o))
   (load (component-pathname c)))
+(defmethod perform ((o load-source-op) (c compiled-file))
+  (perform (make-sub-operation o 'load-op) c))
 (defmethod perform ((o load-fasl-op) (c compiled-file))
-  (declare (ignore o))
-  (load (component-pathname c)))
+  (perform (make-sub-operation o 'load-op) c))
 (defmethod perform (o (c compiled-file))
   (declare (ignore o c))
   nil)
@@ -4980,16 +4961,15 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 ;;; dependencies of this bundle.
 ;;;
 
-(defun mkcl-bundle-sub-operations (sys)
-  (gather-components 'compile-op sys
+(defun mkcl-bundle-sub-operations (op sys)
+  (gather-components (make-sub-operation op 'compile-op) sys
 		     :filter-system sys
 		     :filter-type '(not system)))
 
-(defun files-to-bundle (sys)
-  (loop :for (op . comp) :in (mkcl-bundle-sub-operations sys)
-    :for sub-files = (output-files op comp)
-    :when sub-files
-    :collect (first sub-files)))
+(defun files-to-bundle (operation system)
+  (loop :for (o . c) :in (mkcl-bundle-sub-operations operation system)
+    :for sub-files = (output-files o c)
+    :when sub-files :collect (first sub-files)))
 
 (defmethod component-depends-on ((o bundle-op) (c system))
   (cons `(compile-op ,(component-name c)) (call-next-method)))
@@ -5005,7 +4985,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
     (list static-lib-name fasl-bundle-name)))
 
 (defmethod perform ((o bundle-op) (c system))
-  (let* ((object-files (files-to-bundle c))
+  (let* ((object-files (files-to-bundle o c))
 	 (output (output-files o c)))
     (ensure-directories-exist (first output))
     (when (bundle-op-do-static-library-p o)
@@ -5018,46 +4998,13 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
   (declare (ignore force verbose version))
   (apply #'operate 'bundle-op system args))
-
-;;;
-;;; BUNDLED FILES
-;;;
-;;; This component can be used to distribute ASDF libraries in bundled form.
-;;;
-
-(defclass bundle (component) ())
-
-(defmethod source-file-type ((c bundle) (s system))
-  "fasb")
-
-(defmethod perform ((o load-op) (c bundle))
-  (load (component-pathname c)))
-
-(defmethod perform (o (c bundle))
-  (declare (ignore o))
-  nil)
-
-;; The ability to load a fasb bundle is separate from
-;; the ability to build a fasb bundle, so this is somewhat unrelated to what is above.
 );mkcl
-
 
 
 ;;;; -----------------------------------------------------------------
 ;;;; Done!
 (when *load-verbose*
   (asdf-message ";; ASDF, version ~a~%" (asdf-version)))
-
-#+mkcl
-(handler-case
-    (progn
-      (load-sysdef "asdf-bundle"
-                   (subpathname (translate-logical-pathname #P"CONTRIB:")
-                                "asdf-bundle/asdf-bundle.asd"))
-      (load-system "asdf-bundle"))
-  (error (e)
-    (format *error-output*
-            "~&;;; ASDF: Failed to load package 'asdf-bundle'!~%;;; ~A~%" e)))
 
 #+allegro
 (eval-when (:compile-toplevel :execute)
