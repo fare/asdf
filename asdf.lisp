@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.9: Another System Definition Facility.
+;;; This is ASDF 2.26.10: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.9")
+         (asdf-version "2.26.10")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -233,7 +233,7 @@
            :use (:common-lisp)
            :redefined-functions
            (#:perform #:explain #:output-files #:operation-done-p #:do-traverse
-            #:visit-component #:operation-done-p
+            #:visit-action #:compute-action-stamp
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
@@ -257,7 +257,7 @@
             #:upgrade-asdf
             #:implementation-identifier #:implementation-type #:hostname
             #:input-files #:output-files #:output-file #:perform
-            #:operation-done-p #:explain
+            #:operation-done-p #:explain #:component-load-dependencies
 
             #:component #:source-file
             #:c-source-file #:cl-source-file #:java-source-file
@@ -431,10 +431,6 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
 
 (defvar *compile-op-compile-file-function* 'compile-file*
   "Function used to compile lisp files.")
-
-(defvar *stamp* nil
-  "Latest timestamp involved in actions so far.")
-
 
 #+allegro
 (eval-when (:compile-toplevel :execute)
@@ -1075,27 +1071,20 @@ For the latter case, we ought pick random suffix and atomically open it."
   ;; If FILE-WRITE-DATE returns NIL, it's possible that
   ;; the user or some other agent has deleted an input file.
   ;; Also, generated files will not exist at the time planning is done
-  ;; and calls operation-done-p which calls safe-file-write-date.
+  ;; and calls compute-action-stamp which calls safe-file-write-date.
   ;; So it is very possible that we can't get a valid file-write-date,
   ;; and we can survive and we will continue the planning
   ;; as if the file were very old.
   ;; (or should we treat the case in a different, special way?)
-  (or (and pathname (probe-file* pathname) (ignore-errors (file-write-date pathname)))
-      (when (and pathname *asdf-verbose*)
-        (warn (compatfmt "~@<Missing FILE-WRITE-DATE for ~S.~@:>") pathname))
-        nil))
+  (and pathname (probe-file* pathname) (ignore-errors (file-write-date pathname))))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF Interface, in terms of generic functions.
 (defgeneric* find-system (system &optional error-p))
 (defgeneric* perform-with-restarts (operation component))
 (defgeneric* perform (operation component))
-(defgeneric* operation-done-p (operation component) ;; ASDF3: rename to action-stamp
-  (:documentation "When has the OPERATION last been done on the COMPONENT?
-Return one or two values:
-* a boolean indicating if true that YES, it has been done
-* optionally a date stamp saying when it was done, otherwise
-  deduced from INPUT-FILES and OUTPUT-FILES and *STAMP*."))
+(defgeneric* operation-done-p (operation component) ;; ASDF3: eliminate?
+  (:documentation "Returns a boolean, which is NIL if the action is forced to be performed again"))
 (defgeneric* mark-operation-done (operation component)) ;; ASDF3: rename to stamp-action
 (defgeneric* explain (operation component))
 (defgeneric* output-files (operation component))
@@ -1171,7 +1160,7 @@ so that nodes can be sorted in decreasing order of traversal."))
 
 (defgeneric* component-visiting-p (operation component))
 
-(defgeneric* component-depends-on (operation component)
+(defgeneric* component-depends-on (operation component) ;; ASDF3: rename to component-dependencies
   (:documentation
    "Returns a list of dependencies needed by the component to perform
     the operation.  A dependency has one of the following forms:
@@ -2025,6 +2014,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
    (visited-nodes :initform (make-hash-table :test 'equal) :accessor operation-visited-nodes)
    (node-visiting-set :initform (make-hash-table :test 'equal) :accessor operation-node-visiting-set)
    (node-visiting-list :initform () :accessor operation-node-visiting-list)
+   (children :initform (make-hash-table :test 'eql) :accessor operation-children)
    (parent :initform nil :initarg :parent :accessor operation-parent)))
 
 (defmethod print-object ((o operation) stream)
@@ -2040,10 +2030,15 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
        (operation-ancestor it)
        operation))
 
-(defun* make-sub-operation (operation sub-op-class)
-  (loop :for op = operation :then (operation-parent op) :while op
-        :when (subtypep (type-of op) sub-op-class) :return op
-        :finally (return (make-instance sub-op-class :parent operation))))
+(defun* make-sub-operation (operation op-class)
+  (let* ((ancestor (operation-ancestor operation))
+         (operations (operation-children ancestor)))
+    (or (values (gethash op-class operations))
+        (let ((new (if (eq op-class (type-of ancestor))
+                       ancestor
+                       (make-instance op-class :parent ancestor))))
+          (setf (gethash op-class operations) new)
+          new))))
 
 (defmethod mark-component-visited ((o operation) (c component) data)
   (unless (nth-value 1 (component-visited-p o c))
@@ -2051,6 +2046,14 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defmethod component-visited-p ((o operation) (c component))
   (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))))
+
+(defun* component-visited-stamp (o c)
+  (let ((data (component-visited-p o c)))
+    (cond
+      (data (car data))
+      (t (warn "looking up stamp for non-visited dependency ~A"
+               (operation-description o c))
+         nil))))
 
 (defun* call-with-component-being-visited (o c fun)
   ;; Detect circular dependencies
@@ -2086,13 +2089,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
    (component-depends-on o c)))
 
 (defmethod input-files ((operation operation) (c component))
-  (let ((parent (component-parent c))
-        (self-deps (component-self-dependencies operation c)))
+  (let ((self-deps (component-self-dependencies operation c)))
     (if self-deps
         (mapcan #'(lambda (dep)
-                    (destructuring-bind (op name) dep
-                      (output-files (make-instance op)
-                                    (find-component parent name))))
+                    (assert (equal (list (component-name c)) (cdr dep)))
+                    (output-files (make-sub-operation operation (car dep)) c))
                 self-deps)
         ;; no previous operations needed?  I guess we work with the
         ;; original source file, then
@@ -2108,31 +2109,32 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod component-operation-time ((o symbol) (c component))
   (gethash o (component-operation-times c)))
 
-(defgeneric* compute-action-stamp (operation component &key just-done stamp))
+(defgeneric* compute-action-stamp (operation component &key mode base-stamp)
+  (:documentation "Has this action been done, and at what timestamp has it or will it be done?
+Takes two keywords JUST-DONE and STAMP-LOOKUP:
+JUST-DONE is a boolean that is true if the action was just successfully performed,
+at which point we compute the new stamp and warn if files are missing.
+STAMP-LOOKUP is a function of two arguments op and comp that when called
+with each dependency of the current action will return its stamp;
+by default, STAMP-LOOKUP is the COMPONENT-OPERATION-TIME,
+looking up actually performed times.
+Returns two values:
+* a timestamp saying when it was done or will be done,
+  or T if the action has output-files that need to be recomputed.
+* a boolean that indicates whether the action has been done
+  and both its output-files and its in-image side-effects are up to date."))
 
-;; Backwards compatibility with pre-2.26.9 1-return-value interface
-(defmethod operation-done-p :around ((o operation) (c component))
-  (destructuring-bind (done-p &optional (stamp nil stampp))
-      (multiple-value-list (call-next-method))
-    (cond
-      (stampp
-       (values done-p stamp))
-      (done-p
-       (values done-p (compute-action-stamp o c)))
-      (t
-       (values nil t)))))
-
+;;; operation-done-p is a remainder from ASDF 1,
+;;; only left so users may declare some (e.g. test) operations as "never done".
 (defmethod operation-done-p ((o operation) (c component))
-  (multiple-value-bind (stamp done-p) (compute-action-stamp o c)
-    (values done-p stamp)))
+  (declare (ignorable o c))
+  t)
 
 ;;; The TRAVERSE protocol is as follows: we pass around operation, dependency,
 ;;; bunch of other stuff, and a force argument. Functions return a force stamp.
 ;;; The force argument forces rebuilding of all components in current system
 ;;; if earlier than the stamp (NIL is earliest, T is latest).
 ;;; The returned stamp is T if anything has changed that required a rebuild.
-
-(defgeneric* visit-component (operation component collect force))
 
 (defun* resolve-dependency-name (component name &optional version)
   (loop
@@ -2183,13 +2185,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     (t
      (error (compatfmt "~@<Bad dependency ~s.  Dependencies must be (:version <name> <version>), (:feature <feature> <name>), or <name>.~@:>") dep-spec))))
 
-(defun* update-stamp (x)
-  (latest-stamp-f *stamp* x))
-
 (defun* do-collect (collect x)
   (funcall collect x))
 
-(defun* visit-dep (op c dep-op-spec dep-c-specs fun)
+(defun* visit-dependencies (op c dep-op-spec dep-c-specs fun)
   ;; Collects a partial plan for performing DEP-OP-SPEC on each of DEP-C-SPECS
   ;; as dependencies of a larger plan involving OP and C,
   ;; by calling FUN on each dependency specified by the specs.
@@ -2203,9 +2202,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ;; then DEP-C-SPECS specifies a list of sibling component of C,
   ;; as per RESOLVE-DEPENDENCY-SPEC, such that operating OP on C
   ;; depends on operating DEP-OP-SPEC on each of them.
-  ;;---*** move the below to FUN?
-  ;; Update the *STAMP* as we go and return the end stamp.
-  ;; If the *STAMP* is T, this will force recompilation of those who depend on us.
   (cond ((eq dep-op-spec 'feature)
          (if (member (car dep-c-specs) *features*)
              nil
@@ -2213,12 +2209,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                     :required-by c
                     :requires (list :feature (car dep-c-specs)))))
         (t
-         (let ((stamp *stamp*))
-           (dolist (d dep-c-specs *stamp*)
-             (update-stamp
-              (let ((*stamp* stamp))
-                (funcall fun (make-sub-operation op dep-op-spec)
-                         (resolve-dependency-spec c d)))))))))
+         (stamps-latest
+          (loop :for d :in dep-c-specs
+                :collect (funcall fun (make-sub-operation op dep-op-spec)
+                                  (resolve-dependency-spec c d)))))))
 
 (defun* visit-module-components (op module fun)
   (when (typep module 'module)
@@ -2228,10 +2222,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           ;; inter-system dependencies DO trigger
           ;; building components since ASDF 2.26.8 only.
           (error nil)
-          (stamp *stamp*))
+          (stamp nil))
       (dolist (kid (module-components module))
         (handler-case
-            (update-stamp (let ((*stamp* stamp)) (funcall fun op kid) *stamp*))
+            (latest-stamp-f stamp (funcall fun op kid))
           #-genera
           (missing-dependency (condition)
             (when (eq (module-if-component-dep-fails module)
@@ -2244,87 +2238,108 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (when (and (eq (module-if-component-dep-fails module)
                      :try-next)
                  (not at-least-one))
-        (error error)))))
+        (error error))
+      stamp)))
 
 (defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
 
-(defmethod visit-component ((o operation) (c component) recurse fun)
+(defun* system-stamp (system)
+  (car (system-registered-p (coerce-name system))))
+  
+(defun* visit-action (o c recurse fun base-stamp)
   (block nil
     ;; Systems don't inherit force, but use operation-forced{,-not}.
-    (let ((force
-            (when (typep c 'system)
-              (let ((ancestor (operation-ancestor o))
-                      (name (coerce-name c)))
-                (flet ((match? (f) ;; non-nil means always force{,-not}
-                         (and f (if (typep f 'hash-table) (gethash name f) f))))
-                  (cond ; force takes precedence over force-not
-                    ((match? (operation-forced ancestor)) t)
-                    ((match? (operation-forced-not ancestor)) (return))
-                    (t (car (system-registered-p c)))))))))
-      (multiple-value-bind (done-p stamp)
-          (let* ((stamp (unless (typep c 'system) *stamp*))
-                 (*stamp* stamp))
-            ;; First we recurse over all dependencies.
-            (loop
-              :for (required-op . deps) :in (component-depends-on o c)
-              :do (update-stamp
-                   (let ((*stamp* stamp))
-                     (visit-dep o c required-op deps recurse))))
-            ;; Now for internal module bits
-            (update-stamp force)
-            (visit-module-components o c recurse)
-            (operation-done-p o c))
-        (update-stamp stamp)
-        (funcall fun o c done-p))))
-  *stamp*)
+    (let* ((force
+             (if (typep c 'system)
+                 (let ((ancestor (operation-ancestor o))
+                       (name (coerce-name c)))
+                   (flet ((match? (f) ;; non-nil means always force{,-not}
+                           (and f (if (typep f 'hash-table) (gethash name f) f))))
+                     (cond ; force takes precedence over force-not
+                       ((match? (operation-forced ancestor)) t)
+                       ((match? (operation-forced-not ancestor)) (return))
+                       (t (system-stamp c)))))
+                 base-stamp))
+           (dep-stamp
+             (stamps-latest
+              (loop
+                :for (required-op . deps) :in (component-depends-on o c)
+                :collect (visit-dependencies o c required-op deps (funcall recurse force)))))
+           (components-stamp
+             (visit-module-components o c (funcall recurse (later-stamp force dep-stamp)))))
+      (multiple-value-bind (stamp done-p)
+          (compute-action-stamp
+           o c :mode :plan
+           :base-stamp (latest-stamp force dep-stamp components-stamp))
+        (funcall fun o c done-p stamp)
+        stamp))))
 
-(defgeneric* traverse-component (operation component collect))
+(defgeneric* traverse-action (operation component base-stamp collect))
 
-(defmethod traverse-component ((o operation) (c component) collect)
+(defmethod traverse-action ((o operation) (c component) base-stamp collect)
   (block nil
     ;; Have we been visited yet? If so, just process the result.
     (multiple-value-bind (s p) (component-visited-p o c)
-      (when p (return (update-stamp (car s)))))
+      (when p (return (car s))))
     (with-component-being-visited (o c)
-      (visit-component
+      (visit-action
        o c
-       #'(lambda (o c) (traverse-component o c collect))
-       #'(lambda (o c done-p)
-           (mark-component-visited o c (cons *stamp* (unless done-p (incf *visit-count*))))
-           (unless done-p
-             (do-collect collect (cons o c))))))))
-  
+       #'(lambda (stamp)
+           #'(lambda (o c) (traverse-action o c stamp collect)))
+       #'(lambda (o c done-p stamp)
+           (mark-component-visited o c (cons stamp (unless done-p (incf *visit-count*))))
+           (if done-p
+               (mark-operation-done o c)
+               (do-collect collect (cons o c))))
+       base-stamp))))
+
 (defmethod traverse ((o operation) (c component))
   (while-collecting (collect)
-    (let ((*visit-count* 0)
-          (*stamp* nil))
-      (traverse-component o c #'collect))))
+    (let ((*visit-count* 0))
+      (traverse-action o c nil #'collect))))
 
-(defmethod compute-action-stamp ((o operation) (c component)
-                                 &key just-done (stamp *stamp*))
-  (declare (optimize (speed 0) (safety 3) (debug 3)))
-  (let* ((out-files (output-files o c))
+(defmethod compute-action-stamp ((o operation) (c component) &key (mode :query) base-stamp)
+  (let* ((stamp-lookup (ecase mode
+                         ((:just-done :query) 'component-operation-time)
+                         ((:plan) 'component-visited-stamp)))
+         (just-done (eq mode :just-done))
+         (out-files (output-files o c))
          (in-files (input-files o c))
+         (null-op (and (null out-files) (null in-files)))
          (op-time (or just-done (component-operation-time o c)))
-         (dep-stamp (if just-done
-                        (let ((*stamp* nil))
-                          (loop :for (op . comps) :in (component-depends-on o c) :do
-                            (visit-dep o c op comps 'component-operation-time))
-                          (visit-module-components o c 'component-operation-time)
-                          *stamp*)
-                        stamp))
+         (op-stamp (if (or null-op out-files) t op-time))
+         (dep-stamp (stamps-latest
+                     (append
+                      (loop :for (op . comps) :in (component-depends-on o c)
+                            :collect (visit-dependencies o c op comps stamp-lookup))
+                      (list (visit-module-components o c stamp-lookup)
+                            base-stamp))))
          (out-stamps (mapcar #'safe-file-write-date out-files))
-         (in-stamps (cons dep-stamp (mapcar #'safe-file-write-date in-files)))
-         (earliest-out (stamps-earliest (cons (or op-time t) out-stamps)))
+         (in-stamps (mapcar #'safe-file-write-date in-files))
+         (missing-in
+           (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
+         (missing-out
+           (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
+         (all-present (not (or missing-in missing-out)))
+         (earliest-out (stamps-earliest out-stamps))
          (latest-in (stamps-latest (cons dep-stamp in-stamps)))
          (done-stamp (stamps-latest (cons latest-in out-stamps))))
+    ;; Warnings
+    (when (and just-done (not all-present))
+      (warn "~A completed without~*~@[ its input file~:p~{ ~S~}~]~
+             ~@[ or~]~*~@[ its output file~:p~*~{ ~S~}~]"
+            (operation-description o c)
+            (length missing-in) missing-in (and missing-in missing-out)
+            (length missing-out) missing-out))
     ;; We use stamp<= instead of stamp< to play nice with generated files.
     ;; Any race condition is intrinsic to the timestamp resolution being one second.
     (if (or just-done
             (and (stamp<= latest-in earliest-out)
-                 (if (realp op-time) (eql op-time done-stamp) t) ; after we upgrade, op-time will be nil (or t?)
-                 (every #'probe-file* (append in-files out-files))))
-        (values done-stamp (and (or out-files op-time) t))
+                 (operation-done-p o c)))
+        (values done-stamp
+                (and (or op-time out-files (and (null in-files) (null out-files)))
+                     (if (realp op-stamp) (eql op-stamp done-stamp) t)
+                     all-present))
         (values t nil))))
 
 (defmethod perform ((operation operation) (c source-file))
@@ -2338,7 +2353,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defmethod mark-operation-done ((o operation) (c component))
   (setf (gethash (type-of o) (component-operation-times c))
-        (latest-stamp-f *stamp* (compute-action-stamp o c :just-done t))))
+        (compute-action-stamp o c :mode :just-done :base-stamp (system-stamp (component-system c)))))
 
 (defmethod perform-with-restarts (operation component)
   ;; TOO verbose, especially as the default. Add your own :before method
@@ -2477,7 +2492,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   nil)
 
 (defmethod input-files ((operation compile-op) (c static-file))
-  (declare (ignorable operation c))
+  (declare (ignorable operation))
   nil)
 
 (defmethod operation-description ((operation compile-op) component)
@@ -2518,14 +2533,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod perform ((operation load-op) (c static-file))
   (declare (ignorable operation c))
   nil)
-
-(defmethod operation-done-p ((operation load-op) (c static-file))
-  (declare (ignorable operation c))
-  (values t nil))
-
-(defmethod operation-done-p ((operation compile-op) (c static-file))
-  (declare (ignorable operation c))
-  (values t nil))
 
 (defmethod output-files ((operation operation) (c component))
   (declare (ignorable operation c))
@@ -2591,13 +2598,13 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defclass test-op (operation) ())
 
-(defmethod perform ((operation test-op) (c component))
-  (declare (ignorable operation c))
+(defmethod perform ((o test-op) (c component))
+  (declare (ignorable o c))
   nil)
 
-(defmethod operation-done-p ((operation test-op) (c system))
+(defmethod operation-done-p ((o test-op) (c system))
   "Testing a system is _never_ done."
-  (declare (ignorable operation c))
+  (declare (ignorable o c))
   nil)
 
 (defmethod component-depends-on :around ((o test-op) (c system))
@@ -2651,8 +2658,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defmethod perform-plan ((steps list) &key)
   (let ((*package* *package*)
-        (*readtable* *readtable*)
-        (*stamp* nil))
+        (*readtable* *readtable*))
     (with-compilation-unit ()
       (loop :for (op . component) :in steps :do
         (perform-with-restarts op component)))))
@@ -2935,7 +2941,7 @@ Returns the new tree (which probably shares structure with the old one)"
                   :collect c
                   :when serial :do (setf *serial-depends-on* name))))
         (compute-module-components-by-name ret))
-      (setf (component-load-dependencies ret) depends-on) ;; Used by POIU
+      (setf (component-load-dependencies ret) depends-on) ;; Used by POIU. ASDF3: rename to component-depends-on
       (setf (component-in-order-to ret)
             (union-of-dependencies
              in-order-to
@@ -4533,10 +4539,9 @@ with a different configuration, so the configuration would be re-read then."
 
 (defvar *force-load-p* nil)
 
-(defmethod operation-done-p :around ((operation load-op) c)
-  (declare (ignorable operation c))
-  (multiple-value-bind (done-p stamp) (call-next-method)
-    (values (and done-p (not *force-load-p*)) stamp)))
+(defmethod operation-done-p :around ((o load-op) c)
+  (declare (ignorable o c))
+  (not *force-load-p*))
 
 (defun gather-components (op-type system &key filter-system filter-type include-self)
   ;; This function creates a list of components,
@@ -4545,7 +4550,7 @@ with a different configuration, so the configuration would be re-read then."
   ;; if GATHER-ALL = NIL (default), and it may include the system itself.
   (let* ((operation (make-instance op-type))
          (*force-load-p* t)
-         (tree (traverse (make-instance 'load-op) system)))
+         (tree (traverse (make-sub-operation operation 'load-op) system)))
     (append
      (loop :for (op . component) :in tree
        :when (and (typep op 'load-op)
@@ -4602,16 +4607,14 @@ with a different configuration, so the configuration would be re-read then."
 ;;; together with the static library of this module.
 ;;;
 (defmethod bundle-sub-operations ((o dll-op) c)
-  (declare (ignorable o))
-  (list (cons (make-instance 'lib-op) c)))
+  (list (cons (make-sub-operation o 'lib-op) c)))
 ;;;
 ;;; FASL FILES
 ;;;
 ;;; Gather the statically linked library of this component.
 ;;;
 (defmethod bundle-sub-operations ((o fasl-op) c)
-  (declare (ignorable o))
-  (list (cons (make-instance 'lib-op) c)))
+  (list (cons (make-sub-operation o 'lib-op) c)))
 
 #-mkcl
 (defmethod component-depends-on ((o bundle-op) (c system))
@@ -4646,10 +4649,6 @@ with a different configuration, so the configuration would be re-read then."
 (defmethod perform ((o bundle-op) (c t))
   (declare (ignorable o c))
   t)
-
-(defmethod operation-done-p ((o bundle-op) (c source-file))
-  (declare (ignorable o c))
-  (values t nil))
 
 (defun select-operation (monolithic type)
   (ecase type
@@ -4702,16 +4701,14 @@ with a different configuration, so the configuration would be re-read then."
 (defgeneric trivial-system-p (component))
 
 (defmethod component-depends-on ((o load-fasl-op) (c system))
-  (declare (ignorable o))
   (unless (trivial-system-p c)
     (subst 'load-fasl-op 'load-op
            (subst 'fasl-op 'compile-op
-                  (component-depends-on (make-instance 'load-op) c)))))
+                  (component-depends-on (make-sub-operation o 'load-op) c)))))
 
 (defmethod input-files ((o load-fasl-op) (c system))
-  (declare (ignore o))
   (unless (trivial-system-p c)
-    (output-files (make-instance 'fasl-op) c)))
+    (output-files (make-sub-operation o 'fasl-op) c)))
 
 (defmethod perform ((o load-fasl-op) (c t))
   (declare (ignore o c))
@@ -4721,8 +4718,7 @@ with a different configuration, so the configuration would be re-read then."
   (load (first (input-files o c))))
 
 (defmethod mark-operation-done :before ((o load-fasl-op) (c system))
-  (declare (ignorable o))
-  (mark-operation-done (make-instance 'load-op) c)) ; need we recurse on gather-components?
+  (mark-operation-done (make-sub-operation o 'load-op) c)) ; need we recurse on gather-components?
 
 ;;;
 ;;; PRECOMPILED FILES
@@ -4805,9 +4801,9 @@ with a different configuration, so the configuration would be re-read then."
       (if (bundle-op-monolithic-p o)
           (values 'monolithic-lib-op 'monolithic-fasl-op)
           (values 'lib-op 'fasl-op))
-    (list (list (make-instance lib-op :args (bundle-op-build-args o))
+    (list (list (make-sub-operation o lib-op :args (bundle-op-build-args o))
                 s)
-          (list (make-instance fasl-op :args (bundle-op-build-args o))
+          (list (make-sub-operation o fasl-op :args (bundle-op-build-args o))
                 s))))
 
 (defmethod component-depends-on ((o binary-op) (s system))
@@ -4946,8 +4942,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
   (load (system-fasl s)))
 
 (defmethod input-files ((o load-fasl-op) (s precompiled-system))
-  (declare (ignorable o))
-  (input-files (make-instance 'load-op) s))
+  (input-files (make-sub-operation o 'load-op) s))
 
 #| ;; Example use:
 (asdf:defsystem :precompiled-asdf-utils :class asdf::precompiled-system :fasl (asdf:apply-output-translations (asdf:system-relative-pathname :asdf-utils "asdf-utils.system.fasl")))

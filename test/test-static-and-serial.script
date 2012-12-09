@@ -2,24 +2,23 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(in-package :asdf)
-(use-package :asdf-test)
+(in-package :asdf-test)
 
 #+gcl (trace coerce-pathname)
 
 (quit-on-error
- (format t "dpd: ~S~%f1: ~S~%" *default-pathname-defaults* (merge-pathnames* "file1"))
+ (format t "dpd: ~S~%f1: ~S~%" *default-pathname-defaults* (asdf::merge-pathnames* "file1"))
 
- (setf *central-registry* '(*default-pathname-defaults*))
+ (setf asdf:*central-registry* '(*default-pathname-defaults*))
 
- (operate 'load-op 'static-and-serial)
- (let* ((file1 (compile-file-pathname* "file1.lisp"))
+ (asdf:operate 'asdf:load-op 'static-and-serial)
+ (let* ((file1 (asdf:compile-file-pathname* "file1.lisp"))
         (file1-date (file-write-date file1)))
-   (clear-system 'static-and-serial)
-   (format t "file: ~S~%date: ~S~%" file1 file1-date)
    (assert file1-date)
+   (format t "file: ~S~%date: ~S~%" file1 file1-date)
 
    ;; date should stay same
+   (asdf:clear-system 'static-and-serial)
    (sleep 1)
-   (operate 'load-op 'static-and-serial)
+   (asdf:operate 'asdf:load-op 'static-and-serial)
    (assert (equal (file-write-date file1) file1-date))))

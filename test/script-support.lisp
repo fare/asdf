@@ -186,3 +186,23 @@ is bound, write a message and exit on an error.  If
 
 (defmacro test-asdf (&body body)
   `(testing-asdf #'(lambda () ,@body)))
+
+#|
+(defmacro DBG (tag &rest exprs)
+  "simple debug statement macro:
+outputs a tag plus a list of variable and their values, returns the last value"
+  ;"if not in debugging mode, just compute and return last value"
+  ; #-do-test (declare (ignore tag)) #-do-test (car (last exprs)) #+do-test
+  (let ((res (gensym))(f (gensym)))
+  `(let (,res (*print-readably* nil))
+    (flet ((,f (fmt &rest args) (apply #'format *error-output* fmt args)))
+      (,f "~&~A~%" ,tag)
+      ,@(mapcan
+         #'(lambda (x)
+            `((,f "~&  ~S => " ',x)
+              (,f "~{~S~^ ~}~%" (setf ,res (multiple-value-list ,x)))))
+         exprs)
+      (apply 'values ,res)))))
+
+    (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files null-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
+|#

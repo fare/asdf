@@ -4,7 +4,7 @@
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
- (asdf:operate 'asdf:load-op 'test-module-depend)
+ (asdf:load-system 'test-module-depend)
 
  ;; test that it compiled
  (let ((file1-date (file-write-date (asdf:compile-file-pathname* "file1"))))
