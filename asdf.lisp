@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.14: Another System Definition Facility.
+;;; This is ASDF 2.26.15: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.14")
+         (asdf-version "2.26.15")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2049,13 +2049,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod component-visited-p ((o operation) (c component))
   (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))))
 
-(defun* component-visited-stamp (o c)
-  (let ((data (component-visited-p o c)))
-    (cond
-      (data (car data))
-      (t ;;(when *asdf-verbose* (warn "looking up stamp for non-visited dependency: ~A ~A" o c))
-         nil))))
-
 (defun* call-with-component-being-visited (o c fun)
   ;; Detect circular dependencies
   (let* ((node (node-for o c))
@@ -2130,7 +2123,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod component-operation-time ((o operation) (c component))
   (gethash (type-of o) (component-operation-times c)))
 
-(defgeneric* compute-action-stamp (operation component &key mode base-stamp)
+(defgeneric* action-visited-stamp (plan operation component))
+
+(defgeneric* compute-action-stamp (operation component &key just-done plan base-stamp)
   (:documentation "Has this action been done, and at what timestamp has it or will it be done?
 Takes two keywords JUST-DONE and STAMP-LOOKUP:
 JUST-DONE is a boolean that is true if the action was just successfully performed,
@@ -2264,7 +2259,7 @@ Returns two values:
 
 (defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
 
-(defun* visit-action (o c recurse fun base-stamp)
+(defun* visit-action (o c base-stamp plan recurse fun)
   (block nil
     ;; Systems don't inherit force, but use operation-forced{,-not}.
     (let* ((force
@@ -2287,7 +2282,7 @@ Returns two values:
              (visit-module-components o c (funcall recurse (later-stamp force dep-stamp)))))
       (multiple-value-bind (stamp done-p)
           (compute-action-stamp
-           o c :mode :plan
+           o c :plan plan
            :base-stamp (latest-stamp force dep-stamp components-stamp))
         (funcall fun o c done-p stamp)
         stamp))))
@@ -2301,26 +2296,28 @@ Returns two values:
       (when p (return (car s))))
     (with-component-being-visited (o c)
       (visit-action
-       o c
+       o c base-stamp 'traverse
        #'(lambda (stamp)
            #'(lambda (o c) (traverse-action o c stamp collect)))
        #'(lambda (o c done-p stamp)
            (mark-component-visited o c (cons stamp (unless done-p (incf *visit-count*))))
            (if done-p
                (mark-operation-done o c)
-               (do-collect collect (cons o c))))
-       base-stamp))))
+               (do-collect collect (cons o c))))))))
 
 (defmethod traverse ((o operation) (c component))
   (while-collecting (collect)
     (let ((*visit-count* 0))
       (traverse-action o c nil #'collect))))
 
-(defmethod compute-action-stamp ((o operation) (c component) &key (mode :query) base-stamp)
-  (let* ((stamp-lookup (ecase mode
-                         ((:just-done :query) 'component-operation-time)
-                         ((:plan) 'component-visited-stamp)))
-         (just-done (eq mode :just-done))
+(defmethod action-visited-stamp ((plan null) (o operation) (c component))
+  (component-operation-time o c))
+
+(defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
+  (car (component-visited-p o c)))
+
+(defmethod compute-action-stamp ((o operation) (c component) &key just-done plan base-stamp)
+  (let* ((stamp-lookup #'(lambda (o c) (action-visited-stamp plan o c)))
          (out-files (output-files o c))
          (in-files (input-files o c))
          (file-op (and out-files t))
@@ -2357,7 +2354,7 @@ Returns two values:
             (and (stamp<= latest-in earliest-out)
                  (operation-done-p o c)))
         (values done-stamp
-                (and (or op-time out-files (and (null in-files) (null out-files)))
+                (and (or op-stamp file-op null-op)
                      (if (realp op-stamp) (eql op-stamp done-stamp) t)
                      all-present))
         (values t nil))))
@@ -2373,7 +2370,7 @@ Returns two values:
 
 (defmethod mark-operation-done ((o operation) (c component))
   (setf (gethash (type-of o) (component-operation-times c))
-        (compute-action-stamp o c :mode :just-done)))
+        (compute-action-stamp o c :just-done t)))
 
 (defmethod perform-with-restarts (operation component)
   ;; TOO verbose, especially as the default. Add your own :before method
@@ -2583,6 +2580,11 @@ Returns two values:
   (declare (ignorable o))
   (format nil (compatfmt "~@<loaded ~3i~_~A~@:>") c))
 
+(defmethod operation-description ((o parent-load-op) (c component))
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<loading dependencies of ~3i~_~A~@:>") c))
+
+
 ;;;; -------------------------------------------------------------------------
 ;;;; load-source-op
 
@@ -2620,6 +2622,10 @@ Returns two values:
 (defmethod operation-description ((o load-source-op) (c module))
   (declare (ignorable o))
   (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") c))
+
+(defmethod operation-description ((o parent-load-source-op) (c component))
+  (declare (ignorable o))
+  (format nil (compatfmt "~@<loading source for dependencies of ~3i~_~A~@:>") c))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -2666,6 +2672,7 @@ Returns two values:
         ;; Invalidate all systems but ASDF itself.
         (setf *defined-systems* (make-defined-systems-table))
         (register-system asdf)
+        (funcall (find-symbol* 'load-system :asdf) :asdf) ;; do it a second time, the right way.
         ;; If we're in the middle of something, restart it.
         (when *systems-being-defined*
           (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
@@ -4818,9 +4825,9 @@ with a different configuration, so the configuration would be re-read then."
       (if (bundle-op-monolithic-p o)
           (values 'monolithic-lib-op 'monolithic-fasl-op)
           (values 'lib-op 'fasl-op))
-    (list (list (make-sub-operation o lib-op :args (bundle-op-build-args o))
+    (list (list (make-instance lib-op :parent o :args (bundle-op-build-args o))
                 s)
-          (list (make-sub-operation o fasl-op :args (bundle-op-build-args o))
+          (list (make-instance fasl-op :parent o :args (bundle-op-build-args o))
                 s))))
 
 (defmethod component-depends-on ((o binary-op) (s system))

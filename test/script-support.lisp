@@ -56,6 +56,7 @@
 (defun load-asdf ()
   (load *asdf-fasl*)
   (use-package :asdf :asdf-test)
+  (import 'DBG :asdf)
   (setf *package* (find-package :asdf-test)))
 
 (defun common-lisp-user::load-asdf ()
@@ -187,7 +188,6 @@ is bound, write a message and exit on an error.  If
 (defmacro test-asdf (&body body)
   `(testing-asdf #'(lambda () ,@body)))
 
-#|
 (defmacro DBG (tag &rest exprs)
   "simple debug statement macro:
 outputs a tag plus a list of variable and their values, returns the last value"
@@ -204,5 +204,8 @@ outputs a tag plus a list of variable and their values, returns the last value"
          exprs)
       (apply 'values ,res)))))
 
-   (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files file-op null-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
+(pushnew :DBG *features*)
+
+#|
+#+DBG (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files file-op null-op op-time op-stamp dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
 |#
