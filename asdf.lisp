@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.12: Another System Definition Facility.
+;;; This is ASDF 2.26.13: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.12")
+         (asdf-version "2.26.13")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2298,9 +2298,11 @@ Returns two values:
          (just-done (eq mode :just-done))
          (out-files (output-files o c))
          (in-files (input-files o c))
+         (file-op (and out-files t))
          (null-op (and (null out-files) (null in-files)))
+         ;;(image-op (and (null out-files) (not (null in-files))))
          (op-time (or just-done (component-operation-time o c)))
-         (op-stamp (if (or null-op out-files) t op-time))
+         (op-stamp (or null-op file-op op-time))
          (dep-stamp (stamps-latest
                      (append
                       (loop :for (op . comps) :in (component-depends-on o c)
@@ -2476,6 +2478,10 @@ Returns two values:
     #+mkcl (list o f)
     #-(or ecl mkcl) (list f)))
 
+(defmethod component-depends-on ((o compile-op) (c component))
+  (cons `(load-op ,@(component-load-dependencies c))
+        (call-next-method)))
+
 (defmethod perform ((o compile-op) (c static-file))
   (declare (ignorable o c))
   nil)
@@ -2523,6 +2529,10 @@ Returns two values:
 	     :unless (string= (pathname-type i) "fas")
 	     :collect (compile-file-pathname (lispize-pathname i)))))
 
+(defmethod component-depends-on ((o load-op) (c component))
+  (cons `(load-op ,@(component-load-dependencies c))
+        (call-next-method)))
+
 (defmethod perform ((o load-op) (c static-file))
   (declare (ignorable o c))
   nil)
@@ -2531,7 +2541,7 @@ Returns two values:
   (declare (ignorable o c))
   nil)
 
-(defmethod component-depends-on ((o load-op) (c component))
+(defmethod component-depends-on ((o load-op) (c source-file))
   (declare (ignorable o))
   (cons (list 'compile-op (component-name c))
         (call-next-method)))
@@ -2567,11 +2577,9 @@ Returns two values:
   (declare (ignorable o c))
   nil)
 
-;;; FIXME: We simply copy load-op's dependencies.  This is Just Not Right.
 (defmethod component-depends-on ((o load-source-op) (c component))
-  (loop :with what-would-load-op-do = (component-depends-on (make-sub-operation o 'load-op) c)
-    :for (op . co) :in what-would-load-op-do
-    :when (eq op 'load-op) :collect (cons 'load-source-op co)))
+  (cons `(load-source-op ,@(component-load-dependencies c))
+        (call-next-method)))
 
 (defmethod operation-description ((o load-source-op) c)
   (declare (ignorable o))
@@ -2931,11 +2939,7 @@ Returns the new tree (which probably shares structure with the old one)"
                   :when serial :do (setf *serial-depends-on* name))))
         (compute-module-components-by-name ret))
       (setf (component-load-dependencies ret) depends-on) ;; Used by POIU. ASDF3: rename to component-depends-on
-      (setf (component-in-order-to ret)
-            (union-of-dependencies
-             in-order-to
-             `((compile-op (load-op ,@depends-on))
-               (load-op (load-op ,@depends-on)))))
+      (setf (component-in-order-to ret) in-order-to)
       (%refresh-component-inline-methods ret rest)
       ret)))
 

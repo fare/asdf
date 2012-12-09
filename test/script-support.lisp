@@ -204,5 +204,5 @@ outputs a tag plus a list of variable and their values, returns the last value"
          exprs)
       (apply 'values ,res)))))
 
-    (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files null-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
+;    (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files file-op null-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
 |#
