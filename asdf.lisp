@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.15: Another System Definition Facility.
+;;; This is ASDF 2.26.16: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.15")
+         (asdf-version "2.26.16")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -245,6 +245,7 @@
            (#:*asdf-revision* #:around #:asdf-method-combination
             #:split #:make-collector #:do-dep #:do-one-dep
             #:resolve-relative-location-component #:resolve-absolute-location-component
+            #:loaded-systems ; makes for annoying SLIME completion
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :export
            (#:defsystem #:oos #:operate #:find-system #:locate-system #:run-shell-command
@@ -353,7 +354,7 @@
             #:clear-source-registry
             #:ensure-source-registry
             #:process-source-registry
-            #:system-registered-p #:registered-systems #:loaded-systems
+            #:system-registered-p #:registered-systems #:already-loaded-systems
             #:resolve-location
             #:asdf-message
             #:user-output-translations-pathname
@@ -2124,6 +2125,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (gethash (type-of o) (component-operation-times c)))
 
 (defgeneric* action-visited-stamp (plan operation component))
+(defgeneric* action-already-done-p (plan operation component))
 
 (defgeneric* compute-action-stamp (operation component &key just-done plan base-stamp)
   (:documentation "Has this action been done, and at what timestamp has it or will it be done?
@@ -2311,10 +2313,14 @@ Returns two values:
       (traverse-action o c nil #'collect))))
 
 (defmethod action-visited-stamp ((plan null) (o operation) (c component))
-  (component-operation-time o c))
+  (values (component-operation-time o c)))
+(defmethod action-already-done-p ((plan null) (o operation) (c component))
+  (nth-value 1 (component-operation-time o c)))
 
 (defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
   (car (component-visited-p o c)))
+(defmethod action-already-done-p ((plan (eql 'traverse)) (o operation) (c component))
+  (second (component-visited-p o c)))
 
 (defmethod compute-action-stamp ((o operation) (c component) &key just-done plan base-stamp)
   (let* ((stamp-lookup #'(lambda (o c) (action-visited-stamp plan o c)))
@@ -2787,13 +2793,13 @@ T to force the inside of the specified system to be rebuilt (resp. not),
   (map () 'load-system systems))
 
 (defun* component-loaded-p (c)
-  (nth-value 1 (component-operation-time 'load-op (find-component c ()))))
+  (action-already-done-p nil (make-instance 'load-op) (find-component c ())))
 
-(defun* loaded-systems ()
+(defun* already-loaded-systems ()
   (remove-if-not 'component-loaded-p (registered-systems)))
 
 (defun* require-system (s &rest keys &key &allow-other-keys)
-  (apply 'load-system s :force-not (loaded-systems) keys))
+  (apply 'load-system s :force-not (already-loaded-systems) keys))
 
 (defun* compile-system (system &rest args &key force force-not verbose version &allow-other-keys)
   "Shorthand for `(asdf:operate 'asdf:compile-op system)`. See OPERATE for details."
