@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.16: Another System Definition Facility.
+;;; This is ASDF 2.26.17: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.16")
+         (asdf-version "2.26.17")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1190,6 +1190,25 @@ The plan returned is a list of dotted-pairs. Each pair is the CONS
 of ASDF operation object and a COMPONENT object. The pairs will be
 processed in order by OPERATE."))
 
+(defgeneric* action-visited-stamp (plan operation component))
+(defgeneric* action-already-done-p (plan operation component))
+
+(defgeneric* compute-action-stamp (operation component &key just-done plan base-stamp)
+  (:documentation "Has this action been successfully done already,
+and at what known timestamp has it been done at or will it be done at?
+Takes three keywords JUST-DONE, PLAN and BASE-STAMP:
+JUST-DONE is a boolean that is true if the action was just successfully performed,
+at which point we want compute the actual stamp and warn if files are missing;
+otherwise we are making plans, anticipating the effects of the action.
+PLAN is a plan object modelling future effects of actions,
+or NIL to denote what actually happened.
+BASE-STAMP gives us accumulated information about dependency base stamps (and/or forced status)
+while traversing the model.
+Returns two values:
+* a STAMP saying when it was done or will be done,
+  or T if the action has involves files that need to be recomputed.
+* a boolean DONE-P that indicates whether the action has actually been done,
+  and both its output-files and its in-image side-effects are up to date."))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
@@ -2043,54 +2062,47 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (setf (gethash op-class operations) new)
           new))))
 
-(defmethod mark-component-visited ((o operation) (c component) data)
-  (unless (nth-value 1 (component-visited-p o c))
-    (setf (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))) data)))
-
-(defmethod component-visited-p ((o operation) (c component))
-  (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))))
-
-(defun* call-with-component-being-visited (o c fun)
-  ;; Detect circular dependencies
-  (let* ((node (node-for o c))
-         (ancestor (operation-ancestor o))
-         (node-set (operation-node-visiting-set ancestor)))
-    (aif (gethash node node-set)
-         (error 'circular-dependency :components
-                (member node (reverse (operation-node-visiting-list ancestor)) :test 'equal))
-         (progn
-           (setf (gethash node node-set) t)
-           (push node (operation-node-visiting-list ancestor))
-           (unwind-protect
-                (funcall fun)
-             (pop (operation-node-visiting-list ancestor))
-             (setf (gethash node node-set) nil))))))
-
-(defmacro with-component-being-visited ((o c) &body body)
-  `(call-with-component-being-visited ,o ,c #'(lambda () ,@body)))
-
 (defmethod component-depends-on ((o operation) (c component))
-  (cdr (assoc (type-of o) (component-in-order-to c))))
+  (append
+   (when (component-parent c) (aif (parent-operation o) `((,it nil)))) ; parent operation
+   (cdr (assoc (type-of o) (component-in-order-to c))))) ; User-specified in-order dependencies
 
 (defmethod component-self-dependencies ((o operation) (c component))
   (remove-if-not
    #'(lambda (x) (member (component-name c) (cdr x) :test #'equal))
    (component-depends-on o c)))
 
+(defmethod output-files ((o operation) (c component))
+  (declare (ignorable o c))
+  nil)
+
+(defun* output-file (operation component)
+  "The unique output file of performing OPERATION on COMPONENT"
+  (let ((files (output-files operation component)))
+    (assert (length=n-p files 1))
+    (first files)))
+
 (defmethod input-files ((o operation) (c component))
   (let ((self-deps (component-self-dependencies o c)))
     (if self-deps
         (mapcan #'(lambda (dep)
-                    (assert (equal (list (component-name c)) (cdr dep)))
+                    ;;(assert (equal (list (component-name c)) (cdr dep))) ; Was a constraint in ASDF1
                     (output-files (make-sub-operation o (car dep)) c))
                 self-deps)
-        ;; no previous operations needed?  I guess we work with the
-        ;; original source file, then
+        ;; no previous operations needed?
+        ;; I guess we work with the original source file, then
         (list (component-pathname c)))))
 
 (defmethod input-files ((o operation) (c module))
   (declare (ignorable o c))
   nil)
+
+(defmethod perform :after ((o operation) (c component))
+  (mark-operation-done o c))
+
+(defmethod operation-done-p ((o operation) (c component))
+  (declare (ignorable o c))
+  t)
 
 ;;; parent-op is a special operation for working with modules.
 (defclass parent-op (operation) ())
@@ -2098,14 +2110,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod input-files ((o parent-op) (m module))
   (declare (ignorable o))
   (aif (system-source-file (component-system m)) (list it)))
-
-(defmethod component-depends-on :around ((o operation) (c component))
-  (let ((dependencies (call-next-method))
-        (parent (component-parent c))
-        (parent-op (parent-operation o)))
-    (if (and parent parent-op)
-        (cons (list parent-op nil) dependencies)
-        dependencies)))
 
 (defclass parent-load-op (parent-op) ())
 
@@ -2119,34 +2123,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defmethod component-depends-on ((o parent-load-op) (m module))
   (declare (ignorable o))
-  `((load-op ,@(component-load-dependencies m))))
+  `((load-op ,@(component-load-dependencies m))
+    ,@(call-next-method)))
 
-(defmethod component-operation-time ((o operation) (c component))
-  (gethash (type-of o) (component-operation-times c)))
-
-(defgeneric* action-visited-stamp (plan operation component))
-(defgeneric* action-already-done-p (plan operation component))
-
-(defgeneric* compute-action-stamp (operation component &key just-done plan base-stamp)
-  (:documentation "Has this action been done, and at what timestamp has it or will it be done?
-Takes two keywords JUST-DONE and STAMP-LOOKUP:
-JUST-DONE is a boolean that is true if the action was just successfully performed,
-at which point we compute the new stamp and warn if files are missing.
-STAMP-LOOKUP is a function of two arguments op and comp that when called
-with each dependency of the current action will return its stamp;
-by default, STAMP-LOOKUP is the COMPONENT-OPERATION-TIME,
-looking up actually performed times.
-Returns two values:
-* a timestamp saying when it was done or will be done,
-  or T if the action has output-files that need to be recomputed.
-* a boolean that indicates whether the action has been done
-  and both its output-files and its in-image side-effects are up to date."))
-
-;;; operation-done-p is a remainder from ASDF 1,
-;;; only left so users may declare some (e.g. test) operations as "never done".
-(defmethod operation-done-p ((o operation) (c component))
-  (declare (ignorable o c))
-  t)
 
 ;;; The TRAVERSE protocol is as follows: we pass around operation, dependency,
 ;;; bunch of other stuff, and a base-stamp argument. Functions return a stamp.
@@ -2202,9 +2181,6 @@ Returns two values:
        (resolve-dependency-name component (third dep-spec))))
     (t
      (error (compatfmt "~@<Bad dependency ~s.  Dependencies must be (:version <name> <version>), (:feature <feature> <name>), or <name>.~@:>") dep-spec))))
-
-(defun* do-collect (collect x)
-  (funcall collect x))
 
 (defun* visit-dependencies (op c dep-op-spec dep-c-specs fun)
   ;; Collects a partial plan for performing DEP-OP-SPEC on each of DEP-C-SPECS
@@ -2289,6 +2265,103 @@ Returns two values:
         (funcall fun o c done-p stamp)
         stamp))))
 
+(defmethod mark-component-visited ((o operation) (c component) data)
+  (unless (nth-value 1 (component-visited-p o c))
+    (setf (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))) data)))
+
+(defmethod component-visited-p ((o operation) (c component))
+  (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))))
+
+(defmethod component-operation-time ((o operation) (c component))
+  (gethash (type-of o) (component-operation-times c)))
+
+(defmethod action-visited-stamp ((plan null) (o operation) (c component))
+  (values (component-operation-time o c)))
+(defmethod action-already-done-p ((plan null) (o operation) (c component))
+  (nth-value 1 (component-operation-time o c)))
+
+(defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
+  (car (component-visited-p o c)))
+(defmethod action-already-done-p ((plan (eql 'traverse)) (o operation) (c component))
+  (second (component-visited-p o c)))
+
+(defmethod mark-operation-done ((o operation) (c component))
+  (setf (gethash (type-of o) (component-operation-times c))
+        (compute-action-stamp o c :just-done t)))
+
+(defmethod compute-action-stamp ((o operation) (c component) &key just-done plan base-stamp)
+  ;; In a distant future, safe-file-write-date and component-operation-time
+  ;; shall also be parametrized by the plan, or by a second model object.
+  (let* ((stamp-lookup #'(lambda (o c) (action-visited-stamp plan o c)))
+         (out-files (output-files o c))
+         (in-files (input-files o c))
+         ;; Three kinds of actions:
+         (out-op (and out-files t)) ; those that create files on the filesystem
+         ;(image-op (and in-files (null out-files))) ; those that load stuff into the image
+         ;(null-op (and (null out-files) (null in-files))) ; dependency placeholders that do nothing
+         ;; When was the thing last actually done? (Now, or ask.)
+         (op-time (or just-done (component-operation-time o c)))
+         ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
+         (dep-stamp (stamps-latest
+                     (append
+                      (loop :for (op . comps) :in (component-depends-on o c)
+                            :collect (visit-dependencies o c op comps stamp-lookup))
+                      (list (visit-module-components o c stamp-lookup)
+                            base-stamp))))
+         ;; Time stamps from the files at hand, and whether any is missing
+         (out-stamps (mapcar #'safe-file-write-date out-files))
+         (in-stamps (mapcar #'safe-file-write-date in-files))
+         (missing-in
+           (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
+         (missing-out
+           (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
+         (all-present (not (or missing-in missing-out)))
+         ;; Has any input changed since we last generated the files?
+         (earliest-out (stamps-earliest out-stamps))
+         (latest-in (stamps-latest (cons dep-stamp in-stamps)))
+         (up-to-date-p (stamp<= latest-in earliest-out))
+         ;; If everything is up to date, the latest of inputs and outputs is our stamp
+         (done-stamp (stamps-latest (cons latest-in out-stamps))))
+    ;; Warn if some files are missing:
+    ;; either our model is wrong or some other process is messing with our files.
+    (when (and just-done (not all-present))
+      (warn "~A completed without~*~@[ its input file~:p~{ ~S~}~]~
+             ~@[ or~]~*~@[ its output file~:p~*~{ ~S~}~]"
+            (operation-description o c)
+            (length missing-in) missing-in (and missing-in missing-out)
+            (length missing-out) missing-out))
+    ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
+    ;; Any race condition is intrinsic to the limited timestamp resolution.
+    (if (or just-done ;; The done-stamp is valid: if we're just done, or
+            ;; if all filesystem effects are up-to-date and there's no invalidating reason.
+            (and all-present up-to-date-p (operation-done-p o c)))
+        (values done-stamp ;; return the hard-earned timestamp
+                (or just-done
+                    (or out-op ;; a file-creating op is done when all files are up to date
+                        ;; a image-effecting a placeholder op is done when it was actually run,
+                        (and op-time (eql op-time done-stamp))))) ;; with the matching stamp
+        ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
+        (values t nil))))
+
+(defun* call-with-component-being-visited (o c fun)
+  ;; Detect circular dependencies
+  (let* ((node (node-for o c))
+         (ancestor (operation-ancestor o))
+         (node-set (operation-node-visiting-set ancestor)))
+    (aif (gethash node node-set)
+         (error 'circular-dependency :components
+                (member node (reverse (operation-node-visiting-list ancestor)) :test 'equal))
+         (progn
+           (setf (gethash node node-set) t)
+           (push node (operation-node-visiting-list ancestor))
+           (unwind-protect
+                (funcall fun)
+             (pop (operation-node-visiting-list ancestor))
+             (setf (gethash node node-set) nil))))))
+
+(defmacro with-component-being-visited ((o c) &body body)
+  `(call-with-component-being-visited ,o ,c #'(lambda () ,@body)))
+
 (defgeneric* traverse-action (operation component base-stamp collect))
 
 (defmethod traverse-action ((o operation) (c component) base-stamp collect)
@@ -2305,65 +2378,12 @@ Returns two values:
            (mark-component-visited o c (cons stamp (unless done-p (incf *visit-count*))))
            (if done-p
                (mark-operation-done o c)
-               (do-collect collect (cons o c))))))))
+               (funcall collect (cons o c))))))))
 
 (defmethod traverse ((o operation) (c component))
   (while-collecting (collect)
     (let ((*visit-count* 0))
       (traverse-action o c nil #'collect))))
-
-(defmethod action-visited-stamp ((plan null) (o operation) (c component))
-  (values (component-operation-time o c)))
-(defmethod action-already-done-p ((plan null) (o operation) (c component))
-  (nth-value 1 (component-operation-time o c)))
-
-(defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
-  (car (component-visited-p o c)))
-(defmethod action-already-done-p ((plan (eql 'traverse)) (o operation) (c component))
-  (second (component-visited-p o c)))
-
-(defmethod compute-action-stamp ((o operation) (c component) &key just-done plan base-stamp)
-  (let* ((stamp-lookup #'(lambda (o c) (action-visited-stamp plan o c)))
-         (out-files (output-files o c))
-         (in-files (input-files o c))
-         (file-op (and out-files t))
-         (null-op (and (null out-files) (null in-files)))
-         ;;(image-op (and (null out-files) (not (null in-files))))
-         (op-time (or just-done (component-operation-time o c)))
-         (op-stamp (or null-op file-op op-time))
-         (dep-stamp (stamps-latest
-                     (append
-                      (loop :for (op . comps) :in (component-depends-on o c)
-                            :collect (visit-dependencies o c op comps stamp-lookup))
-                      (list (visit-module-components o c stamp-lookup)
-                            base-stamp))))
-         (out-stamps (mapcar #'safe-file-write-date out-files))
-         (in-stamps (mapcar #'safe-file-write-date in-files))
-         (missing-in
-           (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
-         (missing-out
-           (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
-         (all-present (not (or missing-in missing-out)))
-         (earliest-out (stamps-earliest out-stamps))
-         (latest-in (stamps-latest (cons dep-stamp in-stamps)))
-         (done-stamp (stamps-latest (cons latest-in out-stamps))))
-    ;; Warnings
-    (when (and just-done (not all-present))
-      (warn "~A completed without~*~@[ its input file~:p~{ ~S~}~]~
-             ~@[ or~]~*~@[ its output file~:p~*~{ ~S~}~]"
-            (operation-description o c)
-            (length missing-in) missing-in (and missing-in missing-out)
-            (length missing-out) missing-out))
-    ;; We use stamp<= instead of stamp< to play nice with generated files.
-    ;; Any race condition is intrinsic to the timestamp resolution being one second.
-    (if (or just-done
-            (and (stamp<= latest-in earliest-out)
-                 (operation-done-p o c)))
-        (values done-stamp
-                (and (or op-stamp file-op null-op)
-                     (if (realp op-stamp) (eql op-stamp done-stamp) t)
-                     all-present))
-        (values t nil))))
 
 (defmethod perform ((o operation) (c source-file))
   (sysdef-error
@@ -2373,10 +2393,6 @@ Returns two values:
 (defmethod perform ((o operation) (c module))
   (declare (ignorable o c))
   nil)
-
-(defmethod mark-operation-done ((o operation) (c component))
-  (setf (gethash (type-of o) (component-operation-times c))
-        (compute-action-stamp o c :just-done t)))
 
 (defmethod perform-with-restarts (operation component)
   ;; TOO verbose, especially as the default. Add your own :before method
@@ -2420,21 +2436,12 @@ Returns two values:
    (flags :initarg :flags :accessor compile-op-flags
           :initform nil)))
 
-(defun* output-file (operation component)
-  "The unique output file of performing OPERATION on COMPONENT"
-  (let ((files (output-files operation component)))
-    (assert (length=n-p files 1))
-    (first files)))
-
 (defun* ensure-all-directories-exist (pathnames)
    (dolist (pathname pathnames)
      (ensure-directories-exist (translate-logical-pathname pathname))))
 
-(defmethod perform :before ((o compile-op) (c source-file))
+(defmethod perform :before ((o operation) (c source-file))
   (ensure-all-directories-exist (output-files o c)))
-
-(defmethod perform :after ((o operation) (c component))
-  (mark-operation-done o c))
 
 (defgeneric* around-compile-hook (component))
 (defgeneric* call-with-around-compile-hook (component thunk))
@@ -2517,10 +2524,6 @@ Returns two values:
   (declare (ignorable o c))
   nil)
 
-(defmethod input-files ((o compile-op) (c static-file))
-  (declare (ignorable o))
-  nil)
-
 (defmethod operation-description ((o compile-op) (c component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") c))
@@ -2561,10 +2564,6 @@ Returns two values:
         (call-next-method)))
 
 (defmethod perform ((o load-op) (c static-file))
-  (declare (ignorable o c))
-  nil)
-
-(defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))
   nil)
 
@@ -2983,7 +2982,6 @@ Returns the new tree (which probably shares structure with the old one)"
                   :collect c
                   :when serial :do (setf *serial-depends-on* name))))
         (compute-module-components-by-name ret))
-      ;; TODO: normalize those dependencies
       (setf (component-load-dependencies ret) depends-on) ;; Used by POIU. ASDF3: rename to component-depends-on
       (setf (component-in-order-to ret) in-order-to)
       (%refresh-component-inline-methods ret rest)
