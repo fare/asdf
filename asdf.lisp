@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.18: Another System Definition Facility.
+;;; This is ASDF 2.26.19: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.18")
+         (asdf-version "2.26.19")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2329,11 +2329,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     ;; Warn if some files are missing:
     ;; either our model is wrong or some other process is messing with our files.
     (when (and just-done (not all-present))
-      (warn "~A completed without~*~@[ its input file~:p~{ ~S~}~]~
-             ~@[ or~]~*~@[ its output file~:p~*~{ ~S~}~]"
+      (warn "~A completed without ~:[~*~;~*its input file~:p~2:*~{ ~S~}~*~]~
+             ~:[~; or~] ~:[~*~;~*its output file~:p~2:*~{ ~S~}~*~]"
             (operation-description o c)
-            (length missing-in) missing-in (and missing-in missing-out)
-            (length missing-out) missing-out))
+            missing-in (length missing-in) (and missing-in missing-out)
+            missing-out (length missing-out)))
     ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
     ;; Any race condition is intrinsic to the limited timestamp resolution.
     (if (or just-done ;; The done-stamp is valid: if we're just done, or

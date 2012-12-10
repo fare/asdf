@@ -1460,7 +1460,7 @@ both of them apply to systems that are dependencies and were already compiled.
 
 To see what @code{operate} would do, you can use:
 @example
-(asdf::traverse (make-instance @var{operation-class} {@var{initargs} ...}) (find-system @var{system-name}))
+(asdf::traverse (make-instance operation-class initargs ...) (find-system system-name))
 @end example
 
 @end deffn
@@ -1578,8 +1578,8 @@ On your build platform, you run something like that:
 And on your delivery platform, a form like this is evaluated
 in a prologue or at some point before you save your image:
 @example
-@code{(defsystem @var{:mysystem} :class :precompiled-system
-        :fasl @var{(some expression that will evaluate to a pathname)})}
+(defsystem :mysystem :class :precompiled-system
+    :fasl (some expression that will evaluate to a pathname))
 @end example
 
 Of course, @emph{before} you define such systems,
