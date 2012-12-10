@@ -1307,8 +1307,15 @@ to interface with C libraries and of wrapper files to embed C code in Lisp;
 and @code{poiu} supports for compiling code in parallel using background processes.
 
 This chapter deals with @emph{components} and @emph{operations}.
+
 An @emph{component} represents an individual source file or a group of source files,
 and the things that get transformed into.
+A @emph{source-file} is a component representing a single source-file
+and the successive output files into which it is transformed.
+A @emph{module} is a component itself grouping several other components,
+themselves source-files or further modules.
+A @emph{system} is a module at the top level of the component and module hierarchy.
+
 An @emph{Operation} represents a transformation that can be performed on a component,
 turning them from source files to intermediate results to final outputs.
 
@@ -1332,6 +1339,65 @@ a reified pair (a CONS cell) of an operation and a component;
 instead, they usually take two separate arguments,
 which allows to take advantage of the power CLOS-style multiple dispatch
 for fun and profit.
+
+There are many @emph{hooks} in which to add functionality,
+by customizing the behavior of existing @emph{functions}.
+
+Last but not least is the notion of @emph{dependency} between two actions.
+The structure of dependencies between actions is
+a directed @emph{dependency graph}.
+ASDF is invoked by being told to @emph{operate}
+with some @emph{operation} on some toplevel @emph{system};
+it will then @emph{traverse} the graph and build a @emph{plan}
+that follows its structure.
+To be successfully buildable, this graph of actions but be acyclic.
+If as a user, extender or implementer of ASDF, you fail 
+to keep the dependency graph without cycles,
+and ASDF will fail loudly as it eventually finds one.
+
+To clearly distinguish the direction of dependencies,
+ASDF 2.27 (after POIU 1.29) introduces the words @emph{parent} and @emph{child}
+as applied to an action depending on the other:
+the parent action @emph{depends-on} the completion of all children actions
+before it may itself be @emph{performed}.
+
+Using the defsystem syntax, users may easily express
+direct dependencies along the graph of the object hierarchy:
+between a component and its parent, its children, and its siblings.
+By defining custom CLOS methods, you can express more elaborate dependencies as you wish.
+Most common operations, such as @code{load-op}, @code{compile-op} or @code{load-source-op}
+automatically ``descend'' the component hierarchy and are ``covariant'' with it:
+to act the operation on the parent module, you must first act it on all the children components,
+with the action on the parent being parent of the action on each child.
+Other operations, such as @code{parent-load-op} and @code{parent-load-source-op}
+(introduced in ASDF 2.27) ``ascend'' the component hierarchy and are ``contravariant'' with it:
+to act the operation on the child component, you must first act it on all its parent module, and so on,
+ensuring that all the module's dependencies are (compiled and) loaded
+before the child component may be compiled and loaded.
+Yet other operations, such as @code{test-op} or @code{load-fasl-op}
+remain at the system level, and do not descend the hierarchy,
+instead doing something global.
+Finally, some operations such a POIU's @code{parallel-load-op}
+are not even meant to be performed or to have dependencies,
+but are only ways to specialize @code{operate} into behaving differently
+(in this case, having it operate in parallel).
+
+Parent and child thus mean different things for components and for actions.
+They also mean two different things for operations.
+Each operation has a @code{parent} slot,
+which links it up all the way to an ancestor @emph{operation}
+that contains all configuration data related to the current run of @code{operate}
+(usually the links are made with @code{make-sub-operation}
+which ensures the chain or parents is of length zero or one).
+Each operation also has a notion of a @code{parent-operation},
+such that current operation acting on a current component
+is parent of the parent-operation acting on the parent.
+That's how @code{parent-load-op} is the @code{parent-operation}
+or both @code{load-op} and @code{compile-op} (see above).
+
+It isn't too confusing: parent and child are generic ways to denote a clear directional relationship,
+and whether we're discussing component structure, action structure, operation structure
+or contravariant operation prerequisites, it is usually very clear which relationship we're discussing.
 
 @menu
 * Operations::
@@ -1435,6 +1501,19 @@ use @code{load-op} to load a system.
 @deffn Operation @code{load-op} @&key @code{proclamations}
 
 This operation loads a system.
+
+The default methods for @code{load-op} compile files before loading them.
+For parity, your own methods on new component types should probably do so too.
+@end deffn
+
+@deffn Operation @code{parent-load-op} @&key @code{proclamations}
+
+This operation ensures that the dependencies
+of a module, and its parent, and so on, are loaded (as per @code{load-op})
+before the components within that module may be operated upon.
+
+By default, all operations depend on this @code{parent-operation}
+for actions on components to depend on this ``parent operation'' being acted on the parent.
 
 The default methods for @code{load-op} compile files before loading them.
 For parity, your own methods on new component types should probably do so too.
@@ -1605,6 +1684,48 @@ so that tests are always run afresh.
 Of course, the @code{test-op} for your system could depend
 on a deterministically repeatable @code{test-report-op},
 and just read the results from the report files.
+
+@item @code{component-depends-on}
+When you add new operations, you probably need to explain
+how they relate to loading, compiling, testing, etc.,
+in terms of dependencies between actions.
+
+That's where you typically define methods on @code{component-depends-on}.
+Your method will take as arguments
+some properly specialized operation
+and a component denoting a current action,
+and return a list of entries,
+denoting the children actions that the current action depends on.
+The format of entries is described below.
+
+It is @emph{strongly} advised that
+you should always append the results of @code{(call-next-method)}
+to the results of your method,
+or ``interesting'' failures will likely occur,
+unless you're a true specialist of ASDF internals.
+
+Each entry returned by @code{component-depends-on} is itself a list.
+
+The first element of an entry is the name of an operation:
+a symbol that you can use with @code{make-instance}
+(ASDF will instead use with @code{asdf::make-sub-operation}),
+to create a related operation for use in a build plan.
+For instance, @code{load-op} and @code{compile-op}
+are common such names, denoting the respective operations.
+
+The rest of an entry is a list of identifiers
+each denote a component such that
+the pair of the previous operation and this component
+is a children action of current action.
+
+Identifiers follow the @code{defsystem} grammar
+previously documented.
+The main format for identifiers is a string or symbol
+(that will be downcase as per @code{coerce-name}),
+and looked up against the sibling list of the parent module's children components,
+as per @code{find-component}.
+As a special case, @code{nil} denotes the parent itself.
+Other syntaxes are allowed, for instance to specify a component with a version.
 
 @end itemize
 
@@ -1790,7 +1911,7 @@ This is on a par with what ACL defsystem does.
 mk-defsystem is less general: it has an implied dependency
 
 @verbatim
-  for all x, (load x) depends on (compile x)
+  for all source file x, (load x) depends on (compile x)
 @end verbatim
 
 and using a @code{:depends-on} argument to say that @var{b} depends on
@@ -2427,17 +2548,14 @@ or maybe simply to @code{clear-source-registry} (or @code{clear-configuration})
 which will cause the initialization to happen next time around.
 
 
-@section Future
+@section Status
 
-If this mechanism is successful, in the future, we may declare
-@code{asdf:*central-registry*} obsolete and eventually remove it.
-Any hook into implementation-specific search mechanisms will by then
-have been integrated in the @code{:default-configuration} which everyone
-should either explicitly use or implicit inherit. Some shell syntax
-for it should probably be added somehow.
-
-But we're not there yet. For now, let's see how practical this new
-source-registry is.
+This mechanism is vastly successful, and we have declared
+that @code{asdf:*central-registry*} is not recommended anymore,
+though we will continue to support it.
+All hooks into implementation-specific search mechanisms
+have been integrated in the @code{wrapping-source-registry}
+that everyone uses implicitly.
 
 
 @section Rejected ideas
@@ -3004,7 +3122,7 @@ useful for system definition and development.
 
 When declaring a component (system, module, file),
 you can specify a keyword argument @code{:around-compile function}.
-If left unspecified,
+If left unspecified (and therefore unbound),
 the value will be inherited from the parent component if any,
 or with a default of @code{nil}
 if no value is specified in any transitive parent.
@@ -3013,7 +3131,7 @@ The argument must be a either @code{nil}, a fbound symbol,
 a lambda-expression (e.g. @code{(lambda (thunk) ...(funcall thunk ...) ...)})
 a function object (e.g. using @code{#.#'} but that's discouraged
 because it prevents the introspection done by e.g. asdf-dependency-grovel),
-or a string that when read yields a symbol or a lambda-expression.
+or a string that when @code{read} yields a symbol or a lambda-expression.
 @code{nil} means the normal compile-file function will be called.
 A non-nil value designates a function of one argument
 that will be called with a function that
@@ -3029,8 +3147,8 @@ a function called when the compilation was otherwise a success,
 with the same arguments as @code{compile-file};
 the function shall return true if the compilation
 and its resulting compiled file respected all system-specific invariants,
-and false (NIL) if it broke any of those invariants;
-it may issue warnings or errors before it returns NIL.
+and false (@code{nil}) if it broke any of those invariants;
+it may issue warnings or errors before it returns @code{nil}.
 (NB: The ability to pass such extra flags
 is only available starting with ASDF 2.22.3.)
 This feature is notably exercised by asdf-finalizers.
@@ -3204,7 +3322,11 @@ as we intend to make @code{:utf-8} the default encoding in the future.
 This might matter, for instance, in meta-data about author's names.
 
 
-@section Miscellaneous Exported Functions
+@section Miscellaneous Functions
+
+Most of these functions are not exported by ASDF anymore,
+but only used for private purposes of ASDF.
+Please use ASDF-UTILS for the same functions exported from a stable library.
 
 @defun coerce-pathname name @&key type defaults
 
@@ -3738,8 +3860,8 @@ You should still include the file @file{asdf.lisp} in your source distribution
 and precompile it in your binary distribution,
 but @file{asdf.asd} if included at all,
 should be secluded from the magic systems,
-in a separate file hierarchy;
-alternatively, you may provide the system
+in a separate file hierarchy.
+Alternatively, you may provide the system
 after renaming it and its @file{.asd} file to e.g.
 @code{asdf-ecl} and @file{asdf-ecl.asd}, or
 @code{sb-asdf} and @file{sb-asdf.asd}.
@@ -3751,8 +3873,10 @@ they maintain independently from your Lisp distribution.
 @item
 If you do not have any such magic systems, or have other non-magic systems
 that you want to bundle with your implementation,
-then you may add them to the @code{default-source-registry},
+then you may add them to the @code{wrapping-source-registry},
 and you are welcome to include @file{asdf.asd} amongst them.
+Non-magic systems should be at the back of the @code{wrapping-source-registry}
+while magic systems are at the front.
 
 @item
 Please send us upstream any patches you make to ASDF itself,
