@@ -211,7 +211,7 @@ so you may more easily modify it, we recommend clbuild.
 
 @section Loading a pre-installed ASDF
 
-Many Lisp implementations include a copy of ASDF.
+Most recent Lisp implementations include a copy of ASDF 2.
 You can usually load this copy using Common Lisp's @code{require} function:
 
 @lisp
@@ -221,7 +221,7 @@ You can usually load this copy using Common Lisp's @code{require} function:
 As of the writing of this manual,
 the following implementations provide ASDF 2 this way:
 abcl allegro ccl clisp cmucl ecl lispworks mkcl sbcl xcl.
-The following implementation doesn't provide it yet but will in a future release:
+The following implementation doesn't provide it yet but will in an upcoming release:
 scl.
 The following implementations are obsolete, not actively maintained,
 and most probably will never bundle it:
@@ -315,16 +315,25 @@ you may want to upgrade your implementation rather than go through that hoop.
 Finally, note that there are some limitations to upgrading ASDF:
 @itemize
 @item
-Any ASDF extension becomes invalid, and will need to be reloaded.
+Previously loaded ASDF extension becomes invalid, and will need to be reloaded.
 This applies to e.g. CFFI-Grovel, or to hacks used by ironclad, etc.
-Starting with ASDF 2.014.8 (as far as releases go, 2.015),
+Since it isn't possible to automatically detect what extensions are present
+that need to be invalidated,
 ASDF will actually invalidate all previously loaded systems
-when it is loaded on top of a different ASDF version.
+when it is loaded on top of a different ASDF version,
+starting with ASDF 2.014.8 (as far as releases go, 2.015).
+
 @item
+For this an many other reasons,
+it important reason to load, configure and upgrade ASDF (if needed)
+as one of the very first things done by your build and startup scripts.
 Until all implementations provide ASDF 2.015 or later,
 it is safer if you upgrade ASDF and its extensions as a special step
 at the very beginning of whatever script you are running,
-before you start using ASDF to load anything else.
+before you start using ASDF to load anything else;
+even afterwards, it is still a good idea, to avoid having to
+load and reload code twice as it gets invalidated.
+
 @item
 Until all implementations provide ASDF 2.015 or later,
 it is unsafe to upgrade ASDF as part of loading a system
@@ -394,7 +403,8 @@ fully described in its own chapter of this manual.
 
 The default location for a user to install Common Lisp software is under
 @file{~/.local/share/common-lisp/source/}.
-If you install software there, you don't need further configuration.
+If you install software there (it can be a symlink),
+you don't need further configuration.
 If you're installing software yourself at a location that isn't standard,
 you have to tell ASDF where you installed it. See below.
 If you're using some tool to install software (e.g. Quicklisp),
@@ -438,6 +448,8 @@ And you probably should do so before you dump your Lisp image,
 if the configuration may change
 between the machine where you save it at the time you save it
 and the machine you resume it at the time you resume it.
+Actually, you should use @code{(asdf:clear-configuration)}
+before you dump your Lisp image, which includes the above.
 
 
 @section Configuring ASDF to find your systems --- old style
@@ -593,6 +605,8 @@ And you probably should do so before you dump your Lisp image,
 if the configuration may change
 between the machine where you save it at the time you save it
 and the machine you resume it at the time you resume it.
+(Once again, you should use @code{(asdf:clear-configuration)}
+before you dump your Lisp image, which includes the above.)
 
 Finally note that before ASDF 2,
 other ASDF add-ons offered the same functionality,
@@ -719,7 +733,7 @@ Make sure ASDF can find system definitions
 thanks to proper source-registry configuration.
 
 @item
-Load a system with @code{(load-system :my-system)}
+Load a system with @code{(asdf:load-system :my-system)}
 or use some other operation on some system of your choice.
 
 @end itemize
@@ -1092,6 +1106,8 @@ Therefore, pathname objects should only rarely be used.
 Unhappily, ASDF 1 didn't properly support
 parsing component names as strings specifying paths with directories,
 and the cumbersome @code{#.(make-pathname ...)} syntax had to be used.
+An alternative to @code{#.} read-time evaluation is to use
+@code{(eval `(defsystem ... ,pathname ...))}.
 
 Note that when specifying pathname objects,
 ASDF does not do any special interpretation of the pathname
@@ -1209,6 +1225,7 @@ Instead, ASDF follows a hairy set of rules that are designed so that
 @code{find-system}
 will load a system from disk
 and have its pathname default to the right place.
+
 @item
 This pathname information will not be overwritten with
 @code{*default-pathname-defaults*}
@@ -1234,8 +1251,10 @@ If a system is being redefined, the top-level pathname will be
 @item
 changed, if explicitly supplied or obtained from @code{*load-truename*}
 (so that an updated source location is reflected in the system definition)
+
 @item
 changed if it had previously been set from @code{*default-pathname-defaults*}
+
 @item
 left as before, if it had previously been set from @code{*load-truename*}
 and @code{*load-truename*} is currently unbound
@@ -1279,17 +1298,40 @@ of output from ASDF operations.
 
 ASDF is designed in an object-oriented way from the ground up.
 Both a system's structure and the operations that can be performed on systems
-follow a protocol.
-ASDF is extensible to new operations and to new component types.
+follow a extensible protocol.
+
 This allows the addition of behaviours:
-for example, a new component could be added for Java JAR archives,
-and methods specialised on @code{compile-op} added for it
-that would accomplish the relevant actions.
+for example, @code{cffi} adds support of special FFI description files
+to interface with C libraries and of wrapper files to embed C code in Lisp;
+@code{abcl-jar} supports creating Java JAR archives in ABCL;
+and @code{poiu} supports for compiling code in parallel using background processes.
 
-This chapter deals with @emph{components}, the building blocks of a system,
-and @emph{operations}, the actions that can be performed on a system.
+This chapter deals with @emph{components} and @emph{operations}.
+An @emph{component} represents an individual source file or a group of source files,
+and the things that get transformed into.
+An @emph{Operation} represents a transformation that can be performed on a component,
+turning them from source files to intermediate results to final outputs.
 
+A pair of an @emph{operation} and a @emph{component}
+is sometimes called an @emph{action}.
+An @emph{action} represents a particular build step to be @emph{performed},
+after all its dependencies have been fulfilled.
+In the ASDF model, @emph{actions} depend on other actions.
+The term @emph{action} itself originated in ASDF 2,
+and is now found in its internals,
+but the concept is ubiquitous since the beginning of ASDF 1,
+though previously implicit.
 
+Then, there are many @emph{functions} available
+to users, extenders and implementers of ASDF
+to use, define or implement the activities
+that are part of building your software.
+Though they manipulate @emph{actions},
+most of these functions do not take as an argument
+a reified pair (a CONS cell) of an operation and a component;
+instead, they usually take two separate arguments,
+which allows to take advantage of the power CLOS-style multiple dispatch
+for fun and profit.
 
 @menu
 * Operations::
@@ -1313,7 +1355,6 @@ whenever the user wants to do something with a system like
 
 Operations can be invoked directly, or examined
 to see what their effects would be without performing them.
-@emph{FIXME: document how!}
 There are a bunch of methods specialised on operation and component type
 that actually do the grunt work.
 
@@ -1350,6 +1391,12 @@ If @var{force-not} is a list, then it specifies a list of systems that
 are forced not to be recompiled even if modified since last compilation.
 @var{force} takes precedences over @var{force-not};
 both of them apply to systems that are dependencies and were already compiled.
+
+To see what @code{operate} would do, you can use:
+@example
+(asdf::traverse (make-instance @var{operation-class} {@var{initargs} ...}) (find-system @var{system-name}))
+@end example
+
 @end deffn
 
 @menu
@@ -1423,7 +1470,49 @@ It has proven difficult to define how the test operation
 should signal its results to the user
 in a way that is compatible with all of the various test libraries
 and test techniques in use in the community.
+
+People typically define @code{test-op} methods like thus:
+@example
+(defmethod perform ((o asdf:test-op) (s (eql (asdf:find-system @var{:mysystem}))))
+  (asdf:load-system @var{:mysystem})
+  (eval (read-from-string "(some expression that runs the tests)"))
+  t)
+@end example
 @end deffn
+
+@deffn Operation @code{load-fasl-op}
+
+This operation will load and create if need be
+a single fasl file for all the files in each loaded system.
+(Its compilation-only equivalent is @code{asdf::fasl-op}.)
+
+Once you have created such a fasl,
+you can use @code{precompiled-system} to deliver it in a way
+that is compatible with clients having asdf dependencies
+on your system whether it is distributed as source of as a single binary.
+
+On your build platform, you run something like that:
+@example
+@code{(asdf:operate 'load-fasl-op @var{:mysystem})}
+@end example
+
+And on your delivery platform, a form like this is evaluated
+in a prologue or at some point before you save your image:
+@example
+@code{(defsystem @var{:mysystem} :class :precompiled-system
+        :fasl @var{(some expression that will evaluate to a pathname)})}
+@end example
+
+Of course, @emph{before} you define such systems,
+you should not forget to @code{(asdf:clear-configuration)}.
+
+@code{load-fasl-op} is available on all actively supported Lisp implementations,
+and on those implementations only, and only since ASDF 2.27.
+This functionality was previously available for select implementations,
+as part of a separate system @code{asdf-bundle},
+itself descended from @code{asdf-ecl}.
+@end deffn
+
 
 @c @deffn Operation test-system-version @&key minimum
 
@@ -1483,6 +1572,12 @@ when invoked with an object of type @code{source-file}:
 
 @itemize
 
+@item @code{input-files}
+ASDF has a pretty clever default @code{input-files} mechanism.
+You only need create a method if there are multiple ultimate input files,
+and/or the bottom one doesn't depend
+on the @code{component-pathname} of the component.
+
 @item @code{output-files}
 The @code{output-files} method determines where the method will put its files.
 It returns two values, a list of pathnames, and a boolean.
@@ -1491,14 +1586,25 @@ not be translated by enclosing @code{:around} methods.
 If the boolean is @code{NIL} then enclosing @code{:around} methods
 may translate these pathnames, e.g. to ensure object files
 are somehow stored in some implementation-dependent cache.
+
 @item @code{perform}
 The @code{perform} method must call @code{output-files}
 to find out where to put its files,
 because the user is allowed to override.
 @item @code{output-files}
 for local policy @code{explain}
-@item @code{operation-done-p},
-if you don't like the default one
+
+@item @code{operation-done-p}
+You only need to define a method on that function
+if you can detect conditions that invalidate previous runs of the operation,
+even though no filesystem timestamp has changed,
+in which case you return @code{nil} (the default is @code{t}).
+
+For instance, the method for @code{test-op} always returns @code{nil},
+so that tests are always run afresh.
+Of course, the @code{test-op} for your system could depend
+on a deterministically repeatable @code{test-report-op},
+and just read the results from the report files.
 
 @end itemize
 
