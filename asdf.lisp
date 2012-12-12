@@ -2560,8 +2560,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
        (input-files o c)
        #+(or ecl mkcl)
        (loop :for i :in (input-files o c)
-	     :unless (string= (pathname-type i) "fas")
-	     :collect (compile-file-pathname (lispize-pathname i)))))
+             :unless (string= (pathname-type i) "fas")
+             :collect (compile-file-pathname (lispize-pathname i)))))
 
 (defmethod component-depends-on ((o load-op) (c component))
   (cons `(load-op ,@(component-load-dependencies c))
@@ -3132,7 +3132,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code."
     ;; This has next to no chance of working on basic Windows!
     ;; Your best hope is that Cygwin or MSYS is somewhere in the PATH.
     (multiple-value-bind (io process exit-code)
-	(apply #'mkcl:run-program #+windows "sh" #-windows "/bin/sh"
+        (apply #'mkcl:run-program #+windows "sh" #-windows "/bin/sh"
                                   (list "-c" command)
                                   :input nil :output t #|*verbose-out*|# ;; will be *verbose-out* when we support it
                                   #-windows '(:search nil))
@@ -3282,7 +3282,7 @@ located."
               ;; Note if not using International ACL
               ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
               (excl:ics-target-case (:-ics "8"))
-	      (and (member :smp *features*) "S"))
+              (and (member :smp *features*) "S"))
       #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
       #+clisp
       (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
@@ -3367,7 +3367,7 @@ located."
     (:local-appdata (getenv-absolute-directory "LOCALAPPDATA"))
     (:appdata (getenv-absolute-directory "APPDATA"))
     (:common-appdata (or (getenv-absolute-directory "ALLUSERSAPPDATA")
-			 (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
+                         (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
 
 (defun* user-configuration-directories ()
   (let ((dirs
@@ -3926,12 +3926,12 @@ effectively disabling the output translation facility."
   (if (absolute-pathname-p output-file)
       ;; what cfp should be doing, w/ mp* instead of mp
       (let* ((type (pathname-type (apply 'fasl-type keys)))
-	     (defaults (make-pathname
-			:type type :defaults (merge-pathnames* input-file))))
-	(merge-pathnames* output-file defaults))
+             (defaults (make-pathname
+                        :type type :defaults (merge-pathnames* input-file))))
+        (merge-pathnames* output-file defaults))
       (apply-output-translations
        (apply 'compile-file-pathname input-file
-	      (if output-file keys (remove-keyword :output-file keys))))))
+              (if output-file keys (remove-keyword :output-file keys))))))
 
 (defun* delete-file-if-exists (x)
   (when (and x (probe-file* x))
@@ -4559,8 +4559,8 @@ with a different configuration, so the configuration would be re-read then."
           (if (bundle-op-monolithic-p instance) ".system-and-dependencies" ".system")))
   (when (typep instance 'monolithic-bundle-op)
     (destructuring-bind (&rest original-initargs
-			 &key lisp-files prologue-code epilogue-code
-			 &allow-other-keys)
+                         &key lisp-files prologue-code epilogue-code
+                         &allow-other-keys)
         (slot-value instance 'original-initargs)
       (setf (slot-value instance 'original-initargs)
             (remove-keys '(lisp-files epilogue-code prologue-code) original-initargs)
@@ -4748,8 +4748,8 @@ with a different configuration, so the configuration would be re-read then."
   (unless (trivial-system-p c)
     (output-files (make-sub-operation o 'fasl-op) c)))
 
-(defmethod perform ((o load-fasl-op) (c t))
-  (declare (ignore o c))
+(defmethod perform ((o load-fasl-op) c)
+  (declare (ignorable o c))
   nil)
 
 (defmethod perform ((o load-fasl-op) (c system))
@@ -4772,20 +4772,20 @@ with a different configuration, so the configuration would be re-read then."
   (every #'(lambda (c) (typep c 'compiled-file)) (module-components s)))
 
 (defmethod output-files (o (c compiled-file))
-  (declare (ignore o c))
+  (declare (ignorable o c))
   nil)
 (defmethod input-files (o (c compiled-file))
   (declare (ignore o))
   (load (component-pathname c)))
 (defmethod perform ((o load-op) (c compiled-file))
-  (declare (ignore o))
+  (declare (ignorable o))
   (load (component-pathname c)))
 (defmethod perform ((o load-source-op) (c compiled-file))
   (perform (make-sub-operation o 'load-op) c))
 (defmethod perform ((o load-fasl-op) (c compiled-file))
   (perform (make-sub-operation o 'load-op) c))
 (defmethod perform (o (c compiled-file))
-  (declare (ignore o c))
+  (declare (ignorable o c))
   nil)
 
 ;;;
@@ -4795,9 +4795,9 @@ with a different configuration, so the configuration would be re-read then."
   ((static-library :accessor prebuilt-system-static-library :initarg :lib)))
 
 (defmethod output-files ((o lib-op) (c prebuilt-system))
-  (declare (ignore o))
+  (declare (ignorable o))
   (values (list (prebuilt-system-static-library c))
-	  t)) ; Advertise that we do not want this path renamed by asdf-output-translations
+          t)) ; Advertise that we do not want this path renamed by asdf-output-translations
 
 (defmethod perform ((o lib-op) (c prebuilt-system))
   (first (output-files o c)))
@@ -4994,7 +4994,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
          (output (output-files o c)))
     (ensure-directories-exist (first output))
     (apply #'c::builder (bundle-op-type o) (first output)
-	   :lisp-files (append object-files (bundle-op-lisp-files o))
+           :lisp-files (append object-files (bundle-op-lisp-files o))
            (append (bundle-op-build-args o)
                    (when (and (typep o 'monolithic-bundle-op)
                               (monolithic-op-prologue-code o))
@@ -5014,8 +5014,8 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 
 (defun mkcl-bundle-sub-operations (op sys)
   (gather-components (make-sub-operation op 'compile-op) sys
-		     :filter-system sys
-		     :filter-type '(not system)))
+                     :filter-system sys
+                     :filter-type '(not system)))
 
 (defun files-to-bundle (operation system)
   (loop :for (o . c) :in (mkcl-bundle-sub-operations operation system)
@@ -5027,17 +5027,17 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 
 (defmethod output-files ((o bundle-op) (c system))
   (let* ((name (component-name c))
-	 (static-lib-name (merge-pathnames
-			   (compiler::builder-internal-pathname name :static-library)
-			   (component-relative-pathname c)))
-	 (fasl-bundle-name (merge-pathnames
-			    (compiler::builder-internal-pathname name :fasb)
-			    (component-relative-pathname c))))
+         (static-lib-name (merge-pathnames
+                           (compiler::builder-internal-pathname name :static-library)
+                           (component-relative-pathname c)))
+         (fasl-bundle-name (merge-pathnames
+                            (compiler::builder-internal-pathname name :fasb)
+                            (component-relative-pathname c))))
     (list static-lib-name fasl-bundle-name)))
 
 (defmethod perform ((o bundle-op) (c system))
   (let* ((object-files (files-to-bundle o c))
-	 (output (output-files o c)))
+         (output (output-files o c)))
     (ensure-directories-exist (first output))
     (when (bundle-op-do-static-library-p o)
       (apply #'compiler::build-static-library (first output)
