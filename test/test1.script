@@ -8,27 +8,27 @@
  ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
-        (file1-date (file-write-date file1)))
+        (file1-date (file-write-date file1))
+        (file2-date (file-write-date file2)))
 
    (format t "~&test1 1: ~S ~S~%" file1 file1-date)
    (assert file1-date)
-   (assert (file-write-date file2))
+   (assert file2-date)
 
-   ;; and loaded
+   (DBG "and loaded")
    (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
 
-   ;; now remove one output file and check that the other is _not_ recompiled
-
+   (DBG "now remove file2 that depends-on file1 check that file1 is _not_ recompiled, but file2 is")
    (asdf::run-shell-command "rm -f ~A" (namestring file2))
+   ;; filesystem mtime has 1 second granularity. Make sure even fast machines see a difference.
+   (sleep 1)
    (asdf:operate 'asdf:load-op 'test1)
    (assert (= file1-date (file-write-date file1)))
-   (assert (file-write-date file2))
+   (assert (< file2-date (file-write-date file2)))
 
-   ;; now touch file1 and check that file2 _is_ also recompiled
-
+   (DBG "now touch file1 and check that file2 _is_ also recompiled")
    ;; XXX run-shell-command loses if *default-pathname-defaults* is not the
    ;; unix cwd.  this is not a problem for run-tests.sh, but can be in general
-
    (let ((before (file-write-date file2)))
      ;; filesystem mtime has 1 second granularity. Make sure even fast machines see a difference.
      (sleep 1)

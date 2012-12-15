@@ -2,6 +2,8 @@
 (load "script-support.lisp")
 (load-asdf)
 
+;;(trace asdf::source-file-type asdf::source-file-explicit-type)
+
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-source-file-type-1 :verbose t)

@@ -1,8 +1,13 @@
 ;;; -*- Lisp -*-
 #+(or f1 f2) (error "This test cannot run if :f1 or :f2 are on *features*")
 (load "script-support.lisp")
-(load-asdf)
 
+;;; This test relies on the removed features :if-component-dep-fails and :feature.
+;;; It is disabled.
+(asdf-test:leave-lisp "This test was removed, because is stressed a feature that was removed." 0)
+
+
+(load-asdf)
 (quit-on-error
  (let* ((fasl1 (asdf:compile-file-pathname* (truename "file1.lisp")))
         (fasl2 (asdf:compile-file-pathname* (truename "file2.lisp")))

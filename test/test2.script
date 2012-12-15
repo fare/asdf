@@ -4,9 +4,6 @@
 (quit-on-error
  (format t "test2 1~%")
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
-                                        ;(trace asdf::perform)
-                                        ;(trace asdf::find-component)
-                                        ;(trace asdf::traverse)
  (asdf:oos 'asdf:load-op 'test2b1)
  (format t "test2 2~%")
  (assert (and (probe-file (asdf:compile-file-pathname* (truename "file3.lisp")))

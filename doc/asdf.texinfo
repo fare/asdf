@@ -1264,10 +1264,9 @@ from within an editor without clobbering its source location)
 
 @subsection if-component-dep-fails option
 
-This option is only appropriate for module components (including
-systems), not individual source files.
-
-For more information about this option, @pxref{Pre-defined subclasses of component}.
+This option was removed in ASDF 2.27,
+because its semantics was limited in purpose and dubious to explain,
+and its implementation was breaking a hole into ASDF abstractions.
 
 @node Other code in .asd files,  , The defsystem grammar, Defining systems with defsystem
 @section Other code in .asd files
@@ -1306,34 +1305,33 @@ to interface with C libraries and of wrapper files to embed C code in Lisp;
 @code{abcl-jar} supports creating Java JAR archives in ABCL;
 and @code{poiu} supports for compiling code in parallel using background processes.
 
-This chapter deals with @emph{components} and @emph{operations}.
+This chapter deals with @code{component}s and @code{operation}s.
 
-An @emph{component} represents an individual source file or a group of source files,
+A @code{component} represents an individual source file or a group of source files,
 and the things that get transformed into.
-A @emph{source-file} is a component representing a single source-file
+A @code{system} is a component at the top level of the component hierarchy.
+A @code{source-file} is a component representing a single source-file
 and the successive output files into which it is transformed.
-A @emph{module} is a component itself grouping several other components,
+A @code{module} is an intermediate component itself grouping several other components,
 themselves source-files or further modules.
-A @emph{system} is a module at the top level of the component and module hierarchy.
 
-An @emph{Operation} represents a transformation that can be performed on a component,
+An @code{Operation} represents a transformation that can be performed on a component,
 turning them from source files to intermediate results to final outputs.
 
-A pair of an @emph{operation} and a @emph{component}
-is sometimes called an @emph{action}.
-An @emph{action} represents a particular build step to be @emph{performed},
+A pair of an @code{operation} and a @code{component} is called an @code{action}.
+An @code{action} represents a particular build step to be @code{perform}ed,
 after all its dependencies have been fulfilled.
-In the ASDF model, @emph{actions} depend on other actions.
-The term @emph{action} itself originated in ASDF 2,
-and is now found in its internals,
-but the concept is ubiquitous since the beginning of ASDF 1,
+In the ASDF model, actions depend on other actions.
+The term @emph{action} itself was used by Kent Pitman in his old article,
+but was only used by ASDF hackers starting with the ASDF 2;
+but the concept is ubiquitous since the very beginning of ASDF 1,
 though previously implicit.
 
 Then, there are many @emph{functions} available
 to users, extenders and implementers of ASDF
 to use, define or implement the activities
 that are part of building your software.
-Though they manipulate @emph{actions},
+Though they manipulate @code{action}s,
 most of these functions do not take as an argument
 a reified pair (a CONS cell) of an operation and a component;
 instead, they usually take two separate arguments,
@@ -1351,15 +1349,17 @@ with some @emph{operation} on some toplevel @emph{system};
 it will then @emph{traverse} the graph and build a @emph{plan}
 that follows its structure.
 To be successfully buildable, this graph of actions but be acyclic.
-If as a user, extender or implementer of ASDF, you fail 
+If, as a user, extender or implementer of ASDF, you fail
 to keep the dependency graph without cycles,
-and ASDF will fail loudly as it eventually finds one.
+ASDF will fail loudly as it eventually finds one.
 
 To clearly distinguish the direction of dependencies,
-ASDF 2.27 (after POIU 1.29) introduces the words @emph{parent} and @emph{child}
+ASDF 2.27 introduces the words @emph{parent} and @emph{child}
 as applied to an action depending on the other:
-the parent action @emph{depends-on} the completion of all children actions
-before it may itself be @emph{performed}.
+the parent action @code{depends-on} the completion of all children actions
+before it may itself be @code{perform}ed.
+ASDF has long had parent operations and children operations,
+whereby the ancestor holds some options valid for all the children (notably regarding forcing).
 
 Using the defsystem syntax, users may easily express
 direct dependencies along the graph of the object hierarchy:
@@ -2030,15 +2030,7 @@ are inferred to be of this type.
 
 @item
 @code{:if-component-dep-fails}
-This attribute takes one of the values
-@code{:fail}, @code{:try-next}, @code{:ignore},
-its default value is @code{:fail}.
-The other values can be used for implementing conditional compilation
-based on implementation @code{*features*},
-for the case where it is not necessary for all files in a module to be
-compiled.
-@emph{FIXME: such conditional compilation has been reported
-to be broken in 2009.}
+This attribute was removed in ASDF 2.27. Do not use it.
 
 @item
 @code{:serial} When this attribute is set,

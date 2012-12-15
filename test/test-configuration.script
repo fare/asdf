@@ -95,7 +95,6 @@
 (format t "~&subdirectories of dir5/: ~S~%" (subdirectories (under-test-directory "dir5/")))
 (assert (= 2 (length (subdirectories (under-test-directory "dir5/")))))
 
-;; (trace asdf::process-source-registry)
 (initialize-source-registry
  `(:source-registry (:include ,(under-test-directory "conf.d/"))
                     (:include ,(under-test-directory "dir5/"))

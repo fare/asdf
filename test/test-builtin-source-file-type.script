@@ -2,23 +2,26 @@
 (load "script-support.lisp")
 (load-asdf)
 
+;;(trace source-file-type)
+
 (quit-on-error
+ (format t "~D~%" (asdf:asdf-version))
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-builtin-source-file-type-1 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
- (assert
-   (equal (mapcar #'pathname-type
-                  (mapcar #'asdf:component-pathname (asdf:module-components (asdf:find-system :test-source-file-type-1))))
-          '("lisp" "cl")))
+ (assert-equal
+  (mapcar #'pathname-type
+          (mapcar #'asdf:component-pathname (asdf:module-components (asdf:find-system :test-source-file-type-1))))
+  '("lisp" "cl"))
  (delete-package :test-package)
  (asdf:load-system 'test-builtin-source-file-type-2 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
  (asdf:load-system 'test-builtin-source-file-type-3 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
- (assert
-   (equal (mapcar #'pathname-type
-                  (mapcar #'asdf:component-pathname (asdf:module-components (asdf:find-system :test-source-file-type-1))))
-          '("lisp" "cl")))
+ (assert-equal
+  (mapcar #'pathname-type
+          (mapcar #'asdf:component-pathname (asdf:module-components (asdf:find-system :test-source-file-type-1))))
+  '("lisp" "cl"))
  (delete-package :test-package)
  (asdf:load-system 'test-builtin-source-file-type-4 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))

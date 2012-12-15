@@ -108,6 +108,10 @@
   (finish-output *standard-output*)
   (exit-lisp return))
 
+(defmacro assert-equal (x y)
+  `(assert (equal ,x ,y) () "These two expressions are not equal:~% ~S evaluates to ~S~% ~S evaluates to ~S~%"
+           ',x ,x ',y ,y))
+
 (defmacro quit-on-error (&body body)
   `(call-quitting-on-error (lambda () ,@body)))
 

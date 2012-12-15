@@ -5,4 +5,4 @@
 (quit-on-error
   (setf *central-registry* '(*default-pathname-defaults*))
   (load-system 'test-around-compile :force t)
-  (assert (= 3 (add10 1)))) ;; add10 must have been compiled in base 2
+  (assert (= 3 (funcall 'add10 1)))) ;; add10 must have been compiled in base 2

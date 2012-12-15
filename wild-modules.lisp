@@ -6,9 +6,9 @@
    (component-options :accessor wild-module-component-options
                       :initform nil :initarg :component-options)))
 
-(defmethod (setf module-components) (new-value (module wild-module))
-  (when  new-value
-    (sysdef-error "Cannot explicitly set wild-module ~A's components. Please ~
+(defmethod (setf components-children) (new-value (module wild-module))
+  (when new-value
+    (sysdef-error "Cannot explicitly set wild-module ~A's children components. Please ~
 use a wild pathname instead." module)))
 
 (defmethod reinitialize-instance :after ((self wild-module) &key)
@@ -27,7 +27,7 @@ use a wild pathname instead." module)))
                              :parent self
                              options))
                     files)))
-    (compute-module-components-by-name self)
+    (compute-children-by-name self)
     (values)))
 
 (export 'wild-module)
