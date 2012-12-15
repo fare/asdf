@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.23: Another System Definition Facility.
+;;; This is ASDF 2.26.24: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.23")
+         (asdf-version "2.26.24")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2228,9 +2228,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                  (not (action-override-p o c 'operation-forced-not))))
     (visit-dependencies o c recurse)
     (multiple-value-bind (stamp done-p)
-        (compute-action-stamp o c :plan plan #|:base-stamp (visit-dependencies o c recurse)|#)
-      (funcall fun o c done-p stamp)
-      stamp)))
+        (compute-action-stamp o c :plan plan)
+      (funcall fun o c done-p stamp))))
 
 (defmethod mark-component-visited ((o operation) (c component) data)
   (unless (nth-value 1 (component-visited-p o c))
@@ -2256,7 +2255,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (setf (gethash (type-of o) (component-operation-times c))
         (compute-action-stamp o c :just-done t)))
 
-(defmethod compute-action-stamp ((o operation) (c component) &key just-done plan base-stamp)
+(defmethod compute-action-stamp ((o operation) (c component) &key just-done plan)
   ;; In a distant future, safe-file-write-date and component-operation-time
   ;; shall also be parametrized by the plan, or by a second model object.
   (let* ((stamp-lookup #'(lambda (o c) (action-visited-stamp plan o c)))
@@ -2269,7 +2268,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          ;; When was the thing last actually done? (Now, or ask.)
          (op-time (or just-done (component-operation-time o c)))
          ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
-         (dep-stamp (later-stamp base-stamp (visit-dependencies o c stamp-lookup)))
+         (dep-stamp (visit-dependencies o c stamp-lookup))
          ;; Time stamps from the files at hand, and whether any is missing
          (out-stamps (mapcar #'safe-file-write-date out-files))
          (in-stamps (mapcar #'safe-file-write-date in-files))
