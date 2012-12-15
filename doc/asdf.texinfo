@@ -1461,15 +1461,21 @@ to invoke other operations on the system or its components:
 the new operations will be created
 with the same @var{initargs} as the original one.
 
-If @var{force} is @code{t}, then all systems
+If @var{force} is @code{:all}, then all systems
 are forced to be recompiled even if not modified since last compilation.
+If @var{force} is @code{t}, then only the system being loaded
+is forced to be recompiled even if not modified since last compilation,
+but other systems are not affected.
 If @var{force} is a list, then it specifies a list of systems that
 are forced to be recompiled even if not modified since last compilation.
-If @var{force-not} is @code{t}, then all systems
+If @var{force-not} is @code{:all}, then all systems
 are forced not to be recompiled even if modified since last compilation.
+If @var{force-not} is @code{t}, then only the system being loaded
+is forced not to be recompiled even if modified since last compilation,
+but other systems are not affected.
 If @var{force-not} is a list, then it specifies a list of systems that
 are forced not to be recompiled even if modified since last compilation.
-@var{force} takes precedences over @var{force-not};
+As of ASDF 2.26.22, @var{force-not} takes precedences over @var{force};
 both of them apply to systems that are dependencies and were already compiled.
 
 To see what @code{operate} would do, you can use:
