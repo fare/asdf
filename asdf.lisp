@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.21: Another System Definition Facility.
+;;; This is ASDF 2.26.22: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.21")
+         (asdf-version "2.26.22")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1316,6 +1316,7 @@ Returns two values:
    (description :accessor component-description :initarg :description)
    (long-description :accessor component-long-description :initarg :long-description)
    (sibling-dependencies :accessor component-sibling-dependencies :initform nil)
+   (if-feature :accessor component-if-feature :initform nil :initarg :if-feature)
    ;; In the ASDF object model, dependencies exist between *actions*
    ;; (an action is a pair of operation and component).
    ;; Dependencies are represented as alists of operations
@@ -2039,15 +2040,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
      ;; https://bugs.launchpad.net/asdf/+bug/527788
      (resolve-dependency-name component (second dep-spec) (third dep-spec)))
     ((eq :feature (first dep-spec))
-     ;; This particular subform is not documented and
-     ;; has always been broken in the past.
-     ;; Therefore no one uses it, and I'm cerroring it out,
-     ;; after fixing it
-     ;; See https://bugs.launchpad.net/asdf/+bug/518467
-     (cerror "Continue nonetheless."
-             "Congratulations, you're the first ever user of FEATURE dependencies! Please contact the asdf-devel mailing-list.")
-     (when (find (second dep-spec) *features* :test 'string-equal)
-       (resolve-dependency-name component (third dep-spec))))
+     (when (featurep (second dep-spec))
+       (resolve-dependency-spec component (third dep-spec))))
     (t
      (error (compatfmt "~@<Bad dependency ~s.  Dependencies must be (:version <name> <version>), (:feature <feature> <name>), or <name>.~@:>") dep-spec))))
 
@@ -2225,43 +2219,15 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                   (latest-stamp-f stamp (funcall fun dep-o dep-c))))
   stamp)
 
-#| If we want to support if-component-dep-fails, we have to try harder.
-FIX THEM: ironclad, nibbles
-
-(defun* visit-children (op module fun)
-  (when (typep module 'parent-component)
-    (let ((at-least-one nil)
-          ;; This is set based on the results of the dependencies and
-          ;; whether we are in the context of a forcing call...
-          ;; inter-system dependencies DO trigger
-          ;; building components since ASDF 2.26.8 only.
-          (error nil)
-          (stamp nil))
-      (dolist (kid (component-children module))
-        (handler-case
-            (latest-stamp-f stamp (funcall fun op kid))
-          #-genera
-          (missing-dependency (condition)
-            (when (eq (module-if-component-dep-fails module)
-                      :fail)
-              (error condition))
-            (setf error condition))
-          (:no-error (c)
-            (declare (ignore c))
-            (setf at-least-one t))))
-      (when (and (eq (module-if-component-dep-fails module)
-                     :try-next)
-                 (not at-least-one))
-        (error error))
-      stamp)))
-|#
-
 (defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
 
 (defun* visit-action (o c plan recurse fun)
-  (when (and o c (not (action-override-p o c 'operation-forced-not)))
+  (when (and o c
+             (aif (component-if-feature c) (featurep it) t)
+             (not (action-override-p o c 'operation-forced-not)))
+    (visit-dependencies o c recurse)
     (multiple-value-bind (stamp done-p)
-        (compute-action-stamp o c :plan plan :base-stamp (visit-dependencies o c recurse))
+        (compute-action-stamp o c :plan plan #|:base-stamp (visit-dependencies o c recurse)|#)
       (funcall fun o c done-p stamp)
       stamp)))
 
