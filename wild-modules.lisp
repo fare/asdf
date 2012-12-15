@@ -6,7 +6,7 @@
    (component-options :accessor wild-module-component-options
                       :initform nil :initarg :component-options)))
 
-(defmethod (setf components-children) (new-value (module wild-module))
+(defmethod (setf component-children) (new-value (module wild-module))
   (when new-value
     (sysdef-error "Cannot explicitly set wild-module ~A's children components. Please ~
 use a wild pathname instead." module)))
