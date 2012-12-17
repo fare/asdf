@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.26: Another System Definition Facility.
+;;; This is ASDF 2.26.27: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.26")
+         (asdf-version "2.26.27")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1991,6 +1991,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (declare (ignorable base))
   actual)
 
+(defgeneric* resolve-dependency-combination (component combinator arguments))
+
 (defun* resolve-dependency-name (component name &optional version)
   (loop
     (restart-case
@@ -2018,21 +2020,21 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                    (equal (missing-requires c) name))))))))
 
 (defun* resolve-dependency-spec (component dep-spec)
-  (cond
-    ((atom dep-spec)
-     (resolve-dependency-name component dep-spec))
-    ;; Structured dependencies --- this parses keywords.
-    ;; The keywords could conceivably be broken out and cleanly (extensibly)
-    ;; processed by EQL methods. But for now, here's what we've got.
-    ((eq :version (first dep-spec))
-     ;; https://bugs.launchpad.net/asdf/+bug/527788
-     (resolve-dependency-name component (second dep-spec) (third dep-spec)))
-    ((eq :feature (first dep-spec))
-     (when (featurep (second dep-spec))
-       (resolve-dependency-spec component (third dep-spec))))
-    (t
-     (error (compatfmt "~@<Bad dependency ~s.  Dependencies must be (:version <name> <version>), (:feature <feature> <name>), or <name>.~@:>") dep-spec))))
+  (if (atom dep-spec)
+      (resolve-dependency-name component dep-spec)
+      (resolve-dependency-combination component (car dep-spec) (cdr dep-spec))))
 
+(defmethod resolve-dependency-combination (component combinator arguments)
+  (error (compatfmt "~@<Bad dependency ~S for ~S~@:>")
+         (cons combinator arguments) component))
+
+(defmethod resolve-dependency-combination (component (combinator (eql :feature)) arguments)
+  (when (featurep (first arguments))
+    (resolve-dependency-spec component (second arguments))))
+
+(defmethod resolve-dependency-combination (component (combinator (eql :version)) arguments)
+  ;; https://bugs.launchpad.net/asdf/+bug/527788
+  (resolve-dependency-name component (first arguments) (second arguments)))
 
 ;;; component subclasses
 
@@ -2117,7 +2119,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defmethod component-self-dependencies ((o operation) (c component))
   (remove-if-not
-   #'(lambda (x) (find c (cdr x) :key #'(lambda (dep) (resolve-dependency-spec c dep))))
+   #'(lambda (x) (unless (eq (car x) 'feature) ;; avoid the "FEATURE" feature
+                   (find c (cdr x) :key #'(lambda (dep) (resolve-dependency-spec c dep)))))
    (component-depends-on o c)))
 
 (defmethod output-files ((o operation) (c component))
@@ -2201,10 +2204,12 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defun* visit-dependencies (operation component fun &aux stamp)
   (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
-        :for dep-o = (find-operation operation dep-o-spec) :do
-          (loop :for dep-c-spec :in dep-c-specs
-                :for dep-c = (resolve-dependency-spec component dep-c-spec) :do
-                  (latest-stamp-f stamp (funcall fun dep-o dep-c))))
+        :for () = (format t "~&VD ~S ~S ~S~&" dep-o-spec dep-c-specs (eq dep-o-spec 'feature))
+        :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
+          :do (loop :with dep-o = (find-operation operation dep-o-spec)
+                    :for dep-c-spec :in dep-c-specs
+                    :for dep-c = (resolve-dependency-spec component dep-c-spec) :do
+                      (latest-stamp-f stamp (funcall fun dep-o dep-c))))
   stamp)
 
 (defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
@@ -2872,6 +2877,24 @@ Returns the new tree (which probably shares structure with the old one)"
   (%remove-component-inline-methods component)
   (%define-component-inline-methods component rest))
 
+;; Resolve away the dubious and deprecated option :IF-COMPONENT-DEP-FAILS
+;; and its companion ASDF:FEATURE pseudo-dependency.
+(defvar *if-component-dep-fails-component* nil)
+(defun resolve-if-component-dep-fails (if-component-dep-fails component)
+  (asdf-message "The system definition for ~S uses deprecated ~
+                 ASDF option :IF-COMPONENT-DEP-DAILS. ~
+                 Starting with ASDF 2.27, please use :IF-FEATURE instead"
+                (coerce-name (component-system component)))
+  ;; This only supports the pattern of use of the "feature" seen in the wild
+  (check-type component parent-component)
+  (check-type if-component-dep-fails (member :fail :ignore :try-next))
+  (unless (eq if-component-dep-fails :fail)
+    (loop :with o = (make-instance 'compile-op)
+      :for c :in (component-children component) :do
+        (loop :for (feature? feature) :in (component-depends-on o c)
+              :when (eq feature? 'feature) :do
+                (setf (component-if-feature c) feature)))))
+
 (defun* parse-component-form (parent options)
   (destructuring-bind
         (type name &rest rest &key
@@ -2880,7 +2903,7 @@ Returns the new tree (which probably shares structure with the old one)"
               components pathname
               perform explain output-files operation-done-p
               weakly-depends-on depends-on serial in-order-to
-              do-first
+              do-first if-component-dep-fails
               (version nil versionp)
               ;; list ends
               &allow-other-keys) options
@@ -2896,12 +2919,12 @@ Returns the new tree (which probably shares structure with the old one)"
       (unless (parse-version version nil)
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
               version name parent)))
-    (when do-first (error "do-first is not supported anymore by ASDF"))
+    (when do-first (error "DO-FIRST is not supported anymore since ASDF 2.27"))
     (let* ((args `(:name ,(coerce-name name)
                    :pathname ,pathname
                    ,@(when parent `(:parent ,parent))
                    ,@(remove-keys
-                      '(components pathname
+                      '(components pathname if-component-dep-fails
                         perform explain output-files operation-done-p
                         weakly-depends-on depends-on serial in-order-to)
                       rest)))
@@ -2927,6 +2950,7 @@ Returns the new tree (which probably shares structure with the old one)"
       (setf (component-sibling-dependencies ret) depends-on) ;; Used by POIU. ASDF3: rename to component-depends-on
       (setf (component-in-order-to ret) in-order-to)
       (%refresh-component-inline-methods ret rest)
+      (when if-component-dep-fails (resolve-if-component-dep-fails if-component-dep-fails ret))
       ret)))
 
 (defun* reset-system (system &rest keys &key &allow-other-keys)
