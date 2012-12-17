@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.24: Another System Definition Facility.
+;;; This is ASDF 2.26.25: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.24")
+         (asdf-version "2.26.25")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -213,12 +213,12 @@
                (loop :for x :in newly-exported-symbols :do
                  (export (intern* x package)))))
            (ensure-package (name &key nicknames use unintern
-                                 shadow export redefined-functions)
+                                 shadow export fmakunbound)
              (let* ((p (ensure-exists name nicknames use)))
+               #-ecl (ensure-fmakunbound p fmakunbound) #+ecl fmakunbound ;; do it later on ECL
                (ensure-unintern p unintern)
                (ensure-shadow p shadow)
                (ensure-export p export)
-               (ensure-fmakunbound p redefined-functions)
                p)))
         (macrolet
             ((pkgdcl (name &key nicknames use export
@@ -227,13 +227,14 @@
                    ',name :nicknames ',nicknames :use ',use :export ',export
                    :shadow ',shadow
                    :unintern ',unintern
-                   :redefined-functions ',redefined-functions)))
+                   :fmakunbound ',redefined-functions)))
           (pkgdcl
            :asdf
            :use (:common-lisp)
            :redefined-functions
            (#:perform #:explain #:output-files #:operation-done-p #:do-traverse
             #:visit-action #:compute-action-stamp #:component-load-dependencies #:traverse-action
+            #:component-depends-on #:perform-plan
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
@@ -503,7 +504,8 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
-             #+(or ecl (and gcl (not gcl-pre2.7))) (fmakunbound ',name)
+             ;;#+(or ecl (and gcl (not gcl-pre2.7))) (fmakunbound ',name)
+             #-gcl-pre2.7 (fmakunbound ',name)
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
              ,(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
                 `(declaim (notinline ,name)))
@@ -4558,7 +4560,7 @@ with a different configuration, so the configuration would be re-read then."
 ;;; This list is used by TRAVERSE and also by INPUT-FILES.
 ;;; The dependencies depend on the strategy, as explained below.
 ;;;
-(defgeneric bundle-sub-operations (operation component))
+(defgeneric* bundle-sub-operations (operation component))
 ;;;
 ;;; First we handle monolithic bundles.
 ;;; These are standalone systems which contain everything,
@@ -4685,7 +4687,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defclass load-fasl-op (basic-load-op) ())
 
-(defgeneric trivial-system-p (component))
+(defgeneric* trivial-system-p (component))
 
 (defmethod component-depends-on ((o load-fasl-op) (c system))
   (unless (trivial-system-p c)
@@ -4905,7 +4907,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 (defclass precompiled-system (system)
   ((fasl :initarg :fasl :reader %system-fasl)))
 
-(defgeneric system-fasl (system)
+(defgeneric* system-fasl (system)
   (:method ((system precompiled-system))
     (let* ((f (%system-fasl system))
            (p (etypecase f
@@ -5013,8 +5015,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 #+(or ecl mkcl)
 (pushnew '("fasb" . si::load-binary) si:*load-hooks* :test 'equal :key 'car)
 
-(pushnew :asdf *features*)
-(pushnew :asdf2 *features*)
+(dolist (f '(:asdf :asdf2 :asdf2.27)) (pushnew f *features*))
 
 (provide :asdf)
 
