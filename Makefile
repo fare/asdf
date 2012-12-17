@@ -7,10 +7,9 @@ sourceDirectory := $(shell pwd)
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro lispworks
+lisps ?= ccl clisp sbcl ecl ecl-bytecodes cmucl abcl scl allegro lispworks
 endif
 
-## MINOR FAIL: ecl-bytecodes (failure in test-compile-file-failure.script)
 ## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
 ## OCCASIONALLY TESTED BY NOT ME: allegromodern (not in my free demo version)
 ## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.

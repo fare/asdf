@@ -28,9 +28,7 @@ doc/asdf.t2d/
 LICENSE
 tmp/
 *.dribble
-*.fasl
-*.dfsl
-*.cfsl
+*.fas[bcl]
 *.fas
 *.lib
 *.[oahcisS]

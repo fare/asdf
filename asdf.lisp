@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.25: Another System Definition Facility.
+;;; This is ASDF 2.26.26: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.25")
+         (asdf-version "2.26.26")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -246,36 +246,31 @@
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
             #:split #:make-collector #:do-dep #:do-one-dep
-            #:resolve-relative-location-component #:resolve-absolute-location-component
-            #:traverse-action #:visit-action #:traverse
             #:loaded-systems ; makes for annoying SLIME completion
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :export
-           (#:defsystem #:oos #:operate #:find-system #:locate-system #:run-shell-command
+           (#:defsystem #:find-system #:locate-system
+            #:oos #:operate #:traverse #:perform-plan
             #:system-definition-pathname #:with-system-definitions
             #:search-for-system-definition #:find-component #:component-find-path
             #:compile-system #:load-system #:load-systems
             #:require-system #:test-system #:clear-system
-            #:operation #:compile-op #:load-op #:load-source-op #:test-op
-            #:upward-operation #:downward-operation #:prepare-op #:prepare-source-op
-            #:parent-component #:child-component
-            #:feature #:version #:version-satisfies
-            #:upgrade-asdf
+            #:operation #:upward-operation #:downward-operation
+            #:load-op #:prepare-op #:compile-op #:load-fasl-op
+            #:prepare-source-op #:load-source-op #:test-op
+            #:feature #:version #:version-satisfies #:upgrade-asdf
             #:implementation-identifier #:implementation-type #:hostname
             #:input-files #:output-files #:output-file #:perform
             #:operation-done-p #:explain #:component-sibling-dependencies
-            #:component-load-dependencies
+            #:component-load-dependencies #:run-shell-command ; deprecated, do not use
+            #:precompiled-system #:compiled-file
+            #+ecl #:make-build #+mkcl #:bundle-system
 
-            #:component #:source-file
-            #:c-source-file #:cl-source-file #:java-source-file
-            #:cl-source-file.cl #:cl-source-file.lsp
-            #:static-file
-            #:doc-file
-            #:html-file
-            #:text-file
+            #:component #:parent-component #:child-component #:system #:module
+            #:source-file #:c-source-file #:java-source-file
+            #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
+            #:static-file #:doc-file #:html-file :text-file
             #:source-file-type
-            #:module                     ; components
-            #:system
             #:unix-dso
 
             #:component-children          ; component accessors
@@ -373,8 +368,6 @@
             #:system-source-registry
             #:user-source-registry-directory
             #:system-source-registry-directory
-            #:load-fasl-op #:precompiled-system #:compiled-file
-            #+ecl #:make-build #+mkcl #:bundle-system
 
             ;; Utilities: please use asdf-utils instead
             #|
@@ -504,8 +497,7 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
-             ;;#+(or ecl (and gcl (not gcl-pre2.7))) (fmakunbound ',name)
-             #-gcl-pre2.7 (fmakunbound ',name)
+             #+(or ecl (and gcl (not gcl-pre2.7))) (fmakunbound ',name)
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
              ,(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
                 `(declaim (notinline ,name)))
@@ -1367,12 +1359,6 @@ Returns two values:
    (children-by-name
     :reader module-components-by-name ; backwards compatibility
     :accessor component-children-by-name)
-   ;; What to do if we can't satisfy a dependency of one of this module's
-   ;; components.  This allows a limited form of conditional processing.
-   (if-component-dep-fails
-    :initform :fail
-    :initarg :if-component-dep-fails
-    :accessor module-if-component-dep-fails)
    (default-component-class
     :initform nil
     :initarg :default-component-class
@@ -2113,7 +2099,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
        o))
 
 (defmethod find-operation ((operation operation) (sub operation))
-  (declare (ignore operation))
+  (declare (ignorable operation))
   sub)
 
 (defmethod find-operation ((operation operation) (sub symbol))
@@ -4726,7 +4712,7 @@ with a different configuration, so the configuration would be re-read then."
   (declare (ignorable o c))
   nil)
 (defmethod input-files (o (c compiled-file))
-  (declare (ignore o))
+  (declare (ignorable o))
   (load (component-pathname c)))
 (defmethod perform ((o load-op) (c compiled-file))
   (declare (ignorable o))
