@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.30: Another System Definition Facility.
+;;; This is ASDF 2.26.31: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.30")
+         (asdf-version "2.26.31")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2038,9 +2038,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 ;;; component subclasses
 
-(defclass source-file (child-component)
-  ((type :accessor source-file-explicit-type :initarg :type :initform nil)))
-
+(defclass file-component (child-component)
+  ((type :accessor file-type :initarg :type)))
+(defclass source-file (file-component) ())
 (defclass cl-source-file (source-file)
   ((type :initform "lisp")))
 (defclass cl-source-file.cl (cl-source-file)
@@ -2056,12 +2056,12 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defclass html-file (doc-file)
   ((type :initform "html")))
 
-(defmethod source-file-type ((component parent-component) system)
+(defmethod source-file-type ((component parent-component) system) ; not just for source-file. ASDF3: rename.
   (declare (ignorable component system))
   :directory)
-(defmethod source-file-type ((component source-file) system)
+(defmethod source-file-type ((component file-component) system)
   (declare (ignorable system))
-  (source-file-explicit-type component))
+  (file-type component))
 
 (defmethod component-relative-pathname ((component component))
   (coerce-pathname
@@ -4725,9 +4725,8 @@ with a different configuration, so the configuration would be re-read then."
 ;;; Only useful when the dependencies have also been precompiled.
 ;;;
 
-(defclass compiled-file (child-component)
-  ((type :initform #-(or ecl mkcl) (fasl-type) #+(or ecl mkcl) "fasb"
-         :reader source-file-type)))
+(defclass compiled-file (file-component)
+  ((type :initform #-(or ecl mkcl) (fasl-type) #+(or ecl mkcl) "fasb")))
 
 (defmethod trivial-system-p ((s parent-component))
   (every #'(lambda (c) (typep c 'compiled-file)) (component-children s)))
