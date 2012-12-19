@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.35: Another System Definition Facility.
+;;; This is ASDF 2.26.36: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.35")
+         (asdf-version "2.26.36")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1518,7 +1518,9 @@ and implementation-defined external-format's")
   ;; but also to modify parse-component-form to reset the recycled objects.
   ((name) (source-file) #|(children) (children-by-names)|#))
 
-(defclass system (parent-component proto-system)
+;; ASDF3: we ought to inherit from parent-component, not module.
+;; But if it's not backwards, it's not compatible.
+(defclass system (module proto-system)
   (;; description and long-description are now available for all component's,
    ;; but now also inherited from component, but we add the legacy accessor
    (description :accessor system-description :initarg :description)
@@ -2173,9 +2175,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 ;; Upward operations, like prepare-op, propagate up the component hierarchy:
 ;; operation on a child depends-on operation on its parent.
+;; For backward-compatibility reasons, a system inherits from module and is a child-component
+;; so we must guard against this case. ASDF3: remove that.
 (defclass upward-operation (operation) ())
 (defmethod component-depends-on ((o upward-operation) (c child-component))
-  `((,o ,(component-parent c)) ,@(call-next-method)))
+  (append (aif (component-parent c) `((,o ,it))) (call-next-method)))
 
 ;; Our default operations: loading into the current lisp image
 (defclass basic-load-op () ())

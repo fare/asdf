@@ -4126,7 +4126,7 @@ you can define a class as follows:
 (in-package :my-asdf-extension)
 
 (defclass cl-source-file.lis (cl-source-file)
-   ((type :initform "lis")))
+  ((type :initform "lis")))
 @end lisp
 
 Then you can use it as follows:
@@ -4160,8 +4160,8 @@ In short, though: do same as above, but
 you also define the following method:
 
 @lisp
-(defmethod source-file-type ((f cl-source-file.lis) (m module))
-  (declare (ignorable f m))
+(defmethod source-file-type ((f cl-source-file.lis) (s system))
+  (declare (ignorable f s))
   "lis")
 @end lisp
 
