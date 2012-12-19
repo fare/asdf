@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.33: Another System Definition Facility.
+;;; This is ASDF 2.26.34: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.33")
+         (asdf-version "2.26.34")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1213,11 +1213,15 @@ Returns two values:
 ;;;; -------------------------------------------------------------------------
 ;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
 (when *upgraded-p*
+  ;; override previous definition from 2.018 to 2.26, not needed
+  ;; since we've stopped trying to recycle previously-installed systems.
+  (eval '(defmethod reinitialize-instance :after ((obj component) &rest initargs)
+          (declare (ignorable obj initargs)) (values)))
   (when (find-class 'module nil)
     (eval '(defmethod update-instance-for-redefined-class :after
             ((m module) added deleted plist &key)
             (declare (ignorable m added deleted plist))
-            nil)))) ;; override previous definition.
+            nil))))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Classes, Conditions
@@ -2120,7 +2124,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defmethod component-self-dependencies ((o operation) (c component))
   (remove-if-not
-   #'(lambda (x) (unless (eq (car x) 'feature) ;; avoid the "FEATURE" feature
+   #'(lambda (x) (unless (eq (car x) 'feature) ;; avoid the "FEATURE" "feature"
                    (find c (cdr x) :key #'(lambda (dep) (resolve-dependency-spec c dep)))))
    (component-depends-on o c)))
 
@@ -2883,6 +2887,10 @@ Returns the new tree (which probably shares structure with the old one)"
 
 ;; Resolve away the dubious and deprecated option :IF-COMPONENT-DEP-FAILS
 ;; and its companion ASDF:FEATURE pseudo-dependency.
+;; THIS IS ONLY PARTIAL SUPPORT: it won't recurse into dependencies
+;; to accumulate feature conditions.
+;; Therefore it will accept the SB-ROTATE-BYTE of an old SBCL
+;; (older than 1.1.2.20-fe6da9f) but won't suffice to load an old nibbles.
 (defvar *if-component-dep-fails-component* nil)
 (defun resolve-if-component-dep-fails (if-component-dep-fails component)
   (asdf-message "The system definition for ~S uses deprecated ~
