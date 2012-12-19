@@ -124,7 +124,7 @@ test-upgrade:
 		    *) echo "WTF?" ; exit 2 ;; esac ; \
 		  $$lv "(asdf-test::test-asdf $$l)" ) || \
 		{ echo "upgrade FAILED" ; exit 1 ;} ;; esac ; \
-	done ; done
+	done ; done 2>&1 | tee tmp/results/${lisp}.upgrade.text
 
 test-forward-references:
 	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
