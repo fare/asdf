@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.34: Another System Definition Facility.
+;;; This is ASDF 2.26.35: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.34")
+         (asdf-version "2.26.35")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2043,8 +2043,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 ;;; component subclasses
 
 (defclass file-component (child-component)
-  ((type :accessor file-type :initarg :type)))
-(defclass source-file (file-component) ())
+  ((type :accessor file-type :initarg :type))) ; no default
+(defclass source-file (file-component)
+  ((type :initform nil))) ;; NB: many systems have come to rely on this default.
 (defclass cl-source-file (source-file)
   ((type :initform "lisp")))
 (defclass cl-source-file.cl (cl-source-file)
@@ -2891,7 +2892,6 @@ Returns the new tree (which probably shares structure with the old one)"
 ;; to accumulate feature conditions.
 ;; Therefore it will accept the SB-ROTATE-BYTE of an old SBCL
 ;; (older than 1.1.2.20-fe6da9f) but won't suffice to load an old nibbles.
-(defvar *if-component-dep-fails-component* nil)
 (defun resolve-if-component-dep-fails (if-component-dep-fails component)
   (asdf-message "The system definition for ~S uses deprecated ~
                  ASDF option :IF-COMPONENT-DEP-DAILS. ~
