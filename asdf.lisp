@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.36: Another System Definition Facility.
+;;; This is ASDF 2.26.37: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.36")
+         (asdf-version "2.26.37")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1347,12 +1347,14 @@ Returns two values:
    ;; XXX we should provide some atomic interface for updating the
    ;; component properties
    (properties :accessor component-properties :initarg :properties
-               :initform nil)))
+               :initform nil)
+   ;; For backwards compatibility, this slot is part of component rather than child-component
+   (parent :initarg :parent :initform nil :reader component-parent)))
+
 
 ;; Components are organized in a hierarchical tree,
 ;; that typically (but not necessarily) follows the filesystem hierarchy.
-(defclass child-component (component)
-  ((parent :initarg :parent :initform nil :reader component-parent)))
+(defclass child-component (component) ())
 
 (defclass parent-component (component)
   ((children
