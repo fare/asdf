@@ -1,0 +1,26 @@
+;;; -*- Lisp -*-
+(load "script-support.lisp")
+(load-asdf)
+
+;;;---------------------------------------------------------------------------
+;;; Check to see if the bundle functionality is doing something.
+;;;---------------------------------------------------------------------------
+
+
+(quit-on-error
+ (asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
+ (asdf:defsystem :test-bundle-1 :components ((:file "file1") (:file "file3")))
+ (asdf:defsystem :test-bundle-2 :depends-on (:test-bundle-1) :components ((:file "file2")))
+ (let* ((op (make-instance 'asdf::fasl-op))
+        (bundle-1 (asdf:output-file op (find-system :test-bundle-1)))
+        (bundle-2 (asdf:output-file op (find-system :test-bundle-2))))
+   (DBG :test-bundle bundle-1 bundle-2)
+   (asdf::delete-file-if-exists bundle-1)
+   (asdf::delete-file-if-exists bundle-2)
+   (asdf:operate 'asdf:load-fasl-op :test-bundle-2)
+   ;; Check that the bundles were indeed created.
+   (assert (probe-file bundle-1))
+   (assert (probe-file bundle-2))
+   ;; Check that the files were indeed loaded.
+   (assert (symbol-value (asdf::find-symbol* :*file1* :test-package)))
+   (assert (symbol-value (asdf::find-symbol* :*file3* :test-package)))))
