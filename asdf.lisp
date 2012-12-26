@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.37: Another System Definition Facility.
+;;; This is ASDF 2.26.38: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.37")
+         (asdf-version "2.26.38")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -234,7 +234,7 @@
            :redefined-functions
            (#:perform #:explain #:output-files #:operation-done-p #:do-traverse
             #:visit-action #:compute-action-stamp #:component-load-dependencies #:traverse-action
-            #:component-depends-on #:perform-plan
+            #:component-depends-on #:perform-plan #:mark-operation-done
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
@@ -1221,7 +1221,15 @@ Returns two values:
     (eval '(defmethod update-instance-for-redefined-class :after
             ((m module) added deleted plist &key)
             (declare (ignorable m added deleted plist))
-            nil))))
+            (when (and (member 'children added) (member 'components deleted))
+              (setf (slot-value m 'children) (getf plist 'components))
+              (compute-children-by-name m))
+            (when (typep m 'system)
+              (when (member 'source-file added)
+                (%set-system-source-file
+                 (probe-asd (component-name m) (component-pathname m)) m))
+              (when (equal (component-name m) "asdf")
+                (setf (component-version m) *asdf-version*)))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Classes, Conditions
@@ -2128,10 +2136,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (cdr (assoc (type-of o) (component-in-order-to c)))) ; User-specified in-order dependencies
 
 (defmethod component-self-dependencies ((o operation) (c component))
-  (remove-if-not
-   #'(lambda (x) (unless (eq (car x) 'feature) ;; avoid the "FEATURE" "feature"
-                   (find c (cdr x) :key #'(lambda (dep) (resolve-dependency-spec c dep)))))
-   (component-depends-on o c)))
+  (loop :for (o-spec . c-spec) :in (component-depends-on o c)
+        :unless (eq o-spec 'feature) ;; avoid the FEATURE "feature"
+          :when (find c c-spec :key #'(lambda (dep) (resolve-dependency-spec c dep)))
+            :collect (cons (find-operation o o-spec) c)))
 
 (defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))
@@ -2148,14 +2156,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   nil)
 
 (defmethod input-files ((o operation) (c file-component))
-  (let ((self-deps (component-self-dependencies o c)))
-    (or (and self-deps
-             (loop :for dep :in self-deps
-                   :for dep-o = (find-operation o (car dep))
-                   :append (or (output-files dep-o c) (input-files dep-o c))))
-        ;; no non-trivial previous operations needed?
-        ;; I guess we work with the original source file, then
-        (list (component-pathname c)))))
+  (or (loop :for (dep-o) :in (component-self-dependencies o c)
+            :append (or (output-files dep-o c) (input-files dep-o c)))
+      ;; no non-trivial previous operations needed?
+      ;; I guess we work with the original source file, then
+      (list (component-pathname c))))
 
 (defmethod perform :after ((o operation) (c component))
   (mark-operation-done o c))
@@ -2181,10 +2186,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 ;; so we must guard against this case. ASDF3: remove that.
 (defclass upward-operation (operation) ())
 (defmethod component-depends-on ((o upward-operation) (c child-component))
-  (append (aif (component-parent c) `((,o ,it))) (call-next-method)))
+  `(,@(aif (component-parent c) `((,o ,it))) ,@(call-next-method)))
 
 ;; Our default operations: loading into the current lisp image
-(defclass basic-load-op () ())
+(defclass basic-load-op (operation) ())
 (defclass load-op (basic-load-op downward-operation) ())
 (defclass prepare-op (upward-operation) ())
 
@@ -2408,7 +2413,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
    (dolist (pathname pathnames)
      (ensure-directories-exist (translate-logical-pathname pathname))))
 
-(defmethod perform :before ((o operation) (c source-file))
+(defmethod perform :before ((o operation) (c component))
   (ensure-all-directories-exist (output-files o c)))
 
 (defgeneric* around-compile-hook (component))
@@ -2565,7 +2570,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod perform ((o prepare-source-op) (c component))
   nil)
 
-
 (defmethod component-depends-on ((o load-source-op) (c component))
   `((prepare-source-op ,c) ,@(call-next-method)))
 
@@ -2611,7 +2615,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defmethod component-depends-on ((o test-op) (c system))
   (declare (ignorable o))
-  (cons `(load-op ,(component-name c)) (call-next-method)))
+  `((load-op ,c) ,@(call-next-method)))
 
 
 ;;;; -------------------------------------------------------------------------
@@ -2620,6 +2624,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defgeneric* operate (operation-class system &key &allow-other-keys))
 (defgeneric* perform-plan (plan &key))
 (defgeneric* plan-operates-on-p (plan component))
+
+(defvar *post-upgrade-hook* ())
 
 ;;;; Separating this into a different function makes it more forward-compatible
 (defun* cleanup-upgraded-asdf (old-version)
@@ -2639,7 +2645,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
         ;; Invalidate all systems but ASDF itself.
         (setf *defined-systems* (make-defined-systems-table))
         (register-system asdf)
-        (funcall (find-symbol* 'load-system :asdf) :asdf) ;; do it a second time, the right way.
+        (funcall (find-symbol* 'load-system :asdf) :asdf) ;; load ASDF a second time, the right way.
+        (map () 'funcall *post-upgrade-hook*)
         ;; If we're in the middle of something, restart it.
         (when *systems-being-defined*
           (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
@@ -3367,10 +3374,8 @@ located."
   (cond
     ((os-unix-p) '(#p"/etc/common-lisp/"))
     ((os-windows-p)
-     (aif
-      ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\Common AppData
-      (subpathname* (get-folder-path :common-appdata) "common-lisp/config/")
-      (list it)))))
+     (aif (subpathname* (get-folder-path :common-appdata) "common-lisp/config/")
+          (list it)))))
 
 (defun* in-first-directory (dirs x &key (direction :input))
   (loop :with fun = (ecase direction
@@ -3715,16 +3720,25 @@ Please remove it from your ASDF configuration"))
     system-output-translations-pathname
     system-output-translations-directory-pathname))
 
+(defun* lisp-implementation-directory (&key truename)
+  (let ((dir
+          (ignore-errors
+           #+clozure (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))
+           #+(or ecl mkcl) #p"SYS:"
+           #+sbcl (aif (find-symbol* :sbcl-homedir-pathname :sb-int)
+                       (funcall it)
+                       (getenv-pathname "SBCL_HOME" :want-directory t)))))
+    (if (and dir truename)
+        (let ((*default-pathname-defaults* #p"")) (truename dir))
+        dir)))
+
 (defun* wrapping-output-translations ()
   `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
-    #+sbcl ,(let ((h (getenv-pathname "SBCL_HOME" :want-directory t)))
-              (when h `((,(truenamize h) ,*wild-inferiors*) ())))
-    ;; The below two are not needed: no precompiled ASDF system there
-    #+(or ecl mkcl) (,(translate-logical-pathname "SYS:**;*.*") ())
+    #+(or #|clozure|# ecl mkcl sbcl)
+    ,@(let ((h (lisp-implementation-directory :truename t))) (when h `(((,h ,*wild-inferiors*) ()))))
     #+mkcl (,(translate-logical-pathname "CONTRIB:") ())
-    ;; #+clozure ,(ignore-errors (list (wilden (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))) ()))
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
     ;; These are for convenience, and can be overridden by the user:
@@ -4493,7 +4507,6 @@ with a different configuration, so the configuration would be re-read then."
 ;;; The different targets are defined by specialization.
 ;;;
 
-
 (defclass bundle-op (operation)
   ((build-args :initarg :args :initform nil :accessor bundle-op-build-args)
    (name-suffix :initarg :name-suffix :initform nil)
@@ -4557,28 +4570,37 @@ with a different configuration, so the configuration would be re-read then."
     (remf args :ld-flags)
     args))
 
-(defvar *force-load-p* nil)
-
-(defmethod operation-done-p :around ((o load-op) c)
-  (declare (ignorable o c))
-  (not *force-load-p*))
-
-(defun* gather-components (operation system &key filter-system filter-type include-self)
-  ;; This function creates a list of components,
-  ;; matched together with an operation.
+(defun* gather-components (operation system &key other-systems filter-type include-self)
+  ;; This function creates a list of actions pairing the operation with sub-components of system
+  ;; and its dependencies if requested.
   ;; This list may be restricted to sub-components of SYSTEM
   ;; if GATHER-ALL = NIL (default), and it may include the system itself.
-  (let* ((*force-load-p* t)
-         (tree (traverse (find-operation operation 'load-op) system)))
+  (let* ((forced (normalize-forced-systems (if other-systems :all t) system))
+         (forced-not (normalize-forced-systems (if other-systems nil :all) system))
+         (tree (traverse (make-instance 'load-op :force forced :force-not forced-not) system)))
     (append
      (loop :for (op . component) :in tree
        :when (and (typep op 'load-op)
-                  (typep component filter-type)
-                  (or (not filter-system) (eq (component-system component) filter-system)))
+                  (typep component filter-type))
        :collect (progn
                   (when (eq component system) (setf include-self nil))
                   (cons operation component)))
      (and include-self (list (cons operation system))))))
+
+(defun* builtin-system-p (s)
+  (let* ((system (find-system s nil))
+         (sysdir (and system (component-pathname system)))
+         (impdir (lisp-implementation-directory :truename t)))
+    (and sysdir impdir (pathname-match-p (truename sysdir) (wilden impdir)) t)))
+
+(defgeneric* trivial-system-p (component))
+
+(defun* user-system-p (s)
+  (and (typep s 'system)
+       (not (builtin-system-p s))
+       (not (trivial-system-p s))))
+
+(deftype user-system () '(and system (satisfies user-system-p)))
 
 ;;;
 ;;; BUNDLE-SUB-OPERATIONS
@@ -4600,7 +4622,7 @@ with a different configuration, so the configuration would be re-read then."
 ;;; Gather the static libraries of all components.
 ;;;
 (defmethod bundle-sub-operations ((o monolithic-bundle-op) c)
-  (gather-components (find-operation o 'lib-op) c :filter-type 'system :include-self t))
+  (gather-components (find-operation o 'lib-op) c :filter-type 'user-system :include-self t))
 
 ;;;
 ;;; STATIC LIBRARIES
@@ -4610,11 +4632,7 @@ with a different configuration, so the configuration would be re-read then."
 ;;;
 (defmethod bundle-sub-operations ((o lib-op) c)
   (gather-components (find-operation o 'compile-op) c
-                     :filter-system (and (not (bundle-op-monolithic-p o)) c)
-                     :filter-type '(not system)))
-(defmethod bundle-sub-operations ((o monolithic-lib-op) c)
-  (gather-components (find-operation o 'compile-op) c
-                     :filter-system nil
+                     :other-systems (bundle-op-monolithic-p o)
                      :filter-type '(not system)))
 ;;;
 ;;; SHARED LIBRARIES
@@ -4624,25 +4642,24 @@ with a different configuration, so the configuration would be re-read then."
 ;;; together with the static library of this module.
 ;;;
 (defmethod bundle-sub-operations ((o dll-op) c)
-  (list (cons (find-operation o 'lib-op) c)))
+  `((,(find-operation o 'lib-op) . ,c)))
 ;;;
 ;;; FASL FILES
 ;;;
 ;;; Gather the statically linked library of this component.
 ;;;
 (defmethod bundle-sub-operations ((o fasl-op) c)
-  (list (cons (find-operation o 'lib-op) c)))
+  `((,(find-operation o 'lib-op) . ,c)))
 
 #-mkcl
 (defmethod component-depends-on ((o bundle-op) (c system))
-  (loop :for (op . dep) :in (bundle-sub-operations o c)
-        :when (typep dep 'system)
-        :collect (list (class-name (class-of op))
-                       (component-name dep))))
+  `(,@(loop :for (op . dep) :in (bundle-sub-operations o c)
+            :when (user-system-p dep) :collect (list op dep))
+    ,@(call-next-method)))
 
 (defmethod component-depends-on ((o lib-op) (c system))
   (declare (ignorable o))
-  (list (list 'compile-op (component-name c))))
+  `((compile-op ,c) ,@(call-next-method)))
 
 (defmethod component-depends-on ((o bundle-op) c)
   (declare (ignorable o c))
@@ -4662,10 +4679,6 @@ with a different configuration, so the configuration would be re-read then."
           :type "lisp"
           :defaults (system-source-directory c))
          #+ecl :type #+ecl (bundle-op-type o))))
-
-(defmethod perform ((o bundle-op) (c t))
-  (declare (ignorable o c))
-  t)
 
 (defun* select-operation (monolithic type)
   (ecase type
@@ -4715,16 +4728,14 @@ with a different configuration, so the configuration would be re-read then."
 
 (defclass load-fasl-op (basic-load-op) ())
 
-(defgeneric* trivial-system-p (component))
-
 (defmethod component-depends-on ((o load-fasl-op) (c system))
-  (unless (trivial-system-p c)
-    (subst 'load-fasl-op 'load-op
-           (subst 'fasl-op 'compile-op
-                  (component-depends-on (find-operation o 'load-op) c)))))
+  `((load-fasl-op ,@(loop :for dep :in (component-sibling-dependencies c)
+                     :collect (resolve-dependency-spec c dep)))
+    (,(if (user-system-p c) 'fasl-op 'load-op) ,c)
+    ,@(call-next-method)))
 
 (defmethod input-files ((o load-fasl-op) (c system))
-  (unless (trivial-system-p c)
+  (when (user-system-p c)
     (output-files (find-operation o 'fasl-op) c)))
 
 (defmethod perform ((o load-fasl-op) c)
@@ -4732,9 +4743,9 @@ with a different configuration, so the configuration would be re-read then."
   nil)
 
 (defmethod perform ((o load-fasl-op) (c system))
-  (load (first (input-files o c))))
+  (aif (first (input-files o c)) (load it)))
 
-(defmethod mark-operation-done :before ((o load-fasl-op) (c system))
+(defmethod mark-operation-done :after ((o load-fasl-op) (c system))
   (mark-operation-done (find-operation o 'load-op) c)) ; need we recurse on gather-components?
 
 ;;;
@@ -4747,7 +4758,7 @@ with a different configuration, so the configuration would be re-read then."
 (defclass compiled-file (file-component)
   ((type :initform #-(or ecl mkcl) (fasl-type) #+(or ecl mkcl) "fasb")))
 
-(defmethod trivial-system-p ((s parent-component))
+(defmethod trivial-system-p ((s system))
   (every #'(lambda (c) (typep c 'compiled-file)) (component-children s)))
 
 (defmethod output-files (o (c compiled-file))
@@ -4772,6 +4783,10 @@ with a different configuration, so the configuration would be re-read then."
 ;;;
 (defclass prebuilt-system (system)
   ((static-library :accessor prebuilt-system-static-library :initarg :lib)))
+
+(defmethod trivial-system-p ((s prebuilt-system))
+  (declare (ignorable s))
+  t)
 
 (defmethod output-files ((o lib-op) (c prebuilt-system))
   (declare (ignorable o))
@@ -4818,8 +4833,9 @@ with a different configuration, so the configuration would be re-read then."
                 s))))
 
 (defmethod component-depends-on ((o binary-op) (s system))
-  (loop :for dep :in (binary-op-dependencies o s)
-        :append (apply #'component-depends-on dep)))
+  `(,@(loop :for dep :in (binary-op-dependencies o s)
+            :append (apply #'component-depends-on dep))
+    ,@(call-next-method)))
 
 (defmethod input-files ((o binary-op) (s system))
   (loop :for dep :in (binary-op-dependencies o s)
@@ -4920,7 +4936,6 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
                  (or (monolithic-op-prologue-code o) (monolithic-op-epilogue-code o)))
         (error "prologue-code and epilogue-code are not supported on ~A"
                (implementation-type)))
-      (ensure-directories-exist output-file)
       (with-staging-pathname (output-file)
         (combine-fasls fasl-files output-file)))))
 
@@ -4948,12 +4963,8 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
   (declare (ignorable o))
   (list (system-fasl s)))
 
-(defmethod perform ((o load-op) (s precompiled-system))
-  (declare (ignorable o))
-  (load (system-fasl s)))
-
-(defmethod input-files ((o load-fasl-op) (s precompiled-system))
-  (input-files (find-operation o 'load-op) s))
+(defmethod component-depends-on ((o load-fasl-op) (s precompiled-system))
+  `((load-op ,s) ,@(call-next-method)))
 
 #| ;; Example use:
 (asdf:defsystem :precompiled-asdf-utils :class asdf::precompiled-system :fasl (asdf:apply-output-translations (asdf:system-relative-pathname :asdf-utils "asdf-utils.system.fasl")))
@@ -4971,7 +4982,6 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
   (let* ((object-files (remove "fas" (input-files o c)
                                :key #'pathname-type :test #'string=))
          (output (output-files o c)))
-    (ensure-directories-exist (first output))
     (apply #'c::builder (bundle-op-type o) (first output)
            :lisp-files (append object-files (bundle-op-lisp-files o))
            (append (bundle-op-build-args o)
@@ -4993,7 +5003,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 
 (defun* mkcl-bundle-sub-operations (op sys)
   (gather-components (find-operation op 'compile-op) sys
-                     :filter-system sys
+                     :other-systems nil
                      :filter-type '(not system)))
 
 (defun* files-to-bundle (operation system)
@@ -5002,7 +5012,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
     :when sub-files :collect (first sub-files)))
 
 (defmethod component-depends-on ((o bundle-op) (c system))
-  (cons `(compile-op ,(component-name c)) (call-next-method)))
+  `((compile-op ,c) ,@(call-next-method)))
 
 (defmethod output-files ((o bundle-op) (c system))
   (let* ((name (component-name c))
@@ -5015,9 +5025,8 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
     (list static-lib-name fasl-bundle-name)))
 
 (defmethod perform ((o bundle-op) (c system))
-  (let* ((object-files (files-to-bundle o c))
-         (output (output-files o c)))
-    (ensure-directories-exist (first output))
+  (let ((object-files (files-to-bundle o c))
+        (output (output-files o c)))
     (when (bundle-op-do-static-library-p o)
       (apply #'compiler::build-static-library (first output)
              :lisp-object-files object-files (bundle-op-build-args o)))
