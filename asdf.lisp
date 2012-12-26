@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.38: Another System Definition Facility.
+;;; This is ASDF 2.26.39: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.38")
+         (asdf-version "2.26.39")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1033,6 +1033,13 @@ with given pathname and if it exists return its truename."
 (defun* tmpize-pathname (x)
   (add-pathname-suffix x "-ASDF-TMP"))
 
+(defun* rename-file-overwriting-target (source target)
+  #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
+  (posix:copy-file source target :method :rename)
+  #-clisp
+  (rename-file source target
+               #+clozure :if-exists #+clozure :rename-and-delete))
+
 (defun* call-with-staging-pathname (pathname fun)
   "Calls fun with a staging pathname, and atomically
 renames the staging pathname to the pathname in the end.
@@ -1044,7 +1051,7 @@ For the latter case, we ought pick random suffix and atomically open it."
     (unwind-protect
          (multiple-value-prog1
              (funcall fun staging)
-           (rename-file staging pathname #+clozure :if-exists #+clozure :rename-and-delete))
+           (rename-file-overwriting-target staging pathname))
       (when (probe-file* staging)
         (delete-file staging)))))
 
@@ -3953,7 +3960,7 @@ effectively disabling the output translation facility."
                   (apply compile-check input-file :output-file tmp-file keywords)))
          (delete-file-if-exists output-file)
          (when output-truename
-           (rename-file output-truename output-file)
+           (rename-file-overwriting-target output-truename output-file)
            (setf output-truename output-file)))
         (t ;; error or failed check
          (delete-file-if-exists output-truename)
@@ -4713,10 +4720,7 @@ with a different configuration, so the configuration would be re-read then."
               :for new-f = (make-pathname :name (pathname-name f)
                                 :type (pathname-type f)
                                 :defaults dest-path)
-              :do (progn
-                    (when (probe-file new-f)
-                      (delete-file new-f))
-                    (rename-file f new-f))
+              :do (rename-file-overwriting-target f new-f)
               :collect new-f)
         files)))
 
