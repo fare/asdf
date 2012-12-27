@@ -23,6 +23,7 @@ ECL ?= ecl
 MKCL ?= mkcl
 CMUCL ?= cmucl
 ABCL ?= abcl
+XCL ?= xcl
 SCL ?= scl
 ALLEGRO ?= alisp
 ALLEGROMODERN ?= mlisp
@@ -93,12 +94,13 @@ test-upgrade:
 	use_mkcl () { li="${MKCL} -norc" ; ev="-eval" ; } ; \
 	use_cmucl () { li="${CMUCL} -noinit" ; ev="-eval" ; } ; \
 	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
+	use_xcl () { li="${XCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
 	use_scl () { li="${SCL} -noinit" ; ev="-eval" ; } ; \
 	use_allegro () { li="${ALLEGRO} -q" ; ev="-e" ; } ; \
 	use_allegromodern () { li="${ALLEGROMODERN} -q" ; ev="-e" ; } ; \
 	use_lispworks () { li="${LISPWORKS} -siteinit - -init -" ; ev="-eval" ; } ; \
 	use_${lisp} ; \
-	su=test/script-support ; lu="(load\"$$su\")" ; \
+	su=test/script-support.lisp ; lu="(load\"$$su\")" ; \
 	lv="$$li $$ev $$lu $$ev" ; \
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
 	  rm -f $$fa ; \
@@ -117,6 +119,8 @@ test-upgrade:
 		: Skip, because of various ASDF issues ;; \
 	      mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) \
 		: Skip, because MKCL is only supported starting with 2.24 ;; \
+	      xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*) \
+		: Skip, because it is slow and XCL comes with 2.014.2 ;; \
 	      *) (set -x ; \
                   case $$x in \
 		    load-system) l="$$lo (asdf-test::load-asdf-system)" ;; \

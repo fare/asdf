@@ -16,12 +16,14 @@
  (format t "~S~%" (translate-logical-pathname "ASDF:test;test-force.asd"))
  (format t "~S~%" (truename "ASDF:test;test-force.asd"))
 
+ #-xcl
  (progn
    (format t "Test logical pathnames in central registry~%")
    (setf *central-registry* '(#p"ASDF:test;"))
    (initialize-source-registry '(:source-registry :ignore-inherited-configuration))
    (load-system :test-logical-pathname :force t))
 
+ #-xcl
  (progn
    (format t "Test logical pathnames in source-registry, non-recursive~%")
    (clear-system :test-logical-pathname)
@@ -30,6 +32,7 @@
     '(:source-registry (:directory #p"ASDF:test;") :ignore-inherited-configuration))
    (load-system :test-logical-pathname :force t))
 
+ #-xcl
  (progn
    (format t "Test logical pathnames in source-registry, recursive~%")
    (clear-system :test-logical-pathname)

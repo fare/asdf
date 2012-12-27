@@ -316,7 +316,7 @@
  (format t "output translations: ~S~%" (asdf::output-translations))
 
  #+gcl (format t "~&~A~&" (progn (defvar *x* -1) (incf *x*)))
-
+ #-xcl ;;---*** pathnames are known to be massively broken on XCL
  (flet ((same (s1 s2 p1 p2)
           (unless (equal (namestring p1) (namestring p2))
             (describe p1) (describe p2)
@@ -331,6 +331,7 @@
      #-gcl
      (x (asdf::resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
 
+ #-xcl ;;---*** pathnames are known to be massively broken on XCL
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
      (leave-lisp "test failed" 1)))
 

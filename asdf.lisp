@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.41: Another System Definition Facility.
+;;; This is ASDF 2.26.42: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.41")
+         (asdf-version "2.26.42")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2205,6 +2205,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defclass prepare-op (upward-operation) ())
 
 (defmethod component-depends-on ((o prepare-op) (c component))
+  (declare (ignorable o))
   `((load-op ,@(loop :for dep :in (component-sibling-dependencies c)
                      :collect (resolve-dependency-spec c dep)))
     ,@(call-next-method)))
@@ -2497,6 +2498,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     #-(or ecl mkcl) (list f)))
 
 (defmethod component-depends-on ((o compile-op) (c component))
+  (declare (ignorable o))
   `((prepare-op ,c) ,@(call-next-method)))
 
 (defmethod perform ((o compile-op) (c static-file))
@@ -2543,9 +2545,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   nil)
 
 (defmethod component-depends-on ((o load-op) (c component))
+  (declare (ignorable o))
   `((prepare-op ,c) ,@(call-next-method)))
 
 (defmethod component-depends-on ((o load-op) (c source-file))
+  (declare (ignorable o))
   `((compile-op ,c) ,@(call-next-method)))
 
 (defmethod operation-description ((o load-op) component)
@@ -2573,6 +2577,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defclass prepare-source-op (upward-operation) ())
 
 (defmethod component-depends-on ((o prepare-source-op) (c source-file))
+  (declare (ignorable o))
   `((load-source-op ,@(component-sibling-dependencies c)) ,@(call-next-method)))
 (defmethod input-files ((o prepare-source-op) (c component))
   nil)
@@ -2582,6 +2587,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   nil)
 
 (defmethod component-depends-on ((o load-source-op) (c component))
+  (declare (ignorable o))
   `((prepare-source-op ,c) ,@(call-next-method)))
 
 (defmethod perform ((o load-source-op) (c cl-source-file))
@@ -4737,6 +4743,7 @@ with a different configuration, so the configuration would be re-read then."
 (defclass load-fasl-op (basic-load-op) ())
 
 (defmethod component-depends-on ((o load-fasl-op) (c system))
+  (declare (ignorable o))
   `((load-fasl-op ,@(loop :for dep :in (component-sibling-dependencies c)
                      :collect (resolve-dependency-spec c dep)))
     (,(if (user-system-p c) 'fasl-op 'load-op) ,c)
@@ -4902,12 +4909,12 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
         (copy-stream-to-stream i o :element-type '(unsigned-byte 8))))))
 
 (defun* combine-fasls (inputs output)
-  #-(or allegro clisp clozure cmu lispworks sbcl scl)
+  #-(or allegro clisp clozure cmu lispworks sbcl scl xcl)
   (declare (ignore inputs output))
-  #-(or allegro clisp clozure cmu lispworks sbcl scl)
+  #-(or allegro clisp clozure cmu lispworks sbcl scl xcl)
   (error "~S is not supported on ~A" 'combine-fasls (implementation-type))
   #+clozure (ccl:fasl-concatenate output inputs :if-exists :supersede)
-  #+(or allegro clisp cmu sbcl scl) (concatenate-files inputs output)
+  #+(or allegro clisp cmu sbcl scl xcl) (concatenate-files inputs output)
   #+lispworks
   (let (fasls)
     (unwind-protect
@@ -4973,6 +4980,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
   (list (system-fasl s)))
 
 (defmethod component-depends-on ((o load-fasl-op) (s precompiled-system))
+  (declare (ignorable o))
   `((load-op ,s) ,@(call-next-method)))
 
 #| ;; Example use:
@@ -5021,6 +5029,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
     :when sub-files :collect (first sub-files)))
 
 (defmethod component-depends-on ((o bundle-op) (c system))
+  (declare (ignorable o))
   `((compile-op ,c) ,@(call-next-method)))
 
 (defmethod output-files ((o bundle-op) (c system))
