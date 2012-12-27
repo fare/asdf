@@ -53,6 +53,16 @@
                      :defaults *asdf-directory*)
       *asdf-lisp*))))
 
+(defun load-old-asdf (tag)
+  (let ((old-asdf
+          (merge-pathnames
+           (make-pathname :directory `(:relative "tmp")
+                          :name (format nil "asdf-~A" tag)
+                          :defaults *asdf-directory*)
+           *asdf-lisp*)))
+    (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
+      (load old-asdf))))
+
 (defun load-asdf ()
   (load *asdf-fasl*)
   (use-package :asdf :asdf-test)

@@ -19,9 +19,9 @@
    (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
 
    (DBG "now remove file2 that depends-on file1 check that file1 is _not_ recompiled, but file2 is")
-   (asdf::run-shell-command "rm -f ~A" (namestring file2))
+   (asdf::delete-file-if-exists file2)
    ;; filesystem mtime has 1 second granularity. Make sure even fast machines see a difference.
-   (sleep 1)
+   (sleep 1.5)
    (asdf:operate 'asdf:load-op 'test1)
    (assert (= file1-date (file-write-date file1)))
    (assert (< file2-date (file-write-date file2)))

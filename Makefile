@@ -105,7 +105,7 @@ test-upgrade:
 	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
 	  rm -f $$fa ; \
 	  for x in load-system load-lisp load-lisp-compile-load-fasl load-fasl just-load-fasl ; do \
-	    lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
+	    lo="(asdf-test::load-old-asdf \"$${tag}\")" ; \
 	    echo "Testing upgrade from ASDF $${tag} using method $$x" ; \
 	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
 	    case ${lisp}:$$tag:$$x in \
