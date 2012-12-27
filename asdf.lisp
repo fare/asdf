@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.42: Another System Definition Facility.
+;;; This is ASDF 2.26.43: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.42")
+         (asdf-version "2.26.43")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2056,11 +2056,12 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (cons combinator arguments) component))
 
 (defmethod resolve-dependency-combination (component (combinator (eql :feature)) arguments)
+  (declare (ignorable combinator))
   (when (featurep (first arguments))
     (resolve-dependency-spec component (second arguments))))
 
 (defmethod resolve-dependency-combination (component (combinator (eql :version)) arguments)
-  ;; https://bugs.launchpad.net/asdf/+bug/527788
+  (declare (ignorable combinator)) ;; See https://bugs.launchpad.net/asdf/+bug/527788
   (resolve-dependency-name component (first arguments) (second arguments)))
 
 ;;; component subclasses
@@ -2211,10 +2212,13 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     ,@(call-next-method)))
 
 (defmethod perform ((o prepare-op) (c component))
+  (declare (ignorable o c))
   nil)
 (defmethod input-files ((o prepare-op) (c component))
+  (declare (ignorable o c))
   nil)
 (defmethod input-files ((o prepare-op) (s system))
+  (declare (ignorable o))
   (aif (system-source-file s) (list it)))
 
 
@@ -2267,13 +2271,17 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (gethash (type-of o) (component-operation-times c)))
 
 (defmethod action-visited-stamp ((plan null) (o operation) (c component))
+  (declare (ignorable plan))
   (values (component-operation-time o c)))
 (defmethod action-already-done-p ((plan null) (o operation) (c component))
+  (declare (ignorable plan))
   (nth-value 1 (component-operation-time o c)))
 
 (defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
+  (declare (ignorable plan))
   (car (component-visited-p o c)))
 (defmethod action-already-done-p ((plan (eql 'traverse)) (o operation) (c component))
+  (declare (ignorable plan))
   (second (component-visited-p o c)))
 
 (defmethod mark-operation-done ((o operation) (c component))
@@ -2580,10 +2588,13 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (declare (ignorable o))
   `((load-source-op ,@(component-sibling-dependencies c)) ,@(call-next-method)))
 (defmethod input-files ((o prepare-source-op) (c component))
+  (declare (ignorable o c))
   nil)
 (defmethod input-files ((o prepare-source-op) (s system))
+  (declare (ignorable o))
   (aif (system-source-file s) (list it)))
 (defmethod perform ((o prepare-source-op) (c component))
+  (declare (ignorable o c))
   nil)
 
 (defmethod component-depends-on ((o load-source-op) (c component))
