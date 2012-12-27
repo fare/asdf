@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.40: Another System Definition Facility.
+;;; This is ASDF 2.26.41: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.40")
+         (asdf-version "2.26.41")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1219,24 +1219,28 @@ Returns two values:
 
 ;;;; -------------------------------------------------------------------------
 ;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
-(when *upgraded-p*
-  ;; override previous definition from 2.018 to 2.26, not needed
-  ;; since we've stopped trying to recycle previously-installed systems.
-  (eval '(defmethod reinitialize-instance :after ((obj component) &rest initargs)
-          (declare (ignorable obj initargs)) (values)))
-  (when (find-class 'module nil)
-    (eval '(defmethod update-instance-for-redefined-class :after
-            ((m module) added deleted plist &key)
-            (declare (ignorable m added deleted plist))
-            (when (and (member 'children added) (member 'components deleted))
-              (setf (slot-value m 'children) (getf plist 'components))
-              (compute-children-by-name m))
-            (when (typep m 'system)
-              (when (member 'source-file added)
-                (%set-system-source-file
-                 (probe-asd (component-name m) (component-pathname m)) m))
-              (when (equal (component-name m) "asdf")
-                (setf (component-version m) *asdf-version*)))))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (when *upgraded-p*
+    ;; override previous definition from 2.018 to 2.26, not needed
+    ;; since we've stopped trying to recycle previously-installed systems.
+    (when (find-class 'component nil)
+      (eval '(defmethod reinitialize-instance :after ((c component) &rest initargs &key)
+              (declare (ignorable c initargs)) (values))))
+    (when (find-class 'module nil)
+      (eval '(defmethod reinitialize-instance :after ((m module) &rest initargs &key)
+              (declare (ignorable m initargs)) (values)))
+      (eval '(defmethod update-instance-for-redefined-class :after
+              ((m module) added deleted plist &key)
+              (declare (ignorable m added deleted plist))
+              (when (and (member 'children added) (member 'components deleted))
+                (setf (slot-value m 'children) (getf plist 'components))
+                (compute-children-by-name m))
+              (when (typep m 'system)
+                (when (member 'source-file added)
+                  (%set-system-source-file
+                   (probe-asd (component-name m) (component-pathname m)) m))
+                (when (equal (component-name m) "asdf")
+                  (setf (component-version m) *asdf-version*))))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Classes, Conditions

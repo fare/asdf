@@ -7,13 +7,12 @@ sourceDirectory := $(shell pwd)
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl ecl-bytecodes cmucl abcl scl allegro lispworks
+lisps ?= ccl clisp sbcl ecl ecl-bytecodes cmucl abcl scl allegro lispworks allegromodern
 endif
 
 ## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
-## OCCASIONALLY TESTED BY NOT ME: allegromodern (not in my free demo version)
 ## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
-## NOT SUPPORTED BY OUR TESTS: cormancl genera mkcl rmcl. Manually tested once in a while.
+## NOT SUPPORTED BY OUR TESTS: cormancl genera lispworks-personal-edition mkcl rmcl. Manually tested once in a while.
 
 lisp ?= sbcl
 
@@ -82,6 +81,10 @@ mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
 test-upgrade:
+	# 1.37 is the last release by Daniel Barlow
+	# 1.97 is the last release before Gary King takes over
+	# 1.369 is the last release by Gary King
+	# 2.000 to 2.019 and 2.20 to 2.27 and beyond are Faré's "stable" releases
 	fasl=fasl ; \
 	use_ccl () { li="${CCL} --no-init --quiet" ; ev="--eval" ; } ; \
 	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet" ; ev="-x" ; } ; \
