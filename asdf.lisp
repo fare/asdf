@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.43: Another System Definition Facility.
+;;; This is ASDF 2.26.44: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.43")
+         (asdf-version "2.26.44")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1233,7 +1233,10 @@ Returns two values:
               ((m module) added deleted plist &key)
               (declare (ignorable m added deleted plist))
               (when (and (member 'children added) (member 'components deleted))
-                (setf (slot-value m 'children) (getf plist 'components))
+                (setf (slot-value m 'children)
+                      ;; old ECLs provide an alist instead of a plist(!)
+                      (if (or #+ecl (consp (first plist))) (or #+ecl (cdr (assoc 'components plist)))
+                          (getf plist 'components)))
                 (compute-children-by-name m))
               (when (typep m 'system)
                 (when (member 'source-file added)

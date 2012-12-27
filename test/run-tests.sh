@@ -139,7 +139,7 @@ case "$lisp" in
     command="${ECL:-ecl}"
     flags="-norc -load sys:cmp"
     eval="-eval" ;;
-  ecl-bytecodes)
+  ecl_bytecodes)
     command="${ECL:-ecl}"
     flags="-norc -eval (ext::install-bytecodes-compiler)"
     eval="-eval" ;;

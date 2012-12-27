@@ -7,10 +7,9 @@ sourceDirectory := $(shell pwd)
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl ecl-bytecodes cmucl abcl scl allegro lispworks allegromodern
+lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl
 endif
 
-## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
 ## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
 ## NOT SUPPORTED BY OUR TESTS: cormancl genera lispworks-personal-edition mkcl rmcl. Manually tested once in a while.
 
@@ -91,6 +90,7 @@ test-upgrade:
 	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet" ; ev="-x" ; } ; \
 	use_sbcl () { li="${SBCL} --noinform --no-userinit" ; ev="--eval" ; } ; \
 	use_ecl () { li="${ECL} -norc" ; ev="-eval" ; } ; \
+	use_ecl_bytecodes () { li="${ECL} -norc -eval (ext::install-bytecodes-compiler)" ; ev="-eval" ; } ; \
 	use_mkcl () { li="${MKCL} -norc" ; ev="-eval" ; } ; \
 	use_cmucl () { li="${CMUCL} -noinit" ; ev="-eval" ; } ; \
 	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
@@ -115,12 +115,12 @@ test-upgrade:
 		: Skip, because ccl broke old asdf ;; \
 	      cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*) \
 		: Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;; \
-	      ecl:1.*|ecl:2.0[01]*|ecl:2.20:*) \
+	      ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) \
 		: Skip, because of various ASDF issues ;; \
 	      mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) \
 		: Skip, because MKCL is only supported starting with 2.24 ;; \
 	      xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*) \
-		: Skip, because it is slow and XCL comes with 2.014.2 ;; \
+		: XCL support starts with ASDF 2.014.2 ;; \
 	      *) (set -x ; \
                   case $$x in \
 		    load-system) l="$$lo (asdf-test::load-asdf-system)" ;; \
@@ -156,7 +156,6 @@ test-all-upgrade:
 	@for lisp in ${lisps} ; do \
 		${MAKE} test-upgrade lisp=$$lisp || exit 1 ; \
 	done
-
 
 test-all: test-forward-references doc test-all-lisps
 
