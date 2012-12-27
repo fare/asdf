@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.44: Another System Definition Facility.
+;;; This is ASDF 2.26.45: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.44")
+         (asdf-version "2.26.45")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1109,6 +1109,9 @@ You can put together sentences using this phrase."))
 (defgeneric* system-source-file (system)
   (:documentation "Return the source file in which system is defined."))
 
+(defgeneric* component-name (component)
+  (:documentation "Name of the COMPONENT, unique relative to its parent"))
+
 (defgeneric* component-system (component)
   (:documentation "Find the top-level system containing COMPONENT"))
 
@@ -1220,6 +1223,15 @@ Returns two values:
 ;;;; -------------------------------------------------------------------------
 ;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun* compute-children-by-name (module)
+    (let ((hash (make-hash-table :test 'equal)))
+      (setf (component-children-by-name module) hash)
+      (loop :for c :in (component-children module)
+            :for name = (component-name c)
+            :for previous = (gethash name hash)
+            :do (when previous (error 'duplicate-names :name name))
+                (setf (gethash name hash) c))
+      hash))
   (when *upgraded-p*
     ;; override previous definition from 2.018 to 2.26, not needed
     ;; since we've stopped trying to recycle previously-installed systems.
@@ -1441,16 +1453,6 @@ Returns two values:
        component))
 
 (defvar *default-component-class* 'cl-source-file)
-
-(defun* compute-children-by-name (module)
-  (let ((hash (make-hash-table :test 'equal)))
-    (setf (component-children-by-name module) hash)
-    (loop :for c :in (component-children module)
-      :for name = (component-name c)
-      :for previous = (gethash name hash)
-      :do (when previous (error 'duplicate-names :name name))
-          (setf (gethash name hash) c))
-    hash))
 
 (defun* component-parent-pathname (component)
   ;; No default anymore (in particular, no *default-pathname-defaults*).
