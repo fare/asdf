@@ -119,8 +119,8 @@ test-upgrade:
 		: Skip, because of various ASDF issues ;; \
 	      mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) \
 		: Skip, because MKCL is only supported starting with 2.24 ;; \
-	      xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*) \
-		: XCL support starts with ASDF 2.014.2 ;; \
+	      xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*) \
+		: XCL support starts with ASDF 2.014.2 - It also hangs badly during upgrade. ;; \
 	      *) (set -x ; \
                   case $$x in \
 		    load-system) l="$$lo (asdf-test::load-asdf-system)" ;; \
