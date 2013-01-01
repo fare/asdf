@@ -10,6 +10,8 @@ else
 lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl
 endif
 
+export ASDF_OUTPUT_TRANSLATIONS := (:output-translations (t ("${sourceDirectory}/tmp/fasls" :implementation)) :ignore-inherited-configuration)
+
 ## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
 ## NOT SUPPORTED BY OUR TESTS: cormancl genera lispworks-personal-edition mkcl rmcl. Manually tested once in a while.
 
@@ -197,7 +199,7 @@ TODO:
 release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
 .PHONY: install archive archive-copy push doc website clean mrproper \
-	upgrade-test test-forward-references test test-lisp test-upgrade test-forward-references \
+	test-forward-references test test-lisp test-upgrade test-forward-references \
 	test-all test-all-lisps test-all-noupgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \

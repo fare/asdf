@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.46: Another System Definition Facility.
+;;; This is ASDF 2.26.47: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.46")
+         (asdf-version "2.26.47")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -238,10 +238,9 @@
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
-            #:system-relative-pathname
-            #:source-file-type
-            #:inherit-source-registry #:process-source-registry
-            #:process-source-registry-directive
+            #:system-relative-pathname #:source-file-type
+            #:component-visited-p #:builtin-system-p
+            #:inherit-source-registry #:process-source-registry #:process-source-registry-directive
             #:compile-file* #:source-file-type #:trivial-system-p)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
@@ -303,7 +302,6 @@
             #:operation-description
             #:operation-on-warnings
             #:operation-on-failure
-            #:component-visited-p
 
             #:*system-definition-search-functions*   ; variables
             #:*central-registry*
@@ -1151,20 +1149,6 @@ another pathname in a degenerate way."))
    "Recursively chase the operation's parent pointer until we get to
 the head of the tree"))
 
-(defgeneric* component-visited-p (operation component) ;; ASDF3: rename to action-visited-p
-  (:documentation "Returns the data stored by a call to
-MARK-COMPONENT-VISITED, if that has been called, otherwise NIL.
-This data value will be an ACTION-STATUS object."))
-
-(defgeneric* mark-component-visited (operation component action-status)
-  (:documentation "Record ACTION-STATUS as being associated with OPERATION and COMPONENT.
-This is a side-effecting function: the association will be recorded on
-the ROOT OPERATION (OPERATION-ANCESTOR of the OPERATION)."))
-
-(defgeneric* (setf visiting-component) (new-value operation component))
-
-(defgeneric* component-visiting-p (operation component))
-
 (defgeneric* component-depends-on (operation component) ;; ASDF3: rename to component-dependencies
   (:documentation
    "Returns a list of dependencies needed by the component to perform
@@ -1192,9 +1176,6 @@ The plan returned is a list of dotted-pairs. Each pair is the CONS
 of ASDF operation object and a COMPONENT object. The pairs will be
 processed in order by OPERATE."))
 
-(defgeneric* action-visited-stamp (plan operation component))
-(defgeneric* action-already-done-p (plan operation component))
-
 (defgeneric* compute-action-stamp (operation component &key just-done plan)
   (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
@@ -1209,6 +1190,10 @@ Returns two values:
   or T if the action has involves files that need to be recomputed.
 * a boolean DONE-P that indicates whether the action has actually been done,
   and both its output-files and its in-image side-effects are up to date."))
+
+(defgeneric* operation-forced-p (operation component))
+(defgeneric* operation-forced-not-p (operation component))
+(defgeneric* builtin-system-p (system))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
@@ -1225,27 +1210,28 @@ Returns two values:
   (when *upgraded-p*
     ;; override previous definition from 2.018 to 2.26, not needed
     ;; since we've stopped trying to recycle previously-installed systems.
-    (when (find-class 'component nil)
-      (eval '(defmethod reinitialize-instance :after ((c component) &rest initargs &key)
-              (declare (ignorable c initargs)) (values))))
-    (when (find-class 'module nil)
-      (eval '(defmethod reinitialize-instance :after ((m module) &rest initargs &key)
-              (declare (ignorable m initargs)) (values)))
-      (eval '(defmethod update-instance-for-redefined-class :after
-              ((m module) added deleted plist &key)
-              (declare (ignorable m added deleted plist))
-              (when (and (member 'children added) (member 'components deleted))
-                (setf (slot-value m 'children)
-                      ;; old ECLs provide an alist instead of a plist(!)
-                      (if (or #+ecl (consp (first plist))) (or #+ecl (cdr (assoc 'components plist)))
-                          (getf plist 'components)))
-                (compute-children-by-name m))
-              (when (typep m 'system)
-                (when (member 'source-file added)
-                  (%set-system-source-file
-                   (probe-asd (component-name m) (component-pathname m)) m))
-                (when (equal (component-name m) "asdf")
-                  (setf (component-version m) *asdf-version*))))))))
+    (handler-bind ((style-warning #'muffle-warning))
+      (when (find-class 'component nil)
+        (eval '(defmethod reinitialize-instance :after ((c component) &rest initargs &key)
+                (declare (ignorable c initargs)) (values))))
+      (when (find-class 'module nil)
+        (eval '(defmethod reinitialize-instance :after ((m module) &rest initargs &key)
+                (declare (ignorable m initargs)) (values)))
+        (eval '(defmethod update-instance-for-redefined-class :after
+                ((m module) added deleted plist &key)
+                (declare (ignorable m added deleted plist))
+                (when (and (member 'children added) (member 'components deleted))
+                  (setf (slot-value m 'children)
+                        ;; old ECLs provide an alist instead of a plist(!)
+                        (if (or #+ecl (consp (first plist))) (or #+ecl (cdr (assoc 'components plist)))
+                            (getf plist 'components)))
+                  (compute-children-by-name m))
+                (when (typep m 'system)
+                  (when (member 'source-file added)
+                    (%set-system-source-file
+                     (probe-asd (component-name m) (component-pathname m)) m))
+                  (when (equal (component-name m) "asdf")
+                    (setf (component-version m) *asdf-version*)))))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Classes, Conditions
@@ -2106,9 +2092,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
    (forced-not :initform nil :initarg :force-not :accessor operation-forced-not)
    (original-initargs :initform nil :initarg :original-initargs
                       :accessor operation-original-initargs)
-   (visited-nodes :initform (make-hash-table :test 'equal) :accessor operation-visited-nodes)
-   (node-visiting-set :initform (make-hash-table :test 'equal) :accessor operation-node-visiting-set)
-   (node-visiting-list :initform () :accessor operation-node-visiting-list)
    (children-by-name :initform (make-hash-table :test 'eql) :accessor operation-children-by-name)
    (parent :initform nil :initarg :parent :accessor operation-parent)))
 
@@ -2232,7 +2215,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                t)))))
 
 (defmethod operation-done-p ((o prepare-op) (c component))
-  (and (not (action-override-p o c 'operation-forced)) (call-next-method)))
+  (and (not (operation-forced-p o c)) (call-next-method)))
 
 (defun* visit-dependencies (operation component fun &aux stamp)
   (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
@@ -2253,41 +2236,97 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
 
-(defun* visit-action (o c plan recurse fun)
-  (when (and o c
-             (aif (component-if-feature c) (featurep it) t)
-             (or (action-override-p o c 'operation-forced)
-                 (not (action-override-p o c 'operation-forced-not))))
-    (visit-dependencies o c recurse)
-    (multiple-value-bind (stamp done-p)
-        (compute-action-stamp o c :plan plan)
-      (funcall fun done-p stamp))))
+(defmethod operation-forced-p ((o operation) (c component))
+  (and (action-override-p o c 'operation-forced) (not (builtin-system-p c))))
 
-(defmethod mark-component-visited ((o operation) (c component) data)
-  (unless (nth-value 1 (component-visited-p o c))
-    (setf (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))) data)))
+(defmethod operation-forced-not-p ((o operation) (c component))
+  (action-override-p o c 'operation-forced-not))
 
-(defmethod component-visited-p ((o operation) (c component))
-  (gethash (node-for o c) (operation-visited-nodes (operation-ancestor o))))
+(defgeneric action-valid-p (operation component)
+  (:documentation "Is this action valid to include amongst dependencies?"))
+(defmethod action-valid-p ((o operation) (c component))
+  (declare (ignorable o c))
+  (aif (component-if-feature c) (featurep it) t))
+(defmethod action-valid-p ((o operation) (s system))
+  (and (or (operation-forced-p o s) (not (operation-forced-not-p o s)))
+       (call-next-method)))
+(defmethod action-valid-p ((o null) c) (declare (ignorable o c)) nil)
+(defmethod action-valid-p (o (c null)) (declare (ignorable o c)) nil)
+
+(defclass plan-traversal ()
+  ((action-count :initform 0 :accessor plan-action-count)
+   (visited-actions :initform (make-hash-table :test 'equal) :accessor plan-visited-actions)
+   (visiting-action-set :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
+   (visiting-action-list :initform () :accessor plan-visiting-action-list)))
+
+(defclass sequential-plan (plan-traversal)
+  ((actions-r :initform nil :accessor plan-actions-r)))
+
+(defgeneric* plan-action-status (plan operation component)
+  (:documentation "Returns the ACTION-STATUS associated to
+the action of OPERATION on COMPONENT in the PLAN"))
+
+(defgeneric* (setf plan-action-status) (new-status plan operation component)
+  (:documentation "Sets the ACTION-STATUS associated to
+the action of OPERATION on COMPONENT in the PLAN"))
+
+(defgeneric* plan-record-dependency (plan operation component))
+
+(defgeneric* visiting-action-p (plan operation component))
+
+(defgeneric* (setf visiting-action-p) (new-value plan operation component))
+
+(defclass action-status ()
+  ((stamp
+    :initarg :stamp :reader action-stamp
+    :documentation "STAMP associated with the ACTION if it has been completed already
+in some previous image, or T if it needs to be done.")
+   (done-p
+    :initarg :done-p :reader action-done-p
+    :documentation "generalized boolean, true iff the action was already done (before any plan)."))
+  (:documentation "Status of an action"))
+
+(defclass planned-action-status (action-status)
+  ((planned-p
+    :initarg :planned-p :reader action-planned-p
+    :documentation "generalized boolean, true iff the action was included in the plan.
+If true, an integer indexing the action in the list of actions planned."))
+  (:documentation "Status of an action in a plan"))
+
+(defmethod (setf plan-action-status) (new-status (plan plan-traversal) (o operation) (c component))
+  (prog1
+      (setf (gethash (node-for o c) (plan-visited-actions plan)) new-status)
+    (when (action-done-p new-status)
+      (mark-operation-done o c))))
+
+(defmethod plan-action-status ((plan plan-traversal) (o operation) (c component))
+  (values (gethash (node-for o c) (plan-visited-actions plan))))
 
 (defmethod component-operation-time ((o operation) (c component))
   (gethash (type-of o) (component-operation-times c)))
-
-(defmethod action-visited-stamp ((plan null) (o operation) (c component))
-  (declare (ignorable plan))
-  (values (component-operation-time o c)))
-(defmethod action-already-done-p ((plan null) (o operation) (c component))
-  (declare (ignorable plan))
-  (nth-value 1 (component-operation-time o c)))
 
 (defmethod mark-operation-done ((o operation) (c component))
   (setf (gethash (type-of o) (component-operation-times c))
         (compute-action-stamp o c :just-done t)))
 
+(defmethod plan-action-status ((plan null) (o operation) (c component))
+  (declare (ignorable plan))
+  (multiple-value-bind (stamp done-p) (component-operation-time o c)
+    (make-instance 'action-status :stamp stamp :done-p done-p)))
+
+(defmethod (setf plan-action-status) (new-status (plan null) (o operation) (c component))
+  (declare (ignorable plan))
+  (let ((to (type-of o))
+        (times (component-operation-times c)))
+    (if (action-done-p new-status)
+        (remhash to times)
+        (setf (gethash to times) (action-stamp new-status))))
+  new-status)
+
 (defmethod compute-action-stamp ((o operation) (c component) &key just-done plan)
   ;; In a distant future, safe-file-write-date and component-operation-time
   ;; shall also be parametrized by the plan, or by a second model object.
-  (let* ((stamp-lookup #'(lambda (o c) (action-visited-stamp plan o c)))
+  (let* ((stamp-lookup #'(lambda (o c) (aif (plan-action-status plan o c) (action-stamp it) t)))
          (out-files (output-files o c))
          (in-files (input-files o c))
          ;; Three kinds of actions:
@@ -2333,102 +2372,92 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
         ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
         (values t nil))))
 
-(defun* call-with-component-being-visited (o c fun)
-  ;; Detect circular dependencies
-  (let* ((node (node-for o c))
-         (ancestor (operation-ancestor o))
-         (node-set (operation-node-visiting-set ancestor)))
-    (aif (gethash node node-set)
-         (error 'circular-dependency :actions
-                (member node (reverse (operation-node-visiting-list ancestor)) :test 'equal))
-         (progn
-           (setf (gethash node node-set) t)
-           (push node (operation-node-visiting-list ancestor))
-           (unwind-protect
-                (funcall fun)
-             (pop (operation-node-visiting-list ancestor))
-             (setf (gethash node node-set) nil))))))
+(defgeneric call-while-visiting-action (plan operation component function)
+  (:documentation "Detect circular dependencies"))
+(defmethod call-while-visiting-action ((plan plan-traversal) operation component fun)
+  (with-accessors ((action-set plan-visiting-action-set)
+                   (action-list plan-visiting-action-list)) plan
+    (let ((action (cons operation component)))
+      (aif (gethash action action-set)
+           (error 'circular-dependency :actions
+                  (member action (reverse action-list) :test 'equal))
+           (progn
+             (setf (gethash action action-set) t)
+             (push action action-list)
+             (unwind-protect
+                  (funcall fun)
+               (pop action-list)
+               (setf (gethash action action-set) nil)))))))
 
-(defmacro with-component-being-visited ((o c) &body body)
-  `(call-with-component-being-visited ,o ,c #'(lambda () ,@body)))
-
-(defclass action-status ()
-  ((stamp
-    :initarg :stamp :reader action-stamp
-    :documentation "STAMP associated with the ACTION if it has been completed already
-in some previous image, or T if it needs to be done.")
-   (planned-p
-    :initarg :planned-p :reader action-planned-p
-    :documentation "generalized boolean, true iff the action was included in the plan.
-If true, an integer indexing the action in the list of actions planned,
-or T if already done."))
-  (:documentation
-   "Status of an action in a plan"))
-
-(defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
-  (declare (ignorable plan))
-  (aif (component-visited-p o c) (action-stamp it)))
-
-(defmethod action-already-done-p ((plan (eql 'traverse)) (o operation) (c component))
-  (declare (ignorable plan))
-  (aif (component-visited-p o c) (action-planned-p it)))
+(defmacro while-visiting-action ((p o c) &body body)
+  `(call-while-visiting-action ,p ,o ,c #'(lambda () ,@body)))
 
 (defgeneric* traverse-action (operation component needed-in-image-p collect))
 
-(defmethod traverse-action ((o operation) (c component) needed-in-image-p collect)
-  (let ((niip (and needed-in-image-p (needed-in-image-p o c)))
-        (status (component-visited-p o c)))
-    (if (and status (or (action-planned-p status) (not niip)))
+(defmethod (setf plan-action-status) :after
+    (new-status (p sequential-plan) (o operation) (c component))
+  (when (action-planned-p new-status)
+    (push (cons o c) (plan-actions-r p))))
+
+(defmethod plan-record-dependency ((plan sequential-plan)
+                                   (operation operation) (component component))
+  (declare (ignore plan operation component))
+  (values))
+
+(defmethod traverse-action (plan operation component needed-in-image-p)
+  (block nil
+    (unless (action-valid-p operation component) (return nil))
+    (let* ((niip (needed-in-image-p operation component))
+           (eniip (and niip needed-in-image-p))
+           (status (plan-action-status plan operation component)))
+      (plan-record-dependency plan operation component)
+      (when (and status (or (action-done-p status) (action-planned-p status) (not eniip)))
         ;; Already visited with sufficient level of need-in-image: just return the stamp.
-        (action-stamp status)
-        (labels ((recurse (niip)
-                   #'(lambda (o c) (traverse-action o c niip collect)))
-                 (revisit-harder ()
-                   ;; but it was first visited without
-                   (visit-action
-                    o c 'traverse (recurse t)
-                    #'(lambda (done-p stamp)
-                        (assert (not done-p))
-                        (mark-component-visited
-                         o c (make-instance 'action-status
-                                            :stamp stamp
-                                            :planned-p (incf *visit-count*)))
-                        (funcall collect (cons o c))
-                        stamp))))
-          (with-component-being-visited (o c)
-            (cond
-              (status
-               ;; Already visited, it had all its input up-to-date,
-               ;; wasn't previously need in image but now is.
-               (revisit-harder))
-              (t
-               ;; Not visited yet.
-               (visit-action
-                o c 'traverse (recurse niip)
-                #'(lambda (done-p stamp)
-                    (let ((add-to-plan-p
-                            (or (eql stamp t) (and niip (not done-p)))))
-                      (cond
-                        ((and add-to-plan-p (not niip))
-                         (revisit-harder))
-                        (t
-                         (mark-component-visited
-                          o c (make-instance 'action-status
-                                             :stamp stamp
-                                             :planned-p
-                                             (cond
-                                               (done-p
-                                                (mark-operation-done o c)
-                                                t)
-                                               (add-to-plan-p
-                                                (funcall collect (cons o c))
-                                                (incf *visit-count*)))))
-                         stamp))))))))))))
+        (return (action-stamp status)))
+      (labels ((visit-action (o c plan recurse fun)
+                 (visit-dependencies o c recurse)
+                 (multiple-value-bind (stamp done-p)
+                     (compute-action-stamp o c :plan plan)
+                   (funcall fun done-p stamp)))
+               (recurse (niip)
+                 #'(lambda (o c) (traverse-action plan o c niip)))
+               (mark-visited (o c &key stamp planned-p done-p)
+                 (setf (plan-action-status plan o c)
+                       (make-instance 'planned-action-status
+                                      :stamp stamp
+                                      :done-p done-p
+                                      :planned-p (and planned-p (incf (plan-action-count plan)))))
+                 stamp)
+               (revisit-harder ()
+                 (visit-action
+                  operation component plan (recurse t)
+                  #'(lambda (done-p stamp)
+                      (assert (not done-p))
+                      (mark-visited operation component :stamp stamp :planned-p (not done-p))))))
+        (while-visiting-action (plan operation component)
+          (cond
+            (status
+             ;; Already visited, it had all its input up-to-date,
+             ;; wasn't previously need in image but now is.
+             (revisit-harder))
+            (t
+             ;; Not visited yet.
+             (visit-action
+              operation component plan (recurse niip)
+              #'(lambda (done-p stamp)
+                  (let ((add-to-plan-p (and (not done-p) (or niip (eql stamp t)))))
+                    (cond
+                      ((and add-to-plan-p (not niip))
+                       (revisit-harder))
+                      (t
+                       (mark-visited
+                        operation component
+                        :stamp stamp :done-p done-p :planned-p add-to-plan-p)))))))))))))
 
 (defmethod traverse ((o operation) (c component))
-  (while-collecting (collect)
-    (let ((*visit-count* 0))
-      (traverse-action o c t #'collect))))
+  (let ((plan (make-instance 'sequential-plan)))
+    (traverse-action plan o c t)
+    (reverse (plan-actions-r plan))))
 
 (defmethod perform ((o operation) (c source-file))
   (sysdef-error
@@ -2841,7 +2870,7 @@ T to force the inside of the specified system to be rebuilt (resp. not),
   (map () 'load-system systems))
 
 (defun* component-loaded-p (c)
-  (action-already-done-p nil (make-instance 'load-op) (find-component c ())))
+  (action-done-p (plan-action-status nil (make-instance 'load-op) (find-component c ()))))
 
 (defun* already-loaded-systems ()
   (remove-if-not 'component-loaded-p (registered-systems)))
@@ -4667,12 +4696,6 @@ with a different configuration, so the configuration would be re-read then."
                   (cons operation component)))
      (and include-self (list (cons operation system))))))
 
-(defun* builtin-system-p (s)
-  (let* ((system (find-system s nil))
-         (sysdir (and system (component-pathname system)))
-         (impdir (lisp-implementation-directory :truename t)))
-    (and sysdir impdir (pathname-match-p (truename sysdir) (wilden impdir)) t)))
-
 (defgeneric* trivial-system-p (component))
 
 (defun* user-system-p (s)
@@ -4861,6 +4884,12 @@ with a different configuration, so the configuration would be re-read then."
 ;;;
 (defclass prebuilt-system (system)
   ((static-library :accessor prebuilt-system-static-library :initarg :lib)))
+
+(defmethod builtin-system-p ((s system))
+  (let* ((system (find-system s nil))
+         (sysdir (and system (component-pathname system)))
+         (impdir (lisp-implementation-directory :truename t)))
+    (and sysdir impdir (pathname-match-p (truename sysdir) (wilden impdir)) t)))
 
 (defmethod trivial-system-p ((s prebuilt-system))
   (declare (ignorable s))
