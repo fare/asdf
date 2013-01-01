@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.45: Another System Definition Facility.
+;;; This is ASDF 2.26.46: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -118,7 +118,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.45")
+         (asdf-version "2.26.46")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1154,22 +1154,12 @@ the head of the tree"))
 (defgeneric* component-visited-p (operation component) ;; ASDF3: rename to action-visited-p
   (:documentation "Returns the data stored by a call to
 MARK-COMPONENT-VISITED, if that has been called, otherwise NIL.
-This data value will be a CONS cell, the CAR of which is a STAMP
-of the status of the action, which is T if it has to be performed again;
-the CDR will be a count of nodes visited before this one, useful for sorting."))
+This data value will be an ACTION-STATUS object."))
 
-(defgeneric* mark-component-visited (operation component data)
-  (:documentation "Record DATA as being associated with OPERATION
-and COMPONENT.  This is a side-effecting function:  the association
-will be recorded on the ROOT OPERATION \(OPERATION-ANCESTOR of the
-OPERATION\).
-  No evidence that DATA is ever interesting, beyond just being
-non-NIL.  Using the data field is probably very risky; if there is
-already a record for OPERATION X COMPONENT, DATA will be quietly
-discarded instead of recorded.
-  Starting with 2.006, TRAVERSE will store an integer in data,
-so that nodes can be sorted in decreasing order of traversal."))
-
+(defgeneric* mark-component-visited (operation component action-status)
+  (:documentation "Record ACTION-STATUS as being associated with OPERATION and COMPONENT.
+This is a side-effecting function: the association will be recorded on
+the ROOT OPERATION (OPERATION-ANCESTOR of the OPERATION)."))
 
 (defgeneric* (setf visiting-component) (new-value operation component))
 
@@ -2253,6 +2243,14 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                       (latest-stamp-f stamp (funcall fun dep-o dep-c))))
   stamp)
 
+(defgeneric needed-in-image-p (operation component)
+  (:method ((o operation) (c component))
+    ;; We presume that actions that modify the filesystem don't need be run
+    ;; in the current image if they have already been done in another,
+    ;; and can be run in another process (e.g. a fork),
+    ;; whereas those that don't are meant to side-effect the current image and can't.
+    (not (output-files o c))))
+
 (defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
 
 (defun* visit-action (o c plan recurse fun)
@@ -2263,7 +2261,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     (visit-dependencies o c recurse)
     (multiple-value-bind (stamp done-p)
         (compute-action-stamp o c :plan plan)
-      (funcall fun o c done-p stamp))))
+      (funcall fun done-p stamp))))
 
 (defmethod mark-component-visited ((o operation) (c component) data)
   (unless (nth-value 1 (component-visited-p o c))
@@ -2281,13 +2279,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod action-already-done-p ((plan null) (o operation) (c component))
   (declare (ignorable plan))
   (nth-value 1 (component-operation-time o c)))
-
-(defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
-  (declare (ignorable plan))
-  (car (component-visited-p o c)))
-(defmethod action-already-done-p ((plan (eql 'traverse)) (o operation) (c component))
-  (declare (ignorable plan))
-  (second (component-visited-p o c)))
 
 (defmethod mark-operation-done ((o operation) (c component))
   (setf (gethash (type-of o) (component-operation-times c))
@@ -2361,27 +2352,83 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmacro with-component-being-visited ((o c) &body body)
   `(call-with-component-being-visited ,o ,c #'(lambda () ,@body)))
 
-(defgeneric* traverse-action (operation component collect))
+(defclass action-status ()
+  ((stamp
+    :initarg :stamp :reader action-stamp
+    :documentation "STAMP associated with the ACTION if it has been completed already
+in some previous image, or T if it needs to be done.")
+   (planned-p
+    :initarg :planned-p :reader action-planned-p
+    :documentation "generalized boolean, true iff the action was included in the plan.
+If true, an integer indexing the action in the list of actions planned,
+or T if already done."))
+  (:documentation
+   "Status of an action in a plan"))
 
-(defmethod traverse-action ((o operation) (c component) collect)
-  ;; Have we been visited yet? If so, just process the result.
-  (multiple-value-bind (s p) (component-visited-p o c)
-    (if p (car s)
-        (with-component-being-visited (o c)
-          (funcall 'visit-action
-           o c 'traverse
-           #'(lambda (o c) (traverse-action o c collect))
-           #'(lambda (o c done-p stamp)
-               (mark-component-visited o c (cons stamp (unless done-p (incf *visit-count*))))
-               (if done-p
-                   (mark-operation-done o c)
-                   (funcall collect (cons o c)))
-               stamp))))))
+(defmethod action-visited-stamp ((plan (eql 'traverse)) (o operation) (c component))
+  (declare (ignorable plan))
+  (aif (component-visited-p o c) (action-stamp it)))
+
+(defmethod action-already-done-p ((plan (eql 'traverse)) (o operation) (c component))
+  (declare (ignorable plan))
+  (aif (component-visited-p o c) (action-planned-p it)))
+
+(defgeneric* traverse-action (operation component needed-in-image-p collect))
+
+(defmethod traverse-action ((o operation) (c component) needed-in-image-p collect)
+  (let ((niip (and needed-in-image-p (needed-in-image-p o c)))
+        (status (component-visited-p o c)))
+    (if (and status (or (action-planned-p status) (not niip)))
+        ;; Already visited with sufficient level of need-in-image: just return the stamp.
+        (action-stamp status)
+        (labels ((recurse (niip)
+                   #'(lambda (o c) (traverse-action o c niip collect)))
+                 (revisit-harder ()
+                   ;; but it was first visited without
+                   (visit-action
+                    o c 'traverse (recurse t)
+                    #'(lambda (done-p stamp)
+                        (assert (not done-p))
+                        (mark-component-visited
+                         o c (make-instance 'action-status
+                                            :stamp stamp
+                                            :planned-p (incf *visit-count*)))
+                        (funcall collect (cons o c))
+                        stamp))))
+          (with-component-being-visited (o c)
+            (cond
+              (status
+               ;; Already visited, it had all its input up-to-date,
+               ;; wasn't previously need in image but now is.
+               (revisit-harder))
+              (t
+               ;; Not visited yet.
+               (visit-action
+                o c 'traverse (recurse niip)
+                #'(lambda (done-p stamp)
+                    (let ((add-to-plan-p
+                            (or (eql stamp t) (and niip (not done-p)))))
+                      (cond
+                        ((and add-to-plan-p (not niip))
+                         (revisit-harder))
+                        (t
+                         (mark-component-visited
+                          o c (make-instance 'action-status
+                                             :stamp stamp
+                                             :planned-p
+                                             (cond
+                                               (done-p
+                                                (mark-operation-done o c)
+                                                t)
+                                               (add-to-plan-p
+                                                (funcall collect (cons o c))
+                                                (incf *visit-count*)))))
+                         stamp))))))))))))
 
 (defmethod traverse ((o operation) (c component))
   (while-collecting (collect)
     (let ((*visit-count* 0))
-      (traverse-action o c #'collect))))
+      (traverse-action o c t #'collect))))
 
 (defmethod perform ((o operation) (c source-file))
   (sysdef-error

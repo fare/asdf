@@ -4,14 +4,14 @@
 
 (quit-on-error
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (DBG "loading test1")
  (asdf:load-system 'test1)
- ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
         (file1-date (file-write-date file1))
         (file2-date (file-write-date file2)))
 
-   (format t "~&test1 1: ~S ~S~%" file1 file1-date)
+   (DBG "test that it compiled" file1 file1-date)
    (assert file1-date)
    (assert file2-date)
 
@@ -22,7 +22,7 @@
    (asdf::delete-file-if-exists file2)
    ;; filesystem mtime has 1 second granularity. Make sure even fast machines see a difference.
    (sleep 1.5)
-   (asdf:operate 'asdf:load-op 'test1)
+   (asdf:load-system 'test1)
    (assert (= file1-date (file-write-date file1)))
    (assert (< file2-date (file-write-date file2)))
 

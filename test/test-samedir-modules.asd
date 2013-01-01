@@ -2,8 +2,8 @@
 (asdf:defsystem test-samedir-modules
   :components ((:module "here"
                         :components
-                        (
-                         (:file "file2" :in-order-to ((compile-op (load-op "file1"))))
+                        ((:file "file2" :in-order-to ((compile-op (load-op "file1"))
+                                                      (load-op (load-op "file1"))))
                          (:file "file1"))
                         :pathname "")))
 
