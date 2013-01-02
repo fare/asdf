@@ -1,11 +1,11 @@
 ;;; -*- Mode: common-lisp; Syntax: Common-Lisp; -*-
 
-(in-package #:common-lisp-user)
+(in-package :common-lisp-user)
 
 (defpackage #:test-nested-components.system
             (:use #:common-lisp #:asdf))
 
-(in-package #:test-nested-components.system)
+(in-package :test-nested-components.system)
 
 (defsystem test-nested-components-a
   :components

@@ -56,6 +56,7 @@
                                              (cons "asdf-src" path)))
                (bin-dir (&rest path) (append (or (pathname-directory root) (list :relative))
                                              (cons "asdf-bin" path))))
+          #-gcl<2.7
           (setf (logical-pathname-translations "ASDFTEST")
                 `((,(format nil "**;*.~a" bin-type)
                    ,(make-pathname :directory (bin-dir :wild-inferiors)
@@ -316,7 +317,7 @@
  (format t "output translations: ~S~%" (asdf::output-translations))
 
  #+gcl (format t "~&~A~&" (progn (defvar *x* -1) (incf *x*)))
- #-xcl ;;---*** pathnames are known to be massively broken on XCL
+ #-(or xcl gcl<2.7) ;;---*** pathnames are known to be massively broken on XCL and GCL 2.6
  (flet ((same (s1 s2 p1 p2)
           (unless (equal (namestring p1) (namestring p2))
             (describe p1) (describe p2)
@@ -331,7 +332,7 @@
      #-gcl
      (x (asdf::resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
 
- #-xcl ;;---*** pathnames are known to be massively broken on XCL
+ #-(or xcl gcl<2.7) ;;---*** pathnames are known to be massively broken on XCL and GCL 2.6
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
      (leave-lisp "test failed" 1)))
 

@@ -3,17 +3,17 @@
   (:export
    #:*test-directory* #:*asdf-directory*
    #:load-asdf
-   #:register-directory #:asdf-load 
+   #:register-directory #:asdf-load
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl #:compile-load-asdf #:load-asdf-system
    #:quit-on-error #:test-asdf
    #:native-namestring
    #:exit-lisp #:leave-lisp
    #:quietly))
 
-(in-package #:asdf-test)
+(in-package :asdf-test)
 
-(declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)))
-(proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)))
+(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)))
+(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)))
 
 ;;(format t "Evaluating asdf/test/script-support~%")
 
@@ -21,11 +21,13 @@
 ;; We still want to work despite and host/device funkiness.
 (defparameter *test-directory*
   (make-pathname :name nil :type nil :version nil
-                 :defaults (or *load-truename* *compile-file-truename*)))
+                 :defaults (or #+gcl (truename system:*load-pathname*)
+                               *load-truename* *compile-file-truename*)))
 (defparameter *asdf-directory*
-  (merge-pathnames
-   (make-pathname :directory '(:relative :back) :defaults *test-directory*)
-   *test-directory*))
+  (truename
+   (merge-pathnames
+    (make-pathname :directory '(#-gcl :relative #-gcl :back #+gcl :parent) :defaults *test-directory*)
+    *test-directory*)))
 (defparameter *asdf-lisp*
   (make-pathname :name "asdf" :type "lisp" :defaults *asdf-directory*))
 (defparameter *asdf-fasl*
@@ -49,25 +51,36 @@
                     #+scl :scl
                     #+xcl :xcl))))
      (merge-pathnames
-      (make-pathname :directory `(:relative "tmp" "fasls" ,impl)
+      (make-pathname :directory `(#-gcl :relative "tmp" "fasls" ,impl)
                      :defaults *asdf-directory*)
       *asdf-lisp*))))
 
 (defun load-old-asdf (tag)
   (let ((old-asdf
           (merge-pathnames
-           (make-pathname :directory `(:relative "tmp")
+           (make-pathname :directory `(#-gcl :relative "tmp")
                           :name (format nil "asdf-~A" tag)
                           :defaults *asdf-directory*)
            *asdf-lisp*)))
     (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
       (load old-asdf))))
 
+(defun configure-asdf ()
+  (funcall (find-symbol (string :initialize-source-registry) :asdf)
+           `(:source-registry :ignore-inherited-configuration))
+  (let ((registry (find-symbol (string :*central-registry*) :asdf)))
+    (set registry `(,*asdf-directory* ,*test-directory*))))
+
 (defun load-asdf ()
   (load *asdf-fasl*)
   (use-package :asdf :asdf-test)
-  (import 'DBG :asdf)
+  ;;(import 'DBG :asdf)
+  (configure-asdf)
   (setf *package* (find-package :asdf-test)))
+
+(defun hash-table->alist (table)
+  (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
+    :collect (cons key value)))
 
 (defun common-lisp-user::load-asdf ()
   (load-asdf))
@@ -164,9 +177,31 @@ is bound, write a message and exit on an error.  If
 (defun load-asdf-lisp ()
   (load *asdf-lisp*))
 
-(defun compile-asdf ()
+#+(or gcl genera)
+(unless (fboundp 'ensure-directories-exist)
+  (defun ensure-directories-exist (path)
+    #+genera (fs:create-directories-recursively (pathname path))
+    #+gcl (lisp:system (format nil "mkdir -p ~S" (namestring (make-pathname :name nil :type nil :defaults path))))))
+
+(defun compile-asdf (&optional (output *asdf-fasl*))
   (ensure-directories-exist *asdf-fasl*)
-  (compile-file *asdf-lisp* :output-file *asdf-fasl* :verbose t :print t))
+  ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
+  (handler-bind (#+sbcl (sb-c::simple-compiler-note #'muffle-warning)
+                 #+(and ecl (not ecl-bytecmp))
+                 ((or c:compiler-note c::compiler-debug-note
+                      c:compiler-warning) ;; ECL emits more serious warnings than it should.
+                   #'muffle-warning)
+                 #+mkcl
+                 ((or compiler:compiler-note)
+                   #'muffle-warning)
+                 #-(or cmu scl)
+                 (style-warning
+                   #'(lambda (w)
+                       ;; escalate style-warnings to warnings - we don't want them.
+                       (warn "Can you please fix ASDF to not emit style-warnings? Got a ~S:~%~A"
+                             (type-of w) w)
+                       (muffle-warning w))))
+    (compile-file *asdf-lisp* :output-file output #-gcl :verbose #-gcl t :print t)))
 
 (defun load-asdf-fasl ()
   (load *asdf-fasl*))
@@ -220,6 +255,12 @@ outputs a tag plus a list of variable and their values, returns the last value"
 
 (pushnew :DBG *features*)
 
+#+gcl
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (DBG :script-support *package* *test-directory* *asdf-directory* *asdf-lisp* *asdf-fasl*
+       ))
+
+
 #|
-#+DBG (DBG :cas o c just-done base-stamp stamp-lookup out-files in-files file-op null-op op-time op-stamp dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in done-stamp (stamp<= latest-in earliest-out) (operation-done-p o c))
+(DBG :cas o c just-done base-stamp stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))
 |#

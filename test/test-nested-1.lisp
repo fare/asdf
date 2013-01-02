@@ -1,1 +1,1 @@
-(in-package #:asdf-test)
+(in-package :asdf-test)

@@ -1,3 +1,3 @@
-(in-package #:asdf-test)
+(in-package :asdf-test)
 
 (setf *test6* :yes)

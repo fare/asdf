@@ -6,8 +6,7 @@
 
 (quit-on-error
  (format t "~D~%" (asdf:asdf-version))
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
- (asdf:load-system 'test-builtin-source-file-type-1 :verbose t)
+ (load-system 'test-builtin-source-file-type-1 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
  (assert-equal
   (mapcar #'pathname-type
@@ -24,5 +23,4 @@
   '("lisp" "cl"))
  (delete-package :test-package)
  (asdf:load-system 'test-builtin-source-file-type-4 :verbose t)
- (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
- )
+ (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*"))))

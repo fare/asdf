@@ -11,6 +11,7 @@ lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks alleg
 endif
 
 export ASDF_OUTPUT_TRANSLATIONS := (:output-translations (t ("${sourceDirectory}/tmp/fasls" :implementation)) :ignore-inherited-configuration)
+export CL_SOURCE_REGISTRY := (:source-registry (:tree "${sourceDirectory}") :ignore-inherited-configuration)
 
 ## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
 ## NOT SUPPORTED BY OUR TESTS: cormancl genera lispworks-personal-edition mkcl rmcl. Manually tested once in a while.
@@ -29,6 +30,7 @@ SCL ?= scl
 ALLEGRO ?= alisp
 ALLEGROMODERN ?= mlisp
 LISPWORKS ?= lispworks
+GCL ?= gcl
 
 # website, tag, install
 
@@ -98,6 +100,7 @@ test-upgrade:
 	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
 	use_xcl () { li="${XCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
 	use_scl () { li="${SCL} -noinit" ; ev="-eval" ; } ; \
+	use_gcl () { li="GCL_ANSI=t ${GCL}" ; ev="-eval" ; } ; \
 	use_allegro () { li="${ALLEGRO} -q" ; ev="-e" ; } ; \
 	use_allegromodern () { li="${ALLEGROMODERN} -q" ; ev="-e" ; } ; \
 	use_lispworks () { li="${LISPWORKS} -siteinit - -init -" ; ev="-eval" ; } ; \

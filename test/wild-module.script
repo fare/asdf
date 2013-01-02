@@ -2,6 +2,5 @@
 (load "script-support.lisp")
 (load-asdf)
 (quit-on-error
- (load "../wild-modules.lisp")
- (setf *central-registry* '(*default-pathname-defaults*))
+ (load (asdf:system-relative-pathname :asdf "wild-modules.lisp"))
  (load-system :wild-module))

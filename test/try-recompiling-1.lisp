@@ -1,4 +1,4 @@
-(in-package #:asdf-test)
+(in-package :asdf-test)
 
 #+clisp (eval-when (:compile-toplevel) (fmakunbound 'try-recompiling-1))
 

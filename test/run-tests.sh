@@ -12,7 +12,7 @@ usage () {
     echo " - quit with exit status >0 if an unhandled error occurs"
     echo " you need to supply the .script in the second argument"
     echo " lisps include abcl, allegro, allegromodern, ccl (clozure),"
-    echo "  clisp, cmucl, ecl, gclcvs, sbcl, and scl."
+    echo "  clisp, cmucl, ecl, gcl, gclcvs, sbcl, scl and xcl."
     echo "OPTIONS:"
     echo "    -d -- debug mode"
     echo "    -u -h -- show this message."
@@ -143,9 +143,14 @@ case "$lisp" in
     command="${ECL:-ecl}"
     flags="-norc -eval (ext::install-bytecodes-compiler)"
     eval="-eval" ;;
+  gcl)
+    export GCL_ANSI=t
+    command="${GCL:-gcl}"
+    flags="-batch"
+    eval="-eval" ;;
   gclcvs)
     export GCL_ANSI=t
-    command="${GCL:-gclcvs}"
+    command="${GCLCVS:-gclcvs}"
     flags="-batch"
     eval="-eval" ;;
   lispworks)

@@ -1,16 +1,25 @@
-(in-package #:common-lisp-user)
+(cl:in-package :common-lisp-user)
 
-(load (make-pathname :name "script-support" :defaults *load-pathname*))
+(defun load-pathname ()
+  #-gcl *load-pathname*
+  #+gcl ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff, but can run ASDF 2.011
+  (symbol-value
+   (find-symbol
+    "*LOAD-PATHNAME*"
+    (if (or (< system::*gcl-major-version* 2) ;; GCL 2.6 fails to fully compile ASDF at all
+            (and (= system::*gcl-major-version* 2)
+                 (< system::*gcl-minor-version* 7)))
+        :system :cl))))
 
-(in-package #:asdf-test)
+(load (make-pathname :name "script-support" :type "lisp" :defaults (load-pathname))
+      #+gcl :print #+gcl t)
 
-(declaim (optimize (speed 2) (safety 3) #-allegro (debug 3)
+(in-package :asdf-test)
+
+(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)
 		   #+(or cmu scl) (c::brevity 2)))
-(proclaim '(optimize (speed 2) (safety 3) #-allegro (debug 3)
+(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)
 		     #+(or cmu scl) (c::brevity 2)))
-
-(defun my-compile-file (&rest args) (apply 'compile-file args))
-#+ecl (trace my-compile-file)
 
 (cond
   ((not (probe-file *asdf-lisp*))
@@ -20,27 +29,10 @@
         (ignore-errors (load *asdf-fasl*)))
    (leave-lisp "Reusing previously-compiled ASDF" 0))
   (t
-   #+clisp (load-asdf-lisp)
+   (load-asdf-lisp)
    (let ((tmp (make-pathname :name "asdf-tmp" :defaults *asdf-fasl*)))
-     (ensure-directories-exist *asdf-fasl*)
      (multiple-value-bind (result warnings-p errors-p)
-         ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
-         (handler-bind (#+sbcl (sb-c::simple-compiler-note #'muffle-warning)
-                        #+(and ecl (not ecl-bytecmp))
-			((or c:compiler-note c::compiler-debug-note
-			     c:compiler-warning) ;; ECL emits more serious warnings than it should.
-                               #'muffle-warning)
-                        #+mkcl
-			((or compiler:compiler-note)
-			 #'muffle-warning)
-			#-(or cmu scl)
-                        (style-warning
-                         #'(lambda (w)
-                             ;; escalate style-warnings to warnings - we don't want them.
-                             (warn "Can you please fix ASDF to not emit style-warnings? Got a ~S:~%~A"
-                              (type-of w) w)
-                             (muffle-warning w))))
-           (my-compile-file *asdf-lisp* :output-file tmp :print t :verbose t))
+         (compile-asdf tmp)
        (declare (ignore result))
        (cond
          (errors-p
