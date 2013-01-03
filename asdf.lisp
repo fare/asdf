@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.50: Another System Definition Facility.
+;;; This is ASDF 2.26.51: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -120,7 +120,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.50")
+         (asdf-version "2.26.51")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2263,8 +2263,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ;; whereas those that don't are meant to side-effect the current image and can't.
   (not (output-files o c)))
 
-(defvar *visit-count* 0) ; counter that allows to sort nodes from operation-visited-nodes
-
 (defmethod operation-forced-p ((o operation) (c component))
   (and (action-override-p o c 'operation-forced) (not (builtin-system-p c))))
 
@@ -2282,7 +2280,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod action-valid-p (o (c null)) (declare (ignorable o c)) nil)
 
 (defclass plan-traversal ()
-  ((action-count :initform 0 :accessor plan-action-count)
+  ((total-action-count :initform 0 :accessor plan-total-action-count)
+   (planned-action-count :initform 0 :accessor plan-planned-action-count)
+   (planned-output-action-count :initform 0 :accessor plan-planned-output-action-count)
    (visited-actions :initform (make-hash-table :test 'equal) :accessor plan-visited-actions)
    (visiting-action-set :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
    (visiting-action-list :initform () :accessor plan-visiting-action-list)))
@@ -2311,7 +2311,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
 in some previous image, or T if it needs to be done.")
    (done-p
     :initarg :done-p :reader action-done-p
-    :documentation "generalized boolean, true iff the action was already done (before any plan)."))
+    :documentation "a boolean, true iff the action was already done (before any planned action)."))
   (:documentation "Status of an action"))
 
 (defmethod print-object ((status action-status) stream)
@@ -2322,8 +2322,10 @@ in some previous image, or T if it needs to be done.")
 (defclass planned-action-status (action-status)
   ((planned-p
     :initarg :planned-p :reader action-planned-p
-    :documentation "generalized boolean, true iff the action was included in the plan.
-If true, an integer indexing the action in the list of actions planned."))
+    :documentation "a boolean, true iff the action was included in the plan.")
+   (index
+    :initarg :index :reader action-index
+    :documentation "an integer, counting all traversed actions in traversal order."))
   (:documentation "Status of an action in a plan"))
 
 (defmethod print-object ((status planned-action-status) stream)
@@ -2464,10 +2466,16 @@ If true, an integer indexing the action in the list of actions planned."))
                         (visit-action t)) ;; then we need to do it in the image!
                        (t
                         (setf (plan-action-status plan operation component)
-                              (make-instance 'planned-action-status
-                                             :stamp stamp
-                                             :done-p (and done-p (not add-to-plan-p))
-                                             :planned-p (and add-to-plan-p (incf (plan-action-count plan)))))
+                              (make-instance
+                               'planned-action-status
+                               :stamp stamp
+                               :done-p (and done-p (not add-to-plan-p))
+                               :planned-p add-to-plan-p
+                               :index (if status (action-index status) (incf (plan-total-action-count plan)))))
+                        (when add-to-plan-p
+                          (incf (plan-planned-action-count plan))
+                          (unless aniip
+                            (incf (plan-planned-output-action-count plan))))
                         stamp))))))
         (while-visiting-action (plan operation component) ; maintain context, handle circularity.
           (visit-action eniip))))))
