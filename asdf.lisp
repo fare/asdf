@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.49: Another System Definition Facility.
+;;; This is ASDF 2.26.50: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -120,7 +120,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.49")
+         (asdf-version "2.26.50")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -191,10 +191,14 @@
                  (unless (eq sym (find-symbol* sym package))
                    (remove-symbol sym package)))
                (use-package used package)))
-           (ensure-fmakunbound (package symbols)
-             (loop :for name :in symbols
-               :for sym = (find-symbol* name package)
-               :when sym :do (fmakunbound sym)))
+           #-ecl (ensure-fmakunbound (package symbols)
+                   (loop :for name :in symbols
+                         :for sym = (find-symbol* name package)
+                         :when sym :do (fmakunbound sym)))
+           #-ecl (ensure-fmakunbound-setf (package symbols)
+                   (loop :for name :in symbols
+                         :for sym = (find-symbol* name package)
+                         :when sym :do #-gcl (fmakunbound `(setf ,sym))))
            (ensure-export (package export)
              (let ((formerly-exported-symbols nil)
                    (bothly-exported-symbols nil)
@@ -215,25 +219,25 @@
                (loop :for x :in newly-exported-symbols :do
                  (export (intern* x package)))))
            (ensure-package (name &key nicknames use unintern
-                                 shadow export fmakunbound)
+                                 shadow export fmakunbound fmakunbound-setf)
              (let* ((p (ensure-exists name nicknames use)))
                #-ecl (ensure-fmakunbound p fmakunbound) #+ecl fmakunbound ;; do it later on ECL
+               #-ecl (ensure-fmakunbound-setf p fmakunbound-setf) #+ecl fmakunbound-setf
                (ensure-unintern p unintern)
                (ensure-shadow p shadow)
                (ensure-export p export)
                p)))
         (macrolet
             ((pkgdcl (name &key nicknames use export
-                           redefined-functions unintern shadow)
+                           fmakunbound fmakunbound-setf unintern shadow)
                  `(ensure-package
                    ',name :nicknames ',nicknames :use ',use :export ',export
-                   :shadow ',shadow
-                   :unintern ',unintern
-                   :fmakunbound ',redefined-functions)))
+                   :shadow ',shadow :unintern ',unintern
+                   :fmakunbound ',fmakunbound :fmakunbound-setf ',fmakunbound-setf)))
           (pkgdcl
            :asdf
            :use (:common-lisp)
-           :redefined-functions
+           :fmakunbound
            (#:perform #:explain #:output-files #:operation-done-p #:do-traverse
             #:compute-action-stamp #:component-load-dependencies #:traverse-action
             #:component-depends-on #:perform-plan #:mark-operation-done
@@ -243,6 +247,7 @@
             #:system-relative-pathname #:source-file-type #:builtin-system-p
             #:inherit-source-registry #:process-source-registry #:process-source-registry-directive
             #:compile-file* #:source-file-type #:trivial-system-p)
+           :fmakunbound-setf (#:output-translations)
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination
             #:split #:make-collector #:do-dep #:do-one-dep #:visit-action #:component-visited-p
@@ -366,36 +371,7 @@
             #:user-source-registry
             #:system-source-registry
             #:user-source-registry-directory
-            #:system-source-registry-directory
-
-            ;; Utilities: please use asdf-utils instead
-            #|
-            ;; #:aif #:it
-            ;; #:appendf #:orf
-            #:length=n-p
-            #:remove-keys #:remove-keyword
-            #:first-char #:last-char #:string-suffix-p
-            #:coerce-name
-            #:directory-pathname-p #:ensure-directory-pathname
-            #:absolute-pathname-p #:ensure-pathname-absolute #:pathname-root
-            #:getenv #:getenv-pathname #:getenv-pathnames
-            #:getenv-absolute-directory #:getenv-absolute-directories
-            #:probe-file*
-            #:find-symbol* #:strcat
-            #:make-pathname-component-logical #:make-pathname-logical
-            #:merge-pathnames* #:coerce-pathname #:subpathname #:subpathname*
-            #:pathname-directory-pathname #:pathname-parent-directory-pathname
-            #:read-file-forms
-            #:resolve-symlinks #:truenamize
-            #:split-string
-            #:component-name-to-pathname-components
-            #:split-name-type
-            #:subdirectories #:directory-files
-            #:while-collecting
-            #:*wild* #:*wild-file* #:*wild-directory* #:*wild-inferiors*
-            #:*wild-path* #:wilden
-            #:directorize-pathname-host-device|#
-            )))
+            #:system-source-registry-directory)))
         #+genera (import 'scl:boolean :asdf)
         (setf *asdf-version* asdf-version
               *upgraded-p* (if existing-version
@@ -2171,7 +2147,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defmethod find-operation ((operation operation) (sub symbol))
   (let* ((ancestor (operation-ancestor operation))
          (operations (operation-children-by-name ancestor)))
-    (or (values (gethash sub operations))
+    (or (gethash sub operations)
         (let ((new (if (eq sub (type-of ancestor))
                        ancestor
                        (make-instance sub :parent ancestor))))
@@ -2270,16 +2246,13 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                (gethash name override)
                t)))))
 
-(defmethod operation-done-p ((o prepare-op) (c component))
-  (and (not (operation-forced-p o c)) (call-next-method)))
-
 (defun* visit-dependencies (operation component fun &aux stamp)
   (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
         :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
           :do (loop :with dep-o = (find-operation operation dep-o-spec)
                     :for dep-c-spec :in dep-c-specs
-                    :for dep-c = (resolve-dependency-spec component dep-c-spec) :do
-                      (latest-stamp-f stamp (funcall fun dep-o dep-c))))
+                    :for dep-c = (resolve-dependency-spec component dep-c-spec)
+                    :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
   stamp)
 
 (defgeneric* needed-in-image-p (operation component))
@@ -2296,7 +2269,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (and (action-override-p o c 'operation-forced) (not (builtin-system-p c))))
 
 (defmethod operation-forced-not-p ((o operation) (c component))
-  (action-override-p o c 'operation-forced-not))
+  (and (action-override-p o c 'operation-forced-not) (not (operation-forced-p o c))))
 
 (defgeneric action-valid-p (operation component)
   (:documentation "Is this action valid to include amongst dependencies?"))
@@ -2304,8 +2277,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (declare (ignorable o c))
   (aif (component-if-feature c) (featurep it) t))
 (defmethod action-valid-p ((o operation) (s system))
-  (and (or (operation-forced-p o s) (not (operation-forced-not-p o s)))
-       (call-next-method)))
+  (and (not (operation-forced-not-p o s)) (call-next-method)))
 (defmethod action-valid-p ((o null) c) (declare (ignorable o c)) nil)
 (defmethod action-valid-p (o (c null)) (declare (ignorable o c)) nil)
 
@@ -2363,7 +2335,8 @@ If true, an integer indexing the action in the list of actions planned."))
   (setf (gethash (node-for o c) (plan-visited-actions plan)) new-status))
 
 (defmethod plan-action-status ((plan plan-traversal) (o operation) (c component))
-  (values (gethash (node-for o c) (plan-visited-actions plan))))
+  (or (and (operation-forced-not-p o c) (plan-action-status nil o c))
+      (values (gethash (node-for o c) (plan-visited-actions plan)))))
 
 (defmethod component-operation-time ((o operation) (c component))
   (gethash (type-of o) (component-operation-times c)))
@@ -2371,6 +2344,9 @@ If true, an integer indexing the action in the list of actions planned."))
 (defmethod mark-operation-done ((o operation) (c component))
   (setf (gethash (type-of o) (component-operation-times c))
         (compute-action-stamp o c :just-done t)))
+
+(defun* action-already-done-p (plan operation component)
+  (action-done-p (plan-action-status plan operation component)))
 
 (defmethod plan-action-status ((plan null) (o operation) (c component))
   (declare (ignorable plan))
@@ -2426,7 +2402,7 @@ If true, an integer indexing the action in the list of actions planned."))
     ;; Any race condition is intrinsic to the limited timestamp resolution.
     (if (or just-done ;; The done-stamp is valid: if we're just done, or
             ;; if all filesystem effects are up-to-date and there's no invalidating reason.
-            (and all-present up-to-date-p (operation-done-p o c)))
+            (and all-present up-to-date-p (operation-done-p o c) (not (operation-forced-p o c))))
         (values done-stamp ;; return the hard-earned timestamp
                 (or just-done
                     (or out-op ;; a file-creating op is done when all files are up to date
@@ -2499,7 +2475,7 @@ If true, an integer indexing the action in the list of actions planned."))
 (defmethod traverse ((o operation) (c component))
   (let ((plan (make-instance 'sequential-plan)))
     (traverse-action plan o c t)
-    (reverse (plan-actions-r plan))))
+    (reverse (plan-actions-r plan)))) ;; backward compat: return a list, not the plan object.
 
 (defmethod perform ((o operation) (c source-file))
   (sysdef-error
@@ -2913,7 +2889,7 @@ T to force the inside of the specified system to be rebuilt (resp. not),
   (map () 'load-system systems))
 
 (defun* component-loaded-p (c)
-  (action-done-p (plan-action-status nil (make-instance 'load-op) (find-component c ()))))
+  (action-already-done-p nil (make-instance 'load-op) (find-component c ())))
 
 (defun* already-loaded-systems ()
   (remove-if-not 'component-loaded-p (registered-systems)))
