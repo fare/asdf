@@ -7,7 +7,7 @@ sourceDirectory := $(shell pwd)
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl
+lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl gcl
 endif
 
 export ASDF_OUTPUT_TRANSLATIONS := (:output-translations (t ("${sourceDirectory}/tmp/fasls" :implementation)) :ignore-inherited-configuration)
@@ -100,7 +100,7 @@ test-upgrade:
 	use_abcl () { li="${ABCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
 	use_xcl () { li="${XCL} --noinit --nosystem --noinform" ; ev="--eval" ; } ; \
 	use_scl () { li="${SCL} -noinit" ; ev="-eval" ; } ; \
-	use_gcl () { li="GCL_ANSI=t ${GCL}" ; ev="-eval" ; } ; \
+	use_gcl () { li="env GCL_ANSI=t ${GCL}" ; ev="-eval" ; } ; \
 	use_allegro () { li="${ALLEGRO} -q" ; ev="-e" ; } ; \
 	use_allegromodern () { li="${ALLEGROMODERN} -q" ; ev="-e" ; } ; \
 	use_lispworks () { li="${LISPWORKS} -siteinit - -init -" ; ev="-eval" ; } ; \
@@ -114,7 +114,7 @@ test-upgrade:
 	    echo "Testing upgrade from ASDF $${tag} using method $$x" ; \
 	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
 	    case ${lisp}:$$tag:$$x in \
-	      abcl:2.0[01][1-9]|abcl:2.2[1-2]:*) \
+	      abcl:2.0[01][1-9]:*|abcl:2.2[1-2]:*) \
 		: Skip, because it is so damn slow ;; \
 	      ccl:1.*|ccl:2.0[01]*) \
 		: Skip, because ccl broke old asdf ;; \
@@ -122,6 +122,7 @@ test-upgrade:
 		: Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;; \
 	      ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) \
 		: Skip, because of various ASDF issues ;; \
+	      gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : Skip old versions that do not support GCL 2.6 ;; \
 	      mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) \
 		: Skip, because MKCL is only supported starting with 2.24 ;; \
 	      xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*) \

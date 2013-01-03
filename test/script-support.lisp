@@ -52,14 +52,14 @@
                     #+scl :scl
                     #+xcl :xcl))))
      (merge-pathnames
-      (make-pathname :directory `(#-gcl<2.7 :relative "tmp" "fasls" ,impl)
+      (make-pathname :directory `(#-gcl :relative "tmp" "fasls" ,impl)
                      :defaults *asdf-directory*)
       *asdf-lisp*))))
 
 (defun load-old-asdf (tag)
   (let ((old-asdf
           (merge-pathnames
-           (make-pathname :directory `(#-gcl<2.7 :relative "tmp")
+           (make-pathname :directory `(#-gcl :relative "tmp")
                           :name (format nil "asdf-~A" tag)
                           :defaults *asdf-directory*)
            *asdf-lisp*)))
