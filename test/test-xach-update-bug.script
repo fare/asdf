@@ -2,17 +2,12 @@
 (load "script-support.lisp")
 (load-asdf)
 
+#+gcl (trace load compile-file asdf:perform asdf::perform-plan)
 (quit-on-error
- (let ((*default-pathname-defaults* (make-pathname :name nil
-                                                   :type nil
-                                                   :defaults *load-truename*)))
-   (setf asdf:*central-registry* nil)
-   (push (merge-pathnames #p"xach-foo-1/") asdf:*central-registry*)
-   (asdf:load-system "foo")
-   (assert (symbol-value (find-symbol (string :loaded) :first-version)))
-   (push (merge-pathnames #p"xach-foo-2/") asdf:*central-registry*)
-   (asdf:load-system "foo")
-   (assert (symbol-value (find-symbol (string :loaded) :second-version)))
-   (assert (eql 42 (funcall (find-symbol (string :wtf) :second-version))))))
-
-
+ (setf asdf:*central-registry* (list (asdf::subpathname *test-directory* "xach-foo-1/")))
+ (asdf:load-system "foo")
+ (assert (symbol-value (find-symbol (string :loaded) :first-version)))
+ (setf asdf:*central-registry* (list (asdf::subpathname *test-directory* "xach-foo-2/")))
+ (asdf:load-system "foo")
+ (assert (symbol-value (find-symbol (string :loaded) :second-version)))
+ (assert (eql 42 (funcall (find-symbol (string :wtf) :second-version)))))

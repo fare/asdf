@@ -6,14 +6,11 @@
 (use-package :asdf-test)
 
 (quit-on-error
- (let* ((asd (merge-pathnames* (coerce-pathname "test-multiple.asd")
-                               *test-directory*))
-        (tmp (merge-pathnames* (coerce-pathname "../tmp/")
-                               *test-directory*))
-        (asd2 (merge-pathnames* (coerce-pathname "test-multiple-too.asd")
-                                     tmp))
+ (let* ((asd (subpathname *test-directory* "test-multiple.asd"))
+        (tmp (subpathname *test-directory* "../tmp/"))
+        (asd2 (subpathname tmp "test-multiple-too.asd"))
         (file4 (compile-file-pathname* "file4")))
-   (setf *central-registry* `(*default-pathname-defaults* ,tmp))
+   (setf *central-registry* `(,*test-directory* ,tmp))
    (assert (= 0 (run-shell-command
                  (format nil "/bin/ln -sf ~A ~A"
                          (native-namestring asd)

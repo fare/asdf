@@ -1,10 +1,10 @@
 ;;;; a.lisp
 
-(defpackage #:second-version
+(defpackage :second-version
   (:use #:cl)
   (:export #:loaded #:wtf))
 
-(in-package #:second-version)
+(in-package :second-version)
 
 (defparameter loaded t)
 

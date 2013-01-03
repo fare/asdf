@@ -3,14 +3,11 @@
 (load-asdf)
 
 (in-package :asdf)
-
 (use-package :asdf-test)
-
-(defparameter *test-directory*
-  (merge-pathnames* (coerce-pathname "tmp/") *asdf-directory*))
+#+gcl<2.7 (defmacro with-standard-io-syntax (&body body) `(progn ,@body))
 
 (defun under-test-directory (designator &optional (defaults *test-directory*))
-  (namestring (merge-pathnames* (coerce-pathname designator) defaults)))
+  (namestring (subpathname defaults designator)))
 
 (defun create-conf-files (&optional (path *test-directory*))
   (let ((v `(("conf.d/conf1.conf"

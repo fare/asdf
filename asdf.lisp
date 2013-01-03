@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.48: Another System Definition Facility.
+;;; This is ASDF 2.26.49: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -79,7 +79,8 @@
     (make-package :asdf :use '(:common-lisp))))
 
 #+gcl (defpackage :asdf (:use :cl) ;; GCL treats defpackage magically and needs this
-        #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*))
+        #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*) ;; GCL 2.6 sucks
+        #+gcl<2.7 (:shadow :type-of))
 
 (in-package :asdf)
 
@@ -119,7 +120,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.48")
+         (asdf-version "2.26.49")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -494,7 +495,7 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
     (fs:create-directories-recursively (pathname path))))
 
 #+gcl<2.7
-(progn
+(progn ;; Doesn't support either logical-pathnames or output-translations.
   (deftype logical-pathname () nil)
   (defun wild-pathname-p (path) (declare (ignore path)) nil)
   (defun translate-logical-pathname (x) x)
@@ -503,8 +504,9 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
     (declare (ignore in-wildname wild-wildname)) nil)
   (defun translate-pathname (source from-wildname to-wildname &key)
     (declare (ignore from-wildname to-wildname)) source)
+  (defun type-of (x) (class-name (class-of x)))
   (defun %print-unreadable-object (object stream type identity thunk)
-    (format stream "<~@[~S ~] " (when type (class-name (class-of object))))
+    (format stream "#<~@[~S ~]" (when type (type-of object)))
     (funcall thunk)
     (format stream "~@[ ~X~]>" (when identity (system:address object))))
   (defmacro with-compilation-unit (options &body body)
@@ -516,22 +518,6 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
 
 ;;;; -------------------------------------------------------------------------
 ;;;; General Purpose Utilities
-
-(defmacro DBG (tag &rest exprs)
-  "simple debug statement macro:
-outputs a tag plus a list of variable and their values, returns the last value"
-  ;"if not in debugging mode, just compute and return last value"
-  ; #-do-test (declare (ignore tag)) #-do-test (car (last exprs)) #+do-test
-  (let ((res (gensym))(f (gensym)))
-  `(let (,res (*print-readably* nil))
-    (flet ((,f (fmt &rest args) (apply #'format *error-output* fmt args)))
-      (,f "~&~A~%" ,tag)
-      ,@(mapcan
-         #'(lambda (x)
-            `((,f "~&  ~S => " ',x)
-              (,f "~{~S~^ ~}~%" (setf ,res (multiple-value-list ,x)))))
-         exprs)
-      (apply 'values ,res)))))
 
 (macrolet
     ((defdef (def* def)
@@ -577,18 +563,19 @@ and NIL NAME, TYPE and VERSION components"
 
 (defun* normalize-pathname-directory-component (directory)
   "Given a pathname directory component, return an equivalent form that is a list"
+  #+gcl<2.7 (setf directory (substitute :back :parent directory))
   (cond
     #-(or cmu sbcl scl) ;; these implementations already normalize directory components.
     ((stringp directory) `(:absolute ,directory))
-    #+gcl<2.7
-    ((and (consp directory) (stringp (first directory)))
-     `(:relative ,@directory))
     #+gcl<2.7
     ((and (consp directory) (eq :root (first directory)))
      `(:absolute ,@(rest directory)))
     ((or (null directory)
          (and (consp directory) (member (first directory) '(:absolute :relative))))
      directory)
+    #+gcl<2.7
+    ((consp directory)
+     `(:relative ,@directory))
     (t
      (error (compatfmt "~@<Unrecognized pathname directory component ~S~@:>") directory))))
 
@@ -623,16 +610,15 @@ and NIL NAME, TYPE and VERSION components"
     #+clisp (cons (mapcar 'make-pathname-component-logical x))
     (t x)))
 
-(defun* denormalize-pathname-directory-component (directory)
-  #-gcl<2.7 directory
+(defun* denormalize-pathname-directory-component (directory-component)
+  #-gcl<2.7 directory-component
   #+gcl<2.7
-  (cond
-    ((and (consp directory) (eq :relative (first directory)))
-     (rest directory))
-    ((and (consp directory) (eq :absolute (first directory)))
-     `(:root ,@(rest directory)))
-    (t
-     directory)))
+  (let ((d (substitute-if :parent (lambda (x) (member x '(:up :back)))
+                          directory-component)))
+    (cond
+      ((and (consp d) (eq :relative (first d))) (rest d))
+      ((and (consp d) (eq :absolute (first d))) `(:root ,@(rest d)))
+      (t d))))
 
 (defun* make-pathname* (&key host device directory name type version defaults)
   (make-pathname
@@ -2171,7 +2157,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (format stream "~{~S~^ ~}" (operation-original-initargs o)))))
 
 (defun* node-for (o c)
-  (cons (class-name (class-of o)) c))
+  (cons (type-of o) c))
 
 (defmethod operation-ancestor ((o operation))
   (aif (operation-parent o)
@@ -2436,7 +2422,6 @@ If true, an integer indexing the action in the list of actions planned."))
             (operation-description o c)
             missing-in (length missing-in) (and missing-in missing-out)
             missing-out (length missing-out)))
-;;(DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))
     ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
     ;; Any race condition is intrinsic to the limited timestamp resolution.
     (if (or just-done ;; The done-stamp is valid: if we're just done, or
@@ -2484,7 +2469,6 @@ If true, an integer indexing the action in the list of actions planned."))
 
 (defmethod traverse-action (plan operation component needed-in-image-p)
   (block nil
-    ;;(DBG :ta operation component needed-in-image-p (plan-visiting-action-list plan))
     (unless (action-valid-p operation component) (return nil))
     (plan-record-dependency plan operation component)
     (let* ((aniip (needed-in-image-p operation component))
@@ -2492,7 +2476,6 @@ If true, an integer indexing the action in the list of actions planned."))
            (status (plan-action-status plan operation component)))
       (when (and status (or (action-done-p status) (action-planned-p status) (not eniip)))
         ;; Already visited with sufficient need-in-image level: just return the stamp.
-        ;;(DBG :ad status eniip aniip)
         (return (action-stamp status)))
       (labels ((visit-action (niip)
                  (visit-dependencies operation component
@@ -2500,7 +2483,6 @@ If true, an integer indexing the action in the list of actions planned."))
                  (multiple-value-bind (stamp done-p)
                      (compute-action-stamp operation component :plan plan)
                    (let ((add-to-plan-p (or (eql stamp t) (and niip (not done-p)))))
-                     ;;(DBG :va operation component needed-in-image-p niip aniip eniip done-p stamp add-to-plan-p)
                      (cond
                        ((and add-to-plan-p (not niip)) ;; if we need to do it,
                         (visit-action t)) ;; then we need to do it in the image!
@@ -2745,7 +2727,8 @@ If true, an integer indexing the action in the list of actions planned."))
 (defmethod perform ((o load-source-op) (c cl-source-file))
   (declare (ignorable o))
   (call-with-around-compile-hook
-   c #'(lambda () (load (component-pathname c) :external-format (component-external-format c)))))
+   c #'(lambda () (load (component-pathname c)
+                        #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)))))
 
 (defmethod perform ((o load-source-op) (c static-file))
   (declare (ignorable o c))

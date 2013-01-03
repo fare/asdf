@@ -14,7 +14,7 @@
  (when (find-package :test-package) (delete-package :test-package))
  (asdf:defsystem :test-bundle-1 :components ((:file "file1") (:file "file3")))
  (asdf:defsystem :test-bundle-2 :depends-on (:test-bundle-1) :components ((:file "file2")))
- #-(or abcl (and ecl ecl-bytecmp))
+ #-(or abcl (and ecl ecl-bytecmp) gcl)
  (let* ((op (make-instance 'asdf::fasl-op))
         (bundle-1 (asdf:output-file op (find-system :test-bundle-1)))
         (bundle-2 (asdf:output-file op (find-system :test-bundle-2))))

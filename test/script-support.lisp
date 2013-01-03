@@ -51,14 +51,14 @@
                     #+scl :scl
                     #+xcl :xcl))))
      (merge-pathnames
-      (make-pathname :directory `(#-gcl :relative "tmp" "fasls" ,impl)
+      (make-pathname :directory `(#-gcl<2.7 :relative "tmp" "fasls" ,impl)
                      :defaults *asdf-directory*)
       *asdf-lisp*))))
 
 (defun load-old-asdf (tag)
   (let ((old-asdf
           (merge-pathnames
-           (make-pathname :directory `(#-gcl :relative "tmp")
+           (make-pathname :directory `(#-gcl<2.7 :relative "tmp")
                           :name (format nil "asdf-~A" tag)
                           :defaults *asdf-directory*)
            *asdf-lisp*)))
@@ -74,7 +74,7 @@
 (defun load-asdf ()
   (load *asdf-fasl*)
   (use-package :asdf :asdf-test)
-  ;;(import 'DBG :asdf)
+  (import 'DBG :asdf)
   (configure-asdf)
   (setf *package* (find-package :asdf-test)))
 
@@ -262,5 +262,5 @@ outputs a tag plus a list of variable and their values, returns the last value"
 
 
 #|
-(DBG :cas o c just-done base-stamp stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))
+(DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))
 |#
