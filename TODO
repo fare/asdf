@@ -1,0 +1,10 @@
+* Learn to use ql-mapper, to make sure ASDF changes don't break stuff,
+ and that breakage gets fixed quickly.
+* Implement concatenate-source-op and monolithic-concatenate-source-op
+** Check that all files have the same around-compile and encoding attributes.
+* Have ASDF itself use that.
+* Stop the dynamic ASDFn temporary package madness.
+ Just Have ASDF-USER that :use's ASDF and ASDF-UTILS
+* Have load-op do the selection between loading .lisp, .fasl,
+  .system.lisp, .system.fasl, .system-and-dependencies.lisp,
+  .system-and-dependencies.fasl, etc.
