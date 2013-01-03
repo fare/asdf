@@ -1,3 +1,118 @@
+cl-asdf (2:2.27-1) unstable; urgency=low
+
+  * ASDF-BUNDLE was merged into ASDF.
+    This notably means fewer headaches for users of ECL;
+    it also means a new load-fasl-op feature for all users of a modern CL,
+    making it easier to deliver software as a single fasl.
+    All remnants of its predecessor asdf-ecl were removed.
+
+  * *decades-old* bugs of notable significance were fixed:
+    (a) changes in dependencies now trigger a rebuild across systems, and
+    https://bugs.launchpad.net/asdf/+bug/479522
+    (b) timestamps are now correctly propagated
+    https://bugs.launchpad.net/asdf/+bug/1087609
+    In olden days, some have argued for not rebuilding systems that :depend-on
+    a modified one as a "feature". It really isn't. On the other hand,
+    if they want to explicitly prevent a rebuild, the actual feature :force-not
+    is there to help them (released as part of 2.21 in April 2012).
+    I will write about those bugs.
+
+  * PREPARE-OP was introduced to fix a conceptual bug in the ASDF object model.
+    It corresponds to "loading the dependencies of a component and its parents"
+    and is explicitly depends-on'ed before to load or compile the component,
+    instead of implicitly depending on it via magic in the TRAVERSE algorithm,
+    which magic proved insufficient in cases revealed by the above bugs.
+    It propagates upward in the component hierarchy, rather than downward,
+    like the TRAVERSE algorithm used to systematically propagate dependencies.
+
+  * TRAVERSE was gutted out and factored into reusable higher-order functions
+    and objects, which not only fixes the above conceptual bug, but makes for
+    semantics that are simpler to implement, possible to understand,
+    easier to extend, and less limited in expressivity.
+    TRAVERSE doesn't automatically propagate operations
+    downward the component hierarchy anymore;
+    propagation is now implemented through methods on COMPONENT-DEPENDS-ON.
+
+  * COMPONENT-DEPENDS-ON is now more powerful:
+    it can express dependencies on arbitrary operation objects
+    (i.e. operations of the same class can have different options)
+    acting on arbitrary component objects
+    (i.e. not necessarily siblings of the current component).
+    The ASDF object model can now express arbitrary build graphs, with
+    no more special magic for children components vs other dependencies.
+
+  * COMPONENT-DO-FIRST is no more. It used to specify some dependencies
+    that were skipped if no re-build was triggered based on local timestamps.
+    Instead, COMPONENT-DEPENDS-ON is used for all dependencies,
+    and all are consulted to correctly propagate timestamps.
+    However actions meant for in-image side-effects are included
+    only if needed, and might be visited twice by TRAVERSE,
+    first without the needed-in-image-p flag, another time with.
+
+  * FORCE and FORCE-NOT now correctly distinguish T from :ALL in addition to
+    a list of system name specifiers, as per the original specification
+    (which was never implemented in ASDF 1). Additionally,
+    builtin systems (such as SB-BSD-SOCKETS on SBCL) cannot be forced
+    (which doesn't work on SBCL).
+
+  * Internals have been refactored, and some sorry features were excised.
+    The semantics of OPERATION-DONE-P is simplified and now well-specified.
+    FIND-COMPONENT will pass component objects through, and
+    a corresponding FIND-OPERATION replaces MAKE-SUB-OPERATION.
+    Several internal accessors were renamed.
+
+  * IF-FEATURE is a new attribute of components that accepts an arbitrary
+    feature expression such as (:and :sbcl (:or :x86 :x86-64)),
+    which when defined is a precondition to the component being enabled;
+    when the expression is false, the component is disabled,
+    and dependencies to it are removed.
+    It replaces the misguided :if-component-dep-fails attribute of modules
+    and the accompanying :feature feature, which were dropped.
+    They were not very expressive, clunky to use, and relied on baking
+    conceptually dubious non-local behavior in the old TRAVERSE algorithm,
+    which belied the object model and defeated other features.
+    Unhappily, this breaks backwards compatibility for the few who used it,
+    namely sb-grovel, nibbles and ironclad.
+    A minimal compatibility layer allows ASDF 2.27 or later to load
+    the SB-GROVEL of old versions of SBCL, but it won't suffice to load
+    an old version of nibbles or ironclad; please upgrade them
+    a recent version that was updated to support ASDF 2.27.
+
+  * ASDF2.27 was added to the *features* so you can detect the presence of
+    this massively updated ASDF and its new features with #+asdf2.27.
+    This is *not* ASDF3, for we painfully maintained backwards compatibility.
+
+  * Portability updates were done for
+    ABCL, CLISP, CMUCL, ECL, LispWorks Personal Edition, MKCL, XCL.
+    Working support for GCL 2.6 was restored, with notable limitations
+    including lack of support for output-translations or logical-pathnames.
+
+  * Documentation received some small updates.
+
+  * Tests were updated, notably including support for asdf-bundle.
+    They were successfully run on ccl clisp sbcl ecl ecl_bytecodes
+    cmucl abcl scl allegro lispworks allegromodern xcl.
+    Manual tests were run on lispworks-personal-edition genera.
+    Untested were cormancl mkcl rmcl.
+
+  * POIU was updated. This extension is distributed separately from ASDF.
+    It is now much simplified and made more correct by construction by
+    reusing the new TRAVERSE infrastructure of ASDF and now being able to
+    assume the ASDF object model is a complete description of dependencies.
+    On SBCL it will handle deferred warnings from background compilations.
+    On platforms that cannot fork it will gracefully fall back
+    to serial compilation.
+
+  * SLIME support for ASDF was significantly enhanced.
+    It is distributed separately from ASDF, with SLIME.
+    See latest checkin from 2012-12-26.
+    We recommend that in your ~/.swank.lisp you should:
+    (in-package :swank)
+    (defparameter *upgrade-asdf-p* t)
+    (pushnew 'try-compile-file-with-asdf *compile-file-for-emacs-hook*)
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 27 Dec 2012 15:59:44 -0500
+
 cl-asdf (2:2.26-1) unstable; urgency=low
 
   * Package change: removed the old ASDF-UTILITIES package nickname for ASDF.
