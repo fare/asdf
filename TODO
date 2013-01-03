@@ -2,9 +2,21 @@
  and that breakage gets fixed quickly.
 * Implement concatenate-source-op and monolithic-concatenate-source-op
 ** Check that all files have the same around-compile and encoding attributes.
-* Have ASDF itself use that.
+** Have ASDF itself use that.
+* Make load-op a generic operation that selects the proper strategy
+  for each system, module or file, according to component properties and user-configuration:
+  compile the lisp file then load the fasl (load-compiled-op),
+  load the lisp file without compiling (load-source-op),
+  compile all files for the system, link them and load the result (load-fasl-op),
+  compile all files for the system *and* its dependencies, link and load (monolithic-load-fasl-op),
+  concatenate all files for the system, then load the result (load-concatenated-source-op),
+  concatenate all files for the system, then link them and load the result (load-compiled-concatenated-op),
+  concatenate all files for the system *and* its dependencies, link and load (monolithic-load-compiled-concatenated-op).
 * Stop the dynamic ASDFn temporary package madness.
- Just Have ASDF-USER that :use's ASDF and ASDF-UTILS
-* Have load-op do the selection between loading .lisp, .fasl,
-  .system.lisp, .system.fasl, .system-and-dependencies.lisp,
-  .system-and-dependencies.fasl, etc.
+** Just Have ASDF-USER that :use's ASDF and ASDF-UTILS
+* Force cleanup:
+** Move verbose, force, force-not out of operation-ancestor into the plan.
+** Remove operation-ancestor.
+** Have find-operation be a simple memoizing thing (possible?)
+** Replace any user-provided make-instance'd operation by the memoized version?
+** Kill original-initargs -- BEWARE, it currently has clients!
