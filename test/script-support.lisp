@@ -7,6 +7,7 @@
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl #:compile-load-asdf #:load-asdf-system
    #:quit-on-error #:test-asdf
    #:native-namestring
+   #:assert-equal
    #:exit-lisp #:leave-lisp
    #:quietly))
 
