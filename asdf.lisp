@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.54: Another System Definition Facility.
+;;; This is ASDF 2.26.55: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -120,7 +120,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.54")
+         (asdf-version "2.26.55")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1570,10 +1570,6 @@ and implementation-defined external-format's")
    (source-file :initarg :source-file :writer %set-system-source-file) ; upgrade issues on CLISP, CMUCL
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
 
-(defmethod component-parent ((system system))
-  (declare (ignorable system))
-  nil)
-
 (defmethod component-pathname ((system system))
   (if (or (slot-boundp system 'relative-pathname)
             (slot-boundp system 'absolute-pathname)
@@ -2138,9 +2134,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     (ignore-errors
       (format stream "~{~S~^ ~}" (operation-original-initargs o)))))
 
-(defun* node-for (o c)
-  (cons (type-of o) c))
-
 (defparameter *operations* (make-hash-table :test 'equal))
 (defun* make-operation (operation-class &rest initargs)
   (let ((key (cons operation-class initargs)))
@@ -2322,6 +2315,10 @@ in some previous image, or T if it needs to be done.")
   (print-unreadable-object (status stream :type t)
     (with-slots (stamp done-p planned-p) status
       (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p :planned-p planned-p))))
+
+;; TODO: eliminate NODE-FOR, use CONS.
+;; Supposes cleaner protocol for operation initargs passed to MAKE-OPERATION.
+(defun* node-for (o c) (cons (type-of o) c))
 
 (defmethod (setf plan-action-status) (new-status (plan plan-traversal) (o operation) (c component))
   (setf (gethash (node-for o c) (plan-visited-actions plan)) new-status))
