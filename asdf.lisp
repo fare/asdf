@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.53: Another System Definition Facility.
+;;; This is ASDF 2.26.54: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -120,7 +120,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.53")
+         (asdf-version "2.26.54")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2127,9 +2127,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ((original-initargs ;; for backward-compat -- used by GBBopen and swank (via operation-forced)
     :initform nil :initarg :original-initargs :accessor operation-original-initargs)))
 
-(defmethod shared-initialize :after ((o operation) slot-names &rest initargs
-                                     &key force force-not system verbose)
-  (declare (ignorable slot-names force force-not system verbose))
+(defmethod initialize-instance :after ((o operation) &rest initargs
+                                       &key force force-not system verbose &allow-other-keys)
+  (declare (ignorable force force-not system verbose))
   (unless (slot-boundp o 'original-initargs)
     (setf (operation-original-initargs o) initargs)))
 
@@ -2271,9 +2271,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     (cons (list-to-hash-set (mapcar #'coerce-name x)))
     ((eql t) (list-to-hash-set (list (coerce-name system))))))
 
-(defmethod shared-initialize :after ((plan plan-traversal) slot-names
-                                     &key (force () fp) (force-not () fnp) system verbose)
-  (declare (ignorable slot-names verbose))
+(defmethod initialize-instance :after ((plan plan-traversal)
+                                       &key (force () fp) (force-not () fnp) system &allow-other-keys)
   (with-slots (forced forced-not) plan
     (when fp (setf forced (normalize-forced-systems force system)))
     (when fnp (setf forced-not (normalize-forced-systems force-not system)))))
