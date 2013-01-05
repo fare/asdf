@@ -13,10 +13,7 @@
   concatenate all files for the system, then link them and load the result (load-compiled-concatenated-op),
   concatenate all files for the system *and* its dependencies, link and load (monolithic-load-compiled-concatenated-op).
 * Stop the dynamic ASDFn temporary package madness.
-** Just Have ASDF-USER that :use's ASDF and ASDF-UTILS
-* Force cleanup:
-** Move verbose, force, force-not out of operation-ancestor into the plan.
-** Remove operation-ancestor.
-** Have find-operation be a simple memoizing thing (possible?)
-** Replace any user-provided make-instance'd operation by the memoized version?
+** Just have a single ASDF-USER that :use's ASDF and ASDF-UTILS
+* operation cleanup?
+** Kill backward-compat functions after all clients have moved on.
 ** Kill original-initargs -- BEWARE, it currently has clients!

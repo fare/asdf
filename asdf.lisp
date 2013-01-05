@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.52: Another System Definition Facility.
+;;; This is ASDF 2.26.53: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -120,7 +120,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.52")
+         (asdf-version "2.26.53")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -238,9 +238,9 @@
            :asdf
            :use (:common-lisp)
            :fmakunbound
-           (#:perform #:explain #:output-files #:operation-done-p #:do-traverse
-            #:compute-action-stamp #:component-load-dependencies #:traverse-action
-            #:component-depends-on #:perform-plan #:mark-operation-done
+           (#:perform #:explain #:output-files #:operation-done-p #:traverse-action #:traverse
+            #:compute-action-stamp #:component-load-dependencies #:action-valid-p
+            #:component-depends-on #:perform-plan #:mark-operation-done #:operation-forced
             #:perform-with-restarts #:component-relative-pathname
             #:system-source-file #:operate #:find-component #:find-system
             #:apply-output-translations #:translate-pathname* #:resolve-location
@@ -249,8 +249,8 @@
             #:compile-file* #:source-file-type #:trivial-system-p)
            :fmakunbound-setf (#:output-translations)
            :unintern
-           (#:*asdf-revision* #:around #:asdf-method-combination
-            #:split #:make-collector #:do-dep #:do-one-dep #:visit-action #:component-visited-p
+           (#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector
+            #:do-dep #:do-one-dep #:do-traverse #:visit-action #:component-visited-p
             #:loaded-systems ; makes for annoying SLIME completion
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :export
@@ -290,9 +290,9 @@
             #:component-encoding
             #:component-external-format
 
-            ;;#:action-depends-on ; future name
-            #:module-components ; backwards compatibility
-            #:component-depends-on ; backwards compatibility
+            #:component-depends-on ; backward-compatible name rather than action-depends-on
+            #:module-components ; backward-compatibility
+            #:operation-on-warnings #:operation-on-failure ; backward-compatibility
 
             #:system-description
             #:system-long-description
@@ -306,8 +306,6 @@
             #:map-systems
 
             #:operation-description
-            #:operation-on-warnings
-            #:operation-on-failure
 
             #:*system-definition-search-functions*   ; variables
             #:*central-registry*
@@ -598,9 +596,10 @@ and NIL NAME, TYPE and VERSION components"
 
 (defun* make-pathname* (&key host device directory name type version defaults)
   (make-pathname
-   :defaults defaults :host host :device device
-   :directory (denormalize-pathname-directory-component directory)
-   :name name :type type :version version))
+   :defaults (or defaults *default-pathname-defaults*)
+   :host host :device device :name name :type type :version version
+   :directory (denormalize-pathname-directory-component directory)))
+   
 
 (defun* make-pathname-logical (pathname host)
   "Take a PATHNAME's directory, name, type and version components,
@@ -670,6 +669,8 @@ and NIL NAME, TYPE and VERSION components"
 (defun* last-char (s)
   (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
+(defun* list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
+  (dolist (x list h) (setf (gethash x h) t)))
 
 (defun* asdf-message (format-string &rest format-args)
   #-gcl<2.7 (declare (dynamic-extent format-args))
@@ -865,7 +866,7 @@ Host, device and version components are taken from DEFAULTS."
                 (when defaults `(:defaults ,defaults))))))))
 
 (defun* merge-component-name-type (name &key type defaults)
-  ;; For backwards compatibility only, for people using internals.
+  ;; For backward-compatibility only, for people using internals.
   ;; Will be removed in a future release, e.g. 2.016.
   (warn "Please don't use ASDF::MERGE-COMPONENT-NAME-TYPE. Use ASDF:COERCE-PATHNAME.")
   (coerce-pathname name :type type :defaults defaults))
@@ -992,7 +993,7 @@ with given pathname and if it exists return its truename."
 
 (defparameter *wild* (or #+cormanlisp "*" :wild))
 (defparameter *wild-file*
-  (make-pathname* :directory nil :name *wild* :type *wild*
+  (make-pathname :directory nil :name *wild* :type *wild*
                   :version (or #-(or abcl xcl) *wild*)))
 (defparameter *wild-directory*
   (make-pathname* :directory `(:relative ,(or #+gcl<2.7 "*" *wild*))
@@ -1199,7 +1200,7 @@ the head of the tree"))
 
 (defgeneric* component-self-dependencies (operation component))
 
-(defgeneric* traverse (operation component)
+(defgeneric* traverse (operation component &key force force-not verbose)
   (:documentation
 "Generate and return a plan for performing OPERATION on COMPONENT.
 
@@ -1207,7 +1208,7 @@ The plan returned is a list of dotted-pairs. Each pair is the CONS
 of ASDF operation object and a COMPONENT object. The pairs will be
 processed in order by OPERATE."))
 
-(defgeneric* compute-action-stamp (operation component &key just-done plan)
+(defgeneric* compute-action-stamp (plan operation component &key just-done)
   (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
 Takes two keywords JUST-DONE and PLAN:
@@ -1222,9 +1223,12 @@ Returns two values:
 * a boolean DONE-P that indicates whether the action has actually been done,
   and both its output-files and its in-image side-effects are up to date."))
 
-(defgeneric* operation-forced-p (operation component))
-(defgeneric* operation-forced-not-p (operation component))
 (defgeneric* builtin-system-p (system))
+(defgeneric* action-forced-p (plan operation component))
+(defgeneric* action-forced-not-p (plan operation component))
+
+;; for backward-compatibility only. Used by swank.asd for swank-loader.
+(defgeneric* operation-forced (operation))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Methods in case of hot-upgrade. See https://bugs.launchpad.net/asdf/+bug/485687
@@ -1242,6 +1246,9 @@ Returns two values:
     ;; override previous definition from 2.018 to 2.26, not needed
     ;; since we've stopped trying to recycle previously-installed systems.
     (handler-bind ((style-warning #'muffle-warning))
+      (when (find-class 'operation nil)
+        (eval '(defmethod shared-initialize :after ((o operation) slot-names &rest initargs &key)
+                (declare (ignorable o slot-names initargs)) (values))))
       (when (find-class 'component nil)
         (eval '(defmethod reinitialize-instance :after ((c component) &rest initargs &key)
                 (declare (ignorable c initargs)) (values))))
@@ -1368,7 +1375,7 @@ Returns two values:
    ;; Happily, no one seems to have used do-first too much, but the name in-order-to remains.
    ;; The names are bad, but they have been the official API since Dan Barlow's ASDF 1.52!
    ;; LispWorks's defsystem has caused-by and requires for in-order-to and do-first respectively.
-   ;; Maybe rename the slots in ASDF? But that's not very backwards compatible.
+   ;; Maybe rename the slots in ASDF? But that's not very backward-compatible.
    ;; See our ASDF 2 paper for more complete explanations.
    (in-order-to :initform nil :initarg :in-order-to
                 :accessor component-in-order-to)
@@ -1389,7 +1396,7 @@ Returns two values:
    ;; component properties
    (properties :accessor component-properties :initarg :properties
                :initform nil)
-   ;; For backwards compatibility, this slot is part of component rather than child-component
+   ;; For backward-compatibility, this slot is part of component rather than child-component
    (parent :initarg :parent :initform nil :reader component-parent)))
 
 
@@ -1401,10 +1408,10 @@ Returns two values:
   ((children
     :initform nil
     :initarg :components
-    :reader module-components ; backwards compatibility
+    :reader module-components ; backward-compatibility
     :accessor component-children)
    (children-by-name
-    :reader module-components-by-name ; backwards compatibility
+    :reader module-components-by-name ; backward-compatibility
     :accessor component-children-by-name)
    (default-component-class
     :initform nil
@@ -1529,7 +1536,7 @@ hopefully, if done consistently, that won't affect program behavior too much.")
 
 (defun* default-encoding-external-format (encoding)
   (case encoding
-    (:default :default) ;; for backwards compatibility only. Explicit usage discouraged.
+    (:default :default) ;; for backward-compatibility only. Explicit usage discouraged.
     (:utf-8 *utf-8-external-format*)
     (otherwise
      (cerror "Continue using :external-format :default" (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings).~:>") encoding)
@@ -1551,13 +1558,11 @@ and implementation-defined external-format's")
   ;; but also to modify parse-component-form to reset the recycled objects.
   ((name) (source-file) #|(children) (children-by-names)|#))
 
-;; ASDF3: we ought to inherit from parent-component, not module.
-;; But if it's not backwards, it's not compatible.
+;; Backward-compatibility: inherit from module. ASDF3: only inherit from parent-component.
 (defclass system (module proto-system)
-  (;; description and long-description are now available for all component's,
-   ;; but now also inherited from component, but we add the legacy accessor
-   (description :accessor system-description :initarg :description)
-   (long-description :accessor system-long-description :initarg :long-description)
+  (;; {,long-}description is now inherited from component, but we add the legacy accessors
+   (description :accessor system-description)
+   (long-description :accessor system-long-description)
    (author :accessor system-author :initarg :author)
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
@@ -2119,13 +2124,14 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 ;;; one of these is instantiated whenever #'operate is called
 
 (defclass operation ()
-  ((verbose :initform nil :initarg :verbose :accessor operation-verbose)
-   (forced :initform nil :initarg :force :accessor operation-forced)
-   (forced-not :initform nil :initarg :force-not :accessor operation-forced-not)
-   (original-initargs :initform nil :initarg :original-initargs
-                      :accessor operation-original-initargs)
-   (children-by-name :initform (make-hash-table :test 'eql) :accessor operation-children-by-name)
-   (parent :initform nil :initarg :parent :accessor operation-parent)))
+  ((original-initargs ;; for backward-compat -- used by GBBopen and swank (via operation-forced)
+    :initform nil :initarg :original-initargs :accessor operation-original-initargs)))
+
+(defmethod shared-initialize :after ((o operation) slot-names &rest initargs
+                                     &key force force-not system verbose)
+  (declare (ignorable slot-names force force-not system verbose))
+  (unless (slot-boundp o 'original-initargs)
+    (setf (operation-original-initargs o) initargs)))
 
 (defmethod print-object ((o operation) stream)
   (print-unreadable-object (o stream :type t :identity nil)
@@ -2135,24 +2141,21 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defun* node-for (o c)
   (cons (type-of o) c))
 
-(defmethod operation-ancestor ((o operation))
-  (aif (operation-parent o)
-       (operation-ancestor it)
-       o))
-
-(defmethod find-operation ((operation operation) (sub operation))
-  (declare (ignorable operation))
+(defparameter *operations* (make-hash-table :test 'equal))
+(defun* make-operation (operation-class &rest initargs)
+  (let ((key (cons operation-class initargs)))
+    (multiple-value-bind (operation foundp) (gethash key *operations*)
+    (if foundp operation
+        (setf (gethash key *operations*)
+              (apply 'make-instance operation-class initargs))))))
+(defmethod find-operation (context (sub operation))
+  (declare (ignorable context))
   sub)
+(defmethod find-operation (context (sub symbol))
+  (apply 'make-operation sub (operation-original-initargs context)))
+(defmethod operation-original-initargs ((op null)) op)
 
-(defmethod find-operation ((operation operation) (sub symbol))
-  (let* ((ancestor (operation-ancestor operation))
-         (operations (operation-children-by-name ancestor)))
-    (or (gethash sub operations)
-        (let ((new (if (eq sub (type-of ancestor))
-                       ancestor
-                       (make-instance sub :parent ancestor))))
-          (setf (gethash sub operations) new)
-          new))))
+(defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))
 
 (defmethod component-depends-on ((o operation) (c component))
   (cdr (assoc (type-of o) (component-in-order-to c)))) ; User-specified in-order dependencies
@@ -2236,24 +2239,13 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 ;;; and bunch of other stuff. Functions return a stamp.
 ;;; The returned stamp is T if anything has changed that required a rebuild.
 
-(defun* action-override-p (operation component override-accessor)
-  (when (typep component 'system)
-    (let* ((ancestor (operation-ancestor operation))
-           (override (funcall override-accessor ancestor))
-           (name (coerce-name component)))
-      (and override
-           (if (typep override 'hash-table)
-               (gethash name override)
-               t)))))
-
-(defun* visit-dependencies (operation component fun &aux stamp)
-  (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
-        :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
-          :do (loop :with dep-o = (find-operation operation dep-o-spec)
-                    :for dep-c-spec :in dep-c-specs
-                    :for dep-c = (resolve-dependency-spec component dep-c-spec)
-                    :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
-  stamp)
+(defun* action-override-p (plan operation component override-accessor)
+  (declare (ignorable operation))
+  (let* ((override (funcall override-accessor plan)))
+    (and override
+         (if (typep override 'hash-table)
+             (gethash (coerce-name (component-system (find-component () component))) override)
+             t))))
 
 (defgeneric* needed-in-image-p (operation component))
 (defmethod needed-in-image-p ((o operation) (c component))
@@ -2263,29 +2255,28 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ;; whereas those that don't are meant to side-effect the current image and can't.
   (not (output-files o c)))
 
-(defmethod operation-forced-p ((o operation) (c component))
-  (and (action-override-p o c 'operation-forced) (not (builtin-system-p c))))
-
-(defmethod operation-forced-not-p ((o operation) (c component))
-  (and (action-override-p o c 'operation-forced-not) (not (operation-forced-p o c))))
-
-(defgeneric action-valid-p (operation component)
-  (:documentation "Is this action valid to include amongst dependencies?"))
-(defmethod action-valid-p ((o operation) (c component))
-  (declare (ignorable o c))
-  (aif (component-if-feature c) (featurep it) t))
-(defmethod action-valid-p ((o operation) (s system))
-  (and (not (operation-forced-not-p o s)) (call-next-method)))
-(defmethod action-valid-p ((o null) c) (declare (ignorable o c)) nil)
-(defmethod action-valid-p (o (c null)) (declare (ignorable o c)) nil)
-
 (defclass plan-traversal ()
-  ((total-action-count :initform 0 :accessor plan-total-action-count)
+  ((forced :initform nil :initarg :force :accessor plan-forced)
+   (forced-not :initform nil :initarg :force-not :accessor plan-forced-not)
+   (total-action-count :initform 0 :accessor plan-total-action-count)
    (planned-action-count :initform 0 :accessor plan-planned-action-count)
    (planned-output-action-count :initform 0 :accessor plan-planned-output-action-count)
    (visited-actions :initform (make-hash-table :test 'equal) :accessor plan-visited-actions)
    (visiting-action-set :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
    (visiting-action-list :initform () :accessor plan-visiting-action-list)))
+
+(defun* normalize-forced-systems (x system)
+  (etypecase x
+    ((member nil :all) x)
+    (cons (list-to-hash-set (mapcar #'coerce-name x)))
+    ((eql t) (list-to-hash-set (list (coerce-name system))))))
+
+(defmethod shared-initialize :after ((plan plan-traversal) slot-names
+                                     &key (force () fp) (force-not () fnp) system verbose)
+  (declare (ignorable slot-names verbose))
+  (with-slots (forced forced-not) plan
+    (when fp (setf forced (normalize-forced-systems force system)))
+    (when fnp (setf forced-not (normalize-forced-systems force-not system)))))
 
 (defclass sequential-plan (plan-traversal)
   ((actions-r :initform nil :accessor plan-actions-r)))
@@ -2337,7 +2328,7 @@ in some previous image, or T if it needs to be done.")
   (setf (gethash (node-for o c) (plan-visited-actions plan)) new-status))
 
 (defmethod plan-action-status ((plan plan-traversal) (o operation) (c component))
-  (or (and (operation-forced-not-p o c) (plan-action-status nil o c))
+  (or (and (action-forced-not-p plan o c) (plan-action-status nil o c))
       (values (gethash (node-for o c) (plan-visited-actions plan)))))
 
 (defmethod component-operation-time ((o operation) (c component))
@@ -2345,7 +2336,7 @@ in some previous image, or T if it needs to be done.")
 
 (defmethod mark-operation-done ((o operation) (c component))
   (setf (gethash (type-of o) (component-operation-times c))
-        (compute-action-stamp o c :just-done t)))
+        (compute-action-stamp nil o c :just-done t)))
 
 (defun* action-already-done-p (plan operation component)
   (action-done-p (plan-action-status plan operation component)))
@@ -2364,7 +2355,36 @@ in some previous image, or T if it needs to be done.")
         (setf (gethash to times) (action-stamp new-status))))
   new-status)
 
-(defmethod compute-action-stamp ((o operation) (c component) &key just-done plan)
+(defmethod action-forced-p (plan operation component)
+  (and (action-override-p plan operation component 'plan-forced)
+       (not (builtin-system-p (component-system component)))))
+(defmethod action-forced-not-p (plan operation component)
+  (and (action-override-p plan operation component 'plan-forced-not)
+       (not (action-forced-p plan operation component))))
+
+(defgeneric action-valid-p (plan operation component)
+  (:documentation "Is this action valid to include amongst dependencies?"))
+(defmethod action-valid-p (plan operation (c component))
+  (declare (ignorable plan operation))
+  (aif (component-if-feature c) (featurep it) t))
+(defmethod action-valid-p (plan (o null) c) (declare (ignorable plan o c)) nil)
+(defmethod action-valid-p (plan o (c null)) (declare (ignorable plan o c)) nil)
+(defmethod action-valid-p ((plan plan-traversal) (o operation) (s system))
+  (and (not (action-forced-not-p plan o s)) (call-next-method)))
+
+
+;;; Computing stamps and traversing the dependency graph of actions.
+
+(defun* visit-dependencies (operation component fun &aux stamp)
+  (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
+        :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
+          :do (loop :with dep-o = (find-operation operation dep-o-spec)
+                    :for dep-c-spec :in dep-c-specs
+                    :for dep-c = (resolve-dependency-spec component dep-c-spec)
+                    :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
+  stamp)
+
+(defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
   ;; In a distant future, safe-file-write-date and component-operation-time
   ;; shall also be parametrized by the plan, or by a second model object.
   (let* ((stamp-lookup #'(lambda (o c) (aif (plan-action-status plan o c) (action-stamp it) t)))
@@ -2404,7 +2424,7 @@ in some previous image, or T if it needs to be done.")
     ;; Any race condition is intrinsic to the limited timestamp resolution.
     (if (or just-done ;; The done-stamp is valid: if we're just done, or
             ;; if all filesystem effects are up-to-date and there's no invalidating reason.
-            (and all-present up-to-date-p (operation-done-p o c) (not (operation-forced-p o c))))
+            (and all-present up-to-date-p (operation-done-p o c) (not (action-forced-p plan o c))))
         (values done-stamp ;; return the hard-earned timestamp
                 (or just-done
                     (or out-op ;; a file-creating op is done when all files are up to date
@@ -2447,7 +2467,7 @@ in some previous image, or T if it needs to be done.")
 
 (defmethod traverse-action (plan operation component needed-in-image-p)
   (block nil
-    (unless (action-valid-p operation component) (return nil))
+    (unless (action-valid-p plan operation component) (return nil))
     (plan-record-dependency plan operation component)
     (let* ((aniip (needed-in-image-p operation component))
            (eniip (and aniip needed-in-image-p))
@@ -2459,7 +2479,7 @@ in some previous image, or T if it needs to be done.")
                  (visit-dependencies operation component
                                      #'(lambda (o c) (traverse-action plan o c niip)))
                  (multiple-value-bind (stamp done-p)
-                     (compute-action-stamp operation component :plan plan)
+                     (compute-action-stamp plan operation component)
                    (let ((add-to-plan-p (or (eql stamp t) (and niip (not done-p)))))
                      (cond
                        ((and add-to-plan-p (not niip)) ;; if we need to do it,
@@ -2480,10 +2500,15 @@ in some previous image, or T if it needs to be done.")
         (while-visiting-action (plan operation component) ; maintain context, handle circularity.
           (visit-action eniip))))))
 
-(defmethod traverse ((o operation) (c component))
-  (let ((plan (make-instance 'sequential-plan)))
-    (traverse-action plan o c t)
-    (reverse (plan-actions-r plan)))) ;; backward compat: return a list, not the plan object.
+(defun* traverse-sequentially (operation component &rest keys &key force force-not verbose)
+  (declare (ignore force force-not verbose))
+  (let ((plan (apply 'make-instance 'sequential-plan :system (component-system component) keys)))
+    (traverse-action plan operation component t)
+    (reverse (plan-actions-r plan))))
+
+(defmethod traverse ((o operation) (c component) &rest keys &key force force-not verbose)
+  (declare (ignore force force-not verbose))
+  (apply 'traverse-sequentially o c keys))
 
 (defmethod perform ((o operation) (c source-file))
   (sysdef-error
@@ -2529,12 +2554,16 @@ in some previous image, or T if it needs to be done.")
 
 (defclass compile-op (downward-operation)
   ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
-   (on-warnings :initarg :on-warnings :accessor operation-on-warnings
-                :initform *compile-file-warnings-behaviour*)
-   (on-failure :initarg :on-failure :accessor operation-on-failure
-               :initform *compile-file-failure-behaviour*)
    (flags :initarg :flags :accessor compile-op-flags
           :initform nil)))
+
+;; backward-compatibility
+(defgeneric* operation-on-warnings (operation))
+(defmethod operation-on-warnings ((o operation))
+  (declare (ignorable o)) *compile-file-warnings-behaviour*)
+(defgeneric* operation-on-failure (operation))
+(defmethod operation-on-failure ((o operation))
+  (declare (ignorable o)) *compile-file-failure-behaviour*)
 
 (defun* ensure-all-directories-exist (pathnames)
    (dolist (pathname pathnames)
@@ -2570,30 +2599,30 @@ in some previous image, or T if it needs to be done.")
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
 (defmethod perform ((o compile-op) (c cl-source-file))
-  (let ((source-file (component-pathname c))
+  (let (;; Before 2.26.53, that was unfortunately component-pathname. Now,
+        ;; we consult input-files, the first of which should be the one to compile-file
+        (input-file (first (input-files o c))) 
         ;; on some implementations, there are more than one output-file,
         ;; but the first one should always be the primary fasl that gets loaded.
-        (output-file (first (output-files o c)))
-        (*compile-file-warnings-behaviour* (operation-on-warnings o))
-        (*compile-file-failure-behaviour* (operation-on-failure o)))
+        (output-file (first (output-files o c))))
     (multiple-value-bind (output warnings-p failure-p)
         (call-with-around-compile-hook
          c #'(lambda (&rest flags)
-               (apply *compile-op-compile-file-function* source-file
+               (apply *compile-op-compile-file-function* input-file
                       :output-file output-file
                       #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)
                       (append flags (compile-op-flags o)))))
       (unless output
         (error 'compile-error :component c :operation o))
       (when failure-p
-        (case (operation-on-failure o)
+        (case *compile-file-failure-behaviour*
           (:warn (warn
                   (compatfmt "~@<COMPILE-FILE failed while performing ~A.~@:>")
                   (operation-description o c)))
           (:error (error 'compile-failed :component c :operation o))
           (:ignore nil)))
       (when warnings-p
-        (case (operation-on-warnings o)
+        (case *compile-file-warnings-behaviour*
           (:warn (warn
                   (compatfmt "~@<COMPILE-FILE warned while performing ~A.~@:>")
                   (operation-description o c)))
@@ -2809,50 +2838,47 @@ in some previous image, or T if it needs to be done.")
       (loop :for (op . component) :in steps :do
         (perform-with-restarts op component)))))
 
-(defun* list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
-  (dolist (x list h) (setf (gethash x h) t)))
-
-(defun* normalize-forced-systems (x system)
-  (etypecase x
-    ((member nil :all) x)
-    (cons (list-to-hash-set (mapcar #'coerce-name x)))
-    ((eql t) (list-to-hash-set (list (coerce-name system))))))
-
-(defmethod operate (operation-class system &rest args
-                    &key force force-not verbose version &allow-other-keys)
+(defmethod operate :around (operation-class system
+                            &key verbose
+                              (on-warnings *compile-file-warnings-behaviour*)
+                              (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
+  (declare (ignorable operation-class system))
   (with-system-definitions ()
     (let* ((*asdf-verbose* verbose)
            (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
-           (system (etypecase system
-                     (system system)
-                     ((or string symbol) (find-system system))))
-           (op (apply 'make-instance operation-class
-                      :force (normalize-forced-systems force system)
-                      :force-not (normalize-forced-systems force-not system)
-                      :original-initargs args args))
-           (systems-being-operated *systems-being-operated*)
-           (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))
-      (check-type system system)
-      (setf (gethash (coerce-name system) *systems-being-operated*) system)
-      (flet ((upgrade ()
-               ;; If we needed to upgrade ASDF to achieve our goal,
-               ;; then do it specially as the first thing,
-               ;; which will invalidate all existing systems;
-               ;; afterwards, try again with the new OPERATE function,
-               ;; which on some implementations may be a new symbol.
-               (unless (gethash "asdf" *systems-being-operated*)
-                 (upgrade-asdf)
-                 (return-from operate
-                   (apply (find-symbol* 'operate :asdf) operation-class system args)))))
-        (when systems-being-operated ;; Upgrade if loading a system from another one.
-          (upgrade))
-        (unless (version-satisfies system version)
-          (error 'missing-component-of-version :requires system :version version))
-        (let ((plan (traverse op system)))
-          (when (plan-operates-on-p plan '("asdf"))
-            (upgrade)) ;; Upgrade early if the plan involves upgrading asdf at any time.
-          (perform-plan plan)
-          (values op plan))))))
+           (*compile-file-warnings-behaviour* on-warnings)
+           (*compile-file-failure-behaviour* on-failure))
+      (call-next-method))))
+
+(defmethod operate (operation-class system &rest args &key version &allow-other-keys)
+  (let* ((system (etypecase system
+                   (system system)
+                   ((or string symbol) (find-system system))))
+         ;; I'd like to remove-keys :force :force-not :verbose, but swank.asd relies on :force (!).
+         (op (apply 'make-operation operation-class args))
+         (systems-being-operated *systems-being-operated*)
+         (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))
+    (check-type system system)
+    (setf (gethash (coerce-name system) *systems-being-operated*) system)
+    (flet ((upgrade ()
+             ;; If we needed to upgrade ASDF to achieve our goal,
+             ;; then do it specially as the first thing,
+             ;; which will invalidate all existing systems;
+             ;; afterwards, try again with the new OPERATE function,
+             ;; which on some implementations may be a new symbol.
+             (unless (gethash "asdf" *systems-being-operated*)
+               (upgrade-asdf)
+               (return-from operate
+                 (apply (find-symbol* 'operate :asdf) operation-class system args)))))
+      (when systems-being-operated ;; Upgrade if loading a system from another one.
+        (upgrade))
+      (unless (version-satisfies system version)
+        (error 'missing-component-of-version :requires system :version version))
+      (let ((plan (apply 'traverse op system args)))
+        (when (plan-operates-on-p plan '("asdf"))
+          (upgrade)) ;; Upgrade early if the plan involves upgrading asdf at any time.
+        (perform-plan plan)
+        (values op plan)))))
 
 (defun* oos (operation-class system &rest args
              &key force force-not verbose version &allow-other-keys)
@@ -4688,17 +4714,16 @@ with a different configuration, so the configuration would be re-read then."
   ;; and its dependencies if requested.
   ;; This list may be restricted to sub-components of SYSTEM
   ;; if GATHER-ALL = NIL (default), and it may include the system itself.
-  (let* ((forced (normalize-forced-systems (if other-systems :all t) system))
-         (forced-not (normalize-forced-systems (if other-systems nil :all) system))
-         (tree (traverse (make-instance 'load-op :force forced :force-not forced-not) system)))
-    (append
-     (loop :for (op . component) :in tree
-       :when (and (typep op 'load-op)
-                  (typep component filter-type))
-       :collect (progn
-                  (when (eq component system) (setf include-self nil))
-                  (cons operation component)))
-     (and include-self (list (cons operation system))))))
+  (let ((tree (traverse-sequentially (make-operation 'load-op) system
+                                     :force (if other-systems :all t)
+                                     :force-not (if other-systems nil :all))))
+    `(,@(loop :for (op . component) :in tree
+              :when (and (typep op 'load-op)
+                         (typep component filter-type))
+                :collect (progn
+                           (when (eq component system) (setf include-self nil))
+                           `(,operation . ,component)))
+      ,@(and include-self `((,operation . ,system))))))
 
 (defgeneric* trivial-system-p (component))
 
@@ -4938,10 +4963,8 @@ with a different configuration, so the configuration would be re-read then."
       (if (bundle-op-monolithic-p o)
           (values 'monolithic-lib-op 'monolithic-fasl-op)
           (values 'lib-op 'fasl-op))
-    (list (list (make-instance lib-op :parent o :args (bundle-op-build-args o))
-                s)
-          (list (make-instance fasl-op :parent o :args (bundle-op-build-args o))
-                s))))
+    `((,(find-operation o lib-op) ,s)
+      (,(find-operation o fasl-op) ,s))))
 
 (defmethod component-depends-on ((o binary-op) (s system))
   `(,@(loop :for dep :in (binary-op-dependencies o s)

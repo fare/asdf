@@ -187,7 +187,7 @@ is bound, write a message and exit on an error.  If
 (defun compile-asdf (&optional (output *asdf-fasl*))
   (ensure-directories-exist *asdf-fasl*)
   ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
-  (handler-bind (#+sbcl (sb-c::simple-compiler-note #'muffle-warning)
+  (handler-bind (#+sbcl ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning) #'muffle-warning)
                  #+(and ecl (not ecl-bytecmp))
                  ((or c:compiler-note c::compiler-debug-note
                       c:compiler-warning) ;; ECL emits more serious warnings than it should.
