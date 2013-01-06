@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.55: Another System Definition Facility.
+;;; This is ASDF 2.26.56: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -92,6 +92,12 @@
   #+mkcl (require :cmp)
   #+mkcl (setq clos::*redefine-class-in-place* t) ;; Make sure we have strict ANSI class redefinition semantics
 
+  ;;; Important notice for whom it concerns. The crux of the matter is that
+  ;;; TRAVERSE can be completely refactored, and so after the find-system returns, it's too late.
+  (defun asdf-upgrade-error ()
+    (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
+            Otherwise, when you upgrade ASDF, you must do it before you operate on any system.~%"))
+
   ;;; Package setup, step 2.
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
@@ -120,7 +126,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.55")
+         (asdf-version "2.26.56")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -242,7 +248,7 @@
             #:compute-action-stamp #:component-load-dependencies #:action-valid-p
             #:component-depends-on #:perform-plan #:mark-operation-done #:operation-forced
             #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file #:operate #:find-component #:find-system
+            #:system-source-file #:operate #:find-system #:find-component #:find-operation
             #:apply-output-translations #:translate-pathname* #:resolve-location
             #:system-relative-pathname #:source-file-type #:builtin-system-p
             #:inherit-source-registry #:process-source-registry #:process-source-registry-directive
@@ -1247,29 +1253,31 @@ Returns two values:
     ;; since we've stopped trying to recycle previously-installed systems.
     (handler-bind ((style-warning #'muffle-warning))
       (when (find-class 'operation nil)
-        (eval '(defmethod shared-initialize :after ((o operation) slot-names &rest initargs &key)
-                (declare (ignorable o slot-names initargs)) (values))))
-      (when (find-class 'component nil)
-        (eval '(defmethod reinitialize-instance :after ((c component) &rest initargs &key)
-                (declare (ignorable c initargs)) (values))))
-      (when (find-class 'module nil)
-        (eval '(defmethod reinitialize-instance :after ((m module) &rest initargs &key)
-                (declare (ignorable m initargs)) (values)))
-        (eval '(defmethod update-instance-for-redefined-class :after
-                ((m module) added deleted plist &key)
-                (declare (ignorable m added deleted plist))
-                (when (and (member 'children added) (member 'components deleted))
-                  (setf (slot-value m 'children)
-                        ;; old ECLs provide an alist instead of a plist(!)
-                        (if (or #+ecl (consp (first plist))) (or #+ecl (cdr (assoc 'components plist)))
-                            (getf plist 'components)))
-                  (compute-children-by-name m))
-                (when (typep m 'system)
-                  (when (member 'source-file added)
-                    (%set-system-source-file
-                     (probe-asd (component-name m) (component-pathname m)) m))
-                  (when (equal (component-name m) "asdf")
-                    (setf (component-version m) *asdf-version*)))))))))
+        (eval
+         '(progn
+           (defun* make-sub-operation (c o dep-c dep-o)
+            (declare (ignore c o dep-c dep-o)) (asdf-upgrade-error))
+           (defmethod shared-initialize :after ((o operation) slot-names &rest initargs &key)
+             (declare (ignorable o slot-names initargs)) (values))
+           (defmethod reinitialize-instance :after ((c component) &rest initargs &key)
+             (declare (ignorable c initargs)) (values))
+           (defmethod reinitialize-instance :after ((m module) &rest initargs &key)
+             (declare (ignorable m initargs)) (values))
+           (defmethod update-instance-for-redefined-class :after
+               ((m module) added deleted plist &key)
+             (declare (ignorable m added deleted plist))
+             (when (and (member 'children added) (member 'components deleted))
+               (setf (slot-value m 'children)
+                     ;; old ECLs provide an alist instead of a plist(!)
+                     (if (or #+ecl (consp (first plist))) (or #+ecl (cdr (assoc 'components plist)))
+                         (getf plist 'components)))
+               (compute-children-by-name m))
+             (when (typep m 'system)
+               (when (member 'source-file added)
+                 (%set-system-source-file
+                  (probe-asd (component-name m) (component-pathname m)) m))
+               (when (equal (component-name m) "asdf")
+                 (setf (component-version m) *asdf-version*))))))))))
 
 ;;;; -------------------------------------------------------------------------
 ;;; Classes, Conditions
@@ -2555,11 +2563,17 @@ in some previous image, or T if it needs to be done.")
 
 ;; backward-compatibility
 (defgeneric* operation-on-warnings (operation))
+(defgeneric* operation-on-failure (operation))
+#-gcl<2.7 (defgeneric* (setf operation-on-warnings) (x operation))
+#-gcl<2.7 (defgeneric* (setf operation-on-failure) (x operation))
 (defmethod operation-on-warnings ((o operation))
   (declare (ignorable o)) *compile-file-warnings-behaviour*)
-(defgeneric* operation-on-failure (operation))
 (defmethod operation-on-failure ((o operation))
   (declare (ignorable o)) *compile-file-failure-behaviour*)
+(defmethod (setf operation-on-warnings) (x (o operation))
+  (declare (ignorable o)) (setf *compile-file-warnings-behaviour* x))
+(defmethod (setf operation-on-failure) (x (o operation))
+  (declare (ignorable o)) (setf *compile-file-failure-behaviour* x))
 
 (defun* ensure-all-directories-exist (pathnames)
    (dolist (pathname pathnames)
@@ -4683,7 +4697,7 @@ with a different configuration, so the configuration would be re-read then."
   (declare (ignorable initargs name-suffix))
   (unless name-suffix-p
     (setf (slot-value instance 'name-suffix)
-          (if (bundle-op-monolithic-p instance) ".system-and-dependencies" ".system")))
+          (if (bundle-op-monolithic-p instance) ".all-systems" ".system")))
   (when (typep instance 'monolithic-bundle-op)
     (destructuring-bind (&rest original-initargs
                          &key lisp-files prologue-code epilogue-code
