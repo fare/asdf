@@ -600,11 +600,33 @@ and NIL NAME, TYPE and VERSION components"
       ((and (consp d) (eq :absolute (first d))) `(:root ,@(rest d)))
       (t d))))
 
-(defun* make-pathname* (&key host device directory name type version defaults)
-  (make-pathname
-   :defaults (or defaults *default-pathname-defaults*)
-   :host host :device device :name name :type type :version version
-   :directory (denormalize-pathname-directory-component directory)))
+(defun* make-pathname* (&key (host nil host-supplied-p)
+                             (device nil device-supplied-p)
+                             (directory nil directory-supplied-p)
+                             (name nil name-supplied-p)
+                             (type nil type-supplied-p)
+                             (version nil version-supplied-p)
+                             (defaults nil))
+  (when defaults
+    (unless (pathnamep defaults)
+      (setf defaults
+            (parse-namestring defaults))))
+  (let ((args
+          `(,@(when host-supplied-p
+                `(:host ,host))
+              ,@(when device-supplied-p
+                  `(:device ,device))
+              ,@(when directory-supplied-p
+                  `(:directory ,directory))
+              ,@(when name-supplied-p
+                  `(:name ,name))
+              ,@(when type-supplied-p
+                  `(:type ,type))
+              ,@(when version-supplied-p
+                  `(:version ,version)))))
+    (apply #'make-pathname
+           :defaults (or defaults *default-pathname-defaults*)
+           args)))
    
 
 (defun* make-pathname-logical (pathname host)
