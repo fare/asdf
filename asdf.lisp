@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.59: Another System Definition Facility.
+;;; This is ASDF 2.26.60: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -126,7 +126,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.59")
+         (asdf-version "2.26.60")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1597,16 +1597,14 @@ hopefully, if done consistently, that won't affect program behavior too much.")
   "Hook for an extension to define a function to automatically detect a file's encoding")
 
 (defun* detect-encoding (pathname)
-  (funcall *encoding-detection-hook* pathname))
+  (if (and pathname (probe-file pathname))
+      (funcall *encoding-detection-hook* pathname)
+      *default-encoding*))
 
 (defmethod component-encoding ((c component))
   (or (loop :for x = c :then (component-parent x)
         :while x :thereis (%component-encoding x))
-      (call-next-method)))
-(defmethod component-encoding ((c file-component))
-  (detect-encoding (component-pathname c)))
-(defmethod component-encoding ((c parent-component))
-  *default-encoding*)
+      (detect-encoding (component-pathname c))))
 
 (defun* default-encoding-external-format (encoding)
   (case encoding

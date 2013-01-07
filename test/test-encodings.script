@@ -1,0 +1,106 @@
+;;; -*- Lisp -*-
+(load "script-support.lisp")
+(load-asdf)
+
+(defparameter *lambda-string* nil)
+
+(defun string-char-codes (s)
+  (loop :for c :across s :collect (char-code c)))
+
+(defun expected-char-codes (x)
+  #-asdf-unicode '(#xCE #xBB)
+  #+asdf-unicode
+  (ecase x
+    (:utf-8 '(955))
+    ((:latin1 :latin-1) '(206 187))
+    ((:latin2 :latin-2) '(206 357))
+    ((:latin3 :latin-3) '(206 287))
+    (:koi8-r '(1085 9577))
+    (:default (expected-char-codes
+               #+clozure ccl:*default-external-format*
+               #+sbcl sb-impl::*default-external-format*
+               #-(or clozure sbcl) (error "can't determine default external-format")))))
+
+(defun reset-lambda ()
+  (setf *lambda-string* nil)
+  (asdf::delete-file-if-exists (asdf::compile-file-pathname* "lambda.lisp")))
+
+(defmacro with-test ((encoding &key (op 'asdf:load-source-op) (path "lambda")) defsystem &body body)
+  (let ((sys (second defsystem)))
+    `(progn
+       (format t "~&Test ~A: should be ~A~%" ',sys ',encoding)
+       (reset-lambda)
+       ,defsystem
+       (assert-equal (asdf:component-encoding (asdf:find-component ',sys ',path)) ',encoding)
+       ,@(when op `((asdf:operate ',op ',(second defsystem))))
+       ,@body
+       (eval `(assert-equal (string-char-codes ,*lambda-string*) (expected-char-codes ',',encoding))))))
+
+(quit-on-error
+
+  (with-test (:utf-8)
+    (defsystem :test-encoding-explicit-u8
+      :components ((:file "lambda" :encoding :utf-8))))
+
+  #+(and asdf-unicode (or clozure sbcl))
+  (progn
+    #+clozure (setf ccl:*default-external-format* :latin3)
+    #+sbcl (setf sb-impl::*default-external-format* :latin-3)
+    (with-test (:default)
+      (defsystem :test-encoding-explicit-default
+        :components ((:file "lambda" :encoding :default))))
+    (with-test (:default)
+      (defsystem :test-encoding-implicit-default
+        :components ((:file "lambda")))))
+
+  #+asdf-unicode
+  (progn
+    ;; BEWARE: For testing purposes, we assume ASDF-ENCODINGS is under the same root as ASDF.
+    (pushnew (asdf::subpathname *asdf-directory* "../asdf-encodings/") asdf:*central-registry*)
+    (asdf:load-system :asdf-encodings)
+    #-lispworks
+    (with-test (:latin-2)
+      (defsystem :test-encoding-implicit-autodetect
+        :components ((:file "lambda"))))
+    #+sbcl
+    (with-test (:koi8-r)
+      (defsystem :test-encoding-explicit-koi8-r
+        :components ((:file "lambda" :encoding :koi8-r)))))
+
+  (with-test (:utf-8)
+    (defsystem :test-file-encoding-u8
+      :encoding :latin-1
+      :components ((:file "lambda" :encoding :utf-8))))
+  (with-test (:latin-1)
+    (defsystem :test-file-encoding-l1
+      :encoding :utf-8
+      :components ((:file "lambda" :encoding :latin-1))))
+  (with-test (:utf-8 :op asdf:load-source-op)
+    (defsystem :test-system-encoding-u8
+      :encoding :utf-8
+      :components ((:file "lambda"))))
+  (with-test (:utf-8 :op asdf:load-op)
+    (defsystem :test-system-encoding-u8-load-op
+      :encoding :utf-8
+      :components ((:file "lambda"))))
+  (with-test (:latin-1)
+    (defsystem :test-system-encoding-l1
+      :encoding :latin-1
+      :components ((:file "lambda"))))
+  (with-test (:latin-1 :op asdf:load-op)
+    (defsystem :test-system-encoding-l1-load-op
+      :encoding :latin-1
+      :components ((:file "lambda"))))
+  (with-test (:utf-8 :path ("foo" "lambda"))
+    (defsystem :test-module-encoding-u8
+      :encoding :latin-1
+      :components
+      ((:module "foo" :pathname "" :encoding :utf-8
+        :components ((:file "lambda"))))))
+  (with-test (:latin-1 :path ("foo" "lambda"))
+    (defsystem :test-module-encoding-l1
+      :encoding :utf-8
+      :components
+      ((:module "foo" :pathname "" :encoding :latin-1
+        :components ((:file "lambda"))))))
+  t)

@@ -66,10 +66,11 @@
     (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
       (load old-asdf))))
 
+(defvar *debug-symbols*
+  '( #|:COMPILE-FILE* :perform-lisp-compilation|# ))
+
 (defun configure-asdf ()
-  #+ecl (eval `(trace ,@(loop :for s :in '(:COMPILE-FILE* :perform-lisp-compilation)
-                              :collect (find-symbol (string s) :asdf))
-                      c::builder))
+  (eval `(trace ,@(loop :for s :in *debug-symbols* :collect (find-symbol (string s) :asdf))))
   (funcall (find-symbol (string :initialize-source-registry) :asdf)
            `(:source-registry :ignore-inherited-configuration))
   (let ((registry (find-symbol (string :*central-registry*) :asdf)))
