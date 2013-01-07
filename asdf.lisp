@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.56: Another System Definition Facility.
+;;; This is ASDF 2.26.57: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -126,7 +126,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.56")
+         (asdf-version "2.26.57")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -600,12 +600,13 @@ and NIL NAME, TYPE and VERSION components"
       ((and (consp d) (eq :absolute (first d))) `(:root ,@(rest d)))
       (t d))))
 
-(defun* make-pathname* (&key host device directory name type version defaults)
-  (make-pathname
-   :defaults (or defaults *default-pathname-defaults*)
-   :host host :device device :name name :type type :version version
-   :directory (denormalize-pathname-directory-component directory)))
-   
+(defun* make-pathname* (&rest keys &key (directory nil directoryp)
+                              host device name type version defaults)
+  (declare (ignore host device name type version defaults))
+  (apply 'make-pathname
+         (append (when directoryp
+                   `(:directory ,(denormalize-pathname-directory-component directory)))
+                 keys)))
 
 (defun* make-pathname-logical (pathname host)
   "Take a PATHNAME's directory, name, type and version components,
@@ -1509,6 +1510,67 @@ Returns two values:
               (acons property new-value (slot-value c 'properties)))))
   new-value)
 
+(defclass proto-system () ; slots to keep when resetting a system
+  ;; To preserve identity for all objects, we'd need keep the components slots
+  ;; but also to modify parse-component-form to reset the recycled objects.
+  ((name) (source-file) #|(children) (children-by-names)|#))
+
+;; Backward-compatibility: inherit from module. ASDF3: only inherit from parent-component.
+(defclass system (module proto-system)
+  (;; {,long-}description is now inherited from component, but we add the legacy accessors
+   (description :accessor system-description)
+   (long-description :accessor system-long-description)
+   (author :accessor system-author :initarg :author)
+   (maintainer :accessor system-maintainer :initarg :maintainer)
+   (licence :accessor system-licence :initarg :licence
+            :accessor system-license :initarg :license)
+   (source-file :initarg :source-file :writer %set-system-source-file) ; upgrade issues on CLISP, CMUCL
+   (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
+
+(defmethod component-pathname ((system system))
+  (if (or (slot-boundp system 'relative-pathname)
+            (slot-boundp system 'absolute-pathname)
+            (slot-value system 'source-file))
+    (call-next-method)
+    (default-directory)))
+
+;;; component subclasses
+
+(defclass file-component (child-component)
+  ((type :accessor file-type :initarg :type))) ; no default
+(defclass source-file (file-component)
+  ((type :initform nil))) ;; NB: many systems have come to rely on this default.
+(defclass cl-source-file (source-file)
+  ((type :initform "lisp")))
+(defclass cl-source-file.cl (cl-source-file)
+  ((type :initform "cl")))
+(defclass cl-source-file.lsp (cl-source-file)
+  ((type :initform "lsp")))
+(defclass c-source-file (source-file)
+  ((type :initform "c")))
+(defclass java-source-file (source-file)
+  ((type :initform "java")))
+(defclass static-file (source-file)
+  ((type :initform nil)))
+(defclass doc-file (static-file) ())
+(defclass html-file (doc-file)
+  ((type :initform "html")))
+
+(defmethod source-file-type ((component parent-component) system) ; not just for source-file. ASDF3: rename.
+  (declare (ignorable component system))
+  :directory)
+(defmethod source-file-type ((component file-component) system)
+  (declare (ignorable system))
+  (file-type component))
+
+(defmethod component-relative-pathname ((component component))
+  (coerce-pathname
+   (or (slot-value component 'relative-pathname)
+       (component-name component))
+   :type (source-file-type component (component-system component))
+   :defaults (component-parent-pathname component)))
+
+;;;; Encodings
 (defvar *default-encoding* :default
   "Default encoding for source files.
 The default value :default preserves the legacy behavior.
@@ -1540,7 +1602,11 @@ hopefully, if done consistently, that won't affect program behavior too much.")
 (defmethod component-encoding ((c component))
   (or (loop :for x = c :then (component-parent x)
         :while x :thereis (%component-encoding x))
-      (detect-encoding (component-pathname c))))
+      (call-next-method)))
+(defmethod component-encoding ((c file-component))
+  (detect-encoding (component-pathname c)))
+(defmethod component-encoding ((c parent-component))
+  *default-encoding*)
 
 (defun* default-encoding-external-format (encoding)
   (case encoding
@@ -1560,30 +1626,6 @@ and implementation-defined external-format's")
 
 (defmethod component-external-format ((c component))
   (encoding-external-format (component-encoding c)))
-
-(defclass proto-system () ; slots to keep when resetting a system
-  ;; To preserve identity for all objects, we'd need keep the components slots
-  ;; but also to modify parse-component-form to reset the recycled objects.
-  ((name) (source-file) #|(children) (children-by-names)|#))
-
-;; Backward-compatibility: inherit from module. ASDF3: only inherit from parent-component.
-(defclass system (module proto-system)
-  (;; {,long-}description is now inherited from component, but we add the legacy accessors
-   (description :accessor system-description)
-   (long-description :accessor system-long-description)
-   (author :accessor system-author :initarg :author)
-   (maintainer :accessor system-maintainer :initarg :maintainer)
-   (licence :accessor system-licence :initarg :licence
-            :accessor system-license :initarg :license)
-   (source-file :initarg :source-file :writer %set-system-source-file) ; upgrade issues on CLISP, CMUCL
-   (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
-
-(defmethod component-pathname ((system system))
-  (if (or (slot-boundp system 'relative-pathname)
-            (slot-boundp system 'absolute-pathname)
-            (slot-value system 'source-file))
-    (call-next-method)
-    (default-directory)))
 
 ;;;; -------------------------------------------------------------------------
 ;;;; version-satisfies
@@ -2086,42 +2128,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (declare (ignorable combinator)) ;; See https://bugs.launchpad.net/asdf/+bug/527788
   (resolve-dependency-name component (first arguments) (second arguments)))
 
-;;; component subclasses
-
-(defclass file-component (child-component)
-  ((type :accessor file-type :initarg :type))) ; no default
-(defclass source-file (file-component)
-  ((type :initform nil))) ;; NB: many systems have come to rely on this default.
-(defclass cl-source-file (source-file)
-  ((type :initform "lisp")))
-(defclass cl-source-file.cl (cl-source-file)
-  ((type :initform "cl")))
-(defclass cl-source-file.lsp (cl-source-file)
-  ((type :initform "lsp")))
-(defclass c-source-file (source-file)
-  ((type :initform "c")))
-(defclass java-source-file (source-file)
-  ((type :initform "java")))
-(defclass static-file (source-file)
-  ((type :initform nil)))
-(defclass doc-file (static-file) ())
-(defclass html-file (doc-file)
-  ((type :initform "html")))
-
-(defmethod source-file-type ((component parent-component) system) ; not just for source-file. ASDF3: rename.
-  (declare (ignorable component system))
-  :directory)
-(defmethod source-file-type ((component file-component) system)
-  (declare (ignorable system))
-  (file-type component))
-
-(defmethod component-relative-pathname ((component component))
-  (coerce-pathname
-   (or (slot-value component 'relative-pathname)
-       (component-name component))
-   :type (source-file-type component (component-system component))
-   :defaults (component-parent-pathname component)))
-
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
 
@@ -2556,10 +2562,11 @@ in some previous image, or T if it needs to be done.")
 ;;;; -------------------------------------------------------------------------
 ;;;; compile-op
 
-(defclass compile-op (downward-operation)
+(defclass basic-compile-op (operation)
   ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
    (flags :initarg :flags :accessor compile-op-flags
           :initform nil)))
+(defclass compile-op (basic-compile-op downward-operation) ())
 
 ;; backward-compatibility
 (defgeneric* operation-on-warnings (operation))
@@ -2608,10 +2615,10 @@ in some previous image, or T if it needs to be done.")
 
 ;;; perform is required to check output-files to find out where to put
 ;;; its answers, in case it has been overridden for site policy
-(defmethod perform ((o compile-op) (c cl-source-file))
+(defun* perform-lisp-compilation (o c)
   (let (;; Before 2.26.53, that was unfortunately component-pathname. Now,
         ;; we consult input-files, the first of which should be the one to compile-file
-        (input-file (first (input-files o c))) 
+        (input-file (first (input-files o c)))
         ;; on some implementations, there are more than one output-file,
         ;; but the first one should always be the primary fasl that gets loaded.
         (output-file (first (output-files o c))))
@@ -2639,15 +2646,18 @@ in some previous image, or T if it needs to be done.")
           (:error (error 'compile-warned :component c :operation o))
           (:ignore nil))))))
 
+(defmethod perform ((o compile-op) (c cl-source-file))
+  (perform-lisp-compilation o c))
+
 (defmethod output-files ((o compile-op) (c cl-source-file))
   (declare (ignorable o))
-  (let* ((p (lispize-pathname (component-pathname c)))
-         (f (compile-file-pathname ;; fasl
-             p #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl))
-         #+mkcl (o (compile-file-pathname p :fasl-p nil))) ;; object file
+  (let* ((i (first (input-files o c)))
+         (f (compile-file-pathname
+             i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl))
+         #+mkcl (o (compile-file-pathname i :fasl-p nil))) ;; object file
     #+ecl (if (use-ecl-byte-compiler-p)
               (list f)
-              (list (compile-file-pathname p :type :object) f))
+              (list (compile-file-pathname i :type :object) f))
     #+mkcl (list o f)
     #-(or ecl mkcl) (list f)))
 
@@ -2686,13 +2696,7 @@ in some previous image, or T if it needs to be done.")
         (perform (find-operation o 'compile-op) c)))))
 
 (defmethod perform ((o load-op) (c cl-source-file))
-  (map () #'load
-       #-(or ecl mkcl)
-       (input-files o c)
-       #+(or ecl mkcl)
-       (loop :for i :in (input-files o c)
-             :unless (string= (pathname-type i) "fas")
-             :collect (compile-file-pathname (lispize-pathname i)))))
+  (load (first (input-files o c))))
 
 (defmethod perform ((o load-op) (c static-file))
   (declare (ignorable o c))
@@ -2747,11 +2751,14 @@ in some previous image, or T if it needs to be done.")
   (declare (ignorable o))
   `((prepare-source-op ,c) ,@(call-next-method)))
 
-(defmethod perform ((o load-source-op) (c cl-source-file))
-  (declare (ignorable o))
+(defun perform-load-lisp-source (c)
   (call-with-around-compile-hook
    c #'(lambda () (load (component-pathname c)
                         #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)))))
+
+(defmethod perform ((o load-source-op) (c cl-source-file))
+  (declare (ignorable o))
+  (perform-load-lisp-source c))
 
 (defmethod perform ((o load-source-op) (c static-file))
   (declare (ignorable o c))
@@ -4673,12 +4680,14 @@ with a different configuration, so the configuration would be re-read then."
 (defclass dll-op (bundle-op)
   ((type :initform :dll)))
 
-(defclass monolithic-bundle-op (bundle-op)
+(defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
+
+(defclass monolithic-bundle-op (monolithic-op bundle-op)
   ((prologue-code :accessor monolithic-op-prologue-code)
    (epilogue-code :accessor monolithic-op-epilogue-code)))
 
-(defun* bundle-op-monolithic-p (op)
-  (typep op 'monolithic-bundle-op))
+(defun* operation-monolithic-p (op)
+  (typep op 'monolithic-op))
 
 (defclass monolithic-fasl-op (monolithic-bundle-op fasl-op) ())
 
@@ -4697,7 +4706,7 @@ with a different configuration, so the configuration would be re-read then."
   (declare (ignorable initargs name-suffix))
   (unless name-suffix-p
     (setf (slot-value instance 'name-suffix)
-          (if (bundle-op-monolithic-p instance) ".all-systems" ".system")))
+          (if (operation-monolithic-p instance) ".all-systems" ".system")))
   (when (typep instance 'monolithic-bundle-op)
     (destructuring-bind (&rest original-initargs
                          &key lisp-files prologue-code epilogue-code
@@ -4719,7 +4728,8 @@ with a different configuration, so the configuration would be re-read then."
     (remf args :ld-flags)
     args))
 
-(defun* gather-components (operation system &key other-systems filter-type include-self)
+(defun* gather-components (operation system
+                                     &key other-systems filter-type include-self)
   ;; This function creates a list of actions pairing the operation with sub-components of system
   ;; and its dependencies if requested.
   ;; This list may be restricted to sub-components of SYSTEM
@@ -4774,7 +4784,7 @@ with a different configuration, so the configuration would be re-read then."
 ;;;
 (defmethod bundle-sub-operations ((o lib-op) c)
   (gather-components (find-operation o 'compile-op) c
-                     :other-systems (bundle-op-monolithic-p o)
+                     :other-systems (operation-monolithic-p o)
                      :filter-type '(not system)))
 ;;;
 ;;; SHARED LIBRARIES
@@ -4906,10 +4916,10 @@ with a different configuration, so the configuration would be re-read then."
   nil)
 (defmethod input-files (o (c compiled-file))
   (declare (ignorable o))
-  (load (component-pathname c)))
+  (component-pathname c))
 (defmethod perform ((o load-op) (c compiled-file))
   (declare (ignorable o))
-  (load (component-pathname c)))
+  (load (first (input-files o c))))
 (defmethod perform ((o load-source-op) (c compiled-file))
   (perform (find-operation o 'load-op) c))
 (defmethod perform ((o load-fasl-op) (c compiled-file))
@@ -4970,7 +4980,7 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun* binary-op-dependencies (o s)
   (multiple-value-bind (lib-op fasl-op)
-      (if (bundle-op-monolithic-p o)
+      (if (operation-monolithic-p o)
           (values 'monolithic-lib-op 'monolithic-fasl-op)
           (values 'lib-op 'fasl-op))
     `((,(find-operation o lib-op) ,s)
@@ -5185,6 +5195,112 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
   (declare (ignore force verbose version))
   (apply #'operate 'bundle-op system args))
 );mkcl
+
+;;;
+;;; Concatenate sources
+;;;
+
+(defclass concatenated-source-system (system)
+  ((concatenated-source-file
+    :initform nil :initarg :concatenated-source-file :reader system-concatenated-source-file)
+   (translate-output-p
+    :initform t :initarg :translate-output-p :reader system-translate-output-p)))
+
+(defmethod system-concatenated-source-file ((s system))
+  (declare (ignorable s))
+  nil)
+(defmethod system-translate-output-p ((s system))
+  (declare (ignorable s))
+  t)
+
+(defclass concatenate-source-op (operation) ())
+(defclass load-concatenated-source-op (basic-load-op operation) ())
+(defclass compile-concatenated-source-op (basic-compile-op operation) ())
+(defclass load-compiled-concatenated-source-op (basic-load-op operation) ())
+(defclass monolithic-concatenate-source-op (concatenate-source-op monolithic-op) ())
+(defclass monolithic-load-concatenated-source-op (load-concatenated-source-op monolithic-op) ())
+(defclass monolithic-compile-concatenated-source-op (compile-concatenated-source-op monolithic-op) ())
+(defclass monolithic-load-compiled-concatenated-source-op (load-compiled-concatenated-source-op monolithic-op) ())
+
+(defmethod input-files ((o concatenate-source-op) (s system))
+  (loop :with op = (make-operation 'compile-op)
+        :with components = (gather-components op s
+                                              :include-self nil
+                                              :filter-type 'source-file
+                                              :other-systems (operation-monolithic-p o))
+        :with non-cl-source-files = nil
+        :with encoding = (or (component-encoding s) *default-encoding*)
+        :with other-encodings = '()
+        :with around-compile = (around-compile-hook s)
+        :with other-around-compile = '()
+        :for (o . c) :in components
+        :do (cond
+              ((typep c 'cl-source-file)
+               (let ((e (component-encoding c)))
+                 (unless (equal e encoding)
+                   (pushnew e other-encodings :test 'equal)))
+               (let ((a (around-compile-hook c)))
+                 (unless (equal a around-compile)
+                   (pushnew a other-around-compile :test 'equal))))
+              (t
+               (push c non-cl-source-files)))
+        :append (input-files o c) :into inputs
+        :finally
+           (when non-cl-source-files
+             (warn "~S depends on these non CL source files: ~A"
+                   'concatenated-source-op non-cl-source-files))
+           (when other-encodings
+             (warn "~S uses encoding ~A but has sources that use these encodings: ~A"
+                   'concatenated-source-op encoding other-encodings))
+           (when other-around-compile
+             (warn "~S uses around-compile hook ~A but has sources that use these hooks: ~A"
+                   'concatenated-source-op around-compile other-around-compile))
+           (return inputs)))
+
+(defmethod output-files ((o concatenate-source-op) (s system))
+  (declare (ignorable o))
+  (let ((of (or (system-concatenated-source-file s) (strcat (coerce-name s) ".lisp")))
+        (top (system-translate-output-p s)))
+    (values (list (system-relative-pathname s of)) (not top))))
+(defmethod input-files ((o load-concatenated-source-op) (s system))
+  (output-files (find-operation o 'concatenate-source-op) s))
+(defmethod input-files ((o compile-concatenated-source-op) (s system))
+  (output-files (find-operation o 'concatenate-source-op) s))
+(defmethod output-files ((o compile-concatenated-source-op) (s system))
+  (let ((input (first (input-files o s))))
+    (list (compile-file-pathname input))))
+(defmethod input-files ((o load-compiled-concatenated-source-op) (s system))
+  (output-files (find-operation o 'compile-concatenated-source-op) s))
+
+(defmethod perform ((o concatenate-source-op) (s system))
+  (let ((inputs (input-files o s))
+        (output (output-file o s)))
+    (concatenate-files inputs output)))
+(defmethod perform ((o load-concatenated-source-op) (s system))
+  (declare (ignorable o))
+  (perform-load-lisp-source s))
+(defmethod perform ((o compile-concatenated-source-op) (s system))
+  (perform-lisp-compilation o s))
+(defmethod perform ((o load-compiled-concatenated-source-op) (s system))
+  (load (first (input-files o s))))
+
+(defmethod component-depends-on ((o concatenate-source-op) (s system))
+  (declare (ignorable o s)) nil)
+(defmethod component-depends-on ((o load-concatenated-source-op) (s system))
+  (declare (ignorable o s)) `((prepare-op ,s) (concatenate-source-op ,s)))
+(defmethod component-depends-on ((o compile-concatenated-source-op) (s system))
+  (declare (ignorable o s)) `((concatenate-source-op ,s)))
+(defmethod component-depends-on ((o load-compiled-concatenated-source-op) (s system))
+  (declare (ignorable o s)) `((compile-concatenated-source-op ,s)))
+
+(defmethod component-depends-on ((o monolithic-concatenate-source-op) (s system))
+  (declare (ignorable o s)) nil)
+(defmethod component-depends-on ((o monolithic-load-concatenated-source-op) (s system))
+  (declare (ignorable o s)) `((monolithic-concatenate-source-op ,s)))
+(defmethod component-depends-on ((o monolithic-compile-concatenated-source-op) (s system))
+  (declare (ignorable o s)) `((monolithic-concatenate-source-op ,s)))
+(defmethod component-depends-on ((o monolithic-load-compiled-concatenated-source-op) (s system))
+  (declare (ignorable o s)) `((monolithic-compile-concatenated-source-op ,s)))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Done!

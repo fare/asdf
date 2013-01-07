@@ -1,0 +1,35 @@
+;;; -*- Lisp -*-
+(load "script-support.lisp")
+(load-asdf)
+
+(quit-on-error
+  (defsystem :test-concatenate-source
+    :depends-on (:file3-only)
+    :components
+    ((:file "file2" :depends-on ("foo"))
+     (:module "foo" :pathname ""
+       :components ((:file "file1")
+                    (:file "file4" :if-feature (:not :common-lisp))))))
+  (let ((mcso (asdf::make-operation 'asdf::monolithic-concatenate-source-op))
+        (mccso (asdf::make-operation 'asdf::monolithic-compile-concatenated-source-op))
+        (mlccso (asdf::make-operation 'asdf::monolithic-load-compiled-concatenated-source-op))
+        (sys (find-system :test-concatenate-source)))
+    (assert (asdf::operation-monolithic-p mcso))
+    (assert-equal
+     (input-files mcso sys)
+     (loop :for n :in '(3 1 2)
+           :collect (asdf::subpathname *test-directory* (format nil "file~D.lisp" n))))
+    (assert-equal
+     (output-file mcso sys)
+     (apply-output-translations (asdf::subpathname *test-directory* "test-concatenate-source.lisp")))
+    (assert-equal
+     (output-files mcso sys)
+     (input-files mccso sys))
+    (assert-equal
+     (output-file mccso sys)
+     (apply-output-translations (compile-file-pathname (asdf::subpathname *test-directory* "test-concatenate-source.lisp"))))
+    (assert-equal
+     (output-files mccso sys)
+     (input-files mlccso sys))
+    (operate 'asdf::monolithic-load-compiled-concatenated-source-op sys)
+    (assert (symbol-value (asdf::find-symbol* :*file3* :test-package)))))
