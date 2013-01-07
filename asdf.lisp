@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.58: Another System Definition Facility.
+;;; This is ASDF 2.26.59: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -126,7 +126,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.58")
+         (asdf-version "2.26.59")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -1207,7 +1207,7 @@ the head of the tree"))
 
 (defgeneric* component-self-dependencies (operation component))
 
-(defgeneric* traverse (operation component &key force force-not verbose)
+(defgeneric* traverse (operation component &key &allow-other-keys)
   (:documentation
 "Generate and return a plan for performing OPERATION on COMPONENT.
 
@@ -2385,13 +2385,14 @@ in some previous image, or T if it needs to be done.")
 
 ;;; Computing stamps and traversing the dependency graph of actions.
 
-(defun* visit-dependencies (operation component fun &aux stamp)
+(defun* visit-dependencies (plan operation component fun &aux stamp)
   (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
         :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
           :do (loop :with dep-o = (find-operation operation dep-o-spec)
                     :for dep-c-spec :in dep-c-specs
                     :for dep-c = (resolve-dependency-spec component dep-c-spec)
-                    :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
+                    :when (action-valid-p plan dep-o dep-c)
+                      :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
   stamp)
 
 (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
@@ -2407,7 +2408,7 @@ in some previous image, or T if it needs to be done.")
          ;; When was the thing last actually done? (Now, or ask.)
          (op-time (or just-done (component-operation-time o c)))
          ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
-         (dep-stamp (visit-dependencies o c stamp-lookup))
+         (dep-stamp (visit-dependencies plan o c stamp-lookup))
          ;; Time stamps from the files at hand, and whether any is missing
          (out-stamps (mapcar #'safe-file-write-date out-files))
          (in-stamps (mapcar #'safe-file-write-date in-files))
@@ -2486,7 +2487,7 @@ in some previous image, or T if it needs to be done.")
         ;; Already visited with sufficient need-in-image level: just return the stamp.
         (return (action-stamp status)))
       (labels ((visit-action (niip)
-                 (visit-dependencies operation component
+                 (visit-dependencies plan operation component
                                      #'(lambda (o c) (traverse-action plan o c niip)))
                  (multiple-value-bind (stamp done-p)
                      (compute-action-stamp plan operation component)
@@ -2510,14 +2511,12 @@ in some previous image, or T if it needs to be done.")
         (while-visiting-action (plan operation component) ; maintain context, handle circularity.
           (visit-action eniip))))))
 
-(defun* traverse-sequentially (operation component &rest keys &key force force-not verbose)
-  (declare (ignore force force-not verbose))
+(defun* traverse-sequentially (operation component &rest keys &key &allow-other-keys)
   (let ((plan (apply 'make-instance 'sequential-plan :system (component-system component) keys)))
     (traverse-action plan operation component t)
     (reverse (plan-actions-r plan))))
 
-(defmethod traverse ((o operation) (c component) &rest keys &key force force-not verbose)
-  (declare (ignore force force-not verbose))
+(defmethod traverse ((o operation) (c component) &rest keys &key &allow-other-keys)
   (apply 'traverse-sequentially o c keys))
 
 (defmethod perform ((o operation) (c source-file))
