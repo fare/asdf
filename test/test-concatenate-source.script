@@ -25,9 +25,9 @@
     (assert-equal
      (output-files mcso sys)
      (input-files mccso sys))
-    (assert-equal
-     (output-file mccso sys)
-     (apply-output-translations (compile-file-pathname (asdf::subpathname *test-directory* "test-concatenate-source.lisp"))))
+    (assert-equal ;; on ECL, we get un-equal pathnames.
+     (princ-to-string (output-file mccso sys))
+     (princ-to-string (apply-output-translations (compile-file-pathname (asdf::subpathname *test-directory* "test-concatenate-source.lisp")))))
     (assert-equal
      (output-files mccso sys)
      (input-files mlccso sys))

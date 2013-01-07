@@ -67,6 +67,9 @@
       (load old-asdf))))
 
 (defun configure-asdf ()
+  #+ecl (eval `(trace ,@(loop :for s :in '(:COMPILE-FILE* :perform-lisp-compilation)
+                              :collect (find-symbol (string s) :asdf))
+                      c::builder))
   (funcall (find-symbol (string :initialize-source-registry) :asdf)
            `(:source-registry :ignore-inherited-configuration))
   (let ((registry (find-symbol (string :*central-registry*) :asdf)))
@@ -157,6 +160,7 @@ is bound, write a message and exit on an error.  If
                    #+sbcl (sb-debug:backtrace 69)
                    #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
                    #+clisp (system::print-backtrace)
+                   #+ecl (si::tpl-backtrace)
                    (format *error-output* "~&ABORTING:~% ~A~%" c)
                    (finish-output *error-output*)
                    (finish-output *standard-output*)
@@ -260,7 +264,6 @@ outputs a tag plus a list of variable and their values, returns the last value"
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (DBG :script-support *package* *test-directory* *asdf-directory* *asdf-lisp* *asdf-fasl*
        ))
-
 
 #|
 (DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))

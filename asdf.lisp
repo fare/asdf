@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.57: Another System Definition Facility.
+;;; This is ASDF 2.26.58: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -126,7 +126,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.57")
+         (asdf-version "2.26.58")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -2657,8 +2657,8 @@ in some previous image, or T if it needs to be done.")
          #+mkcl (o (compile-file-pathname i :fasl-p nil))) ;; object file
     #+ecl (if (use-ecl-byte-compiler-p)
               (list f)
-              (list (compile-file-pathname i :type :object) f))
-    #+mkcl (list o f)
+              (list f (compile-file-pathname i :type :object)))
+    #+mkcl (list f o)
     #-(or ecl mkcl) (list f)))
 
 (defmethod component-depends-on ((o compile-op) (c component))
@@ -4600,17 +4600,17 @@ with a different configuration, so the configuration would be re-read then."
 
   (setf *compile-op-compile-file-function* 'compile-file-keeping-object)
 
-  (defun* compile-file-keeping-object (input-file &rest keys &key &allow-other-keys)
+  (defun* compile-file-keeping-object (input-file &rest keys &key output-file &allow-other-keys)
     (#+ecl if #+ecl (use-ecl-byte-compiler-p) #+ecl (apply 'compile-file* input-file keys)
      #+mkcl progn
      (multiple-value-bind (object-file flags1 flags2)
          (apply 'compile-file* input-file
-                #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil keys)
+                #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil
+                :output-file (compile-file-pathname
+                              output-file . #+ecl (:type :object) #+mkcl (:fasl-p nil)) keys)
        (values (and object-file
                     (compiler::build-fasl
-                     (compile-file-pathname object-file
-                                            #+ecl :type #+ecl :fasl #+mkcl :fasl-p #+mkcl t)
-                     #+ecl :lisp-files #+mkcl :lisp-object-files (list object-file))
+                     output-file #+ecl :lisp-files #+mkcl :lisp-object-files (list object-file))
                     object-file)
                flags1
                flags2)))))
