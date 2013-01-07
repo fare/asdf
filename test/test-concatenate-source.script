@@ -15,10 +15,10 @@
         (mlccso (asdf::make-operation 'asdf::monolithic-load-compiled-concatenated-source-op))
         (sys (find-system :test-concatenate-source)))
     (assert (asdf::operation-monolithic-p mcso))
-    (assert-equal
-     (input-files mcso sys)
-     (loop :for n :in '(3 1 2)
-           :collect (asdf::subpathname *test-directory* (format nil "file~D.lisp" n))))
+    (assert-equal ;; on CLISP, we get un-equal pathnames with same namestrings. Sigh.
+     (princ-to-string (input-files mcso sys))
+     (princ-to-string (loop :for n :in '(3 1 2)
+                            :collect (asdf::subpathname *test-directory* (format nil "file~D.lisp" n)))))
     (assert-equal
      (output-file mcso sys)
      (apply-output-translations (asdf::subpathname *test-directory* "test-concatenate-source.lisp")))
