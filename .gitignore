@@ -1,9 +1,10 @@
 # really this is private to my build process
-push
-resbcl
-reccl
-reecl
-regcl
+?
+??
+???
+????
+?????
+generate-asdf.lisp
 
 # Temporary files from documentation build
 doc/asdf/

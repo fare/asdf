@@ -43,13 +43,17 @@ archive:
 		--eval "(rewrite-license)" --eval "(quit)"
 	bin/make-tarball
 
-archive-copy: archive
+archive-copy: archive tmp/asdf.lisp
 	git checkout release
 	bin/rsync-cp tmp/asdf*.tar.gz $(webhome_private)/archives
 	bin/link-tarball $(clnet_home)
 	bin/rsync-cp tmp/asdf.lisp $(webhome_private)
 	${MAKE} push
 	git checkout master
+
+tmp/asdf.lisp: $(wildcard *.lisp)
+	mkdir -p tmp
+	cat header.lisp package.lisp implementation.lisp utility.lisp upgrade.lisp pathname.lisp os.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp user.lisp footer.lisp > $@
 
 push:
 	git status
@@ -139,8 +143,8 @@ test-upgrade:
 		{ echo "upgrade FAILED" ; exit 1 ;} ;; esac ; \
 	done ; done 2>&1 | tee tmp/results/${lisp}-upgrade.text
 
-test-forward-references:
-	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
+test-forward-references: tmp/asdf.lisp
+	${SBCL} --noinform --no-userinit --no-sysinit --load tmp/asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
 
 test-lisp:
 	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
@@ -173,13 +177,13 @@ debian-package: mrproper
 
 # Replace SBCL's ASDF with the current one. -- Not recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
-replace-sbcl-asdf:
-	${SBCL} --eval '(compile-file "asdf.lisp" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
+replace-sbcl-asdf: tmp/asdf.lisp
+	${SBCL} --eval '(compile-file "$<" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
 
 # Replace CCL's ASDF with the current one. -- Not recommended now that CCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
-replace-ccl-asdf:
-	${CCL} --eval '(progn(compile-file "asdf.lisp" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
+replace-ccl-asdf: tmp/asdf.lisp
+	${CCL} --eval '(progn(compile-file "$<" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
 
 WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE
 # Delete wrongful tags from local repository

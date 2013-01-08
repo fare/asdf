@@ -16,10 +16,6 @@ fi
 mkdir tmp
 
 archive_file="tmp/asdf-$tag.tar.gz"
-
 echo "Create tmp/asdf.tar.gz with tag $tag"
 git archive $tag --prefix="asdf/" --format=tar | \
     gzip > $archive_file
-echo "Extract tmp/asdf.lisp"
-tar --to-stdout -zxf $archive_file asdf/asdf.lisp > tmp/asdf.lisp
-
