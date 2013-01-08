@@ -16,7 +16,8 @@
 (declaim (optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)))
 (proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)))
 
-;;(format t "Evaluating asdf/test/script-support~%")
+;; NB: can't print anything because of forward-ref test.
+;; (DBG "Evaluating asdf/test/script-support") 
 
 ;; We can't use asdf::merge-pathnames* because ASDF isn't loaded yet.
 ;; We still want to work despite and host/device funkiness.

@@ -21,20 +21,21 @@
                #+sbcl sb-impl::*default-external-format*
                #-(or clozure sbcl) (error "can't determine default external-format")))))
 
-(defun reset-lambda ()
-  (setf *lambda-string* nil)
-  (asdf::delete-file-if-exists (asdf::compile-file-pathname* "lambda.lisp")))
-
 (defmacro with-test ((encoding &key (op 'asdf:load-source-op) (path "lambda")) defsystem &body body)
   (let ((sys (second defsystem)))
     `(progn
        (format t "~&Test ~A: should be ~A~%" ',sys ',encoding)
-       (reset-lambda)
+       (setf *lambda-string* nil)
        ,defsystem
-       (assert-equal (asdf:component-encoding (asdf:find-component ',sys ',path)) ',encoding)
-       ,@(when op `((asdf:operate ',op ',(second defsystem))))
+       (let ((c (asdf:find-component ',sys ',path)))
+         (assert-equal (asdf:component-encoding c) ',encoding)
+         (loop :for o :in (asdf:output-files (asdf::make-operation 'asdf:compile-op) c)
+               :do (asdf::delete-file-if-exists o)))
+       ,@(when op
+           `((asdf:operate ',op ',(second defsystem))))
        ,@body
-       (eval `(assert-equal (string-char-codes ,*lambda-string*) (expected-char-codes ',',encoding))))))
+       (eval `(assert-equal (string-char-codes ,*lambda-string*)
+                            (expected-char-codes ',',encoding))))))
 
 (quit-on-error
 
@@ -87,6 +88,7 @@
     (defsystem :test-system-encoding-l1
       :encoding :latin-1
       :components ((:file "lambda"))))
+  #-ecl-bytecmp
   (with-test (:latin-1 :op asdf:load-op)
     (defsystem :test-system-encoding-l1-load-op
       :encoding :latin-1
