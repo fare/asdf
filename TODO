@@ -1,8 +1,8 @@
-* Learn to use ql-mapper, to make sure ASDF changes don't break stuff,
+* Learn to use cl-grid-test, to make sure ASDF changes don't break stuff,
  and that breakage gets fixed quickly.
-* Implement concatenate-source-op and monolithic-concatenate-source-op
-** Check that all files have the same around-compile and encoding attributes.
-** Have ASDF itself use that.
+* Split ASDF in parts
+** Have it pass test-lisp
+** Have it pass test-upgrade
 * Make load-op a generic operation that selects the proper strategy
   for each system, module or file, according to component properties and user-configuration:
   compile the lisp file then load the fasl (load-compiled-op),

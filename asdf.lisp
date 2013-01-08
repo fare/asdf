@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.60: Another System Definition Facility.
+;;; This is ASDF 2.26.61: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -126,7 +126,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.60")
+         (asdf-version "2.26.61")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -257,6 +257,7 @@
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector
             #:do-dep #:do-one-dep #:do-traverse #:visit-action #:component-visited-p
+            #+(or ecl mkcl) #:output-files #+ecl #:trivial-system-p
             #:loaded-systems ; makes for annoying SLIME completion
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :export
@@ -411,7 +412,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle,
 or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
 
-(defvar *compile-op-compile-file-function* 'compile-file*
+(defvar *compile-file-function* 'compile-file*
   "Function used to compile lisp files.")
 
 #+allegro
@@ -681,7 +682,8 @@ and NIL NAME, TYPE and VERSION components"
 
 (defun* asdf-message (format-string &rest format-args)
   #-gcl<2.7 (declare (dynamic-extent format-args))
-  (apply 'format *verbose-out* format-string format-args))
+  (when *verbose-out*
+    (apply 'format *verbose-out* format-string format-args)))
 
 (defun* split-string (string &key max (separator '(#\Space #\Tab)))
   "Split STRING into a list of components separated by
@@ -2622,7 +2624,7 @@ in some previous image, or T if it needs to be done.")
     (multiple-value-bind (output warnings-p failure-p)
         (call-with-around-compile-hook
          c #'(lambda (&rest flags)
-               (apply *compile-op-compile-file-function* input-file
+               (apply *compile-file-function* input-file
                       :output-file output-file
                       #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)
                       (append flags (compile-op-flags o)))))
@@ -2748,14 +2750,13 @@ in some previous image, or T if it needs to be done.")
   (declare (ignorable o))
   `((prepare-source-op ,c) ,@(call-next-method)))
 
-(defun perform-load-lisp-source (c)
+(defun perform-lisp-load-source (o c)
   (call-with-around-compile-hook
-   c #'(lambda () (load (component-pathname c)
+   c #'(lambda () (load (first (input-files o c))
                         #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)))))
 
 (defmethod perform ((o load-source-op) (c cl-source-file))
-  (declare (ignorable o))
-  (perform-load-lisp-source c))
+  (perform-lisp-load-source o c))
 
 (defmethod perform ((o load-source-op) (c static-file))
   (declare (ignorable o c))
@@ -4595,7 +4596,7 @@ with a different configuration, so the configuration would be re-read then."
                          (and (first l) (register-pre-built-system (coerce-name name)))
                          (values-list l)))))
 
-  (setf *compile-op-compile-file-function* 'compile-file-keeping-object)
+  (setf *compile-file-function* 'compile-file-keeping-object)
 
   (defun* compile-file-keeping-object (input-file &rest keys &key output-file &allow-other-keys)
     (#+ecl if #+ecl (use-ecl-byte-compiler-p) #+ecl (apply 'compile-file* input-file keys)
@@ -4914,9 +4915,10 @@ with a different configuration, so the configuration would be re-read then."
 (defmethod input-files (o (c compiled-file))
   (declare (ignorable o))
   (component-pathname c))
-(defmethod perform ((o load-op) (c compiled-file))
-  (declare (ignorable o))
+(defun perform-lisp-load-fasl (o c)
   (load (first (input-files o c))))
+(defmethod perform ((o load-op) (c cl-source-file))
+  (perform-lisp-load-fasl o c))
 (defmethod perform ((o load-source-op) (c compiled-file))
   (perform (find-operation o 'load-op) c))
 (defmethod perform ((o load-fasl-op) (c compiled-file))
@@ -5274,12 +5276,11 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
         (output (output-file o s)))
     (concatenate-files inputs output)))
 (defmethod perform ((o load-concatenated-source-op) (s system))
-  (declare (ignorable o))
-  (perform-load-lisp-source s))
+  (perform-lisp-load-source o s))
 (defmethod perform ((o compile-concatenated-source-op) (s system))
   (perform-lisp-compilation o s))
 (defmethod perform ((o load-compiled-concatenated-source-op) (s system))
-  (load (first (input-files o s))))
+  (perform-lisp-load-fasl o s))
 
 (defmethod component-depends-on ((o concatenate-source-op) (s system))
   (declare (ignorable o s)) nil)
