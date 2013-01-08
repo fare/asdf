@@ -16,7 +16,8 @@
 (declaim (optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)))
 (proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)))
 
-;;(format t "Evaluating asdf/test/script-support~%")
+;; NB: can't print anything because of forward-ref test.
+;; (DBG "Evaluating asdf/test/script-support") 
 
 ;; We can't use asdf::merge-pathnames* because ASDF isn't loaded yet.
 ;; We still want to work despite and host/device funkiness.
@@ -66,7 +67,11 @@
     (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
       (load old-asdf))))
 
+(defvar *debug-symbols*
+  '( #|:COMPILE-FILE* :perform-lisp-compilation|# ))
+
 (defun configure-asdf ()
+  (eval `(trace ,@(loop :for s :in *debug-symbols* :collect (find-symbol (string s) :asdf))))
   (funcall (find-symbol (string :initialize-source-registry) :asdf)
            `(:source-registry :ignore-inherited-configuration))
   (let ((registry (find-symbol (string :*central-registry*) :asdf)))
@@ -157,6 +162,7 @@ is bound, write a message and exit on an error.  If
                    #+sbcl (sb-debug:backtrace 69)
                    #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
                    #+clisp (system::print-backtrace)
+                   #+ecl (si::tpl-backtrace)
                    (format *error-output* "~&ABORTING:~% ~A~%" c)
                    (finish-output *error-output*)
                    (finish-output *standard-output*)
@@ -260,7 +266,6 @@ outputs a tag plus a list of variable and their values, returns the last value"
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (DBG :script-support *package* *test-directory* *asdf-directory* *asdf-lisp* *asdf-fasl*
        ))
-
 
 #|
 (DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))

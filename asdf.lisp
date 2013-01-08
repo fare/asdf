@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.57: Another System Definition Facility.
+;;; This is ASDF 2.26.61: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -126,7 +126,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.57")
+         (asdf-version "2.26.61")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -257,6 +257,7 @@
            :unintern
            (#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector
             #:do-dep #:do-one-dep #:do-traverse #:visit-action #:component-visited-p
+            #+(or ecl mkcl) #:output-files #+ecl #:trivial-system-p
             #:loaded-systems ; makes for annoying SLIME completion
             #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
            :export
@@ -411,7 +412,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle,
 or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
 
-(defvar *compile-op-compile-file-function* 'compile-file*
+(defvar *compile-file-function* 'compile-file*
   "Function used to compile lisp files.")
 
 #+allegro
@@ -681,7 +682,8 @@ and NIL NAME, TYPE and VERSION components"
 
 (defun* asdf-message (format-string &rest format-args)
   #-gcl<2.7 (declare (dynamic-extent format-args))
-  (apply 'format *verbose-out* format-string format-args))
+  (when *verbose-out*
+    (apply 'format *verbose-out* format-string format-args)))
 
 (defun* split-string (string &key max (separator '(#\Space #\Tab)))
   "Split STRING into a list of components separated by
@@ -1207,7 +1209,7 @@ the head of the tree"))
 
 (defgeneric* component-self-dependencies (operation component))
 
-(defgeneric* traverse (operation component &key force force-not verbose)
+(defgeneric* traverse (operation component &key &allow-other-keys)
   (:documentation
 "Generate and return a plan for performing OPERATION on COMPONENT.
 
@@ -1597,16 +1599,14 @@ hopefully, if done consistently, that won't affect program behavior too much.")
   "Hook for an extension to define a function to automatically detect a file's encoding")
 
 (defun* detect-encoding (pathname)
-  (funcall *encoding-detection-hook* pathname))
+  (if (and pathname (probe-file pathname))
+      (funcall *encoding-detection-hook* pathname)
+      *default-encoding*))
 
 (defmethod component-encoding ((c component))
   (or (loop :for x = c :then (component-parent x)
         :while x :thereis (%component-encoding x))
-      (call-next-method)))
-(defmethod component-encoding ((c file-component))
-  (detect-encoding (component-pathname c)))
-(defmethod component-encoding ((c parent-component))
-  *default-encoding*)
+      (detect-encoding (component-pathname c))))
 
 (defun* default-encoding-external-format (encoding)
   (case encoding
@@ -2385,13 +2385,14 @@ in some previous image, or T if it needs to be done.")
 
 ;;; Computing stamps and traversing the dependency graph of actions.
 
-(defun* visit-dependencies (operation component fun &aux stamp)
+(defun* visit-dependencies (plan operation component fun &aux stamp)
   (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
         :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
           :do (loop :with dep-o = (find-operation operation dep-o-spec)
                     :for dep-c-spec :in dep-c-specs
                     :for dep-c = (resolve-dependency-spec component dep-c-spec)
-                    :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
+                    :when (action-valid-p plan dep-o dep-c)
+                      :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
   stamp)
 
 (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
@@ -2407,7 +2408,7 @@ in some previous image, or T if it needs to be done.")
          ;; When was the thing last actually done? (Now, or ask.)
          (op-time (or just-done (component-operation-time o c)))
          ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
-         (dep-stamp (visit-dependencies o c stamp-lookup))
+         (dep-stamp (visit-dependencies plan o c stamp-lookup))
          ;; Time stamps from the files at hand, and whether any is missing
          (out-stamps (mapcar #'safe-file-write-date out-files))
          (in-stamps (mapcar #'safe-file-write-date in-files))
@@ -2486,7 +2487,7 @@ in some previous image, or T if it needs to be done.")
         ;; Already visited with sufficient need-in-image level: just return the stamp.
         (return (action-stamp status)))
       (labels ((visit-action (niip)
-                 (visit-dependencies operation component
+                 (visit-dependencies plan operation component
                                      #'(lambda (o c) (traverse-action plan o c niip)))
                  (multiple-value-bind (stamp done-p)
                      (compute-action-stamp plan operation component)
@@ -2510,14 +2511,12 @@ in some previous image, or T if it needs to be done.")
         (while-visiting-action (plan operation component) ; maintain context, handle circularity.
           (visit-action eniip))))))
 
-(defun* traverse-sequentially (operation component &rest keys &key force force-not verbose)
-  (declare (ignore force force-not verbose))
+(defun* traverse-sequentially (operation component &rest keys &key &allow-other-keys)
   (let ((plan (apply 'make-instance 'sequential-plan :system (component-system component) keys)))
     (traverse-action plan operation component t)
     (reverse (plan-actions-r plan))))
 
-(defmethod traverse ((o operation) (c component) &rest keys &key force force-not verbose)
-  (declare (ignore force force-not verbose))
+(defmethod traverse ((o operation) (c component) &rest keys &key &allow-other-keys)
   (apply 'traverse-sequentially o c keys))
 
 (defmethod perform ((o operation) (c source-file))
@@ -2625,7 +2624,7 @@ in some previous image, or T if it needs to be done.")
     (multiple-value-bind (output warnings-p failure-p)
         (call-with-around-compile-hook
          c #'(lambda (&rest flags)
-               (apply *compile-op-compile-file-function* input-file
+               (apply *compile-file-function* input-file
                       :output-file output-file
                       #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)
                       (append flags (compile-op-flags o)))))
@@ -2657,8 +2656,8 @@ in some previous image, or T if it needs to be done.")
          #+mkcl (o (compile-file-pathname i :fasl-p nil))) ;; object file
     #+ecl (if (use-ecl-byte-compiler-p)
               (list f)
-              (list (compile-file-pathname i :type :object) f))
-    #+mkcl (list o f)
+              (list f (compile-file-pathname i :type :object)))
+    #+mkcl (list f o)
     #-(or ecl mkcl) (list f)))
 
 (defmethod component-depends-on ((o compile-op) (c component))
@@ -2751,14 +2750,13 @@ in some previous image, or T if it needs to be done.")
   (declare (ignorable o))
   `((prepare-source-op ,c) ,@(call-next-method)))
 
-(defun perform-load-lisp-source (c)
+(defun perform-lisp-load-source (o c)
   (call-with-around-compile-hook
-   c #'(lambda () (load (component-pathname c)
+   c #'(lambda () (load (first (input-files o c))
                         #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)))))
 
 (defmethod perform ((o load-source-op) (c cl-source-file))
-  (declare (ignorable o))
-  (perform-load-lisp-source c))
+  (perform-lisp-load-source o c))
 
 (defmethod perform ((o load-source-op) (c static-file))
   (declare (ignorable o c))
@@ -4598,19 +4596,19 @@ with a different configuration, so the configuration would be re-read then."
                          (and (first l) (register-pre-built-system (coerce-name name)))
                          (values-list l)))))
 
-  (setf *compile-op-compile-file-function* 'compile-file-keeping-object)
+  (setf *compile-file-function* 'compile-file-keeping-object)
 
-  (defun* compile-file-keeping-object (input-file &rest keys &key &allow-other-keys)
+  (defun* compile-file-keeping-object (input-file &rest keys &key output-file &allow-other-keys)
     (#+ecl if #+ecl (use-ecl-byte-compiler-p) #+ecl (apply 'compile-file* input-file keys)
      #+mkcl progn
      (multiple-value-bind (object-file flags1 flags2)
          (apply 'compile-file* input-file
-                #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil keys)
+                #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil
+                :output-file (compile-file-pathname
+                              output-file . #+ecl (:type :object) #+mkcl (:fasl-p nil)) keys)
        (values (and object-file
                     (compiler::build-fasl
-                     (compile-file-pathname object-file
-                                            #+ecl :type #+ecl :fasl #+mkcl :fasl-p #+mkcl t)
-                     #+ecl :lisp-files #+mkcl :lisp-object-files (list object-file))
+                     output-file #+ecl :lisp-files #+mkcl :lisp-object-files (list object-file))
                     object-file)
                flags1
                flags2)))))
@@ -4917,9 +4915,10 @@ with a different configuration, so the configuration would be re-read then."
 (defmethod input-files (o (c compiled-file))
   (declare (ignorable o))
   (component-pathname c))
-(defmethod perform ((o load-op) (c compiled-file))
-  (declare (ignorable o))
+(defun perform-lisp-load-fasl (o c)
   (load (first (input-files o c))))
+(defmethod perform ((o load-op) (c cl-source-file))
+  (perform-lisp-load-fasl o c))
 (defmethod perform ((o load-source-op) (c compiled-file))
   (perform (find-operation o 'load-op) c))
 (defmethod perform ((o load-fasl-op) (c compiled-file))
@@ -5277,12 +5276,11 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
         (output (output-file o s)))
     (concatenate-files inputs output)))
 (defmethod perform ((o load-concatenated-source-op) (s system))
-  (declare (ignorable o))
-  (perform-load-lisp-source s))
+  (perform-lisp-load-source o s))
 (defmethod perform ((o compile-concatenated-source-op) (s system))
   (perform-lisp-compilation o s))
 (defmethod perform ((o load-compiled-concatenated-source-op) (s system))
-  (load (first (input-files o s))))
+  (perform-lisp-load-fasl o s))
 
 (defmethod component-depends-on ((o concatenate-source-op) (s system))
   (declare (ignorable o s)) nil)
