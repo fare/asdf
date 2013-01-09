@@ -184,7 +184,7 @@ hopefully, if done consistently, that won't affect program behavior too much.")
   "Hook for an extension to define a function to automatically detect a file's encoding")
 
 (defun* detect-encoding (pathname)
-  (if (and pathname (probe-file pathname))
+  (if (and pathname (not (directory-pathname-p pathname)) (probe-file pathname))
       (funcall *encoding-detection-hook* pathname)
       *default-encoding*))
 

@@ -222,12 +222,12 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
 (defun* lisp-implementation-directory (&key truename)
   (let ((dir
           (ignore-errors
-           #+clozure (let ((*default-pathname-defaults* #p"")) (truename #p"ccl:"))
+           #+clozure #p"ccl:"
            #+(or ecl mkcl) #p"SYS:"
            #+sbcl (aif (find-symbol* :sbcl-homedir-pathname :sb-int)
                        (funcall it)
                        (getenv-pathname "SBCL_HOME" :want-directory t)))))
     (if (and dir truename)
-        (let ((*default-pathname-defaults* #p"")) (truename dir))
+        (truename* dir)
         dir)))
 

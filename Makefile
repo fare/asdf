@@ -18,19 +18,19 @@ export CL_SOURCE_REGISTRY := (:source-registry (:tree "${sourceDirectory}") :ign
 
 lisp ?= sbcl
 
-CCL ?= ccl
-CLISP ?= clisp
-SBCL ?= sbcl
-ECL ?= ecl
-MKCL ?= mkcl
-CMUCL ?= cmucl
 ABCL ?= abcl
-XCL ?= xcl
-SCL ?= scl
 ALLEGRO ?= alisp
 ALLEGROMODERN ?= mlisp
-LISPWORKS ?= lispworks
+CCL ?= ccl
+CLISP ?= clisp
+CMUCL ?= cmucl
+ECL ?= ecl
 GCL ?= gcl
+LISPWORKS ?= lispworks
+MKCL ?= mkcl
+SBCL ?= sbcl
+SCL ?= scl
+XCL ?= xcl
 
 # website, tag, install
 
@@ -53,7 +53,7 @@ archive-copy: archive tmp/asdf.lisp
 
 tmp/asdf.lisp: $(wildcard *.lisp)
 	mkdir -p tmp
-	cat header.lisp package.lisp implementation.lisp utility.lisp upgrade.lisp pathname.lisp os.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp user.lisp footer.lisp > $@
+	cat header.lisp package.lisp implementation.lisp utility.lisp upgrade.lisp pathname.lisp os.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp > $@
 
 push:
 	git status
@@ -146,7 +146,7 @@ test-upgrade:
 test-forward-references: tmp/asdf.lisp
 	${SBCL} --noinform --no-userinit --no-sysinit --load tmp/asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
 
-test-lisp:
+test-lisp: tmp/asdf.lisp
 	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
 
 test: test-lisp test-forward-references doc

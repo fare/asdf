@@ -219,16 +219,15 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (with-accessors ((action-set plan-visiting-action-set)
                    (action-list plan-visiting-action-list)) plan
     (let ((action (cons operation component)))
-      (aif (gethash action action-set)
-           (error 'circular-dependency :actions
-                  (member action (reverse action-list) :test 'equal))
-           (progn
-             (setf (gethash action action-set) t)
-             (push action action-list)
-             (unwind-protect
-                  (funcall fun)
-               (pop action-list)
-               (setf (gethash action action-set) nil)))))))
+      (when (gethash action action-set)
+        (error 'circular-dependency :actions
+               (member action (reverse action-list) :test 'equal)))
+      (setf (gethash action action-set) t)
+      (push action action-list)
+      (unwind-protect
+           (funcall fun)
+        (pop action-list)
+        (setf (gethash action action-set) nil)))))
 
 
 ;;;; Actual traversal: traverse-action

@@ -124,9 +124,10 @@ when the symbol is not found."
       (loop :for x :in newly-exported-symbols :do
         (export (intern* x package)))))
   (defun ensure-package (name &key
-                                nicknames use reuse unintern
-                                shadow export fmakunbound fmakunbound-setf)
-    reuse
+                                nicknames use intern unintern shadow export
+                                import-from shadowing-import-from
+                                recycle mix fmakunbound fmakunbound-setf)
+    recycle mix intern import-from shadowing-import-from
     (let* ((p (ensure-package-exists name nicknames use)))
       #-ecl (ensure-package-fmakunbound p fmakunbound) #+ecl fmakunbound ;; do it later on ECL
       #-ecl (ensure-package-fmakunbound-setf p fmakunbound-setf) #+ecl fmakunbound-setf
@@ -134,8 +135,6 @@ when the symbol is not found."
       (ensure-package-shadow p shadow)
                (ensure-package-export p export)
                p))
-  (defun do-define-package (package clauses)
-    package clauses
 #|
   (let ((h (make-hash-table :test 'equal)))
     (labels ((ensure-imported (n)
@@ -163,8 +162,28 @@ when the symbol is not found."
          ,@clauses
          (:export ,@(loop :for s :being :the :hash-keys :of h :collect s)))))))
 |#
-    ))
+  (defun parse-define-package-clauses (clauses)
+    (loop :for (kw . args) :in clauses
+      :when (eq kw :nicknames) :append args :into nicknames :else
+      :when (eq kw :use) :append args :into use :else
+      :when (eq kw :shadow) :append args :into shadow :else
+      :when (eq kw :export) :append args :into export :else
+      :when (eq kw :intern) :append args :into intern :else
+      :when (eq kw :import-from) :collect args :into import-from :else
+      :when (eq kw :shadowing-import-from) :collect args :into shadowing-import-from :else
+      :when (eq kw :recycle) :append args :into recycle :else
+      :when (eq kw :mix) :append args :into mix :else
+      :when (eq kw :unintern) :append args :into unintern :else
+      :when (eq kw :fmakunbound) :append args :into fmakunbound :else
+      :when (eq kw :fmakunbound-setf) :append args :into fmakunbound-setf :else
+        :do (error "unrecognized define-package keyword ~S" kw)
+      :finally (return `(:nicknames ,nicknames :use ,use
+                         :shadow ,shadow :export ,export :intern ,intern
+                         :import-from ,import-from :shadowing-import-from ,shadowing-import-from
+                         :recycle ,recycle :mix ,mix :unintern ,unintern
+                         :fmakunbound ,fmakunbound :fmakunbound-setf ,fmakunbound-setf))))
+);eval-when
 
 (defmacro define-package (package &rest clauses)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (do-define-package ',package ',clauses)))
+     (apply 'ensure-package ',package ',(parse-define-package-clauses clauses))))

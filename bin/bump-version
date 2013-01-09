@@ -7,7 +7,7 @@ PROG="$0"
 ASDFDIR="$(cd $(dirname $PROG)/.. ; /bin/pwd)" ## readlink -f doesn't work on BSD
 
 if [ -z "$NEWVER" ] ; then
-  OLDVER="$(grep '         (asdf-version "' ${ASDFDIR}/header.lisp | cut -d\" -f2)"
+  OLDVER="$(grep '         (asdf-version "' ${ASDFDIR}/upgrade.lisp | cut -d\" -f2)"
   NEWVER="$(echo $OLDVER | perl -npe 's/([0-9].[0-9]+)(\.([0-9]+))?/"${1}.".($3+1)/e')"
 fi
 echo "Setting ASDF version to $NEWVER"

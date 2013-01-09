@@ -23,10 +23,12 @@
    ;; Wildcard pathnames
    #:*wild* #:*wild-file* #:*wild-directory* #:*wild-inferiors* #:*wild-path* #:wilden
    ;; Pathname host and its root
-   #:pathname-root #:directory-sperator-for-host
+   #:pathname-root #:directory-separator-for-host
    #:directorize-pathname-host-device
+   ;; defaults
+   #:nil-pathname #:with-pathname-defaults
    ;; probe filesystem
-   #:probe-file* #:safe-file-write-date
+   #:truename* #:probe-file* #:safe-file-write-date
    #:subdirectories #:directory-files #:directory*
    #:filter-logical-directory-results #:collect-sub*directories
    ;; Simple filesystem operations
@@ -39,7 +41,9 @@
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname
    ;; basic pathnames
-   #:load-pathname #:default-directory
+   #:load-pathname #:default-directory #:nil-pathname
+   ;; physical pathnames
+   #:physical-pathname-p #:sane-physical-pathname
    ;; Windows shortcut support
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut))
@@ -106,7 +110,7 @@ Defaults to T.")
               :finally (return (cons defabs (append (reverse defrev) reldir)))))))))))
 
 (defun* make-pathname* (&rest keys &key (directory nil directoryp)
-                              host device name type version defaults)
+                              host device name type version defaults #+scl &allow-other-keys)
   (declare (ignore host device name type version defaults))
   (apply 'make-pathname
          (append (when directoryp
@@ -241,24 +245,36 @@ actually-existing directory."
 
 
 ;;; Probing the filesystem
+(defun* nil-pathname (&optional (defaults *default-pathname-defaults*))
+  (make-pathname :directory nil :name nil :type nil :version nil :device nil :host nil
+                 :defaults defaults)) ;; shouldn't matter
+
+(defmacro with-pathname-defaults ((&optional defaults) &body body)
+  `(let ((*default-pathname-defaults* ,(or defaults (nil-pathname)))) ,@body))
+
+(defun truename* (p)
+  ;; avoids both logical-pathname merging and physical resolution issues
+  (ignore-errors (with-pathname-defaults () (truename p))))
+
 (defun* probe-file* (p)
   "when given a pathname P, probes the filesystem for a file or directory
 with given pathname and if it exists return its truename."
-  (etypecase p
-    (null nil)
-    (string (probe-file* (parse-namestring p)))
-    (pathname (unless (wild-pathname-p p)
-                #.(or #+(or allegro clozure cmu cormanlisp ecl lispworks mkcl sbcl scl)
-                      '(probe-file p)
-                      #+clisp (aif (find-symbol* '#:probe-pathname :ext)
-                                   `(ignore-errors (,it p)))
-                      #+gcl<2.7
-                      '(or (probe-file p)
-                        (and (directory-pathname-p p)
-                         (ignore-errors
-                          (ensure-directory-pathname
-                           (truename (subpathname (ensure-directory-pathname p) "."))))))
-                      '(ignore-errors (truename p)))))))
+  (with-pathname-defaults () ;; avoids logical-pathname issues on some implementations
+    (etypecase p
+      (null nil)
+      (string (probe-file* (parse-namestring p)))
+      (pathname (unless (wild-pathname-p p)
+                  #.(or #+(or allegro clozure cmu cormanlisp ecl lispworks mkcl sbcl scl)
+                        '(probe-file p)
+                        #+clisp (aif (find-symbol* '#:probe-pathname :ext)
+                                     `(ignore-errors (,it p)))
+                        #+gcl<2.7
+                        '(or (probe-file p)
+                          (and (directory-pathname-p p)
+                           (ignore-errors
+                            (ensure-directory-pathname
+                             (truename* (subpathname (ensure-directory-pathname p) "."))))))
+                        '(truename* p)))))))
 
 (defun* safe-file-write-date (pathname)
   ;; If FILE-WRITE-DATE returns NIL, it's possible that
@@ -293,8 +309,8 @@ with given pathname and if it exists return its truename."
                      (let* ((u (ignore-errors (funcall merger f))))
                        ;; The first u avoids a cumbersome (truename u) error.
                        ;; At this point f should already be a truename,
-                       ;; but isn't quite in CLISP, for doesn't have :version :newest
-                       (and u (equal (ignore-errors (truename u)) (truename f)) u)))
+                       ;; but isn't quite in CLISP, for it doesn't have :version :newest
+                       (and u (equal (truename* u) (truename* f)) u)))
         :when p :collect p)
       entries))
 
@@ -489,6 +505,13 @@ Host, device and version components are taken from DEFAULTS."
                   ;; scheme-specific parts: port username password, not others:
                   . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
 
+(defun* pathname-host-pathname (pathname)
+  (make-pathname :directory nil
+                 :name nil :type nil :version nil :device nil
+                 :defaults pathname ;; host device, and on scl, *some*
+                  ;; scheme-specific parts: port username password, not others:
+                  . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
+
 #-scl
 (defun* directory-separator-for-host (&optional (pathname *default-pathname-defaults*))
   (let ((foo (make-pathname* :directory '(:absolute "FOO") :defaults pathname)))
@@ -547,7 +570,7 @@ Host, device and version components are taken from DEFAULTS."
       (let ((found (probe-file* p)))
         (when found (return found)))
       (unless (absolute-pathname-p p)
-        (let ((true-defaults (ignore-errors (truename defaults))))
+        (let ((true-defaults (truename* defaults)))
           (when true-defaults
             (setf p (merge-pathnames pathname true-defaults)))))
       (unless (absolute-pathname-p p) (return p))
@@ -679,6 +702,29 @@ For the latter case, we ought pick random suffix and atomically open it."
 
 (defun* default-directory ()
   (truenamize (pathname-directory-pathname *default-pathname-defaults*)))
+
+(defun* physical-pathname-p (x)
+  (and (pathnamep x) (not (typep x 'logical-pathname))))
+
+(defun* sane-physical-pathname (&key (defaults *default-pathname-defaults*)
+                                     fallback (keep t) must-exist)
+  (flet ((sanitize (x)
+           (setf x (and x (ignore-errors (translate-logical-pathname x))))
+           (when (pathnamep x)
+             (setf x
+                   (ecase keep
+                     ((t) x)
+                     ((:directory) (pathname-directory-pathname x))
+                     ((:root) (pathname-root x))
+                     ((:host) (pathname-host-pathname x))
+                     ((nil) (nil-pathname x))))
+             (when must-exist ;; CCL's probe-file will choke if d-p-d is logical
+               (setf x (and (probe-file* x) x)))
+             (and (physical-pathname-p x) x))))
+    (or (sanitize defaults)
+        (when fallback (sanitize (ignore-errors (user-homedir-pathname))))
+        (error "Could not find a sanitize ~S ~:[~;or a fallback ~] into a physical pathname"
+               defaults fallback))))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Windows shortcut support.  Based on:

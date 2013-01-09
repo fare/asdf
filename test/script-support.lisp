@@ -31,7 +31,9 @@
     (make-pathname :directory '(#-gcl :relative #-gcl :back #+gcl :parent) :defaults *test-directory*)
     *test-directory*)))
 (defparameter *asdf-lisp*
-  (make-pathname :name "asdf" :type "lisp" :defaults *asdf-directory*))
+   (merge-pathnames
+    (make-pathname :directory '(#-gcl :relative "tmp") :name "asdf" :type "lisp" :defaults *asdf-directory*)
+    *asdf-directory*))
 (defparameter *asdf-fasl*
   (compile-file-pathname
    (let ((impl (string-downcase

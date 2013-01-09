@@ -152,7 +152,7 @@ starting the separation from the end, e.g. when called with arguments
 ;;; Functions
 (defun* ensure-function (fun &key (package :asdf))
   (etypecase fun
-    ((or boolean keyword character number) (constantly fun))
+    ((or boolean keyword character number pathname) (constantly fun))
     ((or function symbol) fun)
     (cons (eval `(function ,fun)))
     (string (eval `(function ,(with-standard-io-syntax
@@ -186,8 +186,8 @@ NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
 If major versions differ, it's not compatible.
 If they are equal, then any later version is compatible,
 with later being determined by a lexicographical comparison of minor numbers."
-  (let ((x (parse-version version 'warn))
-        (y (parse-version base-version 'warn)))
+  (let ((x (parse-version provided-version 'warn))
+        (y (parse-version required-version 'warn)))
     (labels ((bigger (x y)
                (cond ((not y) t)
                      ((not x) nil)

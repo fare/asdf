@@ -247,7 +247,7 @@ with a different configuration, so the configuration would be re-read then."
 (defun* flatten-source-registry (&optional parameter)
   (remove-duplicates
    (while-collecting (collect)
-     (let ((*default-pathname-defaults* (default-directory)))
+     (with-pathname-defaults () ;; be location-independent
        (inherit-source-registry
         `(wrapping-source-registry
           ,parameter

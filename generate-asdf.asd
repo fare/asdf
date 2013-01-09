@@ -7,7 +7,7 @@
   :class :concatenated-source-system
   ;; :include-dependencies t
   :translate-output-p nil
-  :output-file "tmp/asdf.lisp"
+  :concatenated-source-file "tmp/generated-asdf.lisp"
 #|
   :depends-on (:asdf-header
                :asdf-package
