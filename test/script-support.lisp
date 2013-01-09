@@ -63,9 +63,9 @@
   (let ((old-asdf
           (merge-pathnames
            (make-pathname :directory `(#-gcl :relative "tmp")
-                          :name (format nil "asdf-~A" tag)
+                          :name (format nil "asdf-~A" tag) :type "lisp"
                           :defaults *asdf-directory*)
-           *asdf-lisp*)))
+           *asdf-directory*)))
     (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
       (load old-asdf))))
 

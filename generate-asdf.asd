@@ -26,24 +26,26 @@
   :components
   ((:file "header")
    (:module
-    "code" :pathname "" :components
+    "utils" :pathname "" :components
     ((:file "package")
      (:file "implementation" :depends-on ("package"))
      (:file "utility" :depends-on ("implementation"))
      (:file "pathname" :depends-on ("utility"))
-     (:file "os" :depends-on ("pathname"))
-     (:file "upgrade" :depends-on ("utility"))
-     (:file "component" :depends-on ("pathname"))
+     (:file "os" :depends-on ("pathname"))))
+   (:module
+    "code" :pathname "" :components
+     (:file "upgrade")
+     (:file "component")
      (:file "system" :depends-on ("component"))
      (:file "find-system" :depends-on ("system"))
      (:file "find-component" :depends-on ("find-system"))
-     (:file "lisp-build" :depends-on ("pathname"))
-     (:file "operation" :depends-on ("utility"))
+     (:file "lisp-build")
+     (:file "operation")
      (:file "action" :depends-on ("find-component" "operation"))
      (:file "lisp-action" :depends-on ("action" "lisp-build"))
      (:file "plan" :depends-on ("action"))
      (:file "operate" :depends-on ("plan"))
-     (:file "configuration" :depends-on ("pathname"))
+     (:file "configuration")
      (:file "output-translations" :depends-on ("configuration" "operate"))
      (:file "source-registry" :depends-on ("configuration" "find-system"))
      (:file "backward-internals" :depends-on ("action" "operate"))

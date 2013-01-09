@@ -706,8 +706,7 @@ For the latter case, we ought pick random suffix and atomically open it."
 (defun* physical-pathname-p (x)
   (and (pathnamep x) (not (typep x 'logical-pathname))))
 
-(defun* sane-physical-pathname (&key (defaults *default-pathname-defaults*)
-                                     fallback (keep t) must-exist)
+(defun* sane-physical-pathname (defaults &key (keep t) fallback must-exist)
   (flet ((sanitize (x)
            (setf x (and x (ignore-errors (translate-logical-pathname x))))
            (when (pathnamep x)
@@ -722,9 +721,12 @@ For the latter case, we ought pick random suffix and atomically open it."
                (setf x (and (probe-file* x) x)))
              (and (physical-pathname-p x) x))))
     (or (sanitize defaults)
-        (when fallback (sanitize (ignore-errors (user-homedir-pathname))))
+        (when fallback
+          (or (sanitize (ignore-errors (user-homedir-pathname)))
+              (sanitize (nil-pathname))))
         (error "Could not find a sanitize ~S ~:[~;or a fallback ~] into a physical pathname"
                defaults fallback))))
+
 
 ;;;; -----------------------------------------------------------------
 ;;;; Windows shortcut support.  Based on:
