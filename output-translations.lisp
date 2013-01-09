@@ -4,6 +4,8 @@
 (asdf/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/configuration :asdf/action)
+  (:fmakunbound #:apply-output-translations)
+  (:fmakunbound-setf #:output-translations)
   (:export
    #:invalid-output-translation
    #:output-translations #:output-translations-initialized-p

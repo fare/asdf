@@ -3,6 +3,7 @@
 
 (asdf/package:define-package :asdf/find-component
   (:recycle :asdf/find-component :asdf)
+  (:fmakunbound #:find-component)
   (:use :common-lisp :asdf/utility :asdf/os
    :asdf/component :asdf/system :asdf/find-system)
   (:export

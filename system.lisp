@@ -3,6 +3,7 @@
 
 (asdf/package:define-package :asdf/system
   (:recycle :asdf/system :asdf)
+  (:fmakunbound #:find-system #:system-source-file #:system-relative-pathname #:builtin-system-p)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component)
   (:export
@@ -13,7 +14,7 @@
    #:reset-system #:builtin-system-p
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
-   #:find-system #:probe-asd ;; forward-reference, defined in find-system
+   #:find-system #:probe-asd ;; forward-reference, methods defined in find-system
    #:%set-system-source-file ;; For internal use only. DO NOT USE.
    #:module-components ;; backward-compatibility. DO NOT USE.
    #:system-defsystem-depends-on))

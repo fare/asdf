@@ -4,6 +4,7 @@
 
 (asdf/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
+  (:fmakunbound #:inherit-source-registry #:process-source-registry #:process-source-registry-directive)
   (:use :common-lisp :asdf/implementation :asdf/configuration :asdf/utility :asdf/pathname :asdf/os
         :asdf/find-system)
   (:export

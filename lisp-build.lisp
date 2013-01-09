@@ -4,6 +4,7 @@
 (asdf/package:define-package :asdf/lisp-build
   (:recycle :asdf/lisp-build :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os)
+  (:fmakunbound #:compile-file*)
   (:export
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
    #:*compile-file-function* #:compile-file* #:compile-file-pathname*

@@ -88,7 +88,7 @@ clean:
 mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
-test-upgrade:
+test-upgrade: tmp/asdf.lisp
 	# 1.37 is the last release by Daniel Barlow
 	# 1.97 is the last release before Gary King takes over
 	# 1.369 is the last release by Gary King

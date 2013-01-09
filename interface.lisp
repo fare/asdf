@@ -2,8 +2,14 @@
 ;;;; Handle ASDF package upgrade, including implementation-dependent magic.
 
 (asdf/package:define-package :asdf/interface
-  (:recycle :asdf/interface :asdf)
   (:nicknames :asdf)
+  (:recycle :asdf/interface :asdf)
+  (:unintern
+   #:*asdf-revision* #:around #:asdf-method-combination
+   #:do-traverse #:do-dep #:do-one-dep #:visit-action #:component-visited-p
+   #:split #:make-collector
+   #:loaded-systems ; makes for annoying SLIME completion
+   #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
   (:use :common-lisp
    :asdf/package :asdf/implementation :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
@@ -133,27 +139,3 @@
 (with-upgrade (:when (fboundp 'make-sub-operation))
   (defun* make-sub-operation (c o dep-c dep-o)
     (declare (ignore c o dep-c dep-o)) (asdf-upgrade-error)))
-
-#|
-          (pkgdcl
-           :asdf
-           :use (:common-lisp)
-           :fmakunbound
-           (#:perform #:explain #:output-files #:operation-done-p #:traverse-action #:traverse
-            #:compute-action-stamp #:component-load-dependencies #:action-valid-p
-            #:component-depends-on #:perform-plan #:mark-operation-done #:operation-forced
-            #:perform-with-restarts #:component-relative-pathname
-            #:system-source-file #:operate #:find-system #:find-component #:find-operation
-            #:apply-output-translations #:translate-pathname* #:resolve-location
-            #:system-relative-pathname #:source-file-type #:builtin-system-p
-            #:inherit-source-registry #:process-source-registry #:process-source-registry-directive
-            #:compile-file* #:source-file-type #:trivial-system-p)
-           :fmakunbound-setf (#:output-translations)
-           :unintern
-           (#:*asdf-revision* #:around #:asdf-method-combination #:split #:make-collector
-            #:do-dep #:do-one-dep #:do-traverse #:visit-action #:component-visited-p
-            #+(or ecl mkcl) #:output-files #+ecl #:trivial-system-p
-            #:loaded-systems ; makes for annoying SLIME completion
-            #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
-           :export
-|#

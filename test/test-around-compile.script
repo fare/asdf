@@ -11,7 +11,7 @@
 (quit-on-error
  (defsystem test-around-compile
    :around-compile call-in-base-2
-   :depends-on ((:version :asdf "2.017.18")) ; no :around-compile before that.
+   ;; :depends-on ((:version :asdf "2.017.18")) ; no :around-compile before that.
    :components ((:file "test")))
  (load-system 'test-around-compile :force t)
  (assert (= 3 (funcall 'add10 1)))) ;; add10 must have been compiled in base 2

@@ -3,6 +3,7 @@
 
 (asdf/package:define-package :asdf/plan
   (:recycle :asdf/plan :asdf)
+  (:fmakunbound #:traverse #:perform-plan #:traverse-action)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)

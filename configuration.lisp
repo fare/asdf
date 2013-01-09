@@ -3,6 +3,7 @@
 
 (asdf/package:define-package :asdf/configuration
   (:recycle :asdf/configuration :asdf)
+  (:fmakunbound #:resolve-location)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os)
   (:export
    #:get-folder-path

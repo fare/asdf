@@ -13,8 +13,9 @@
 (defpackage :asdf/package
   (:use :common-lisp)
   (:export
-   #:find-package* #:package-name* #:find-symbol* #:intern* #:unintern*
-   #:unlink-package #:ensure-package #:define-package #:package-data))
+   #:find-package* #:find-symbol* #:intern* #:unintern*
+   #:symbol-name-package #:package-data
+   #:delete-package* #:ensure-package #:define-package))
 
 (in-package :asdf/package)
 
@@ -46,9 +47,6 @@ outputs a tag plus a list of variable and their values, returns the last value"
         (package package)
         (error (error "No package named ~S" (string package-designator)))
         (t nil))))
-  (defun package-name* (package-designator &optional (error t))
-    (let ((package (find-package* package-designator error)))
-      (when package (package-name package))))
   (defun find-symbol* (name package-designator &optional (error t))
     "Find a symbol in a package of given string'ified NAME;
 unless CL:FIND-SYMBOL, work well with 'modern' case sensitive syntax
@@ -65,7 +63,7 @@ when the symbol is not found."
               (error (error "There is no symbol ~S in package ~S" name (package-name package))))))
         (values nil nil))))
   (defun intern* (name package-designator &optional (error t))
-    (intern (string name) (package-name* package-designator error)))
+    (intern (string name) (find-package* package-designator error)))
   (defun unintern* (name package-designator &optional (error t))
     (block nil
       (let ((package (find-package* package-designator error)))
@@ -77,13 +75,19 @@ when the symbol is not found."
               (error (error "symbol ~A not present in package ~A"
                             (string symbol) (package-name package))))))
         (values nil nil))))
-  (defun package-data (package-designator &optional (error t))
+  (defun symbol-name-package (symbol)
+    (cons (symbol-name symbol) (package-name (symbol-package symbol))))
+  (defun package-names (package)
+    (cons (package-name package) (package-nicknames package)))
+  (defun package-data (package-designator &key name-package (error t))
     (let ((package (find-package* package-designator error)))
       (when package
-        (labels ((string-sort (strings)
-                   (sort strings #'string<))
+        (labels ((marshall-symbols (symbols)
+                   (if name-package (mapcar #'symbol-name-package symbols) symbols))
+                 (sort-symbols (symbols)
+                   (marshall-symbols (sort symbols #'string<)))
                  (sort-packages (packages)
-                   (string-sort (mapcar #'package-name packages))))
+                   (sort (mapcar #'package-name packages) #'string<)))
           (loop :with internal :with external :with inherited
                 :for sym :being :the :symbols :in package
                 :for status = (nth-value 1 (find-symbol* sym package)) :do
@@ -95,10 +99,10 @@ when the symbol is not found."
                    (return
                      `(:name ,(package-name package)
                        :nicknames ,(package-nicknames package)
-                       :internal ,(string-sort internal)
-                       :external ,(string-sort external)
-                       :inherited ,(string-sort inherited)
-                       :shadowing ,(string-sort (package-shadowing-symbols package))
+                       :internal ,(sort-symbols internal)
+                       :external ,(sort-symbols external)
+                       :inherited ,(sort-symbols inherited)
+                       :shadowing ,(sort-symbols (package-shadowing-symbols package))
                        :use ,(sort-packages (package-use-list package))
                        :used-by ,(sort-packages (package-used-by-list package))))))))))
 
@@ -108,7 +112,7 @@ when the symbol is not found."
   (defun ensure-package-unused (package)
     (loop :for p :in (package-used-by-list package) :do
       (unuse-package package p)))
-  (defun ensure-package-deleted (package) ;; &key upgrade
+  (defun delete-package* (package)
     (let ((p (find-package package)))
       (when p
         (ensure-package-unused p)
@@ -121,10 +125,6 @@ when the symbol is not found."
     (loop :for name :in symbols
           :for sym = (find-symbol* name package nil)
           :when sym :do #-gcl (fmakunbound `(setf ,sym))))
-  (defun recycle-symbol (name recycle)
-    (loop :for r :in recycle
-          :for s = (find-symbol* name r nil)
-          :when s :do (return (values s r))))
   (defun ensure-package (name &key
                                 upgrade
                                 nicknames documentation use
@@ -132,6 +132,11 @@ when the symbol is not found."
                                 import-from export intern
                                 recycle mix reexport
                                 unintern fmakunbound fmakunbound-setf)
+    (DBG :ensure-package name nicknames upgrade documentation use
+         shadow shadowing-import-from
+         import-from export intern
+         recycle mix reexport
+         unintern fmakunbound fmakunbound-setf)
     (let* ((nicknames (mapcar #'string nicknames))
            (shadow (mapcar #'string shadow))
            (shadowing-import-from (loop :for sif :in shadowing-import-from
@@ -144,36 +149,11 @@ when the symbol is not found."
            (imported (make-hash-table :test 'equal)) ; string to bool
            (exported (make-hash-table :test 'equal)) ; string to bool
            (inherited (make-hash-table :test 'equal)) ; string to package name
-           (previous (remove-duplicates
-                      (mapcar #'find-package (cons name nicknames))
-                      :from-end t))
+           (names (cons name nicknames))
+           (previous (DBG :p names (mapcar 'find-package names) (remove-duplicates (mapcar #'find-package names) :from-end t)))
            (discarded (cdr previous))
            (package (or (first previous) (make-package name :nicknames nicknames))))
-      (setf (documentation package t) documentation)
-      (DBG :ensure-package name upgrade
-                                nicknames documentation use
-                                shadow shadowing-import-from
-                                import-from export intern
-                                recycle mix reexport
-                                unintern fmakunbound fmakunbound-setf)
-      ;;#+DBG (untrace)(trace find-symbol make-package delete-package use-package unuse-package import export intern shadow shadowing-import unintern unexport)
-      (assert (soft-upgrade-p upgrade))
-      (ensure-package-unused package)
-      (map () #'ensure-package-deleted discarded)
-      (rename-package package name nicknames)
-      (dolist (name unintern) (unintern* name package))
-      ;;; Compute the desired state of the package
-      (loop :for sym :in shadow :for name = (string sym) :do
-        (DBG :sha name)
-        (setf (gethash name shadowed) t)
-        (multiple-value-bind (recycled previous) (recycle-symbol name recycle)
-          (cond
-            ((or (not previous) (not (member (symbol-package recycle) recycle)))
-             (ecase (nth-value 1 (find-symbol* name package nil))
-               ((nil :inherited) (shadow name package))
-               ((:internal :external) (shadowing-import (make-symbol name) package))))
-            ((eq previous package) (shadow recycled package))
-            (t (unintern* recycled previous) (shadowing-import recycled package)))))
+      (DBG :foo)
       (labels
           ((ensure-shadowing-import (sym p)
              (let* ((name (string sym))
@@ -234,17 +214,84 @@ when the symbol is not found."
                    (t
                     (when xp
                       (unintern* x package)))))))
-           (ensure-registered (sym)
-             (let ((name (string sym)))
-               (unless (or (gethash name shadowed)
-                           (gethash name imported)
-                           (gethash name inherited))
-                 (multiple-value-bind (recycled previous) (recycle-symbol name recycle)
-                   (cond
-                       ((or (not previous) (not (member (symbol-package recycled) recycle)))
-                        (unintern* sym package))
-                       ((eq previous package))
-                       (t (unintern* recycled previous) (import recycled package))))))))
+           (recycle-symbol (name)
+             (loop :for r :in recycle
+                   :for s = (find-symbol* name r nil)
+                   :when s :do (return (values s r))))
+           (symbol-recycled-p (sym)
+             (loop :for r :in recycle
+                   :thereis (multiple-value-bind (s sp) (find-symbol* sym r nil) (and sp (eq sym s)))))
+           (ensure-symbol (name &optional intern)
+             (unless (or (gethash name shadowed)
+                         (gethash name imported)
+                         (gethash name inherited))
+               (multiple-value-bind (recycled previous) (recycle-symbol name)
+                 (cond
+                   ((eq previous package))
+                   ((or (not previous) (not (member (symbol-package recycled) recycle)))
+                    (when intern (intern* name package)))
+                   (t (unintern* name package) (unintern* recycled previous) (import recycled package))))))
+           (ensure-export (name p)
+             (multiple-value-bind (symbol status) (find-symbol name p)
+               (assert status)
+               (unless (eq status :external)
+                 (ensure-exported name symbol p))))
+           (ensure-exported (name sym p)
+             (dolist (u (package-used-by-list p))
+               (ensure-exported-to-user name sym u))
+             (export sym p))
+           (ensure-exported-to-user (name sym u)
+             (multiple-value-bind (usym ustat) (find-symbol name u)
+               (unless (eq sym usym)
+                 (let ((shadowing (member usym (package-shadowing-symbols u))))
+                   (block nil
+                     (cond
+                       ((not shadowing)
+                        (unintern usym u))
+                       ((symbol-recycled-p usym)
+                        (shadowing-import sym u))
+                       (t (return)))
+                     (when (eq ustat :external)
+                       (ensure-exported name sym u))))))))
+        (assert (soft-upgrade-p upgrade))
+        (setf (documentation package t) documentation)
+        ;;#+DBG (untrace)(trace find-symbol make-package delete-package use-package unuse-package import export intern shadow shadowing-import unintern unexport)
+        (DBG :names names package previous discarded (package-data package :name-package t))
+        (loop :for p :in discarded
+              :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
+                                  (package-names p))
+              :do (DBG (package-names discarded) n)
+              :do (if n (rename-package discarded (first n) (rest n))
+                      (delete-package* discarded)))
+        (rename-package package name nicknames)
+        (DBG :unuse)
+        (loop :for p :in (set-difference (package-use-list package) (append mix use))
+              :do (unuse-package p package))
+        (DBG :unintern)
+        (dolist (name unintern) (unintern* name package nil))
+        (DBG :export?)
+        (loop :for sym :in export :for name = (string sym) :do
+          (setf (gethash name exported) t))
+        (DBG :reexport)
+        (loop :for p :in reexport :do
+          (do-external-symbols (sym p)
+            (let ((name (string sym)))
+              (export (find-symbol* name package) package) (setf (gethash name exported) t))))
+        (DBG :unexport)
+        (do-external-symbols (sym package)
+          (unless (gethash (symbol-name sym) exported) (unexport sym package)))
+        (DBG :shadow)
+        (loop :for s :in shadow :for name = (string s) :do
+          (DBG :sha name)
+          (setf (gethash name shadowed) t)
+          (multiple-value-bind (recycled previous) (recycle-symbol name)
+            (cond
+              ((or (not previous) (not (member (symbol-package recycle) recycle)))
+               (ecase (nth-value 1 (find-symbol* name package nil))
+                 ((nil :inherited) (shadow name package))
+                 ((:internal :external) (shadowing-import (make-symbol name) package))))
+              ((eq previous package) (shadow recycled package))
+              (t (unintern* recycled previous) (shadowing-import recycled package)))))
         (loop :for (p . syms) :in shadowing-import-from :do
           (DBG :shaif p syms)
           (dolist (sym syms) (ensure-shadowing-import sym p)))
@@ -258,21 +305,17 @@ when the symbol is not found."
           (DBG :use p sp pp)
           (do-external-symbols (sym pp) (ensure-inherited sym sp))
           (use-package pp package))
-        (DBG :intern intern)
-        (dolist (sym intern) (intern* sym package))
+        (DBG :intern)
+        (loop :for name :being :the :hash-keys :of exported :do
+          (ensure-symbol name t))
+        (dolist (name (append intern fmakunbound fmakunbound-setf))
+          (ensure-symbol (string name) t))
+        (DBG :cleanup)
         (do-symbols (sym package)
-          (DBG :ers sym)
-          (ensure-registered sym))
-        (loop :for p :in reexport :do
-          (DBG :reex p)
-          (do-external-symbols (sym p)
-            (let ((name (string sym)))
-              (export (find-symbol* name package) package) (setf (gethash name exported) t))))
-        (DBG :export export)
-        (loop :for sym :in export :for name = (string sym) :for symbol = (intern* name package) :do
-          (export symbol package) (setf (gethash name exported) t))
-        (DBG :unexport)
-        (do-external-symbols (sym package) (unless (gethash (symbol-name sym) exported) (unexport sym package)))
+          (ensure-symbol (symbol-name sym)))
+        (DBG :export)
+        (loop :for name :being :the :hash-keys :of exported :do
+          (ensure-export name package))
         ;; do away with packages with conflicting (nick)names
         ;; note from ASDF 2.26: ECL might not be liking an early fmakunbound (below #-ecl'ed)
         (ensure-package-fmakunbound package fmakunbound)

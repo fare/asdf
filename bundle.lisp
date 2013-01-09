@@ -2,6 +2,7 @@
 ;;;; ASDF-Bundle
 
 (asdf/package:define-package :asdf/bundle
+  (:fmakunbound #:trivial-system-p)
   (:recycle :asdf/bundle :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
