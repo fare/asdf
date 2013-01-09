@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding components
 
-(defpackage :asdf/find-component
+(asdf/package:define-package :asdf/find-component
+  (:recycle :asdf/find-component :asdf)
   (:use :common-lisp :asdf/utility :asdf/os
    :asdf/component :asdf/system :asdf/find-system)
   (:export
@@ -12,9 +13,7 @@
    #:missing-component #:missing-component-of-version #:retry
    #:missing-dependency #:missing-dependency-of-version
    #:missing-requires #:missing-parent
-   #:missing-required-by #:missing-version
-   ))
-
+   #:missing-required-by #:missing-version))
 (in-package :asdf/find-component)
 
 ;;;; Missing component conditions

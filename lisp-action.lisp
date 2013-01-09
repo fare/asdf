@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Actions to build Common Lisp software
 
-(defpackage :asdf/lisp-action
+(asdf/package:define-package :asdf/lisp-action
+  (:recycle :asdf/lisp-action :asdf)
   (:use :common-lisp :asdf/utility :asdf/lisp-build
    :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
   (:export

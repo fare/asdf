@@ -1,4 +1,8 @@
-(defpackage :asdf/pathname
+;;;; -------------------------------------------------------------------------
+;;;; Portability layer around Common Lisp pathnames
+
+(asdf/package:define-package :asdf/pathname
+  (:recycle :asdf/pathname :asdf)
   (:use :common-lisp :asdf/utility)
   #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*) ;; GCL 2.6 sucks
   (:export

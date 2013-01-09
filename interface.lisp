@@ -1,7 +1,8 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Handle ASDF package upgrade, including implementation-dependent magic.
 
-(defpackage :asdf/interface
+(asdf/package:define-package :asdf/interface
+  (:recycle :asdf/interface :asdf)
   (:nicknames :asdf)
   (:use :common-lisp
    :asdf/package :asdf/implementation :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
@@ -127,7 +128,6 @@
    #:system-source-registry
    #:user-source-registry-directory
    #:system-source-registry-directory))
-
 (in-package :asdf/interface)
 
 (with-upgrade (:when (fboundp 'make-sub-operation))

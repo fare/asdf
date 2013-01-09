@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Systems
 
-(defpackage :asdf/system
+(asdf/package:define-package :asdf/system
+  (:recycle :asdf/system :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component)
   (:export

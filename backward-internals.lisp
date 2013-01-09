@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;; Internal hacks for backward-compatibility 
 
-(defpackage :asdf/backward-internals
+(asdf/package:define-package :asdf/backward-internals
+  (:recycle :asdf/backward-internals :asdf)
   (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname
         :asdf/system :asdf/component :asdf/find-system :asdf/action)
   (:export ;; for internal use

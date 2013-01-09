@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF-Bundle
 
-(defpackage :asdf/bundle
+(asdf/package:define-package :asdf/bundle
+  (:recycle :asdf/bundle :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)

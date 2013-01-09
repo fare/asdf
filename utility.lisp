@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; General Purpose Utilities for ASDF
 
-(defpackage :asdf/utility
+(asdf/package:define-package :asdf/utility
+  (:recycle :asdf/utility :asdf)
   (:use :common-lisp :asdf/package :asdf/implementation)
   (:export
    #:find-symbol* ;; reexport from asdf/package
@@ -16,8 +17,7 @@
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
    #:list-to-hash-set ;; hash-table
    #:ensure-function ;; functions
-   #:parse-version #:version-compatible-p ;; version
-   ))
+   #:parse-version #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
 ;;; *-defining macros

@@ -2,7 +2,8 @@
 ;;;; Handle upgrade as forward- and backward-compatibly as possible
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 
-(defpackage :asdf/upgrade
+(asdf/package:define-package :asdf/upgrade
+  (:recycle :asdf/upgrade :asdf)
   (:use :common-lisp :asdf/package :asdf/implementation :asdf/utility)
   (:export
    #:upgrade-asdf #:asdf-upgrade-error #:with-upgrade
@@ -23,7 +24,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.64")
+         (asdf-version "2.26.65")
          (existing-asdf (find-class 'component nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))

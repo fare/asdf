@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Plan
 
-(cl:defpackage :asdf/plan
+(asdf/package:define-package :asdf/plan
+  (:recycle :asdf/plan :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
@@ -18,8 +19,7 @@
    #:call-while-visiting-action #:while-visiting-action
    #:traverse-sequentially #:traverse
    #:perform-plan #:plan-operates-on-p))
-
-(cl:in-package :asdf/plan)
+(in-package :asdf/plan)
 
 ;;;; Planned action status
 

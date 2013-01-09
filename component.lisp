@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Components
 
-(defpackage :asdf/component
+(asdf/package:define-package :asdf/component
+  (:recycle :asdf/component :asdf)
   (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/upgrade)
   (:export
    #:component #:component-find-path
@@ -19,8 +20,7 @@
    #:component-external-format #:component-encoding
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
-   #:*default-encoding* #:*utf-8-external-format*
-   ))
+   #:*default-encoding* #:*utf-8-external-format*))
 (in-package :asdf/component)
 
 (defgeneric* component-name (component)

@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Defsystem
 
-(defpackage :asdf/defsystem
+(asdf/package:define-package :asdf/defsystem
+  (:recycle :asdf/defsystem :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/lisp-action :asdf/operate
@@ -9,8 +10,7 @@
   #+gcl<2.7 (:shadowing-import-from :asdf/implementation #:type-of)
   (:export
    #:defsystem #:do-defsystem #:parse-component-form
-   #:*default-component-class*
-   ))
+   #:*default-component-class*))
 (in-package :asdf/defsystem)
 
 ;;; Pathname

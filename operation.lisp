@@ -1,14 +1,14 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
 
-(defpackage :asdf/operation
+(asdf/package:define-package :asdf/operation
+  (:recycle :asdf/operation :asdf)
   (:use :common-lisp :asdf/utility :asdf/upgrade)
   (:export
    #:operation
    #:operation-original-initargs ;; backward-compatibility only. DO NOT USE.
    #:make-operation
    #:find-operation))
-
 (in-package :asdf/operation)
 
 ;;; Operation Classes

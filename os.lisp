@@ -1,6 +1,8 @@
 ;;;; ---------------------------------------------------------------------------
-;;;; Access to the Operating System 
-(defpackage :asdf/os
+;;;; Access to the Operating System
+
+(asdf/package:define-package :asdf/os
+  (:recycle :asdf/os :asdf)
   (:use :cl :asdf/package :asdf/implementation :asdf/utility :asdf/pathname)
   (:export
    #:featurep #:os-unix-p #:os-windows-p ;; features

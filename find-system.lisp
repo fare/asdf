@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding systems
 
-(defpackage :asdf/find-system
+(asdf/package:define-package :asdf/find-system
+  (:recycle :asdf/find-system :asdf)
   (:use :common-lisp :asdf/implementation :asdf/utility :asdf/upgrade :asdf/pathname :asdf/os
    :asdf/component :asdf/system)
   (:export

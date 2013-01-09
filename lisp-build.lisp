@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Support to build (compile and load) Lisp files
 
-(defpackage :asdf/lisp-build
+(asdf/package:define-package :asdf/lisp-build
+  (:recycle :asdf/lisp-build :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os)
   (:export
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*

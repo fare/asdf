@@ -1,8 +1,9 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Handle ASDF portability to multiple implementations
 
-(defpackage :asdf/implementation
+(asdf/package:define-package :asdf/implementation
   (:use :common-lisp :asdf/package)
+  (:recycle :asdf/implementation :asdf)
   #+cormanlisp
   (:export
    #:logical-pathname #:translate-logical-pathname

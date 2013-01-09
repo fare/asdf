@@ -53,5 +53,5 @@
      (:file "bundle" :depends-on ("lisp-action"))
      (:file "concatenate-source" :depends-on ("lisp-action"))
      (:file "backward-interface" :depends-on ("lisp-action"))))
-   (:file "user")
+   (:file "interface")
    (:file "footer" :depends-on ("interface"))))

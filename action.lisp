@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Actions
 
-(defpackage :asdf/action
+(asdf/package:define-package :asdf/action
+  (:recycle :asdf/action :asdf)
   (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/os
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
   #+gcl<2.7 (:shadowing-import-from :asdf/implementation #:type-of)

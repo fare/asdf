@@ -1,7 +1,8 @@
 ;;;; -------------------------------------------------------------------------
 ;;; Backward-compatible interfaces
 
-(defpackage :asdf/backward-interface
+(asdf/package:define-package :asdf/backward-interface
+  (:recycle :asdf/backward-interface :asdf)
   (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/os
    :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
@@ -15,7 +16,6 @@
    #:operation-on-warnings
    #:run-shell-command
    #:system-definition-pathname))
-
 (in-package :asdf/backward-interface)
 
 (defvar *asdf-verbose* nil) ; worked around by cl-protobufs. It was a mistake to introduce it. mea culpa -fare

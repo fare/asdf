@@ -1,7 +1,8 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; asdf-output-translations
 
-(defpackage :asdf/output-translations
+(asdf/package:define-package :asdf/output-translations
+  (:recycle :asdf/output-translations :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/configuration :asdf/action)
   (:export
    #:invalid-output-translation

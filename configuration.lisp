@@ -1,7 +1,8 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Generic support for configuration files
 
-(defpackage :asdf/configuration
+(asdf/package:define-package :asdf/configuration
+  (:recycle :asdf/configuration :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os)
   (:export
    #:get-folder-path
@@ -13,8 +14,7 @@
    #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form*
    #:*clear-configuration-hook* #:clear-configuration
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
-   #:resolve-relative-location-component #:resolve-absolute-location-component
-   ))
+   #:resolve-relative-location-component #:resolve-absolute-location-component))
 (in-package :asdf/configuration)
 
 (define-condition invalid-configuration ()

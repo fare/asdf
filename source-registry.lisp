@@ -2,7 +2,8 @@
 ;;;; Source Registry Configuration, by Francois-Rene Rideau
 ;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
-(defpackage :asdf/source-registry
+(asdf/package:define-package :asdf/source-registry
+  (:recycle :asdf/source-registry :asdf)
   (:use :common-lisp :asdf/implementation :asdf/configuration :asdf/utility :asdf/pathname :asdf/os
         :asdf/find-system)
   (:export
@@ -20,8 +21,7 @@
    #:user-source-registry-directory #:system-source-registry-directory
    #:environment-source-registry #:process-source-registry
    #:compute-source-registry #:flatten-source-registry
-   #:sysdef-source-registry-search
-   ))
+   #:sysdef-source-registry-search))
 (in-package :asdf/source-registry)
 
 (define-condition invalid-source-registry (invalid-configuration warning)
