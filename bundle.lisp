@@ -4,6 +4,7 @@
 (asdf/package:define-package :asdf/bundle
   (:fmakunbound #:trivial-system-p)
   (:recycle :asdf/bundle :asdf)
+  (:intern #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)

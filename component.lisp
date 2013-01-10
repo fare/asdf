@@ -5,7 +5,10 @@
   (:recycle :asdf/component :asdf)
   (:fmakunbound #:component-relative-pathname #:source-file-type)
   (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/upgrade)
-  (:intern #:documentation #:long-documentation)
+  (:intern #:name #:version #:description #:long-description
+           #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
+           #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
+           #:%encoding #:properties #:parent)
   (:export
    #:component #:component-find-path
    #:component-name #:component-pathname #:component-relative-pathname

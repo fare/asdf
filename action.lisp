@@ -9,6 +9,7 @@
   (:fmakunbound
    #:explain #:output-files #:perform #:perform-with-restarts
    #:operation-done-p #:compute-action-stamp #:component-depends-on #:mark-operation-done)
+  (:intern #:stamp #:done-p)
   (:export
    #:action
    #:explain #:operation-description

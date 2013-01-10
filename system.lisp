@@ -6,6 +6,8 @@
   (:fmakunbound #:find-system #:system-source-file #:system-relative-pathname #:builtin-system-p)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component)
+  (:intern #:children #:children-by-name #:default-component-class
+           #:author #:maintainer #:licence #:source-file #:defsystem-depends-on)
   (:export
    #:child-component #:parent-component #:module #:system
    #:component-children-by-name #:component-children #:compute-children-by-name

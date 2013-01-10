@@ -8,6 +8,9 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   #+gcl<2.7 (:shadowing-import-from :asdf/implementation #:type-of)
+  (:intern #:planned-p #:index #:forced #:forced-not #:total-action-count
+           #:planned-action-count #:planned-output-action-count #:visited-actions
+           #:visiting-action-set #:visiting-action-list #:actions-r)
   (:export
    #:component-operation-time #:mark-operation-done
    #:plan-traversal #:sequential-plan

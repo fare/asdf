@@ -24,7 +24,7 @@
 (defmacro DBG (tag &rest exprs)
   "simple debug statement macro:
 outputs a tag plus a list of variable and their values, returns the last value"
-  ;"if not in debugging mode, just compute and return last value"
+  ;;"if not in debugging mode, just compute and return last value"
   #-DBGXXX (declare (ignore tag)) #-DBGXXX (car (last exprs)) #+DBGXXX
   (let ((res (gensym))(f (gensym)))
   `(let (,res (*print-readably* nil))
@@ -149,11 +149,12 @@ when the symbol is not found."
            (imported (make-hash-table :test 'equal)) ; string to bool
            (exported (make-hash-table :test 'equal)) ; string to bool
            (inherited (make-hash-table :test 'equal)) ; string to package name
+           (name (string name))
+           (nicknames (mapcar #'string nicknames))
            (names (cons name nicknames))
-           (previous (DBG :p names (mapcar 'find-package names) (remove-duplicates (mapcar #'find-package names) :from-end t)))
+           (previous (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t))
            (discarded (cdr previous))
-           (package (or (first previous) (make-package name :nicknames nicknames))))
-      (DBG :foo)
+           (package (DBG :xxx names previous discarded (or (first previous) (make-package name :nicknames nicknames)))))
       (labels
           ((ensure-shadowing-import (sym p)
              (let* ((name (string sym))
@@ -230,7 +231,7 @@ when the symbol is not found."
                    ((eq previous package))
                    ((or (not previous) (not (member (symbol-package recycled) recycle)))
                     (when intern (intern* name package)))
-                   (t (unintern* name package) (unintern* recycled previous) (import recycled package))))))
+                   (t (unintern* name package nil) (unintern* recycled previous) (import recycled package))))))
            (ensure-export (name p)
              (multiple-value-bind (symbol status) (find-symbol name p)
                (assert status)
@@ -260,7 +261,7 @@ when the symbol is not found."
         (loop :for p :in discarded
               :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
                                   (package-names p))
-              :do (DBG (package-names discarded) n)
+              :do (DBG :baz (package-names p) n)
               :do (if n (rename-package discarded (first n) (rest n))
                       (delete-package* discarded)))
         (rename-package package name nicknames)
