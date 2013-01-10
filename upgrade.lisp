@@ -24,19 +24,18 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.68")
-         (existing-asdf (find-class 'component nil))
+         (asdf-version "2.26.69")
+         (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
     (unless (and existing-asdf already-there)
-      (when (and existing-asdf *asdf-verbose*)
-        (format *trace-output*
-                "~&; Upgrading ASDF ~@[from version ~A ~]to version ~A~%"
-                existing-version asdf-version))
-      (setf *asdf-version* asdf-version
-            *upgraded-p* (if existing-version
-                             (cons existing-version *upgraded-p*)
-                             *upgraded-p*)))))
+      (when existing-asdf
+        (asdf-message "~&; Upgrading ASDF ~@[from version ~A ~]to version ~A~%"
+                      existing-version asdf-version))
+      (unless already-there
+        (push existing-version *upgraded-p*))
+      (setf *asdf-version* asdf-version))))
+
 
 ;;;; User interface
 
