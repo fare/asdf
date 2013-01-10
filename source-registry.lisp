@@ -5,8 +5,8 @@
 (asdf/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
   (:fmakunbound #:inherit-source-registry #:process-source-registry #:process-source-registry-directive)
-  (:use :common-lisp :asdf/implementation :asdf/configuration :asdf/utility :asdf/pathname :asdf/os
-        :asdf/find-system)
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
+        :asdf/upgrade :asdf/find-system :asdf/configuration)
   (:export
    #:invalid-source-registry
    #:source-registry #:source-registry-initialized-p
@@ -155,16 +155,14 @@ with a different configuration, so the configuration would be re-read then."
 
 (defun* wrapping-source-registry ()
   `(:source-registry
-    #+ecl (:tree ,(translate-logical-pathname "SYS:"))
+    #+(or ecl sbcl) (:tree ,(lisp-implementation-directory :truename t))
     #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
-    #+sbcl (:tree ,(truenamize (getenv-pathname "SBCL_HOME" :want-directory t)))
     :inherit-configuration
     #+cmu (:tree #p"modules:")
     #+scl (:tree #p"file://modules/")))
 (defun* default-source-registry ()
   `(:source-registry
     #+sbcl (:directory ,(subpathname (user-homedir) ".sbcl/systems/"))
-    (:directory ,(default-directory))
     ,@(loop :for dir :in
         `(,@(when (os-unix-p)
               `(,(or (getenv-absolute-directory "XDG_DATA_HOME")

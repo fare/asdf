@@ -31,9 +31,9 @@
     (make-pathname :directory '(#-gcl :relative #-gcl :back #+gcl :parent) :defaults *test-directory*)
     *test-directory*)))
 (defparameter *asdf-lisp*
-   (merge-pathnames
-    (make-pathname :directory '(#-gcl :relative "tmp") :name "asdf" :type "lisp" :defaults *asdf-directory*)
-    *asdf-directory*))
+  (merge-pathnames
+   (make-pathname :directory '(#-gcl :relative "build") :name "asdf" :type "lisp" :defaults *asdf-directory*)
+   *asdf-directory*))
 (defparameter *asdf-fasl*
   (compile-file-pathname
    (let ((impl (string-downcase
@@ -55,14 +55,14 @@
                     #+scl :scl
                     #+xcl :xcl))))
      (merge-pathnames
-      (make-pathname :directory `(#-gcl :relative "tmp" "fasls" ,impl)
+      (make-pathname :directory `(#-gcl :relative "fasls" ,impl)
                      :defaults *asdf-directory*)
       *asdf-lisp*))))
 
 (defun load-old-asdf (tag)
   (let ((old-asdf
           (merge-pathnames
-           (make-pathname :directory `(#-gcl :relative "tmp")
+           (make-pathname :directory `(#-gcl :relative "build")
                           :name (format nil "asdf-~A" tag) :type "lisp"
                           :defaults *asdf-directory*)
            *asdf-directory*)))

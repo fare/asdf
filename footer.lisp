@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
   (:use :common-lisp
-   :asdf/package :asdf/implementation
+   :asdf/package :asdf/compatibility
    :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
    :asdf/find-system :asdf/find-component :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/operate :asdf/bundle :asdf/concatenate-source

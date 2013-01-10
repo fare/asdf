@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/component
   (:recycle :asdf/component :asdf)
   (:fmakunbound #:component-relative-pathname #:source-file-type)
-  (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/upgrade)
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/upgrade)
   (:intern #:name #:version #:description #:long-description
            #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
            #:relative-pathname #:absolute-pathname #:operation-times #:around-compile

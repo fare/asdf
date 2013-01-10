@@ -3,10 +3,10 @@
 
 (asdf/package:define-package :asdf/utility
   (:recycle :asdf/utility :asdf)
-  (:use :common-lisp :asdf/package :asdf/implementation)
+  (:use :common-lisp :asdf/package :asdf/compatibility)
   (:export
    #:find-symbol* ;; reexport from asdf/package
-   #:strcat #:compatfmt ;; reexport from asdf/implementation
+   #:strcat #:compatfmt ;; reexport from asdf/compatibility
    #:defun* #:defgeneric* ;; defining macros
    #:aif #:it ;; basic flow control
    #:while-collecting #:appendf #:length=n-p ;; lists

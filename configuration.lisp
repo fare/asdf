@@ -169,8 +169,7 @@ values of TAG include :source-registry and :output-translations."
                      (resolve-relative-location-component
                       (cdr x) :directory directory :wilden wilden)
                      car))))
-             ((eql :default-directory)
-              (relativize-pathname-directory (default-directory)))
+             ((eql :default-directory) (nil-pathname)) ;; OBSOLETE
              ((eql :*/) *wild-directory*)
              ((eql :**/) *wild-inferiors*)
              ((eql :*.*.*) *wild-file*)

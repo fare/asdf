@@ -1,9 +1,12 @@
 ;;;; -------------------------------------------------------------------------
-;;;; Handle ASDF portability to multiple implementations
+;;;; Handle compatibility with multiple implementations.
+;;; This file is for papering over the deficiencies and peculiarities
+;;; of various Common Lisp implementations.
+;;; For implementation-specific access to the system, see os.lisp instead.
 
-(asdf/package:define-package :asdf/implementation
+(asdf/package:define-package :asdf/compatibility
   (:use :common-lisp :asdf/package)
-  (:recycle :asdf/implementation :asdf)
+  (:recycle :asdf/compatibility :asdf)
   #+cormanlisp
   (:export
    #:logical-pathname #:translate-logical-pathname
@@ -12,9 +15,8 @@
   #+genera (:import-from :scl #:boolean)
   #+genera (:export #:boolean #:ensure-directories-exist)
   (:export
-   #:strcat #:compatfmt
-   #:asdf-message #:*asdf-verbose* #:*verbose-out*))
-(in-package :asdf/implementation)
+   #:strcat #:compatfmt))
+(in-package :asdf/compatibility)
 
 #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
 (error "ASDF is not supported on your implementation. Please help us port it.")
@@ -50,7 +52,7 @@
   (when (or (< system::*gcl-major-version* 2) ;; GCL 2.6 lacks output-translations and more.
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
-    (shadow 'type-of :asdf/implementation)
+    (shadow 'type-of :asdf/compatibility)
     (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
     (pushnew :gcl<2.7 *features*)))
 
@@ -135,10 +137,3 @@
         (setf format (strcat (subseq format 0 found) replacement
                              (subseq format (+ found (length unsupported)))))))
     format)
-
-(defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
-(defvar *verbose-out* nil)
-
-(defun asdf-message (format-string &rest format-args)
-  (apply 'format *verbose-out* format-string format-args))
-

@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
-  (:use :common-lisp :asdf/implementation :asdf/utility :asdf/lisp-build
+  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/lisp-build
    :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
   (:export
    #:compile-error #:compile-failed #:compile-warned #:try-recompiling

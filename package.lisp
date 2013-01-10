@@ -387,20 +387,5 @@ when the symbol is not found."
 
 (defmacro define-package (package &rest clauses)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     #+gcl (defpackage ,package (:use))
+     #+(or ecl gcl) (defpackage ,package (:use))
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
-
-;;;; MAGIC FIXUP FOR ASDF.
-;; For bootstrapping reason, define-package can't do its magic on the asdf/package package itself,
-;; so instead do something ugly and special purpose. However, other packages could have imported
-;; from ASDF and be in trouble. There ought to be a better solution to merging packages without tears.
-
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defvar *extirpated-symbols* ())
-  (when (find-package :asdf)
-    (let (l)
-      (do-external-symbols (sym :asdf/package)
-        (multiple-value-bind (symbol lstatus) (find-symbol* sym :asdf nil)
-          (when (and lstatus (not (eq sym symbol)))
-            (push symbol l))))
-      (push (cons :asdf (mapcar #'symbol-name-package (sort l 'string<))) *extirpated-symbols*))))

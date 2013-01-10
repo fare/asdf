@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/lisp-build
   (:recycle :asdf/lisp-build :asdf)
-  (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/os)
+  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/os)
   (:fmakunbound #:compile-file*)
   (:export
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*

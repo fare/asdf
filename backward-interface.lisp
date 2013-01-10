@@ -4,8 +4,8 @@
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
   (:fmakunbound #:component-load-dependencies)
-  (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/os
-   :asdf/component :asdf/system :asdf/operation :asdf/action
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
+   :asdf/upgrade :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*

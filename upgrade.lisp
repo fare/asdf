@@ -4,11 +4,12 @@
 
 (asdf/package:define-package :asdf/upgrade
   (:recycle :asdf/upgrade :asdf)
-  (:use :common-lisp :asdf/package :asdf/implementation :asdf/utility)
+  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
   (:export
    #:upgrade-asdf #:asdf-upgrade-error #:with-upgrade
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook*
-   #:asdf-version #:*upgraded-p*))
+   #:asdf-version #:*upgraded-p*
+   #:asdf-message #:*asdf-verbose* #:*verbose-out*))
 (in-package :asdf/upgrade)
 
 ;;; Special magic to detect if this is an upgrade
@@ -16,6 +17,12 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *asdf-version* nil)
   (defvar *upgraded-p* nil)
+  (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
+  (defvar *verbose-out* nil)
+  (defun asdf-message (format-string &rest format-args)
+    (apply 'format *verbose-out* format-string format-args)))
+  
+(eval-when (:load-toplevel :compile-toplevel :execute)
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
          ;; can help you do these changes in synch (look at the source for documentation).
@@ -24,7 +31,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.70")
+         (asdf-version "2.26.71")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -37,7 +44,13 @@
       (setf *asdf-version* asdf-version))))
 
 
-;;;; User interface
+;;; Upgrade interface
+
+(defun* asdf-upgrade-error ()
+  ;; Important notice for whom it concerns. The crux of the matter is that
+  ;; TRAVERSE can be completely refactored, and so after the find-system returns, it's too late.
+  (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
+          Otherwise, when you upgrade ASDF, you must do it before you operate on any system.~%"))
 
 (defmacro with-upgrade ((&key (upgraded-p '*upgraded-p*) when) &body body)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -50,12 +63,6 @@
 You can compare this string with e.g.:
 (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"2.345.67\")."
   *asdf-version*)
-
-(defun* asdf-upgrade-error ()
-  ;; Important notice for whom it concerns. The crux of the matter is that
-  ;; TRAVERSE can be completely refactored, and so after the find-system returns, it's too late.
-  (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
-          Otherwise, when you upgrade ASDF, you must do it before you operate on any system.~%"))
 
 
 ;;; Self-upgrade functions

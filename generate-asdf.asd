@@ -28,8 +28,8 @@
    (:module
     "utils" :pathname "" :components
     ((:file "package")
-     (:file "implementation" :depends-on ("package"))
-     (:file "utility" :depends-on ("implementation"))
+     (:file "compatibility" :depends-on ("package"))
+     (:file "utility" :depends-on ("compatibility"))
      (:file "pathname" :depends-on ("utility"))
      (:file "os" :depends-on ("pathname"))))
    (:module

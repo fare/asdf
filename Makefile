@@ -10,7 +10,7 @@ else
 lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl gcl
 endif
 
-export ASDF_OUTPUT_TRANSLATIONS := (:output-translations (t ("${sourceDirectory}/tmp/fasls" :implementation)) :ignore-inherited-configuration)
+export ASDF_OUTPUT_TRANSLATIONS := (:output-translations (t ("${sourceDirectory}/build/fasls" :implementation)) :ignore-inherited-configuration)
 export CL_SOURCE_REGISTRY := (:source-registry (:tree "${sourceDirectory}") :ignore-inherited-configuration)
 
 ## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
@@ -43,17 +43,17 @@ archive:
 		--eval "(rewrite-license)" --eval "(quit)"
 	bin/make-tarball
 
-archive-copy: archive tmp/asdf.lisp
+archive-copy: archive build/asdf.lisp
 	git checkout release
-	bin/rsync-cp tmp/asdf*.tar.gz $(webhome_private)/archives
+	bin/rsync-cp build/asdf*.tar.gz $(webhome_private)/archives
 	bin/link-tarball $(clnet_home)
-	bin/rsync-cp tmp/asdf.lisp $(webhome_private)
+	bin/rsync-cp build/asdf.lisp $(webhome_private)
 	${MAKE} push
 	git checkout master
 
-tmp/asdf.lisp: $(wildcard *.lisp)
-	mkdir -p tmp
-	cat header.lisp package.lisp implementation.lisp utility.lisp upgrade.lisp pathname.lisp os.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp > $@
+build/asdf.lisp: $(wildcard *.lisp)
+	mkdir -p build
+	cat header.lisp package.lisp compatibility.lisp utility.lisp upgrade.lisp pathname.lisp os.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp > $@
 
 push:
 	git status
@@ -82,13 +82,13 @@ clean:
 		done; \
 	     fi; \
 	done
-	rm -rf tmp/ LICENSE test/try-reloading-dependency.asd
+	rm -rf build/ LICENSE test/try-reloading-dependency.asd
 	${MAKE} -C doc clean
 
 mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
-test-upgrade: tmp/asdf.lisp
+test-upgrade: build/asdf.lisp
 	# 1.37 is the last release by Daniel Barlow
 	# 1.97 is the last release before Gary King takes over
 	# 1.369 is the last release by Gary King
@@ -116,7 +116,7 @@ test-upgrade: tmp/asdf.lisp
 	  for x in load-system load-lisp load-lisp-compile-load-fasl load-fasl just-load-fasl ; do \
 	    lo="(asdf-test::load-old-asdf \"$${tag}\")" ; \
 	    echo "Testing upgrade from ASDF $${tag} using method $$x" ; \
-	    git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
+	    git show $${tag}:asdf.lisp > build/asdf-$${tag}.lisp ; \
 	    case ${lisp}:$$tag:$$x in \
 	      abcl:2.0[01][1-9]:*|abcl:2.2[1-2]:*) \
 		: Skip, because it is so damn slow ;; \
@@ -141,12 +141,12 @@ test-upgrade: tmp/asdf.lisp
 		    *) echo "WTF?" ; exit 2 ;; esac ; \
 		  $$lv "(asdf-test::test-asdf $$l)" ) || \
 		{ echo "upgrade FAILED" ; exit 1 ;} ;; esac ; \
-	done ; done 2>&1 | tee tmp/results/${lisp}-upgrade.text
+	done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 
-test-forward-references: tmp/asdf.lisp
-	${SBCL} --noinform --no-userinit --no-sysinit --load tmp/asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
+test-forward-references: build/asdf.lisp
+	${SBCL} --noinform --no-userinit --no-sysinit --load build/asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
 
-test-lisp: tmp/asdf.lisp
+test-lisp: build/asdf.lisp
 	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
 
 test: test-lisp test-forward-references doc
@@ -177,12 +177,12 @@ debian-package: mrproper
 
 # Replace SBCL's ASDF with the current one. -- Not recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
-replace-sbcl-asdf: tmp/asdf.lisp
+replace-sbcl-asdf: build/asdf.lisp
 	${SBCL} --eval '(compile-file "$<" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
 
 # Replace CCL's ASDF with the current one. -- Not recommended now that CCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
-replace-ccl-asdf: tmp/asdf.lisp
+replace-ccl-asdf: build/asdf.lisp
 	${CCL} --eval '(progn(compile-file "$<" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
 
 WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE

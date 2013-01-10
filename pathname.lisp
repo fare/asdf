@@ -46,7 +46,7 @@
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname
    ;; basic pathnames
-   #:load-pathname #:default-directory #:nil-pathname
+   #:load-pathname #:default-directory #:root-pathname
    ;; physical pathnames
    #:physical-pathname-p #:sane-physical-pathname
    ;; Windows shortcut support
@@ -705,8 +705,8 @@ For the latter case, we ought pick random suffix and atomically open it."
 (defun* load-pathname ()
   (resolve-symlinks* (or *load-pathname* *compile-file-pathname*)))
 
-(defun* default-directory ()
-  (truenamize (pathname-directory-pathname *default-pathname-defaults*)))
+(defun* default-directory () ;; A default absolute directory when all else fails.
+  (pathname-root (nil-pathname)))
 
 (defun* physical-pathname-p (x)
   (and (pathnamep x) (not (typep x 'logical-pathname))))

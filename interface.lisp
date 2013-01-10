@@ -11,7 +11,7 @@
    #:loaded-systems ; makes for annoying SLIME completion
    #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
   (:use :common-lisp
-   :asdf/package :asdf/implementation :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
+   :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-build :asdf/lisp-action
    :asdf/configuration :asdf/output-translations :asdf/source-registry

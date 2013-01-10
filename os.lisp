@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/os
   (:recycle :asdf/os :asdf)
-  (:use :cl :asdf/package :asdf/implementation :asdf/utility :asdf/pathname)
+  (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
   (:export
    #:featurep #:os-unix-p #:os-windows-p ;; features
    #:read-file-forms ;; simple filesystem manipulation
@@ -232,4 +232,4 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
     (if (and dir truename)
         (truename* dir)
         dir)))
-
+ 

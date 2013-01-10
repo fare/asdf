@@ -3,9 +3,9 @@
 
 (asdf/package:define-package :asdf/action
   (:recycle :asdf/action :asdf)
-  (:use :common-lisp :asdf/implementation :asdf/utility :asdf/pathname :asdf/os
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
-  #+gcl<2.7 (:shadowing-import-from :asdf/implementation #:type-of)
+  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/os
+   :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
+  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:fmakunbound
    #:explain #:output-files #:perform #:perform-with-restarts
    #:operation-done-p #:compute-action-stamp #:component-depends-on #:mark-operation-done)

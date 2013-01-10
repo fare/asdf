@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
   (:fmakunbound #:operate)
-  (:use :common-lisp :asdf/implementation :asdf/utility :asdf/upgrade
+  (:use :common-lisp :asdf/utility :asdf/upgrade
         :asdf/component :asdf/system :asdf/operation :asdf/action
         :asdf/lisp-build :asdf/lisp-action #:asdf/plan
         :asdf/find-system :asdf/find-component)
