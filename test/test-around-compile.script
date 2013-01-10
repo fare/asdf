@@ -6,8 +6,6 @@
   (let ((*read-base* 2))
     (funcall thunk)))
 
-(trace call-in-base-2 compile-file load asdf::around-compile-hook)
-
 (quit-on-error
  (defsystem test-around-compile
    :around-compile call-in-base-2
