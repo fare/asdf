@@ -130,13 +130,22 @@
   (ext:quit :status return)
   (error "Don't know how to quit Lisp; wanting to use exit code ~a" return))
 
+(defun finish-outputs ()
+  (loop :for s :in (list *standard-output* *error-output* *trace-output* *debug-io*)
+        :do (finish-output s)))
+
+(defun redirect-outputs ()
+  (finish-outputs)
+  (setf *error-output* *standard-output*
+        *trace-output* *standard-output*))
+
 (defun leave-lisp (message return)
+  (finish-outputs)
   (fresh-line *error-output*)
   (when message
     (format *error-output* message)
     (terpri *error-output*))
-  (finish-output *error-output*)
-  (finish-output *standard-output*)
+  (finish-outputs)
   (exit-lisp return))
 
 (defmacro assert-equal (x y)
@@ -150,6 +159,7 @@
   "Unless the environment variable DEBUG_ASDF_TEST
 is bound, write a message and exit on an error.  If
 *asdf-test-debug* is true, enter the debugger."
+  (redirect-outputs)
   (handler-bind
       ((error (lambda (c)
                 (format *error-output* "~&~a~&" c)
