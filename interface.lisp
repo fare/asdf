@@ -5,7 +5,7 @@
   (:nicknames :asdf)
   (:recycle :asdf/interface :asdf)
   (:unintern
-   #:*asdf-revision* #:around #:asdf-method-combination
+   #:*asdf-revision* #:around #:asdf-method-combination #:intern*
    #:do-traverse #:do-dep #:do-one-dep #:visit-action #:component-visited-p
    #:split #:make-collector
    #:loaded-systems ; makes for annoying SLIME completion

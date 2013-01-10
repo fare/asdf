@@ -179,10 +179,10 @@ when the symbol is not found."
                    ((gethash name shadowed)
                     (error "Can't both shadow ~S and import it from ~S" name (package-name p)))
                    (t
-                    (when (and xp (not (eq i x)))
-                      (unintern* x package))
                     (setf (gethash name imported) t)
-                    (import i package))))))
+                    (unless (and xp (eq i x))
+                      (when xp (unintern* x p))
+                      (import i package)))))))
            (ensure-mix (sym p)
              (let* ((name (string sym))
                     (sp (string p)))
@@ -197,22 +197,24 @@ when the symbol is not found."
                       (ensure-inherited sym sp)))))))
            (ensure-inherited (sym p)
              (let* ((name (string sym))
-                    (sp (string p))
-                    (s (find-symbol* name sp))
-                    (ip (gethash name inherited)))
+                    (symbol (find-symbol* name p))
+                    (sp (symbol-package symbol))
+                    (spn (package-name sp))
+                    (ipn (gethash name inherited)))
                (multiple-value-bind (x xp) (find-symbol name package)
                  (cond
-                   (ip
-                    (unless (eq ip sp)
+                   (ipn
+                    (unless (eq spn ipn)
                       (error "Can't inherit ~S from ~S, it is inherited from ~S"
-                             name sp ip)))
+                             name spn ipn)))
                    ((gethash name imported)
-                    (unless (eq s x)
+                    (unless (eq symbol x)
                       (error "Can't inherit ~S from ~S, it is imported from ~S"
                              name sp (package-name (symbol-package x)))))
                    ((gethash name shadowed)
-                    (error "Can't inherit ~S from ~S, it is shadowed" name sp))
+                    (error "Can't inherit ~S from ~S, it is shadowed" name spn))
                    (t
+                    (setf (gethash name inherited) spn)
                     (when xp
                       (unintern* x package)))))))
            (recycle-symbol (name)
@@ -353,6 +355,7 @@ when the symbol is not found."
               (error "define-package: bad :upgrade directive"))
             (setf upgrade (car args)) :else
       :do (error "unrecognized define-package keyword ~S" kw)
+      (progn fmakunbound fmakunbound-setf)
       :finally (return `(,package
                          :nicknames ,nicknames :documentation ,documentation
                          :use ,(if use-p use '(:common-lisp))
@@ -361,9 +364,24 @@ when the symbol is not found."
                          :recycle ,(if recycle-p recycle (cons package nicknames))
                          :mix ,mix :reexport ,reexport :unintern ,unintern
                          ,@(when upgrade `(:upgrade ,upgrade))
-                         :fmakunbound ,fmakunbound :fmakunbound-setf ,fmakunbound-setf)))))
+                         #|:fmakunbound ,fmakunbound :fmakunbound-setf ,fmakunbound-setf|#)))))
 
 (defmacro define-package (package &rest clauses)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      #+gcl (defpackage ,package (:use))
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
+
+;;;; MAGIC FIXUP FOR ASDF.
+;; For bootstrapping reason, define-package can't do its magic on the asdf/package package itself,
+;; so instead do something ugly and special purpose. However, other packages could have imported
+;; from ASDF and be in trouble. There ought to be a better solution to merging packages without tears.
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defvar *extirpated-symbols* ())
+  (when (find-package :asdf)
+    (let (l)
+      (do-external-symbols (sym :asdf/package)
+        (multiple-value-bind (symbol lstatus) (find-symbol* sym :asdf nil)
+          (when (and lstatus (not (eq sym symbol)))
+            (push symbol l))))
+      (push (cons :asdf (mapcar #'symbol-name-package (sort l 'string<))) *extirpated-symbols*))))

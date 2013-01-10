@@ -9,7 +9,7 @@
   (:export
    #:compile-error #:compile-failed #:compile-warned #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
-   #:basic-load-op #:basic-compile-op
+   #:basic-load-op #:basic-compile-op #:compile-op-flags #:compile-op-proclamations
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
    #:call-with-around-compile-hook
    #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source))

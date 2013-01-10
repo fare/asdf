@@ -26,7 +26,7 @@
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
-             #+(or ecl gcl)
+             ;; #+(or ecl gcl)
              ,(when (and #+gcl<2.7 (symbolp name))
                 `(fmakunbound ',name))
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
