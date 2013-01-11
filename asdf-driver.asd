@@ -15,4 +15,4 @@ that you can't portably construct a complete program without using them."
    (:file "os" :depends-on ("pathname" "stream"))
    (:file "image" :depends-on ("os"))
    (:file "run-program" :depends-on ("os"))
-   (:file "lisp-build" :depends-on ("pathname"))))
+   (:file "lisp-build" :depends-on ("image"))))

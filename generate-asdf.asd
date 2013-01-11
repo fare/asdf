@@ -8,8 +8,9 @@
   :class :concatenated-source-system
   ;; :include-dependencies t
   :translate-output-p nil
-  :concatenated-source-file "tmp/generated-asdf.lisp"
+  :concatenated-source-file "build/asdf.lisp"
   :serial t
+  :depends-on (:asdf-driver)
   :components
   ((:file "upgrade")
    (:file "component")

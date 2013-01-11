@@ -51,9 +51,21 @@ archive-copy: archive build/asdf.lisp
 	${MAKE} push
 	git checkout master
 
+driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp upgrade.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp
+asdf_lisp := component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
+
 build/asdf.lisp: $(wildcard *.lisp)
 	mkdir -p build
-	cat header.lisp package.lisp compatibility.lisp utility.lisp upgrade.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp > $@
+	cat $(driver_lisp) $(asdf_lisp) > $@
+
+wc:
+	wc $(driver_lisp) $(asdf_lisp) | sort -n
+
+wc-driver:
+	wc $(driver_lisp)
+
+wc-asdf:
+	wc $(asdf_lisp)
 
 push:
 	git status
@@ -211,7 +223,7 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	test-all test-all-lisps test-all-noupgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
-	fix-local-git-tags fix-remote-git-tags
+	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
 
 # RELEASE checklist:
 # make test-all

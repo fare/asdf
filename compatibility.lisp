@@ -55,7 +55,11 @@
                  (< system::*gcl-minor-version* 7)))
     (shadow 'type-of :asdf/compatibility)
     (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
-    (pushnew :gcl<2.7 *features*)))
+    (pushnew :gcl<2.7 *features*))
+  (unless (member :ansi-cl *features*)
+    (error "ASDF only supports GCL in ANSI mode. Aborting.~%"))
+  (setf compiler::*compiler-default-type* (pathname "")
+        compiler::*lsp-ext* ""))
 
 #+mkcl
 (eval-when (:load-toplevel :compile-toplevel :execute)

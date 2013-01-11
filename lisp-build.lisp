@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/lisp-build
   (:recycle :asdf/lisp-build :asdf)
-  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
    #:*compile-file-function* #:compile-file* #:compile-file-pathname* #:*output-translation-hook*
@@ -31,6 +31,181 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   "Function used to compile lisp files.")
 
 (defvar *output-translation-hook* 'identity)
+
+
+;;; Optimization settings
+
+(defvar *optimization-settings* nil)
+(defvar *previous-optimization-settings* nil)
+(defun get-optimization-settings ()
+  "Get current compiler optimization settings, ready to PROCLAIM again"
+  (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
+    #-(or clisp clozure cmu ecl sbcl scl)
+    (warn "xcvb-driver::get-optimization-settings does not support your implementation. Please help me fix that.")
+    #.`(loop :for x :in settings
+         ,@(or #+clozure '(:for v :in '(ccl::*nx-speed* ccl::*nx-space* ccl::*nx-safety* ccl::*nx-debug* ccl::*nx-cspeed*))
+               #+ecl '(:for v :in '(c::*speed* c::*space* c::*safety* c::*debug*))
+               #+(or cmu scl) '(:for f :in '(c::cookie-speed c::cookie-space c::cookie-safety c::cookie-debug c::cookie-cspeed c::cookie-brevity)))
+         :for y = (or #+clisp (gethash x system::*optimize*)
+                      #+(or clozure ecl) (symbol-value v)
+                      #+(or cmu scl) (funcall f c::*default-cookie*)
+                      #+sbcl (cdr (assoc x sb-c::*policy*)))
+         :when y :collect (list x y))))
+(defun proclaim-optimization-settings ()
+  "Proclaim the optimization settings in *OPTIMIZATION-SETTINGS*"
+  (proclaim `(optimize ,@*optimization-settings*))
+  (let ((settings (get-optimization-settings)))
+    (unless (equal *previous-optimization-settings* settings)
+      (setf *previous-optimization-settings* settings))))
+
+
+;;; Condition control
+
+(defvar *uninteresting-conditions*
+  (append
+   #+sbcl
+   '(sb-c::simple-compiler-note
+     "&OPTIONAL and &KEY found in the same lambda list: ~S"
+     sb-int:package-at-variance
+     sb-kernel:uninteresting-redefinition
+     ;; the below four are controversial to include here;
+     ;; however there are issues with the asdf upgrade if they are not present
+     sb-kernel:redefinition-with-defun
+     sb-kernel:redefinition-with-defgeneric
+     sb-kernel:redefinition-with-defmethod
+     sb-kernel::redefinition-with-defmacro ; not exported by old SBCLs
+     sb-kernel:undefined-alien-style-warning
+     sb-ext:implicit-generic-function-warning
+     sb-kernel:lexical-environment-too-complex
+     "Couldn't grovel for ~A (unknown to the C compiler).")
+   ;;#+clozure '(ccl:compiler-warning)
+   '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.") ;; from closer2mop
+   )
+  "Conditions that may be skipped. type symbols, predicates or strings")
+
+(defvar *uninteresting-load-conditions*
+  (append
+   '("Overwriting already existing readtable ~S." ;; from named-readtables
+     #(#:finalizers-off-warning :asdf-finalizers)) ;; from asdf-finalizers
+   #+clisp '(clos::simple-gf-replacing-method-warning))
+  "Additional conditions that may be skipped while loading. type symbols, predicates or strings")
+
+(defvar *fatal-conditions*
+  '(serious-condition)
+  "Conditions to be considered fatal during compilation.")
+
+(defvar *deferred-warnings* ()
+  "Warnings the handling of which is deferred until the end of the compilation unit")
+
+;;;; ----- Filtering conditions while building -----
+
+(defun match-condition-p (x condition)
+  "Compare received CONDITION to some pattern X:
+a symbol naming a condition class,
+a simple vector of length 2, arguments to find-symbol* with result as above,
+or a string describing the format-control of a simple-condition."
+  (etypecase x
+    (symbol (typep condition x))
+    ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
+    (function (funcall x condition))
+    (string (and (typep condition 'simple-condition)
+                 #+(or clozure cmu scl) ; Note: on SBCL, always bound, and testing triggers warning
+		 (slot-boundp condition
+			      #+clozure 'ccl::format-control
+			      #+(or cmu scl) 'conditions::format-control)
+                 (ignore-errors (equal (simple-condition-format-control condition) x))))))
+
+(defun match-any-condition-p (condition conditions)
+  "match CONDITION against any of the patterns of CONDITIONS supplied"
+  (loop :for x :in conditions :thereis (match-condition-p x condition)))
+
+(defun uninteresting-condition-p (condition)
+  "match CONDITION against any of the patterns of *UNINTERESTING-CONDITIONS*"
+  (match-any-condition-p condition *uninteresting-conditions*))
+
+(defun fatal-condition-p (condition)
+  "match CONDITION against any of the patterns of *FATAL-CONDITIONS*"
+  (match-any-condition-p condition *fatal-conditions*))
+
+(defun call-with-controlled-compiler-conditions (thunk)
+  (handler-bind
+      ((t
+        #'(lambda (condition)
+            ;; TODO: do something magic for undefined-function,
+            ;; save all of aside, and reconcile in the end of the virtual compilation-unit.
+            (cond
+              ((uninteresting-condition-p condition)
+               (muffle-warning condition))
+              ((fatal-condition-p condition)
+               (bork condition))))))
+    (funcall thunk)))
+
+(defmacro with-controlled-compiler-conditions ((&optional) &body body)
+  "Run BODY while suppressing conditions patterned after *UNINTERESTING-CONDITIONS*"
+  `(call-with-controlled-compiler-conditions #'(lambda () ,@body)))
+
+(defun call-with-controlled-loader-conditions (thunk)
+  (let ((*uninteresting-conditions*
+         (append
+          *uninteresting-load-conditions*
+          *uninteresting-conditions*)))
+    (call-with-controlled-compiler-conditions thunk)))
+
+(defmacro with-controlled-loader-conditions ((&optional) &body body)
+  "Run BODY while suppressing conditions patterned after *UNINTERESTING-CONDITIONS* plus a few others that don't matter at load-time."
+  `(call-with-controlled-loader-conditions #'(lambda () ,@body)))
+
+(defun save-forward-references (forward-references)
+  "Save forward reference conditions so they may be issued at a latter time,
+possibly in a different process."
+  #+sbcl
+  (loop :for w :in sb-c::*undefined-warnings*
+    :for kind = (sb-c::undefined-warning-kind w) ; :function :variable :type
+    :for name = (sb-c::undefined-warning-name w)
+    :for symbol = (cond
+                    ((consp name)
+                     (unless (eq kind :function)
+                       (error "unrecognized warning ~S not a function?" w))
+                     (ecase (car name)
+                       ((setf)
+                        (assert (and (consp (cdr name)) (null (cddr name))) ())
+				  (setf kind :setf-function)
+                        (second name))
+                       ((sb-pcl::slot-accessor)
+                        (assert (eq :global (second name)))
+                        (assert (eq 'boundp (fourth name)))
+                        (assert (null (nthcdr 4 name)))
+                        (setf kind :sb-pcl-global-boundp-slot-accessor)
+                        (third name))))
+                    (t
+                     (assert (member kind '(:function :variable :type)) ())
+                     name))
+    :for symbol-name = (symbol-name symbol)
+    :for package-name = (package-name (symbol-package symbol))
+    :collect `(:undefined ,symbol-name ,package-name ,kind) :into undefined-warnings
+    :finally (setf *deferred-warnings* undefined-warnings
+                   sb-c::*undefined-warnings* nil))
+  (when forward-references
+    (with-open-file (s forward-references :direction :output :if-exists :supersede)
+      (write *deferred-warnings* :stream s :pretty t :readably t)
+      (terpri s))))
+
+(defun call-with-asdf-compilation-unit (thunk &key forward-references)
+  (with-compilation-unit (:override t)
+    (let ((*deferred-warnings* ())
+          #+sbcl (sb-c::*undefined-warnings* nil))
+      (multiple-value-prog1
+          (with-controlled-compiler-conditions ()
+            (funcall thunk))
+        (save-forward-references forward-references)))))
+
+(defmacro with-asdf-compilation-unit ((&key forward-references) &body body)
+  "Like WITH-COMPILATION-UNIT, but saving forward-reference issues
+for processing later (possibly in a different process)."
+  `(call-with-xcvb-compilation-unit #'(lambda () ,@body) :forward-references ,forward-references))
+
+
+;;; from ASDF
 
 (defun* lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
@@ -140,69 +315,4 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
            (scm:concatenate-system output :fasls-to-concatenate))
       (loop :for f :in fasls :do (ignore-errors (delete-file f)))
       (ignore-errors (lispworks:delete-system :fasls-to-concatenate)))))
-
-
-;;; Optimization settings
-
-(defvar *optimization-settings* nil)
-(defvar *previous-optimization-settings* nil)
-(defun get-optimization-settings ()
-  "Get current compiler optimization settings, ready to PROCLAIM again"
-  (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
-    #-(or clisp clozure cmu ecl sbcl scl)
-    (warn "xcvb-driver::get-optimization-settings does not support your implementation. Please help me fix that.")
-    #.`(loop :for x :in settings
-         ,@(or #+clozure '(:for v :in '(ccl::*nx-speed* ccl::*nx-space* ccl::*nx-safety* ccl::*nx-debug* ccl::*nx-cspeed*))
-               #+ecl '(:for v :in '(c::*speed* c::*space* c::*safety* c::*debug*))
-               #+(or cmu scl) '(:for f :in '(c::cookie-speed c::cookie-space c::cookie-safety c::cookie-debug c::cookie-cspeed c::cookie-brevity)))
-         :for y = (or #+clisp (gethash x system::*optimize*)
-                      #+(or clozure ecl) (symbol-value v)
-                      #+(or cmu scl) (funcall f c::*default-cookie*)
-                      #+sbcl (cdr (assoc x sb-c::*policy*)))
-         :when y :collect (list x y))))
-(defun proclaim-optimization-settings ()
-  "Proclaim the optimization settings in *OPTIMIZATION-SETTINGS*"
-  (proclaim `(optimize ,@*optimization-settings*))
-  (let ((settings (get-optimization-settings)))
-    (unless (equal *previous-optimization-settings* settings)
-      (setf *previous-optimization-settings* settings))))
-
-
-;;; Condition control
-
-(defvar *uninteresting-conditions*
-  (append
-   #+sbcl
-   '(sb-c::simple-compiler-note
-     "&OPTIONAL and &KEY found in the same lambda list: ~S"
-     sb-int:package-at-variance
-     sb-kernel:uninteresting-redefinition
-     ;; the below four are controversial to include here;
-     ;; however there are issues with the asdf upgrade if they are not present
-     sb-kernel:redefinition-with-defun
-     sb-kernel:redefinition-with-defgeneric
-     sb-kernel:redefinition-with-defmethod
-     sb-kernel::redefinition-with-defmacro ; not exported by old SBCLs
-     sb-kernel:undefined-alien-style-warning
-     sb-ext:implicit-generic-function-warning
-     sb-kernel:lexical-environment-too-complex
-     "Couldn't grovel for ~A (unknown to the C compiler).")
-   ;;#+clozure '(ccl:compiler-warning)
-   '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.") ;; from closer2mop
-   )
-  "Conditions that may be skipped. type symbols, predicates or strings")
-
-(defvar *uninteresting-load-conditions*
-  (append
-   '("Overwriting already existing readtable ~S." ;; from named-readtables
-     #(#:finalizers-off-warning :asdf-finalizers)) ;; from asdf-finalizers
-   #+clisp '(clos::simple-gf-replacing-method-warning))
-  "Additional conditions that may be skipped while loading. type symbols, predicates or strings")
-
-(defvar *fatal-conditions*
-  '(serious-condition)
-  "Conditions to be considered fatal during compilation.")
-
-(defvar *deferred-warnings* ()
-  "Warnings the handling of which is deferred until the end of the compilation unit")
 
