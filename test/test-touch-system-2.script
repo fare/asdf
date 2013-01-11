@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-;;; test system def reloading if touched
+;;; test system definition reloading if touched
 ;;; system that canNOT be found using *system-definition-search-functions*
 
 (load "script-support.lisp")
@@ -11,16 +11,15 @@
             (when data
               (car data)))))
    (setf asdf:*central-registry* nil)
-   (load (merge-pathnames "test1.asd"))
-   (assert (asdf:find-system :test1))
+   (load "test1.asd")
+   (assert (find-system :test1))
    (let ((date1 (system-load-time :test1))
-         (file (namestring (merge-pathnames "test1.asd"))))
+         (file "test1.asd"))
      (assert date1)
      (assert file)
-     (sleep 1)
-     (asdf:run-shell-command "touch ~a" file)
+     (sleep 2)
+     (touch-file file)
      (asdf:find-system :test1)
      (let ((date2 (system-load-time :test1)))
        (assert date2)
        (assert (> date2 date1))))))
-

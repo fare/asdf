@@ -3,8 +3,9 @@
 (load-asdf)
 
 (quit-on-error
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (DBG "loading test1")
+ (touch-file "file1.lisp" :offset -600) ;; touch file1.lisp 10 minutes ago.
+ (touch-file "file2.lisp" :offset -300) ;; touch file2.lisp 5 minutes ago.
  (asdf:load-system 'test1)
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
@@ -18,20 +19,24 @@
    (DBG "and loaded")
    (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
 
-   (DBG "now remove file2 that depends-on file1 check that file1 is _not_ recompiled, but file2 is")
+   (DBG "now remove file2 that depends-on file1" file1-date (- file1-date 120))
+   (touch-file file1 :timestamp (- file1-date 120)) ;; move file1.fasl two minutes ago.
+   (assert-equal (- file1-date 120) (file-write-date file1))
    (asdf::delete-file-if-exists file2)
-   ;; filesystem mtime has 1 second granularity. Make sure even fast machines see a difference.
-   (sleep 1.5)
+
+   (asdf:clear-system 'test1)
    (asdf:load-system 'test1)
-   (assert (= file1-date (file-write-date file1)))
-   (assert (< file2-date (file-write-date file2)))
+   (DBG "check that file1 is _not_ recompiled, but file2 is" (file-write-date file1))
+   (assert-equal (- file1-date 120) (file-write-date file1))
+   (assert (<= file2-date (file-write-date file2)))
 
    (DBG "now touch file1 and check that file2 _is_ also recompiled")
    ;; XXX run-shell-command loses if *default-pathname-defaults* is not the
    ;; unix cwd.  this is not a problem for run-tests.sh, but can be in general
    (let ((before (file-write-date file2)))
-     ;; filesystem mtime has 1 second granularity. Make sure even fast machines see a difference.
-     (sleep 1)
-     (asdf::run-shell-command "touch file1.lisp")
+     (touch-file "file1.lisp" :offset -60) ;; touch file1 a minute ago.
+     (touch-file file2 :timestamp (- before 10)) ;; touch file2.fasl ten seconds before.
+     (asdf:clear-system 'test1)     (asdf:clear-system 'test1)
      (asdf:operate 'asdf:load-op 'test1)
-     (assert (> (file-write-date file2) before)))))
+     (DBG :foo (file-write-date file2) before)
+     (assert (>= (file-write-date file2) before)))))

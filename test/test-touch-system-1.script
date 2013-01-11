@@ -17,7 +17,7 @@
      (assert date1)
      (assert file)
      (sleep 1)
-     (asdf:run-shell-command "touch ~a" file)
+     (touch-file file)
      (asdf:find-system :test1)
      (let ((date2 (system-load-time :test1)))
        (print (list date1 date2))

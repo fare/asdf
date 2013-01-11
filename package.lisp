@@ -19,13 +19,13 @@
 
 (in-package :asdf/package)
 
-(declaim (optimize (speed 0) (safety 3) (debug 3)))
+(declaim (optimize (speed 0) (safety 3) #-gcl (debug 3)))
 
 (defmacro DBG (tag &rest exprs)
   "simple debug statement macro:
 outputs a tag plus a list of variable and their values, returns the last value"
   ;;"if not in debugging mode, just compute and return last value"
-  #-DBGXXX (declare (ignore tag)) #-DBGXXX (car (last exprs)) #+DBGXXX
+  ;; #-DBGXXX (declare (ignore tag)) #-DBGXXX (car (last exprs)) #+DBGXXX
   (let ((res (gensym))(f (gensym)))
   `(let (,res (*print-readably* nil))
     (flet ((,f (fmt &rest args) (apply #'format *error-output* fmt args)))
@@ -171,7 +171,7 @@ when the symbol is not found."
   (defun ensure-package-fmakunbound-setf (package symbols)
     (loop :for name :in symbols
           :for sym = (find-symbol* name package nil)
-          :when sym :do #-gcl (fmakunbound `(setf ,sym))))
+          :when sym :do (progn #-gcl (fmakunbound `(setf ,sym)))))
   (defun packages-from-names (names)
     (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t))
   (defun ensure-package (name &key
@@ -240,6 +240,7 @@ when the symbol is not found."
                     (ipn (gethash name inherited)))
                (multiple-value-bind (x xp) (find-symbol name package)
                  (cond
+                   ((gethash name shadowed))
                    (ipn
                     (unless (eq spn ipn)
                       (error "Can't inherit ~S from ~S, it is inherited from ~S"
@@ -248,8 +249,6 @@ when the symbol is not found."
                     (unless (eq symbol x)
                       (error "Can't inherit ~S from ~S, it is imported from ~S"
                              name sp (package-name (symbol-package x)))))
-                   ((gethash name shadowed)
-                    (error "Can't inherit ~S from ~S, it is shadowed" name spn))
                    (t
                     (setf (gethash name inherited) spn)
                     (when xp
@@ -294,12 +293,12 @@ when the symbol is not found."
                      (when (eq ustat :external)
                        (ensure-exported name sym u))))))))
         (assert (soft-upgrade-p upgrade))
-        (setf (documentation package t) documentation)
+        #-gcl (setf (documentation package t) documentation) #+gcl documentation
         (loop :for p :in discarded
               :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
                                   (package-names p))
-              :do (if n (rename-package discarded (first n) (rest n))
-                      (delete-package* discarded)))
+              :do (if n (rename-package p (first n) (rest n))
+                      (delete-package* p)))
         (rename-package package name nicknames)
         (loop :for p :in (set-difference (package-use-list package) (append mix use))
               :do (unuse-package p package))
@@ -389,3 +388,4 @@ when the symbol is not found."
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      #+(or ecl gcl) (defpackage ,package (:use))
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
+

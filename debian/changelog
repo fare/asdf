@@ -55,12 +55,6 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     builtin systems (such as SB-BSD-SOCKETS on SBCL) cannot be forced
     (which doesn't work on SBCL).
 
-  * Internals have been refactored, and some sorry features were excised.
-    The semantics of OPERATION-DONE-P is simplified and now well-specified.
-    FIND-COMPONENT will pass component objects through, and
-    a corresponding FIND-OPERATION replaces MAKE-SUB-OPERATION.
-    Several internal accessors were renamed.
-
   * IF-FEATURE is a new attribute of components that accepts an arbitrary
     feature expression such as (:and :sbcl (:or :x86 :x86-64)),
     which when defined is a precondition to the component being enabled;
@@ -81,6 +75,27 @@ cl-asdf (2:2.27-1) unstable; urgency=low
   * ASDF2.27 was added to the *features* so you can detect the presence of
     this massively updated ASDF and its new features with #+asdf2.27.
     This is *not* ASDF3, for we painfully maintained backwards compatibility.
+
+  * CONCATENATE-SOURCE-OP is a new operation that builds a single Lisp file
+    from all the source files in a system,
+    which allows you to develop in a structured way with many compact files,
+    yet deliver a large single file. Other related operations allow you
+    to load that source file, or compile and load it,
+    or do the same while including all other system dependencies.
+    ASDF was broken up into lots of small files, to be delivered that way.
+
+  * Packages were introduced as ASDF was broken up into small files.
+    Each file now has its own package, importing and exporting functionality,
+    following the style made popular by faslpath and quick-build.
+    A macro DEFINE-PACKAGE was defined in replacement to DEFPACKAGE
+    to manage the same effects while making every effort to
+    Do The Right Thing(tm) in case of hot upgrade.
+
+  * Internals have been refactored, and some sorry features were excised.
+    The semantics of OPERATION-DONE-P is simplified and now well-specified.
+    FIND-COMPONENT will pass component objects through, and
+    a corresponding FIND-OPERATION replaces MAKE-SUB-OPERATION.
+    Several internal accessors were renamed.
 
   * Portability updates were done for
     ABCL, CLISP, CMUCL, ECL, LispWorks Personal Edition, MKCL, XCL.
@@ -111,7 +126,7 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     (defparameter *upgrade-asdf-p* t)
     (pushnew 'try-compile-file-with-asdf *compile-file-for-emacs-hook*)
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 27 Dec 2012 15:59:44 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 10 Jan 2012 22:59:44 -0500
 
 cl-asdf (2:2.26-1) unstable; urgency=low
 

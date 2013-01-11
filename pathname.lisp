@@ -4,8 +4,8 @@
 (asdf/package:define-package :asdf/pathname
   (:recycle :asdf/pathname :asdf)
   (:fmakunbound #:translate-pathname*)
-  (:use :common-lisp :asdf/utility)
   #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*) ;; GCL 2.6 sucks
+  (:use :common-lisp :asdf/utility)
   (:export
    #:*resolve-symlinks*
    ;; Making and merging pathnames, portably
@@ -59,7 +59,6 @@
   "Determine whether or not ASDF resolves symlinks when defining systems.
 
 Defaults to T.")
-
 
 ;;; The hell of portably making and merging pathnames!
 

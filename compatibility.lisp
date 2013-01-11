@@ -93,7 +93,8 @@
   (defmacro print-unreadable-object ((object stream &key type identity) &body body)
     `(%print-unreadable-object ,object ,stream ,type ,identity (lambda () ,@body)))
   (defun ensure-directories-exist (path)
-    (run-shell-command "mkdir -p ~S" (namestring (pathname-directory-pathname path)))))
+    (lisp:system (format nil "mkdir -p ~S"
+                         (namestring (make-pathname :name nil :type nil :version nil :defaults path))))))
 
 #+genera
 (unless (fboundp 'ensure-directories-exist)

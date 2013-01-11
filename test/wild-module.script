@@ -2,5 +2,8 @@
 (load "script-support.lisp")
 (load-asdf)
 (quit-on-error
- (load (asdf:system-relative-pathname :asdf "wild-modules.lisp"))
+ (load (asdf:system-relative-pathname :asdf "contrib/wild-modules.lisp"))
+ (asdf:defsystem :wild-module
+   :version "0.0"
+   :components ((:wild-module "systems" :pathname #p"*.asd")))
  (load-system :wild-module))

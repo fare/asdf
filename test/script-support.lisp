@@ -76,8 +76,20 @@
   (eval `(trace ,@(loop :for s :in *debug-symbols* :collect (find-symbol (string s) :asdf))))
   (funcall (find-symbol (string :initialize-source-registry) :asdf)
            `(:source-registry :ignore-inherited-configuration))
+  (funcall (find-symbol (string :initialize-output-translations) :asdf)
+           `(:output-translations
+             (,*test-directory* (,*asdf-directory* "build/fasls" :implementation "test"))
+             (t (,*asdf-directory* "build/fasls" :implementation "root"))
+             :ignore-inherited-configuration))
   (let ((registry (find-symbol (string :*central-registry*) :asdf)))
     (set registry `(,*asdf-directory* ,*test-directory*))))
+
+(defun touch-file (file &key (offset 0) timestamp)
+  (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
+    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp)
+      (funcall (find-symbol (string :run-shell-command) :asdf)
+               "touch -t ~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D ~S"
+               year month day hr min sec (namestring file)))))
 
 (defun load-asdf ()
   (load *asdf-fasl*)

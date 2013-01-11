@@ -15,13 +15,39 @@
 ;;;---------------------------------------------------------------------------
 
 (quit-on-error
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
+
+ (defsystem :test-module-excessive-depend
+   :components ((:file "file1")
+                (:module "quux"
+                 :pathname ""
+                 :depends-on ("file1")
+                 :components ((:file "file2")))))
+
+ (defun find-quux ()
+   (find-component :test-module-excessive-depend "quux"))
+
+ (defun find-file2 ()
+   (find-component (find-quux) "file2"))
+
+ (defmethod component-depends-on ((op load-op)
+                                  (c (eql (find-file2))))
+   (cons `(load-op ,(find-system "file3-only"))
+         (call-next-method)))
+
+ (defmethod component-depends-on ((op compile-op)
+                                  (c (eql (find-file2))))
+   (cons `(load-op ,(find-system "file3-only"))
+         (call-next-method)))
+
  (asdf:operate 'asdf:load-op 'test-module-excessive-depend)
 
  ;; test that it compiled
- (let ((file1-date (file-write-date (asdf:compile-file-pathname* "file1")))
-       (file2-date (file-write-date (asdf:compile-file-pathname* "file2")))
-       (file3-date (file-write-date (asdf:compile-file-pathname* "file3"))))
+ (let* ((file1 (asdf:compile-file-pathname* "file1"))
+        (file2 (asdf:compile-file-pathname* "file2"))
+        (file3 (asdf:compile-file-pathname* "file3"))
+        (file1-date (file-write-date file1))
+        (file2-date (file-write-date file2))
+        (file3-date (file-write-date file3)))
    (unless (and file1-date file2-date file3-date)
      (error "Failed to compile one of the three files ~
 	     that should be compiled for this test: ~{~a~}"
@@ -40,9 +66,12 @@
    ;; this will only work if the cross-module (intra-system)
    ;; dependency bug is fixed and the excessive compilation bug is fixed.
 
-   (let ((before file2-date))
-     (sleep 1)
-     (asdf::run-shell-command "touch file1.lisp")
+   (let ((before file3-date))
+     (touch-file "file1.lisp" :timestamp (- before 60))
+     (touch-file file1 :timestamp (- before 90))
+     (touch-file "file2.lisp" :timestamp (- before 30))
+     (touch-file file2 :timestamp (- before 15))
+
      (let ((plan (asdf::traverse
                   (make-instance 'asdf:load-op)
                   (asdf:find-system 'test-module-excessive-depend)))
@@ -51,9 +80,8 @@
        (when (loop :for (o . c) :in plan :thereis (and (eq c file3) (typep o 'asdf:compile-op)))
          (error "Excessive operations on file3-only system.  Bad propagation of dependencies.")))
      (asdf:operate 'asdf:load-op 'test-module-excessive-depend)
-     (assert (> (file-write-date (asdf:compile-file-pathname* "file2")) before))
-     (assert (> (file-write-date (asdf:compile-file-pathname* "file2")) before))
-     )
-   (unless (= (file-write-date (asdf:compile-file-pathname* "file3"))
+     (assert (>= (file-write-date file1) before))
+     (assert (>= (file-write-date file2) before)))
+   (unless (= (file-write-date file3)
               file3-date)
      (error "Excessive compilation of file3.lisp:  traverse bug."))))
