@@ -6,7 +6,7 @@
  (DBG "loading test1")
  (touch-file "file1.lisp" :offset -600) ;; touch file1.lisp 10 minutes ago.
  (touch-file "file2.lisp" :offset -300) ;; touch file2.lisp 5 minutes ago.
- (asdf:load-system 'test1)
+ (asdf:load-system 'test1 :force t)
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
         (file1-date (file-write-date file1))

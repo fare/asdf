@@ -7,17 +7,19 @@
  (asdf:operate 'asdf:load-op 'test-force)
 
   (let* ((file1 (asdf:compile-file-pathname* "file1"))
-         (file1-date (file-write-date file1)))
+         (file1-date (file-write-date file1))
+         (date1 (- file1-date 600))
+         (date2 (- file1-date 300)))
 
     (assert file1)
     (assert file1-date)
 
     ;; unforced, date should stay same
-    (sleep 1)
+    (touch-file "file1.lisp" date1)
+    (touch-file file1 date2)
     (asdf:operate 'asdf:load-op 'test-force)
-    (assert (equal (file-write-date file1) file1-date))
+    (assert (equal (file-write-date file1) date2))
 
     ;; forced, it should be later
-    (sleep 1)
     (asdf:operate 'asdf:load-op 'test-force :force t)
-    (assert (> (file-write-date file1) file1-date))))
+    (assert (>= (file-write-date file1) file1-date))))
