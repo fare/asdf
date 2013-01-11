@@ -4,6 +4,8 @@
 ** Have it pass test-lisp
 ** Have it pass test-upgrade
 ** Get package upgrade right
+   Try a newer CLISP than 2.44.1, and if it still breaks, try harder,
+   by e.g. having ensure-package return a working defpackage form.
 ** The unconditional ensure-package-unused breaks test-encodings.script,
    since asdf severs itself from its client package hosting the
    defsystem form during defsystem-depends-on.

@@ -78,9 +78,11 @@ This is designed to abstract away the implementation specific quit forms."
 (defun print-backtrace (out)
   "Print a backtrace (implementation-defined)"
   (declare (ignorable out))
+  #+clisp (system::print-backtrace)
   #+clozure (let ((*debug-io* out))
 	      (ccl:print-call-history :count 100 :start-frame-number 1)
 	      (finish-output out))
+  #+ecl (si::tpl-backtrace)
   #+sbcl
   (sb-debug:backtrace
    #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream 'most-positive-fixnum)

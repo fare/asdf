@@ -16,8 +16,7 @@
    #:find-package* #:find-symbol* #:symbol-call #:intern* #:unintern*
    #:symbol-shadowing-p #:rehome-symbol
    #:delete-package* #:package-names #:packages-from-names
-   #:symbol-name-package #:package-data
-   #:ensure-package #:define-package))
+   #:package-definition-form #:ensure-package #:define-package))
 
 (in-package :asdf/package)
 
@@ -83,6 +82,35 @@ or when loading the package is optional."
         (values nil nil))))
   (defun symbol-shadowing-p (symbol package)
     (member symbol (package-shadowing-symbols package)))
+  #+(or clisp clozure)
+  (defun get-setf-function-symbol (symbol)
+    #+clisp (let ((sym (get symbol 'system::setf-function)))
+              (if sym (values sym :setf-function)
+                  (let ((sym (get symbol 'system::setf-expander)))
+                    (if sym (values sym :setf-expander)
+                        (values nil nil)))))
+    #+clozure (gethash symbol ccl::%setf-function-names%))
+  #+(or clisp clozure)
+  (defun set-setf-function-symbol (new-setf-symbol symbol &optional kind)
+    #+clisp (assert (member kind '(:setf-function :setf-expander)))
+    #+clozure (assert (eq kind t))
+    #+clisp
+    (cond
+      ((null new-setf-symbol)
+       (remprop symbol 'system::setf-function)
+       (remprop symbol 'system::setf-expander))
+      ((eq kind :setf-function)
+       (setf (get symbol 'system::setf-function) new-setf-symbol))
+      ((eq kind :setf-expander)
+       (setf (get symbol 'system::setf-expander) new-setf-symbol)))
+    #+clozure
+    (progn
+      (gethash symbol ccl::%setf-function-names%) new-setf-symbol
+      (gethash new-setf-symbol ccl::%setf-function-name-inverses%) symbol))
+  #+(or clisp clozure)
+  (defun create-setf-function-symbol (symbol)
+    #+clisp (system::setf-symbol symbol)
+    #+clozure (ccl::construct-setf-function-name symbol))
   (defun rehome-symbol (symbol package-designator)
     "Changes the home package of a symbol, also leaving it present in its old home if any"
     (let* ((name (symbol-name symbol))
@@ -109,18 +137,17 @@ or when loading the package is optional."
             (if shadowing
                 (shadowing-import symbol old-package)
                 (import symbol old-package))
-            #+ccl
-            (multiple-value-bind (setf-name foundp)
-                (gethash symbol ccl::%setf-function-names%)
-              (when foundp
-                (let* ((setf-function (fdefinition setf-name))
-                       (new-setf-name (ccl::construct-setf-function-name symbol)))
-                  (setf (fdefinition new-setf-name) setf-function
-                        (gethash symbol ccl::%setf-function-names%) new-setf-name
-                        (gethash new-setf-name ccl::%setf-function-name-inverses%) symbol))))
-            #+ccl
+            #+(or clisp clozure)
+            (multiple-value-bind (setf-symbol kind)
+                (get-setf-function-symbol symbol)
+              (when kind
+                (let* ((setf-function (fdefinition setf-symbol))
+                       (new-setf-symbol (create-setf-function-symbol symbol)))
+                  (setf (fdefinition new-setf-symbol) setf-function)
+                  (set-setf-function-symbol symbol new-setf-symbol kind))))
+            #+(or clisp clozure)
             (multiple-value-bind (overwritten-setf foundp)
-                (gethash overwritten-symbol ccl::%setf-function-names%)
+                (get-setf-function-symbol overwritten-symbol)
               (when foundp
                 (unintern overwritten-setf)))
             (when (eq old-status :external)
@@ -145,34 +172,57 @@ or when loading the package is optional."
 ;;; Communicable representation of symbol and package information
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun symbol-name-package (symbol)
-    (cons (symbol-name symbol) (package-name (symbol-package symbol))))
-  (defun package-data (package-designator &key name-package (error t))
-    (let ((package (find-package* package-designator error)))
+  (defun package-definition-form (package-designator &key internp (error t))
+    (let* ((package (find-package* package-designator error))
+           (name (package-name package))
+           (nicknames (package-nicknames package))
+           (use (mapcar #'package-name (package-use-list package)))
+           (shadow ())
+           (shadowing-import (make-hash-table :test 'equal))
+           (import (make-hash-table :test 'equal))
+           (export ())
+           (intern ()))
       (when package
-        (labels ((marshall-symbols (symbols)
-                   (if name-package (mapcar #'symbol-name-package symbols) symbols))
-                 (sort-symbols (symbols)
-                   (marshall-symbols (sort symbols #'string<)))
-                 (sort-packages (packages)
-                   (sort (mapcar #'package-name packages) #'string<)))
-          (loop :with internal :with external :with inherited
-                :for sym :being :the :symbols :in package
-                :for status = (nth-value 1 (find-symbol* sym package)) :do
-                  (ecase status
-                    (:internal (push sym internal))
-                    (:external (push sym external))
-                    (:inherited (push sym inherited)))
-                :finally
-                   (return
-                     `(:name ,(package-name package)
-                       :nicknames ,(package-nicknames package)
-                       :internal ,(sort-symbols internal)
-                       :external ,(sort-symbols external)
-                       :inherited ,(sort-symbols inherited)
-                       :shadowing ,(sort-symbols (package-shadowing-symbols package))
-                       :use ,(sort-packages (package-use-list package))
-                       :used-by ,(sort-packages (package-used-by-list package))))))))))
+        (loop :for sym :being :the :symbols :in package
+              :for status = (nth-value 1 (find-symbol* sym package)) :do
+                (ecase status
+                  ((nil :inherited))
+                  ((:internal :external)
+                   (let* ((name (symbol-name sym))
+                          (external (eq status :external))
+                          (home (symbol-package sym))
+                          (home-name (package-name home))
+                          (imported (not (eq home package)))
+                          (shadowing (symbol-shadowing-p sym package)))
+                     (cond
+                       ((and shadowing import)
+                        (push name (gethash home-name shadowing-import)))
+                       (shadowing
+                        (push name shadow))
+                       (imported
+                        (push name (gethash home-name import))))
+                     (cond
+                       (external
+                        (push name export))
+                       (imported)
+                       (t (push name intern)))))))
+        (labels ((sort-names (names)
+                   (sort names #'string<))
+                 (table-keys (table)
+                   (loop :for k :being :the :hash-keys :of table :collect k))
+                 (when-relevant (key value)
+                   (when value (list (cons key value))))
+                 (import-options (key table)
+                   (loop :for i :in (sort-names (table-keys table))
+                         :collect `(,key ,i ,@(sort-names (gethash i table))))))
+          `(defpackage ,name
+             ,@(when-relevant :nicknames (sort-names nicknames))
+             (:use ,@(sort-names use))
+             ,@(when-relevant :shadow (sort-names shadow))
+             ,@(import-options :shadowing-import-from shadowing-import)
+             ,@(import-options :import-from import)
+             ,@(when-relevant :export (sort-names export))
+             ,@(when-relevant :intern (and internp (sort-names intern)))))))))
 
 
 ;;; ensure-package, define-package
@@ -189,6 +239,7 @@ or when loading the package is optional."
            (names (cons name nicknames))
            (previous (packages-from-names names))
            (discarded (cdr previous))
+           (to-delete ())
            (package (or (first previous) (make-package name :nicknames nicknames)))
            (recycle (packages-from-names recycle))
            (shadowed (make-hash-table :test 'equal)) ; string to bool
@@ -196,7 +247,14 @@ or when loading the package is optional."
            (exported (make-hash-table :test 'equal)) ; string to bool
            (inherited (make-hash-table :test 'equal))) ; string to package name
       (labels
-          ((ensure-shadowing-import (sym p)
+          ((fresh-package-name (&optional (prefix :%TO-BE-DELETED)
+                                  (index (random most-positive-fixnum)))
+             (loop :for i :from index
+                   :for n = (format nil "~A-~D" prefix i)
+                   :thereis (and (not (find-package n)) n)))
+           (rename-package-away (p)
+             (rename-package p (fresh-package-name)))
+           (ensure-shadowing-import (sym p)
              (let* ((name (string sym))
                     (i (find-symbol* name p)))
                (cond
@@ -300,7 +358,9 @@ or when loading the package is optional."
               :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
                                   (package-names p))
               :do (if n (rename-package p (first n) (rest n))
-                      (delete-package* p)))
+                      (progn
+                        (rename-package-away p)
+                        (push p to-delete))))
         (rename-package package name nicknames)
         (loop :for p :in (set-difference (package-use-list package) (append mix use))
               :do (unuse-package p package))
@@ -337,6 +397,7 @@ or when loading the package is optional."
           (ensure-symbol (string name) t))
         (do-symbols (sym package)
           (ensure-symbol (symbol-name sym)))
+        (map () 'delete-package* to-delete)
         package))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
@@ -373,5 +434,13 @@ or when loading the package is optional."
 (defmacro define-package (package &rest clauses)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      #+(or ecl gcl) (defpackage ,package (:use))
+     #+clisp (macrolet ((foo ()
+                          (apply 'ensure-package ',(parse-define-package-form package clauses))
+                          (package-definition-form ',package)))
+               (foo))
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
+
+#+clisp
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (when (find-package :asdf) (delete-package* :asdf)))
 
