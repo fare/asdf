@@ -2,44 +2,44 @@
 (load "script-support.lisp")
 (load-asdf)
 
+(touch-file "test1.asd" :offset -3600) ;; touch test1.asd an hour ago.
+(touch-file "file1.lisp" :offset -3500)
+(touch-file "file2.lisp" :offset -3400)
+
 (quit-on-error
- (DBG "loading test1")
- (touch-file "file1.lisp" :offset -600) ;; touch file1.lisp 10 minutes ago.
- (touch-file "file2.lisp" :offset -300) ;; touch file2.lisp 5 minutes ago.
- (asdf:load-system 'test1 :force t)
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
-        (file1-date (file-write-date file1))
-        (file2-date (file-write-date file1)))
+        (date (file-write-date "test1.asd"))
+        (then (file-write-date file2)))
 
-   (DBG "test that it compiled" file1 file1-date)
-   (assert file1-date)
-   (assert file2-date)
-   (touch-file file1 :timestamp (- file1-date 200))
-   (touch-file file2 :timestamp (- file1-date 100))
+   (DBG "loading test1")
+   (asdf:load-system 'test1)
+   (DBG "test that it compiled" date then)
+   (assert (probe-file file1))
+   (assert (probe-file file2))
 
    (DBG "and loaded")
    (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
 
-   (DBG "now remove file2 that depends-on file1" file1-date (- file1-date 120))
-   (touch-file file1 :timestamp (- file1-date 150)) ;; move file1.fasl two minutes ago.
-   (assert-equal (- file1-date 150) (file-write-date file1))
+   (DBG "now remove file2 that depends-on file1" date)
+   (touch-file file1 :timestamp (+ date 500))
+   (assert-equal (+ date 500) (file-write-date file1))
    (asdf::delete-file-if-exists file2)
 
    (DBG "load again")
    (asdf:clear-system 'test1)
    (asdf:load-system 'test1)
    (DBG "check that file1 is _not_ recompiled, but file2 is" (file-write-date file1))
-   (assert-equal (- file1-date 150) (file-write-date file1))
-   (assert (<= file2-date (file-write-date file2)))
+   (assert-equal (+ date 500) (file-write-date file1))
+   (assert (<= then (file-write-date file2)))
 
    (DBG "now touch file1 and check that file2 _is_ also recompiled")
    ;; XXX run-shell-command loses if *default-pathname-defaults* is not the
    ;; unix cwd.  this is not a problem for run-tests.sh, but can be in general
    (let ((before (file-write-date file2)))
-     (touch-file "file1.lisp" :offset -60) ;; touch file1 a minute ago.
-     (touch-file file2 :timestamp (- before 10)) ;; touch file2.fasl ten seconds before.
-     (asdf:clear-system 'test1)     (asdf:clear-system 'test1)
+     (touch-file "file1.lisp" :timestamp (+ date 3000)) ;; touch file1 a minute ago.
+     (touch-file file2 :timestamp (+ date 2000)) ;; touch file2.fasl some time before.
+     (asdf:clear-system 'test1)
      (asdf:operate 'asdf:load-op 'test1)
      (DBG :foo (file-write-date file2) before)
      (assert (>= (file-write-date file2) before)))))
