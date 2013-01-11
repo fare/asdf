@@ -7,7 +7,7 @@
   (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
   (:export
    #:upgrade-asdf #:asdf-upgrade-error #:when-upgrade
-   #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook*
+   #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    #:asdf-version #:*upgraded-p*
    #:asdf-message #:*asdf-verbose* #:*verbose-out*))
 (in-package :asdf/upgrade)
@@ -21,7 +21,7 @@
   (defvar *verbose-out* nil)
   (defun asdf-message (format-string &rest format-args)
     (apply 'format *verbose-out* format-string format-args)))
-  
+
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. The script bin/bump-version
@@ -31,7 +31,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.78")
+         (asdf-version "2.26.79")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -70,7 +70,7 @@ You can compare this string with e.g.:
 (defvar *post-upgrade-cleanup-hook* ())
 (defvar *post-upgrade-restart-hook* ())
 
-(defun* post-upgrade-cleanup (old-version)
+(defun* cleanup-upgraded-asdf (old-version)
   (let ((new-version (asdf-version)))
     (unless (equal old-version new-version)
       (cond
@@ -94,6 +94,6 @@ You can compare this string with e.g.:
    We need do that before we operate on anything that depends on ASDF."
   (let ((version (asdf-version)))
     (handler-bind (((or style-warning warning) #'muffle-warning))
-      (funcall (find-symbol* 'load-system :asdf) :asdf :verbose nil))
-    (post-upgrade-cleanup version)))
+      (symbol-call :asdf :load-system :asdf :verbose nil))
+    (cleanup-upgraded-asdf version)))
 

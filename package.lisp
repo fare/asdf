@@ -442,5 +442,6 @@ or when loading the package is optional."
 
 #+clisp
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (when (find-package :asdf) (delete-package* :asdf)))
+  (when (and (find-package :asdf) (not (member :asdf2.27 *features*)))
+    (delete-package* :asdf)))
 

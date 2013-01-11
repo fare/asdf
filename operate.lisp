@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
-  (:use :common-lisp :asdf/utility :asdf/upgrade
+  (:use :common-lisp :asdf/package :asdf/utility :asdf/upgrade
         :asdf/component :asdf/system :asdf/operation :asdf/action
         :asdf/lisp-build :asdf/lisp-action #:asdf/plan
         :asdf/find-system :asdf/find-component)
@@ -17,12 +17,12 @@
 
 (defgeneric* operate (operation-class system &key &allow-other-keys))
 
-(defun* cleanup-upgraded-asdf ()
-  (let ((asdf (funcall (find-symbol* 'find-system :asdf) :asdf)))
+(defun* reset-asdf-systems ()
+  (let ((asdf (symbol-call :asdf 'find-system :asdf)))
     ;; Invalidate all systems but ASDF itself.
     (setf *defined-systems* (make-defined-systems-table))
     (register-system asdf)
-    (funcall (find-symbol* 'load-system :asdf) :asdf))) ;; load ASDF a second time, the right way.
+    (symbol-call :asdf 'load-system :asdf))) ;; load ASDF a second time, the right way.
 
 (defun* restart-upgraded-asdf ()
   ;; If we're in the middle of something, restart it.
@@ -31,7 +31,7 @@
       (clrhash *systems-being-defined*)
       (dolist (s l) (find-system s nil)))))
 
-(pushnew 'cleanup-upgraded-asdf *post-upgrade-cleanup-hook*)
+(pushnew 'reset-asdf-systems *post-upgrade-cleanup-hook*)
 (pushnew 'restart-upgraded-asdf *post-upgrade-restart-hook*)
 
 

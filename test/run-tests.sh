@@ -167,7 +167,7 @@ case "$lisp" in
     eval="-eval" ;;
   sbcl)
     command="${SBCL:-sbcl}"
-    flags="--noinform --userinit /dev/null --sysinit /dev/null"
+    flags="--noinform --userinit /dev/null --sysinit /dev/null" # --eval (require'asdf)
     nodebug="--disable-debugger"
     eval="--eval" ;;
   scl)

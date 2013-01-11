@@ -2,7 +2,7 @@
 ;;;; Handle ASDF package upgrade, including implementation-dependent magic.
 
 (asdf/package:define-package :asdf/interface
-  (:nicknames :asdf)
+  (:nicknames :asdf :asdf-utilities)
   (:recycle :asdf/interface :asdf)
   (:unintern
    #:*asdf-revision* #:around #:asdf-method-combination #:intern*
