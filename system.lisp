@@ -140,6 +140,7 @@ located."
 (defmethod builtin-system-p ((s system))
   (let* ((system (find-system s nil))
          (sysdir (and system (component-pathname system)))
+         (truesysdir (and sysdir (truename* sysdir)))
          (impdir (lisp-implementation-directory :truename t)))
-    (and sysdir impdir (pathname-match-p (truename sysdir) (wilden impdir)) t)))
+    (and truesysdir impdir (pathname-match-p truesysdir (wilden impdir)) t)))
 

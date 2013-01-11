@@ -15,6 +15,7 @@
     (assert file1-date)
 
     ;; unforced, date should stay same
+    (touch-file "test-force.asd" :timestamp date1)
     (touch-file "file1.lisp" :timestamp date1)
     (touch-file file1 :timestamp date2)
     (asdf:operate 'asdf:load-op 'test-force)

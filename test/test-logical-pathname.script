@@ -31,7 +31,7 @@
    (setf *central-registry* '())
    (initialize-source-registry
     '(:source-registry (:directory #p"ASDF:test;") :ignore-inherited-configuration))
-   (load-system :test-logical-pathname :force t))
+   (load-system :test-logical-pathname :force t :verbose t))
 
  #-(or xcl gcl<2.7)
  (progn
