@@ -3,69 +3,52 @@
 
 (asdf/package:define-package :asdf/os
   (:recycle :asdf/os :asdf)
-  (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
+  (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream)
   (:export
    #:featurep #:os-unix-p #:os-windows-p ;; features
-   #:read-file-forms ;; simple filesystem manipulation
-   #:copy-stream-to-stream #:concatenate-files ;; simple stream copy
    #:getenv ;; environment variables, and parsing them
    #:inter-directory-separator #:split-pathnames*
    #:getenv-pathname #:getenv-pathnames
    #:getenv-absolute-directory #:getenv-absolute-directories
    #:implementation-identifier ;; implementation identifier
    #:implementation-type #:operating-system #:architecture #:lisp-version-string
-   #:hostname #:user-homedir #:lisp-implementation-directory))
+   #:hostname #:user-homedir #:lisp-implementation-directory
+   #:getcwd #:chdir #:call-with-current-directory #:with-current-directory
+   #:*temporary-directory* #:temporary-directory #:default-temporary-directory #:with-temporary-file))
 (in-package :asdf/os)
 
 ;;; Features
-(defun* featurep (x &optional (features *features*))
-  (cond
-    ((atom x)
-     (and (member x features) t))
-    ((eq :not (car x))
-     (assert (null (cddr x)))
-     (not (featurep (cadr x) features)))
-    ((eq :or (car x))
-     (some #'(lambda (x) (featurep x features)) (cdr x)))
-    ((eq :and (car x))
-     (every #'(lambda (x) (featurep x features)) (cdr x)))
-    (t
-     (error "Malformed feature specification ~S" x))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun* featurep (x &optional (features *features*))
+    (cond
+      ((atom x)
+       (and (member x features) t))
+      ((eq :not (car x))
+       (assert (null (cddr x)))
+       (not (featurep (cadr x) features)))
+      ((eq :or (car x))
+       (some #'(lambda (x) (featurep x features)) (cdr x)))
+      ((eq :and (car x))
+       (every #'(lambda (x) (featurep x features)) (cdr x)))
+      (t
+       (error "Malformed feature specification ~S" x))))
 
-(defun* os-unix-p ()
-  (featurep '(:or :unix :cygwin :darwin)))
+  (defun* os-unix-p ()
+    (featurep '(:or :unix :cygwin :darwin)))
 
-(defun* os-windows-p ()
-  (and (not (os-unix-p)) (featurep '(:or :win32 :windows :mswindows :mingw32))))
+  (defun* os-windows-p ()
+    (and (not (os-unix-p)) (featurep '(:or :win32 :windows :mswindows :mingw32))))
 
-;;; Simple filesystem manipulation
-(defun* read-file-forms (file)
-  (with-open-file (in file)
-    (loop :with eof = (list nil)
-     :for form = (read in nil eof)
-     :until (eq form eof)
-     :collect form)))
+  (defun detect-os ()
+    (flet ((yes (yes) (pushnew yes *features*))
+           (no (no) (setf *features* (remove no *features*))))
+      (cond
+        ((os-unix-p) (yes :os-unix) (no :os-windows))
+        ((os-windows-p) (yes :os-windows) (no :os-unix))
+        (t (error "Congratulations for trying XCVB on an operating system~%~
+that is neither Unix, nor Windows.~%Now you port it.")))))
 
-;; Simple stream copy
-(defun* copy-stream-to-stream (input output &key (element-type 'character) (buffer-size 8192))
-  "Copy the contents of the INPUT stream into the OUTPUT stream,
-using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
-  (with-open-stream (input input)
-    (loop
-      :for buffer = (make-array (list buffer-size) :element-type element-type)
-      :for end = (read-sequence buffer input)
-      :until (zerop end)
-      :do (write-sequence buffer output :end end)
-          (when (< end buffer-size) (return)))))
-
-(defun* concatenate-files (inputs output)
-  (with-open-file (o output :element-type '(unsigned-byte 8)
-                            :direction :output :if-exists :rename-and-delete)
-    (dolist (input inputs)
-      (with-open-file (i input :element-type '(unsigned-byte 8)
-                               :direction :input :if-does-not-exist :error)
-        (copy-stream-to-stream i o :element-type '(unsigned-byte 8))))))
-
+  (detect-os))
 
 ;;;; Environment variables: getting them, and parsing them.
 
@@ -92,10 +75,15 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
           (let ((value (_getenv name)))
             (unless (ccl:%null-ptr-p value)
               (ccl:%get-cstring value))))
-  #+mkcl (#.(or (find-symbol* 'getenv :si) (find-symbol* 'getenv :mk-ext)) x)
+  #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
   #+sbcl (sb-ext:posix-getenv x)
   #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S is not supported on your implementation" 'getenv))
+
+(defun getenvp (x)
+  "Predicate that is true if the named variable is present in the libc environment,
+then returning the non-empty string value of the variable"
+  (let ((g (getenv x))) (and (not (emptyp g)) g)))
 
 (defun* inter-directory-separator ()
   (if (os-unix-p) #\: #\;))
@@ -226,10 +214,113 @@ using WRITE-SEQUENCE and a sensibly sized buffer." ; copied from xcvb-driver
           (ignore-errors
            #+clozure #p"ccl:"
            #+(or ecl mkcl) #p"SYS:"
-           #+sbcl (aif (find-symbol* :sbcl-homedir-pathname :sb-int)
+           #+gcl system::*system-directory*
+           #+sbcl (aif (find-symbol* :sbcl-homedir-pathname :sb-int nil)
                        (funcall it)
                        (getenv-pathname "SBCL_HOME" :want-directory t)))))
     (if (and dir truename)
         (truename* dir)
         dir)))
- 
+
+
+;;; Current directory
+
+(defun getcwd ()
+  "Get the current working directory as per POSIX getcwd(3)"
+  (or #+clisp (ext:default-directory)
+      #+clozure (ccl:current-directory)
+      #+cmu (unix:unix-current-directory)
+      #+cormanlisp (pl::get-current-directory)
+      #+ecl (ext:getcwd)
+      #+mkcl (mk-ext:getcwd)
+      #+sbcl (sb-unix:posix-getcwd/)
+      (error "getcwd not supported on your implementation")))
+
+(defun chdir (x)
+  "Change current directory, as per POSIX chdir(2)"
+  #-(or clisp clozure) (when (pathnamep x) (setf x (native-namestring x)))
+  (or #+clisp (ext:cd x)
+      #+clozure (setf (ccl:current-directory) x)
+      #+cormanlisp (unless (zerop (win32::_chdir x))
+                     (error "Could not set current directory to ~A" x))
+      #+sbcl (symbol-call :sb-posix :chdir x)
+      (error "chdir not supported on your implementation")))
+
+(defun call-with-current-directory (dir thunk)
+  (if dir
+      (let* ((dir (truename (merge-pathnames (pathname-directory-pathname dir))))
+             (*default-pathname-defaults* dir)
+             (cwd (getcwd)))
+        (chdir dir)
+        (unwind-protect
+             (funcall thunk)
+          (chdir cwd)))
+      (funcall thunk)))
+
+(defmacro with-current-directory ((dir) &body body)
+  "Call BODY while the POSIX current working directory is set to DIR"
+  `(call-with-current-directory ,dir #'(lambda () ,@body)))
+
+
+;;; Using temporary files
+
+(defun* default-temporary-directory ()
+  (flet ((f (s v d) (format nil "~A~A" (or (getenvp v) d (error "No temporary directory!")) s)))
+    (let ((dir (cond
+                 ((os-unix-p) (f #\/ "TMPDIR" "/tmp"))
+                 ((os-windows-p) (f #\\ "TEMP" nil))))
+          #+mcl (dir (probe-posix dir)))
+      (or (parse-native-namestring dir) (default-directory)))))
+
+(defvar *temporary-directory* nil)
+
+(defun temporary-directory ()
+  (or *temporary-directory* (default-temporary-directory)))
+
+(defun call-with-temporary-file
+    (thunk &key
+     prefix keep (direction :io)
+     (element-type *default-stream-element-type*)
+     (external-format :default))
+  (check-type direction (member :output :io))
+  (loop
+    :with prefix = (or prefix (format nil "~Atmp" (native-namestring (temporary-directory))))
+    :for counter :from (random (ash 1 32))
+    :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
+     ;; TODO: on Unix, do something about umask
+     ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
+     ;; TODO: on Unix, use CFFI and mkstemp -- but the master is precisely meant to not depend on CFFI or on anything! Grrrr.
+    (with-open-file (stream pathname
+                            :direction direction
+                            :element-type element-type :external-format external-format
+                            :if-exists nil :if-does-not-exist :create)
+      (when stream
+        (return
+          (if keep
+              (funcall thunk stream pathname)
+              (unwind-protect
+                   (funcall thunk stream pathname)
+                (ignore-errors (delete-file pathname)))))))))
+
+(defmacro with-temporary-file ((&key (stream (gensym "STREAM") streamp)
+                                (pathname (gensym "PATHNAME") pathnamep)
+                                prefix keep direction element-type external-format)
+                               &body body)
+  "Evaluate BODY where the symbols specified by keyword arguments
+STREAM and PATHNAME are bound corresponding to a newly created temporary file
+ready for I/O. Unless KEEP is specified, delete the file afterwards."
+  (check-type stream symbol)
+  (check-type pathname symbol)
+  `(flet ((think (,stream ,pathname)
+            ,@(unless pathnamep `((declare (ignore ,pathname))))
+            ,@(unless streamp `((when ,stream (close ,stream))))
+            ,@body))
+     #-gcl (declare (dynamic-extent #'think))
+     (call-with-temporary-file
+      #'think
+      ,@(when direction `(:direction ,direction))
+      ,@(when prefix `(:prefix ,prefix))
+      ,@(when keep `(:keep ,keep))
+      ,@(when element-type `(:element-type ,element-type))
+      ,@(when external-format `(:external-format external-format)))))
+

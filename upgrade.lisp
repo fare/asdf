@@ -6,7 +6,7 @@
   (:recycle :asdf/upgrade :asdf)
   (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
   (:export
-   #:upgrade-asdf #:asdf-upgrade-error #:with-upgrade
+   #:upgrade-asdf #:asdf-upgrade-error #:when-upgrade
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook*
    #:asdf-version #:*upgraded-p*
    #:asdf-message #:*asdf-verbose* #:*verbose-out*))
@@ -31,7 +31,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.73")
+         (asdf-version "2.26.74")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -52,7 +52,7 @@
   (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
           Otherwise, when you upgrade ASDF, you must do it before you operate on any system.~%"))
 
-(defmacro with-upgrade ((&key (upgraded-p '*upgraded-p*) when) &body body)
+(defmacro when-upgrade ((&key (upgraded-p '*upgraded-p*) when) &body body)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      (when (and ,upgraded-p ,@(when when `(,when)))
        (handler-bind ((style-warning #'muffle-warning))

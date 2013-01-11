@@ -3,8 +3,7 @@
 
 (asdf/package:define-package :asdf/plan
   (:recycle :asdf/plan :asdf)
-  (:fmakunbound #:traverse #:perform-plan #:traverse-action)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
@@ -24,6 +23,8 @@
    #:traverse-sequentially #:traverse
    #:perform-plan #:plan-operates-on-p))
 (in-package :asdf/plan)
+
+(when-upgrade () (undefine-functions '(traverse perform-plan traverse-action)))
 
 ;;;; Planned action status
 

@@ -3,8 +3,7 @@
 
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
-  (:fmakunbound #:component-load-dependencies)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/run-program
    :asdf/upgrade :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
   (:export
@@ -19,7 +18,7 @@
    #:system-definition-pathname))
 (in-package :asdf/backward-interface)
 
-(defvar *asdf-verbose* nil) ; worked around by cl-protobufs. It was a mistake to introduce it. mea culpa -fare
+(when-upgrade () (undefine-function 'component-load-dependencies))
 
 (defun* component-load-dependencies (component)
   ;; Old deprecated name for the same thing. Please update your software.
@@ -109,28 +108,8 @@ call that function where you would otherwise have loaded and configured A-B-L.")
 
 ;;;; run-shell-command
 ;;
-;; run-shell-command functions for other lisp implementations will be
-;; gratefully accepted, if they do the same thing.
-;; If the docstring is ambiguous, send a bug report.
-;;
-;; WARNING! The function below is mostly dysfunctional.
-;; For instance, it will probably run fine on most implementations on Unix,
-;; which will hopefully use the shell /bin/sh (which we force in some cases)
-;; which is hopefully reasonably compatible with a POSIX *or* Bourne shell.
-;; But behavior on Windows may vary wildly between implementations,
-;; either relying on your having installed a POSIX sh, or going through
-;; the CMD.EXE interpreter, for a totally different meaning, depending on
-;; what is easily expressible in said implementation.
-;;
-;; We probably should move this functionality to its own system and deprecate
-;; use of it from the asdf package. However, this would break unspecified
-;; existing software, so until a clear alternative exists, we can't deprecate
-;; it, and even after it's been deprecated, we will support it for a few
-;; years so everyone has time to migrate away from it. -- fare 2009-12-01
-;;
-;; As a suggested replacement which is portable to all ASDF-supported
-;; implementations and operating systems except Genera, I recommend
-;; xcvb-driver's xcvb-driver:run-program/ and its derivatives.
+;; WARNING! The function below is dysfunctional and deprecated.
+;; Please use asdf/run-program:run-program/ instead.
 
 (defun* run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
@@ -138,113 +117,4 @@ synchronously execute the result using a Bourne-compatible shell, with
 output to *VERBOSE-OUT*.  Returns the shell's exit code."
   (let ((command (apply 'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
-
-    #+abcl
-    (ext:run-shell-command command :output *verbose-out*)
-
-    #+allegro
-    ;; will this fail if command has embedded quotes - it seems to work
-    (multiple-value-bind (stdout stderr exit-code)
-        (excl.osi:command-output
-         #-mswindows (vector "/bin/sh" "/bin/sh" "-c" command)
-         #+mswindows command ; BEWARE!
-         :input nil :whole nil
-         #+mswindows :show-window #+mswindows :hide)
-      (asdf-message "~{~&~a~%~}~%" stderr)
-      (asdf-message "~{~&~a~%~}~%" stdout)
-      exit-code)
-
-    #+clisp
-    ;; CLISP returns NIL for exit status zero.
-    (if *verbose-out*
-        (let* ((new-command (format nil "( ~A ) ; r=$? ; echo ; echo ASDF-EXIT-STATUS $r"
-                                    command))
-               (outstream (ext:run-shell-command new-command :output :stream :wait t)))
-            (multiple-value-bind (retval out-lines)
-                (unwind-protect
-                     (parse-clisp-shell-output outstream)
-                  (ignore-errors (close outstream)))
-              (asdf-message "~{~&~a~%~}~%" out-lines)
-              retval))
-        ;; there will be no output, just grab up the exit status
-        (or (ext:run-shell-command command :output nil :wait t) 0))
-
-    #+clozure
-    (nth-value 1
-               (ccl:external-process-status
-                (ccl:run-program
-                 (cond
-                   ((os-unix-p) "/bin/sh")
-                   ((os-windows-p) (strcat "CMD /C " command)) ; BEWARE!
-                   (t (error "Unsupported OS")))
-                 (if (os-unix-p) (list "-c" command) '())
-                 :input nil :output *verbose-out* :wait t)))
-
-    #+(or cmu scl)
-    (ext:process-exit-code
-     (ext:run-program
-      "/bin/sh"
-      (list "-c" command)
-      :input nil :output *verbose-out*))
-
-    #+cormanlisp
-    (win32:system command)
-
-    #+ecl ;; courtesy of Juan Jose Garcia Ripoll
-    (ext:system command)
-
-    #+gcl
-    (lisp:system command)
-
-    #+lispworks
-    (apply 'system:call-system-showing-output command
-           :show-cmd nil :prefix "" :output-stream *verbose-out*
-           (when (os-unix-p) '(:shell-type "/bin/sh")))
-
-    #+mcl
-    (ccl::with-cstrs ((%command command)) (_system %command))
-
-    #+mkcl
-    ;; This has next to no chance of working on basic Windows!
-    ;; Your best hope is that Cygwin or MSYS is somewhere in the PATH.
-    (multiple-value-bind (io process exit-code)
-        (apply #'mkcl:run-program #+windows "sh" #-windows "/bin/sh"
-                                  (list "-c" command)
-                                  :input nil :output t #|*verbose-out*|# ;; will be *verbose-out* when we support it
-                                  #-windows '(:search nil))
-      (declare (ignore io process))
-      exit-code)
-
-    #+sbcl
-    (sb-ext:process-exit-code
-     (apply 'sb-ext:run-program
-            #+win32 "sh" #-win32 "/bin/sh"
-            (list  "-c" command)
-            :input nil :output *verbose-out*
-            #+win32 '(:search t) #-win32 nil))
-
-    #+xcl
-    (ext:run-shell-command command)
-
-    #-(or abcl allegro clisp clozure cmu ecl gcl lispworks mcl mkcl sbcl scl xcl)
-    (error "RUN-SHELL-COMMAND not implemented for this Lisp")))
-
-#+clisp
-(defun* parse-clisp-shell-output (stream)
-  "Helper function for running shell commands under clisp.  Parses a specially-
-crafted output string to recover the exit status of the shell command and a
-list of lines of output."
-  (loop :with status-prefix = "ASDF-EXIT-STATUS "
-    :with prefix-length = (length status-prefix)
-    :with exit-status = -1 :with lines = ()
-    :for line = (read-line stream nil nil)
-    :while line :do (push line lines) :finally
-    (let* ((last (car lines))
-           (status (and last (>= (length last) prefix-length)
-                        (string-equal last status-prefix :end1 prefix-length)
-                        (parse-integer last :start prefix-length :junk-allowed t))))
-      (when status
-        (setf exit-status status)
-        (pop lines) (when (equal "" (car lines)) (pop lines)))
-      (return (values exit-status (reverse lines))))))
-
+    (run-program/ command :force-shell t :output *verbose-out*)))

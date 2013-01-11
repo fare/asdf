@@ -3,12 +3,9 @@
 
 (asdf/package:define-package :asdf/action
   (:recycle :asdf/action :asdf)
-  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/os
+  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
    :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
-  (:fmakunbound
-   #:explain #:output-files #:perform #:perform-with-restarts
-   #:operation-done-p #:compute-action-stamp #:component-depends-on #:mark-operation-done)
   (:intern #:stamp #:done-p)
   (:export
    #:action
@@ -24,6 +21,11 @@
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept))
 (in-package :asdf/action)
+
+(when-upgrade ()
+  (undefine-functions
+   '(explain output-files perform perform-with-restarts
+     operation-done-p compute-action-stamp component-depends-on mark-operation-done)))
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
 
@@ -111,6 +113,15 @@ You can put together sentences using this phrase."))
   (declare (ignorable o c))
   t)
 
+(defmethod output-files :around (operation component)
+  "Translate output files, unless asked not to"
+  operation component ;; hush genera, not convinced by declare ignorable(!)
+  (values
+   (multiple-value-bind (files fixedp) (call-next-method)
+     (if fixedp
+         files
+         (mapcar *output-translation-hook* files)))
+   t))
 (defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))
   nil)

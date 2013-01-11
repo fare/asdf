@@ -4,7 +4,6 @@
 
 (asdf/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
-  (:fmakunbound #:inherit-source-registry #:process-source-registry #:process-source-registry-directive)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
         :asdf/upgrade :asdf/find-system :asdf/configuration)
   (:export
@@ -24,6 +23,10 @@
    #:compute-source-registry #:flatten-source-registry
    #:sysdef-source-registry-search))
 (in-package :asdf/source-registry)
+
+(when-upgrade ()
+  (undefine-functions '(inherit-source-registry process-source-registry
+                        process-source-registry-directive)))
 
 (define-condition invalid-source-registry (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid source registry ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))

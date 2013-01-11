@@ -3,7 +3,6 @@
 
 (asdf/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
-  (:fmakunbound #:operate)
   (:use :common-lisp :asdf/utility :asdf/upgrade
         :asdf/component :asdf/system :asdf/operation :asdf/action
         :asdf/lisp-build :asdf/lisp-action #:asdf/plan
@@ -15,6 +14,8 @@
    #:component-loaded-p #:already-loaded-systems
    #:upgrade-asdf #:cleanup-upgraded-asdf #:*post-upgrade-hook*))
 (in-package :asdf/operate)
+
+(when-upgrade () (undefine-function 'operate))
 
 (defgeneric* operate (operation-class system &key &allow-other-keys))
 

@@ -4,31 +4,47 @@
 (asdf/package:define-package :asdf/utility
   (:recycle :asdf/utility :asdf)
   (:use :common-lisp :asdf/package :asdf/compatibility)
+  (:import-from :asdf/package #:DBG)
   (:export
-   #:find-symbol* ;; reexport from asdf/package
+   #:find-symbol* ;;#:DBG ;; reexport from asdf/package
    #:strcat #:compatfmt ;; reexport from asdf/compatibility
+   #:undefine-function #:undefine-functions
    #:defun* #:defgeneric* ;; defining macros
    #:aif #:it ;; basic flow control
    #:while-collecting #:appendf #:length=n-p ;; lists
    #:remove-keys #:remove-keyword ;; keyword argument lists
-   #:first-char #:last-char #:split-string #:string-suffix-p ;; strings
+   #:emptyp ;; sequences
+   #:first-char #:last-char #:split-string ;; strings
+   #:string-prefix-p #:string-enclosed-p #:string-suffix-p
    #:find-class* ;; CLOS
    #:stamp< #:stamp<= #:earlier-stamp #:stamps-earliest #:earliest-stamp ;; stamps
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
    #:list-to-hash-set ;; hash-table
-   #:ensure-function ;; functions
+   #:ensure-function #:call-function #:call-functions ;; functions
+   #:eval-string #:load-string #:load-stream
    #:parse-version #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
 ;;; *-defining macros
 
+;;; Functions
+
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (defun undefine-function (function-spec)
+    (cond
+      ((symbolp function-spec) (fmakunbound function-spec))
+      ((and (consp function-spec) (eq (car function-spec) 'setf)
+            (consp (cdr function-spec)) (null (cddr function-spec)))
+       #-(or gcl<2.7) (fmakunbound function-spec))
+      (t (error "bad function spec ~S" function-spec))))
+  (defun undefine-functions (function-spec-list)
+    (map () 'undefine-function function-spec-list)))
+
 (macrolet
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
-             ;; #+(or ecl gcl)
-             ,(when (and #+gcl<2.7 (symbolp name))
-                `(fmakunbound ',name))
+             (undefine-function ',name)
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
              ,(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
                 `(declaim (notinline ,name)))
@@ -84,7 +100,13 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     :unless (eq k key)
     :append (list k v)))
 
+;;; Sequences
+(defun emptyp (x)
+  "Predicate that is true for an empty sequence"
+  (or (null x) (and (vectorp x) (zerop (length x)))))
+
 ;;; Strings
+
 (defun* first-char (s)
   (and (stringp s) (plusp (length s)) (char s 0)))
 
@@ -111,12 +133,27 @@ starting the separation from the end, e.g. when called with arguments
           (incf words)
           (setf end start))))))
 
-(defun* string-suffix-p (s suffix)
-  (check-type s string)
-  (check-type suffix string)
-  (let ((start (- (length s) (length suffix))))
-    (and (<= 0 start)
-         (string-equal s suffix :start1 start))))
+(defun string-prefix-p (prefix string)
+  "Does STRING begin with PREFIX?"
+  (let* ((x (string prefix))
+         (y (string string))
+         (lx (length x))
+         (ly (length y)))
+    (and (<= lx ly) (string= x y :end2 lx))))
+
+(defun string-suffix-p (string suffix)
+  "Does STRING end with SUFFIX?"
+  (let* ((x (string string))
+         (y (string suffix))
+         (lx (length x))
+         (ly (length y)))
+    (and (<= ly lx) (string= x y :start1 (- lx ly)))))
+
+(defun string-enclosed-p (prefix string suffix)
+  "Does STRING begin with PREFIX and end with SUFFIX?"
+  (and (string-prefix-p prefix string)
+       (string-suffix-p string suffix)))
+
 
 ;;; CLOS
 (defun* find-class* (x &optional (errorp t) environment)
@@ -149,7 +186,7 @@ starting the separation from the end, e.g. when called with arguments
 (defun* list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
   (dolist (x list h) (setf (gethash x h) t)))
 
-;;; Functions
+;;; Code execution
 (defun* ensure-function (fun &key (package :asdf))
   (etypecase fun
     ((or boolean keyword character number pathname) (constantly fun))
@@ -158,6 +195,35 @@ starting the separation from the end, e.g. when called with arguments
     (string (eval `(function ,(with-standard-io-syntax
                                 (let ((*package* (find-package package)))
                                   (read-from-string fun))))))))
+
+(defun* call-function (function-spec)
+  (funcall (ensure-function function-spec)))
+
+(defun* call-functions (function-specs)
+  (map () 'call-hook-function function-specs))
+
+(defun eval-string (string)
+  "Evaluate a form read from a string"
+  (eval (read-from-string string)))
+
+(defun do-load (x &key external-format print)
+  (apply 'load x :print print (when external-format `(:external-format ,external-format))))
+
+(defun load-stream (&optional (stream *standard-input*))
+  "Portably read and evaluate forms from a STREAM."
+  ;; GCL 2.6 can't load from a string-input-stream
+  ;; ClozureCL 1.6 can only load from file input
+  ;; Allegro 5, I don't remember but it must have been broken when I tested.
+  #+(or gcl-pre2.7 clozure allegro)
+  (with-controlled-loader-conditions ()
+    (do ((eof '#:eof) (x t (read stream nil eof))) ((eq x eof)) (eval x)))
+  #-(or gcl-pre2.7 clozure allegro)
+  (do-load stream))
+
+(defun load-string (string)
+  "Portably read and evaluate forms from a STRING."
+  (with-input-from-string (s string) (load-stream s)))
+
 
 
 ;;; Version handling

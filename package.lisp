@@ -13,13 +13,13 @@
 (defpackage :asdf/package
   (:use :common-lisp)
   (:export
-   #:find-package* #:find-symbol* #:intern* #:unintern*
+   #:find-package* #:find-symbol* #:symbol-call #:intern* #:unintern*
+   #:symbol-shadowing-p #:rehome-symbol
+   #:delete-package* #:package-names #:packages-from-names
    #:symbol-name-package #:package-data
-   #:delete-package* #:ensure-package #:define-package))
+   #:ensure-package #:define-package))
 
 (in-package :asdf/package)
-
-(declaim (optimize (speed 0) (safety 3) #-gcl (debug 3)))
 
 (defmacro DBG (tag &rest exprs)
   "simple debug statement macro:
@@ -37,6 +37,7 @@ outputs a tag plus a list of variable and their values, returns the last value"
               (,f "~{~S~^ ~}~%" (setf ,res (multiple-value-list ,x)))))
          exprs)
       (apply 'values ,res)))))
+
 
 ;;;; General purpose package utilities
 
@@ -62,6 +63,11 @@ when the symbol is not found."
               (status (return (values symbol status)))
               (error (error "There is no symbol ~S in package ~S" name (package-name package))))))
         (values nil nil))))
+  (defun symbol-call (package name &rest args)
+    "Call a function associated with symbol of given name in given package,
+with given ARGS. Useful when the call is read before the package is loaded,
+or when loading the package is optional."
+    (apply (find-symbol* name package) args))
   (defun intern* (name package-designator &optional (error t))
     (intern (string name) (find-package* package-designator error)))
   (defun unintern* (name package-designator &optional (error t))
@@ -122,10 +128,25 @@ when the symbol is not found."
             (when (eq overwritten-symbol-status :external)
               (export symbol package))))
         (values overwritten-symbol overwritten-symbol-status))))
-  (defun symbol-name-package (symbol)
-    (cons (symbol-name symbol) (package-name (symbol-package symbol))))
+  (defun ensure-package-unused (package)
+    (loop :for p :in (package-used-by-list package) :do
+      (unuse-package package p)))
+  (defun delete-package* (package)
+    (let ((p (find-package package)))
+      (when p
+        (ensure-package-unused p)
+        (delete-package package))))
   (defun package-names (package)
     (cons (package-name package) (package-nicknames package)))
+  (defun packages-from-names (names)
+    (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t)))
+
+
+;;; Communicable representation of symbol and package information
+
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (defun symbol-name-package (symbol)
+    (cons (symbol-name symbol) (package-name (symbol-package symbol))))
   (defun package-data (package-designator &key name-package (error t))
     (let ((package (find-package* package-designator error)))
       (when package
@@ -153,34 +174,16 @@ when the symbol is not found."
                        :use ,(sort-packages (package-use-list package))
                        :used-by ,(sort-packages (package-used-by-list package))))))))))
 
+
+;;; ensure-package, define-package
+
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun soft-upgrade-p (upgrade)
-    (ecase upgrade ((:soft nil) t) (:hard nil)))
-  (defun ensure-package-unused (package)
-    (loop :for p :in (package-used-by-list package) :do
-      (unuse-package package p)))
-  (defun delete-package* (package)
-    (let ((p (find-package package)))
-      (when p
-        (ensure-package-unused p)
-        (delete-package package))))
-  (defun ensure-package-fmakunbound (package symbols)
-    (loop :for name :in symbols
-          :for sym = (find-symbol* name package nil)
-          :when sym :do (fmakunbound sym)))
-  (defun ensure-package-fmakunbound-setf (package symbols)
-    (loop :for name :in symbols
-          :for sym = (find-symbol* name package nil)
-          :when sym :do (progn #-gcl (fmakunbound `(setf ,sym)))))
-  (defun packages-from-names (names)
-    (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t))
   (defun ensure-package (name &key
-                                upgrade
                                 nicknames documentation use
                                 shadow shadowing-import-from
                                 import-from export intern
                                 recycle mix reexport
-                                unintern fmakunbound fmakunbound-setf)
+                                unintern)
     (let* ((name (string name))
            (nicknames (mapcar #'string nicknames))
            (names (cons name nicknames))
@@ -292,7 +295,6 @@ when the symbol is not found."
                        (t (return)))
                      (when (eq ustat :external)
                        (ensure-exported name sym u))))))))
-        (assert (soft-upgrade-p upgrade))
         #-gcl (setf (documentation package t) documentation) #+gcl documentation
         (loop :for p :in discarded
               :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
@@ -327,28 +329,24 @@ when the symbol is not found."
           (do-external-symbols (sym p) (ensure-mix sym p)))
         (loop :for (p . syms) :in import-from :do
           (dolist (sym syms) (ensure-import sym p)))
-        (loop :for p :in use :for sp = (string p) :for pp = (find-package sp) :do
+        (loop :for p :in use :for sp = (string p) :for pp = (find-package* sp) :do
           (do-external-symbols (sym pp) (ensure-inherited sym sp))
           (use-package pp package))
         (loop :for name :being :the :hash-keys :of exported :do
           (ensure-symbol name t))
-        (dolist (name (append intern fmakunbound fmakunbound-setf))
+       (dolist (name intern)
           (ensure-symbol (string name) t))
         (do-symbols (sym package)
           (ensure-symbol (symbol-name sym)))
         (loop :for name :being :the :hash-keys :of exported :do
           (ensure-export name package))
-        ;; do away with packages with conflicting (nick)names
-        ;; note from ASDF 2.26: ECL might not be liking an early fmakunbound (below #-ecl'ed)
-        (ensure-package-fmakunbound package fmakunbound)
-        (ensure-package-fmakunbound-setf package fmakunbound-setf)
         package))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun parse-define-package-form (package clauses)
     (loop
       :with use-p = nil :with recycle-p = nil
-      :with documentation = nil :with upgrade = nil
+      :with documentation = nil
       :for (kw . args) :in clauses
       :when (eq kw :nicknames) :append args :into nicknames :else
       :when (eq kw :documentation)
@@ -366,23 +364,14 @@ when the symbol is not found."
       :when (eq kw :mix) :append args :into mix :else
       :when (eq kw :reexport) :append args :into reexport :else
       :when (eq kw :unintern) :append args :into unintern :else
-      :when (eq kw :fmakunbound) :append args :into fmakunbound :else
-      :when (eq kw :fmakunbound-setf) :append args :into fmakunbound-setf :else
-      :when (eq kw :upgrade)
-        :do (unless (and (consp args) (null (cdr args)) (member (car args) '(:soft :hard)) (null upgrade))
-              (error "define-package: bad :upgrade directive"))
-            (setf upgrade (car args)) :else
       :do (error "unrecognized define-package keyword ~S" kw)
-      (progn fmakunbound fmakunbound-setf)
       :finally (return `(,package
                          :nicknames ,nicknames :documentation ,documentation
                          :use ,(if use-p use '(:common-lisp))
                          :shadow ,shadow :shadowing-import-from ,shadowing-import-from
                          :import-from ,import-from :export ,export :intern ,intern
                          :recycle ,(if recycle-p recycle (cons package nicknames))
-                         :mix ,mix :reexport ,reexport :unintern ,unintern
-                         ,@(when upgrade `(:upgrade ,upgrade))
-                         #|:fmakunbound ,fmakunbound :fmakunbound-setf ,fmakunbound-setf|#)))))
+                         :mix ,mix :reexport ,reexport :unintern ,unintern)))))
 
 (defmacro define-package (package &rest clauses)
   `(eval-when (:compile-toplevel :load-toplevel :execute)

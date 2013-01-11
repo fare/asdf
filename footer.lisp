@@ -15,7 +15,7 @@
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
 
 #+(or abcl clisp clozure cmu ecl mkcl sbcl)
-(let ((x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom))))
+(let ((x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom nil))))
   (when x
     (eval `(pushnew 'module-provide-asdf
             #+abcl sys::*module-provider-functions*

@@ -3,7 +3,6 @@
 
 (asdf/package:define-package :asdf/system
   (:recycle :asdf/system :asdf)
-  (:fmakunbound #:find-system #:system-source-file #:system-relative-pathname #:builtin-system-p)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component)
   (:intern #:children #:children-by-name #:default-component-class
@@ -21,6 +20,10 @@
    #:module-components ;; backward-compatibility. DO NOT USE.
    #:system-defsystem-depends-on))
 (in-package :asdf/system)
+
+(when-upgrade ()
+  (undefine-functions '(find-system system-source-file
+                        system-relative-pathname builtin-system-p)))
 
 (defgeneric* find-system (system &optional error-p))
 (declaim (ftype (function (t t) t) probe-asd))
@@ -56,7 +59,7 @@
                   (setf (gethash name hash) c))
         hash))))
 
-(with-upgrade (:when (find-class 'module nil))
+(when-upgrade (:when (find-class 'module nil))
   (defmethod reinitialize-instance :after ((m module) &rest initargs &key)
     (declare (ignorable m initargs)) (values))
   (defmethod update-instance-for-redefined-class :after

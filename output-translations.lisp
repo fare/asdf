@@ -3,9 +3,7 @@
 
 (asdf/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/configuration :asdf/action)
-  (:fmakunbound #:apply-output-translations)
-  (:fmakunbound-setf #:output-translations)
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build :asdf/upgrade :asdf/configuration)
   (:export
    #:invalid-output-translation
    #:output-translations #:output-translations-initialized-p
@@ -21,6 +19,8 @@
    #:compute-output-translations
    ))
 (in-package :asdf/output-translations)
+
+(when-upgrade () (undefine-functions '(apply-output-translations (setf output-translations))))
 
 (define-condition invalid-output-translation (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
@@ -281,16 +281,6 @@ effectively disabling the output translation facility."
        :return (translate-pathname* p absolute-source destination root source)
        :finally (return p)))))
 
-(defmethod output-files :around (operation component)
-  "Translate output files, unless asked not to"
-  operation component ;; hush genera, not convinced by declare ignorable(!)
-  (values
-   (multiple-value-bind (files fixedp) (call-next-method)
-     (if fixedp
-         files
-         (mapcar #'apply-output-translations files)))
-   t))
-
 #+abcl
 (defun* translate-jar-pathname (source wildcard)
   (declare (ignore wildcard))
@@ -318,4 +308,5 @@ effectively disabling the output translation facility."
              (merge-pathnames* relative-source target-root)))
       (normalize-device (apply-output-translations target)))))
 
+(setf *output-translation-hook* 'apply-output-translations)
 (pushnew 'clear-output-translations *clear-configuration-hook*)

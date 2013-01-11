@@ -3,8 +3,7 @@
 
 (asdf/package:define-package :asdf/configuration
   (:recycle :asdf/configuration :asdf)
-  (:fmakunbound #:resolve-location)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os)
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/upgrade)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories
@@ -17,6 +16,8 @@
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
    #:resolve-relative-location-component #:resolve-absolute-location-component))
 (in-package :asdf/configuration)
+
+(when-upgrade () (undefine-function 'resolve-location))
 
 (define-condition invalid-configuration ()
   ((form :reader condition-form :initarg :form)

@@ -3,9 +3,8 @@
 
 (asdf/package:define-package :asdf/pathname
   (:recycle :asdf/pathname :asdf)
-  (:fmakunbound #:translate-pathname*)
   #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*) ;; GCL 2.6 sucks
-  (:use :common-lisp :asdf/utility)
+  (:use :common-lisp :asdf/compatibility :asdf/utility)
   (:export
    #:*resolve-symlinks*
    ;; Making and merging pathnames, portably
@@ -42,6 +41,7 @@
    #:delete-file-if-exists
    ;; Translate a pathname
    #:translate-pathname*
+   #:native-namestring #:parse-native-namestring
    ;; temporary 
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname
@@ -53,6 +53,8 @@
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut))
 (in-package :asdf/pathname)
+
+(eval-when (:compile-toplevel :load-toplevel :execute) (fmakunbound 'translate-pathname*))
 
 ;;; User-visible parameters
 (defvar *resolve-symlinks* t
@@ -270,7 +272,7 @@ with given pathname and if it exists return its truename."
       (pathname (unless (wild-pathname-p p)
                   #.(or #+(or allegro clozure cmu cormanlisp ecl lispworks mkcl sbcl scl)
                         '(probe-file p)
-                        #+clisp (aif (find-symbol* '#:probe-pathname :ext)
+                        #+clisp (aif (find-symbol* '#:probe-pathname :ext nil)
                                      `(ignore-errors (,it p)))
                         #+gcl<2.7
                         '(or (probe-file p)
@@ -297,7 +299,7 @@ with given pathname and if it exists return its truename."
                              #+clozure '(:follow-links nil)
                              #+clisp '(:circle t :if-does-not-exist :ignore)
                              #+(or cmu scl) '(:follow-links nil :truenamep nil)
-                             #+sbcl (when (find-symbol* :resolve-symlinks '#:sb-impl)
+                             #+sbcl (when (find-symbol* :resolve-symlinks '#:sb-impl nil)
                                       '(:resolve-symlinks nil))))))
 
 (defun* filter-logical-directory-results (directory entries merger)
@@ -673,6 +675,25 @@ Host, device and version components are taken from DEFAULTS."
      (translate-pathname (directorize-pathname-host-device path) absolute-source destination))
     (t
      (translate-pathname path absolute-source destination))))
+
+
+;;; Native vs Lisp syntax
+
+(defun native-namestring (x)
+  "From a CL pathname, a namestring suitable for use by the OS shell"
+  (let ((p (pathname x)))
+    #+clozure (let ((*default-pathname-defaults* #p"")) (ccl:native-translated-namestring p)) ; see ccl bug 978
+    #+(or cmu scl) (ext:unix-namestring p nil)
+    #+sbcl (sb-ext:native-namestring p)
+    #-(or clozure cmu sbcl scl) (namestring p)))
+
+(defun parse-native-namestring (x)
+  "From a native namestring suitable for use by the OS shell, a CL pathname"
+  (check-type x string)
+  #+clozure (ccl:native-to-pathname x)
+  #+sbcl (sb-ext:parse-native-namestring x)
+  #-(or clozure sbcl) (parse-namestring x))
+
 
 ;;; Temporary pathnames
 (defun* add-pathname-suffix (pathname suffix)

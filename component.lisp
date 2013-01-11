@@ -3,7 +3,6 @@
 
 (asdf/package:define-package :asdf/component
   (:recycle :asdf/component :asdf)
-  (:fmakunbound #:component-relative-pathname #:source-file-type)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/upgrade)
   (:intern #:name #:version #:description #:long-description
            #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
@@ -28,6 +27,8 @@
    #:*default-encoding* #:*utf-8-external-format*))
 (in-package :asdf/component)
 
+(when-upgrade () (undefine-functions '(component-relative-pathname source-file-type)))
+
 (defgeneric* component-name (component)
   (:documentation "Name of the COMPONENT, unique relative to its parent"))
 (defgeneric* component-system (component)
@@ -48,7 +49,7 @@ another pathname in a degenerate way."))
 (defgeneric* version-satisfies (component version))
 (defgeneric* source-file-type (component system))
 
-(with-upgrade (:when (find-class 'component nil))
+(when-upgrade (:when (find-class 'component nil))
   (defmethod reinitialize-instance :after ((c component) &rest initargs &key)
     (declare (ignorable c initargs)) (values)))
 

@@ -14,6 +14,7 @@
   #+ecl (:export #:use-ecl-byte-compiler-p)
   #+genera (:import-from :scl #:boolean)
   #+genera (:export #:boolean #:ensure-directories-exist)
+  #+mcl (:export #:probe-posix #:current-user-homedir-pathname)
   (:export
    #:strcat #:compatfmt))
 (in-package :asdf/compatibility)

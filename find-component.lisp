@@ -3,9 +3,8 @@
 
 (asdf/package:define-package :asdf/find-component
   (:recycle :asdf/find-component :asdf)
-  (:fmakunbound #:find-component)
   (:use :common-lisp :asdf/utility :asdf/os
-   :asdf/component :asdf/system :asdf/find-system)
+   :asdf/upgrade :asdf/component :asdf/system :asdf/find-system)
   (:export
    #:find-component
    #:resolve-dependency-name #:resolve-dependency-spec
@@ -16,6 +15,8 @@
    #:missing-requires #:missing-parent
    #:missing-required-by #:missing-version))
 (in-package :asdf/find-component)
+
+(when-upgrade () (undefine-function 'find-component))
 
 ;;;; Missing component conditions
 

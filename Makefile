@@ -53,7 +53,7 @@ archive-copy: archive build/asdf.lisp
 
 build/asdf.lisp: $(wildcard *.lisp)
 	mkdir -p build
-	cat header.lisp package.lisp compatibility.lisp utility.lisp upgrade.lisp pathname.lisp os.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp > $@
+	cat header.lisp package.lisp compatibility.lisp utility.lisp upgrade.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp component.lisp system.lisp find-system.lisp find-component.lisp lisp-build.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp > $@
 
 push:
 	git status
