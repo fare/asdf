@@ -43,7 +43,9 @@
     (defsystem :test-encoding-explicit-u8
       :components ((:file "lambda" :encoding :utf-8))))
 
-  #+(and asdf-unicode (or clozure sbcl))
+  ;; NB: recent clozure can autodetect without asdf-encodings with :default (!)
+
+  #+(and asdf-unicode sbcl)
   (progn
     #+clozure (setf ccl:*default-external-format* :latin3)
     #+sbcl (setf sb-impl::*default-external-format* :latin-3)

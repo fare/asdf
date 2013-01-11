@@ -23,8 +23,8 @@
 
    ;; date should stay same
    (asdf:clear-system 'static-and-serial)
-   (touch-file "file2.lisp" date1)
-   (touch-file "file1.lisp" date2)
-   (touch-file file1 date3)
+   (touch-file "file2.lisp" :timestamp date1)
+   (touch-file "file1.lisp" :timestamp date2)
+   (touch-file file1 :timestamp date3)
    (asdf:operate 'asdf:load-op 'static-and-serial)
    (assert (equal (file-write-date file1) date3))))
