@@ -10,7 +10,7 @@
       `(("**;*.asd.*" ,(make-pathname :type "asd" :defaults (asdf::wilden *asdf-directory*)))
         ("**;*.lisp.*" ,(make-pathname :type "lisp" :defaults (asdf::wilden *asdf-directory*)))
         ("**;*.*.*" ,(resolve-location
-                      `(,*asdf-directory* "tmp/fasls" :implementation "logical-host-asdf")
+                      `(,*asdf-directory* "build/fasls" :implementation "logical-host-asdf")
                       :wilden t))))
 
 (quit-on-error

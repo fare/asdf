@@ -7,7 +7,7 @@
 
 (quit-on-error
  (let* ((asd (subpathname *test-directory* "test-multiple.asd"))
-        (tmp (subpathname *test-directory* "../tmp/"))
+        (tmp (subpathname *test-directory* "../build/"))
         (asd2 (subpathname tmp "test-multiple-too.asd"))
         (file4 (compile-file-pathname* "file4")))
    (setf *central-registry* `(,*test-directory* ,tmp))

@@ -90,7 +90,7 @@ do_tests() {
     echo "  $test_pass passing and $test_fail failing" >&2
     if [ $test_fail -eq 0 ] ; then
 	echo "all tests apparently successful" >&2
-        echo success > ../tmp/results/status
+        echo success > ../build/results/status
     else
 	echo "failing test(s): $failed_list" >&2
     fi
@@ -192,7 +192,7 @@ fi
 
 ASDFDIR="$(cd .. ; /bin/pwd)"
 export CL_SOURCE_REGISTRY="${ASDFDIR}"
-export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/tmp/fasls\" :implementation)) :ignore-inherited-configuration)"
+export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls\" :implementation)) :ignore-inherited-configuration)"
 env | grep asdf
 
 command="$command $flags"
@@ -202,23 +202,23 @@ fi
 
 
 create_config () {
-    mkdir -p ../tmp/test-source-registry-conf.d ../tmp/test-asdf-output-translations-conf.d
+    mkdir -p ../build/test-source-registry-conf.d ../build/test-asdf-output-translations-conf.d
 }
 
 clean_up () {
-    rm -rf ../tmp/test-source-registry-conf.d ../tmp/test-asdf-output-translations-conf.d
+    rm -rf ../build/test-source-registry-conf.d ../build/test-asdf-output-translations-conf.d
 }
 
 if [ -z "$command" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 else
     create_config
-    mkdir -p ../tmp/results
-    echo failure > ../tmp/results/status
+    mkdir -p ../build/results
+    echo failure > ../build/results/status
     thedate=`date "+%Y-%m-%d"`
     do_tests "$command" "$eval" 2>&1 | \
-	tee "../tmp/results/${lisp}.text" "../tmp/results/${lisp}-${thedate}.save"
-    read a < ../tmp/results/status
+	tee "../build/results/${lisp}.text" "../build/results/${lisp}-${thedate}.save"
+    read a < ../build/results/status
     clean_up
     [ success = "$a" ] ## exit code
 fi
