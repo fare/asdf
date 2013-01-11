@@ -24,10 +24,6 @@
    #:sysdef-source-registry-search))
 (in-package :asdf/source-registry)
 
-(when-upgrade ()
-  (undefine-functions '(inherit-source-registry process-source-registry
-                        process-source-registry-directive)))
-
 (define-condition invalid-source-registry (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid source registry ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
 

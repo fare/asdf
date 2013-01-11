@@ -22,8 +22,6 @@
    #:system-fasl))
 (in-package :asdf/bundle)
 
-(when-upgrade () (undefine-function 'trivial-system-p))
-
 (defclass bundle-op (operation)
   ((build-args :initarg :args :initform nil :accessor bundle-op-build-args)
    (name-suffix :initarg :name-suffix :initform nil)

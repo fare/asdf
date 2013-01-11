@@ -54,8 +54,6 @@
    #:parse-file-location-info #:parse-windows-shortcut))
 (in-package :asdf/pathname)
 
-(eval-when (:compile-toplevel :load-toplevel :execute) (fmakunbound 'translate-pathname*))
-
 ;;; User-visible parameters
 (defvar *resolve-symlinks* t
   "Determine whether or not ASDF resolves symlinks when defining systems.

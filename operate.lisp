@@ -15,8 +15,6 @@
    #:upgrade-asdf #:cleanup-upgraded-asdf #:*post-upgrade-hook*))
 (in-package :asdf/operate)
 
-(when-upgrade () (undefine-function 'operate))
-
 (defgeneric* operate (operation-class system &key &allow-other-keys))
 
 (defun* cleanup-upgraded-asdf ()

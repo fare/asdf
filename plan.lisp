@@ -24,8 +24,6 @@
    #:perform-plan #:plan-operates-on-p))
 (in-package :asdf/plan)
 
-(when-upgrade () (undefine-functions '(traverse perform-plan traverse-action)))
-
 ;;;; Planned action status
 
 (defgeneric* plan-action-status (plan operation component)

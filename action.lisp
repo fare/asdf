@@ -22,11 +22,6 @@
    #:perform #:perform-with-restarts #:retry #:accept))
 (in-package :asdf/action)
 
-(when-upgrade ()
-  (undefine-functions
-   '(explain output-files perform perform-with-restarts
-     operation-done-p compute-action-stamp component-depends-on mark-operation-done)))
-
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
 
 ;;;; self-description

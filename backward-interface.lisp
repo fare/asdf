@@ -18,8 +18,6 @@
    #:system-definition-pathname))
 (in-package :asdf/backward-interface)
 
-(when-upgrade () (undefine-function 'component-load-dependencies))
-
 (defun* component-load-dependencies (component)
   ;; Old deprecated name for the same thing. Please update your software.
   (component-sibling-dependencies component))

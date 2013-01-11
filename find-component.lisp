@@ -16,8 +16,6 @@
    #:missing-required-by #:missing-version))
 (in-package :asdf/find-component)
 
-(when-upgrade () (undefine-function 'find-component))
-
 ;;;; Missing component conditions
 
 (define-condition missing-component-of-version (missing-component)

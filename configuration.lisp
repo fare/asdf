@@ -17,8 +17,6 @@
    #:resolve-relative-location-component #:resolve-absolute-location-component))
 (in-package :asdf/configuration)
 
-(when-upgrade () (undefine-function 'resolve-location))
-
 (define-condition invalid-configuration ()
   ((form :reader condition-form :initarg :form)
    (location :reader condition-location :initarg :location)

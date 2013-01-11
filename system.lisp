@@ -21,10 +21,6 @@
    #:system-defsystem-depends-on))
 (in-package :asdf/system)
 
-(when-upgrade ()
-  (undefine-functions '(find-system system-source-file
-                        system-relative-pathname builtin-system-p)))
-
 (defgeneric* find-system (system &optional error-p))
 (declaim (ftype (function (t t) t) probe-asd))
 

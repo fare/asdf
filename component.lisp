@@ -27,8 +27,6 @@
    #:*default-encoding* #:*utf-8-external-format*))
 (in-package :asdf/component)
 
-(when-upgrade () (undefine-functions '(component-relative-pathname source-file-type)))
-
 (defgeneric* component-name (component)
   (:documentation "Name of the COMPONENT, unique relative to its parent"))
 (defgeneric* component-system (component)

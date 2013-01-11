@@ -20,8 +20,6 @@
    ))
 (in-package :asdf/output-translations)
 
-(when-upgrade () (undefine-functions '(apply-output-translations (setf output-translations))))
-
 (define-condition invalid-output-translation (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
 

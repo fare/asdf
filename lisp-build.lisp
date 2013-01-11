@@ -16,8 +16,6 @@
    #:combine-fasls))
 (in-package :asdf/lisp-build)
 
-(eval-when (:compile-toplevel :load-toplevel :execute) (undefine-function 'compile-file*))
-
 (defvar *compile-file-warnings-behaviour*
   (or #+clisp :ignore :warn)
   "How should ASDF react if it encounters a warning when compiling a file?
