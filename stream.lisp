@@ -3,18 +3,21 @@
 
 (asdf/package:define-package :asdf/stream
   (:recycle :asdf/stream)
-  (:use :cl :asdf/package :asdf/compatibility :asdf/utility)
+  (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
   (:export
    #:*default-stream-element-type* #:*stderr*
    #:finish-outputs #:format!
-   #:with-output #:with-input #:call-with-input-file
+   #:with-output #:output-string #:with-input #:call-with-input-file
    #:with-safe-io-syntax #:read-function
    #:read-file-forms #:read-first-file-form
    #:copy-stream-to-stream #:concatenate-files
    #:copy-stream-to-stream-line-by-line
    #:slurp-stream-string #:slurp-stream-lines
    #:slurp-stream-forms #:slurp-file-string
-   #:slurp-file-lines #:slurp-file-forms))
+   #:slurp-file-lines #:slurp-file-forms
+   #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
+   #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
+   #:*default-encoding* #:*utf-8-external-format*))
 (in-package :asdf/stream)
 
 (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)
@@ -76,6 +79,11 @@ Otherwise, signal an error.")
   "Bind X to an output stream, coercing VALUE (default: previous binding of X)
 as per FORMAT, and evaluate BODY within the scope of this binding."
   `(call-with-output ,value #'(lambda (,x) ,@body)))
+
+(defun output-string (string &optional stream)
+  (if stream
+      (with-output (stream) (princ string stream))
+      string))
 
 
 ;;; Input helpers
@@ -187,4 +195,53 @@ reading contents line by line."
 (defun slurp-file-forms (file &rest keys)
   "Open FILE with option KEYS, read its contents as a list of forms"
   (apply 'call-with-input-file file 'slurp-stream-forms keys))
+
+
+;;; Encodings
+
+(defvar *default-encoding* :default
+  "Default encoding for source files.
+The default value :default preserves the legacy behavior.
+A future default might be :utf-8 or :autodetect
+reading emacs-style -*- coding: utf-8 -*- specifications,
+and falling back to utf-8 or latin1 if nothing is specified.")
+
+(defparameter *utf-8-external-format*
+  #+(and asdf-unicode (not clisp)) :utf-8
+  #+(and asdf-unicode clisp) charset:utf-8
+  #-asdf-unicode :default
+  "Default :external-format argument to pass to CL:OPEN and also
+CL:LOAD or CL:COMPILE-FILE to best process a UTF-8 encoded file.
+On modern implementations, this will decode UTF-8 code points as CL characters.
+On legacy implementations, it may fall back on some 8-bit encoding,
+with non-ASCII code points being read as several CL characters;
+hopefully, if done consistently, that won't affect program behavior too much.")
+
+(defun* always-default-encoding (pathname)
+  (declare (ignore pathname))
+  *default-encoding*)
+
+(defvar *encoding-detection-hook* #'always-default-encoding
+  "Hook for an extension to define a function to automatically detect a file's encoding")
+
+(defun* detect-encoding (pathname)
+  (if (and pathname (not (directory-pathname-p pathname)) (probe-file pathname))
+      (funcall *encoding-detection-hook* pathname)
+      *default-encoding*))
+
+(defun* default-encoding-external-format (encoding)
+  (case encoding
+    (:default :default) ;; for backward-compatibility only. Explicit usage discouraged.
+    (:utf-8 *utf-8-external-format*)
+    (otherwise
+     (cerror "Continue using :external-format :default" (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings).~:>") encoding)
+     :default)))
+
+(defvar *encoding-external-format-hook*
+  #'default-encoding-external-format
+  "Hook for an extension to define a mapping between non-default encodings
+and implementation-defined external-format's")
+
+(defun* encoding-external-format (encoding)
+  (funcall *encoding-external-format-hook* encoding))
 

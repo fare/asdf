@@ -274,7 +274,7 @@ or when loading the package is optional."
                     (when intern (intern* name package)))
                    (t (rehome-symbol recycled package))))))
            (ensure-export (name p)
-             (multiple-value-bind (symbol status) (find-symbol name p)
+             (multiple-value-bind (symbol status) (find-symbol* name p)
                (assert status)
                (unless (eq status :external)
                  (ensure-exported name symbol p))))
@@ -305,12 +305,10 @@ or when loading the package is optional."
         (loop :for p :in (set-difference (package-use-list package) (append mix use))
               :do (unuse-package p package))
         (dolist (name unintern) (unintern* name package nil))
-        (loop :for sym :in export :for name = (string sym) :do
-          (setf (gethash name exported) t))
+        (dolist (sym export) (setf (gethash (string sym) exported) t))
         (loop :for p :in reexport :do
           (do-external-symbols (sym p)
-            (let ((name (string sym)))
-              (export (find-symbol* name package) package) (setf (gethash name exported) t))))
+            (setf (gethash (string sym) exported) t)))
         (do-external-symbols (sym package)
           (unless (gethash (symbol-name sym) exported) (unexport sym package)))
         (loop :for s :in shadow :for name = (string s) :do
@@ -329,17 +327,16 @@ or when loading the package is optional."
           (do-external-symbols (sym p) (ensure-mix sym p)))
         (loop :for (p . syms) :in import-from :do
           (dolist (sym syms) (ensure-import sym p)))
-        (loop :for p :in use :for sp = (string p) :for pp = (find-package* sp) :do
-          (do-external-symbols (sym pp) (ensure-inherited sym sp))
+        (loop :for p :in (append use mix) :for pp = (find-package* p) :do
+          (do-external-symbols (sym pp) (ensure-inherited sym pp))
           (use-package pp package))
         (loop :for name :being :the :hash-keys :of exported :do
-          (ensure-symbol name t))
-       (dolist (name intern)
+          (ensure-symbol (string name) t)
+          (ensure-export name package))
+        (dolist (name intern)
           (ensure-symbol (string name) t))
         (do-symbols (sym package)
           (ensure-symbol (symbol-name sym)))
-        (loop :for name :being :the :hash-keys :of exported :do
-          (ensure-export name package))
         package))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)

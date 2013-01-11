@@ -37,11 +37,6 @@ as either a recognizing function or a sequence of characters."
      (t (error "requires-escaping-p: no good-char criterion")))
    token))
 
-(defun output-string (string &optional stream)
-  (if stream
-      (with-output (stream) (princ string stream))
-      string))
-
 (defun escape-token (token &key stream quote good-chars bad-chars escaper)
   "Call the ESCAPER function on TOKEN string if it needs escaping as per
 REQUIRES-ESCAPING-P using GOOD-CHARS and BAD-CHARS, otherwise output TOKEN,

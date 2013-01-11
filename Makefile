@@ -51,8 +51,8 @@ archive-copy: archive build/asdf.lisp
 	${MAKE} push
 	git checkout master
 
-driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp upgrade.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp
-asdf_lisp := component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
+driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp driver.lisp
+asdf_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp configuration.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
 
 build/asdf.lisp: $(wildcard *.lisp)
 	mkdir -p build

@@ -3,8 +3,8 @@
 
 (asdf/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
-  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/upgrade :asdf/pathname :asdf/os
-   :asdf/component :asdf/system)
+  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os
+        :asdf/upgrade :asdf/component :asdf/system)
   (:export
    #:coerce-name #:find-system #:locate-system #:load-sysdef #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems

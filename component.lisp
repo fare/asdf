@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/component
   (:recycle :asdf/component :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/upgrade)
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/upgrade)
   (:intern #:name #:version #:description #:long-description
            #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
            #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
@@ -21,10 +21,7 @@
    #:component-inline-methods ;; backward-compatibility only. DO NOT USE!
    #:component-operation-times ;; For internal use only.
    ;; portable ASDF encoding and implementation-specific external-format
-   #:component-external-format #:component-encoding
-   #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
-   #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
-   #:*default-encoding* #:*utf-8-external-format*))
+   #:component-external-format #:component-encoding))
 (in-package :asdf/component)
 
 (defgeneric* component-name (component)
@@ -162,56 +159,10 @@ another pathname in a degenerate way."))
 
 ;;;; Encodings
 
-(defvar *default-encoding* :default
-  "Default encoding for source files.
-The default value :default preserves the legacy behavior.
-A future default might be :utf-8 or :autodetect
-reading emacs-style -*- coding: utf-8 -*- specifications,
-and falling back to utf-8 or latin1 if nothing is specified.")
-
-(defparameter *utf-8-external-format*
-  #+(and asdf-unicode (not clisp)) :utf-8
-  #+(and asdf-unicode clisp) charset:utf-8
-  #-asdf-unicode :default
-  "Default :external-format argument to pass to CL:OPEN and also
-CL:LOAD or CL:COMPILE-FILE to best process a UTF-8 encoded file.
-On modern implementations, this will decode UTF-8 code points as CL characters.
-On legacy implementations, it may fall back on some 8-bit encoding,
-with non-ASCII code points being read as several CL characters;
-hopefully, if done consistently, that won't affect program behavior too much.")
-
-(defun* always-default-encoding (pathname)
-  (declare (ignore pathname))
-  *default-encoding*)
-
-(defvar *encoding-detection-hook* #'always-default-encoding
-  "Hook for an extension to define a function to automatically detect a file's encoding")
-
-(defun* detect-encoding (pathname)
-  (if (and pathname (not (directory-pathname-p pathname)) (probe-file pathname))
-      (funcall *encoding-detection-hook* pathname)
-      *default-encoding*))
-
 (defmethod component-encoding ((c component))
   (or (loop :for x = c :then (component-parent x)
         :while x :thereis (%component-encoding x))
       (detect-encoding (component-pathname c))))
-
-(defun* default-encoding-external-format (encoding)
-  (case encoding
-    (:default :default) ;; for backward-compatibility only. Explicit usage discouraged.
-    (:utf-8 *utf-8-external-format*)
-    (otherwise
-     (cerror "Continue using :external-format :default" (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings).~:>") encoding)
-     :default)))
-
-(defvar *encoding-external-format-hook*
-  #'default-encoding-external-format
-  "Hook for an extension to define a mapping between non-default encodings
-and implementation-defined external-format's")
-
-(defun* encoding-external-format (encoding)
-  (funcall *encoding-external-format-hook* encoding))
 
 (defmethod component-external-format ((c component))
   (encoding-external-format (component-encoding c)))
