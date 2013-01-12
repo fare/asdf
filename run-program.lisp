@@ -272,19 +272,20 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                        #+sbcl (sb-ext:process-output process))))
                (values process stream)))
            #+(or allegro clisp clozure cmu ecl (and lispworks os-unix) sbcl scl)
-           (process-result (process)
+           (process-result (process pipe)
+             (declare (ignorable pipe))
              ;; 1- wait
              #+(and clozure os-unix) (ccl::external-process-wait process)
              #+(or cmu scl) (ext:process-wait process)
              #+(and ecl os-unix) (ext:external-process-wait process)
              #+sbcl (sb-ext:process-wait process)
              ;; 2- extract result
-             #+allegro (sys:reap-os-subprocess :pid process :wait t)
+             #+allegro (if pipe (sys:reap-os-subprocess :pid process :wait t) process)
              #+clisp process
              #+clozure (nth-value 1 (ccl:external-process-status process))
              #+(or cmu scl) (ext:process-exit-code process)
              #+ecl (nth-value 1 (ext:external-process-status process))
-             #+lispworks (system:pid-exit-status process :wait t)
+             #+lispworks (if pipe (system:pid-exit-status process :wait t) process)
              #+sbcl (sb-ext:process-exit-code process))
            (check-result (exit-code process)
              #+clisp
@@ -304,12 +305,12 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                      (unwind-protect
                           (slurp-input-stream output stream)
                        (when stream (close stream))
-                       (check-result (process-result process) process))
+                       (check-result (process-result process pipe) process))
                      (unwind-protect
                           (check-result
                            #+(or allegro lispworks) ; when not capturing, returns the exit code!
                            process
-                           #-(or allegro lispworks) (process-result process)
+                           #-(or allegro lispworks) (process-result process pipe)
                            process))))))
            (system-command (command)
              (etypecase command
@@ -324,7 +325,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
              #+allegro
              (excl:run-shell-command command :input interactive :output interactive :wait t)
              #+(or clisp clozure cmu (and lispworks os-unix) sbcl scl)
-             (process-result (run-program command :pipe nil :interactive interactive))
+             (process-result (run-program command :pipe nil :interactive interactive) nil)
              #+ecl (ext:system command)
              #+cormanlisp (win32:system command)
              #+gcl (lisp:system command)

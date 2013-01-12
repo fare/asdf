@@ -55,6 +55,7 @@
                     #+xcl :xcl))))
      (merge-pathnames
       (make-pathname :directory `(#-gcl :relative "fasls" ,impl)
+                     :name "asdf" ;; otherwise LispWorks borks, because it fills in :UNSPECIFIC rather than NIL.
                      :defaults *asdf-directory*)
       *asdf-lisp*))))
 
