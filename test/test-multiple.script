@@ -5,17 +5,17 @@
 (in-package :asdf)
 (use-package :asdf-test)
 
-(quit-on-error
+(with-test ()
  (let* ((asd (subpathname *test-directory* "test-multiple.asd"))
-        (tmp (subpathname *test-directory* "../tmp/"))
+        (tmp (subpathname *test-directory* "../build/"))
         (asd2 (subpathname tmp "test-multiple-too.asd"))
         (file4 (compile-file-pathname* "file4")))
    (setf *central-registry* `(,*test-directory* ,tmp))
-   (assert (= 0 (run-shell-command
-                 (format nil "/bin/ln -sf ~A ~A"
-                         (native-namestring asd)
-                         (native-namestring asd2)))))
+   (run-shell-command
+    (format nil "/bin/ln -sf ~A ~A 2>&1"
+            (native-namestring asd)
+            (native-namestring asd2)))
    (oos 'load-source-op 'test-multiple-too)
-   (assert (symbol-value (find-symbol (string :*file3*) :test-package)))
+   (assert (symbol-value (asdf::find-symbol* :*file3* :test-package)))
    (load-system 'test-multiple-free)
    (assert (asdf::probe-file* file4))))

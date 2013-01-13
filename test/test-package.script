@@ -2,7 +2,7 @@
 (load "script-support.lisp")
 (load-asdf)
 (in-package :cl-user)
-(asdf-test::quit-on-error
+(asdf-test::with-test ()
  (defun module () 1)
  (load "test-package.asd")
  (defclass module () ())

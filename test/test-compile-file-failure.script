@@ -2,7 +2,7 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
+(with-test ()
  #-gcl<2.7
  (assert (handler-case
              (let ((asdf:*compile-file-failure-behaviour* :warn))

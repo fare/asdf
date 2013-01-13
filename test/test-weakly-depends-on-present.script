@@ -8,7 +8,7 @@
 ;;;---------------------------------------------------------------------------
 
 
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-weakly-depends-on-present)
  ;; The weakly-depended-on system, file3-only, should be loaded...

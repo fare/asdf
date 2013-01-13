@@ -2,7 +2,14 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
-  (setf *central-registry* '(*default-pathname-defaults*))
-  (load-system 'test-around-compile :force t)
-  (assert (= 3 (funcall 'add10 1)))) ;; add10 must have been compiled in base 2
+(defun call-in-base-2 (thunk)
+  (let ((*read-base* 2))
+    (funcall thunk)))
+
+(with-test ()
+ (defsystem test-around-compile
+   :around-compile call-in-base-2
+   ;; :depends-on ((:version :asdf "2.017.18")) ; no :around-compile before that.
+   :components ((:file "test")))
+ (load-system 'test-around-compile :force t)
+ (assert (= 3 (funcall 'add10 1)))) ;; add10 must have been compiled in base 2

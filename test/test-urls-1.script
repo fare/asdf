@@ -4,7 +4,7 @@
 #+scl
 (require :http-library)
 
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  ;; Compare the source files with local versions before loading them.
  #+(and (or abcl scl) trust-the-net)

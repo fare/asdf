@@ -21,7 +21,7 @@
                #+sbcl sb-impl::*default-external-format*
                #-(or clozure sbcl) (error "can't determine default external-format")))))
 
-(defmacro with-test ((encoding &key (op 'asdf:load-source-op) (path "lambda")) defsystem &body body)
+(defmacro with-encoding-test ((encoding &key (op 'asdf:load-source-op) (path "lambda")) defsystem &body body)
   (let ((sys (second defsystem)))
     `(progn
        (format t "~&Test ~A: should be ~A~%" ',sys ',encoding)
@@ -37,20 +37,25 @@
        (eval `(assert-equal (string-char-codes ,*lambda-string*)
                             (expected-char-codes ',',encoding))))))
 
-(quit-on-error
+(with-test ()
 
-  (with-test (:utf-8)
+  (with-encoding-test (:utf-8)
     (defsystem :test-encoding-explicit-u8
       :components ((:file "lambda" :encoding :utf-8))))
 
-  #+(and asdf-unicode (or clozure sbcl))
+  #-asdf-unicode
+  (leave-test "No Unicode support to test on this lisp implementation" 0)
+
+  ;; NB: recent clozure can autodetect without asdf-encodings with :default (!)
+
+  #+(and asdf-unicode sbcl)
   (progn
     #+clozure (setf ccl:*default-external-format* :latin3)
     #+sbcl (setf sb-impl::*default-external-format* :latin-3)
-    (with-test (:default)
+    (with-encoding-test (:default)
       (defsystem :test-encoding-explicit-default
         :components ((:file "lambda" :encoding :default))))
-    (with-test (:default)
+    (with-encoding-test (:default)
       (defsystem :test-encoding-implicit-default
         :components ((:file "lambda")))))
 
@@ -60,46 +65,46 @@
     (pushnew (asdf::subpathname *asdf-directory* "../asdf-encodings/") asdf:*central-registry*)
     (asdf:load-system :asdf-encodings)
     #-lispworks
-    (with-test (:latin-2)
+    (with-encoding-test (:latin-2)
       (defsystem :test-encoding-implicit-autodetect
         :components ((:file "lambda"))))
     #+sbcl
-    (with-test (:koi8-r)
+    (with-encoding-test (:koi8-r)
       (defsystem :test-encoding-explicit-koi8-r
         :components ((:file "lambda" :encoding :koi8-r)))))
 
-  (with-test (:utf-8)
+  (with-encoding-test (:utf-8)
     (defsystem :test-file-encoding-u8
       :encoding :latin-1
       :components ((:file "lambda" :encoding :utf-8))))
-  (with-test (:latin-1)
+  (with-encoding-test (:latin-1)
     (defsystem :test-file-encoding-l1
       :encoding :utf-8
       :components ((:file "lambda" :encoding :latin-1))))
-  (with-test (:utf-8 :op asdf:load-source-op)
+  (with-encoding-test (:utf-8 :op asdf:load-source-op)
     (defsystem :test-system-encoding-u8
       :encoding :utf-8
       :components ((:file "lambda"))))
-  (with-test (:utf-8 :op asdf:load-op)
+  (with-encoding-test (:utf-8 :op asdf:load-op)
     (defsystem :test-system-encoding-u8-load-op
       :encoding :utf-8
       :components ((:file "lambda"))))
-  (with-test (:latin-1)
+  (with-encoding-test (:latin-1)
     (defsystem :test-system-encoding-l1
       :encoding :latin-1
       :components ((:file "lambda"))))
   #-ecl-bytecmp
-  (with-test (:latin-1 :op asdf:load-op)
+  (with-encoding-test (:latin-1 :op asdf:load-op)
     (defsystem :test-system-encoding-l1-load-op
       :encoding :latin-1
       :components ((:file "lambda"))))
-  (with-test (:utf-8 :path ("foo" "lambda"))
+  (with-encoding-test (:utf-8 :path ("foo" "lambda"))
     (defsystem :test-module-encoding-u8
       :encoding :latin-1
       :components
       ((:module "foo" :pathname "" :encoding :utf-8
         :components ((:file "lambda"))))))
-  (with-test (:latin-1 :path ("foo" "lambda"))
+  (with-encoding-test (:latin-1 :path ("foo" "lambda"))
     (defsystem :test-module-encoding-l1
       :encoding :utf-8
       :components

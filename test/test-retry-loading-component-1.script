@@ -5,7 +5,7 @@
 (load "script-support.lisp")
 (load-asdf)
 (defvar *caught-error* nil)
-(quit-on-error
+(with-test ()
  (DBG "trlc1 1")
  (asdf::delete-file-if-exists "try-reloading-dependency.asd")
  (setf asdf::*defined-systems* (asdf::make-defined-systems-table))
@@ -22,7 +22,7 @@
                            (DBG "trlc1 6" name mode)
                            (assert (eq mode :external) nil "Mode of ~s was not external" name)
                            (let ((restart (find-restart name c)))
-                             (DBG "trlc1 7" restart)
+                             (DBG "trlc1 7" name restart)
                              (assert restart)
                              (when restart (invoke-restart restart)))))))
    (DBG "trlc1 3")

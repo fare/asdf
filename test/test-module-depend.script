@@ -2,26 +2,31 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-module-depend)
 
  ;; test that it compiled
- (let ((file1-date (file-write-date (asdf:compile-file-pathname* "file1"))))
+ (let* ((file1.fasl (asdf:compile-file-pathname* "file1"))
+        (file2.fasl (asdf:compile-file-pathname* "file2"))
+        (file3.fasl (asdf:compile-file-pathname* "file3"))
+        (file1-date (file-write-date file1.fasl))
+        (file3-date (file-write-date file3.fasl)))
 
-   (assert (and file1-date (file-write-date (asdf:compile-file-pathname* "file2"))))
+   (assert (and file1-date file3-date))
 
    ;; and loaded
    (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
 
-   ;; now touch file1 and check that file2 _is_ also recompiled
-   ;; this will only work if the cross-module (intra-system)
-   ;; dependency bug is fixed.
+   ;; now touch file1 and its fasl so the fasl is out of date,
+   ;; and check that file2 _is_ also recompiled
+   ;; this didn't work before the cross-module (intra-system) dependency bug was fixed.
 
-   (let ((before (file-write-date (asdf:compile-file-pathname* "file2"))))
-     (sleep 1)
-     (asdf::run-shell-command "touch file1.lisp")
-     (asdf:operate 'asdf:load-op 'test-module-depend)
-     (assert (> (file-write-date (asdf:compile-file-pathname* "file2")) before))
-     ;; does this properly go to the second level?
-     (assert (> (file-write-date (asdf:compile-file-pathname* "file3")) before)))))
+   (touch-file "file1.lisp" :timestamp (- file3-date 60))
+   (touch-file file1.fasl :timestamp (- file3-date 90))
+   (touch-file file2.fasl :timestamp (- file3-date 30))
+   (touch-file file3.fasl :timestamp (- file3-date 15))
+   (asdf:operate 'asdf:load-op 'test-module-depend)
+   (assert (>= (file-write-date (asdf:compile-file-pathname* "file2")) file3-date))
+   ;; does this properly go to the second level?
+   (assert (>= (file-write-date (asdf:compile-file-pathname* "file3")) file3-date))))

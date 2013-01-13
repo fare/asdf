@@ -6,7 +6,7 @@
 (load-asdf)
 (defvar *caught-error* nil)
 
-(quit-on-error
+(with-test ()
  (asdf::delete-file-if-exists (compile-file-pathname "try-recompiling-1"))
  #-gcl
  (handler-bind ((error (lambda (c)

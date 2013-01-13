@@ -4,7 +4,7 @@
 #+scl
 (require :http-library)
 
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* '("http://www.scieneer.com/files/"))
  ;; Compare the source files with local versions before loading them.
  #+(and (or abcl scl) trust-the-net)

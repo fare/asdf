@@ -5,7 +5,7 @@
 (in-package :asdf)
 (use-package :asdf-test)
 
-(quit-on-error
+(with-test ()
 
 (assert
  (every #'directory-pathname-p

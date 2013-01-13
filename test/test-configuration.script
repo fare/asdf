@@ -6,7 +6,7 @@
 (use-package :asdf-test)
 #+gcl<2.7 (defmacro with-standard-io-syntax (&body body) `(progn ,@body))
 
-(defparameter *tmp-directory* (subpathname *asdf-directory* "tmp/"))
+(defparameter *tmp-directory* (subpathname *asdf-directory* "build/"))
 (setf *central-registry* nil)
 
 (defun under-tmp-directory (designator &optional (defaults *tmp-directory*))
@@ -63,7 +63,7 @@
                        :if-does-not-exist :create)
       (format s "(defsystem :foo~D)~%" i))))
 
-(quit-on-error
+(with-test ()
  (assert-equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")
                '(:output-translations ("/foo" "/bar") :inherit-configuration
                  ("/baz" "/quux")))

@@ -32,7 +32,7 @@
 ;;; (:file "module1-1/file3.lisp") means #p"module1-1/file3.lisp.lisp" (assuming /)
 ;;; (:static-file "module1-1/file3.lisp") means #p"module1-1/file3.lisp"
 
-(defun test-component-pathnames (&key (root (asdf::pathname-directory-pathname *asdf-fasl*))
+(defun test-component-pathnames (&key (root *build-directory*)
                                  (delete-host t)
                                  (support-string-pathnames nil)
                                  (support-absolute-string-pathnames nil))
@@ -49,7 +49,9 @@
            (*print-pretty* nil)
            (start-time 0))
 
-      (with-open-file (result-stream (asdf::merge-pathnames* "output.txt" root)
+      (with-open-file (result-stream (asdf::subpathname
+                                      *build-directory*
+                                      (format nil "results/~(~A~)-pathnames.txt" *implementation*))
                                      :direction :output
                                      :if-exists :supersede :if-does-not-exist :create)
         (flet ((src-dir (&rest path) (append (or (pathname-directory root) (list :relative))
@@ -122,7 +124,7 @@
 					 :defaults root)
                          ,(make-pathname :directory (src-dir "system2" "module4") :name "file" :type "lisp"
 					 :defaults root)
-                         ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4") :name "file" :type "lisp"
+                         ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4") :name "file" :type "lisp" :version nil
 					 :defaults root)
                          ,(parse-namestring "ASDFTEST:system2;module4;file.lisp")
                          ,@(when support-string-pathnames
@@ -221,9 +223,7 @@
                         ((error (lambda (c)
                                   (incf system-failures)
                                   (format *error-output* "~&error! ~a~%sysdef:~% ~S~%" c system-definition)
-                                  #+sbcl (sb-debug:backtrace 69)
-                                  #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
-                                  #+clisp (system::print-backtrace)
+                                  (asdf::print-condition-backtrace c :stream *error-output*)
                                   (format result-stream "~&~%***~%error: ~a~%~s"
                                           c system-definition)
                                   (return-from :test-system))))
@@ -306,11 +306,7 @@
       (setf (logical-pathname-translations "ASDFTEST") nil))
     (remhash "test-system" asdf::*defined-systems*)))
 
-(defun hash-table->alist (table)
-  (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
-    :collect (cons key value)))
-
-(quit-on-error
+(with-test ()
  (asdf:initialize-source-registry)
  (format t "source registry: ~S~%" (hash-table->alist asdf::*source-registry*))
  (asdf:initialize-output-translations)
@@ -334,7 +330,7 @@
 
  #-(or xcl gcl<2.7) ;;---*** pathnames are known to be massively broken on XCL and GCL 2.6
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
-     (leave-lisp "test failed" 1)))
+     (leave-test "test failed" 1)))
 
 ;;; (load "LIBRARY:de;setf;utility;asdf;cp-test.lisp")
 ;;; (logical-pathname-translations "ASDFTEST")

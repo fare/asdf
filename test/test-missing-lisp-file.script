@@ -9,8 +9,11 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
+(with-test ()
+ (asdf:defsystem test-missing-lisp-file
+   :components ((:file "file2" :in-order-to ((compile-op (load-op "fileMissing"))
+                                             (load-op (load-op "fileMissing"))))
+                (:file "fileMissing")))
  (let ((missing-name (namestring
                       (make-pathname  :name "fileMissing"
                                       :type "lisp"
@@ -21,8 +24,7 @@
                                       :type "lisp"
                                       :defaults
                                       *default-pathname-defaults*))))
- (asdf::run-shell-command
-  (format nil "cp ~a ~a" template-file missing-name))
+ (asdf::concatenate-files (list template-file) missing-name)
  (unless (probe-file missing-name)
    (format t "File copy failed.~%"))
  (asdf:operate 'asdf:load-op 'test-missing-lisp-file)
@@ -38,9 +40,8 @@
    (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
 
    ;; now remove the lisp file we created, and wait for an error
-   (sleep 1) ; mtime has 1-second granularity, so pause here for fast machines
 
-   (asdf::run-shell-command (format nil "rm -f ~A" missing-name))
+   (asdf::delete-file-if-exists missing-name)
    ;; we shouldn't be able to find the input-file for the compile-op, and that
    ;; should be an error.
    (let ((err (nth-value 1 (ignore-errors (asdf:operate 'asdf:load-op 'test-missing-lisp-file)))))
