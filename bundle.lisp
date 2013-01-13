@@ -277,7 +277,7 @@
   nil)
 
 (defmethod perform ((o load-fasl-op) (c system))
-  (if-bind (it (first (input-files o c))) (load it)))
+  (perform-lisp-load-fasl o c))
 
 (defmethod mark-operation-done :after ((o load-fasl-op) (c system))
   (mark-operation-done (find-operation o 'load-op) c)) ; need we recurse on gather-components?
@@ -299,8 +299,7 @@
   (declare (ignorable o))
   (component-pathname c))
 (defmethod perform ((o load-op) (c compiled-file))
-  (declare (ignorable o))
-  (load (first (input-files o c))))
+  (perform-lisp-load-fasl o c))
 (defmethod perform ((o load-source-op) (c compiled-file))
   (perform (find-operation o 'load-op) c))
 (defmethod perform ((o load-fasl-op) (c compiled-file))

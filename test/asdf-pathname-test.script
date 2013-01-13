@@ -49,7 +49,9 @@
            (*print-pretty* nil)
            (start-time 0))
 
-      (with-open-file (result-stream (asdf::merge-pathnames* "output.txt" root)
+      (with-open-file (result-stream (asdf::subpathname
+                                      *build-directory*
+                                      (format nil "results/~(~A~)-pathnames.txt" *implementation*))
                                      :direction :output
                                      :if-exists :supersede :if-does-not-exist :create)
         (flet ((src-dir (&rest path) (append (or (pathname-directory root) (list :relative))
@@ -122,7 +124,7 @@
 					 :defaults root)
                          ,(make-pathname :directory (src-dir "system2" "module4") :name "file" :type "lisp"
 					 :defaults root)
-                         ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4") :name "file" :type "lisp"
+                         ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4") :name "file" :type "lisp" :version nil
 					 :defaults root)
                          ,(parse-namestring "ASDFTEST:system2;module4;file.lisp")
                          ,@(when support-string-pathnames
@@ -221,9 +223,7 @@
                         ((error (lambda (c)
                                   (incf system-failures)
                                   (format *error-output* "~&error! ~a~%sysdef:~% ~S~%" c system-definition)
-                                  #+sbcl (sb-debug:backtrace 69)
-                                  #+clozure (ccl:print-call-history :count 69 :start-frame-number 1)
-                                  #+clisp (system::print-backtrace)
+                                  (asdf::print-condition-backtrace c :stream *error-output*)
                                   (format result-stream "~&~%***~%error: ~a~%~s"
                                           c system-definition)
                                   (return-from :test-system))))

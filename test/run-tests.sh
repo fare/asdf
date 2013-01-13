@@ -288,6 +288,9 @@ clean_up () {
     rm -rf ../build/test-source-registry-conf.d ../build/test-asdf-output-translations-conf.d
 }
 test_clean_load () {
+    case $lisp in
+        gcl) return 0 ;; # GCL 2.6 is hopeless
+    esac
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
     ${command} ${eval} \

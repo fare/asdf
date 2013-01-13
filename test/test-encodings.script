@@ -43,6 +43,9 @@
     (defsystem :test-encoding-explicit-u8
       :components ((:file "lambda" :encoding :utf-8))))
 
+  #-asdf-unicode
+  (leave-test "No Unicode support to test on this lisp implementation" 0)
+
   ;; NB: recent clozure can autodetect without asdf-encodings with :default (!)
 
   #+(and asdf-unicode sbcl)

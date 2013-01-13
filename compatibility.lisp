@@ -54,7 +54,9 @@
   (when (or (< system::*gcl-major-version* 2) ;; GCL 2.6 lacks output-translations and more.
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
+    (format t "Detected an old GCL 2.6. Only limited functionality available.~%")
     (shadow 'type-of :asdf/compatibility)
+    (export 'with-standard-io-syntax)
     (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
     (pushnew :gcl<2.7 *features*))
   (unless (member :ansi-cl *features*)
@@ -81,6 +83,7 @@
 
 #+gcl<2.7
 (progn ;; Doesn't support either logical-pathnames or output-translations.
+  (defvar *gcl<2.7* t)
   (deftype logical-pathname () nil)
   (defun type-of (x) (class-name (class-of x)))
   (defun wild-pathname-p (path) (declare (ignore path)) nil)
@@ -94,6 +97,8 @@
     (format stream "#<~@[~S ~]" (when type (type-of object)))
     (funcall thunk)
     (format stream "~@[ ~X~]>" (when identity (system:address object))))
+  (defmacro with-standard-io-syntax (&body body)
+    `(progn ,@body))
   (defmacro with-compilation-unit (options &body body)
     (declare (ignore options)) `(progn ,@body))
   (defmacro print-unreadable-object ((object stream &key type identity) &body body)

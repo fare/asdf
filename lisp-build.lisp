@@ -145,13 +145,13 @@ or a string describing the format-control of a simple-condition."
 (defun* call-with-controlled-compiler-conditions (thunk)
   (call-with-muffled-uninteresting-conditions
     thunk *uninteresting-compiler-conditions*))
-(defmacro with-controlled-compiler-conditions (() &body body)
+(defmacro with-controlled-compiler-conditions ((&optional) &body body)
   "Run BODY where uninteresting compiler conditions are muffled"
   `(call-with-controlled-compiler-conditions #'(lambda () ,@body)))
 (defun* call-with-controlled-loader-conditions (thunk)
   (call-with-muffled-uninteresting-conditions
    thunk (append *uninteresting-compiler-conditions* *uninteresting-loader-conditions*)))
-(defmacro with-controlled-loader-conditions (() &body body)
+(defmacro with-controlled-loader-conditions ((&optional) &body body)
   "Run BODY where uninteresting compiler and additional loader conditions are muffled"
   `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body)))
 
@@ -261,10 +261,9 @@ for processing later (possibly in a different process)."
                       (remove-keys `(#+(and allegro (not (version>= 8 2))) :external-format
                                        ,@(unless output-file '(:output-file))) keys)))))
 
-(defun* load* (x &rest keys &key external-format &allow-other-keys)
-  (declare (ignorable external-format))
+(defun* load* (x &rest keys &key &allow-other-keys)
   (etypecase x
-    ((or pathname string #-(or gcl-pre2.7 clozure allegro) stream)
+    ((or pathname string #-(or gcl<2.7 clozure allegro) stream)
      (apply 'load x
             #-gcl<2.7 keys #+gcl<2.7 (remove-keyword :external-format keys)))
     #-(or gcl<2.7 clozure allegro)
@@ -272,9 +271,10 @@ for processing later (possibly in a different process)."
     ;; ClozureCL 1.6 can only load from file input stream
     ;; Allegro 5, I don't remember but it must have been broken when I tested.
     (stream ;; make do this way
-     (let ((*load-pathname* nil)
-           (*load-truename* nil)
-           #+clozure (ccl::*default-external-format* external-format))
+     (let ((*package* *package*)
+           (*readtable* *readtable*)
+           (*load-pathname* nil)
+           (*load-truename* nil))
        (eval-input x)))))
 
 (defun* load-from-string (string)
@@ -293,8 +293,8 @@ for processing later (possibly in a different process)."
     (#+ecl if #+ecl (use-ecl-byte-compiler-p) #+ecl (apply 'compile-file* input-file keys)
      #+mkcl progn
      (let ((object-file
-             (apply 'compile-file-pathname
-                    output-file #+ecl :type #+ecl :object #+mkcl :fasl-p #+mkcl nil)))
+             (compile-file-pathname
+              output-file #+ecl :type #+ecl :object #+mkcl :fasl-p #+mkcl nil)))
        (multiple-value-bind (result flags1 flags2)
            (apply 'compile-file* input-file
                   #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil

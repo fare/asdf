@@ -1,17 +1,17 @@
 ;;; -*- Lisp -*-
+#|
+make sure that serial t and static-files
+don't cause full rebuilds all the time...
+|#
 (load "script-support.lisp")
 (load-asdf)
 
 (in-package :asdf-test)
 
-#+gcl (trace coerce-pathname)
-
 (with-test ()
- (format t "dpd: ~S~%f1: ~S~%" *default-pathname-defaults* (asdf::merge-pathnames* "file1"))
 
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
+ (load-test-system 'static-and-serial)
 
- (asdf:operate 'asdf:load-op 'static-and-serial)
  (let* ((file1 (asdf:compile-file-pathname* "file1.lisp"))
         (file1-date (file-write-date file1))
         (date1 (- file1-date 600))
@@ -22,9 +22,10 @@
    (format t "file: ~S~%date: ~S~%" file1 file1-date)
 
    ;; date should stay same
-   (asdf:clear-system 'static-and-serial)
+   (clear-system 'static-and-serial)
+   (touch-file "static-and-serial.asd" :offset -10000)
    (touch-file "file2.lisp" :timestamp date1)
    (touch-file "file1.lisp" :timestamp date2)
    (touch-file file1 :timestamp date3)
-   (asdf:operate 'asdf:load-op 'static-and-serial)
-   (assert (equal (file-write-date file1) date3))))
+   (DBG "load again" (oos 'load-op 'static-and-serial))
+   (assert-equal (file-write-date file1) date3)))

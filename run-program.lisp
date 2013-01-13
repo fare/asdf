@@ -134,12 +134,14 @@ by /bin/sh in POSIX"
 
 (defgeneric* slurp-input-stream (processor input-stream &key &allow-other-keys))
 
+#-(or gcl<2.7 genera)
 (defmethod slurp-input-stream ((function function) input-stream &key &allow-other-keys)
   (funcall function input-stream))
 
 (defmethod slurp-input-stream ((list cons) input-stream &key &allow-other-keys)
   (apply (first list) (cons input-stream (rest list))))
 
+#-(or gcl<2.7 genera)
 (defmethod slurp-input-stream ((output-stream stream) input-stream
                                &key (element-type 'character) &allow-other-keys)
   (copy-stream-to-stream
@@ -164,6 +166,18 @@ by /bin/sh in POSIX"
 (defmethod slurp-input-stream ((x (eql :forms)) stream &key &allow-other-keys)
   (declare (ignorable x))
   (slurp-stream-forms stream))
+
+(defmethod slurp-input-stream (x stream &key (element-type 'character) &allow-other-keys)
+  (declare (ignorable stream element-type))
+  (cond
+    #+(or gcl<2.7 genera)
+    ((functionp x)
+     (funcall x stream))
+    #+(or gcl<2.7 genera)
+    ((output-stream-p x)
+     (copy-stream-to-stream stream x :element-type element-type))
+    (t
+     (error "Invalid ~S destination ~S" 'slurp-input-stream x))))
 
 
 ;;;; ----- Running an external program -----
@@ -261,8 +275,8 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                        :output (if pipe :stream t)
                        . #.(append
                             #+(or clozure cmu ecl sbcl scl) '(:error t)
-                            #+sbcl '(:search t
-                                     #|:external-format external-format ; not in old SBCLs|#)))))
+                            ;; note: :external-format requires a recent SBCL
+                            #+sbcl '(:search t :external-format external-format)))))
                     (process
                      #+(or allegro lispworks) (if pipe (third process*) (first process*))
                      #+ecl (third process*)
@@ -352,7 +366,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
 					     :direction :input
 					     :if-does-not-exist :error
 					     :element-type element-type
-					     :external-format external-format)
+                                             #-gcl<2.7 :external-format #-gcl<2.7 external-format)
 		       (slurp-input-stream output stream)))
 		   (call-system (system-command command) :interactive interactive)))))
     (if (and (not force-shell)

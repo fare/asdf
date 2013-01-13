@@ -44,34 +44,24 @@
 
 ;;; Output to a stream or string, FORMAT-style
 
-(defgeneric call-with-output (x thunk)
-  (:documentation
-   ;; code from fare-utils base/streams where it's now named
-   ;; call-with-output-stream to avoid the package clash in a lot of my code.
-   "Calls FUN with an actual stream argument, behaving like FORMAT with respect to stream'ing:
+(defun* call-with-output (x thunk)
+  "Calls FUN with an actual stream argument, behaving like FORMAT with respect to stream'ing:
 If OBJ is a stream, use it as the stream.
 If OBJ is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
 If OBJ is T, use *STANDARD-OUTPUT* as the stream.
 If OBJ is a string with a fill-pointer, use it as a string-output-stream.
-Otherwise, signal an error.")
-  (:method ((x null) thunk)
-    (declare (ignorable x))
-    (with-output-to-string (s) (funcall thunk s)))
-  (:method ((x (eql t)) thunk)
-    (declare (ignorable x))
-    (funcall thunk *standard-output*) nil)
-  #-genera
-  (:method ((x stream) thunk)
-    (funcall thunk x) nil)
-  (:method ((x string) thunk)
-    (assert (fill-pointer x))
-    (with-output-to-string (s x) (funcall thunk s)))
-  (:method (x thunk)
-    (declare (ignorable thunk))
-    (cond
-      #+genera
-      ((typep x 'stream) (funcall thunk x) nil)
-      (t (error "not a valid stream designator ~S" x)))))
+Otherwise, signal an error."
+  (typecase x
+    (null
+     (with-output-to-string (s) (funcall thunk s)))
+    ((eql t)
+     (funcall thunk *standard-output*))
+    (stream
+     (funcall thunk x))
+    (string
+     (assert (fill-pointer x))
+     (with-output-to-string (s x) (funcall thunk s)))
+    (t (error "not a valid stream designator ~S" x))))
 
 (defmacro with-output ((x &optional (value x)) &body body)
   "Bind X to an output stream, coercing VALUE (default: previous binding of X)
@@ -112,8 +102,10 @@ Otherwise, signal an error."
                              &key (element-type *default-stream-element-type*)
                              (external-format :default))
   "Open FILE for input with given options, call THUNK with the resulting stream."
+  #+gcl<2.7 (declare (ignore external-format))
   (with-open-file (s pathname :direction :input
-                     :element-type element-type :external-format external-format
+                     :element-type element-type
+                     #-gcl<2.7 :external-format #-gcl<2.7 external-format
                      :if-does-not-exist :error)
     (funcall thunk s)))
 

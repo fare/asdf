@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os
-        :asdf/upgrade :asdf/component :asdf/system)
+        :asdf/lisp-build :asdf/upgrade :asdf/component :asdf/system)
   (:export
    #:coerce-name #:find-system #:locate-system #:load-sysdef #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
@@ -251,7 +251,8 @@ Going forward, we recommend new users should be using the source-registry.
                    (external-format (encoding-external-format (detect-encoding pathname))))
                (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
                              pathname package)
-               (load pathname #-gcl<2.7 :external-format #-gcl<2.7 external-format)))
+               (with-controlled-loader-conditions ()
+                 (load* pathname :external-format external-format))))
         (delete-package package)))))
 
 (defun* locate-system (name)

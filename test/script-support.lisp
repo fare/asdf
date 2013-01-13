@@ -31,7 +31,7 @@ Some constraints:
 		     #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*
-  '(;; If you want to trace some stuff while debugging ASDF,
+  `(;; If you want to trace some stuff while debugging ASDF,
     ;; here's a nice place to say what.
     ;; These string designators will be interned in ASDF after it is loaded.
     ))
@@ -57,7 +57,10 @@ Some constraints:
 
 ;;; Survival utilities
 (defun asym (name)
-  (find-symbol (string name) :asdf))
+  (let ((asdf (find-package :asdf)))
+    (unless asdf (error "Can't find package ASDF"))
+    (or (find-symbol (string name) asdf)
+        (error "Can't find symbol ~A in ASDF" name))))
 (defun acall (name &rest args)
   (apply (asym name) args))
 
@@ -98,7 +101,7 @@ Some constraints:
       #+cmu :cmucl
       #+corman :cormanlisp
       #+digitool :mcl
-      #+ecl :ecl
+      #+ecl (or #+ecl-bytecmp :ecl_bytecodes :ecl)
       #+gcl :gcl
       #+lispworks :lispworks
       #+mkcl :mkcl
@@ -181,7 +184,7 @@ Some constraints:
   (finish-outputs)
   (throw :asdf-test-done return))
 
-(defmacro with-test (() &body body)
+(defmacro with-test ((&optional) &body body)
   `(call-with-test (lambda () ,@body)))
 
 (defun call-with-test (thunk)

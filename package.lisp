@@ -38,7 +38,7 @@ If optional ERROR argument is NIL, return NIL instead of an error
 when the symbol is not found."
     (block nil
       (let ((package (find-package* package-designator error)))
-        (when package
+        (when package ;; package error handled by find-package* already
           (multiple-value-bind (symbol status) (find-symbol (string name) package)
             (cond
               (status (return (values symbol status)))

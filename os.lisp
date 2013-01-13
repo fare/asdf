@@ -14,7 +14,8 @@
    #:implementation-type #:operating-system #:architecture #:lisp-version-string
    #:hostname #:user-homedir #:lisp-implementation-directory
    #:getcwd #:chdir #:call-with-current-directory #:with-current-directory
-   #:*temporary-directory* #:temporary-directory #:default-temporary-directory #:with-temporary-file))
+   #:*temporary-directory* #:temporary-directory #:default-temporary-directory
+   #:call-with-temporary-file #:with-temporary-file))
 (in-package :asdf/os)
 
 ;;; Features
@@ -282,6 +283,7 @@ then returning the non-empty string value of the variable"
      prefix keep (direction :io)
      (element-type *default-stream-element-type*)
      (external-format :default))
+  #+gcl<2.7 (declare (ignorable external-format))
   (check-type direction (member :output :io))
   (loop
     :with prefix = (or prefix (format nil "~Atmp" (native-namestring (temporary-directory))))
@@ -292,7 +294,8 @@ then returning the non-empty string value of the variable"
      ;; TODO: on Unix, use CFFI and mkstemp -- but the master is precisely meant to not depend on CFFI or on anything! Grrrr.
     (with-open-file (stream pathname
                             :direction direction
-                            :element-type element-type :external-format external-format
+                            :element-type element-type
+                            #-gcl<2.7 :external-format #-gcl<2.7 external-format
                             :if-exists nil :if-does-not-exist :create)
       (when stream
         (return
