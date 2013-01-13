@@ -31,9 +31,9 @@ Some constraints:
 		     #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*
-  ;; IF YOU WANT TO TRACE SOME STUFF WHILE DEBUGGING, HERE'S A NICE PLACE TO SAY WHAT.
-  ;; TO BE INTERNED IN :ASDF AFTER IT IS LOADED.
-  '( :upgrade-asdf :operate :run-program/
+  '(;; If you want to trace some stuff while debugging ASDF,
+    ;; here's a nice place to say what.
+    ;; These string designators will be interned in ASDF after it is loaded.
     ))
 
 (defvar *debug-asdf* nil)
@@ -52,8 +52,8 @@ Some constraints:
 (unless (fboundp 'ensure-directories-exist)
   (defun ensure-directories-exist (path)
     #+genera (fs:create-directories-recursively (pathname path))
-    #+gcl (lisp:system (format nil "mkdir -p ~S" (namestring (make-pathname :name nil :type nil :defaults path))))))
-
+    #+gcl (lisp:system (format nil "mkdir -p ~S"
+                               (namestring (make-pathname :name nil :type nil :defaults path))))))
 
 ;;; Survival utilities
 (defun asym (name)
@@ -334,7 +334,7 @@ is bound, write a message and exit on an error.  If
          `(:source-registry :ignore-inherited-configuration))
   (acall :initialize-output-translations
          `(:output-translations
-           (,*test-directory* (,*asdf-directory* "build/fasls" :implementation "test"))
+           ((,*test-directory* :**/ :*.*.*) (,*asdf-directory* "build/fasls" :implementation "test"))
            (t (,*asdf-directory* "build/fasls" :implementation "root"))
            :ignore-inherited-configuration))
   (set (asym :*central-registry*) `(,*test-directory*))
@@ -357,8 +357,6 @@ is bound, write a message and exit on an error.  If
   (load-asdf))
 (defun common-lisp-user::debug-asdf ()
   (debug-asdf))
-
-(trace load compile-file)
 
 #| The following form is sometimes useful to insert in compute-action-stamp to find out what's happening.
 It depends on the DBG macro in contrib/debug.lisp, that you should load in your ASDF.

@@ -19,9 +19,9 @@ usage () {
     echo "    -u -- upgrade tests."
 }
 
-unset DEBUG_ASDF_TEST upgrade
+unset DEBUG_ASDF_TEST upgrade clean_load
 
-while getopts "duh" OPTION
+while getopts "duhc" OPTION
 do
     case $OPTION in
         d)
@@ -29,6 +29,9 @@ do
             ;;
         u)
             upgrade=t
+            ;;
+        c)
+            clean_load=t
             ;;
         h)
             usage
@@ -56,6 +59,7 @@ DO () { ( set -x ; "$@" ); }
 
 do_tests() {
   command="$1" eval="$2"
+  env | grep -i asdf
   rm -f ~/.cache/common-lisp/"`pwd`"/* || true
   ( cd .. && DO $command $eval '(or #.(load "test/script-support.lisp") #.(asdf-test::compile-asdf-script))' )
   if [ $? -ne 0 ] ; then
@@ -125,7 +129,7 @@ case "$lisp" in
     eval="--eval" ;;
   clisp)
     command="${CLISP:-clisp}"
-    flags="-norc -ansi -I "
+    flags="-norc --silent -ansi -I "
     nodebug="-on-error exit"
     eval="-x" ;;
   cmucl)
@@ -185,7 +189,7 @@ case "$lisp" in
     exit 42 ;;
 esac
 
-if ! type "$command" ; then
+if ! type "$command" > /dev/null ; then
     echo "lisp implementation not found: $command" >&2
     exit 43
 fi
@@ -193,7 +197,6 @@ fi
 ASDFDIR="$(cd .. ; /bin/pwd)"
 export CL_SOURCE_REGISTRY="${ASDFDIR}"
 export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls\" :implementation)) :ignore-inherited-configuration)"
-env | grep asdf
 
 command="$command $flags"
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
@@ -273,14 +276,37 @@ run_tests () {
 	tee "../build/results/${lisp}.text" "../build/results/${lisp}-${thedate}.save"
     read a < ../build/results/status
   clean_up
-  [ success = "$a" ] ## exit code
+  if [ success = "$a" ] ; then ## exit code
+      return 0
+  else
+     echo "To view full results and failures, try the following command:" >&2
+     echo "     less -p ABORTED build/results/${lisp}.text" >&2
+     return 1
+  fi
 }
 clean_up () {
     rm -rf ../build/test-source-registry-conf.d ../build/test-asdf-output-translations-conf.d
 }
+test_clean_load () {
+    nop=build/results/${lisp}-nop.text
+    load=build/results/${lisp}-load.text
+    ${command} ${eval} \
+      '(or #.(setf *load-verbose* nil) #.(load "test/script-support.lisp") #.(asdf-test::exit-lisp 0))' \
+        > $nop 2>&1
+    ${command} ${eval} \
+      '(or #.(setf *load-verbose* nil) #.(load "build/asdf.lisp") #.(asdf/image:quit 0))' \
+        > $load 2>&1
+    if diff $nop $load ; then
+      echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
+    else
+      echo "BAD: Loading ASDF on $lisp produces messages" >&2 ; return 1
+    fi
+}
 
 if [ -z "$command" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
+elif [ -n "$clean_load" ] ; then
+    test_clean_load
 elif [ -n "$upgrade" ] ; then
     run_upgrade_tests
 else

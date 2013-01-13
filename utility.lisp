@@ -230,7 +230,7 @@ starting the separation from the end, e.g. when called with arguments
   (apply (ensure-function function-spec) arguments))
 
 (defun* call-functions (function-specs)
-  (map () 'call-hook-function function-specs))
+  (map () 'call-function function-specs))
 
 
 ;;; Version handling

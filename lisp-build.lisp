@@ -292,17 +292,19 @@ for processing later (possibly in a different process)."
   (defun* compile-file-keeping-object (input-file &rest keys &key output-file &allow-other-keys)
     (#+ecl if #+ecl (use-ecl-byte-compiler-p) #+ecl (apply 'compile-file* input-file keys)
      #+mkcl progn
-     (multiple-value-bind (object-file flags1 flags2)
-         (apply 'compile-file* input-file
-                #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil
-                :output-file (compile-file-pathname
-                              output-file . #+ecl (:type :object) #+mkcl (:fasl-p nil)) keys)
-       (values (and object-file
+     (let ((object-file
+             (apply 'compile-file-pathname
+                    output-file #+ecl :type #+ecl :object #+mkcl :fasl-p #+mkcl nil)))
+       (multiple-value-bind (result flags1 flags2)
+           (apply 'compile-file* input-file
+                  #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil
+                  :output-file object-file keys)
+       (values (and (equal result object-file)
                     (compiler::build-fasl
                      output-file #+ecl :lisp-files #+mkcl :lisp-object-files (list object-file))
                     object-file)
                flags1
-               flags2)))))
+               flags2))))))
 
 ;;; Links FASLs together
 (defun* combine-fasls (inputs output)

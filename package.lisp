@@ -154,7 +154,7 @@ or when loading the package is optional."
 ;;; Communicable representation of symbol and package information
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun package-definition-form (package-designator &key internp (error t))
+  (defun package-definition-form (package-designator &key internp (nicknamesp t) (error t))
     (let* ((package (find-package* package-designator error))
            (name (package-name package))
            (nicknames (package-nicknames package))
@@ -198,7 +198,7 @@ or when loading the package is optional."
                    (loop :for i :in (sort-names (table-keys table))
                          :collect `(,key ,i ,@(sort-names (gethash i table))))))
           `(defpackage ,name
-             ,@(when-relevant :nicknames (sort-names nicknames))
+             ,@(when-relevant :nicknames (and nicknamesp (sort-names nicknames)))
              (:use ,@(sort-names use))
              ,@(when-relevant :shadow (sort-names shadow))
              ,@(import-options :shadowing-import-from shadowing-import)
@@ -423,7 +423,7 @@ or when loading the package is optional."
      #+(or ecl gcl) (defpackage ,package (:use))
      #+clisp (macrolet ((foo ()
                           (apply 'ensure-package ',(parse-define-package-form package clauses))
-                          (package-definition-form ',package)))
+                          (package-definition-form ',package :nicknamesp nil)))
                (foo))
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
 

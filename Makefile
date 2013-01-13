@@ -103,13 +103,13 @@ mrproper: clean
 test-upgrade: build/asdf.lisp
 	./test/run-tests.sh -u ${lisp}
 
-test-compile: build/asdf.lisp
-	${SBCL} --noinform --no-userinit --no-sysinit --load build/asdf.lisp --load test/script-support.lisp --eval '(asdf-test::exit-lisp 0)' 2>&1 | cmp - /dev/null
+test-clean-load: build/asdf.lisp
+	./test/run-tests.sh -c ${lisp}
 
 test-lisp: build/asdf.lisp
 	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
 
-test: test-lisp test-compile doc
+test: test-lisp test-clean-load doc
 
 test-all-lisps:
 	@for lisp in ${lisps} ; do \

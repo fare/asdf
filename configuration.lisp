@@ -180,7 +180,7 @@ values of TAG include :source-registry and :output-translations."
               (coerce-pathname (hostname) :type :directory)))))
     (when (absolute-pathname-p r)
       (error (compatfmt "~@<pathname ~S is not relative~@:>") x))
-    (if (or (pathnamep x) (not wilden)) r (wilden r))))
+    (if (or (pathnamep x) (symbolp x) (not wilden)) r (wilden r))))
 
 (defvar *here-directory* nil
   "This special variable is bound to the currect directory during calls to
@@ -231,7 +231,7 @@ directive.")
              (error "Using the :system-cache is deprecated. ~%~
 Please remove it from your ASDF configuration"))
             ((eql :default-directory) (default-directory))))
-         (s (if (and wilden (not (pathnamep x)))
+         (s (if (and wilden (not (or (pathnamep x) (symbolp x))))
                 (wilden r)
                 r)))
     (unless (absolute-pathname-p s)

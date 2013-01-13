@@ -7,7 +7,7 @@
 (touch-file "file2.lisp" :offset -3400)
 
 (with-test ()
- (DBG "loading test1")
+ (DBG "loading test1" #+clisp asdf/output-translations::*output-translations*)
  (asdf:load-system 'test1)
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
