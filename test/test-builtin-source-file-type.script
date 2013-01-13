@@ -4,7 +4,7 @@
 
 ;;(trace source-file-type)
 
-(quit-on-error
+(with-test ()
  (format t "~D~%" (asdf:asdf-version))
 
  (defsystem test-builtin-source-file-type-1

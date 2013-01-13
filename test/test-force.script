@@ -2,7 +2,7 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:operate 'asdf:load-op 'test-force)
 

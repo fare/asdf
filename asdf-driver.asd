@@ -16,5 +16,5 @@ that you can't portably construct a complete program without using them."
    (:file "image" :depends-on ("os"))
    (:file "run-program" :depends-on ("os"))
    (:file "lisp-build" :depends-on ("image"))
-   (:file "driver" :depends-on ("lisp-build" "run-program"))
-   (:file "configuration" :depends-on ("os"))))
+   (:file "configuration" :depends-on ("os"))
+   (:file "driver" :depends-on ("lisp-build" "run-program" "configuration"))))

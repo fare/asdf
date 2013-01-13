@@ -3,7 +3,7 @@
 (load-asdf)
 
 #+gcl (trace load compile-file asdf:perform asdf::perform-plan)
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* (list (asdf::subpathname *test-directory* "xach-foo-1/")))
  (asdf:load-system "foo")
  (assert (symbol-value (find-symbol (string :loaded) :first-version)))

@@ -20,24 +20,6 @@
 
 (in-package :asdf/package)
 
-(defmacro DBG (tag &rest exprs)
-  "simple debug statement macro:
-outputs a tag plus a list of variable and their values, returns the last value"
-  ;;"if not in debugging mode, just compute and return last value"
-  ;; #-DBGXXX (declare (ignore tag)) #-DBGXXX (car (last exprs)) #+DBGXXX
-  (let ((res (gensym))(f (gensym)))
-  `(let (,res (*print-readably* nil))
-    (flet ((,f (fmt &rest args) (apply #'format *error-output* fmt args)))
-      (fresh-line *standard-output*) (fresh-line *trace-output*) (fresh-line *error-output*)
-      (,f "~&~A~%" ,tag)
-      ,@(mapcan
-         #'(lambda (x)
-            `((,f "~&  ~S => " ',x)
-              (,f "~{~S~^ ~}~%" (setf ,res (multiple-value-list ,x)))))
-         exprs)
-      (apply 'values ,res)))))
-
-
 ;;;; General purpose package utilities
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
@@ -342,17 +324,22 @@ or when loading the package is optional."
              (export sym p))
            (ensure-exported-to-user (name sym u)
              (multiple-value-bind (usym ustat) (find-symbol name u)
-               (unless (eq sym usym)
-                 (let ((shadowing (member usym (package-shadowing-symbols u))))
-                   (block nil
-                     (cond
-                       ((not shadowing)
-                        (unintern usym u))
-                       ((symbol-recycled-p usym)
-                        (shadowing-import sym u))
-                       (t (return)))
-                     (when (eq ustat :external)
-                       (ensure-exported name sym u))))))))
+               (unless (and ustat (eq sym usym))
+                 (let ((shadowed
+                         (when ustat
+                           (let ((shadowing (symbol-shadowing-p usym u))
+                                 (recycled (symbol-recycled-p usym)))
+                             (cond
+                               ((and shadowing (not recycled))
+                                t)
+                               ((or (eq ustat :inherited) shadowing)
+                                (shadowing-import sym u)
+                                nil)
+                               (t
+                                (unintern usym u)
+                                nil))))))
+                   (when (and (not shadowed) (eq ustat :external))
+                     (ensure-exported name sym u)))))))
         #-gcl (setf (documentation package t) documentation) #+gcl documentation
         (loop :for p :in discarded
               :for n = (remove-if #'(lambda (x) (member x names :test 'equal))

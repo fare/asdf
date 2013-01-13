@@ -8,7 +8,7 @@
         :asdf/lisp-build :asdf/lisp-action #:asdf/plan
         :asdf/find-system :asdf/find-component)
   (:export
-   #:operate #:oos #:*systems-being-operated*
+   #:operate #:oos #:*systems-being-operated* #:*asdf-upgrade-already-attempted*
    #:load-system #:load-systems #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
    #:component-loaded-p #:already-loaded-systems
@@ -16,26 +16,6 @@
 (in-package :asdf/operate)
 
 (defgeneric* operate (operation-class system &key &allow-other-keys))
-
-(defun* reset-asdf-systems ()
-  (let ((asdf (symbol-call :asdf 'find-system :asdf)))
-    ;; Invalidate all systems but ASDF itself.
-    (setf *defined-systems* (make-defined-systems-table))
-    (register-system asdf)
-    (symbol-call :asdf 'load-system :asdf))) ;; load ASDF a second time, the right way.
-
-(defun* restart-upgraded-asdf ()
-  ;; If we're in the middle of something, restart it.
-  (when *systems-being-defined*
-    (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
-      (clrhash *systems-being-defined*)
-      (dolist (s l) (find-system s nil)))))
-
-(pushnew 'reset-asdf-systems *post-upgrade-cleanup-hook*)
-(pushnew 'restart-upgraded-asdf *post-upgrade-restart-hook*)
-
-
-;;;; Operate itself
 
 (defvar *systems-being-operated* nil
   "A boolean indicating that some systems are being operated on")
@@ -45,6 +25,7 @@
                               (on-warnings *compile-file-warnings-behaviour*)
                               (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
   (declare (ignorable operation-class system))
+  ;; Setup proper bindings around any operate call.
   (with-system-definitions ()
     (let* ((*asdf-verbose* verbose)
            (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
@@ -81,25 +62,17 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
          (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))
     (check-type system system)
     (setf (gethash (coerce-name system) *systems-being-operated*) system)
-    (flet ((upgrade ()
-             ;; If we needed to upgrade ASDF to achieve our goal,
-             ;; then do it specially as the first thing,
-             ;; which will invalidate all existing systems;
-             ;; afterwards, try again with the new OPERATE function,
-             ;; which on some implementations may be a new symbol.
-             (unless (gethash "asdf" *systems-being-operated*)
-               (upgrade-asdf)
-               (return-from operate
-                 (apply (find-symbol* 'operate :asdf) operation-class system args)))))
-      (when systems-being-operated ;; Upgrade if loading a system from another one.
-        (upgrade))
-      (unless (version-satisfies system version)
-        (error 'missing-component-of-version :requires system :version version))
-      (let ((plan (apply 'traverse op system args)))
-        (when (plan-operates-on-p plan '("asdf"))
-          (upgrade)) ;; Upgrade early if the plan involves upgrading asdf at any time.
-        (perform-plan plan)
-        (values op plan)))))
+    (unless (version-satisfies system version)
+      (error 'missing-component-of-version :requires system :version version))
+    ;; Before we operate on any system, make sure ASDF is up-to-date,
+    ;; for if an upgrade is attempted at any later time, there may be trouble.
+    ;; If we upgraded, restart the OPERATE from scratch,
+    ;; for the function will have been redefined.
+    (if (upgrade-asdf)
+        (apply 'operate operation-class system args)
+        (let ((plan (apply 'traverse op system args)))
+          (perform-plan plan)
+          (values op plan)))))
 
 (defun* oos (operation-class system &rest args
              &key force force-not verbose version &allow-other-keys)
@@ -116,7 +89,10 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
 (defvar *load-system-operation* 'load-op
   "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
 You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle,
-or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
+or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
+
+This may change in the future as we will implement component-based strategy
+for how to load or compile stuff")
 
 (defun* load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
   "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
@@ -125,6 +101,7 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
   t)
 
 (defun* load-systems (&rest systems)
+  "Loading multiple systems at once."
   (map () 'load-system systems))
 
 (defun* compile-system (system &rest args &key force force-not verbose version &allow-other-keys)
@@ -140,7 +117,7 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
   t)
 
 
-;;;; require-system, and hooking it into CL:REQUIRE when possible,
+;;;; Define require-system, to be hooked into CL:REQUIRE when possible,
 ;; i.e. for ABCL, CLISP, ClozureCL, CMUCL, ECL, MKCL and SBCL
 
 (defun* component-loaded-p (c)
@@ -151,11 +128,10 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
 
 (defun* require-system (s &rest keys &key &allow-other-keys)
   (apply 'load-system s :force-not (already-loaded-systems) keys))
-  
+
 (defun* module-provide-asdf (name)
   (handler-bind
       ((style-warning #'muffle-warning)
-       #-genera
        (missing-component (constantly nil))
        (error #'(lambda (e)
                   (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
@@ -166,3 +142,22 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.")
         (require-system system :verbose nil)
         t))))
 
+
+;;;; Some upgrade magic
+
+(defun* reset-asdf-systems ()
+  (let ((asdf (find-system :asdf)))
+    ;; Invalidate all systems but ASDF itself.
+    (setf *defined-systems* (make-defined-systems-table))
+    (register-system asdf)
+    (load-system asdf))) ;; re-load ourselves the right way
+
+(defun* restart-upgraded-asdf ()
+  ;; If we're in the middle of something, restart it.
+  (when *systems-being-defined*
+    (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
+      (clrhash *systems-being-defined*)
+      (dolist (s l) (find-system s nil)))))
+
+(pushnew 'reset-asdf-systems *post-upgrade-cleanup-hook*)
+(pushnew 'restart-upgraded-asdf *post-upgrade-restart-hook*)

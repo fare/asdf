@@ -3,7 +3,7 @@
 (load-asdf)
 
 ;;; test asdf run-shell-command function
-(quit-on-error
+(with-test ()
  #+asdf-unix
  (progn
    (assert (eql 1 (asdf:run-shell-command "false")))

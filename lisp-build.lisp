@@ -5,14 +5,24 @@
   (:recycle :asdf/lisp-build :asdf)
   (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
+   ;; Variables
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
-   #:*compile-file-function* #:compile-file* #:compile-file-pathname* #:*output-translation-hook*
-   #:*optimization-settings*
-   #:*uninteresting-conditions* #:*uninteresting-load-conditions*
-   #:*fatal-conditions* #:*deferred-warnings*
-   #+(or ecl mkcl) #:compile-file-keeping-object
+   #:*compile-file-function* #:*output-translation-hook*
+   #:*optimization-settings* #:*previous-optimization-settings*
+   #:*uninteresting-conditions*
+   #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
+   #:*deferred-warnings*
+   ;; Functions & Macros
+   #:get-optimization-settings #:proclaim-optimization-settings
+   #:match-condition-p #:match-any-condition-p #:uninteresting-condition-p
+   #:call-with-muffled-uninteresting-conditions #:with-muffled-uninteresting-conditions
+   #:call-with-controlled-compiler-conditions #:with-controlled-compiler-conditions
+   #:call-with-controlled-loader-conditions #:with-controlled-loader-conditions
+   #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
    #:lispize-pathname #:fasl-type #:call-around-hook
-   #:*output-translation-hook*
+   #:compile-file* #:compile-file-pathname*
+   #+(or ecl mkcl) #:compile-file-keeping-object
+   #:load* #:load-from-string
    #:combine-fasls))
 (in-package :asdf/lisp-build)
 
@@ -30,14 +40,12 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 (defvar *compile-file-function* 'compile-file*
   "Function used to compile lisp files.")
 
-(defvar *output-translation-hook* 'identity)
-
 
 ;;; Optimization settings
 
 (defvar *optimization-settings* nil)
 (defvar *previous-optimization-settings* nil)
-(defun get-optimization-settings ()
+(defun* get-optimization-settings ()
   "Get current compiler optimization settings, ready to PROCLAIM again"
   (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
     #-(or clisp clozure cmu ecl sbcl scl)
@@ -51,7 +59,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                       #+(or cmu scl) (funcall f c::*default-cookie*)
                       #+sbcl (cdr (assoc x sb-c::*policy*)))
          :when y :collect (list x y))))
-(defun proclaim-optimization-settings ()
+(defun* proclaim-optimization-settings ()
   "Proclaim the optimization settings in *OPTIMIZATION-SETTINGS*"
   (proclaim `(optimize ,@*optimization-settings*))
   (let ((settings (get-optimization-settings)))
@@ -61,45 +69,50 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 ;;; Condition control
 
-(defvar *uninteresting-conditions*
+(defvar *uninteresting-conditions* nil
+  "Uninteresting conditions, as per MATCH-CONDITION-P")
+
+(defvar *uninteresting-compiler-conditions*
   (append
    #+sbcl
    '(sb-c::simple-compiler-note
      "&OPTIONAL and &KEY found in the same lambda list: ~S"
      sb-int:package-at-variance
      sb-kernel:uninteresting-redefinition
-     ;; the below four are controversial to include here;
-     ;; however there are issues with the asdf upgrade if they are not present
-     sb-kernel:redefinition-with-defun
-     sb-kernel:redefinition-with-defgeneric
-     sb-kernel:redefinition-with-defmethod
-     sb-kernel::redefinition-with-defmacro ; not exported by old SBCLs
      sb-kernel:undefined-alien-style-warning
      sb-ext:implicit-generic-function-warning
      sb-kernel:lexical-environment-too-complex
-     "Couldn't grovel for ~A (unknown to the C compiler).")
+     "Couldn't grovel for ~A (unknown to the C compiler)."
+     ;; BEWARE: the below four are controversial to include here.
+     sb-kernel:redefinition-with-defun
+     sb-kernel:redefinition-with-defgeneric
+     sb-kernel:redefinition-with-defmethod
+     sb-kernel::redefinition-with-defmacro) ; not exported by old SBCLs
    ;;#+clozure '(ccl:compiler-warning)
-   '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.") ;; from closer2mop
-   )
-  "Conditions that may be skipped. type symbols, predicates or strings")
+   '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.")) ;; from closer2mop
+  "Conditions that may be skipped while compiling")
 
-(defvar *uninteresting-load-conditions*
+(defvar *uninteresting-loader-conditions*
   (append
    '("Overwriting already existing readtable ~S." ;; from named-readtables
      #(#:finalizers-off-warning :asdf-finalizers)) ;; from asdf-finalizers
    #+clisp '(clos::simple-gf-replacing-method-warning))
-  "Additional conditions that may be skipped while loading. type symbols, predicates or strings")
-
-(defvar *fatal-conditions*
-  '(serious-condition)
-  "Conditions to be considered fatal during compilation.")
+  "Additional conditions that may be skipped while loading")
 
 (defvar *deferred-warnings* ()
   "Warnings the handling of which is deferred until the end of the compilation unit")
 
 ;;;; ----- Filtering conditions while building -----
 
-(defun match-condition-p (x condition)
+(defparameter +simple-condition-format-control-slot+
+  #+allegro 'excl::format-control
+  #+clozure 'ccl::format-control
+  #+(or cmu scl) 'conditions::format-control
+  #+sbcl 'sb-kernel:format-control
+  #-(or allegro clozure cmu sbcl scl) :NOT-KNOWN-TO-ASDF
+  "Name of the slot for FORMAT-CONTROL in simple-condition")
+
+(defun* match-condition-p (x condition)
   "Compare received CONDITION to some pattern X:
 a symbol naming a condition class,
 a simple vector of length 2, arguments to find-symbol* with result as above,
@@ -109,53 +122,41 @@ or a string describing the format-control of a simple-condition."
     ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
     (function (funcall x condition))
     (string (and (typep condition 'simple-condition)
-                 #+(or clozure cmu scl) ; Note: on SBCL, always bound, and testing triggers warning
-		 (slot-boundp condition
-			      #+clozure 'ccl::format-control
-			      #+(or cmu scl) 'conditions::format-control)
+                 #+(or allegro clozure cmu scl) ;; On SBCL, it's always set & the check warns
+		 (slot-boundp condition +simple-condition-format-control-slot+)
                  (ignore-errors (equal (simple-condition-format-control condition) x))))))
 
-(defun match-any-condition-p (condition conditions)
+(defun* match-any-condition-p (condition conditions)
   "match CONDITION against any of the patterns of CONDITIONS supplied"
   (loop :for x :in conditions :thereis (match-condition-p x condition)))
 
-(defun uninteresting-condition-p (condition)
+(defun* uninteresting-condition-p (condition)
   "match CONDITION against any of the patterns of *UNINTERESTING-CONDITIONS*"
   (match-any-condition-p condition *uninteresting-conditions*))
 
-(defun fatal-condition-p (condition)
-  "match CONDITION against any of the patterns of *FATAL-CONDITIONS*"
-  (match-any-condition-p condition *fatal-conditions*))
+(defun* call-with-muffled-uninteresting-conditions
+    (thunk &optional (conditions *uninteresting-conditions*))
+  (let ((*uninteresting-conditions* conditions))
+    (handler-bind (((satisfies uninteresting-condition-p) #'muffle-warning))
+      (funcall thunk))))
+(defmacro with-muffled-uninteresting-conditions ((&optional conditions) &body body)
+  `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions))
 
-(defun call-with-controlled-compiler-conditions (thunk)
-  (handler-bind
-      ((t
-        #'(lambda (condition)
-            ;; TODO: do something magic for undefined-function,
-            ;; save all of aside, and reconcile in the end of the virtual compilation-unit.
-            (cond
-              ((uninteresting-condition-p condition)
-               (muffle-warning condition))
-              ((fatal-condition-p condition)
-               (bork condition))))))
-    (funcall thunk)))
-
-(defmacro with-controlled-compiler-conditions ((&optional) &body body)
-  "Run BODY while suppressing conditions patterned after *UNINTERESTING-CONDITIONS*"
+(defun* call-with-controlled-compiler-conditions (thunk)
+  (call-with-muffled-uninteresting-conditions
+    thunk *uninteresting-compiler-conditions*))
+(defmacro with-controlled-compiler-conditions (() &body body)
+  "Run BODY where uninteresting compiler conditions are muffled"
   `(call-with-controlled-compiler-conditions #'(lambda () ,@body)))
+(defun* call-with-controlled-loader-conditions (thunk)
+  (call-with-muffled-uninteresting-conditions
+   thunk (append *uninteresting-compiler-conditions* *uninteresting-loader-conditions*)))
+(defmacro with-controlled-loader-conditions (() &body body)
+  "Run BODY where uninteresting compiler and additional loader conditions are muffled"
+  `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body)))
 
-(defun call-with-controlled-loader-conditions (thunk)
-  (let ((*uninteresting-conditions*
-         (append
-          *uninteresting-load-conditions*
-          *uninteresting-conditions*)))
-    (call-with-controlled-compiler-conditions thunk)))
-
-(defmacro with-controlled-loader-conditions ((&optional) &body body)
-  "Run BODY while suppressing conditions patterned after *UNINTERESTING-CONDITIONS* plus a few others that don't matter at load-time."
-  `(call-with-controlled-loader-conditions #'(lambda () ,@body)))
-
-(defun save-forward-references (forward-references)
+(defun* save-forward-references (forward-references)
+  ;; TODO: replace with stuff in POIU
   "Save forward reference conditions so they may be issued at a latter time,
 possibly in a different process."
   #+sbcl
@@ -190,7 +191,7 @@ possibly in a different process."
       (write *deferred-warnings* :stream s :pretty t :readably t)
       (terpri s))))
 
-(defun call-with-asdf-compilation-unit (thunk &key forward-references)
+(defun* call-with-asdf-compilation-unit (thunk &key forward-references)
   (with-compilation-unit (:override t)
     (let ((*deferred-warnings* ())
           #+sbcl (sb-c::*undefined-warnings* nil))
@@ -210,11 +211,17 @@ for processing later (possibly in a different process)."
 (defun* lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
 
+(defun* fasl-type (&rest keys)
+  "pathname TYPE for lisp FASt Loading files"
+  (declare (ignorable keys))
+  #-ecl (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
+  #+ecl (pathname-type (apply 'compile-file-pathname "foo.lisp" keys)))
+
 (defun* call-around-hook (hook function)
-  (funcall (if hook (ensure-function hook) 'funcall) function))
+  (call-function (or hook 'funcall) function))
 
 (defun* compile-file* (input-file &rest keys &key compile-check output-file &allow-other-keys)
-  (let* ((keywords (remove-keyword :compile-check keys))
+  (let* ((keywords (remove-keys '(:compile-check #+gcl<2.7 :external-format) keys))
          (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
          (tmp-file (tmpize-pathname output-file))
          (status :error))
@@ -242,12 +249,6 @@ for processing later (possibly in a different process)."
          (setf output-truename nil failure-p t)))
       (values output-truename warnings-p failure-p))))
 
-(defun* fasl-type (&rest keys)
-  "pathname TYPE for lisp FASt Loading files"
-  (declare (ignorable keys))
-  #-ecl (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
-  #+ecl (pathname-type (apply 'compile-file-pathname "foo.lisp" keys)))
-
 (defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
   (if (absolute-pathname-p output-file)
       ;; what cfp should be doing, w/ mp* instead of mp
@@ -257,18 +258,33 @@ for processing later (possibly in a different process)."
         (merge-pathnames* output-file defaults))
       (funcall *output-translation-hook*
                (apply 'compile-file-pathname input-file
-                      (if output-file keys (remove-keyword :output-file keys))))))
+                      (remove-keys `(#+(and allegro (not (version>= 8 2))) :external-format
+                                       ,@(unless output-file '(:output-file))) keys)))))
 
-;;; ECL and MKCL support for COMPILE-OP / LOAD-OP
-;;;
-;;; In ECL and MKCL, these operations produce both
-;;; FASL files and the object files that they are built from.
-;;; Having both of them allows us to later on reuse the object files
-;;; for bundles, libraries, standalone executables, etc.
-;;;
-;;; This has to be in asdf.lisp and not asdf-ecl.lisp, or else it becomes
-;;; a problem for asdf on ECL to compile asdf-ecl.lisp after loading asdf.lisp.
-;;;
+(defun* load* (x &rest keys &key external-format &allow-other-keys)
+  (declare (ignorable external-format))
+  (etypecase x
+    ((or pathname string #-(or gcl-pre2.7 clozure allegro) stream)
+     (apply 'load x
+            #-gcl<2.7 keys #+gcl<2.7 (remove-keyword :external-format keys)))
+    #-(or gcl<2.7 clozure allegro)
+    ;; GCL 2.6 can't load from a string-input-stream
+    ;; ClozureCL 1.6 can only load from file input stream
+    ;; Allegro 5, I don't remember but it must have been broken when I tested.
+    (stream ;; make do this way
+     (let ((*load-pathname* nil)
+           (*load-truename* nil)
+           #+clozure (ccl::*default-external-format* external-format))
+       (eval-input x)))))
+
+(defun* load-from-string (string)
+  "Portably read and evaluate forms from a STRING."
+  (with-input-from-string (s string) (load* s)))
+
+;;; In ECL and MKCL, compilation produces *both*
+;; a loadable FASL file and the linkable object file that it was built from.
+;; Having both of them allows us to later on reuse the object files
+;; when linking bundles, libraries, standalone executables, etc.
 #+(or ecl mkcl)
 (progn
   (setf *compile-file-function* 'compile-file-keeping-object)
@@ -288,11 +304,11 @@ for processing later (possibly in a different process)."
                flags1
                flags2)))))
 
+;;; Links FASLs together
 (defun* combine-fasls (inputs output)
   #-(or allegro clisp clozure cmu lispworks sbcl scl xcl)
-  (declare (ignore inputs output))
-  #-(or allegro clisp clozure cmu lispworks sbcl scl xcl)
-  (error "~S is not supported on ~A" 'combine-fasls (implementation-type))
+  (error "~A does not support ~S~%inputs ~S~%output  ~S"
+         (implementation-type) 'combine-fasls inputs output)
   #+clozure (ccl:fasl-concatenate output inputs :if-exists :supersede)
   #+(or allegro clisp cmu sbcl scl xcl) (concatenate-files inputs output)
   #+lispworks

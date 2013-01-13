@@ -7,7 +7,8 @@
   (:export
    #:*arguments* #:*dumped* #:raw-command-line-arguments #:*command-line-arguments*
    #:*debugging* #:*post-image-restart* #:*entry-point*
-   #:quit #:die #:print-backtrace #:bork #:with-coded-exit #:shell-boolean
+   #:quit #:die #:raw-print-backtrace #:print-backtrace #:print-condition-backtrace
+   #:bork #:with-coded-exit #:shell-boolean
    #:register-image-resume-hook #:register-image-dump-hook
    #:call-image-resume-hook #:call-image-dump-hook
    #:initialize-asdf-utilities
@@ -40,12 +41,11 @@ but before the entry point is called.")
 
 
 ;;; Exiting properly or im-
-(defun quit (&optional (code 0) (finish-output t))
+(defun* quit (&optional (code 0) (finish-output t))
   "Quits from the Lisp world, with the given exit status if provided.
 This is designed to abstract away the implementation specific quit forms."
-  (with-safe-io-syntax ()
-    (when finish-output ;; essential, for ClozureCL, and for standard compliance.
-      (ignore-errors (finish-outputs))))
+  (when finish-output ;; essential, for ClozureCL, and for standard compliance.
+    (finish-outputs))
   #+(or abcl xcl) (ext:quit :status code)
   #+allegro (excl:exit code :quiet t)
   #+clisp (ext:quit code)
@@ -54,7 +54,7 @@ This is designed to abstract away the implementation specific quit forms."
   #+(or cmu scl) (unix:unix-exit code)
   #+ecl (si:quit code)
   #+gcl (lisp:quit code)
-  #+genera (error "You probably don't want to Halt the Machine.")
+  #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
   #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
   #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?
   #+mkcl (mk-ext:quit :exit-code code)
@@ -64,43 +64,85 @@ This is designed to abstract away the implementation specific quit forms."
 	       (exit `(,exit :code code :abort (not finish-output)))
 	       (quit `(,quit :unix-status code :recklessly-p (not finish-output)))))
   #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-  (error "xcvb driver: Quitting not implemented"))
+  (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
-(defun die (format &rest arguments)
+(defun* die (code format &rest arguments)
   "Die in error with some error message"
   (with-safe-io-syntax ()
     (ignore-errors
-     (format! *stderr* "~&")
-     (apply #'format! *stderr* format arguments)
+     (fresh-line *stderr*)
+     (apply #'format *stderr* format arguments)
      (format! *stderr* "~&")))
-  (quit 99))
+  (quit code))
 
-(defun print-backtrace (out)
-  "Print a backtrace (implementation-defined)"
-  (declare (ignorable out))
-  #+clisp (system::print-backtrace)
-  #+clozure (let ((*debug-io* out))
-	      (ccl:print-call-history :count 100 :start-frame-number 1)
-	      (finish-output out))
-  #+ecl (si::tpl-backtrace)
+(defun* raw-print-backtrace (&key (stream *debug-io*) count)
+  "Print a backtrace, directly accessing the implementation"
+  (declare (ignorable stream count))
+  #+allegro
+  (let ((*terminal-io* stream)
+        (*standard-output* stream)
+        (tpl:*zoom-print-circle* *print-circle*)
+        (tpl:*zoom-print-level* *print-level*)
+        (tpl:*zoom-print-length* *print-length*))
+    (tpl:do-command "zoom"
+      :from-read-eval-print-loop nil
+      :count t
+      :all t))
+  #+clisp
+  (system::print-backtrace :out stream :limit count)
+  #+(or clozure mcl)
+  (let ((*debug-io* stream))
+    (ccl:print-call-history :count count :start-frame-number 1)
+    (finish-output stream))
+  #+(or cmucl scl)
+  (let ((debug:*debug-print-level* *print-level*)
+        (debug:*debug-print-length* *print-length*))
+    (debug:backtrace most-positive-fixnum stream))
+  #+ecl
+  (si::tpl-backtrace)
+  #+lispworks
+  (let ((dbg::*debugger-stack*
+          (dbg::grab-stack nil :how-many (or count most-positive-fixnum)))
+        (*debug-io* stream)
+        (dbg:*debug-print-level* *print-level*)
+        (dbg:*debug-print-length* *print-length*))
+    (dbg:bug-backtrace nil))
   #+sbcl
   (sb-debug:backtrace
-   #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream 'most-positive-fixnum)
-   out))
+   #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream '(or count most-positive-fixnum))
+   stream))
 
-(defun bork (condition)
+(defun* print-backtrace (&rest keys &key stream count)
+  (declare (ignore stream count))
+  (with-safe-io-syntax (:package :cl)
+    (let ((*print-readably* nil)
+          (*print-circle* t)
+          (*print-miser-width* 75)
+          (*print-length* nil)
+          (*print-level* nil)
+          (*print-pretty* t))
+      (ignore-errors (apply 'raw-print-backtrace keys)))))
+
+(defun* print-condition-backtrace (condition &key (stream *stderr*) count)
+  ;; We print the condition *after* the backtrace,
+  ;; for the sake of who sees the backtrace at a terminal.
+  ;; It is up to the caller to print the condition *before*, with some context.
+  (print-backtrace :stream stream :count count)
+  (when condition
+    (safe-format! stream "~&Above backtrace due to this condition:~%~A~&"
+                  condition)))
+
+(defun* bork (condition)
   "Depending on whether *DEBUGGING* is set, enter debugger or die"
-  (with-safe-io-syntax ()
-    (ignore-errors (format! *stderr* "~&BORK:~%~A~%" condition)))
+  (safe-format! *stderr* "~&BORK:~%~A~%" condition)
   (cond
     (*debugging*
      (invoke-debugger condition))
     (t
-     (with-safe-io-syntax ()
-       (ignore-errors (print-backtrace *stderr*)))
-     (die "~A" condition))))
+     (print-condition-backtrace condition :stream *stderr*)
+     (die 99 "~A" condition))))
 
-(defun call-with-coded-exit (thunk)
+(defun* call-with-coded-exit (thunk)
   (handler-bind ((error 'bork))
     (funcall thunk)
     (quit 0)))
@@ -109,7 +151,7 @@ This is designed to abstract away the implementation specific quit forms."
   "Run BODY, BORKing on error and otherwise exiting with a success status"
   `(call-with-coded-exit #'(lambda () ,@body)))
 
-(defun shell-boolean (x)
+(defun* shell-boolean (x)
   "Quit with a return code that is 0 iff argument X is true"
   (quit (if x 0 1)))
 
@@ -131,7 +173,7 @@ This is designed to abstract away the implementation specific quit forms."
 
 ;;; Build initialization
 
-(defun initialize-asdf-utilities ()
+(defun* initialize-asdf-utilities ()
   "Setup the XCVB environment with respect to debugging, profiling, performance"
   (setf *temporary-directory* (default-temporary-directory)
 	*stderr* #-clozure *error-output* #+clozure ccl::*stderr*)
@@ -140,7 +182,7 @@ This is designed to abstract away the implementation specific quit forms."
 
 ;;; Proper command-line arguments
 
-(defun raw-command-line-arguments ()
+(defun* raw-command-line-arguments ()
   "Find what the actual command line for this process was."
   #+abcl ext:*command-line-argument-list* ; Use 1.0.0 or later!
   #+allegro (sys:command-line-arguments) ; default: :application t
@@ -155,7 +197,7 @@ This is designed to abstract away the implementation specific quit forms."
   #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl xcl)
   (error "raw-command-line-arguments not implemented yet"))
 
-(defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
+(defun* command-line-arguments (&optional (arguments (raw-command-line-arguments)))
   "Extract user arguments from command-line invocation of current process.
 Assume the calling conventions of an XCVB-generated script
 if we are not called from a directly executable image dumped by XCVB."
@@ -168,10 +210,10 @@ if we are not called from a directly executable image dumped by XCVB."
 	      (member "--" arguments :test 'string-equal))))
     (rest arguments)))
 
-(defun do-resume (&key (post-image-restart *post-image-restart*) (entry-point *entry-point*))
+(defun* do-resume (&key (post-image-restart *post-image-restart*) (entry-point *entry-point*))
   (with-safe-io-syntax (:package :asdf)
     (let ((*read-eval* t))
-      (when post-image-restart (load-string post-image-restart))))
+      (when post-image-restart (eval-input post-image-restart))))
   (with-coded-exit ()
     (when entry-point
       (let ((ret (apply entry-point *arguments*)))
@@ -179,21 +221,21 @@ if we are not called from a directly executable image dumped by XCVB."
 	    (quit ret)
 	    (quit 99))))))
 
-(defun resume ()
+(defun* resume ()
   (setf *arguments* (command-line-arguments))
   (do-resume))
 
 ;;; Dumping an image
 
-#-ecl
-(defun dump-image (filename &key output-name executable pre-image-dump post-image-restart entry-point package)
+#-(or ecl mkcl)
+(defun* dump-image (filename &key output-name executable pre-image-dump post-image-restart entry-point package)
   (declare (ignorable filename output-name executable pre-image-dump post-image-restart entry-point))
   (setf *dumped* (if executable :executable t))
   (setf *package* (find-package (or package :cl-user)))
   (with-safe-io-syntax ()
     (let ((*read-eval* t))
-      (when pre-image-dump (load-string pre-image-dump))
-      (setf *entry-point* (when entry-point (read-function entry-point)))
+      (when pre-image-dump (eval-input pre-image-dump))
+      (setf *entry-point* (when entry-point (ensure-function entry-point)))
       (when post-image-restart (setf *post-image-restart* post-image-restart))))
   #-(or clisp clozure cmu lispworks sbcl)
   (when executable
@@ -241,5 +283,4 @@ if we are not called from a directly executable image dumped by XCVB."
     :executable t ;--- always include the runtime that goes with the core
     (when executable (list :toplevel #'resume :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
   #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
-  (die "Can't dump ~S: asdf doesn't support image dumping with this Lisp implementation.~%" filename))
-
+  (die 98 "Can't dump ~S: asdf doesn't support image dumping with this Lisp implementation.~%" filename))

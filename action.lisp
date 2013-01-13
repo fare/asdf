@@ -95,7 +95,7 @@ You can put together sentences using this phrase."))
 ;; For backward-compatibility reasons, a system inherits from module and is a child-component
 ;; so we must guard against this case. ASDF3: remove that.
 (defmethod component-depends-on ((o upward-operation) (c child-component))
-  `(,@(aif (component-parent c) `((,o ,it))) ,@(call-next-method)))
+  `(,@(if-bind (p (component-parent c)) `((,o ,p))) ,@(call-next-method)))
 
 
 ;;;; Inputs, Outputs, and invisible dependencies

@@ -20,7 +20,7 @@
    #:initialize-source-registry #:sysdef-source-registry-search))
 (in-package :asdf/find-system)
 
-(declaim (ftype (function (&optional t) *) initialize-source-registry)) ; forward reference
+(declaim (ftype (function (&optional t) t) initialize-source-registry)) ; forward reference
 
 (define-condition system-definition-error (error) ()
   ;; [this use of :report should be redundant, but unfortunately it's not.
@@ -84,7 +84,9 @@ of which is a system object.")
     (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
     (unless (eq system (cdr (gethash name *defined-systems*)))
       (setf (gethash name *defined-systems*)
-            (cons (aif (ignore-errors (system-source-file system)) (safe-file-write-date it)) system)))))
+            (cons (if-bind (file (ignore-errors (system-source-file system)))
+                    (safe-file-write-date file))
+                  system)))))
 
 (defun* clear-system (name)
   "Clear the entry for a system in the database of systems previously loaded.

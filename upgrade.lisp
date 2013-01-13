@@ -7,6 +7,7 @@
   (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
   (:export
    #:upgrade-asdf #:asdf-upgrade-error #:when-upgrade
+   #:*asdf-upgrade-already-attempted*
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    #:asdf-version #:*upgraded-p*
    #:asdf-message #:*asdf-verbose* #:*verbose-out*))
@@ -19,7 +20,7 @@
   (defvar *upgraded-p* nil)
   (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
   (defvar *verbose-out* nil)
-  (defun asdf-message (format-string &rest format-args)
+  (defun* asdf-message (format-string &rest format-args)
     (apply 'format *verbose-out* format-string format-args)))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
@@ -31,7 +32,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.81")
+         (asdf-version "2.26.82")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -67,6 +68,8 @@ You can compare this string with e.g.:
 
 ;;; Self-upgrade functions
 
+(defvar *asdf-upgrade-already-attempted* nil)
+
 (defvar *post-upgrade-cleanup-hook* ())
 (defvar *post-upgrade-restart-hook* ())
 
@@ -92,8 +95,9 @@ You can compare this string with e.g.:
 (defun* upgrade-asdf ()
   "Try to upgrade of ASDF. If a different version was used, return T.
    We need do that before we operate on anything that depends on ASDF."
-  (let ((version (asdf-version)))
-    (handler-bind (((or style-warning warning) #'muffle-warning))
-      (symbol-call :asdf :load-system :asdf :verbose nil))
-    (cleanup-upgraded-asdf version)))
-
+  (unless *asdf-upgrade-already-attempted*
+    (setf *asdf-upgrade-already-attempted* t)
+    (let ((version (asdf-version)))
+      (handler-bind (((or style-warning warning) #'muffle-warning))
+        (symbol-call :asdf :load-system :asdf :verbose nil))
+      (cleanup-upgraded-asdf version))))

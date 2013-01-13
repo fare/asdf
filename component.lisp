@@ -106,9 +106,9 @@ another pathname in a degenerate way."))
     (format stream "~{~S~^ ~}" (component-find-path c))))
 
 (defmethod component-system ((component component))
-  (aif (component-parent component)
-       (component-system it)
-       component))
+  (if-bind (system (component-parent component))
+    (component-system system)
+    component))
 
 
 ;;;; component pathnames
@@ -137,7 +137,8 @@ another pathname in a degenerate way."))
 
 (defmethod component-relative-pathname ((component component))
   (coerce-pathname
-   (or (slot-value component 'relative-pathname)
+   (or (and (slot-boundp component 'relative-pathname)
+            (slot-value component 'relative-pathname))
        (component-name component))
    :type (source-file-type component (component-system component)) ;; backward-compatibility
    :defaults (component-parent-pathname component)))

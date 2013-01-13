@@ -7,6 +7,7 @@
 (asdf/package:define-package :asdf/compatibility
   (:use :common-lisp :asdf/package)
   (:recycle :asdf/compatibility :asdf)
+  #+allegro (:intern #:*acl-warn-save*)
   #+cormanlisp
   (:export
    #:logical-pathname #:translate-logical-pathname

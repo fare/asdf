@@ -6,15 +6,16 @@
   (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
   (:export
    #:*default-stream-element-type* #:*stderr*
-   #:finish-outputs #:format!
-   #:with-output #:output-string #:with-input #:call-with-input-file
-   #:with-safe-io-syntax #:read-function
+   #:with-safe-io-syntax #:call-with-safe-io-syntax
+   #:with-output #:output-string #:with-input
+   #:with-input-file #:call-with-input-file
+   #:finish-outputs #:format! #:safe-format!
    #:read-file-forms #:read-first-file-form
    #:copy-stream-to-stream #:concatenate-files
    #:copy-stream-to-stream-line-by-line
    #:slurp-stream-string #:slurp-stream-lines
    #:slurp-stream-forms #:slurp-file-string
-   #:slurp-file-lines #:slurp-file-forms
+   #:read-file-lines #:read-file-forms #:eval-input
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*))
@@ -27,21 +28,18 @@
   "the original error output stream at startup")
 
 
-;;; Ensure output buffers are flushed
+;;; Safe syntax
 
-(defun finish-outputs ()
-  "Finish output on the main output streams.
-Useful for portably flushing I/O before user input or program exit."
-  ;; CCL notably buffers its stream output by default.
-  (dolist (s (list *stderr* *error-output* *standard-output* *trace-output*))
-    (ignore-errors (finish-output s)))
-  (values))
+(defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
+  "Establish safe CL reader options around the evaluation of BODY"
+  `(call-with-safe-io-syntax #'(lambda () (let ((*package* (find-package ,package))) ,@body))))
 
-(defun format! (stream format &rest args)
-  "Just like format, but call finish-outputs before and after the output."
-  (finish-outputs)
-  (apply 'format stream format args)
-  (finish-output stream))
+(defun* call-with-safe-io-syntax (thunk &key (package :cl))
+  (with-standard-io-syntax ()
+    (let ((*package* (find-package package))
+          (*print-readably* nil)
+	  (*read-eval* nil))
+      (funcall thunk))))
 
 
 ;;; Output to a stream or string, FORMAT-style
@@ -80,7 +78,7 @@ Otherwise, signal an error.")
 as per FORMAT, and evaluate BODY within the scope of this binding."
   `(call-with-output ,value #'(lambda (,x) ,@body)))
 
-(defun output-string (string &optional stream)
+(defun* output-string (string &optional stream)
   (if stream
       (with-output (stream) (princ string stream))
       string))
@@ -88,7 +86,29 @@ as per FORMAT, and evaluate BODY within the scope of this binding."
 
 ;;; Input helpers
 
-(defun call-with-input-file (pathname thunk
+(defun* call-with-input (x fun)
+  "Calls FUN with an actual stream argument, coercing behaving like READ with respect to stream'ing:
+If OBJ is a stream, use it as the stream.
+If OBJ is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
+If OBJ is T, use *STANDARD-OUTPUT* as the stream.
+If OBJ is a string with a fill-pointer, use it as a string-output-stream.
+Otherwise, signal an error."
+  (typecase x
+    (null
+     (funcall fun *terminal-io*))
+    ((eql t)
+     (funcall fun *standard-input*))
+    (stream
+     (funcall fun x))
+    (string
+     (with-input-from-string (s x) (funcall fun s)))
+    (t
+     (error "not a valid input stream designator ~S" x))))
+
+(defmacro with-input ((x &optional (value x)) &body body)
+  `(call-with-input ,value #'(lambda (,x) ,@body)))
+
+(defun* call-with-input-file (pathname thunk
                              &key (element-type *default-stream-element-type*)
                              (external-format :default))
   "Open FILE for input with given options, call THUNK with the resulting stream."
@@ -102,35 +122,27 @@ as per FORMAT, and evaluate BODY within the scope of this binding."
   `(call-with-input-file ,pathname #'(lambda (,var) ,@body) ,@keys))
 
 
-;;; Reading helpers
+;;; Ensure output buffers are flushed
 
-(defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
-  "Establish safe CL reader options around the evaluation of BODY"
-  `(call-with-safe-io-syntax #'(lambda () (let ((*package* (find-package ,package))) ,@body))))
+(defun* finish-outputs (&rest streams)
+  "Finish output on the main output streams as well as any specified one.
+Useful for portably flushing I/O before user input or program exit."
+  ;; CCL notably buffers its stream output by default.
+  (dolist (s (append streams
+                     (list *stderr* *error-output* *standard-output* *trace-output* *debug-io*)))
+    (ignore-errors (finish-output s)))
+  (values))
 
-(defun call-with-safe-io-syntax (thunk &key (package :cl))
-  (with-standard-io-syntax ()
-    (let ((*package* (find-package package))
-          (*print-readably* nil)
-	  (*read-eval* nil))
-      (funcall thunk))))
+(defun* format! (stream format &rest args)
+  "Just like format, but call finish-outputs before and after the output."
+  (finish-outputs stream)
+  (apply 'format stream format args)
+  (finish-output stream))
 
-(defun read-function (string)
-  "Read a form from a string in function context, return a function"
-  (eval `(function ,(read-from-string string))))
-
-(defun* read-file-forms (file)
-  (with-open-file (in file)
-    (loop :with eof = (list nil)
-     :for form = (read in nil eof)
-     :until (eq form eof)
-     :collect form)))
-
-(defun read-first-file-form (pathname &key (package :cl) eof-error-p eof-value)
-  "Reads the first form from the top of a file using a safe standardized syntax"
-  (with-safe-io-syntax (:package package)
-    (with-input-file (in pathname)
-      (read in eof-error-p eof-value))))
+(defun* safe-format! (stream format &rest args)
+  (with-safe-io-syntax ()
+    (ignore-errors (apply 'format! stream format args))
+    (finish-outputs stream))) ; just in case format failed
 
 
 ;;; Simple Whole-Stream processing
@@ -154,7 +166,7 @@ using WRITE-SEQUENCE and a sensibly sized buffer."
                                :direction :input :if-does-not-exist :error)
         (copy-stream-to-stream i o :element-type '(unsigned-byte 8))))))
 
-(defun copy-stream-to-stream-line-by-line (input output &key prefix)
+(defun* copy-stream-to-stream-line-by-line (input output &key prefix)
   "Copy the contents of the INPUT stream into the OUTPUT stream,
 reading contents line by line."
   (with-open-stream (input input)
@@ -166,35 +178,58 @@ reading contents line by line."
       (finish-output output)
       (when eof (return)))))
 
-(defun slurp-stream-string (input &key (element-type 'character))
+(defun* slurp-stream-string (input &key (element-type 'character))
   "Read the contents of the INPUT stream as a string"
   (with-open-stream (input input)
     (with-output-to-string (output)
       (copy-stream-to-stream input output :element-type element-type))))
 
-(defun slurp-stream-lines (input)
+(defun* slurp-stream-lines (input)
   "Read the contents of the INPUT stream as a list of lines"
   (with-open-stream (input input)
     (loop :for l = (read-line input nil nil) :while l :collect l)))
 
-(defun slurp-stream-forms (input)
-  "Read the contents of the INPUT stream as a list of forms"
+(defun* slurp-stream-forms (input)
+  "Read the contents of the INPUT stream as a list of forms.
+BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (with-open-stream (input input)
     (loop :with eof = '#:eof
       :for form = (read input nil eof)
       :until (eq form eof) :collect form)))
 
-(defun slurp-file-string (file &rest keys)
+(defun* read-file-string (file &rest keys)
   "Open FILE with option KEYS, read its contents as a string"
   (apply 'call-with-input-file file 'slurp-stream-string keys))
 
-(defun slurp-file-lines (file &rest keys)
-  "Open FILE with option KEYS, read its contents as a list of lines"
+(defun* read-file-lines (file &rest keys)
+  "Open FILE with option KEYS, read its contents as a list of lines
+BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (apply 'call-with-input-file file 'slurp-stream-lines keys))
 
-(defun slurp-file-forms (file &rest keys)
-  "Open FILE with option KEYS, read its contents as a list of forms"
+(defun* read-file-forms (file &rest keys)
+  "Open FILE with option KEYS, read its contents as a list of forms.
+BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (apply 'call-with-input-file file 'slurp-stream-forms keys))
+
+(defun* read-first-file-form (pathname &key eof-error-p eof-value)
+  "Reads the first form from the top of a file.
+BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
+  (with-input-file (in pathname)
+    (read in eof-error-p eof-value)))
+
+(defun* safe-read-first-file-form (pathname &key (package :cl) eof-error-p eof-value)
+  "Reads the first form from the top of a file using a safe standardized syntax"
+  (with-safe-io-syntax (:package package)
+    (read-first-file-form pathname :eof-error-p eof-error-p :eof-value eof-value)))
+
+(defun* eval-input (input)
+  "Portably read and evaluate forms from INPUT, return the last values."
+  (with-input (input)
+    (loop :with results :with eof ='#:eof
+          :for form = (read input nil eof)
+          :until (eq form eof)
+          :do (setf results (multiple-value-list (eval form)))
+          :finally (return (apply 'values results)))))
 
 
 ;;; Encodings

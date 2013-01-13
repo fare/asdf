@@ -18,7 +18,7 @@
 
 ;;;; ----- Escaping strings for the shell -----
 
-(defun requires-escaping-p (token &key good-chars bad-chars)
+(defun* requires-escaping-p (token &key good-chars bad-chars)
   "Does this token require escaping, given the specification of
 either good chars that don't need escaping or bad chars that do need escaping,
 as either a recognizing function or a sequence of characters."
@@ -37,7 +37,7 @@ as either a recognizing function or a sequence of characters."
      (t (error "requires-escaping-p: no good-char criterion")))
    token))
 
-(defun escape-token (token &key stream quote good-chars bad-chars escaper)
+(defun* escape-token (token &key stream quote good-chars bad-chars escaper)
   "Call the ESCAPER function on TOKEN string if it needs escaping as per
 REQUIRES-ESCAPING-P using GOOD-CHARS and BAD-CHARS, otherwise output TOKEN,
 using STREAM as output (or returning result as a string if NIL)"
@@ -46,7 +46,7 @@ using STREAM as output (or returning result as a string if NIL)"
         (apply escaper token stream (when quote `(:quote ,quote))))
       (output-string token stream)))
 
-(defun escape-windows-token-within-double-quotes (x &optional s)
+(defun* escape-windows-token-within-double-quotes (x &optional s)
   "Escape a string token X within double-quotes
 for use within a MS Windows command-line, outputing to S."
   (labels ((issue (c) (princ c s))
@@ -71,13 +71,13 @@ for use within a MS Windows command-line, outputing to S."
         (otherwise
          (issue (char x i)) (setf i i+1))))))
 
-(defun escape-windows-token (token &optional s)
+(defun* escape-windows-token (token &optional s)
   "Escape a string TOKEN within double-quotes if needed
 for use within a MS Windows command-line, outputing to S."
   (escape-token token :stream s :bad-chars #(#\space #\tab #\") :quote nil
                 :escaper 'escape-windows-token-within-double-quotes))
 
-(defun escape-sh-token-within-double-quotes (x s &key (quote t))
+(defun* escape-sh-token-within-double-quotes (x s &key (quote t))
   "Escape a string TOKEN within double-quotes
 for use within a POSIX Bourne shell, outputing to S;
 omit the outer double-quotes if key argument :QUOTE is NIL"
@@ -87,22 +87,22 @@ omit the outer double-quotes if key argument :QUOTE is NIL"
     (princ c s))
   (when quote (princ #\" s)))
 
-(defun easy-sh-character-p (x)
+(defun* easy-sh-character-p (x)
   (or (alphanumericp x) (find x "+-_.,%@:/")))
 
-(defun escape-sh-token (token &optional s)
+(defun* escape-sh-token (token &optional s)
   "Escape a string TOKEN within double-quotes if needed
 for use within a POSIX Bourne shell, outputing to S."
   (escape-token token :stream s :quote #\" :good-chars
                 #'easy-sh-character-p
                 :escaper 'escape-sh-token-within-double-quotes))
 
-(defun escape-shell-token (token &optional s)
+(defun* escape-shell-token (token &optional s)
   (cond
     ((os-unix-p) (escape-sh-token token s))
     ((os-windows-p) (escape-windows-token token s))))
 
-(defun escape-command (command &optional s
+(defun* escape-command (command &optional s
                        (escaper 'escape-shell-token))
   "Given a COMMAND as a list of tokens, return a string of the
 spaced, escaped tokens, using ESCAPER to escape."
@@ -113,27 +113,26 @@ spaced, escaped tokens, using ESCAPER to escape."
               (unless first (princ #\space s))
               (funcall escaper token s))))))
 
-(defun escape-windows-command (command &optional s)
+(defun* escape-windows-command (command &optional s)
   "Escape a list of command-line arguments into a string suitable for parsing
 by CommandLineToArgv in MS Windows"
     ;; http://msdn.microsoft.com/en-us/library/bb776391(v=vs.85).aspx
     ;; http://msdn.microsoft.com/en-us/library/17w5ykft(v=vs.85).aspx
   (escape-command command s 'escape-windows-token))
 
-(defun escape-sh-command (command &optional s)
+(defun* escape-sh-command (command &optional s)
   "Escape a list of command-line arguments into a string suitable for parsing
 by /bin/sh in POSIX"
   (escape-command command s 'escape-sh-token))
 
-(defun escape-shell-command (command &optional stream)
+(defun* escape-shell-command (command &optional stream)
   "Escape a command for the current operating system's shell"
   (escape-command command stream 'escape-shell-token))
 
-;;;; ----- Running an external program -----
-;;; Simple variant of run-program with no input, and capturing output
-;;; On some implementations, may output to a temporary file...
 
-(defgeneric slurp-input-stream (processor input-stream &key &allow-other-keys))
+;;;; Slurping a stream, typically the output of another program
+
+(defgeneric* slurp-input-stream (processor input-stream &key &allow-other-keys))
 
 (defmethod slurp-input-stream ((function function) input-stream &key &allow-other-keys)
   (funcall function input-stream))
@@ -166,6 +165,11 @@ by /bin/sh in POSIX"
   (declare (ignorable x))
   (slurp-stream-forms stream))
 
+
+;;;; ----- Running an external program -----
+;;; Simple variant of run-program with no input, and capturing output
+;;; On some implementations, may output to a temporary file...
+
 (define-condition subprocess-error (error)
   ((code :initform nil :initarg :code :reader subprocess-error-code)
    (command :initform nil :initarg :command :reader subprocess-error-command)
@@ -176,7 +180,7 @@ by /bin/sh in POSIX"
                      (subprocess-error-command condition)
                      (subprocess-error-code condition)))))
 
-(defun run-program/ (command
+(defun* run-program/ (command
                      &key output ignore-error-status force-shell
                      (element-type *default-stream-element-type*)
                      (external-format :default)

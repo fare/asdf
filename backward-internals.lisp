@@ -50,7 +50,7 @@
 ;; This won't recurse into dependencies to accumulate feature conditions.
 ;; Therefore it will accept the SB-ROTATE-BYTE of an old SBCL
 ;; (older than 1.1.2.20-fe6da9f) but won't suffice to load an old nibbles.
-(defun %resolve-if-component-dep-fails (if-component-dep-fails component)
+(defun* %resolve-if-component-dep-fails (if-component-dep-fails component)
   (asdf-message "The system definition for ~S uses deprecated ~
                  ASDF option :IF-COMPONENT-DEP-DAILS. ~
                  Starting with ASDF 2.27, please use :IF-FEATURE instead"

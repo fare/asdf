@@ -2,7 +2,7 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
+(with-test ()
  (asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
  (asdf:load-system :asdf)
  (asdf:initialize-source-registry `(:source-registry (:directory ,*asdf-directory*) :ignore-inherited-configuration))

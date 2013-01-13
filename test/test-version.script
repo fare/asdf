@@ -4,7 +4,7 @@
 
 (setf *central-registry* '(*default-pathname-defaults*))
 
-(quit-on-error
+(with-test ()
  (defsystem :versioned-system-1
    :pathname #.*default-pathname-defaults*
    :version "1.0")

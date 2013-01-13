@@ -5,7 +5,7 @@
 
 (load "script-support.lisp")
 (load-asdf)
-(quit-on-error
+(with-test ()
  (flet ((system-load-time (name)
           (let ((data (asdf::system-registered-p name)))
             (when data

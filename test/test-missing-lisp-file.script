@@ -9,7 +9,7 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
+(with-test ()
  (asdf:defsystem test-missing-lisp-file
    :components ((:file "file2" :in-order-to ((compile-op (load-op "fileMissing"))
                                              (load-op (load-op "fileMissing"))))

@@ -51,7 +51,10 @@
    #:physical-pathname-p #:sane-physical-pathname
    ;; Windows shortcut support
    #:read-null-terminated-string #:read-little-endian
-   #:parse-file-location-info #:parse-windows-shortcut))
+   #:parse-file-location-info #:parse-windows-shortcut
+   ;; Output translations
+   #:*output-translation-hook*))
+
 (in-package :asdf/pathname)
 
 ;;; User-visible parameters
@@ -114,12 +117,16 @@ Defaults to T.")
               :finally (return (cons defabs (append (reverse defrev) reldir)))))))))))
 
 (defun* make-pathname* (&rest keys &key (directory nil directoryp)
-                              host device name type version defaults #+scl &allow-other-keys)
-  (declare (ignore host device name type version defaults))
+                              host (device () devicep) name type version defaults
+                              #+scl &allow-other-keys)
+  (declare (ignorable host device devicep name type version defaults))
   (apply 'make-pathname
-         (append (when directoryp
-                   `(:directory ,(denormalize-pathname-directory-component directory)))
-                 keys)))
+         (append
+          #+(and allegro (version>= 9 0) unix)
+          (when (and devicep (null device)) `(:device :unspecific))
+          (when directoryp
+            `(:directory ,(denormalize-pathname-directory-component directory)))
+          keys)))
 
 (defun* make-pathname-component-logical (x)
   "Make a pathname component suitable for use in a logical-pathname"
@@ -234,7 +241,7 @@ actually-existing directory."
 (defparameter *wild* (or #+cormanlisp "*" :wild))
 (defparameter *wild-file*
   (make-pathname :directory nil :name *wild* :type *wild*
-                  :version (or #-(or abcl xcl) *wild*)))
+                 :version (or #-(or allegro abcl xcl) *wild*)))
 (defparameter *wild-directory*
   (make-pathname* :directory `(:relative ,(or #+gcl<2.7 "*" *wild*))
                   :name nil :type nil :version nil))
@@ -250,13 +257,13 @@ actually-existing directory."
 
 ;;; Probing the filesystem
 (defun* nil-pathname (&optional (defaults *default-pathname-defaults*))
-  (make-pathname :directory nil :name nil :type nil :version nil :device nil :host nil
-                 :defaults defaults)) ;; shouldn't matter
+  (make-pathname* :directory nil :name nil :type nil :version nil :device nil :host nil
+                  :defaults defaults)) ;; The defaults shouldn't matter
 
 (defmacro with-pathname-defaults ((&optional defaults) &body body)
   `(let ((*default-pathname-defaults* ,(or defaults (nil-pathname)))) ,@body))
 
-(defun truename* (p)
+(defun* truename* (p)
   ;; avoids both logical-pathname merging and physical resolution issues
   (ignore-errors (with-pathname-defaults () (truename p))))
 
@@ -270,8 +277,8 @@ with given pathname and if it exists return its truename."
       (pathname (unless (wild-pathname-p p)
                   #.(or #+(or allegro clozure cmu cormanlisp ecl lispworks mkcl sbcl scl)
                         '(probe-file p)
-                        #+clisp (aif (find-symbol* '#:probe-pathname :ext nil)
-                                     `(ignore-errors (,it p)))
+                        #+clisp (if-bind (it (find-symbol* '#:probe-pathname :ext nil))
+                                   `(ignore-errors (,it p)))
                         #+gcl<2.7
                         '(or (probe-file p)
                           (and (directory-pathname-p p)
@@ -510,9 +517,9 @@ Host, device and version components are taken from DEFAULTS."
                   . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
 
 (defun* pathname-host-pathname (pathname)
-  (make-pathname :directory nil
-                 :name nil :type nil :version nil :device nil
-                 :defaults pathname ;; host device, and on scl, *some*
+  (make-pathname* :directory nil
+                  :name nil :type nil :version nil :device nil
+                  :defaults pathname ;; host device, and on scl, *some*
                   ;; scheme-specific parts: port username password, not others:
                   . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
 
@@ -677,7 +684,7 @@ Host, device and version components are taken from DEFAULTS."
 
 ;;; Native vs Lisp syntax
 
-(defun native-namestring (x)
+(defun* native-namestring (x)
   "From a CL pathname, a namestring suitable for use by the OS shell"
   (let ((p (pathname x)))
     #+clozure (let ((*default-pathname-defaults* #p"")) (ccl:native-translated-namestring p)) ; see ccl bug 978
@@ -685,7 +692,7 @@ Host, device and version components are taken from DEFAULTS."
     #+sbcl (sb-ext:native-namestring p)
     #-(or clozure cmu sbcl scl) (namestring p)))
 
-(defun parse-native-namestring (x)
+(defun* parse-native-namestring (x)
   "From a native namestring suitable for use by the OS shell, a CL pathname"
   (check-type x string)
   #+clozure (ccl:native-to-pathname x)
@@ -825,3 +832,6 @@ For the latter case, we ought pick random suffix and atomically open it."
       (end-of-file (c)
         (declare (ignore c))
         nil)))))
+
+;;; Hook for output translations
+(defvar *output-translation-hook* 'identity)

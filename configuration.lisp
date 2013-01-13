@@ -56,8 +56,8 @@
   (cond
     ((os-unix-p) '(#p"/etc/common-lisp/"))
     ((os-windows-p)
-     (aif (subpathname* (get-folder-path :common-appdata) "common-lisp/config/")
-          (list it)))))
+     (if-bind (it (subpathname* (get-folder-path :common-appdata) "common-lisp/config/"))
+       (list it)))))
 
 (defun* in-first-directory (dirs x &key (direction :input))
   (loop :with fun = (ecase direction
@@ -274,9 +274,8 @@ Please remove it from your ASDF configuration"))
             (eq (caadr x) 'lambda)
             (length=n-p (cadadr x) 2)))))
 
-
 (defvar *clear-configuration-hook* '())
 
 (defun* clear-configuration ()
-  (map () #'funcall *clear-configuration-hook*))
+  (call-functions *clear-configuration-hook*))
 

@@ -6,7 +6,7 @@
 (touch-file "file1.lisp" :offset -3500)
 (touch-file "file2.lisp" :offset -3400)
 
-(quit-on-error
+(with-test ()
  (DBG "loading test1")
  (asdf:load-system 'test1)
  (let* ((file1 (asdf:compile-file-pathname* "file1"))

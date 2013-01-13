@@ -104,7 +104,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (:documentation "Is this action valid to include amongst dependencies?"))
 (defmethod action-valid-p (plan operation (c component))
   (declare (ignorable plan operation))
-  (aif (component-if-feature c) (featurep it) t))
+  (if-bind (it (component-if-feature c)) (featurep it) t))
 (defmethod action-valid-p (plan (o null) c) (declare (ignorable plan o c)) nil)
 (defmethod action-valid-p (plan o (c null)) (declare (ignorable plan o c)) nil)
 
@@ -138,7 +138,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
   ;; In a distant future, safe-file-write-date and component-operation-time
   ;; shall also be parametrized by the plan, or by a second model object.
-  (let* ((stamp-lookup #'(lambda (o c) (aif (plan-action-status plan o c) (action-stamp it) t)))
+  (let* ((stamp-lookup #'(lambda (o c)
+                           (if-bind (it (plan-action-status plan o c)) (action-stamp it) t)))
          (out-files (output-files o c))
          (in-files (input-files o c))
          ;; Three kinds of actions:

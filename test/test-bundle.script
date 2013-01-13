@@ -7,7 +7,7 @@
 ;;;---------------------------------------------------------------------------
 
 
-(quit-on-error
+(with-test ()
  (asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
  (asdf:clear-system :test-bundle-1)
  (asdf:clear-system :test-bundle-2)

@@ -6,7 +6,7 @@
 
 #+gcl (trace coerce-pathname)
 
-(quit-on-error
+(with-test ()
  (format t "dpd: ~S~%f1: ~S~%" *default-pathname-defaults* (asdf::merge-pathnames* "file1"))
 
  (setf asdf:*central-registry* '(*default-pathname-defaults*))

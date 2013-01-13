@@ -11,11 +11,10 @@
    #:loaded-systems ; makes for annoying SLIME completion
    #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
   (:use :common-lisp
-   :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname
-   :asdf/stream :asdf/os :asdf/run-program :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component
-   :asdf/operation :asdf/action :asdf/lisp-build :asdf/lisp-action
-   :asdf/configuration :asdf/output-translations :asdf/source-registry
+   :asdf/driver
+   :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/find-component
+   :asdf/operation :asdf/action :asdf/lisp-action
+   :asdf/output-translations :asdf/source-registry
    :asdf/plan :asdf/operate :asdf/defsystem :asdf/bundle :asdf/concatenate-source
    :asdf/backward-interface)
   ;; TODO: automatically generate interface by merging select used packages?

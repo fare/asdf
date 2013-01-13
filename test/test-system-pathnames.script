@@ -2,7 +2,7 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
+(with-test ()
  (asdf:load-system 'test-system-pathnames)
  (assert (find-package :test-package)
          () "package test-package not found")

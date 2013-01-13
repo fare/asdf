@@ -63,7 +63,7 @@
                        :if-does-not-exist :create)
       (format s "(defsystem :foo~D)~%" i))))
 
-(quit-on-error
+(with-test ()
  (assert-equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")
                '(:output-translations ("/foo" "/bar") :inherit-configuration
                  ("/baz" "/quux")))

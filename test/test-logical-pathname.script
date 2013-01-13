@@ -13,7 +13,7 @@
                       `(,*asdf-directory* "build/fasls" :implementation "logical-host-asdf")
                       :wilden t))))
 
-(quit-on-error
+(with-test ()
  (format t "~S~%" (translate-logical-pathname "ASDF:test;test-force.asd"))
  (format t "~S~%" (truename "ASDF:test;test-force.asd"))
 

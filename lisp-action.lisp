@@ -71,7 +71,7 @@
   nil)
 (defmethod input-files ((o prepare-op) (s system))
   (declare (ignorable o))
-  (aif (system-source-file s) (list it)))
+  (if-bind (it (system-source-file s)) (list it)))
 
 ;;; compile-op
 (defmethod operation-description ((o compile-op) (c component))
@@ -93,10 +93,11 @@
     (multiple-value-bind (output warnings-p failure-p)
         (call-with-around-compile-hook
          c #'(lambda (&rest flags)
-               (apply *compile-file-function* input-file
-                      :output-file output-file
-                      #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)
-                      (append flags (compile-op-flags o)))))
+               (with-controlled-compiler-conditions ()
+                 (apply *compile-file-function* input-file
+                        :output-file output-file
+                        :external-format (component-external-format c)
+                        (append flags (compile-op-flags o))))))
       (unless output
         (error 'compile-error :component c :operation o))
       (when failure-p
@@ -156,8 +157,9 @@
                   (format s "Recompile ~a and try loading it again"
                           (component-name c)))
         (perform (find-operation o 'compile-op) c)))))
-(defun perform-lisp-load-fasl (o c)
-  (load (first (input-files o c))))
+(defun* perform-lisp-load-fasl (o c)
+  (with-controlled-loader-conditions ()
+    (load (first (input-files o c)))))
 (defmethod perform ((o load-op) (c cl-source-file))
   (perform-lisp-load-fasl o c))
 (defmethod perform ((o load-op) (c static-file))
@@ -185,7 +187,7 @@
   nil)
 (defmethod input-files ((o prepare-source-op) (s system))
   (declare (ignorable o))
-  (aif (system-source-file s) (list it)))
+  (if-bind (it (system-source-file s)) (list it)))
 (defmethod perform ((o prepare-source-op) (c component))
   (declare (ignorable o c))
   nil)
@@ -200,10 +202,13 @@
 (defmethod component-depends-on ((o load-source-op) (c component))
   (declare (ignorable o))
   `((prepare-source-op ,c) ,@(call-next-method)))
-(defun perform-lisp-load-source (o c)
+(defun* perform-lisp-load-source (o c)
   (call-with-around-compile-hook
-   c #'(lambda () (load (first (input-files o c))
-                        #-gcl<2.7 :external-format #-gcl<2.7 (component-external-format c)))))
+   c #'(lambda ()
+         (with-controlled-loader-conditions ()
+           (load* (first (input-files o c))
+                  :external-format (component-external-format c))))))
+
 (defmethod perform ((o load-source-op) (c cl-source-file))
   (perform-lisp-load-source o c))
 (defmethod perform ((o load-source-op) (c static-file))

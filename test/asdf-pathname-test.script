@@ -32,7 +32,7 @@
 ;;; (:file "module1-1/file3.lisp") means #p"module1-1/file3.lisp.lisp" (assuming /)
 ;;; (:static-file "module1-1/file3.lisp") means #p"module1-1/file3.lisp"
 
-(defun test-component-pathnames (&key (root (asdf::pathname-directory-pathname *asdf-fasl*))
+(defun test-component-pathnames (&key (root *build-directory*)
                                  (delete-host t)
                                  (support-string-pathnames nil)
                                  (support-absolute-string-pathnames nil))
@@ -310,7 +310,7 @@
   (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
     :collect (cons key value)))
 
-(quit-on-error
+(with-test ()
  (asdf:initialize-source-registry)
  (format t "source registry: ~S~%" (hash-table->alist asdf::*source-registry*))
  (asdf:initialize-output-translations)
@@ -334,7 +334,7 @@
 
  #-(or xcl gcl<2.7) ;;---*** pathnames are known to be massively broken on XCL and GCL 2.6
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
-     (leave-lisp "test failed" 1)))
+     (leave-test "test failed" 1)))
 
 ;;; (load "LIBRARY:de;setf;utility;asdf;cp-test.lisp")
 ;;; (logical-pathname-translations "ASDFTEST")

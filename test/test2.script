@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 (load "script-support.lisp")
 (load-asdf)
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (DBG "test2: loading test2b1")
  (asdf:load-system 'test2b1)

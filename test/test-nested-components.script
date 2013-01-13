@@ -5,7 +5,7 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(quit-on-error
+(with-test ()
  (setf asdf:*central-registry* nil)
  (load (merge-pathnames "test-nested-components-1.asd"))
  (print

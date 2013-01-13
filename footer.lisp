@@ -57,7 +57,7 @@
 #+allegro
 (eval-when (:compile-toplevel :execute)
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
-    (setf excl:*warn-on-nested-reader-conditionals* *acl-warn-save*)))
+    (setf excl:*warn-on-nested-reader-conditionals* asdf/compatibility::*acl-warn-save*)))
 
 (dolist (f '(:asdf :asdf2 :asdf2.27)) (pushnew f *features*))
 

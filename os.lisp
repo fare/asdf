@@ -6,7 +6,7 @@
   (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream)
   (:export
    #:featurep #:os-unix-p #:os-windows-p ;; features
-   #:getenv ;; environment variables, and parsing them
+   #:getenv #:getenvp ;; environment variables
    #:inter-directory-separator #:split-pathnames*
    #:getenv-pathname #:getenv-pathnames
    #:getenv-absolute-directory #:getenv-absolute-directories
@@ -39,7 +39,7 @@
   (defun* os-windows-p ()
     (and (not (os-unix-p)) (featurep '(:or :win32 :windows :mswindows :mingw32))))
 
-  (defun detect-os ()
+  (defun* detect-os ()
     (flet ((yes (yes) (pushnew yes *features*))
            (no (no) (setf *features* (remove no *features*))))
       (cond
@@ -80,7 +80,7 @@ that is neither Unix, nor Windows.~%Now you port it.")))))
   #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S is not supported on your implementation" 'getenv))
 
-(defun getenvp (x)
+(defun* getenvp (x)
   "Predicate that is true if the named variable is present in the libc environment,
 then returning the non-empty string value of the variable"
   (let ((g (getenv x))) (and (not (emptyp g)) g)))
@@ -215,9 +215,9 @@ then returning the non-empty string value of the variable"
            #+clozure #p"ccl:"
            #+(or ecl mkcl) #p"SYS:"
            #+gcl system::*system-directory*
-           #+sbcl (aif (find-symbol* :sbcl-homedir-pathname :sb-int nil)
-                       (funcall it)
-                       (getenv-pathname "SBCL_HOME" :want-directory t)))))
+           #+sbcl (if-bind (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
+                     (funcall it)
+                     (getenv-pathname "SBCL_HOME" :want-directory t)))))
     (if (and dir truename)
         (truename* dir)
         dir)))
@@ -225,7 +225,7 @@ then returning the non-empty string value of the variable"
 
 ;;; Current directory
 
-(defun getcwd ()
+(defun* getcwd ()
   "Get the current working directory as per POSIX getcwd(3)"
   (or #+clisp (ext:default-directory)
       #+clozure (ccl:current-directory)
@@ -236,7 +236,7 @@ then returning the non-empty string value of the variable"
       #+sbcl (sb-unix:posix-getcwd/)
       (error "getcwd not supported on your implementation")))
 
-(defun chdir (x)
+(defun* chdir (x)
   "Change current directory, as per POSIX chdir(2)"
   #-(or clisp clozure) (when (pathnamep x) (setf x (native-namestring x)))
   (or #+clisp (ext:cd x)
@@ -246,7 +246,7 @@ then returning the non-empty string value of the variable"
       #+sbcl (symbol-call :sb-posix :chdir x)
       (error "chdir not supported on your implementation")))
 
-(defun call-with-current-directory (dir thunk)
+(defun* call-with-current-directory (dir thunk)
   (if dir
       (let* ((dir (truename (merge-pathnames (pathname-directory-pathname dir))))
              (*default-pathname-defaults* dir)
@@ -274,10 +274,10 @@ then returning the non-empty string value of the variable"
 
 (defvar *temporary-directory* nil)
 
-(defun temporary-directory ()
+(defun* temporary-directory ()
   (or *temporary-directory* (default-temporary-directory)))
 
-(defun call-with-temporary-file
+(defun* call-with-temporary-file
     (thunk &key
      prefix keep (direction :io)
      (element-type *default-stream-element-type*)
