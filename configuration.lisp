@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/configuration
   (:recycle :asdf/configuration :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories
@@ -280,3 +280,4 @@ Please remove it from your ASDF configuration"))
 (defun* clear-configuration ()
   (call-functions *clear-configuration-hook*))
 
+(register-image-dump-hook 'clear-configuration)

@@ -2,6 +2,7 @@
 ;;;; Re-export all the functionality in asdf/driver
 
 (asdf/package:define-package :asdf/driver
+  (:nicknames :d)
   (:use :common-lisp
    :asdf/package :asdf/compatibility :asdf/utility
    :asdf/pathname :asdf/stream :asdf/os :asdf/image

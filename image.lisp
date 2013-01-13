@@ -5,7 +5,8 @@
   (:recycle :asdf/image :xcvb-driver)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
   (:export
-   #:*arguments* #:*dumped* #:raw-command-line-arguments #:*command-line-arguments*
+   #:*dumped* #:raw-command-line-arguments #:*command-line-arguments*
+   #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments
    #:*debugging* #:*post-image-restart* #:*entry-point*
    #:quit #:die #:raw-print-backtrace #:print-backtrace #:print-condition-backtrace
    #:bork #:with-coded-exit #:shell-boolean
@@ -19,7 +20,7 @@
 (defvar *debugging* nil
   "Shall we print extra debugging information?")
 
-(defvar *arguments* nil
+(defvar *command-line-arguments* nil
   "Command-line arguments")
 
 (defvar *dumped* nil
@@ -158,26 +159,17 @@ This is designed to abstract away the implementation specific quit forms."
 
 ;;; Using hooks
 
-(defun* register-image-resume-hook (hook)
-  (pushnew hook *image-resume-hook*))
+(defun* register-image-resume-hook (hook &optional (now t))
+  (register-hook-function '*image-resume-hook* hook now))
 
-(defun* register-image-dump-hook (hook)
-  (pushnew hook *image-dump-hook*))
+(defun* register-image-dump-hook (hook &optional (now nil))
+  (register-hook-function '*image-dump-hook* hook now))
 
 (defun* call-image-resume-hook ()
   (call-functions (reverse *image-resume-hook*)))
 
 (defun* call-image-dump-hook ()
   (call-functions *image-dump-hook*))
-
-
-;;; Build initialization
-
-(defun* initialize-asdf-utilities ()
-  "Setup the XCVB environment with respect to debugging, profiling, performance"
-  (setf *temporary-directory* (default-temporary-directory)
-	*stderr* #-clozure *error-output* #+clozure ccl::*stderr*)
-  (values))
 
 
 ;;; Proper command-line arguments
@@ -210,20 +202,24 @@ if we are not called from a directly executable image dumped by XCVB."
 	      (member "--" arguments :test 'string-equal))))
     (rest arguments)))
 
-(defun* do-resume (&key (post-image-restart *post-image-restart*) (entry-point *entry-point*))
-  (with-safe-io-syntax (:package :asdf)
+(defun setup-command-line-arguments ()
+  (setf *command-line-arguments* (command-line-arguments)))
+
+(defun* resume-program (&key (post-image-restart *post-image-restart*) (entry-point *entry-point*))
+  (call-image-resume-hook)
+  (with-safe-io-syntax ()
     (let ((*read-eval* t))
       (when post-image-restart (eval-input post-image-restart))))
-  (with-coded-exit ()
-    (when entry-point
-      (let ((ret (apply entry-point *arguments*)))
-	(if (typep ret 'integer)
-	    (quit ret)
-	    (quit 99))))))
+  (when entry-point
+    (apply entry-point *command-line-arguments*)))
 
 (defun* resume ()
-  (setf *arguments* (command-line-arguments))
-  (do-resume))
+  (with-coded-exit ()
+    (let ((ret (resume-program)))
+      (if (typep ret 'integer)
+          (quit ret)
+          (quit 99)))))
+
 
 ;;; Dumping an image
 
@@ -284,3 +280,9 @@ if we are not called from a directly executable image dumped by XCVB."
     (when executable (list :toplevel #'resume :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
   #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
   (die 98 "Can't dump ~S: asdf doesn't support image dumping with this Lisp implementation.~%" filename))
+
+
+;;; Initial environmental hooks
+(pushnew 'setup-temporary-directory *image-resume-hook*)
+(pushnew 'setup-stderr *image-resume-hook*)
+(pushnew 'setup-command-line-arguments *image-resume-hook*)

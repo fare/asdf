@@ -1,25 +1,68 @@
 #!/bin/sh
-# Takes one optional argument: the new version number.
-# If not provided, increment previous patch number,
-# e.g. 3.45.6 ==> 3.45.7, or 3.56 ==> 3.56.1
-NEWVER="${1}"
-PROG="$0"
-ASDFDIR="$(cd $(dirname $PROG)/.. ; /bin/pwd)" ## readlink -f doesn't work on BSD
+":" ; exec sbcl --script "$0" "$@" ; exit # -*- Lisp -*-
+;;; Really runs on any decent Common Lisp implementation
 
-if [ -z "$NEWVER" ] ; then
-  OLDVER="$(grep '         (asdf-version "' ${ASDFDIR}/upgrade.lisp | cut -d\" -f2)"
-  NEWVER="$(echo $OLDVER | perl -npe 's/([0-9].[0-9]+)(\.([0-9]+))?/"${1}.".($3+1)/e')"
-fi
-echo "Setting ASDF version to $NEWVER"
-for i in ${ASDFDIR}/header.lisp ${ASDFDIR}/upgrade.lisp ; do
-  perl -i.bak -npe 's/^(         \(asdf-version "|;;; This is ASDF )[0-9.]+("\)|:)/${1}'"$NEWVER"'${2}/' $i
-done
-for i in ${ASDFDIR}/asdf.asd ; do # ${ASDFDIR}/generate-asdf.asd
-  perl -i.bak -npe 's/^(  :version ")[0-9.]+(")/${1}'"$NEWVER"'${2}/' $i
-done
+(require :asdf)
+(in-package :asdf)
 
-cat<<EOF
-To complete the version change, you may:
-	git commit -a
-	git tag $NEWVER
-EOF
+(upgrade-asdf)
+
+(load-systems :cl-ppcre :xcvb-utils)
+
+(in-package :xcvb-utils)
+
+(asdf-debug)
+
+(defun afile (x)
+  (asdf:system-relative-pathname :asdf x))
+
+(defparameter *version-file*
+  (afile "version.lisp-expr"))
+
+(defparameter *old-version*
+  (safe-read-first-file-form *version-file*))
+
+(defparameter *argv* (command-line-arguments))
+
+(defun next-version (v)
+  (let ((pv (parse-version v)))
+    (incf (third pv))
+    (unparse-version pv)))
+
+(defparameter *new-version* (or (first *argv*) (next-version *old-version*)))
+
+(format t "Bumping ASDF version from ~A to ~A~%" *old-version* *new-version*)
+
+(deftype byte-vector () '(array (unsigned-byte 8) (*)))
+
+(defun maybe-replace-file (file transformer
+                           &key (reader 'read-file-string)
+                             (writer nil) (comparator 'equal)
+                             (external-format *utf-8-external-format*))
+  (let* ((old-contents (funcall reader file))
+         (new-contents (funcall transformer old-contents)))
+    (unless (funcall comparator old-contents new-contents)
+      (let ((written-contents
+              (if writer
+                  (with-output (s ())
+                    (funcall writer s new-contents))
+                  new-contents)))
+        (check-type written-contents (or string (byte-vector)))
+        (clobber-file-with-vector file written-contents :external-format external-format)))))
+
+(defun version-transform (text)
+  (flet ((v1 (ver) (format nil "~S" ver))
+         (v2 (ver) (format nil "This is ASDF ~A:" ver))
+         (f (fun text)
+           (cl-ppcre:regex-replace-all
+            (funcall fun *old-version*) text (funcall fun *new-version*))))
+    (f #'v1 (f #'v2 text))))
+
+(defparameter *versioned-files*
+  '("version.lisp-expr" "asdf.asd" "build/asdf.lisp" "upgrade.lisp"))
+
+(defun transform-file (x)
+  (format t "Transforming file ~A~%" x)
+  (maybe-replace-file (afile x) #'version-transform))
+
+(map () 'transform-file *versioned-files*)

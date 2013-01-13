@@ -2,7 +2,7 @@
 ;;;; Systems
 
 (asdf/package:define-package :asdf/system
-  (:recycle :asdf/system :asdf)
+  (:recycle :asdf :asdf/system)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
    :asdf/component)
   (:intern #:children #:children-by-name #:default-component-class

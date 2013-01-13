@@ -20,6 +20,8 @@
    ))
 (in-package :asdf/output-translations)
 
+(when-upgrade () (undefine-function '(setf output-translations)))
+
 (define-condition invalid-output-translation (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
 
@@ -305,5 +307,5 @@ effectively disabling the output translation facility."
              (merge-pathnames* relative-source target-root)))
       (normalize-device (apply-output-translations target)))))
 
-(setf *output-translation-hook* 'apply-output-translations)
+(setf *output-translation-function* 'apply-output-translations)
 (pushnew 'clear-output-translations *clear-configuration-hook*)

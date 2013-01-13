@@ -115,7 +115,7 @@ You can put together sentences using this phrase."))
    (multiple-value-bind (files fixedp) (call-next-method)
      (if fixedp
          files
-         (mapcar *output-translation-hook* files)))
+         (mapcar *output-translation-function* files)))
    t))
 (defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))

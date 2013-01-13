@@ -32,7 +32,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.85")
+         (asdf-version "2.26.86")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))
@@ -94,7 +94,7 @@ You can compare this string with e.g.:
 
 (defun* upgrade-asdf ()
   "Try to upgrade of ASDF. If a different version was used, return T.
-   We need do that before we operate on anything that depends on ASDF."
+   We need do that before we operate on anything that may possibly depend on ASDF."
   (unless *asdf-upgrade-already-attempted*
     (setf *asdf-upgrade-already-attempted* t)
     (let ((version (asdf-version)))

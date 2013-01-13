@@ -53,7 +53,7 @@
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut
    ;; Output translations
-   #:*output-translation-hook*))
+   #:*output-translation-function*))
 
 (in-package :asdf/pathname)
 
@@ -835,4 +835,4 @@ For the latter case, we ought pick random suffix and atomically open it."
         nil)))))
 
 ;;; Hook for output translations
-(defvar *output-translation-hook* 'identity)
+(defvar *output-translation-function* 'identity)

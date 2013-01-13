@@ -73,7 +73,9 @@ or when loading the package is optional."
     (let* ((symbol-name (aref vector 0))
            (package-name (aref vector 1)))
       (if package-name (intern symbol-name package-name)
-          (make-symbol symbol-name)))))
+          (make-symbol symbol-name))))
+  (defun home-package-p (symbol package)
+    (eq (symbol-package symbol) (find-package* package))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   #+(or clisp clozure)
@@ -225,7 +227,7 @@ or when loading the package is optional."
                           (imported (not (eq home package)))
                           (shadowing (symbol-shadowing-p sym package)))
                      (cond
-                       ((and shadowing import)
+                       ((and shadowing imported)
                         (push name (gethash home-name shadowing-import)))
                        (shadowing
                         (push name shadow))
@@ -290,9 +292,8 @@ or when loading the package is optional."
       (macrolet ((fishy (&rest info)
                    `(when fishyp (push (list ,@info) fishy))))
         (labels
-            ((ensure-shadowing-import (sym p)
-               (let ((name (string sym))
-                     (import (find-symbol* name p)))
+            ((ensure-shadowing-import (name p)
+               (let ((import (find-symbol* name p)))
                  (multiple-value-bind (existing status) (find-symbol name package)
                    (cond
                      ((gethash name shadowed)
@@ -303,10 +304,10 @@ or when loading the package is optional."
                       (setf (gethash name imported) t)
                       (unless (or (null status)
                                   (and (member status '(:internal :external))
-                                       (eq existing sym)
+                                       (eq existing import)
                                        (symbol-shadowing-p existing package)))
                         (fishy :shadowing-import
-                               name (package-name p) (symbol-package-name sym)
+                               name (package-name p) (symbol-package-name import)
                                (and status (symbol-package-name existing)) status))
                       (shadowing-import import package))))))
              (ensure-import (sym p)
@@ -328,29 +329,38 @@ or when loading the package is optional."
                           (fishy :import name (package-name p) (symbol-package-name import)
                                  (and status (symbol-package-name existing)) status))
                         (import import package)))))))
-             (ensure-mix (sym p)
-               (let* ((name (symbol-name sym))
-                      (sp (symbol-package sym)))
-                 (unless (or (gethash name shadowed) (gethash name imported))
-                   (let ((ip (gethash name inherited)))
+             (ensure-mix (name symbol p)
+               (unless (gethash name shadowed)
+                 (multiple-value-bind (existing status) (find-symbol name package)
+                   (let* ((sp (symbol-package symbol))
+                          (im (gethash name imported))
+                          (in (gethash name inherited)))
                      (cond
-                       ((and ip (eq sp (first ip))))
-                       (ip
+                       ((or (null status)
+                            (and status (eq symbol existing))
+                            (and in (eq sp (first in))))
+                        (ensure-inherited name symbol p t))
+                       (in
                         (remhash name inherited)
-                        (ensure-shadowing-import name (second ip)))
+                        (ensure-shadowing-import name (second in)))
+                       (im
+                         (error "Imported symbol ~S conflicts with inherited symbol ~S in ~S"
+                                existing symbol (package-name package)))
                        (t
-                        (ensure-inherited name sym p)))))))
-             (ensure-inherited (name symbol p)
+                        (ensure-inherited name symbol p t)))))))
+             (ensure-inherited (name symbol p mix)
                (multiple-value-bind (existing status) (find-symbol name package)
                  (let* ((sp (symbol-package symbol))
-                        (ip (gethash name inherited))
+                        (in (gethash name inherited))
                         (xp (and status (symbol-package existing))))
                    (cond
                      ((gethash name shadowed))
-                     (ip
-                      (unless (equal sp (first ip))
-                        (error "Can't inherit ~S from ~S, it is inherited from ~S"
-                               name (package-name sp) (package-name (first ip)))))
+                     (in
+                      (unless (equal sp (first in))
+                        (if mix
+                            (ensure-shadowing-import name (second in))
+                            (error "Can't inherit ~S from ~S, it is inherited from ~S"
+                                   name (package-name sp) (package-name (first in))))))
                      ((gethash name imported)
                       (unless (eq symbol existing)
                         (error "Can't inherit ~S from ~S, it is imported from ~S"
@@ -358,11 +368,11 @@ or when loading the package is optional."
                      (t
                       (setf (gethash name inherited) (list sp p))
                       (when status
-                        (unintern* existing package)
-                        (fishy :inherited name (package-name p) (package-name sp)
-                               (package-name xp))))))))
-             (home-package-p (symbol package)
-               (eq (symbol-package symbol) (find-package* package)))
+                        (let ((shadowing (symbol-shadowing-p existing package)))
+                          (fishy :inherited name (package-name p) (package-name sp)
+                                 (package-name xp))
+                          (if shadowing (ensure-shadowing-import name p)
+                              (unintern* existing package)))))))))
              (recycle-symbol (name)
                (let (recycled foundp)
                  (dolist (r recycle (values recycled foundp))
@@ -466,14 +476,15 @@ or when loading the package is optional."
                        (shadowing-import dummy package)
                        (import dummy package)))))))
             (shadow name package))
-          (loop :for (p . syms) :in shadowing-import-from :do
-            (dolist (sym syms) (ensure-shadowing-import sym p)))
+          (loop :for (p . syms) :in shadowing-import-from
+                :for pp = (find-package* p) :do
+                  (dolist (sym syms) (ensure-shadowing-import (string sym) pp)))
           (dolist (p mix)
-            (do-external-symbols (sym p) (ensure-mix sym p)))
+            (do-external-symbols (sym p) (ensure-mix (symbol-name sym) sym p)))
           (loop :for (p . syms) :in import-from :do
             (dolist (sym syms) (ensure-import sym p)))
           (dolist (p (append use mix))
-            (do-external-symbols (sym p) (ensure-inherited (string sym) sym p))
+            (do-external-symbols (sym p) (ensure-inherited (string sym) sym p nil))
             (use-package p package))
           (loop :for name :being :the :hash-keys :of exported :do
             (ensure-symbol (string name) t)

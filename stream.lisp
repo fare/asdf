@@ -5,7 +5,7 @@
   (:recycle :asdf/stream)
   (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
   (:export
-   #:*default-stream-element-type* #:*stderr*
+   #:*default-stream-element-type* #:*stderr* #:setup-stderr
    #:with-safe-io-syntax #:call-with-safe-io-syntax
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file
@@ -14,8 +14,9 @@
    #:copy-stream-to-stream #:concatenate-files
    #:copy-stream-to-stream-line-by-line
    #:slurp-stream-string #:slurp-stream-lines
-   #:slurp-stream-forms #:slurp-file-string
-   #:read-file-lines #:read-file-forms #:eval-input
+   #:slurp-stream-forms #:read-file-string
+   #:read-file-lines #:read-file-forms
+   #:safe-read-first-file-form #:eval-input
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*))
@@ -27,8 +28,13 @@
 (defvar *stderr* #-clozure *error-output* #+clozure ccl::*stderr*
   "the original error output stream at startup")
 
+(defun setup-stderr ()
+  (setf *stderr* #-clozure *error-output* #+clozure ccl::*stderr*))
+
 
 ;;; Safe syntax
+
+(defvar *standard-readtable* (copy-readtable nil))
 
 (defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
   "Establish safe CL reader options around the evaluation of BODY"
@@ -37,6 +43,8 @@
 (defun* call-with-safe-io-syntax (thunk &key (package :cl))
   (with-standard-io-syntax ()
     (let ((*package* (find-package package))
+          (*readtable* *standard-readtable*)
+          (*read-default-float-format* 'double-float)
           (*print-readably* nil)
 	  (*read-eval* nil))
       (funcall thunk))))
@@ -207,9 +215,11 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   "Reads the first form from the top of a file.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (with-input-file (in pathname)
-    (read in eof-error-p eof-value)))
+    (read-preserving-whitespace in eof-error-p eof-value)))
 
-(defun* safe-read-first-file-form (pathname &key (package :cl) eof-error-p eof-value)
+(defun* safe-read-first-file-form (pathname &key
+                                            (package :cl)
+                                            eof-error-p eof-value)
   "Reads the first form from the top of a file using a safe standardized syntax"
   (with-safe-io-syntax (:package package)
     (read-first-file-form pathname :eof-error-p eof-error-p :eof-value eof-value)))

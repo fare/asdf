@@ -7,7 +7,7 @@
   (:export
    ;; Variables
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
-   #:*compile-file-function* #:*output-translation-hook*
+   #:*compile-file-function* #:*output-translation-function*
    #:*optimization-settings* #:*previous-optimization-settings*
    #:*uninteresting-conditions*
    #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
@@ -259,7 +259,7 @@ for processing later (possibly in a different process)."
                (defaults (make-pathname
                           :type type :defaults (merge-pathnames* input-file))))
           (merge-pathnames* output-file defaults))
-        (funcall *output-translation-hook*
+        (funcall *output-translation-function*
                  (apply 'compile-file-pathname input-file keys)))))
 
 (defun* load* (x &rest keys &key &allow-other-keys)

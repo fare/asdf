@@ -20,9 +20,9 @@
    #:stamp< #:stamp<= #:earlier-stamp #:stamps-earliest #:earliest-stamp ;; stamps
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
    #:list-to-hash-set ;; hash-table
-   #:ensure-function #:call-function #:call-functions ;; functions
+   #:ensure-function #:call-function #:call-functions #:register-hook-function ;; functions
    #:eval-string #:load-string #:load-stream
-   #:parse-version #:version-compatible-p)) ;; version
+   #:parse-version #:unparse-version #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
@@ -238,6 +238,10 @@ starting the separation from the end, e.g. when called with arguments
 (defun* call-functions (function-specs)
   (map () 'call-function function-specs))
 
+(defun* register-hook-function (variable hook &optional (now t))
+  (pushnew hook (symbol-value variable))
+  (when now (call-function hook)))
+
 
 ;;; Version handling
 (defun* parse-version (string &optional on-error)
@@ -259,6 +263,9 @@ NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
          (funcall on-error "~S: ~S doesn't follow asdf version numbering convention"
                   'parse-version string)) nil)
    (mapcar #'parse-integer (split-string string :separator "."))))
+
+(defun* unparse-version (version-list)
+  (format nil "~{~D~^.~}" version-list))
 
 (defun* version-compatible-p (provided-version required-version)
   "Is the provided version a compatible substitution for the required-version?
