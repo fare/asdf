@@ -230,7 +230,7 @@ starting the separation from the end, e.g. when called with arguments
     (cons (eval `(function ,fun)))
     (string (eval `(function ,(with-standard-io-syntax
                                 (let ((*package* (find-package package)))
-                                  (eval-string fun))))))))
+                                  (read-from-string fun))))))))
 
 (defun* call-function (function-spec &rest arguments)
   (apply (ensure-function function-spec) arguments))

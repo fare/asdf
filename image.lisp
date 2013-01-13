@@ -13,7 +13,7 @@
    #:register-image-resume-hook #:register-image-dump-hook
    #:call-image-resume-hook #:call-image-dump-hook
    #:initialize-asdf-utilities
-   #:resume #:do-resume #:dump-image 
+   #:resume-image #:run-resumed-program #:dump-image 
 ))
 (in-package :asdf/image)
 
@@ -205,15 +205,18 @@ if we are not called from a directly executable image dumped by XCVB."
 (defun setup-command-line-arguments ()
   (setf *command-line-arguments* (command-line-arguments)))
 
-(defun* resume-program (&key (post-image-restart *post-image-restart*) (entry-point *entry-point*))
-  (call-image-resume-hook)
-  (with-safe-io-syntax ()
-    (let ((*read-eval* t))
-      (when post-image-restart (eval-input post-image-restart))))
+(defun* resume-image (&key (post-image-restart *post-image-restart*)
+                           (entry-point *entry-point*)
+                           (image-resume-hook *image-resume-hook*))
+  (call-functions image-resume-hook)
+  (when post-image-restart
+    (with-safe-io-syntax ()
+      (let ((*read-eval* t))
+        (eval-input post-image-restart))))
   (when entry-point
     (apply entry-point *command-line-arguments*)))
 
-(defun* resume ()
+(defun* run-resumed-program ()
   (with-coded-exit ()
     (let ((ret (resume-program)))
       (if (typep ret 'integer)

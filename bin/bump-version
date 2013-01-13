@@ -13,23 +13,34 @@
 
 (asdf-debug)
 
+(resume-image)
+
 (defun afile (x)
   (asdf:system-relative-pathname :asdf x))
 
 (defparameter *version-file*
   (afile "version.lisp-expr"))
 
-(defparameter *old-version*
-  (safe-read-first-file-form *version-file*))
-
-(defparameter *argv* (command-line-arguments))
+(defparameter *old-version* nil)
+(defparameter *new-version* nil)
 
 (defun next-version (v)
   (let ((pv (parse-version v)))
     (incf (third pv))
     (unparse-version pv)))
 
-(defparameter *new-version* (or (first *argv*) (next-version *old-version*)))
+(defun version-from-file ()
+  (safe-read-first-file-form *version-file*))
+
+(defun versions-from-argv (argv)
+  (ecase (length argv)
+    ((2) (values (second argv) (first argv)))
+    ((1) (values (version-from-file) (first argv)))
+    ((0) (let ((old (version-from-file)))
+           (values old (next-version old))))))
+
+(multiple-value-setq (*old-version* *new-version*)
+  (versions-from-argv *command-line-arguments*))
 
 (format t "Bumping ASDF version from ~A to ~A~%" *old-version* *new-version*)
 
@@ -37,18 +48,19 @@
 
 (defun maybe-replace-file (file transformer
                            &key (reader 'read-file-string)
-                             (writer nil) (comparator 'equal)
+                             (writer nil) (comparator 'equalp)
                              (external-format *utf-8-external-format*))
   (let* ((old-contents (funcall reader file))
          (new-contents (funcall transformer old-contents)))
-    (unless (funcall comparator old-contents new-contents)
-      (let ((written-contents
-              (if writer
-                  (with-output (s ())
-                    (funcall writer s new-contents))
-                  new-contents)))
-        (check-type written-contents (or string (byte-vector)))
-        (clobber-file-with-vector file written-contents :external-format external-format)))))
+    (if (funcall comparator old-contents new-contents)
+        (format t "No changes for file ~A~%" file)
+        (let ((written-contents
+                (if writer
+                    (with-output (s ())
+                      (funcall writer s new-contents))
+                    new-contents)))
+          (check-type written-contents (or string (byte-vector)))
+          (clobber-file-with-vector file written-contents :external-format external-format)))))
 
 (defun version-transform (text)
   (flet ((v1 (ver) (format nil "~S" ver))
@@ -56,10 +68,10 @@
          (f (fun text)
            (cl-ppcre:regex-replace-all
             (funcall fun *old-version*) text (funcall fun *new-version*))))
-    (f #'v1 (f #'v2 text))))
+    (f #'v2 (f #'v1 text))))
 
 (defparameter *versioned-files*
-  '("version.lisp-expr" "asdf.asd" "build/asdf.lisp" "upgrade.lisp"))
+  '("version.lisp-expr" "asdf.asd" "header.lisp" "build/asdf.lisp" "upgrade.lisp"))
 
 (defun transform-file (x)
   (format t "Transforming file ~A~%" x)

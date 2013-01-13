@@ -129,7 +129,8 @@ Otherwise, signal an error."
 Useful for portably flushing I/O before user input or program exit."
   ;; CCL notably buffers its stream output by default.
   (dolist (s (append streams
-                     (list *stderr* *error-output* *standard-output* *trace-output* *debug-io*)))
+                     (list *stderr* *error-output* *standard-output* *trace-output*
+                           *debug-io* *terminal-io* *debug-io* *query-io*)))
     (ignore-errors (finish-output s)))
   (values))
 
