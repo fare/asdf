@@ -340,7 +340,7 @@ is bound, write a message and exit on an error.  If
   `(testing-asdf #'(lambda () ,@body)))
 
 (defun close-inputs ()
-  (close *standard-input*))
+  #-ecl (close *standard-input*))
 
 (defun configure-asdf ()
   (untrace)
