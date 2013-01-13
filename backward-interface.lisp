@@ -115,4 +115,4 @@ synchronously execute the result using a Bourne-compatible shell, with
 output to *VERBOSE-OUT*.  Returns the shell's exit code."
   (let ((command (apply 'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
-    (run-program/ command :force-shell t :output *verbose-out*)))
+    (run-program/ command :force-shell t :ignore-error-status t :output *verbose-out*)))

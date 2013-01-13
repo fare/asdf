@@ -247,6 +247,8 @@ run_upgrade_tests () {
                     : Skip, because it is so damn slow ;;
                 ccl:1.*|ccl:2.0[01]*)
                     : Skip, because ccl broke old asdf ;;
+                clisp:1.*|clisp:2.0[01]*)
+                    : Skip, because ccl broke old asdf ;;
                 cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*)
                     : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;;
                 ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*)

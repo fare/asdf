@@ -2,7 +2,7 @@
 ;;;; Support to build (compile and load) Lisp files
 
 (asdf/package:define-package :asdf/lisp-build
-  (:recycle :asdf/lisp-build :asdf)
+  (:recycle :asdf/interface :asdf :asdf/lisp-build)
   (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    ;; Variables
@@ -250,16 +250,17 @@ for processing later (possibly in a different process)."
       (values output-truename warnings-p failure-p))))
 
 (defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
-  (if (absolute-pathname-p output-file)
-      ;; what cfp should be doing, w/ mp* instead of mp
-      (let* ((type (pathname-type (apply 'fasl-type keys)))
-             (defaults (make-pathname
-                        :type type :defaults (merge-pathnames* input-file))))
-        (merge-pathnames* output-file defaults))
-      (funcall *output-translation-hook*
-               (apply 'compile-file-pathname input-file
-                      (remove-keys `(#+(and allegro (not (version>= 8 2))) :external-format
-                                       ,@(unless output-file '(:output-file))) keys)))))
+  (let* ((keys
+           (remove-keys `(#+(and allegro (not (version>= 8 2))) :external-format
+                            ,@(unless output-file '(:output-file))) keys)))
+    (if (absolute-pathname-p output-file)
+        ;; what cfp should be doing, w/ mp* instead of mp
+        (let* ((type (pathname-type (apply 'fasl-type keys)))
+               (defaults (make-pathname
+                          :type type :defaults (merge-pathnames* input-file))))
+          (merge-pathnames* output-file defaults))
+        (funcall *output-translation-hook*
+                 (apply 'compile-file-pathname input-file keys)))))
 
 (defun* load* (x &rest keys &key &allow-other-keys)
   (etypecase x

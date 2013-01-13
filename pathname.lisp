@@ -122,8 +122,7 @@ Defaults to T.")
   (declare (ignorable host device devicep name type version defaults))
   (apply 'make-pathname
          (append
-          #+(and allegro (version>= 9 0) unix)
-          (when (and devicep (null device)) `(:device :unspecific))
+          #+allegro (when (and devicep (null device)) `(:device :unspecific))
           (when directoryp
             `(:directory ,(denormalize-pathname-directory-component directory)))
           keys)))
@@ -239,17 +238,19 @@ actually-existing directory."
 
 ;;; Wildcard pathnames
 (defparameter *wild* (or #+cormanlisp "*" :wild))
+(defparameter *wild-directory-component* (or #+gcl<2.7 "*" :wild))
+(defparameter *wild-inferiors-component* (or #+gcl<2.7 "**" :wild-inferiors))
 (defparameter *wild-file*
   (make-pathname :directory nil :name *wild* :type *wild*
                  :version (or #-(or allegro abcl xcl) *wild*)))
 (defparameter *wild-directory*
-  (make-pathname* :directory `(:relative ,(or #+gcl<2.7 "*" *wild*))
+  (make-pathname* :directory `(:relative ,*wild-directory-component*)
                   :name nil :type nil :version nil))
 (defparameter *wild-inferiors*
-  (make-pathname* :directory `(:relative ,(or #+gcl<2.7 "**" :wild-inferiors))
+  (make-pathname* :directory `(:relative ,*wild-inferiors-component*)
                   :name nil :type nil :version nil))
 (defparameter *wild-path*
-  (merge-pathnames *wild-file* *wild-inferiors*))
+  (merge-pathnames* *wild-file* *wild-inferiors*))
 
 (defun* wilden (path)
   (merge-pathnames* *wild-path* path))

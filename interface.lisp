@@ -32,6 +32,7 @@
    #:implementation-identifier #:implementation-type #:hostname
    #:input-files #:output-files #:output-file #:perform
    #:operation-done-p #:explain #:component-sibling-dependencies
+   #:run-program/ ; the recommended replacement for run-shell-command
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:precompiled-system #:compiled-file
    #+ecl #:make-build #+mkcl #:bundle-system

@@ -288,6 +288,7 @@ with a different configuration, so the configuration would be re-read then."
 (defvar *source-registry-parameter* nil)
 
 (defun* initialize-source-registry (&optional (parameter *source-registry-parameter*))
+  #-clisp ;; CLISP really hates our package munging. Don't try to load it twice.
   (setf *asdf-upgrade-already-attempted* nil) ;; in case a new ASDF appears in the registry
   (setf *source-registry-parameter* parameter)
   (setf *source-registry* (make-hash-table :test 'equal))

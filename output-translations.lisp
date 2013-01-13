@@ -136,7 +136,7 @@ with a different configuration, so the configuration would be re-read then."
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
     #+(or #|clozure|# ecl mkcl sbcl)
-    ,@(let ((h (lisp-implementation-directory :truename t))) (when h `(((,h ,*wild-inferiors*) ()))))
+    ,@(let ((h (lisp-implementation-directory :truename t))) (when h `(((,h ,*wild-path*) ()))))
     #+mkcl (,(translate-logical-pathname "CONTRIB:") ())
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
@@ -198,9 +198,8 @@ with a different configuration, so the configuration would be re-read then."
                   (t
                    (let* ((trudst (if dst
                                       (resolve-location dst :directory t :wilden t)
-                                      trusrc))
-                          (wilddst (merge-pathnames* *wild-file* trudst)))
-                     (funcall collect (list wilddst t))
+                                      trusrc)))
+                     (funcall collect (list trudst t))
                      (funcall collect (list trusrc trudst)))))))))))
 
 (defmethod process-output-translations ((x symbol) &key

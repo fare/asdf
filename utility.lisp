@@ -33,7 +33,13 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun undefine-function (function-spec)
     (cond
-      ((symbolp function-spec) (fmakunbound function-spec))
+      ((symbolp function-spec)
+       #+clisp
+       (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
+         (when (typep f 'clos:standard-generic-function)
+           (loop :for m :in (clos:generic-function-methods f)
+                 :do (remove-method f m))))
+       (fmakunbound function-spec))
       ((and (consp function-spec) (eq (car function-spec) 'setf)
             (consp (cdr function-spec)) (null (cddr function-spec)))
        #-(or gcl<2.7) (fmakunbound function-spec))

@@ -1,5 +1,7 @@
 * Learn to use cl-grid-test, to make sure ASDF changes don't break stuff,
  and that breakage gets fixed quickly.
+* Test stassats's thing:
+   (asdf:enable-asdf-binary-locations-compatibility :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
 * Split ASDF in parts
 ** Have it pass test-lisp
 ** Have it pass test-upgrade

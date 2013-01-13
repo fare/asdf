@@ -67,9 +67,10 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
     ;; Before we operate on any system, make sure ASDF is up-to-date,
     ;; for if an upgrade is attempted at any later time, there may be trouble.
     ;; If we upgraded, restart the OPERATE from scratch,
-    ;; for the function will have been redefined.
+    ;; for the function will have been redefined,
+    ;; maybe from a new symbol for it may have been uninterned.
     (if (upgrade-asdf)
-        (apply 'operate operation-class system args)
+        (apply 'symbol-call :asdf 'operate operation-class system args)
         (let ((plan (apply 'traverse op system args)))
           (perform-plan plan)
           (values op plan)))))

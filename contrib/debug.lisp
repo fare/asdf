@@ -113,7 +113,7 @@ Other expressions are not evaluated if TAG returned NIL."
 (!a
  d describe
  ap apropos
- ! defparameter
+ !p defparameter
  m1 macroexpand-1)
 
 ;;; SLIME integration

@@ -196,13 +196,17 @@ is bound, write a message and exit on an error.  If
           (catch :asdf-test-done
             (handler-bind
                 ((error (lambda (c)
-                          (format *error-output* "~&TEST ABORTED: ~A~&" c)
+                          (ignore-errors
+                           (format *error-output* "~&TEST ABORTED: ~A~&" c))
                           (finish-outputs)
                           (cond
-                            (*debug-asdf* (break))
+                            (*debug-asdf*
+                             (format t "~&It's your baby, fix it!~%")
+                             (break))
                             (t
-                             (acall :print-condition-backtrace
-                                    c :count 69 :stream *error-output*)
+                             (ignore-errors
+                              (acall :print-condition-backtrace
+                                     c :count 69 :stream *error-output*))
                              (leave-test "Script failed" 1))))))
               (funcall thunk)
               (leave-test "Script succeeded" 0)))))
@@ -232,31 +236,37 @@ is bound, write a message and exit on an error.  If
    (register-directory *asdf-directory*)
    (apply (asym :oos) (asym :load-op) :asdf keys)))
 
+(defun call-with-asdf-conditions (thunk &optional verbose)
+  (handler-bind (#+sbcl
+                 ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
+                   #'muffle-warning)
+                 #+(and ecl (not ecl-bytecmp))
+                 ((or c:compiler-note c::compiler-debug-note
+                      c:compiler-warning) ;; ECL emits more serious warnings than it should.
+                   #'muffle-warning)
+                 #+mkcl
+                 ((or compiler:compiler-note) #'muffle-warning)
+                 #-(or cmu scl)
+                 ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
+                 (style-warning
+                   #'(lambda (w)
+                       ;; escalate style-warnings to warnings - we don't want them.
+                       (when verbose
+                         (warn "Can you please fix ASDF to not emit style-warnings? Got a ~S:~%~A"
+                               (type-of w) w))
+                       (muffle-warning w))))
+    (funcall thunk)))
+
+(defmacro with-asdf-conditions ((&optional verbose) &body body)
+  `(call-with-asdf-conditions #'(lambda () ,@body) ,verbose))
+
 (defun compile-asdf (&optional tag verbose)
   (let* ((alisp (asdf-lisp tag))
          (afasl (asdf-fasl tag))
          (tmp (make-pathname :name "asdf-tmp" :defaults afasl)))
     (ensure-directories-exist afasl)
     (multiple-value-bind (result warnings-p errors-p)
-        (handler-bind (#+sbcl
-                       ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
-                         #'muffle-warning)
-                       #+(and ecl (not ecl-bytecmp))
-                       ((or c:compiler-note c::compiler-debug-note
-                            c:compiler-warning) ;; ECL emits more serious warnings than it should.
-                         #'muffle-warning)
-                       #+mkcl
-                       ((or compiler:compiler-note) #'muffle-warning)
-                       #-(or cmu scl)
-                       ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
-                       (style-warning
-                         #'(lambda (w)
-                             ;; escalate style-warnings to warnings - we don't want them.
-                             (when verbose
-                               (warn "Can you please fix ASDF to not emit style-warnings? Got a ~S:~%~A"
-                                     (type-of w) w))
-                             (muffle-warning w))))
-          (compile-file alisp :output-file tmp #-gcl :verbose #-gcl verbose :print verbose))
+        (compile-file alisp :output-file tmp #-gcl :verbose #-gcl verbose :print verbose)
       (flet ((bad (key)
                (when result (ignore-errors (delete-file result)))
                key)
@@ -271,7 +281,7 @@ is bound, write a message and exit on an error.  If
             ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
             ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
             #+(or cmu ecl scl xcl) (good :expected-warnings)
-            (bad :unexpected-warnings)))
+          (bad :unexpected-warnings)))
           (t (good :success)))))))
 
 (defun maybe-compile-asdf (&optional tag)
@@ -290,7 +300,7 @@ is bound, write a message and exit on an error.  If
 
 (defun compile-asdf-script ()
   (with-test ()
-    (ecase (maybe-compile-asdf)
+    (ecase (with-asdf-conditions () (maybe-compile-asdf))
       (:not-found
        (leave-test "Testsuite failed: unable to find ASDF source" 3))
       (:previously-compiled
@@ -329,15 +339,19 @@ is bound, write a message and exit on an error.  If
 (defmacro test-asdf (&body body) ;; used by test-upgrade
   `(testing-asdf #'(lambda () ,@body)))
 
+(defun close-inputs ()
+  (close *standard-input*))
+
 (defun configure-asdf ()
   (untrace)
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
+  (unless *debug-asdf* (close-inputs))
   (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s))))
   (acall :initialize-source-registry
          `(:source-registry :ignore-inherited-configuration))
   (acall :initialize-output-translations
          `(:output-translations
-           ((,*test-directory* :**/ :*.*.*) (,*asdf-directory* "build/fasls" :implementation "test"))
+           ((,*asdf-directory* :**/ :*.*.*) (,*asdf-directory* "build/fasls" :implementation "asdf"))
            (t (,*asdf-directory* "build/fasls" :implementation "root"))
            :ignore-inherited-configuration))
   (set (asym :*central-registry*) `(,*test-directory*))
@@ -356,10 +370,9 @@ is bound, write a message and exit on an error.  If
   (setf *debug-asdf* t)
   (setf *package* (find-package :asdf-test)))
 
-(defun common-lisp-user::load-asdf ()
-  (load-asdf))
-(defun common-lisp-user::debug-asdf ()
-  (debug-asdf))
+(defun common-lisp-user::load-asdf () (load-asdf))
+(defun common-lisp-user::debug-asdf () (debug-asdf))
+(defun common-lisp-user::da () (debug-asdf))
 
 #| The following form is sometimes useful to insert in compute-action-stamp to find out what's happening.
 It depends on the DBG macro in contrib/debug.lisp, that you should load in your ASDF.
