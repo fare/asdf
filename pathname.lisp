@@ -119,6 +119,9 @@ Defaults to T.")
 (defun* make-pathname* (&rest keys &key (directory nil directoryp)
                               host (device () devicep) name type version defaults
                               #+scl &allow-other-keys)
+  "Takes arguments like CL:MAKE-PATHNAME in the CLHS, and
+   tries hard to make a pathname that will actually behave as documented,
+   despite the peculiarities of each implementation"
   (declare (ignorable host device devicep name type version defaults))
   (apply 'make-pathname
          (append
@@ -688,7 +691,7 @@ Host, device and version components are taken from DEFAULTS."
 (defun* native-namestring (x)
   "From a CL pathname, a namestring suitable for use by the OS shell"
   (let ((p (pathname x)))
-    #+clozure (let ((*default-pathname-defaults* #p"")) (ccl:native-translated-namestring p)) ; see ccl bug 978
+    #+clozure (with-pathname-defaults () (ccl:native-translated-namestring p)) ; see ccl bug 978
     #+(or cmu scl) (ext:unix-namestring p nil)
     #+sbcl (sb-ext:native-namestring p)
     #-(or clozure cmu sbcl scl) (namestring p)))

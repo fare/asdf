@@ -3,7 +3,8 @@
 
 (asdf/package:define-package :asdf/lisp-build
   (:recycle :asdf/interface :asdf :asdf/lisp-build)
-  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/image)
+  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility
+        :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    ;; Variables
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
