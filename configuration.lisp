@@ -3,7 +3,8 @@
 
 (asdf/package:define-package :asdf/configuration
   (:recycle :asdf/configuration :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/image)
+  (:use :common-lisp :asdf/compatibility :asdf/utility
+   :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories

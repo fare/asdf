@@ -73,7 +73,6 @@ Some constraints:
         :do (finish-output s)))
 (defun redirect-outputs ()
   (finish-outputs)
-  #-allegro
   (setf *error-output* *standard-output*
         *trace-output* *standard-output*))
 
