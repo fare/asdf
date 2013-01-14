@@ -37,6 +37,7 @@ Some constraints:
     ))
 
 (defvar *debug-asdf* nil)
+(defvar *quit-when-done* t)
 
 ;;; Minimal compatibility layer
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -216,7 +217,7 @@ is bound, write a message and exit on an error.  If
                              (leave-test "Script failed" 1))))))
               (funcall thunk)
               (leave-test "Script succeeded" 0)))))
-    (unless *debug-asdf*
+    (when *quit-when-done*
       (exit-lisp result))))
 
 ;;; These are used by the upgrade tests
@@ -368,6 +369,7 @@ is bound, write a message and exit on an error.  If
 
 (defun debug-asdf ()
   (setf *debug-asdf* t)
+  (setf *quit-when-done* nil)
   (setf *package* (find-package :asdf-test)))
 
 ;; Actual scripts rely on this function:
