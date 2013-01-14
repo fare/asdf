@@ -2,6 +2,8 @@
 (load "script-support.lisp")
 (load-asdf)
 
+(trace d:match-any-condition-p)
+
 (with-test ()
  #-gcl<2.7
  (assert (handler-case

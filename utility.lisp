@@ -18,7 +18,9 @@
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
    #:list-to-hash-set ;; hash-table
    #:ensure-function #:call-function #:call-functions #:register-hook-function ;; functions
-   #:eval-string #:load-string #:load-stream
+   #:match-condition-p #:match-any-condition-p ;; conditions
+   #:call-with-muffled-conditions #:with-muffled-conditions
+   #:eval-text #:load-string #:load-stream
    #:parse-version #:unparse-version #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
@@ -217,10 +219,6 @@ starting the separation from the end, e.g. when called with arguments
 
 
 ;;; Code execution
-(defun* eval-string (string)
-  "Evaluate a form read from a string."
-  (eval (read-from-string string)))
-
 (defun* ensure-function (fun &key (package :cl))
   (etypecase fun
     ((or boolean keyword character number pathname) (constantly fun))
@@ -236,9 +234,9 @@ starting the separation from the end, e.g. when called with arguments
 (defun* call-functions (function-specs)
   (map () 'call-function function-specs))
 
-(defun* register-hook-function (variable hook &optional (now t))
+(defun* register-hook-function (variable hook &optional (call-now-p t))
   (pushnew hook (symbol-value variable))
-  (when now (call-function hook)))
+  (when call-now-p (call-function hook)))
 
 
 ;;; Version handling
@@ -279,4 +277,49 @@ with later being determined by a lexicographical comparison of minor numbers."
                       (bigger (cdr x) (cdr y))))))
       (and x y (= (car x) (car y))
            (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
+
+
+;;; Condition control
+
+(defvar *uninteresting-conditions* nil
+  "Uninteresting conditions, as per MATCH-CONDITION-P")
+
+(defparameter +simple-condition-format-control-slot+
+  #+abcl 'system::format-control
+  #+allegro 'excl::format-control
+  #+clisp 'system::$format-control
+  #+clozure 'ccl::format-control
+  #+ecl 'si::format-control
+  #+(or cmu scl) 'conditions::format-control
+  #+(or gcl lispworks) 'conditions::format-string
+  #+sbcl 'sb-kernel:format-control
+  #-(or abcl allegro clisp clozure cmu gcl lispworks sbcl scl) nil
+  "Name of the slot for FORMAT-CONTROL in simple-condition")
+
+(defun* match-condition-p (x condition)
+  "Compare received CONDITION to some pattern X:
+a symbol naming a condition class,
+a simple vector of length 2, arguments to find-symbol* with result as above,
+or a string describing the format-control of a simple-condition."
+  (etypecase x
+    (symbol (typep condition x))
+    ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
+    (function (funcall x condition))
+    (string (and (typep condition 'simple-condition)
+                 ;; On SBCL, it's always set and the check triggers a warning
+                 #+(or allegro clozure cmu lispworks scl)
+		 (slot-boundp condition +simple-condition-format-control-slot+)
+                 (ignore-errors (equal (simple-condition-format-control condition) x))))))
+
+(defun* match-any-condition-p (condition conditions)
+  "match CONDITION against any of the patterns of CONDITIONS supplied"
+  (loop :for x :in conditions :thereis (match-condition-p x condition)))
+
+(defun* call-with-muffled-conditions (thunk conditions)
+  (handler-bind ((t #'(lambda (c) (when (match-any-condition-p c conditions)
+                                    (muffle-warning c)))))
+    (funcall thunk)))
+
+(defmacro with-muffled-uninteresting-conditions ((conditions) &body body)
+  `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions))
 

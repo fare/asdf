@@ -13,7 +13,7 @@
 (defpackage :asdf/package
   (:use :common-lisp)
   (:export
-   #:find-package* #:find-symbol* #:symbol-call #:intern* #:unintern*
+   #:find-package* #:find-symbol* #:symbol-call #:intern* #:unintern* #:make-symbol*
    #:symbol-shadowing-p #:rehome-symbol
    #:delete-package* #:package-names #:packages-from-names
    #:reify-symbol #:unreify-symbol
@@ -52,6 +52,10 @@ or when loading the package is optional."
     (apply (find-symbol* name package) args))
   (defun intern* (name package-designator &optional (error t))
     (intern (string name) (find-package* package-designator error)))
+  (defun make-symbol* (name)
+    (etypecase name
+      (string (make-symbol name))
+      (symbol (copy-symbol name))))
   (defun unintern* (name package-designator &optional (error t))
     (block nil
       (let ((package (find-package* package-designator error)))
@@ -98,8 +102,8 @@ or when loading the package is optional."
        (let* ((symbol-name (svref symbol 0))
               (package-foo (svref symbol 1))
               (package (unreify-package package-foo package-context)))
-         (if package (intern symbol-name package)
-             (make-symbol symbol-name)))))))
+         (if package (intern* symbol-name package)
+             (make-symbol* symbol-name)))))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   #+(or clisp clozure)

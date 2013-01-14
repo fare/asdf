@@ -52,11 +52,10 @@ and the order is by decreasing length of namestring of the source pathname.")
   (and *output-translations* t))
 
 (defun* clear-output-translations ()
-  "Undoes any initialization of the output translations.
-You might want to call that before you dump an image that would be resumed
-with a different configuration, so the configuration would be re-read then."
+  "Undoes any initialization of the output translations."
   (setf *output-translations* '())
   (values))
+(register-clear-configuration-hook 'clear-source-registry)
 
 (defun* validate-output-translations-directive (directive)
   (or (member directive '(:enable-user-cache :disable-cache nil))
@@ -281,6 +280,9 @@ effectively disabling the output translation facility."
        :return (translate-pathname* p absolute-source destination root source)
        :finally (return p)))))
 
+;; Hook into asdf/driver's output-translation mechanism
+(setf *output-translation-function* 'apply-output-translations)
+
 #+abcl
 (defun* translate-jar-pathname (source wildcard)
   (declare (ignore wildcard))
@@ -307,6 +309,3 @@ effectively disabling the output translation facility."
            (target
              (merge-pathnames* relative-source target-root)))
       (normalize-device (apply-output-translations target)))))
-
-(setf *output-translation-function* 'apply-output-translations)
-(pushnew 'clear-output-translations *clear-configuration-hook*)

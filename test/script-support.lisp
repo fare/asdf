@@ -346,32 +346,24 @@ is bound, write a message and exit on an error.  If
   `(testing-asdf #'(lambda () ,@body)))
 
 (defun configure-asdf ()
-  (DBG "Debugging?" *debug-asdf*)
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
-  (DBG "Tracing?" *trace-symbols*)
   (untrace)
   (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s))))
-  (DBG "Initializing source registry")
   (acall :initialize-source-registry
          `(:source-registry :ignore-inherited-configuration))
-  (DBG "Initializing output-translations")
   (acall :initialize-output-translations
          `(:output-translations
            ((,*asdf-directory* :**/ :*.*.*) (,*asdf-directory* "build/fasls" :implementation "asdf"))
            (t (,*asdf-directory* "build/fasls" :implementation "root"))
            :ignore-inherited-configuration))
   (set (asym :*central-registry*) `(,*test-directory*))
-  (DBG "Verbose output for ASDF")
   (set (asym :*verbose-out*) *standard-output*)
   (set (asym :*asdf-verbose*) t))
 
 (defun load-asdf (&optional tag)
-  (DBG "loading the ASDF fasl")
   (load-asdf-fasl tag)
   (use-package :asdf :asdf-test)
-  (DBG "configuring ASDF")
   (configure-asdf)
-  (DBG "reading for your script")
   (setf *package* (find-package :asdf-test)))
 
 (defun debug-asdf ()

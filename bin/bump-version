@@ -5,15 +5,15 @@
 (setf *load-verbose* nil *load-print* nil
       *compile-verbose* nil *compile-print* nil)
 
-(format t "Loading ASDF... ~%")
+(format t "Loading your implementation's ASDF... ~%")
 (require :asdf)
 (in-package :asdf)
 #-asdf2 (error "Not ASDF2, you lose!")
 (format t "Initializing the source registry... ~%")
 (initialize-source-registry)
-(format t "Making sure that's the latest... ~%")
+(format t "Upgrading to the latest ASDF... ~%")
 (upgrade-asdf)
-(format t "Now load some dependencies... ~%")
+(format t "Now loading some dependencies... ~%")
 (load-systems :cl-ppcre :xcvb-utils)
 
 (in-package :xcvb-utils)
@@ -22,7 +22,7 @@
 (asdf-debug)
 
 (DBG "There we are!")
-(resume-image)
+(restore-image)
 
 (defun afile (x)
   (asdf:system-relative-pathname :asdf x))

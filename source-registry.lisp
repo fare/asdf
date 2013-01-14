@@ -45,11 +45,10 @@ system names to pathnames of .asd files")
   (typep *source-registry* 'hash-table))
 
 (defun* clear-source-registry ()
-  "Undoes any initialization of the source registry.
-You might want to call that before you dump an image that would be resumed
-with a different configuration, so the configuration would be re-read then."
+  "Undoes any initialization of the source registry."
   (setf *source-registry* nil)
   (values))
+(register-clear-configuration-hook 'clear-source-registry)
 
 (defparameter *wild-asd*
   (make-pathname* :directory nil :name *wild* :type "asd" :version :newest))
@@ -314,5 +313,3 @@ with a different configuration, so the configuration would be re-read then."
 (defun* sysdef-source-registry-search (system)
   (ensure-source-registry)
   (values (gethash (coerce-name system) *source-registry*)))
-
-(pushnew 'clear-source-registry *clear-configuration-hook*)

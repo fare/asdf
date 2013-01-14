@@ -10,15 +10,12 @@
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
    #:*compile-file-function* #:*output-translation-function*
    #:*optimization-settings* #:*previous-optimization-settings*
-   #:*uninteresting-conditions*
    #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
    #:*deferred-warnings*
    ;; Functions & Macros
    #:get-optimization-settings #:proclaim-optimization-settings
-   #:match-condition-p #:match-any-condition-p #:uninteresting-condition-p
-   #:call-with-muffled-uninteresting-conditions #:with-muffled-uninteresting-conditions
-   #:call-with-controlled-compiler-conditions #:with-controlled-compiler-conditions
-   #:call-with-controlled-loader-conditions #:with-controlled-loader-conditions
+   #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
+   #:call-with-muffled-loader-conditions #:with-muffled-loader-conditions
    #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
    #:lispize-pathname #:fasl-type #:call-around-hook
    #:compile-file* #:compile-file-pathname*
@@ -70,9 +67,6 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 ;;; Condition control
 
-(defvar *uninteresting-conditions* nil
-  "Uninteresting conditions, as per MATCH-CONDITION-P")
-
 (defvar *uninteresting-compiler-conditions*
   (append
    #+sbcl
@@ -105,56 +99,18 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 ;;;; ----- Filtering conditions while building -----
 
-(defparameter +simple-condition-format-control-slot+
-  #+allegro 'excl::format-control
-  #+clozure 'ccl::format-control
-  #+(or cmu scl) 'conditions::format-control
-  #+sbcl 'sb-kernel:format-control
-  #-(or allegro clozure cmu sbcl scl) :NOT-KNOWN-TO-ASDF
-  "Name of the slot for FORMAT-CONTROL in simple-condition")
-
-(defun* match-condition-p (x condition)
-  "Compare received CONDITION to some pattern X:
-a symbol naming a condition class,
-a simple vector of length 2, arguments to find-symbol* with result as above,
-or a string describing the format-control of a simple-condition."
-  (etypecase x
-    (symbol (typep condition x))
-    ((simple-vector 2) (typep condition (unreify-symbol x)))
-    (function (funcall x condition))
-    (string (and (typep condition 'simple-condition)
-                 #+(or allegro clozure cmu scl) ;; On SBCL, it's always set & the check warns
-		 (slot-boundp condition +simple-condition-format-control-slot+)
-                 (ignore-errors (equal (simple-condition-format-control condition) x))))))
-
-(defun* match-any-condition-p (condition conditions)
-  "match CONDITION against any of the patterns of CONDITIONS supplied"
-  (loop :for x :in conditions :thereis (match-condition-p x condition)))
-
-(defun* uninteresting-condition-p (condition)
-  "match CONDITION against any of the patterns of *UNINTERESTING-CONDITIONS*"
-  (match-any-condition-p condition *uninteresting-conditions*))
-
-(defun* call-with-muffled-uninteresting-conditions
-    (thunk &optional (conditions *uninteresting-conditions*))
-  (let ((*uninteresting-conditions* conditions))
-    (handler-bind (((satisfies uninteresting-condition-p) #'muffle-warning))
-      (funcall thunk))))
-(defmacro with-muffled-uninteresting-conditions ((&optional conditions) &body body)
-  `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions))
-
-(defun* call-with-controlled-compiler-conditions (thunk)
-  (call-with-muffled-uninteresting-conditions
+(defun* call-with-muffled-compiler-conditions (thunk)
+  (call-with-muffled-conditions
     thunk *uninteresting-compiler-conditions*))
-(defmacro with-controlled-compiler-conditions ((&optional) &body body)
+(defmacro with-muffled-compiler-conditions ((&optional) &body body)
   "Run BODY where uninteresting compiler conditions are muffled"
-  `(call-with-controlled-compiler-conditions #'(lambda () ,@body)))
-(defun* call-with-controlled-loader-conditions (thunk)
-  (call-with-muffled-uninteresting-conditions
+  `(call-with-muffled-compiler-conditions #'(lambda () ,@body)))
+(defun* call-with-muffled-loader-conditions (thunk)
+  (call-with-muffled-conditions
    thunk (append *uninteresting-compiler-conditions* *uninteresting-loader-conditions*)))
-(defmacro with-controlled-loader-conditions ((&optional) &body body)
+(defmacro with-muffled-loader-conditions ((&optional) &body body)
   "Run BODY where uninteresting compiler and additional loader conditions are muffled"
-  `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body)))
+  `(call-with-muffled-loader-conditions #'(lambda () ,@body)))
 
 (defun* save-forward-references (forward-references)
   ;; TODO: replace with stuff in POIU
@@ -197,7 +153,7 @@ possibly in a different process."
     (let ((*deferred-warnings* ())
           #+sbcl (sb-c::*undefined-warnings* nil))
       (multiple-value-prog1
-          (with-controlled-compiler-conditions ()
+          (with-muffled-compiler-conditions ()
             (funcall thunk))
         (save-forward-references forward-references)))))
 

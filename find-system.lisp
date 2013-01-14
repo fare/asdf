@@ -251,7 +251,7 @@ Going forward, we recommend new users should be using the source-registry.
                    (external-format (encoding-external-format (detect-encoding pathname))))
                (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
                              pathname package)
-               (with-controlled-loader-conditions ()
+               (with-muffled-loader-conditions ()
                  (load* pathname :external-format external-format))))
         (delete-package package)))))
 

@@ -5,40 +5,50 @@
   (:recycle :asdf/image :xcvb-driver)
   (:use :common-lisp :asdf/package :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
   (:export
-   #:*dumped* #:raw-command-line-arguments #:*command-line-arguments*
+   #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments
-   #:*debugging* #:*post-image-restart* #:*entry-point*
+   #:*lisp-interaction*
+   #:fatal-conditions #:fatal-condition-p #:handle-fatal-condition
+   #:call-with-fatal-condition-handler #:with-fatal-condition-handler
+   #:*image-restore-hook* #:*image-prelude* #:*image-entry-point*
+   #:*image-postlude* #:*image-dump-hook*
    #:quit #:die #:raw-print-backtrace #:print-backtrace #:print-condition-backtrace
-   #:bork #:with-coded-exit #:shell-boolean
-   #:register-image-resume-hook #:register-image-dump-hook
-   #:call-image-resume-hook #:call-image-dump-hook
-   #:initialize-asdf-utilities
-   #:resume-image #:run-resumed-image #:dump-image 
+   #:shell-boolean-exit
+   #:register-image-restore-hook #:register-image-dump-hook
+   #:call-image-restore-hook #:call-image-dump-hook
+   #:initialize-asdf-utilities #:restore-image #:dump-image
 ))
 (in-package :asdf/image)
 
-(defvar *debugging* nil
-  "Shall we print extra debugging information?")
+(defvar *lisp-interaction* t
+  "Is this an interactive Lisp environment, or is it batch processing?")
 
 (defvar *command-line-arguments* nil
   "Command-line arguments")
 
-(defvar *dumped* nil
+(defvar *image-dumped-p* nil ; may matter as to how to get to command-line-arguments
   "Is this a dumped image? As a standalone executable?")
 
-(defvar *image-resume-hook* nil
-  "Functions to call (in reverse order) when the image is resumed")
+(defvar *image-restore-hook* nil
+  "Functions to call (in reverse order) when the image is restored")
+
+(defvar *image-prelude* nil
+  "a form to evaluate, or string containing forms to read and evaluate
+when the image is restarted, but before the entry point is called.")
+
+(defvar *image-entry-point* nil
+  "a function with which to restart the dumped image when execution is restored from it.")
+
+(defvar *image-postlude* nil
+  "a form to evaluate, or string containing forms to read and evaluate
+before the image dump hooks are called and before the image is dumped.")
 
 (defvar *image-dump-hook* nil
   "Functions to call (in order) when before an image is dumped")
 
-(defvar *post-image-restart* nil
-  "a string containing forms to read and evaluate when the image is restarted,
-but before the entry point is called.")
-
-(defvar *entry-point* nil
-  "a function with which to restart the dumped image when execution is resumed from it.")
-
+(defvar *fatal-conditions* '(error)
+  "conditions that cause the Lisp image to enter the debugger if interactive,
+or to die if not interactive")
 
 
 ;;; Exiting properly or im-
@@ -133,40 +143,41 @@ This is designed to abstract away the implementation specific quit forms."
     (safe-format! stream "~&Above backtrace due to this condition:~%~A~&"
                   condition)))
 
-(defun* bork (condition)
-  "Depending on whether *DEBUGGING* is set, enter debugger or die"
-  (safe-format! *stderr* "~&BORK:~%~A~%" condition)
+(defun fatal-condition-p (condition)
+  (match-any-condition-p condition *fatal-conditions*))
+
+(defun* handle-fatal-condition (condition)
+  "Depending on whether *LISP-INTERACTION* is set, enter debugger or die"
   (cond
-    (*debugging*
+    (*lisp-interaction*
      (invoke-debugger condition))
     (t
+     (safe-format! *stderr* "~&Fatal condition:~%~A~%" condition)
      (print-condition-backtrace condition :stream *stderr*)
      (die 99 "~A" condition))))
 
-(defun* call-with-coded-exit (thunk)
-  (handler-bind ((error 'bork))
-    (funcall thunk)
-    (quit 0)))
+(defun* call-with-fatal-condition-handler (thunk)
+  (handler-bind (((satisfies fatal-condition-p) #'handle-fatal-condition))
+    (funcall thunk)))
 
-(defmacro with-coded-exit ((&optional) &body body)
-  "Run BODY, BORKing on error and otherwise exiting with a success status"
-  `(call-with-coded-exit #'(lambda () ,@body)))
+(defmacro with-fatal-condition-handler ((&optional) &body body)
+  `(call-with-fatal-condition-handler #'(lambda () ,@body)))
 
-(defun* shell-boolean (x)
+(defun* shell-boolean-exit (x)
   "Quit with a return code that is 0 iff argument X is true"
   (quit (if x 0 1)))
 
 
-;;; Using hooks
+;;; Using image hooks
 
-(defun* register-image-resume-hook (hook &optional (now t))
-  (register-hook-function '*image-resume-hook* hook now))
+(defun* register-image-restore-hook (hook &optional (call-now-p t))
+  (register-hook-function '*image-restore-hook* hook call-now-p))
 
-(defun* register-image-dump-hook (hook &optional (now nil))
-  (register-hook-function '*image-dump-hook* hook now))
+(defun* register-image-dump-hook (hook &optional (call-now-p nil))
+  (register-hook-function '*image-dump-hook* hook call-now-p))
 
-(defun* call-image-resume-hook ()
-  (call-functions (reverse *image-resume-hook*)))
+(defun* call-image-restore-hook ()
+  (call-functions (reverse *image-restore-hook*)))
 
 (defun* call-image-dump-hook ()
   (call-functions *image-dump-hook*))
@@ -197,7 +208,7 @@ if we are not called from a directly executable image dumped by XCVB."
   #-abcl
   (let* (#-(or sbcl allegro)
 	 (arguments
-	  (if (eq *dumped* :executable)
+	  (if (eq *image-dumped-p* :executable)
 	      arguments
 	      (member "--" arguments :test 'string-equal))))
     (rest arguments)))
@@ -205,37 +216,41 @@ if we are not called from a directly executable image dumped by XCVB."
 (defun setup-command-line-arguments ()
   (setf *command-line-arguments* (command-line-arguments)))
 
-(defun* resume-image (&key (post-image-restart *post-image-restart*)
-                           (entry-point *entry-point*)
-                           (image-resume-hook *image-resume-hook*))
-  (call-functions image-resume-hook)
-  (when post-image-restart
-    (with-safe-io-syntax ()
-      (let ((*read-eval* t))
-        (eval-input post-image-restart))))
-  (when entry-point
-    (apply entry-point *command-line-arguments*)))
-
-(defun* run-resumed-image ()
-  (with-coded-exit ()
-    (let ((ret (resume-image)))
-      (if (typep ret 'integer)
-          (quit ret)
-          (quit 99)))))
+(defun* restore-image (&key
+                       ((:lisp-interaction *lisp-interaction*) *lisp-interaction*)
+                       ((:restore-hook *image-restore-hook*) *image-restore-hook*)
+                       ((:prelude *image-prelude*) *image-prelude*)
+                       ((:entry-point *image-entry-point*) *image-entry-point*)
+                       ((:package *package*) *package*))
+  (with-fatal-condition-handler ()
+    (call-image-restore-hook)
+    (when *image-prelude*
+      (with-safe-io-syntax (:package *package*)
+        (let ((*read-eval* t))
+          (eval-text *image-prelude*))))
+    (let ((results (multiple-value-list
+                    (if *image-entry-point*
+                        (apply *image-entry-point* *command-line-arguments*)
+                        t))))
+      (if *lisp-interaction*
+          (apply 'values results)
+          (shell-boolean-exit (first results))))))
 
 
 ;;; Dumping an image
 
 #-(or ecl mkcl)
-(defun* dump-image (filename &key output-name executable pre-image-dump post-image-restart entry-point package)
-  (declare (ignorable filename output-name executable pre-image-dump post-image-restart entry-point))
-  (setf *dumped* (if executable :executable t))
-  (setf *package* (find-package (or package :cl-user)))
-  (with-safe-io-syntax ()
-    (let ((*read-eval* t))
-      (when pre-image-dump (eval-input pre-image-dump))
-      (setf *entry-point* (when entry-point (ensure-function entry-point)))
-      (when post-image-restart (setf *post-image-restart* post-image-restart))))
+(defun* dump-image (filename &key output-name executable
+                             ((:postlude *image-postlude*) *image-postlude*)
+                             ((:dump-hook *image-dump-hook*) *image-dump-hook*)
+                             ((:package *package*) *package*))
+  (declare (ignorable filename output-name executable))
+  (setf *image-dumped-p* (if executable :executable t))
+  (when *image-postlude*
+    (with-safe-io-syntax ()
+      (let ((*read-eval* t))
+        (eval-text *image-postlude*))))
+  (call-image-dump-hook)
   #-(or clisp clozure cmu lispworks sbcl)
   (when executable
     (error "Dumping an executable is not supported on this implementation! Aborting."))
@@ -251,28 +266,25 @@ if we are not called from a directly executable image dumped by XCVB."
    :executable (if executable 0 t) ;--- requires clisp 2.48 or later, still catches --clisp-x
    (when executable
      (list
-      :norc t
-      :script nil
-      :init-function #'run-resumed-image
       ;; :parse-options nil ;--- requires a non-standard patch to clisp.
-      )))
+      :norc t :script nil :init-function #'restore-image)))
   #+clozure
   (ccl:save-application filename :prepend-kernel t
-                        :toplevel-function (when executable #'run-resumed-image))
+                        :toplevel-function (when executable #'restore-image))
   #+(or cmu scl)
   (progn
    (ext:gc :full t)
    (setf ext:*batch-mode* nil)
    (setf ext::*gc-run-time* 0)
    (apply 'ext:save-lisp filename #+cmu :executable #+cmu t
-          (when executable '(:init-function run-resumed-image :process-command-line nil))))
+          (when executable '(:init-function restore-image :process-command-line nil))))
   #+gcl
   (progn
    (si::set-hole-size 500) (si::gbc nil) (si::sgc-on t)
    (si::save-system filename))
   #+lispworks
   (if executable
-      (lispworks:deliver 'run-resumed-image filename 0 :interface nil)
+      (lispworks:deliver 'restore-image filename 0 :interface nil)
       (hcl:save-image filename :environment nil))
   #+sbcl
   (progn
@@ -280,12 +292,12 @@ if we are not called from a directly executable image dumped by XCVB."
    (setf sb-ext::*gc-run-time* 0)
    (apply 'sb-ext:save-lisp-and-die filename
     :executable t ;--- always include the runtime that goes with the core
-    (when executable (list :toplevel #'run-resumed-image :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
+    (when executable (list :toplevel #'restore-image :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
   #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
-  (die 98 "Can't dump ~S: asdf doesn't support image dumping with this Lisp implementation.~%" filename))
+  (die 98 "Can't dump ~S: asdf doesn't support image dumping with ~A.~%"
+       filename (nth-value 1 (implementation-type))))
 
 
-;;; Initial environmental hooks
-(pushnew 'setup-temporary-directory *image-resume-hook*)
-(pushnew 'setup-stderr *image-resume-hook*)
-(pushnew 'setup-command-line-arguments *image-resume-hook*)
+;;; Some universal image restore hooks
+(map () 'register-image-restore-hook
+     '(setup-temporary-directory setup-stderr setup-command-line-arguments))
