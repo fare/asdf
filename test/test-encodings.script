@@ -46,6 +46,9 @@
   #-asdf-unicode
   (leave-test "No Unicode support to test on this lisp implementation" 0)
 
+  (unless (find-system :asdf-encodings nil)
+    (leave-test "ASDF-ENCODINGS is not installed next to ASDF. Skipping the rest the test." 0))
+
   ;; NB: recent clozure can autodetect without asdf-encodings with :default (!)
 
   #+(and asdf-unicode sbcl)

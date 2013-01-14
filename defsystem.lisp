@@ -9,8 +9,10 @@
    :asdf/backward-internals)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:export
-   #:defsystem #:do-defsystem #:parse-component-form
-   #:*default-component-class*))
+   #:defsystem #:*default-component-class*
+   #:class-for-type #:do-defsystem
+   #:determine-system-pathname #:parse-component-form
+   #:duplicate-names #:sysdef-error-component #:check-component-input))
 (in-package :asdf/defsystem)
 
 ;;; Pathname

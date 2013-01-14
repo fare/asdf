@@ -284,16 +284,16 @@ or when loading the package is optional."
 ;;; ensure-package, define-package
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defvar *record-fishy-package-changes* '(t))
-  (defvar *fishy-package-changes* '())
+  (defvar *all-package-fishiness* '(t))
+  (defvar *package-fishiness* '())
   (defun flush-fishy ()
-    (when *fishy-package-changes*
-      (push (nreverse *fishy-package-changes*) *record-fishy-package-changes*)
-      (setf *fishy-package-changes* nil)))
+    (when *package-fishiness*
+      (push (nreverse *package-fishiness*) *all-package-fishiness*)
+      (setf *package-fishiness* nil)))
   (defun record-fishy (info)
-    (push info *fishy-package-changes*))
+    (push info *package-fishiness*))
   (macrolet ((when-fishy (&body body)
-               `(when *record-fishy-package-changes* ,@body))
+               `(when *all-package-fishiness* ,@body))
              (fishy (&rest info)
                `(when-fishy (record-fishy (list ,@info)))))
     (defun ensure-package (name &key
@@ -412,8 +412,8 @@ or when loading the package is optional."
                      (when (and status (home-package-p symbol r))
                        (cond
                          (foundp
-                          (fishy :recycled-duplicate name (package-name foundp) (package-name r))
-                          (nuke-symbol symbol))
+                          ;; (nuke-symbol symbol)) -- even simple variable names like O or C will do that.
+                          (fishy :recycled-duplicate name (package-name foundp) (package-name r)))
                          (t
                           (setf recycled symbol foundp r))))))))
              (symbol-recycled-p (sym)
@@ -433,7 +433,9 @@ or when loading the package is optional."
                        (t
                         (when status
                           (unintern existing)
-                          (fishy :ensure-symbol name (symbol-package-name existing) status intern))
+                          (fishy :ensure-symbol name
+                                 (reify-package (symbol-package existing) package)
+                                 status intern))
                         (when intern
                           (intern* name package))))))))
              (ensure-export (name p)

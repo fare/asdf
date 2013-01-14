@@ -6,6 +6,7 @@
   (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream :asdf/os
         :asdf/lisp-build :asdf/upgrade :asdf/component :asdf/system)
   (:export
+   #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:find-system #:locate-system #:load-sysdef #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:system-definition-error #:missing-component #:missing-requires #:missing-parent

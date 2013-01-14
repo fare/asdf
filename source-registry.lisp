@@ -7,6 +7,7 @@
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
         :asdf/upgrade :asdf/find-system :asdf/configuration)
   (:export
+   #:*source-registry* #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry
    #:source-registry #:source-registry-initialized-p
    #:initialize-source-registry #:clear-source-registry #:*source-registry*
