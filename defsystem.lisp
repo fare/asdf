@@ -48,6 +48,7 @@
                 *default-component-class*) nil))
       (sysdef-error "don't recognize component type ~A" type)))
 
+
 ;;; Check inputs
 
 (define-condition duplicate-names (system-definition-error)
@@ -125,7 +126,8 @@
           (setf ret (apply 'make-instance (class-for-type parent type) args)))
       (component-pathname ret) ; eagerly compute the absolute pathname
       (when versionp
-        (unless (parse-version (normalize-version version (component-pathname ret)) nil)
+        (unless (parse-version (normalize-version
+                                version (component-pathname (component-system ret))) nil)
           (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
                 version name parent)))
       (when (typep ret 'parent-component)

@@ -853,7 +853,7 @@ such a string using the following trivial domain-specific language:
 in addition to being a literal string, it can be an expression of the form
 @code{(:read-file-form <pathname-or-string>)}, which will be resolved
 by reading the first form in the specified pathname or string
-(merged against the pathname of the current component if relative).
+(merged against the pathname of the current system if relative).
 @cindex :version
 
 @end itemize
