@@ -5,8 +5,9 @@
   (:recycle :asdf/concatenate-source :asdf)
   (:intern #:translate-output-p #:concatenated-source-file)
   (:use :common-lisp :asdf/utility :asdf/stream
-        :asdf/component :asdf/operation :asdf/system :asdf/find-system :asdf/defsystem
-        :asdf/action :asdf/lisp-action :asdf/bundle)
+   :asdf/upgrade :asdf/component :asdf/operation
+   :asdf/system :asdf/find-system :asdf/defsystem
+   :asdf/action :asdf/lisp-action :asdf/bundle)
   (:export
    #:concatenate-source-op
    #:load-concatenated-source-op

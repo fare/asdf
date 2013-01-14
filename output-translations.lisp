@@ -5,7 +5,7 @@
   (:recycle :asdf/output-translations :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build :asdf/upgrade :asdf/configuration)
   (:export
-   #:*output-translations* #:*output-translation-parameter*
+   #:*output-translations* #:*output-translations-parameter*
    #:invalid-output-translation
    #:output-translations #:output-translations-initialized-p
    #:initialize-output-translations #:clear-output-translations

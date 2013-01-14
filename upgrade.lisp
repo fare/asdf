@@ -10,7 +10,10 @@
    #:*asdf-upgrade-already-attempted*
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    #:asdf-version #:*upgraded-p*
-   #:asdf-message #:*asdf-verbose* #:*verbose-out*))
+   #:asdf-message #:*asdf-verbose* #:*verbose-out*
+   ;; There will be no symbol left behind!
+   #:o #:c #:dep-o #:dep-c #:intern*)
+  (:import-from :asdf/package #:intern* #:find-symbol*))
 (in-package :asdf/upgrade)
 
 ;;; Special magic to detect if this is an upgrade
@@ -32,7 +35,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.92")
+         (asdf-version "2.26.93")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))

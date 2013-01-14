@@ -5,7 +5,7 @@
   (:nicknames :asdf :asdf-utilities)
   (:recycle :asdf/interface :asdf)
   (:unintern
-   #:*asdf-revision* #:around #:asdf-method-combination #:intern*
+   #:*asdf-revision* #:around #:asdf-method-combination
    #:do-traverse #:do-dep #:do-one-dep #:visit-action #:component-visited-p
    #:split #:make-collector
    #:loaded-systems ; makes for annoying SLIME completion
@@ -17,6 +17,8 @@
    :asdf/output-translations :asdf/source-registry
    :asdf/plan :asdf/operate :asdf/defsystem :asdf/bundle :asdf/concatenate-source
    :asdf/backward-interface)
+  (:shadowing-import-from :asdf/package
+   :find-symbol* #:intern*)
   ;; TODO: automatically generate interface by merging select used packages?
   (:export
    #:defsystem #:find-system #:locate-system #:coerce-name

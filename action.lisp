@@ -19,7 +19,7 @@
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
-   #:perform #:perform-with-restarts #:retry #:accept))
+   #:perform #:perform-with-restarts #:retry #:accept #:feature))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system

@@ -199,7 +199,7 @@ then returning the non-empty string value of the variable"
   ;; Note: untested on RMCL
   #+(or abcl clozure cmucl ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
   #+cormanlisp "localhost" ;; is there a better way? Does it matter?
-  #+allegro (excl.osi:gethostname)
+  #+allegro (symbol-call :excl.osi :gethostname)
   #+clisp (first (split-string (machine-instance) :separator " "))
   #+gcl (system:gethostname))
 

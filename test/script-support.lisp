@@ -40,8 +40,11 @@ Some constraints:
 
 ;;; Minimal compatibility layer
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  #+allegro (setf excl:*warn-on-nested-reader-conditionals* nil)
-
+  #+allegro
+  (setf excl:*warn-on-nested-reader-conditionals* nil
+        excl::*autoload-package-name-alist*
+        (remove "asdf" excl::*autoload-package-name-alist*
+                :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
   #+gcl
   (when (or (< system::*gcl-major-version* 2)
             (and (= system::*gcl-major-version* 2)

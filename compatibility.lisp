@@ -35,14 +35,12 @@
 
 #+allegro
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (setf excl::*autoload-package-name-alist*
-        (remove "asdf" excl::*autoload-package-name-alist*
-                :test 'equalp :key 'car)) ; need that BEFORE any mention of package ASDF as below
   (defparameter *acl-warn-save*
     (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
       excl:*warn-on-nested-reader-conditionals*))
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
-    (setf excl:*warn-on-nested-reader-conditionals* nil)))
+    (setf excl:*warn-on-nested-reader-conditionals* nil))
+  (setf *print-readably* nil))
 
 #+ecl
 (eval-when (:load-toplevel :compile-toplevel :execute)

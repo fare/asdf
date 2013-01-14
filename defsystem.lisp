@@ -4,8 +4,8 @@
 (asdf/package:define-package :asdf/defsystem
   (:recycle :asdf/defsystem :asdf)
   (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component
-   :asdf/lisp-action :asdf/operate
+   :asdf/upgrade :asdf/component :asdf/system
+   :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:export

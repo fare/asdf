@@ -284,11 +284,14 @@ or when loading the package is optional."
 ;;; ensure-package, define-package
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defvar *all-package-fishiness* '(t))
+  (defvar *all-package-happiness* '())
+  (defvar *all-package-fishiness* (list t))
   (defvar *package-fishiness* '())
   (defun flush-fishy ()
     (when *package-fishiness*
-      (push (nreverse *package-fishiness*) *all-package-fishiness*)
+      (if (null (rest *package-fishiness*))
+          (push (first *package-fishiness*) *all-package-happiness*)
+          (push (nreverse *package-fishiness*) *all-package-fishiness*))
       (setf *package-fishiness* nil)))
   (defun record-fishy (info)
     (push info *package-fishiness*))
@@ -570,9 +573,16 @@ or when loading the package is optional."
                (foo))
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
 
-#+clisp
-(eval-when (:compile-toplevel :load-toplevel :execute)
+
+;;; Final tricks to keep various implementations happier
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  #+allegro
+  (setf excl::*autoload-package-name-alist*
+        (remove "asdf" excl::*autoload-package-name-alist*
+                :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
   (unless (member :asdf2.27 *features*)
-    (when (find-package :asdf)
-      (delete-package* :asdf t))
-    (make-package :asdf :use ())))
+    #+clisp
+    (progn
+      (when (find-package :asdf)
+        (delete-package* :asdf t))
+      (make-package :asdf :use ()))))

@@ -51,6 +51,7 @@
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
+             #-clisp ;; clisp is unhappy about fmakunbound.
              (undefine-function ',name)
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
              ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
