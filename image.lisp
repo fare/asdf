@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/image
   (:recycle :asdf/image :xcvb-driver)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+  (:use :common-lisp :asdf/package :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
   (:export
    #:*dumped* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments

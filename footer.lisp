@@ -3,12 +3,10 @@
 
 (asdf/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
-  (:use :common-lisp
-   :asdf/package :asdf/compatibility
-   :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
+  (:use :common-lisp :asdf/driver :asdf/upgrade
    :asdf/find-system :asdf/find-component :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/operate :asdf/bundle :asdf/concatenate-source
-   :asdf/configuration :asdf/output-translations :asdf/source-registry
+   :asdf/output-translations :asdf/source-registry
    :asdf/backward-internals :asdf/defsystem :asdf/backward-interface :asdf/interface))
 (in-package :asdf/footer)
 

@@ -2,17 +2,26 @@
 ":" ; exec sbcl --script "$0" "$@" ; exit # -*- Lisp -*-
 ;;; Really runs on any decent Common Lisp implementation
 
+(setf *load-verbose* nil *load-print* nil
+      *compile-verbose* nil *compile-print* nil)
+
+(format t "Loading ASDF... ~%")
 (require :asdf)
 (in-package :asdf)
-
+#-asdf2 (error "Not ASDF2, you lose!")
+(format t "Initializing the source registry... ~%")
+(initialize-source-registry)
+(format t "Making sure that's the latest... ~%")
 (upgrade-asdf)
-
+(format t "Now load some dependencies... ~%")
 (load-systems :cl-ppcre :xcvb-utils)
 
 (in-package :xcvb-utils)
 
+(format t "And the debug utilities... ~%")
 (asdf-debug)
 
+(DBG "There we are!")
 (resume-image)
 
 (defun afile (x)
@@ -50,17 +59,19 @@
                            &key (reader 'read-file-string)
                              (writer nil) (comparator 'equalp)
                              (external-format *utf-8-external-format*))
+  (format t "Transforming file ~A... " (file-namestring file))
   (let* ((old-contents (funcall reader file))
          (new-contents (funcall transformer old-contents)))
     (if (funcall comparator old-contents new-contents)
-        (format t "No changes for file ~A~%" file)
+        (format t "no changes needed!~%")
         (let ((written-contents
                 (if writer
                     (with-output (s ())
                       (funcall writer s new-contents))
                     new-contents)))
           (check-type written-contents (or string (byte-vector)))
-          (clobber-file-with-vector file written-contents :external-format external-format)))))
+          (clobber-file-with-vector file written-contents :external-format external-format)
+          (format t "done.~%")))))
 
 (defun version-transform (text)
   (flet ((v1 (ver) (format nil "~S" ver))
@@ -74,7 +85,6 @@
   '("version.lisp-expr" "asdf.asd" "header.lisp" "build/asdf.lisp" "upgrade.lisp"))
 
 (defun transform-file (x)
-  (format t "Transforming file ~A~%" x)
   (maybe-replace-file (afile x) #'version-transform))
 
 (map () 'transform-file *versioned-files*)

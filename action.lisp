@@ -3,8 +3,8 @@
 
 (asdf/package:define-package :asdf/action
   (:recycle :asdf/action :asdf)
-  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
-   :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
+  (:use :common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:intern #:stamp #:done-p)
   (:export

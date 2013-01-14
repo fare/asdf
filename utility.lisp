@@ -5,14 +5,11 @@
   (:recycle :asdf/utility :asdf)
   (:use :common-lisp :asdf/package :asdf/compatibility)
   (:export
-   #:find-symbol* ;; reexport from asdf/package
-   #:asdf-debug #:load-asdf-debug-utility ;; magic helper to define debugging functions
-   #:strcat #:compatfmt ;; reexport from asdf/compatibility
-   #:undefine-function #:undefine-functions
-   #:defun* #:defgeneric* ;; defining macros
+   ;; magic helper to define debugging functions:
+   #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
+   #:undefine-function #:undefine-functions #:defun* #:defgeneric* ;; (un)defining functions
    #:if-bind ;; basic flow control
-   #:while-collecting #:appendf #:length=n-p ;; lists
-   #:remove-keys #:remove-keyword ;; keyword argument lists
+   #:while-collecting #:appendf #:length=n-p #:remove-keys #:remove-keyword ;; lists and plists
    #:emptyp ;; sequences
    #:first-char #:last-char #:split-string ;; strings
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
@@ -148,10 +145,10 @@ any of the characters in the sequence SEPARATOR.
 If MAX is specified, then no more than max(1,MAX) components will be returned,
 starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
-  (catch nil
+  (block ()
     (let ((list nil) (words 0) (end (length string)))
       (flet ((separatorp (char) (find char separator))
-             (done () (throw nil (cons (subseq string 0 end) list))))
+             (done () (return (cons (subseq string 0 end) list))))
         (loop
           :for start = (if (and max (>= words (1- max)))
                            (done)
@@ -224,7 +221,7 @@ starting the separation from the end, e.g. when called with arguments
   "Evaluate a form read from a string."
   (eval (read-from-string string)))
 
-(defun* ensure-function (fun &key (package :asdf))
+(defun* ensure-function (fun &key (package :cl))
   (etypecase fun
     ((or boolean keyword character number pathname) (constantly fun))
     ((or function symbol) fun)
@@ -251,18 +248,17 @@ Return a (non-null) list of integers if the string is valid, NIL otherwise.
 If on-error is error, warn, or designates a function of compatible signature,
 the function is called with an explanation of what is wrong with the argument.
 NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
-  (and
-   (or (stringp string)
-       (when on-error
-         (funcall on-error "~S: ~S is not a string"
-                  'parse-version string)) nil)
-   (or (loop :for prev = nil :then c :for c :across string
-         :always (or (digit-char-p c)
-                     (and (eql c #\.) prev (not (eql prev #\.))))
-         :finally (return (and c (digit-char-p c))))
-       (when on-error
-         (funcall on-error "~S: ~S doesn't follow asdf version numbering convention"
-                  'parse-version string)) nil)
+  (block nil
+   (unless (stringp string)
+     (call-function on-error "~S: ~S is not a string" 'parse-version string)
+     (return))
+   (unless (loop :for prev = nil :then c :for c :across string
+                 :always (or (digit-char-p c)
+                             (and (eql c #\.) prev (not (eql prev #\.))))
+                 :finally (return (and c (digit-char-p c))))
+     (call-function on-error "~S: ~S doesn't follow asdf version numbering convention"
+                    'parse-version string)
+     (return))
    (mapcar #'parse-integer (split-string string :separator "."))))
 
 (defun* unparse-version (version-list)

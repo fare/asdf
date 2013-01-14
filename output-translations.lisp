@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build :asdf/upgrade :asdf/configuration)
+  (:use :common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:*output-translations* #:*output-translations-parameter*
    #:invalid-output-translation

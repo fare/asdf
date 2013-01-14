@@ -3,8 +3,8 @@
 
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/run-program
-   :asdf/upgrade :asdf/component :asdf/system :asdf/operation :asdf/action
+  (:use :common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*

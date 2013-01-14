@@ -72,6 +72,7 @@ Some constraints:
         :do (finish-output s)))
 (defun redirect-outputs ()
   (finish-outputs)
+  #-allegro
   (setf *error-output* *standard-output*
         *trace-output* *standard-output*))
 
@@ -129,6 +130,8 @@ Some constraints:
 
 
 ;;; Test helper functions
+
+(load (debug-lisp))
 
 (defmacro assert-compare (expr)
   (destructuring-bind (op x y) expr
@@ -342,43 +345,52 @@ is bound, write a message and exit on an error.  If
 (defmacro test-asdf (&body body) ;; used by test-upgrade
   `(testing-asdf #'(lambda () ,@body)))
 
-(defun close-inputs ()
-  #-ecl (close *standard-input*))
-
 (defun configure-asdf ()
-  (untrace)
+  (DBG "Debugging?" *debug-asdf*)
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
-  (unless *debug-asdf* (close-inputs))
+  (DBG "Tracing?" *trace-symbols*)
+  (untrace)
   (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s))))
+  (DBG "Initializing source registry")
   (acall :initialize-source-registry
          `(:source-registry :ignore-inherited-configuration))
+  (DBG "Initializing output-translations")
   (acall :initialize-output-translations
          `(:output-translations
            ((,*asdf-directory* :**/ :*.*.*) (,*asdf-directory* "build/fasls" :implementation "asdf"))
            (t (,*asdf-directory* "build/fasls" :implementation "root"))
            :ignore-inherited-configuration))
   (set (asym :*central-registry*) `(,*test-directory*))
+  (DBG "Verbose output for ASDF")
   (set (asym :*verbose-out*) *standard-output*)
   (set (asym :*asdf-verbose*) t))
 
 (defun load-asdf (&optional tag)
-  (setf *package* (find-package :asdf-test))
-  (load (debug-lisp))
+  (DBG "loading the ASDF fasl")
   (load-asdf-fasl tag)
   (use-package :asdf :asdf-test)
+  (DBG "configuring ASDF")
   (configure-asdf)
+  (DBG "reading for your script")
   (setf *package* (find-package :asdf-test)))
 
 (defun debug-asdf ()
   (setf *debug-asdf* t)
   (setf *package* (find-package :asdf-test)))
 
-(defun common-lisp-user::load-asdf () (load-asdf))
-(defun common-lisp-user::debug-asdf () (debug-asdf))
-(defun common-lisp-user::da () (debug-asdf))
+;; Actual scripts rely on this function:
+(defun common-lisp-user::load-asdf () (load-asdf)) 
 
-#| The following form is sometimes useful to insert in compute-action-stamp to find out what's happening.
-It depends on the DBG macro in contrib/debug.lisp, that you should load in your ASDF.
+;; These are shorthands for interactive debugging of test scripts:
+(!a
+ common-lisp-user::debug-asdf debug-asdf
+ da debug-asdf common-lisp-user::da debug-asdf
+ la load-asdf common-lisp-user::la load-asdf)
+
+#| For the record, the following form is sometimes useful to insert in
+ asdf/plan:compute-action-stamp to find out what's happening.
+ It depends on the DBG macro in contrib/debug.lisp,
+ that you should load in your asdf/plan by inserting an (asdf-debug) form in it.
 
 #+DBG-ASDF (DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))
 |#

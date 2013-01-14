@@ -3,8 +3,7 @@
 
 (asdf/package:define-package :asdf/system
   (:recycle :asdf :asdf/system)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
-   :asdf/component)
+  (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component)
   (:intern #:children #:children-by-name #:default-component-class
            #:author #:maintainer #:licence #:source-file #:defsystem-depends-on)
   (:export

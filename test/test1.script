@@ -6,8 +6,9 @@
 (touch-file "file1.lisp" :offset -3500)
 (touch-file "file2.lisp" :offset -3400)
 
+
 (with-test ()
- (DBG "loading test1" #+clisp asdf/output-translations::*output-translations*)
+ (DBG "loading test1")
  (asdf:load-system 'test1)
  (let* ((file1 (asdf:compile-file-pathname* "file1"))
         (file2 (asdf:compile-file-pathname* "file2"))
@@ -31,7 +32,7 @@
    (asdf:load-system 'test1)
    (DBG "check that file1 is _not_ recompiled, but file2 is" (file-write-date file1))
    (assert-equal (+ date 500) (file-write-date file1))
-   (assert (<= then (file-write-date file2)))
+   (assert-compare (<= then (file-write-date file2)))
 
    (DBG "now touch file1 and check that file2 _is_ also recompiled")
    ;; XXX run-shell-command loses if *default-pathname-defaults* is not the
@@ -42,4 +43,4 @@
      (asdf:clear-system 'test1)
      (asdf:operate 'asdf:load-op 'test1)
      (DBG :foo (file-write-date file2) before)
-     (assert (>= (file-write-date file2) before)))))
+     (assert-compare (>= (file-write-date file2) before)))))

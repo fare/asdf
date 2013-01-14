@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/pathname
   (:recycle :asdf/pathname :asdf)
   #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*) ;; GCL 2.6 sucks
-  (:use :common-lisp :asdf/compatibility :asdf/utility)
+  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
   (:export
    #:*resolve-symlinks*
    ;; Making and merging pathnames, portably

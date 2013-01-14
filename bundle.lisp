@@ -3,8 +3,7 @@
 
 (asdf/package:define-package :asdf/bundle
   (:recycle :asdf/bundle :asdf)
-  (:intern #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build :asdf/upgrade
+  (:use :common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)
   (:export
@@ -19,6 +18,7 @@
    #+ecl #:make-build
    #+mkcl #:mkcl-bundle-sub-operations #+mkcl #:files-to-bundle #+mkcl #:bundle-system
    #+(or ecl mkcl) #:register-pre-built-system
+   #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
    #:system-fasl))
 (in-package :asdf/bundle)
 

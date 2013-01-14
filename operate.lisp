@@ -3,10 +3,9 @@
 
 (asdf/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
-  (:use :common-lisp :asdf/package :asdf/utility :asdf/upgrade
-        :asdf/component :asdf/system :asdf/operation :asdf/action
-        :asdf/lisp-build :asdf/lisp-action #:asdf/plan
-        :asdf/find-system :asdf/find-component)
+  (:use :common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system :asdf/operation :asdf/action
+   :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export
    #:operate #:oos #:*systems-being-operated* #:*asdf-upgrade-already-attempted*
    #:load-system #:load-systems #:compile-system #:test-system #:require-system

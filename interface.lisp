@@ -10,16 +10,13 @@
    #:split #:make-collector
    #:loaded-systems ; makes for annoying SLIME completion
    #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
-  (:use :common-lisp
-   :asdf/driver
-   :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/find-component
+  (:use :common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry
    :asdf/plan :asdf/operate :asdf/defsystem :asdf/bundle :asdf/concatenate-source
-   :asdf/backward-interface)
-  (:shadowing-import-from :asdf/package
-   :find-symbol* #:intern*)
-  ;; TODO: automatically generate interface by merging select used packages?
+   :asdf/backward-internals :asdf/backward-interface)
+  ;; TODO: automatically generate interface with reexport?
   (:export
    #:defsystem #:find-system #:locate-system #:coerce-name
    #:oos #:operate #:traverse #:perform-plan
