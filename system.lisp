@@ -2,9 +2,8 @@
 ;;;; Systems
 
 (asdf/package:define-package :asdf/system
-  (:recycle :asdf/system :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
-   :asdf/component)
+  (:recycle :asdf :asdf/system)
+  (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component)
   (:intern #:children #:children-by-name #:default-component-class
            #:author #:maintainer #:licence #:source-file #:defsystem-depends-on)
   (:export
@@ -83,13 +82,13 @@
 (defclass proto-system () ; slots to keep when resetting a system
   ;; To preserve identity for all objects, we'd need keep the components slots
   ;; but also to modify parse-component-form to reset the recycled objects.
-  ((asdf/component::name) (source-file) #|(children) (children-by-names)|#))
+  ((name) (source-file) #|(children) (children-by-names)|#))
 
 (defclass system (module proto-system)
   ;; Backward-compatibility: inherit from module. ASDF3: only inherit from parent-component.
   (;; {,long-}description is now inherited from component, but we add the legacy accessors
-   (asdf/component::description :accessor system-description)
-   (asdf/component::long-description :accessor system-long-description)
+   (description :accessor system-description)
+   (long-description :accessor system-long-description)
    (author :accessor system-author :initarg :author)
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
@@ -105,8 +104,8 @@
 ;;;; Pathnames
 
 (defmethod component-pathname ((system system))
-  (if (or (slot-boundp system 'asdf/component::relative-pathname)
-            (slot-boundp system 'asdf/component::absolute-pathname)
+  (if (or (slot-boundp system 'relative-pathname)
+            (slot-boundp system 'absolute-pathname)
             (slot-value system 'source-file))
     (call-next-method)
     (default-directory)))

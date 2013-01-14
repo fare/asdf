@@ -847,7 +847,13 @@ are parsed as period-separated lists of integers.  I.e., in the example,
 In particular, version @code{0.2.1} is interpreted the same as
 @code{0.0002.1} and is strictly version-less-than version @code{0.20.1},
 even though the two are the same when interpreted as decimal fractions.
-@cindex version specifiers
+Instead of a string representing the version,
+the @code{:version} argument can be an expression that is resolved to
+such a string using the following trivial domain-specific language:
+in addition to being a literal string, it can be an expression of the form
+@code{(:read-file-form <pathname-or-string>)}, which will be resolved
+by reading the first form in the specified pathname or string
+(merged against the pathname of the current system if relative).
 @cindex :version
 
 @end itemize

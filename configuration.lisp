@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/configuration
   (:recycle :asdf/configuration :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories
@@ -12,7 +12,7 @@
    #:validate-configuration-form #:validate-configuration-file #:validate-configuration-directory
    #:configuration-inheritance-directive-p
    #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form*
-   #:*clear-configuration-hook* #:clear-configuration
+   #:*clear-configuration-hook* #:clear-configuration #:register-clear-configuration-hook
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
    #:resolve-relative-location-component #:resolve-absolute-location-component))
 (in-package :asdf/configuration)
@@ -277,6 +277,10 @@ Please remove it from your ASDF configuration"))
 
 (defvar *clear-configuration-hook* '())
 
+(defun* register-clear-configuration-hook (hook-function &optional call-now-p)
+  (register-hook-function '*clear-configuration-hook* hook-function call-now-p))
+
 (defun* clear-configuration ()
   (call-functions *clear-configuration-hook*))
 
+(register-image-dump-hook 'clear-configuration)

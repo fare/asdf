@@ -9,6 +9,7 @@
   ;; :include-dependencies t
   :translate-output-p nil
   :concatenated-source-file "build/asdf.lisp"
+  :version (:read-file-form "version.lisp-expr")
   :serial t
   :depends-on (:asdf-driver)
   :components

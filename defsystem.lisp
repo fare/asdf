@@ -3,14 +3,16 @@
 
 (asdf/package:define-package :asdf/defsystem
   (:recycle :asdf/defsystem :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component
-   :asdf/lisp-action :asdf/operate
+  (:use :common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system
+   :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:export
-   #:defsystem #:do-defsystem #:parse-component-form
-   #:*default-component-class*))
+   #:defsystem #:*default-component-class*
+   #:class-for-type #:do-defsystem
+   #:determine-system-pathname #:parse-component-form
+   #:duplicate-names #:sysdef-error-component #:check-component-input))
 (in-package :asdf/defsystem)
 
 ;;; Pathname
@@ -48,6 +50,7 @@
                 *default-component-class*) nil))
       (sysdef-error "don't recognize component type ~A" type)))
 
+
 ;;; Check inputs
 
 (define-condition duplicate-names (system-definition-error)
@@ -76,6 +79,14 @@
     (sysdef-error-component ":in-order-to must be NIL or a list of components."
                             type name in-order-to)))
 
+(defun* normalize-version (form pathname)
+  (cond
+    ((typep form '(or string null)) form)
+    ((length=n-p form 2)
+     (ecase (first form)
+       ((:read-file-form)
+        (safe-read-first-file-form (subpathname pathname (second form))))))))
+
 ;;; Main parsing function
 
 (defun* parse-component-form (parent options &key previous-serial-component)
@@ -98,10 +109,6 @@
                 (typep (find-component parent name)
                        (class-for-type parent type))))
       (error 'duplicate-names :name name))
-    (when versionp
-      (unless (parse-version version nil)
-        (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
-              version name parent)))
     (when do-first (error "DO-FIRST is not supported anymore since ASDF 2.27"))
     (let* ((args `(:name ,(coerce-name name)
                    :pathname ,pathname
@@ -120,6 +127,11 @@
           (apply 'reinitialize-instance ret args)
           (setf ret (apply 'make-instance (class-for-type parent type) args)))
       (component-pathname ret) ; eagerly compute the absolute pathname
+      (when versionp
+        (unless (parse-version (normalize-version
+                                version (system-source-directory (component-system ret))) nil)
+          (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
+                version name parent)))
       (when (typep ret 'parent-component)
         (setf (component-children ret)
               (loop

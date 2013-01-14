@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/pathname
   (:recycle :asdf/pathname :asdf)
   #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*) ;; GCL 2.6 sucks
-  (:use :common-lisp :asdf/compatibility :asdf/utility)
+  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
   (:export
    #:*resolve-symlinks*
    ;; Making and merging pathnames, portably
@@ -53,7 +53,7 @@
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut
    ;; Output translations
-   #:*output-translation-hook*))
+   #:*output-translation-function*))
 
 (in-package :asdf/pathname)
 
@@ -119,6 +119,9 @@ Defaults to T.")
 (defun* make-pathname* (&rest keys &key (directory nil directoryp)
                               host (device () devicep) name type version defaults
                               #+scl &allow-other-keys)
+  "Takes arguments like CL:MAKE-PATHNAME in the CLHS, and
+   tries hard to make a pathname that will actually behave as documented,
+   despite the peculiarities of each implementation"
   (declare (ignorable host device devicep name type version defaults))
   (apply 'make-pathname
          (append
@@ -688,7 +691,7 @@ Host, device and version components are taken from DEFAULTS."
 (defun* native-namestring (x)
   "From a CL pathname, a namestring suitable for use by the OS shell"
   (let ((p (pathname x)))
-    #+clozure (let ((*default-pathname-defaults* #p"")) (ccl:native-translated-namestring p)) ; see ccl bug 978
+    #+clozure (with-pathname-defaults () (ccl:native-translated-namestring p)) ; see ccl bug 978
     #+(or cmu scl) (ext:unix-namestring p nil)
     #+sbcl (sb-ext:native-namestring p)
     #-(or clozure cmu sbcl scl) (namestring p)))
@@ -835,4 +838,4 @@ For the latter case, we ought pick random suffix and atomically open it."
         nil)))))
 
 ;;; Hook for output translations
-(defvar *output-translation-hook* 'identity)
+(defvar *output-translation-function* 'identity)

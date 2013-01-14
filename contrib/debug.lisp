@@ -1,18 +1,18 @@
 ;;;;; A few essential debugging utilities by Faré,
-;;;;; to be loaded in the *PACKAGE* in which you wish to debug.
-
-;; We want debugging utilities in the current package,
-;; so we don't have to cheat with packages,
-;; or have symbols that clash when trying use-package or import.
+;;;;; to be loaded in the *PACKAGE* that you wish to debug.
 ;;
-;; The short names of symbols below are unlikely to have defined bindings
-;; in a well-designed source file to be debugged,
-;; but are quite practical in a debugging session.
+;; We want debugging utilities in the _current_ package,
+;; so we don't have to either change the package structure
+;; or use heavy package prefixes everywhere.
 ;;
-
-
+;; The short names of symbols below are unlikely to clash
+;; with global bindings of any well-designed source file being debugged,
+;; yet are quite practical in a debugging session.
 #|
-;;; If ASDF is already loaded, you can load these utilities as follows:
+;;; If ASDF is already loaded,
+;;; you can load these utilities in the current package as follows:
+(d:asdf-debug)
+;; which if you left the :D nickname to asdf/driver is short for:
 (asdf/utility::asdf-debug)
 
 ;; The above macro can be configured to load any other debugging utility
@@ -24,7 +24,7 @@
 ;; on different machines, with your debug file in ~/lisp/debug-utils.lisp
 ;; you could in your ~/.sbclrc have the following configuration setting:
 (require :asdf)
-(setf asdf-utility:*asdf-debug-utility*
+(setf asdf/utility:*asdf-debug-utility*
       '(asdf/pathname:subpathname (asdf/os:user-homedir) "lisp/debug-utils.lisp"))
 
 ;;; If ASDF is not loaded (for instance, when debugging ASDF itself),
@@ -32,8 +32,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (let ((kw (read-from-string (format nil ":DBG-~A" (package-name *package*)))))
     (unless (member kw *features*)
-      (load "/home/tunes/cl/asdf/contrib/debug.lisp")
-      )))
+      (load "/home/tunes/cl/asdf/contrib/debug.lisp"))))
 
 |#
 
@@ -54,10 +53,12 @@
 TAG is typically a constant string or keyword,
 but in general is an expression returning a tag to be printed first;
 if the expression returns NIL, nothing is printed.
-EXPRS are expression, the source then the value of which is printed;
-The values of the last expression are returned.
-Aim for relatively low overhead in space of time.
-Other expressions are not evaluated if TAG returned NIL."
+EXPRS are expressions, which when the TAG was not NIL are evaluated in order,
+with their source code then their return values being printed each time.
+The last expresion is *always* evaluated and its values are returned,
+but its source and return values are only printed if TAG was not NIL;
+previous expressions are not evaluated at all if TAG returned NIL.
+The macro expansion has relatively low overhead in space of time."
   (let* ((last-expr (car (last exprs)))
          (other-exprs (butlast exprs))
          (tag-var (gensym "TAG"))
@@ -99,10 +100,10 @@ Other expressions are not evaluated if TAG returned NIL."
 
 
 ;;; Quick definitions for use at the REPL
-(defun w (x) (format t "~&~S~%" x)) ; Write
-(defun a (&optional x) (format t "~&~@[~A~]~%" x)) ; print Anything
-(defun e (x) (cons x (ignore-errors (list (eval x))))) ; eValuate
-(defmacro x (x) `(format t "~&~S => ~S~%" ',x ,x)) ; eXamine
+(defun w (&rest x) (format t "~&~{~S~^ ~}~%" x)) ;Write, space separated + LF
+(defun a (&rest x) (format t "~&~{~A~}~%" x)) ;print Anything, no separator, LF
+(defun e (x) (cons x (ignore-errors (list (eval x))))) ;eValuate
+(defmacro x (x) `(format t "~&~S => ~S~%" ',x ,x)) ;eXamine
 (defmacro !a (&rest foo) ; define! Alias
   `(progn ,@(loop :for (alias name) :on foo :by #'cddr
                   :collect (if (macro-function name)

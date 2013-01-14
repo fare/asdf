@@ -15,24 +15,19 @@
    #:hostname #:user-homedir #:lisp-implementation-directory
    #:getcwd #:chdir #:call-with-current-directory #:with-current-directory
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
+   #:setup-temporary-directory
    #:call-with-temporary-file #:with-temporary-file))
 (in-package :asdf/os)
 
 ;;; Features
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun* featurep (x &optional (features *features*))
+  (defun* featurep (x &optional (*features* *features*))
     (cond
-      ((atom x)
-       (and (member x features) t))
-      ((eq :not (car x))
-       (assert (null (cddr x)))
-       (not (featurep (cadr x) features)))
-      ((eq :or (car x))
-       (some #'(lambda (x) (featurep x features)) (cdr x)))
-      ((eq :and (car x))
-       (every #'(lambda (x) (featurep x features)) (cdr x)))
-      (t
-       (error "Malformed feature specification ~S" x))))
+      ((atom x) (and (member x *features*) t))
+      ((eq :not (car x)) (assert (null (cddr x))) (not (featurep (cadr x))))
+      ((eq :or (car x)) (some #'featurep (cdr x)))
+      ((eq :and (car x)) (every #'featurep (cdr x)))
+      (t (error "Malformed feature specification ~S" x))))
 
   (defun* os-unix-p ()
     (featurep '(:or :unix :cygwin :darwin)))
@@ -109,16 +104,21 @@ then returning the non-empty string value of the variable"
 ;; Initially stolen from SLIME's SWANK, completely rewritten since.
 ;; We're back to runtime checking, for the sake of e.g. ABCL.
 
-(defun* first-feature (features)
-  (dolist (x features)
-    (multiple-value-bind (val feature)
-        (if (consp x) (values (first x) (cons :or (rest x))) (values x x))
-      (when (featurep feature) (return val)))))
+(defun* first-feature (feature-sets)
+  (dolist (x feature-sets)
+    (multiple-value-bind (short long feature-expr)
+        (if (consp x)
+            (values (first x) (second x) (cons :or (rest x)))
+            (values x x x))
+      (when (featurep feature-expr)
+        (return (values short long))))))
 
 (defun* implementation-type ()
   (first-feature
-   '(:abcl (:acl :allegro) (:ccl :clozure) :clisp (:corman :cormanlisp) :cmu
-     :ecl :gcl (:lw :lispworks) :mcl :mkcl :sbcl :scl :symbolics :xcl)))
+   '(:abcl (:acl :allegro) (:ccl :clozure) :clisp (:corman :cormanlisp)
+     (:cmu :cmucl :cmu) :ecl :gcl
+     (:lwpe :lispworks-personal-edition) (:lw :lispworks)
+     :mcl :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
 
 (defun* operating-system ()
   (first-feature
@@ -130,7 +130,7 @@ then returning the non-empty string value of the variable"
 
 (defun* architecture ()
   (first-feature
-   '((:x64 :amd64 :x86-64 :x86_64 :x8664-target (:and :word-size=64 :pc386))
+   '((:x64 :x86-64 :x86_64 :x8664-target :amd64 (:and :word-size=64 :pc386))
      (:x86 :x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
      (:ppc64 :ppc64 :ppc64-target) (:ppc32 :ppc32 :ppc32-target :ppc :powerpc)
      :hppa64 :hppa :sparc64 (:sparc32 :sparc32 :sparc)
@@ -199,7 +199,7 @@ then returning the non-empty string value of the variable"
   ;; Note: untested on RMCL
   #+(or abcl clozure cmucl ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
   #+cormanlisp "localhost" ;; is there a better way? Does it matter?
-  #+allegro (excl.osi:gethostname)
+  #+allegro (symbol-call :excl.osi :gethostname)
   #+clisp (first (split-string (machine-instance) :separator " "))
   #+gcl (system:gethostname))
 
@@ -277,6 +277,9 @@ then returning the non-empty string value of the variable"
 
 (defun* temporary-directory ()
   (or *temporary-directory* (default-temporary-directory)))
+
+(defun setup-temporary-directory ()
+  (setf *temporary-directory* (default-temporary-directory)))
 
 (defun* call-with-temporary-file
     (thunk &key

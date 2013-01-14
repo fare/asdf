@@ -4,9 +4,9 @@
 
 (asdf/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os
-        :asdf/upgrade :asdf/find-system :asdf/configuration)
+  (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/find-system)
   (:export
+   #:*source-registry* #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry
    #:source-registry #:source-registry-initialized-p
    #:initialize-source-registry #:clear-source-registry #:*source-registry*
@@ -45,11 +45,10 @@ system names to pathnames of .asd files")
   (typep *source-registry* 'hash-table))
 
 (defun* clear-source-registry ()
-  "Undoes any initialization of the source registry.
-You might want to call that before you dump an image that would be resumed
-with a different configuration, so the configuration would be re-read then."
+  "Undoes any initialization of the source registry."
   (setf *source-registry* nil)
   (values))
+(register-clear-configuration-hook 'clear-source-registry)
 
 (defparameter *wild-asd*
   (make-pathname* :directory nil :name *wild* :type "asd" :version :newest))
@@ -288,10 +287,14 @@ with a different configuration, so the configuration would be re-read then."
 (defvar *source-registry-parameter* nil)
 
 (defun* initialize-source-registry (&optional (parameter *source-registry-parameter*))
-  #-clisp ;; CLISP really hates our package munging. Don't try to load it twice.
-  (setf *asdf-upgrade-already-attempted* nil) ;; in case a new ASDF appears in the registry
+  ;; In case we haven't upgraded ASDF yet, and it appears in the registry,
+  ;; clear the upgrade attempt flag:
+  (setf *asdf-upgrade-already-attempted* (not *upgraded-p*))
+  ;; Record the parameter used to configure the registry 
   (setf *source-registry-parameter* parameter)
+  ;; Clear the previous registry database:
   (setf *source-registry* (make-hash-table :test 'equal))
+  ;; Do it!
   (compute-source-registry parameter))
 
 ;; Checks an initial variable to see whether the state is initialized
@@ -310,5 +313,3 @@ with a different configuration, so the configuration would be re-read then."
 (defun* sysdef-source-registry-search (system)
   (ensure-source-registry)
   (values (gethash (coerce-name system) *source-registry*)))
-
-(pushnew 'clear-source-registry *clear-configuration-hook*)

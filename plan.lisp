@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/plan
   (:recycle :asdf/plan :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/upgrade
+  (:use :common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
@@ -16,9 +16,11 @@
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions
    #:node-for #:needed-in-image-p
+   #:action-index #:action-planned-p
    #:plan-record-dependency #:visiting-action-p
    #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
    #:visit-dependencies #:compute-action-stamp #:traverse-action
+   #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
    #:traverse-sequentially #:traverse
    #:perform-plan #:plan-operates-on-p))

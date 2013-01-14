@@ -3,8 +3,8 @@
 
 (asdf/package:define-package :asdf/backward-internals
   (:recycle :asdf/backward-internals :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname
-   :asdf/upgrade :asdf/system :asdf/component :asdf/find-system :asdf/action)
+  (:use :common-lisp :asdf/driver :asdf/upgrade
+   :asdf/system :asdf/component :asdf/find-system :asdf/action)
   (:export ;; for internal use
    #:%refresh-component-inline-methods
    #:%resolve-if-component-dep-fails))

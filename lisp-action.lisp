@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
-  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/lisp-build
+  (:use :common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
   (:export
    #:compile-error #:compile-failed #:compile-warned #:try-recompiling
@@ -93,7 +93,7 @@
     (multiple-value-bind (output warnings-p failure-p)
         (call-with-around-compile-hook
          c #'(lambda (&rest flags)
-               (with-controlled-compiler-conditions ()
+               (with-muffled-compiler-conditions ()
                  (apply *compile-file-function* input-file
                         :output-file output-file
                         :external-format (component-external-format c)
@@ -159,7 +159,7 @@
         (perform (find-operation o 'compile-op) c)))))
 (defun* perform-lisp-load-fasl (o c)
   (if-bind (fasl (first (input-files o c)))
-    (with-controlled-loader-conditions () (load* fasl))))
+    (with-muffled-loader-conditions () (load* fasl))))
 (defmethod perform ((o load-op) (c cl-source-file))
   (perform-lisp-load-fasl o c))
 (defmethod perform ((o load-op) (c static-file))
@@ -205,7 +205,7 @@
 (defun* perform-lisp-load-source (o c)
   (call-with-around-compile-hook
    c #'(lambda ()
-         (with-controlled-loader-conditions ()
+         (with-muffled-loader-conditions ()
            (load* (first (input-files o c))
                   :external-format (component-external-format c))))))
 

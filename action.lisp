@@ -3,8 +3,8 @@
 
 (asdf/package:define-package :asdf/action
   (:recycle :asdf/action :asdf)
-  (:use :common-lisp :asdf/compatibility :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build
-   :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
+  (:use :common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:intern #:stamp #:done-p)
   (:export
@@ -19,7 +19,7 @@
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
-   #:perform #:perform-with-restarts #:retry #:accept))
+   #:perform #:perform-with-restarts #:retry #:accept #:feature))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
@@ -115,7 +115,7 @@ You can put together sentences using this phrase."))
    (multiple-value-bind (files fixedp) (call-next-method)
      (if fixedp
          files
-         (mapcar *output-translation-hook* files)))
+         (mapcar *output-translation-function* files)))
    t))
 (defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))

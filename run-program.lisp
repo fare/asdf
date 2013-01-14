@@ -10,10 +10,12 @@
    #:escape-windows-token #:escape-windows-command
    #:escape-token #:escape-command
 
-   ;;; run-program/foo
+   ;;; run-program/
+   #:slurp-input-stream
    #:run-program/
    #:subprocess-error
-   #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process))
+   #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
+   ))
 (in-package :asdf/run-program)
 
 ;;;; ----- Escaping strings for the shell -----
@@ -339,6 +341,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
              (format nil (if (os-unix-p) "exec > ~*~A ; ~2:*~A" "~A > ~A")
                      (system-command command) (native-namestring out)))
            (system (command &key interactive)
+             (declare (ignorable interactive))
              #+(or abcl xcl) (ext:run-shell-command command)
              #+allegro
              (excl:run-shell-command command :input interactive :output interactive :wait t)

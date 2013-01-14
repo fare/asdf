@@ -5,14 +5,11 @@
   (:recycle :asdf/utility :asdf)
   (:use :common-lisp :asdf/package :asdf/compatibility)
   (:export
-   #:find-symbol* ;; reexport from asdf/package
-   #:asdf-debug #:load-asdf-debug-utility ;; magic helper to define debugging functions
-   #:strcat #:compatfmt ;; reexport from asdf/compatibility
-   #:undefine-function #:undefine-functions
-   #:defun* #:defgeneric* ;; defining macros
+   ;; magic helper to define debugging functions:
+   #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
+   #:undefine-function #:undefine-functions #:defun* #:defgeneric* ;; (un)defining functions
    #:if-bind ;; basic flow control
-   #:while-collecting #:appendf #:length=n-p ;; lists
-   #:remove-keys #:remove-keyword ;; keyword argument lists
+   #:while-collecting #:appendf #:length=n-p #:remove-keys #:remove-keyword ;; lists and plists
    #:emptyp ;; sequences
    #:first-char #:last-char #:split-string ;; strings
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
@@ -20,9 +17,11 @@
    #:stamp< #:stamp<= #:earlier-stamp #:stamps-earliest #:earliest-stamp ;; stamps
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
    #:list-to-hash-set ;; hash-table
-   #:ensure-function #:call-function #:call-functions ;; functions
-   #:eval-string #:load-string #:load-stream
-   #:parse-version #:version-compatible-p)) ;; version
+   #:ensure-function #:call-function #:call-functions #:register-hook-function ;; functions
+   #:match-condition-p #:match-any-condition-p ;; conditions
+   #:call-with-muffled-conditions #:with-muffled-conditions
+   #:eval-text #:load-string #:load-stream
+   #:parse-version #:unparse-version #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
@@ -51,6 +50,7 @@
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
+             #-clisp ;; clisp is unhappy about fmakunbound.
              (undefine-function ',name)
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
              ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
@@ -147,10 +147,10 @@ any of the characters in the sequence SEPARATOR.
 If MAX is specified, then no more than max(1,MAX) components will be returned,
 starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
-  (catch nil
+  (block ()
     (let ((list nil) (words 0) (end (length string)))
       (flet ((separatorp (char) (find char separator))
-             (done () (throw nil (cons (subseq string 0 end) list))))
+             (done () (return (cons (subseq string 0 end) list))))
         (loop
           :for start = (if (and max (>= words (1- max)))
                            (done)
@@ -219,24 +219,24 @@ starting the separation from the end, e.g. when called with arguments
 
 
 ;;; Code execution
-(defun* eval-string (string)
-  "Evaluate a form read from a string."
-  (eval (read-from-string string)))
-
-(defun* ensure-function (fun &key (package :asdf))
+(defun* ensure-function (fun &key (package :cl))
   (etypecase fun
     ((or boolean keyword character number pathname) (constantly fun))
     ((or function symbol) fun)
     (cons (eval `(function ,fun)))
     (string (eval `(function ,(with-standard-io-syntax
                                 (let ((*package* (find-package package)))
-                                  (eval-string fun))))))))
+                                  (read-from-string fun))))))))
 
 (defun* call-function (function-spec &rest arguments)
   (apply (ensure-function function-spec) arguments))
 
 (defun* call-functions (function-specs)
   (map () 'call-function function-specs))
+
+(defun* register-hook-function (variable hook &optional (call-now-p t))
+  (pushnew hook (symbol-value variable))
+  (when call-now-p (call-function hook)))
 
 
 ;;; Version handling
@@ -246,19 +246,21 @@ Return a (non-null) list of integers if the string is valid, NIL otherwise.
 If on-error is error, warn, or designates a function of compatible signature,
 the function is called with an explanation of what is wrong with the argument.
 NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
-  (and
-   (or (stringp string)
-       (when on-error
-         (funcall on-error "~S: ~S is not a string"
-                  'parse-version string)) nil)
-   (or (loop :for prev = nil :then c :for c :across string
-         :always (or (digit-char-p c)
-                     (and (eql c #\.) prev (not (eql prev #\.))))
-         :finally (return (and c (digit-char-p c))))
-       (when on-error
-         (funcall on-error "~S: ~S doesn't follow asdf version numbering convention"
-                  'parse-version string)) nil)
+  (block nil
+   (unless (stringp string)
+     (call-function on-error "~S: ~S is not a string" 'parse-version string)
+     (return))
+   (unless (loop :for prev = nil :then c :for c :across string
+                 :always (or (digit-char-p c)
+                             (and (eql c #\.) prev (not (eql prev #\.))))
+                 :finally (return (and c (digit-char-p c))))
+     (call-function on-error "~S: ~S doesn't follow asdf version numbering convention"
+                    'parse-version string)
+     (return))
    (mapcar #'parse-integer (split-string string :separator "."))))
+
+(defun* unparse-version (version-list)
+  (format nil "~{~D~^.~}" version-list))
 
 (defun* version-compatible-p (provided-version required-version)
   "Is the provided version a compatible substitution for the required-version?
@@ -275,4 +277,49 @@ with later being determined by a lexicographical comparison of minor numbers."
                       (bigger (cdr x) (cdr y))))))
       (and x y (= (car x) (car y))
            (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
+
+
+;;; Condition control
+
+(defvar *uninteresting-conditions* nil
+  "Uninteresting conditions, as per MATCH-CONDITION-P")
+
+(defparameter +simple-condition-format-control-slot+
+  #+abcl 'system::format-control
+  #+allegro 'excl::format-control
+  #+clisp 'system::$format-control
+  #+clozure 'ccl::format-control
+  #+ecl 'si::format-control
+  #+(or cmu scl) 'conditions::format-control
+  #+(or gcl lispworks) 'conditions::format-string
+  #+sbcl 'sb-kernel:format-control
+  #-(or abcl allegro clisp clozure cmu gcl lispworks sbcl scl) nil
+  "Name of the slot for FORMAT-CONTROL in simple-condition")
+
+(defun* match-condition-p (x condition)
+  "Compare received CONDITION to some pattern X:
+a symbol naming a condition class,
+a simple vector of length 2, arguments to find-symbol* with result as above,
+or a string describing the format-control of a simple-condition."
+  (etypecase x
+    (symbol (typep condition x))
+    ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
+    (function (funcall x condition))
+    (string (and (typep condition 'simple-condition)
+                 ;; On SBCL, it's always set and the check triggers a warning
+                 #+(or allegro clozure cmu lispworks scl)
+		 (slot-boundp condition +simple-condition-format-control-slot+)
+                 (ignore-errors (equal (simple-condition-format-control condition) x))))))
+
+(defun* match-any-condition-p (condition conditions)
+  "match CONDITION against any of the patterns of CONDITIONS supplied"
+  (loop :for x :in conditions :thereis (match-condition-p x condition)))
+
+(defun* call-with-muffled-conditions (thunk conditions)
+  (handler-bind ((t #'(lambda (c) (when (match-any-condition-p c conditions)
+                                    (muffle-warning c)))))
+    (funcall thunk)))
+
+(defmacro with-muffled-uninteresting-conditions ((conditions) &body body)
+  `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions))
 

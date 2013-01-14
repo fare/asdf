@@ -59,7 +59,10 @@ build/asdf.lisp: $(wildcard *.lisp)
 	cat $(driver_lisp) $(asdf_lisp) > $@
 
 wc:
-	wc $(driver_lisp) $(asdf_lisp) | sort -n
+	@wc $(driver_lisp) | sort -n ; echo ; \
+	wc $(asdf_lisp) | sort -n ; \
+	echo ; \
+	wc $(driver_lisp) $(asdf_lisp) | tail -n 1
 
 wc-driver:
 	wc $(driver_lisp)

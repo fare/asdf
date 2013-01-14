@@ -5,7 +5,7 @@
   (:recycle :asdf/stream)
   (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
   (:export
-   #:*default-stream-element-type* #:*stderr*
+   #:*default-stream-element-type* #:*stderr* #:setup-stderr
    #:with-safe-io-syntax #:call-with-safe-io-syntax
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file
@@ -14,8 +14,9 @@
    #:copy-stream-to-stream #:concatenate-files
    #:copy-stream-to-stream-line-by-line
    #:slurp-stream-string #:slurp-stream-lines
-   #:slurp-stream-forms #:slurp-file-string
-   #:read-file-lines #:read-file-forms #:eval-input
+   #:slurp-stream-forms #:read-file-string
+   #:read-file-lines #:read-file-forms
+   #:safe-read-first-file-form #:eval-input #:eval-text
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*))
@@ -27,8 +28,13 @@
 (defvar *stderr* #-clozure *error-output* #+clozure ccl::*stderr*
   "the original error output stream at startup")
 
+(defun setup-stderr ()
+  (setf *stderr* #-clozure *error-output* #+clozure ccl::*stderr*))
+
 
 ;;; Safe syntax
+
+(defvar *standard-readtable* (copy-readtable nil))
 
 (defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
   "Establish safe CL reader options around the evaluation of BODY"
@@ -37,6 +43,8 @@
 (defun* call-with-safe-io-syntax (thunk &key (package :cl))
   (with-standard-io-syntax ()
     (let ((*package* (find-package package))
+          (*readtable* *standard-readtable*)
+          (*read-default-float-format* 'double-float)
           (*print-readably* nil)
 	  (*read-eval* nil))
       (funcall thunk))))
@@ -44,59 +52,57 @@
 
 ;;; Output to a stream or string, FORMAT-style
 
-(defun* call-with-output (x thunk)
-  "Calls FUN with an actual stream argument, behaving like FORMAT with respect to stream'ing:
-If OBJ is a stream, use it as the stream.
-If OBJ is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
-If OBJ is T, use *STANDARD-OUTPUT* as the stream.
-If OBJ is a string with a fill-pointer, use it as a string-output-stream.
+(defun* call-with-output (output function)
+  "Calls FUNCTION with an actual stream argument,
+behaving like FORMAT with respect to how stream designators are interpreted:
+If OUTPUT is a stream, use it as the stream.
+If OUTPUT is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
+If OUTPUT is T, use *STANDARD-OUTPUT* as the stream.
+If OUTPUT is a string with a fill-pointer, use it as a string-output-stream.
 Otherwise, signal an error."
-  (typecase x
+  (etypecase output
     (null
-     (with-output-to-string (s) (funcall thunk s)))
+     (with-output-to-string (stream) (funcall function stream)))
     ((eql t)
-     (funcall thunk *standard-output*))
+     (funcall function *standard-output*))
     (stream
-     (funcall thunk x))
+     (funcall function output))
     (string
-     (assert (fill-pointer x))
-     (with-output-to-string (s x) (funcall thunk s)))
-    (t (error "not a valid stream designator ~S" x))))
+     (assert (fill-pointer output))
+     (with-output-to-string (stream output) (funcall function stream)))))
 
-(defmacro with-output ((x &optional (value x)) &body body)
-  "Bind X to an output stream, coercing VALUE (default: previous binding of X)
+(defmacro with-output ((output-var &optional (value output-var)) &body body)
+  "Bind OUTPUT-VAR to an output stream, coercing VALUE (default: previous binding of OUTPUT-VAR)
 as per FORMAT, and evaluate BODY within the scope of this binding."
-  `(call-with-output ,value #'(lambda (,x) ,@body)))
+  `(call-with-output ,value #'(lambda (,output-var) ,@body)))
 
-(defun* output-string (string &optional stream)
-  (if stream
-      (with-output (stream) (princ string stream))
+(defun* output-string (string &optional output)
+  "If the desired OUTPUT is not NIL, print the string to the output; otherwise return the string"
+  (if output
+      (with-output (output) (princ string output))
       string))
 
 
 ;;; Input helpers
 
-(defun* call-with-input (x fun)
-  "Calls FUN with an actual stream argument, coercing behaving like READ with respect to stream'ing:
-If OBJ is a stream, use it as the stream.
-If OBJ is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
-If OBJ is T, use *STANDARD-OUTPUT* as the stream.
-If OBJ is a string with a fill-pointer, use it as a string-output-stream.
+(defun* call-with-input (input function)
+  "Calls FUNCTION with an actual stream argument, interpreting
+stream designators like READ, but also coercing strings to STRING-INPUT-STREAM.
+If INPUT is a STREAM, use it as the stream.
+If INPUT is NIL, use a *STANDARD-INPUT* as the stream.
+If INPUT is T, use *TERMINAL-IO* as the stream.
+As an extension, if INPUT is a string, use it as a string-input-stream.
 Otherwise, signal an error."
-  (typecase x
-    (null
-     (funcall fun *terminal-io*))
-    ((eql t)
-     (funcall fun *standard-input*))
-    (stream
-     (funcall fun x))
-    (string
-     (with-input-from-string (s x) (funcall fun s)))
-    (t
-     (error "not a valid input stream designator ~S" x))))
+  (etypecase input
+    (null (funcall function *standard-input*))
+    ((eql t) (funcall function *terminal-io*))
+    (stream (funcall function input))
+    (string (with-input-from-string (stream input) (funcall function stream)))))
 
-(defmacro with-input ((x &optional (value x)) &body body)
-  `(call-with-input ,value #'(lambda (,x) ,@body)))
+(defmacro with-input ((input-var &optional (value input-var)) &body body)
+  "Bind INPUT-VAR to an input stream, coercing VALUE (default: previous binding of INPUT-VAR)
+as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
+  `(call-with-input ,value #'(lambda (,input-var) ,@body)))
 
 (defun* call-with-input-file (pathname thunk
                              &key (element-type *default-stream-element-type*)
@@ -121,7 +127,8 @@ Otherwise, signal an error."
 Useful for portably flushing I/O before user input or program exit."
   ;; CCL notably buffers its stream output by default.
   (dolist (s (append streams
-                     (list *stderr* *error-output* *standard-output* *trace-output* *debug-io*)))
+                     (list *stderr* *error-output* *standard-output* *trace-output*
+                           *debug-io* *terminal-io* *debug-io* *query-io*)))
     (ignore-errors (finish-output s)))
   (values))
 
@@ -207,9 +214,11 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   "Reads the first form from the top of a file.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (with-input-file (in pathname)
-    (read in eof-error-p eof-value)))
+    (read-preserving-whitespace in eof-error-p eof-value)))
 
-(defun* safe-read-first-file-form (pathname &key (package :cl) eof-error-p eof-value)
+(defun* safe-read-first-file-form (pathname &key
+                                            (package :cl)
+                                            eof-error-p eof-value)
   "Reads the first form from the top of a file using a safe standardized syntax"
   (with-safe-io-syntax (:package package)
     (read-first-file-form pathname :eof-error-p eof-error-p :eof-value eof-value)))
@@ -222,6 +231,12 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
           :until (eq form eof)
           :do (setf results (multiple-value-list (eval form)))
           :finally (return (apply 'values results)))))
+
+(defun* eval-text (text)
+  "Evaluate a form, or if a string, read and evaluate from the string."
+  (etypecase text
+    ((or cons symbol) (eval text))
+    (string (eval-input text))))
 
 
 ;;; Encodings

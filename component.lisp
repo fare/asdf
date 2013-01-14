@@ -3,11 +3,7 @@
 
 (asdf/package:define-package :asdf/component
   (:recycle :asdf/component :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/upgrade)
-  (:intern #:name #:version #:description #:long-description
-           #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
-           #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
-           #:%encoding #:properties #:parent)
+  (:use :common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:component #:component-find-path
    #:component-name #:component-pathname #:component-relative-pathname
@@ -21,7 +17,13 @@
    #:component-inline-methods ;; backward-compatibility only. DO NOT USE!
    #:component-operation-times ;; For internal use only.
    ;; portable ASDF encoding and implementation-specific external-format
-   #:component-external-format #:component-encoding))
+   #:component-external-format #:component-encoding
+
+   ;; Internals we'd like to share with the ASDF package.
+   #:name #:version #:description #:long-description
+   #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
+   #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
+   #:%encoding #:properties #:parent))
 (in-package :asdf/component)
 
 (defgeneric* component-name (component)

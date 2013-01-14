@@ -3,8 +3,9 @@
 
 (asdf/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/lisp-build :asdf/upgrade :asdf/configuration)
+  (:use :common-lisp :asdf/driver :asdf/upgrade)
   (:export
+   #:*output-translations* #:*output-translations-parameter*
    #:invalid-output-translation
    #:output-translations #:output-translations-initialized-p
    #:initialize-output-translations #:clear-output-translations
@@ -19,6 +20,8 @@
    #:compute-output-translations
    ))
 (in-package :asdf/output-translations)
+
+(when-upgrade () (undefine-function '(setf output-translations)))
 
 (define-condition invalid-output-translation (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
@@ -49,11 +52,10 @@ and the order is by decreasing length of namestring of the source pathname.")
   (and *output-translations* t))
 
 (defun* clear-output-translations ()
-  "Undoes any initialization of the output translations.
-You might want to call that before you dump an image that would be resumed
-with a different configuration, so the configuration would be re-read then."
+  "Undoes any initialization of the output translations."
   (setf *output-translations* '())
   (values))
+(register-clear-configuration-hook 'clear-source-registry)
 
 (defun* validate-output-translations-directive (directive)
   (or (member directive '(:enable-user-cache :disable-cache nil))
@@ -278,6 +280,9 @@ effectively disabling the output translation facility."
        :return (translate-pathname* p absolute-source destination root source)
        :finally (return p)))))
 
+;; Hook into asdf/driver's output-translation mechanism
+(setf *output-translation-function* 'apply-output-translations)
+
 #+abcl
 (defun* translate-jar-pathname (source wildcard)
   (declare (ignore wildcard))
@@ -304,6 +309,3 @@ effectively disabling the output translation facility."
            (target
              (merge-pathnames* relative-source target-root)))
       (normalize-device (apply-output-translations target)))))
-
-(setf *output-translation-hook* 'apply-output-translations)
-(pushnew 'clear-output-translations *clear-configuration-hook*)

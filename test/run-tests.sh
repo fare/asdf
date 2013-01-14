@@ -114,7 +114,7 @@ case "$lisp" in
     eval="--eval" ;;
   allegro)
     command="${ALLEGRO:-alisp}"
-    flags="-q"
+    #flags="-q"
     nodebug="-batch"
     eval="-e" ;;
   allegromodern)
