@@ -127,7 +127,7 @@
       (component-pathname ret) ; eagerly compute the absolute pathname
       (when versionp
         (unless (parse-version (normalize-version
-                                version (component-pathname (component-system ret))) nil)
+                                version (system-source-directory (component-system ret))) nil)
           (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
                 version name parent)))
       (when (typep ret 'parent-component)

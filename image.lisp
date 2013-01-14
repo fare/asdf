@@ -13,7 +13,7 @@
    #:register-image-resume-hook #:register-image-dump-hook
    #:call-image-resume-hook #:call-image-dump-hook
    #:initialize-asdf-utilities
-   #:resume-image #:run-resumed-program #:dump-image 
+   #:resume-image #:run-resumed-image #:dump-image 
 ))
 (in-package :asdf/image)
 
@@ -216,9 +216,9 @@ if we are not called from a directly executable image dumped by XCVB."
   (when entry-point
     (apply entry-point *command-line-arguments*)))
 
-(defun* run-resumed-program ()
+(defun* run-resumed-image ()
   (with-coded-exit ()
-    (let ((ret (resume-program)))
+    (let ((ret (resume-image)))
       (if (typep ret 'integer)
           (quit ret)
           (quit 99)))))
@@ -253,26 +253,26 @@ if we are not called from a directly executable image dumped by XCVB."
      (list
       :norc t
       :script nil
-      :init-function #'resume
+      :init-function #'run-resumed-image
       ;; :parse-options nil ;--- requires a non-standard patch to clisp.
       )))
   #+clozure
   (ccl:save-application filename :prepend-kernel t
-                        :toplevel-function (when executable #'resume))
+                        :toplevel-function (when executable #'run-resumed-image))
   #+(or cmu scl)
   (progn
    (ext:gc :full t)
    (setf ext:*batch-mode* nil)
    (setf ext::*gc-run-time* 0)
    (apply 'ext:save-lisp filename #+cmu :executable #+cmu t
-          (when executable '(:init-function resume :process-command-line nil))))
+          (when executable '(:init-function run-resumed-image :process-command-line nil))))
   #+gcl
   (progn
    (si::set-hole-size 500) (si::gbc nil) (si::sgc-on t)
    (si::save-system filename))
   #+lispworks
   (if executable
-      (lispworks:deliver 'resume filename 0 :interface nil)
+      (lispworks:deliver 'run-resumed-image filename 0 :interface nil)
       (hcl:save-image filename :environment nil))
   #+sbcl
   (progn
@@ -280,7 +280,7 @@ if we are not called from a directly executable image dumped by XCVB."
    (setf sb-ext::*gc-run-time* 0)
    (apply 'sb-ext:save-lisp-and-die filename
     :executable t ;--- always include the runtime that goes with the core
-    (when executable (list :toplevel #'resume :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
+    (when executable (list :toplevel #'run-resumed-image :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
   #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
   (die 98 "Can't dump ~S: asdf doesn't support image dumping with this Lisp implementation.~%" filename))
 

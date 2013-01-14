@@ -16,6 +16,7 @@
    #:find-package* #:find-symbol* #:symbol-call #:intern* #:unintern*
    #:symbol-shadowing-p #:rehome-symbol
    #:delete-package* #:package-names #:packages-from-names
+   #:reify-symbol #:unreify-symbol
    #:package-definition-form #:ensure-package #:define-package))
 
 (in-package :asdf/package)
@@ -64,18 +65,41 @@ or when loading the package is optional."
         (values nil nil))))
   (defun symbol-shadowing-p (symbol package)
     (and (member symbol (package-shadowing-symbols package)) t))
+  (defun home-package-p (symbol package)
+    (eq (symbol-package symbol) (find-package* package))))
+
+(eval-when (:load-toplevel :compile-toplevel :execute)
   (defun symbol-package-name (symbol)
     (let ((package (symbol-package symbol)))
       (and package (package-name package))))
-  (defun symbol-vector (symbol)
-    (vector (symbol-name symbol) (symbol-package-name symbol)))
-  (defun vector-symbol (vector)
-    (let* ((symbol-name (aref vector 0))
-           (package-name (aref vector 1)))
-      (if package-name (intern symbol-name package-name)
-          (make-symbol symbol-name))))
-  (defun home-package-p (symbol package)
-    (eq (symbol-package symbol) (find-package* package))))
+  (defun standard-common-lisp-symbol-p (symbol)
+    (multiple-value-bind (sym status) (find-symbol* symbol :common-lisp nil)
+      (and (eq sym symbol) (eq status :external))))
+  (defun reify-package (package &optional package-context)
+    (if (eq package package-context) t
+        (etypecase package
+          (null nil)
+          ((eql (find-package :cl)) :cl)
+          (package (package-name package)))))
+  (defun unreify-package (package &optional package-context)
+    (etypecase package
+      (null nil)
+      ((eql t) package-context)
+      ((or symbol string) (find-package package))))
+  (defun reify-symbol (symbol &optional package-context)
+    (etypecase symbol
+      ((or keyword (satisfies standard-common-lisp-symbol-p)) symbol)
+      (symbol (vector (symbol-name symbol)
+                      (reify-package (symbol-package symbol) package-context)))))
+  (defun unreify-symbol (symbol &optional package-context)
+    (etypecase symbol
+      (symbol symbol)
+      ((simple-vector 2)
+       (let* ((symbol-name (svref symbol 0))
+              (package-foo (svref symbol 1))
+              (package (unreify-package package-foo package-context)))
+         (if package (intern symbol-name package)
+             (make-symbol symbol-name)))))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   #+(or clisp clozure)
@@ -260,37 +284,45 @@ or when loading the package is optional."
 ;;; ensure-package, define-package
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defvar *fishy-package-changes* '(t))
-  (defun ensure-package (name &key
-                                (fishyp *fishy-package-changes*)
-                                nicknames documentation use
-                                shadow shadowing-import-from
-                                import-from export intern
-                                recycle mix reexport
-                                unintern)
-    (let* ((name (string name))
-           (nicknames (mapcar #'string nicknames))
-           (names (cons name nicknames))
-           (previous (packages-from-names names))
-           (discarded (cdr previous))
-           (to-delete ())
-           (package (or (first previous) (make-package name :nicknames nicknames)))
-           (recycle (packages-from-names recycle))
-           (use (mapcar 'find-package* use))
-           (mix (mapcar 'find-package* mix))
-           (reexport (mapcar 'find-package* reexport))
-           (shadow (mapcar 'string shadow))
-           (export (mapcar 'string export))
-           (intern (mapcar 'string intern))
-           (unintern (mapcar 'string unintern))
-           (shadowed (make-hash-table :test 'equal)) ; string to bool
-           (imported (make-hash-table :test 'equal)) ; string to bool
-           (exported (make-hash-table :test 'equal)) ; string to bool
-           ;; string to list canonical package and providing package:
-           (inherited (make-hash-table :test 'equal))
-           (fishy ())) ; fishy stuff we did
-      (macrolet ((fishy (&rest info)
-                   `(when fishyp (push (list ,@info) fishy))))
+  (defvar *record-fishy-package-changes* '(t))
+  (defvar *fishy-package-changes* '())
+  (defun flush-fishy ()
+    (when *fishy-package-changes*
+      (push (nreverse *fishy-package-changes*) *record-fishy-package-changes*)
+      (setf *fishy-package-changes* nil)))
+  (defun record-fishy (info)
+    (push info *fishy-package-changes*))
+  (macrolet ((when-fishy (&body body)
+               `(when *record-fishy-package-changes* ,@body))
+             (fishy (&rest info)
+               `(when-fishy (record-fishy (list ,@info)))))
+    (defun ensure-package (name &key
+                                  nicknames documentation use
+                                  shadow shadowing-import-from
+                                  import-from export intern
+                                  recycle mix reexport
+                                  unintern)
+      (let* ((name (string name))
+             (nicknames (mapcar #'string nicknames))
+             (names (cons name nicknames))
+             (previous (packages-from-names names))
+             (discarded (cdr previous))
+             (to-delete ())
+             (package (or (first previous) (make-package name :nicknames nicknames)))
+             (recycle (packages-from-names recycle))
+             (use (mapcar 'find-package* use))
+             (mix (mapcar 'find-package* mix))
+             (reexport (mapcar 'find-package* reexport))
+             (shadow (mapcar 'string shadow))
+             (export (mapcar 'string export))
+             (intern (mapcar 'string intern))
+             (unintern (mapcar 'string unintern))
+             (shadowed (make-hash-table :test 'equal)) ; string to bool
+             (imported (make-hash-table :test 'equal)) ; string to bool
+             (exported (make-hash-table :test 'equal)) ; string to bool
+             ;; string to list home package and use package:
+             (inherited (make-hash-table :test 'equal)))
+        (when-fishy (record-fishy name))
         (labels
             ((ensure-shadowing-import (name p)
                (let ((import (find-symbol* name p)))
@@ -367,7 +399,7 @@ or when loading the package is optional."
                                name (package-name sp) (package-name xp))))
                      (t
                       (setf (gethash name inherited) (list sp p))
-                      (when status
+                      (when (and status (not (eq sp xp)))
                         (let ((shadowing (symbol-shadowing-p existing package)))
                           (fishy :inherited name (package-name p) (package-name sp)
                                  (package-name xp))
@@ -436,10 +468,9 @@ or when loading the package is optional."
                 :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
                                     (package-names p))
                 :do (fishy :nickname (package-names p))
-                    (if n (rename-package p (first n) (rest n))
-                        (progn
-                          (rename-package-away p)
-                          (push p to-delete))))
+                    (cond (n (rename-package p (first n) (rest n)))
+                          (t (rename-package-away p)
+                             (push p to-delete))))
           (rename-package package name nicknames)
           (dolist (name unintern)
             (multiple-value-bind (existing status) (find-symbol name package)
@@ -494,7 +525,7 @@ or when loading the package is optional."
           (do-symbols (sym package)
             (ensure-symbol (symbol-name sym)))
           (map () 'delete-package* to-delete)
-          (when fishy (push (cons name fishy) *fishy-package-changes*))
+          (flush-fishy)
           package)))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)

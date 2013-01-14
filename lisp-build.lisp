@@ -119,7 +119,7 @@ a simple vector of length 2, arguments to find-symbol* with result as above,
 or a string describing the format-control of a simple-condition."
   (etypecase x
     (symbol (typep condition x))
-    ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
+    ((simple-vector 2) (typep condition (unreify-symbol x)))
     (function (funcall x condition))
     (string (and (typep condition 'simple-condition)
                  #+(or allegro clozure cmu scl) ;; On SBCL, it's always set & the check warns
@@ -334,4 +334,3 @@ for processing later (possibly in a different process)."
            (scm:concatenate-system output :fasls-to-concatenate))
       (loop :for f :in fasls :do (ignore-errors (delete-file f)))
       (ignore-errors (lispworks:delete-system :fasls-to-concatenate)))))
-
