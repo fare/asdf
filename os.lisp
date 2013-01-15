@@ -279,7 +279,10 @@ then returning the non-empty string value of the variable"
   (or *temporary-directory* (default-temporary-directory)))
 
 (defun setup-temporary-directory ()
-  (setf *temporary-directory* (default-temporary-directory)))
+  (setf *temporary-directory* (default-temporary-directory))
+  ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
+  #+gcl (setf system::*tmp-dir* *temporary-directory*))
+
 
 (defun* call-with-temporary-file
     (thunk &key

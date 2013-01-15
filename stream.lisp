@@ -25,11 +25,15 @@
 (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)
   "default element-type for open (depends on the current CL implementation)")
 
-(defvar *stderr* #-clozure *error-output* #+clozure ccl::*stderr*
+(defvar *stderr* *error-output*
   "the original error output stream at startup")
 
 (defun setup-stderr ()
-  (setf *stderr* #-clozure *error-output* #+clozure ccl::*stderr*))
+  (setf *stderr*
+        #+allegro excl::*stderr*
+        #+clozure ccl::*stderr*
+        #-(or allegro clozure) *error-output*))
+(setup-stderr)
 
 
 ;;; Safe syntax

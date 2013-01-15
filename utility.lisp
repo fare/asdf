@@ -293,7 +293,7 @@ with later being determined by a lexicographical comparison of minor numbers."
   #+(or cmu scl) 'conditions::format-control
   #+(or gcl lispworks) 'conditions::format-string
   #+sbcl 'sb-kernel:format-control
-  #-(or abcl allegro clisp clozure cmu gcl lispworks sbcl scl) nil
+  #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl) nil
   "Name of the slot for FORMAT-CONTROL in simple-condition")
 
 (defun* match-condition-p (x condition)

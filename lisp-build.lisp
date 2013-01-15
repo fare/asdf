@@ -178,7 +178,8 @@ for processing later (possibly in a different process)."
   (call-function (or hook 'funcall) function))
 
 (defun* compile-file* (input-file &rest keys &key compile-check output-file &allow-other-keys)
-  (let* ((keywords (remove-keys '(:compile-check #+gcl<2.7 :external-format) keys))
+  (let* ((keywords (remove-keys
+                    `(:compile-check #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
          (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
          (tmp-file (tmpize-pathname output-file))
          (status :error))

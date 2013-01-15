@@ -243,6 +243,7 @@ is bound, write a message and exit on an error.  If
    (apply (asym :oos) (asym :load-op) :asdf keys)))
 
 (defun call-with-asdf-conditions (thunk &optional verbose)
+  (declare (ignorable verbose))
   (handler-bind (#+sbcl
                  ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
                    #'muffle-warning)

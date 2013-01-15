@@ -291,7 +291,7 @@ clean_up () {
 }
 test_clean_load () {
     case $lisp in
-        gcl) return 0 ;; # GCL 2.6 is hopeless
+        gcl|cmucl) return 0 ;; # These are hopeless
     esac
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text

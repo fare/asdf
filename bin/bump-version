@@ -14,9 +14,9 @@
 (format t "Upgrading to the latest ASDF... ~%")
 (upgrade-asdf)
 (format t "Now loading some dependencies... ~%")
-(load-systems :cl-ppcre :xcvb-utils)
+(load-systems :cl-ppcre :fare-utils)
 
-(in-package :xcvb-utils)
+(in-package :fare-utils)
 
 (format t "And the debug utilities... ~%")
 (asdf-debug)

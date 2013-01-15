@@ -261,8 +261,14 @@ actually-existing directory."
 
 ;;; Probing the filesystem
 (defun* nil-pathname (&optional (defaults *default-pathname-defaults*))
-  (make-pathname* :directory nil :name nil :type nil :version nil :device nil :host nil
-                  :defaults defaults)) ;; The defaults shouldn't matter
+  ;; 19.2.2.2.1 says a NIL host can mean a default host;
+  ;; see also "valid physical pathname host" in the CLHS glossary, that suggests
+  ;; strings and lists of strings or :unspecific
+  ;; But CMUCL decides to die on NIL.
+  (make-pathname* :directory nil :name nil :type nil :version nil :device nil
+                  :host (or #+cmu lisp::*unix-host*)
+                  ;; the default shouldn't matter, but we really want something physical
+                  :defaults defaults))
 
 (defmacro with-pathname-defaults ((&optional defaults) &body body)
   `(let ((*default-pathname-defaults* ,(or defaults (nil-pathname)))) ,@body))

@@ -585,7 +585,7 @@ or when loading the package is optional."
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
   (unless (member :asdf2.27 *features*)
-    #+clisp
+    #+(or clisp xcl)
     (progn
       (when (find-package :asdf)
         (delete-package* :asdf t))
