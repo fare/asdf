@@ -4,6 +4,7 @@
 (asdf/package:define-package :asdf/stream
   (:recycle :asdf/stream)
   (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
+  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:with-standard-io-syntax)
   (:export
    #:*default-stream-element-type* #:*stderr* #:setup-stderr
    #:with-safe-io-syntax #:call-with-safe-io-syntax

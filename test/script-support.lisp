@@ -39,6 +39,13 @@ Some constraints:
 (defvar *debug-asdf* nil)
 (defvar *quit-when-done* t)
 
+(defun verbose (&optional (verbose t))
+  (loop :for v :in '(*load-verbose* *compile-verbose*
+                     *load-print* *compile-print*)
+        :do (setf (symbol-value v) verbose)))
+
+(verbose nil)
+
 ;;; Minimal compatibility layer
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #+allegro
@@ -148,10 +155,11 @@ Some constraints:
 
 (defun touch-file (file &key (offset 0) timestamp)
   (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
-    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp)
+    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl<2.7 -5)
       (acall :run-shell-command
              "touch -t ~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D ~S"
-             year month day hr min sec (namestring file)))))
+             year month day hr min sec (namestring file))
+      (assert-equal (file-write-date file) timestamp))))
 
 (defun hash-table->alist (table)
   (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
@@ -229,7 +237,7 @@ is bound, write a message and exit on an error.  If
     (funcall thunk)))
 
 (defun load-asdf-lisp (&optional tag)
-  (quietly (load (asdf-lisp tag))))
+  (quietly (load (asdf-lisp tag) :verbose *load-verbose* :print *load-print*)))
 
 (defun load-asdf-fasl (&optional tag)
   (quietly (load (asdf-fasl tag))))
@@ -373,13 +381,15 @@ is bound, write a message and exit on an error.  If
   (setf *package* (find-package :asdf-test)))
 
 ;; Actual scripts rely on this function:
-(defun common-lisp-user::load-asdf () (load-asdf)) 
+(defun common-lisp-user::load-asdf () (load-asdf))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a
  common-lisp-user::debug-asdf debug-asdf
  da debug-asdf common-lisp-user::da debug-asdf
- la load-asdf common-lisp-user::la load-asdf)
+ la load-asdf common-lisp-user::la load-asdf
+ ll load-asdf-lisp
+ v verbose)
 
 #| For the record, the following form is sometimes useful to insert in
  asdf/plan:compute-action-stamp to find out what's happening.

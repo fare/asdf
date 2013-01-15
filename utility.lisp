@@ -4,6 +4,7 @@
 (asdf/package:define-package :asdf/utility
   (:recycle :asdf/utility :asdf)
   (:use :common-lisp :asdf/package :asdf/compatibility)
+  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:with-standard-io-syntax)
   (:export
    ;; magic helper to define debugging functions:
    #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
