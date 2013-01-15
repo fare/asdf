@@ -345,13 +345,20 @@ is bound, write a message and exit on an error.  If
     (register-directory *test-directory*)
     (acall :oos (asym :load-op) x :verbose verbose)))
 
-(defun test-upgrade (method tag) ;; called by run-test
+(defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
-    (unless (eq method 'just-load-asdf-fasl)
-      (format t "Loading old asdf ~A~%" tag)
-      (load-asdf-lisp tag))
-    (format t "Loading new asdf with method ~A~%" method)
-    (funcall method)
+    (when old-method
+      (cond
+        ((equal tag "REQUIRE")
+         (format t "Requiring some previous asdf ~A~%" tag)
+         (ignore-errors (funcall 'require "asdf"))
+         (unless (member "ASDF" *modules* :test 'equal)
+           (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
+        (t
+         (format t "Loading old asdf ~A via ~A~%" tag old-method)
+         (funcall old-method tag))))
+    (format t "Now loading new asdf via method ~A~%" new-method)
+    (funcall new-method)
     (format t "Testing it~%")
     (register-directory *test-directory*)
     (load-test-system :test-module-depend)

@@ -299,16 +299,16 @@ or when loading the package is optional."
       (setf *package-fishiness* nil)))
   (defun record-fishy (info)
     (push info *package-fishiness*))
-  (macrolet ((when-fishy (&body body)
-               `(when *all-package-fishiness* ,@body))
-             (fishy (&rest info)
-               `(when-fishy (record-fishy (list ,@info)))))
-    (defun ensure-package (name &key
-                                  nicknames documentation use
-                                  shadow shadowing-import-from
-                                  import-from export intern
-                                  recycle mix reexport
-                                  unintern)
+  (defun ensure-package (name &key
+                                nicknames documentation use
+                                shadow shadowing-import-from
+                                import-from export intern
+                                recycle mix reexport
+                                unintern)
+    (macrolet ((when-fishy (&body body)
+                 `(when *all-package-fishiness* ,@body))
+               (fishy (&rest info)
+                 `(when-fishy (record-fishy (list ,@info)))))
       (let* ((name (string name))
              (nicknames (mapcar #'string nicknames))
              (names (cons name nicknames))
@@ -579,15 +579,18 @@ or when loading the package is optional."
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
 
 
-;;; Final tricks to keep various implementations happier
+;;;; Final tricks to keep various implementations happy.
 (eval-when (:load-toplevel :compile-toplevel :execute)
   #+allegro
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
-  (unless (member :asdf2.27 *features*)
-    #+(or clisp xcl)
-    (progn
-      (when (find-package :asdf)
-        (delete-package* :asdf t))
-      (make-package :asdf :use ()))))
+  #+(or clisp xcl)
+  (unless (let ((vs (find-symbol* 'version-satisfies :asdf nil))
+                (av (find-symbol* 'asdf-version :asdf nil)))
+            (and vs av (funcall vs (funcall av) "2.26.59")))
+    (when (find-package :asdf)
+      (delete-package* :asdf t))
+    (make-package :asdf :use ())))
+
+

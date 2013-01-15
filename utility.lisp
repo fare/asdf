@@ -34,7 +34,7 @@
   (defun undefine-function (function-spec)
     (cond
       ((symbolp function-spec)
-       #+clisp
+       #+(and clisp (or))
        (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
          (when (typep f 'clos:standard-generic-function)
            (loop :for m :in (clos:generic-function-methods f)
@@ -51,7 +51,12 @@
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
-             #-clisp ;; clisp is unhappy about fmakunbound.
+             ;; undefining the previous function is the portable way
+             ;; of overriding any incompatible previous gf, but somehow
+             ;; this causes CLISP to fail to see COMPONENT-NAME methods after ugprade
+             ;; so instead, for CLISP we delete-package* in package.lisp
+             ;; any time the API changes.
+             #-clisp
              (undefine-function ',name)
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
              ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl

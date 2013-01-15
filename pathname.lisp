@@ -271,7 +271,7 @@ actually-existing directory."
                   :defaults defaults))
 
 (defmacro with-pathname-defaults ((&optional defaults) &body body)
-  `(let ((*default-pathname-defaults* ,(or defaults (nil-pathname)))) ,@body))
+  `(let ((*default-pathname-defaults* ,(or defaults '(nil-pathname)))) ,@body))
 
 (defun* truename* (p)
   ;; avoids both logical-pathname merging and physical resolution issues

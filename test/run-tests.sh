@@ -211,20 +211,34 @@ upgrade_tags () {
     if [ -n "$TEST_ASDF_TAGS" ] ; then
         echo $TEST_ASDF_TAGS ; return
     fi
+    # REQUIRE is a magic tag meaning whatever your implementation provides
     # 1.37 is the last release by Daniel Barlow
     # 1.97 is the last release before Gary King takes over
     # 1.369 is the last release by Gary King
     # 2.000 to 2.019 and 2.20 to 2.27 and beyond are Faré's "stable" releases
-    echo 1.37 1.97 1.369
+    # 2.26.61 is the last single-package ASDF.
+    echo REQUIRE 1.37 1.97 1.369 2.26.61
     git tag -l '2.0??'
     git tag -l '2.??'
 }
+upgrade_methods () {
+    if [ -n "$TEST_ASDF_METHODS" ] ; then
+        echo $TEST_ASDF_METHODS ; return
+    fi
+    cat <<EOF
+'load-asdf-lisp'load-asdf-system
+'load-asdf-lisp'compile-load-asdf
+'load-asdf-lisp'load-asdf-fasl
+()'load-asdf-fasl
+EOF
+}
 extract_tagged_asdf () {
     ver=$1
+    if [ REQUIRE = "$ver" ] ; then return 0 ; fi
     file=build/asdf-${tag}.lisp ;
     if [ ! -f $file ] ; then
         case $ver in
-            1.*|2.0*|2.2[0-6])
+            1.*|2.0*|2.2[0-6]|2.26.61)
                 git show ${tag}:asdf.lisp > $file ;;
             *)
                 echo "Don't know how to extract asdf.lisp for version $tag"
@@ -243,7 +257,7 @@ valid_upgrade_test_p () {
             # my old ubuntu clisp 2.44.1 is wired in with an antique ASDF 1 from CLC that can't be downgraded.
             # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
             # Note that for the longest time, CLISP has included 2.011 in its distribution.
-            : ;; 
+            : ;;
         cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*)
             : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;;
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*)
@@ -256,16 +270,17 @@ valid_upgrade_test_p () {
         *) return 0 ;;
    esac
    return 1
-}    
+}
 run_upgrade_tests () {
     su=test/script-support.lisp
-    lv="$command $eval (load\"$su\") $eval" ;
     for tag in `upgrade_tags` ; do
-        for x in load-asdf-system load-asdf-lisp compile-load-asdf load-asdf-fasl just-load-asdf-fasl ; do
-            if valid_upgrade_test_p $lisp $tag $x ; then
-                echo "Testing upgrade from ASDF ${tag} using method $x" ;
-                $lv "(asdf-test::test-upgrade 'asdf-test::$x \"$tag\")" ||
-                { echo "upgrade FAILED for $lisp from $tag using method $x" ; exit 1 ;}
+        for method in `upgrade_methods` ; do
+            if valid_upgrade_test_p $lisp $tag $method ; then
+                echo "Testing ASDF upgrade from ${tag} using method $method"
+                extract_tagged_asdf $tag
+                $command $eval \
+                "'(#.(load\"$su\")#.(in-package :asdf-test)#.(test-upgrade $method \"$tag\"))" ||
+                { echo "upgrade FAILED for $lisp from $tag using method $method" ; exit 1 ;}
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {
