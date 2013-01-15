@@ -571,10 +571,11 @@ or when loading the package is optional."
 (defmacro define-package (package &rest clauses)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
      #+(or ecl gcl) (defpackage ,package (:use))
-     #+clisp (macrolet ((foo ()
-                          (apply 'ensure-package ',(parse-define-package-form package clauses))
-                          (package-definition-form ',package :nicknamesp nil)))
-               (foo))
+     #+clisp
+     (macrolet ((foo ()
+                  (apply 'ensure-package ',(parse-define-package-form package clauses))
+                  (package-definition-form ',package :nicknamesp nil)))
+       (foo))
      (apply 'ensure-package ',(parse-define-package-form package clauses))))
 
 
@@ -585,7 +586,7 @@ or when loading the package is optional."
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
   (unless (member :asdf2.27 *features*)
-    #+clisp
+    #+(or clisp xcl)
     (progn
       (when (find-package :asdf)
         (delete-package* :asdf t))

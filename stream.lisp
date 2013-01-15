@@ -4,6 +4,7 @@
 (asdf/package:define-package :asdf/stream
   (:recycle :asdf/stream)
   (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname)
+  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:with-standard-io-syntax)
   (:export
    #:*default-stream-element-type* #:*stderr* #:setup-stderr
    #:with-safe-io-syntax #:call-with-safe-io-syntax
@@ -25,11 +26,15 @@
 (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)
   "default element-type for open (depends on the current CL implementation)")
 
-(defvar *stderr* #-clozure *error-output* #+clozure ccl::*stderr*
+(defvar *stderr* *error-output*
   "the original error output stream at startup")
 
 (defun setup-stderr ()
-  (setf *stderr* #-clozure *error-output* #+clozure ccl::*stderr*))
+  (setf *stderr*
+        #+allegro excl::*stderr*
+        #+clozure ccl::*stderr*
+        #-(or allegro clozure) *error-output*))
+(setup-stderr)
 
 
 ;;; Safe syntax

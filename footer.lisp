@@ -7,7 +7,7 @@
    :asdf/find-system :asdf/find-component :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/operate :asdf/bundle :asdf/concatenate-source
    :asdf/output-translations :asdf/source-registry
-   :asdf/backward-internals :asdf/defsystem :asdf/backward-interface :asdf/interface))
+   :asdf/backward-internals :asdf/defsystem :asdf/backward-interface))
 (in-package :asdf/footer)
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.

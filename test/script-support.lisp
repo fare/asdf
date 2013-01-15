@@ -39,6 +39,13 @@ Some constraints:
 (defvar *debug-asdf* nil)
 (defvar *quit-when-done* t)
 
+(defun verbose (&optional (verbose t))
+  (loop :for v :in '(*load-verbose* *compile-verbose*
+                     *load-print* *compile-print*)
+        :do (setf (symbol-value v) verbose)))
+
+(verbose nil)
+
 ;;; Minimal compatibility layer
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #+allegro
@@ -73,7 +80,6 @@ Some constraints:
         :do (finish-output s)))
 (defun redirect-outputs ()
   (finish-outputs)
-  #-allegro
   (setf *error-output* *standard-output*
         *trace-output* *standard-output*))
 
@@ -149,10 +155,11 @@ Some constraints:
 
 (defun touch-file (file &key (offset 0) timestamp)
   (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
-    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp)
+    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl<2.7 -5)
       (acall :run-shell-command
              "touch -t ~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D ~S"
-             year month day hr min sec (namestring file)))))
+             year month day hr min sec (namestring file))
+      (assert-equal (file-write-date file) timestamp))))
 
 (defun hash-table->alist (table)
   (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
@@ -230,7 +237,7 @@ is bound, write a message and exit on an error.  If
     (funcall thunk)))
 
 (defun load-asdf-lisp (&optional tag)
-  (quietly (load (asdf-lisp tag))))
+  (quietly (load (asdf-lisp tag) :verbose *load-verbose* :print *load-print*)))
 
 (defun load-asdf-fasl (&optional tag)
   (quietly (load (asdf-fasl tag))))
@@ -244,6 +251,7 @@ is bound, write a message and exit on an error.  If
    (apply (asym :oos) (asym :load-op) :asdf keys)))
 
 (defun call-with-asdf-conditions (thunk &optional verbose)
+  (declare (ignorable verbose))
   (handler-bind (#+sbcl
                  ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
                    #'muffle-warning)
@@ -337,14 +345,18 @@ is bound, write a message and exit on an error.  If
     (register-directory *test-directory*)
     (acall :oos (asym :load-op) x :verbose verbose)))
 
-(defun testing-asdf (thunk)
+(defun test-upgrade (method tag) ;; called by run-test
   (with-test ()
-    (funcall thunk)
+    (unless (eq method 'just-load-asdf-fasl)
+      (format t "Loading old asdf ~A~%" tag)
+      (load-asdf-lisp tag))
+    (format t "Loading new asdf with method ~A~%" method)
+    (funcall method)
+    (format t "Testing it~%")
     (register-directory *test-directory*)
-    (load-test-system :test-module-depend)))
-
-(defmacro test-asdf (&body body) ;; used by test-upgrade
-  `(testing-asdf #'(lambda () ,@body)))
+    (load-test-system :test-module-depend)
+    (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
+    (assert (eval (intern (symbol-name '#:*file3*) :test-package)))))
 
 (defun configure-asdf ()
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
@@ -372,14 +384,18 @@ is bound, write a message and exit on an error.  If
   (setf *quit-when-done* nil)
   (setf *package* (find-package :asdf-test)))
 
+(defun just-load-asdf-fasl () (load-asdf-fasl))
+
 ;; Actual scripts rely on this function:
-(defun common-lisp-user::load-asdf () (load-asdf)) 
+(defun common-lisp-user::load-asdf () (load-asdf))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a
  common-lisp-user::debug-asdf debug-asdf
  da debug-asdf common-lisp-user::da debug-asdf
- la load-asdf common-lisp-user::la load-asdf)
+ la load-asdf common-lisp-user::la load-asdf
+ ll load-asdf-lisp
+ v verbose)
 
 #| For the record, the following form is sometimes useful to insert in
  asdf/plan:compute-action-stamp to find out what's happening.

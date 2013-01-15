@@ -4,6 +4,7 @@
 (asdf/package:define-package :asdf/utility
   (:recycle :asdf/utility :asdf)
   (:use :common-lisp :asdf/package :asdf/compatibility)
+  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:with-standard-io-syntax)
   (:export
    ;; magic helper to define debugging functions:
    #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
@@ -293,7 +294,7 @@ with later being determined by a lexicographical comparison of minor numbers."
   #+(or cmu scl) 'conditions::format-control
   #+(or gcl lispworks) 'conditions::format-string
   #+sbcl 'sb-kernel:format-control
-  #-(or abcl allegro clisp clozure cmu gcl lispworks sbcl scl) nil
+  #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl) nil
   "Name of the slot for FORMAT-CONTROL in simple-condition")
 
 (defun* match-condition-p (x condition)

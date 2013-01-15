@@ -173,11 +173,9 @@ by /bin/sh in POSIX"
   (declare (ignorable stream element-type))
   (cond
     #+(or gcl<2.7 genera)
-    ((functionp x)
-     (funcall x stream))
+    ((functionp x) (funcall x stream))
     #+(or gcl<2.7 genera)
-    ((output-stream-p x)
-     (copy-stream-to-stream stream x :element-type element-type))
+    ((output-stream-p x) (copy-stream-to-stream stream x :element-type element-type))
     (t
      (error "Invalid ~S destination ~S" 'slurp-input-stream x))))
 

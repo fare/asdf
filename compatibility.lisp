@@ -13,6 +13,7 @@
    #:logical-pathname #:translate-logical-pathname
    #:make-broadcast-stream #:file-namestring)
   #+ecl (:export #:use-ecl-byte-compiler-p)
+  ;;#+gcl (:shadow #:type-of #:with-standard-io-syntax) ; causes errors when loading fasl(!)
   #+genera (:import-from :scl #:boolean)
   #+genera (:export #:boolean #:ensure-directories-exist)
   #+mcl (:export #:probe-posix #:current-user-homedir-pathname)
@@ -52,9 +53,9 @@
   (when (or (< system::*gcl-major-version* 2) ;; GCL 2.6 lacks output-translations and more.
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
-    (format t "Detected an old GCL 2.6. Only limited functionality available.~%")
     (shadow 'type-of :asdf/compatibility)
-    (export 'with-standard-io-syntax)
+    ;;(shadow 'with-standard-io-syntax :asdf/compatibility)
+    ;;(format t "Detected an old GCL 2.6. Only limited functionality available.~%")
     (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
     (pushnew :gcl<2.7 *features*))
   (unless (member :ansi-cl *features*)

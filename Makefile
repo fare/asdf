@@ -34,7 +34,12 @@ XCL ?= xcl
 
 # website, tag, install
 
-default: test
+driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp driver.lisp
+asdf_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
+
+build/asdf.lisp: $(wildcard *.lisp)
+	mkdir -p build
+	cat $(driver_lisp) $(asdf_lisp) > $@
 
 install: archive-copy
 
@@ -50,13 +55,6 @@ archive-copy: archive build/asdf.lisp
 	bin/rsync-cp build/asdf.lisp $(webhome_private)
 	${MAKE} push
 	git checkout master
-
-driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp driver.lisp
-asdf_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
-
-build/asdf.lisp: $(wildcard *.lisp)
-	mkdir -p build
-	cat $(driver_lisp) $(asdf_lisp) > $@
 
 wc:
 	@wc $(driver_lisp) | sort -n ; echo ; \
