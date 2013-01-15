@@ -233,41 +233,40 @@ extract_tagged_asdf () {
         esac
     fi
 }
+valid_upgrade_test_p () {
+    case "${1}:${2}:${3}" in
+        abcl:2.0[01][1-9]:*|abcl:2.2[1-2]:*)
+            : Skip, because it is so damn slow ;;
+        ccl:1.*|ccl:2.0[01]*)
+            : Skip, because ccl broke old asdf ;;
+        clisp:1.??*|clisp:2.00[0-7]:*)
+            # my old ubuntu clisp 2.44.1 is wired in with an antique ASDF 1 from CLC that can't be downgraded.
+            # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
+            # Note that for the longest time, CLISP has included 2.011 in its distribution.
+            : ;; 
+        cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*)
+            : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;;
+        ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*)
+            : Skip, because of various ASDF issues ;;
+        gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : Skip old versions that do not support GCL 2.6 ;;
+        mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*)
+            : Skip, because MKCL is only supported starting with 2.24 ;;
+        xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*)
+            : XCL support starts with ASDF 2.014.2 - It also hangs badly during upgrade. ;;
+        *) return 0 ;;
+   esac
+   return 1
+}    
 run_upgrade_tests () {
     su=test/script-support.lisp
-    lu="(load\"$su\")"
-    lv="$command $eval $lu $eval" ;
+    lv="$command $eval (load\"$su\") $eval" ;
     for tag in `upgrade_tags` ; do
-        for x in load-system load-lisp load-lisp-compile-load-fasl load-fasl just-load-fasl ; do
-            lo="(asdf-test::load-asdf-lisp \"${tag}\")" ;
-            echo "Testing upgrade from ASDF ${tag} using method $x" ;
-            extract_tagged_asdf $tag
-            case ${lisp}:$tag:$x in
-                abcl:2.0[01][1-9]:*|abcl:2.2[1-2]:*)
-                    : Skip, because it is so damn slow ;;
-                ccl:1.*|ccl:2.0[01]*)
-                    : Skip, because ccl broke old asdf ;;
-                clisp:1.*|clisp:2.0[01]*)
-                    : Skip, because ccl broke old asdf ;;
-                cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*)
-                    : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;;
-                ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*)
-                    : Skip, because of various ASDF issues ;;
-                gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : Skip old versions that do not support GCL 2.6 ;;
-                mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*)
-                    : Skip, because MKCL is only supported starting with 2.24 ;;
-                xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*)
-                    : XCL support starts with ASDF 2.014.2 - It also hangs badly during upgrade. ;;
-                *) (set -x ; case $x in
-                            load-system) l="$lo (asdf-test::load-asdf-system)" ;;
-                            load-lisp) l="$lo (asdf-test::load-asdf-lisp)" ;;
-                            load-lisp-compile-load-fasl) l="$lo (asdf-test::compile-load-asdf)" ;;
-                            load-fasl) l="$lo (asdf-test::load-asdf-fasl)" ;;
-                            just-load-fasl) l="(asdf-test::load-asdf-fasl)" ;;
-                            *) echo "WTF?" ; exit 2 ;; esac ;
-                        $lv "(asdf-test::test-asdf $l)" ) ||
-                    { echo "upgrade FAILED" ; exit 1 ;} ;; esac ;
-        done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
+        for x in load-asdf-system load-asdf-lisp compile-load-asdf load-asdf-fasl just-load-asdf-fasl ; do
+            if valid_upgrade_test_p $lisp $tag $x ; then
+                echo "Testing upgrade from ASDF ${tag} using method $x" ;
+                $lv "(asdf-test::test-upgrade 'asdf-test::$x \"$tag\")" ||
+                { echo "upgrade FAILED for $lisp from $tag using method $x" ; exit 1 ;}
+    fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {
   create_config

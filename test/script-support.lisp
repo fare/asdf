@@ -345,14 +345,18 @@ is bound, write a message and exit on an error.  If
     (register-directory *test-directory*)
     (acall :oos (asym :load-op) x :verbose verbose)))
 
-(defun testing-asdf (thunk)
+(defun test-upgrade (method tag) ;; called by run-test
   (with-test ()
-    (funcall thunk)
+    (unless (eq method 'just-load-asdf-fasl)
+      (format t "Loading old asdf ~A~%" tag)
+      (load-asdf-lisp tag))
+    (format t "Loading new asdf with method ~A~%" method)
+    (funcall method)
+    (format t "Testing it~%")
     (register-directory *test-directory*)
-    (load-test-system :test-module-depend)))
-
-(defmacro test-asdf (&body body) ;; used by test-upgrade
-  `(testing-asdf #'(lambda () ,@body)))
+    (load-test-system :test-module-depend)
+    (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
+    (assert (eval (intern (symbol-name '#:*file3*) :test-package)))))
 
 (defun configure-asdf ()
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
@@ -379,6 +383,8 @@ is bound, write a message and exit on an error.  If
   (setf *debug-asdf* t)
   (setf *quit-when-done* nil)
   (setf *package* (find-package :asdf-test)))
+
+(defun just-load-asdf-fasl () (load-asdf-fasl))
 
 ;; Actual scripts rely on this function:
 (defun common-lisp-user::load-asdf () (load-asdf))
