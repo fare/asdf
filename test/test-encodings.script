@@ -46,14 +46,10 @@
   #-asdf-unicode
   (leave-test "No Unicode support to test on this lisp implementation" 0)
 
-  (unless (find-system :asdf-encodings nil)
-    (leave-test "ASDF-ENCODINGS is not installed next to ASDF. Skipping the rest the test." 0))
-
   ;; NB: recent clozure can autodetect without asdf-encodings with :default (!)
 
-  #+(and asdf-unicode sbcl)
+  #+sbcl
   (progn
-    #+clozure (setf ccl:*default-external-format* :latin3)
     #+sbcl (setf sb-impl::*default-external-format* :latin-3)
     (with-encoding-test (:default)
       (defsystem :test-encoding-explicit-default
@@ -62,19 +58,20 @@
       (defsystem :test-encoding-implicit-default
         :components ((:file "lambda")))))
 
-  #+asdf-unicode
-  (progn
-    ;; BEWARE: For testing purposes, we assume ASDF-ENCODINGS is under the same root as ASDF.
-    (pushnew (asdf::subpathname *asdf-directory* "../asdf-encodings/") asdf:*central-registry*)
-    (asdf:load-system :asdf-encodings)
-    #-lispworks
-    (with-encoding-test (:latin-2)
-      (defsystem :test-encoding-implicit-autodetect
-        :components ((:file "lambda"))))
-    #+sbcl
-    (with-encoding-test (:koi8-r)
-      (defsystem :test-encoding-explicit-koi8-r
-        :components ((:file "lambda" :encoding :koi8-r)))))
+  ;; BEWARE: For testing purposes, we assume ASDF-ENCODINGS is under the same root as ASDF.
+  (pushnew (asdf::subpathname *asdf-directory* "../asdf-encodings/") asdf:*central-registry*)
+  (unless (find-system :asdf-encodings nil)
+    (leave-test "ASDF-ENCODINGS is not installed next to ASDF. Skipping the rest the test." 0))
+
+  (asdf:load-system :asdf-encodings)
+  #-lispworks
+  (with-encoding-test (:latin-2)
+    (defsystem :test-encoding-implicit-autodetect
+      :components ((:file "lambda"))))
+  #+sbcl
+  (with-encoding-test (:koi8-r)
+    (defsystem :test-encoding-explicit-koi8-r
+      :components ((:file "lambda" :encoding :koi8-r))))
 
   (with-encoding-test (:utf-8)
     (defsystem :test-file-encoding-u8
