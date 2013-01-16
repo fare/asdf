@@ -20,7 +20,7 @@
    (:file "find-component" :depends-on ("find-system"))
    (:file "operation")
    (:file "action" :depends-on ("find-component" "operation"))
-   (:file "lisp-action" :depends-on ("action" "lisp-build"))
+   (:file "lisp-action" :depends-on ("action"))
    (:file "plan" :depends-on ("action"))
    (:file "operate" :depends-on ("plan"))
    (:file "output-translations" :depends-on ("operate"))
