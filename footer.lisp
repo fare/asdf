@@ -12,7 +12,7 @@
 
 ;;;; Configure
 (setf asdf/utility:*asdf-debug-utility*
-      '(asdf:system-relative-pathname :asdf "contrib/debug.lisp"))
+      '(asdf/interface:system-relative-pathname :asdf "contrib/debug.lisp"))
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
 

@@ -21,6 +21,7 @@
    ;; Parsing filenames and lists thereof
    #:component-name-to-pathname-components
    #:split-name-type #:parse-unix-namestring #:unix-namestring
+   #:split-unix-namestring-directory-components
    #:subpathname #:subpathname*
    ;; Resolving symlinks somewhat
    #:truenamize #:resolve-symlinks #:resolve-symlinks*
@@ -429,11 +430,12 @@ with given pathname and if it exists return its truename."
 
 
 ;;; Parsing filenames and lists thereof
-(defun* component-name-to-pathname-components (unix-style-namestring &key want-directory dot-dot)
+(defun* split-unix-namestring-directory-components
+    (unix-style-namestring &key want-directory dot-dot)
   "Splits the path string UNIX-STYLE-NAMESTRING, returning four values:
 A flag that is either :absolute or :relative, indicating
    how the rest of the values are to be interpreted.
-A directory path --- a list of strings, suitable for
+A directory path --- a list of strings and keywords, suitable for
    use with MAKE-PATHNAME when prepended with the flag value.
    Directory components with an empty name or the name . are removed.
    Any directory named .. is read as DOT-DOT, or :BACK if it's NIL (not :UP).
@@ -541,7 +543,7 @@ when you're running portable code and the OS may not be Unixish."
        (setf name (string-downcase name)))
       (string))
     (multiple-value-bind (relative path filename file-only)
-        (component-name-to-pathname-components
+        (split-unix-namestring-directory-components
          name :dot-dot dot-dot :want-directory want-directory)
       (multiple-value-bind (name type)
           (cond
@@ -649,7 +651,7 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
                                            (eql x separator)))
                          root-namestring)))
     (multiple-value-bind (relative path filename)
-        (component-name-to-pathname-components root-string :want-directory t)
+        (split-unix-namestring-directory-components root-string :want-directory t)
       (declare (ignore relative filename))
       (let ((new-base
              (make-pathname* :defaults root :directory `(:absolute ,@path))))

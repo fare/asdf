@@ -41,7 +41,7 @@ XCL ?= xcl
 
 # website, tag, install
 
-driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp driver.lisp
+driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
 asdf_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
 
 # Making ASDF itself should be our first, default, target:

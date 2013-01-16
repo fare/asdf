@@ -258,8 +258,8 @@ is bound, write a message and exit on an error.  If
                  ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
                    #'muffle-warning)
                  #+(and ecl (not ecl-bytecmp))
-                 ((or c:compiler-note c::compiler-debug-note
-                      c:compiler-warning) ;; ECL emits more serious warnings than it should.
+                 ((or c::compiler-note c::compiler-debug-note
+                      c::compiler-warning) ;; ECL emits more serious warnings than it should.
                    #'muffle-warning)
                  #+mkcl
                  ((or compiler:compiler-note) #'muffle-warning)

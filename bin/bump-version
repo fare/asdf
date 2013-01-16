@@ -2,30 +2,14 @@
 ":" ; exec sbcl --script "$0" "$@" ; exit # -*- Lisp -*-
 ;;; Really runs on any decent Common Lisp implementation
 
-(setf *load-verbose* nil *load-print* nil
-      *compile-verbose* nil *compile-print* nil)
-
-(format t "Loading your implementation's ASDF... ~%")
-(require :asdf)
-(in-package :asdf)
-#-asdf2 (error "Not ASDF2, you lose!")
-(format t "Initializing the source registry... ~%")
-(initialize-source-registry)
-(format t "Upgrading to the latest ASDF... ~%")
-(upgrade-asdf)
-(format t "Now loading some dependencies... ~%")
-(load-systems :cl-ppcre :fare-utils)
+(load (make-pathname :name "prelude" :type "lisp" :defaults *load-pathname*)
+  :verbose nil :print nil)
 
 (in-package :fare-utils)
 
-(format t "And the debug utilities... ~%")
-(asdf-debug)
+(defvar *adir* (asdf:system-relative-pathname :asdf nil))
 
-(DBG "There we are!")
-(restore-image)
-
-(defun afile (x)
-  (asdf:system-relative-pathname :asdf x))
+(defun afile (x) (subpathname *adir* x))
 
 (defparameter *version-file*
   (afile "version.lisp-expr"))
@@ -73,18 +57,41 @@
           (clobber-file-with-vector file written-contents :external-format external-format)
           (format t "done.~%")))))
 
-(defun version-transform (text)
-  (flet ((v1 (ver) (format nil "~S" ver))
-         (v2 (ver) (format nil "This is ASDF ~A:" ver))
-         (f (fun text)
-           (cl-ppcre:regex-replace-all
-            (funcall fun *old-version*) text (funcall fun *new-version*))))
-    (f #'v2 (f #'v1 text))))
+(defun version-transformer (new-version file prefix suffix)
+  (let* ((qprefix (cl-ppcre:quote-meta-chars prefix))
+         (versionrx "([0-9]+(\\.[0-9]+)+)")
+         (qsuffix (cl-ppcre:quote-meta-chars suffix))
+         (regex (strcat "(" qprefix ")(" versionrx ")(" qsuffix ")"))
+         (replacement
+           (constantly (strcat prefix new-version suffix))))
+    (lambda (text)
+      (multiple-value-bind (new-text foundp)
+          (cl-ppcre:regex-replace regex text replacement)
+        (unless (or foundp t)
+          (warn "Missing version in ~A" (file-namestring file)))
+        (values new-text foundp)))))
 
 (defparameter *versioned-files*
-  '("version.lisp-expr" "asdf.asd" "header.lisp" "build/asdf.lisp" "upgrade.lisp"))
+  '(("version.lisp-expr" "\"" "\"")
+    ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by bin/bump-revision")
+    ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
+    ("upgrade.lisp" "   (asdf-version \"" "\")")))
 
-(defun transform-file (x)
-  (maybe-replace-file (afile x) #'version-transform))
+(defun transform-file (new-version file prefix suffix)
+  (maybe-replace-file (afile file) (version-transformer new-version file prefix suffix)))
 
-(map () 'transform-file *versioned-files*)
+(defun transform-files ()
+  (loop :for f :in *versioned-files* :do (apply 'transform-file *new-version* f)))
+
+(defun test-transform-file (new-version file prefix suffix)
+  (let ((lines (read-file-lines (afile file))))
+    (dolist (l lines (progn (warn "Couldn't find a match in ~A" file) nil))
+      (multiple-value-bind (new-text foundp)
+          (funcall (version-transformer new-version file prefix suffix) l)
+        (when foundp
+          (format t "Found a match:~%  ==> ~A~%Replacing with~%  ==> ~A~%~%"
+                  l new-text)
+          (return t))))))
+(defun z () (apply 'test-transform-file *new-version* (first *versioned-files*)))
+
+(transform-files)

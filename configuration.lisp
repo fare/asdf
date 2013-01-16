@@ -237,7 +237,8 @@ directive.")
                 r)))
     (ensure-pathname w :want-absolute t)))
 
-(defun* resolve-location (x &key want-directory wilden)
+(defun* resolve-location (x &key want-directory wilden directory)
+  (when directory (setf want-directory t)) ;; :directory backward compatibility, until 2014-01-16.
   (if (atom x)
       (resolve-absolute-location-component x :want-directory want-directory :wilden wilden)
       (loop :with path = (resolve-absolute-location-component
