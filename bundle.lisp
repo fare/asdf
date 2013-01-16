@@ -9,13 +9,13 @@
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
-   #:monolithic-op #:monolithic-bundle-op
+   #:monolithic-op #:monolithic-bundle-op #:dependency-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
    #:program-op #:program-system
    #:compiled-file #:precompiled-system #:prebuilt-system
    #:operation-monolithic-p
    #:user-system-p #:user-system #:trivial-system-p
-   #:gather-actions #:gather-components
+   #:gather-actions #:operated-components
    #+ecl #:make-build #+mkcl #:bundle-system
    #:register-pre-built-system
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
@@ -215,13 +215,14 @@
 
 (defun* bundlable-file-p (pathname)
   (let ((type (pathname-type pathname)))
+    (declare (ignorable type))
     (or #+ecl (or (equal type (compile-file-type :object))
                   (equal type (compile-file-type :static-library)))
         #+mkcl (equal type (compile-file-type :fasl-p nil))
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
 
-(defun* gather-components (system &key (goal-operation 'load-op) (keep-operation goal-operation)
-                                  (component-type t) other-systems)
+(defun* operated-components (system &key (goal-operation 'load-op) (keep-operation goal-operation)
+                                    (component-type t) other-systems)
   (let ((goal-op (make-operation goal-operation)))
     (flet ((filter (o c)
              (declare (ignore o))
@@ -253,15 +254,15 @@
 
 (defmethod component-depends-on ((o monolithic-lib-op) (c system))
   (declare (ignorable o))
-  `((lib-op ,@(gather-components c :other-systems t :component-type 'system
-                                  :goal-operation 'load-op
-                                  :keep-operation 'load-op))))
+  `((lib-op ,@(operated-components c :other-systems t :component-type 'system
+                                     :goal-operation 'load-op
+                                     :keep-operation 'load-op))))
 
 (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
   (declare (ignorable o))
-  `((fasl-op ,@(gather-components c :other-systems t :component-type 'system
-                                    :goal-operation 'load-fasl-op
-                                    :keep-operation 'load-fasl-op))))
+  `((fasl-op ,@(operated-components c :other-systems t :component-type 'system
+                                      :goal-operation 'load-fasl-op
+                                      :keep-operation 'load-fasl-op))))
 
 (defmethod component-depends-on ((o program-op) (c system))
   (declare (ignorable o))
@@ -278,9 +279,9 @@
 
 (defmethod component-depends-on ((o lib-op) (c system))
   (declare (ignorable o))
-  `((compile-op ,@(gather-components c :other-systems nil :component-type '(not system)
-                                       :goal-operation 'load-op
-                                       :keep-operation 'load-op))))
+  `((compile-op ,@(operated-components c :other-systems nil :component-type '(not system)
+                                         :goal-operation 'load-op
+                                         :keep-operation 'load-op))))
 
 (defmethod component-depends-on ((o fasl-op) (c system))
   (declare (ignorable o))
@@ -295,12 +296,15 @@
   (declare (ignorable o c))
   nil)
 
-(defmethod input-files ((o bundle-op) (c system))
+(defun* dependency-files (o c &key (test 'identity) (key 'output-files))
   (while-collecting (collect)
     (visit-dependencies
      () o c #'(lambda (sub-o sub-c)
-                (loop :for f :in (output-files sub-o sub-c)
-                      :when (bundlable-file-p f) :do (collect f))))))
+                (loop :for f :in (funcall key sub-o sub-c)
+                      :when (funcall test f) :do (collect f))))))
+
+(defmethod input-files ((o bundle-op) (c system))
+  (dependency-files o c :test 'bundlable-file-p :key 'output-files))
 
 (defun* select-bundle-operation (type &optional monolithic)
   (ecase type

@@ -21,13 +21,6 @@
   ;; Old deprecated name for the same thing. Please update your software.
   (component-sibling-dependencies component))
 
-(defun* coerce-pathname (name &key type defaults)
-  ;; For backward-compatibility only, for people using internals
-  ;; Reported users in quicklisp: hu.dwim.asdf, asdf-utils, xcvb
-  ;; Will be removed in a future release, e.g. 2.30.
-  (warn "Please don't use ASDF::COERCE-PATHNAME. Use ASDF/PATHNAME:PARSE-UNIX-NAMESTRING.")
-  (parse-unix-namestring name :type type :defaults defaults))
-
 (defgeneric* operation-forced (operation)) ;; Used by swank.asd for swank-loader.
 (defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))
 

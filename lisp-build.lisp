@@ -19,8 +19,8 @@
    #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
    #:current-lisp-file-pathname #:lispize-pathname #:compile-file-type #:call-around-hook
    #:compile-file* #:compile-file-pathname*
-   #:load* #:load-from-string
-   #:combine-fasls))
+   #:load* #:load-from-string #:combine-fasls)
+  (:intern #:defaults #:failure-p #:warnings-p))
 (in-package :asdf/lisp-build)
 
 (defvar *compile-file-warnings-behaviour*
@@ -202,20 +202,20 @@ it will filter them appropriately."
          (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
          #+ecl
          (object-file
-           (when (use-ecl-byte-compiler-p)
+           (unless (use-ecl-byte-compiler-p)
              (or object-file
                  (compile-file-pathname output-file :type :object))))
          #+mkcl
          (object-file
            (or object-file
-               (compile-file-pathname output-file #+mkcl :fasl-p #+mkcl nil)))
-         (tmp-file (make-pathname :type "fasl-tmp" :defaults output-file)))
+               (compile-file-pathname output-file :fasl-p nil)))
+         (tmp-file (tmpize-pathname output-file)))
     (multiple-value-bind (output-truename warnings-p failure-p)
         (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
-            #+ecl (apply 'compile-file input-file
+            #+ecl (apply 'compile-file input-file :output-file
                          (if object-file
-                             (list* :output-file object-file :type :object keywords)
-                             keywords))
+                             (list* object-file :system-p t keywords)
+                             (list* output-file keywords)))
             #+mkcl (apply 'compile-file input-file :output-file object-file :fasl-p nil keywords))
       (cond
         ((and output-truename
@@ -225,7 +225,7 @@ it will filter them appropriately."
                      (check-flag warnings-p *compile-file-warnings-behaviour*)))
               (progn
                 #+(or ecl mkcl)
-                (when (and (eq status :success) #+ecl object-file)
+                (when (and #+ecl object-file)
                   (setf output-truename
                         (compiler::build-fasl
                          tmp-file #+ecl :lisp-files #+mkcl :lisp-object-files

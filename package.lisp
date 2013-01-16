@@ -74,7 +74,10 @@ or when loading the package is optional."
   (defun symbol-shadowing-p (symbol package)
     (and (member symbol (package-shadowing-symbols package)) t))
   (defun home-package-p (symbol package)
-    (eq (symbol-package symbol) (find-package* package))))
+    (and package (let ((sp (symbol-package symbol)))
+                   (and sp (let ((pp (find-package* package)))
+                             (and pp (eq sp pp))))))))
+
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun symbol-package-name (symbol)
@@ -213,10 +216,10 @@ or when loading the package is optional."
   (defun ensure-package-unused (package)
     (loop :for p :in (package-used-by-list package) :do
       (unuse-package package p)))
-  (defun delete-package* (package &optional nuke)
+  (defun delete-package* (package &key nuke)
     (let ((p (find-package package)))
       (when p
-        (when nuke (do-symbols (s p) (when (eq p (symbol-package s)) (nuke-symbol s))))
+        (when nuke (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s))))
         (ensure-package-unused p)
         (delete-package package))))
   (defun fresh-package-name (&optional (prefix :%TO-BE-DELETED)
@@ -236,8 +239,12 @@ or when loading the package is optional."
 ;;; Communicable representation of symbol and package information
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun package-definition-form (package-designator &key internp (nicknamesp t) (error t))
-    (let* ((package (find-package* package-designator error))
+  (defun package-definition-form (package-designator
+                                  &key (nicknamesp t) (usep t)
+                                    (shadowp t) (shadowing-import-p t)
+                                    (exportp t) (importp t) internp (error t))
+    (let* ((package (or (find-package* package-designator error)
+                        (return-from package-definition-form nil)))
            (name (package-name package))
            (nicknames (package-nicknames package))
            (use (mapcar #'package-name (package-use-list package)))
@@ -281,11 +288,11 @@ or when loading the package is optional."
                          :collect `(,key ,i ,@(sort-names (gethash i table))))))
           `(defpackage ,name
              ,@(when-relevant :nicknames (and nicknamesp (sort-names nicknames)))
-             (:use ,@(sort-names use))
-             ,@(when-relevant :shadow (sort-names shadow))
-             ,@(import-options :shadowing-import-from shadowing-import)
-             ,@(import-options :import-from import)
-             ,@(when-relevant :export (sort-names export))
+             (:use ,@(and usep (sort-names use)))
+             ,@(when-relevant :shadow (and shadowp (sort-names shadow)))
+             ,@(import-options :shadowing-import-from (and shadowing-import-p shadowing-import))
+             ,@(import-options :import-from (and importp import))
+             ,@(when-relevant :export (and exportp (sort-names export)))
              ,@(when-relevant :intern (and internp (sort-names intern)))))))))
 
 
@@ -573,15 +580,17 @@ or when loading the package is optional."
                          :mix ,mix :reexport ,reexport :unintern ,unintern)))))
 
 (defmacro define-package (package &rest clauses)
-  `(eval-when (:compile-toplevel :load-toplevel :execute)
-     #+(or ecl gcl) (defpackage ,package (:use))
-     #+clisp
-     (macrolet ((foo ()
-                  (apply 'ensure-package ',(parse-define-package-form package clauses))
-                  (package-definition-form ',package :nicknamesp nil)))
-       (foo))
-     (apply 'ensure-package ',(parse-define-package-form package clauses))))
-
+  (let ((ensure-form
+          `(apply 'ensure-package ',(parse-define-package-form package clauses))))
+    (eval ensure-form)
+    `(progn
+       #+clisp
+       (eval-when (:compile-toplevel :load-toplevel :execute)
+         ,ensure-form)
+       #+(or ecl gcl) (defpackage ,package (:use))
+       #+clisp ,(package-definition-form package :error nil)
+       (eval-when (:compile-toplevel :load-toplevel :execute)
+         ,ensure-form))))
 
 ;;;; Final tricks to keep various implementations happy.
 (eval-when (:load-toplevel :compile-toplevel :execute)
@@ -589,15 +598,4 @@ or when loading the package is optional."
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car))) 
-
-;; Note that this massive package destruction makes it impossible
-;; to use asdf/driver on top of an old ASDF on these implementations
-#+(or clisp xcl)
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (unless (let ((vs (find-symbol* 'version-satisfies :asdf nil))
-                (av (find-symbol* 'asdf-version :asdf nil)))
-            (and vs av (funcall vs (funcall av) "2.26.59")))
-    (when (find-package :asdf)
-      (delete-package* :asdf t))
-    (make-package :asdf :use ())))
 
