@@ -7,7 +7,7 @@
   (:intern #:children #:children-by-name #:default-component-class
            #:author #:maintainer #:licence #:source-file #:defsystem-depends-on)
   (:export
-   #:child-component #:parent-component #:module #:system
+   #:child-component #:parent-component #:module #:system #:proto-system
    #:component-children-by-name #:component-children #:compute-children-by-name
    #:module-default-component-class
    #:system-source-file #:system-source-directory #:system-relative-pathname
@@ -104,11 +104,10 @@
 ;;;; Pathnames
 
 (defmethod component-pathname ((system system))
-  (if (or (slot-boundp system 'relative-pathname)
-            (slot-boundp system 'absolute-pathname)
-            (slot-value system 'source-file))
-    (call-next-method)
-    (default-directory)))
+  (and (or (slot-boundp system 'relative-pathname)
+           (slot-boundp system 'absolute-pathname)
+           (slot-value system 'source-file))
+    (call-next-method)))
 
 (defgeneric* system-source-file (system)
   (:documentation "Return the source file in which system is defined."))

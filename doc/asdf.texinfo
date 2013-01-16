@@ -3163,12 +3163,10 @@ because it prevents the introspection done by e.g. asdf-dependency-grovel),
 or a string that when @code{read} yields a symbol or a lambda-expression.
 @code{nil} means the normal compile-file function will be called.
 A non-nil value designates a function of one argument
-that will be called with a function that
-calls the @code{*compile-op-compile-file-function*}
-(usually @code{compile-file*})
-with proper arguments;
-the around-compile hook may supply additional arguments
-to pass to that @code{*compile-op-compile-file-function*}.
+that will be called with a function that will
+invoke @code{compile-file*} with various arguments;
+the around-compile hook may supply additional keyword arguments
+to pass to that call to @code{compile-file*}.
 
 One notable argument that is heeded by @code{compile-file*} is
 @code{:compile-check},

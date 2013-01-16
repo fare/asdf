@@ -4,17 +4,24 @@ webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
+#### Common Lisp implementations available for testing.
+## export ASDF_TEST_LISPS to override the default list of such implementations,
+## or specify a lisps= argument at the make command-line
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
 lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl gcl
 endif
+## NOT SUPPORTED BY OUR AUTOMATED TESTS:
+##	cormancl genera lispworks-personal-edition mkcl rmcl
+## Some are manually tested once in a while.
+## MAJOR FAIL: gclcvs -- Compiler bug fixed upstream, but gcl fails to compile on modern Linuxen.
+## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
 
+## Make sure testing remains within the confines of this filesystem tree
 export ASDF_OUTPUT_TRANSLATIONS := (:output-translations (t ("${sourceDirectory}/build/fasls" :implementation)) :ignore-inherited-configuration)
 export CL_SOURCE_REGISTRY := (:source-registry (:tree "${sourceDirectory}") :ignore-inherited-configuration)
 
-## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but upstream fails to compile.
-## NOT SUPPORTED BY OUR TESTS: cormancl genera lispworks-personal-edition mkcl rmcl. Manually tested once in a while.
 
 lisp ?= sbcl
 
@@ -37,9 +44,14 @@ XCL ?= xcl
 driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp driver.lisp
 asdf_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
 
+# Making ASDF itself should be our first, default, target:
 build/asdf.lisp: $(wildcard *.lisp)
 	mkdir -p build
 	cat $(driver_lisp) $(asdf_lisp) > $@
+
+# This quickly locates such mistakes as unbalanced parentheses:
+load:
+	rlwrap sbcl `for i in $(driver_lisp) $(asdf_lisp) ; do echo --load $$i ; done`
 
 install: archive-copy
 
@@ -56,17 +68,12 @@ archive-copy: archive build/asdf.lisp
 	${MAKE} push
 	git checkout master
 
+### Count lines separately for asdf-driver and asdf itself:
 wc:
 	@wc $(driver_lisp) | sort -n ; echo ; \
 	wc $(asdf_lisp) | sort -n ; \
 	echo ; \
 	wc $(driver_lisp) $(asdf_lisp) | tail -n 1
-
-wc-driver:
-	wc $(driver_lisp)
-
-wc-asdf:
-	wc $(asdf_lisp)
 
 push:
 	git status
@@ -136,12 +143,12 @@ debian-package: mrproper
 	: $${RELEASE:="$$(git tag -l '2.[0-9][0-9]' | tail -n 1)"} ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
-# Replace SBCL's ASDF with the current one. -- Not recommended now that SBCL has ASDF2.
+# Replace SBCL's ASDF with the current one. -- NOT recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
 replace-sbcl-asdf: build/asdf.lisp
 	${SBCL} --eval '(compile-file "$<" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
 
-# Replace CCL's ASDF with the current one. -- Not recommended now that CCL has ASDF2.
+# Replace CCL's ASDF with the current one. -- NOT recommended now that CCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
 replace-ccl-asdf: build/asdf.lisp
 	${CCL} --eval '(progn(compile-file "$<" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
@@ -150,6 +157,7 @@ WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE
 # Delete wrongful tags from local repository
 fix-local-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git tag -d $$i ; done
+	git tag 1.37 c7738c62 # restore the *correct* 1.37 tag.
 
 # Delete wrongful tags from remote repository
 fix-remote-git-tags:

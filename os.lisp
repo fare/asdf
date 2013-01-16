@@ -7,7 +7,8 @@
   (:export
    #:featurep #:os-unix-p #:os-windows-p ;; features
    #:getenv #:getenvp ;; environment variables
-   #:inter-directory-separator #:split-pathnames*
+   #:native-namestring #:parse-native-namestring
+   #:inter-directory-separator #:split-native-pathnames-string
    #:getenv-pathname #:getenv-pathnames
    #:getenv-absolute-directory #:getenv-absolute-directories
    #:implementation-identifier ;; implementation identifier
@@ -81,17 +82,57 @@ that is neither Unix, nor Windows.~%Now you port it.")))))
 then returning the non-empty string value of the variable"
   (let ((g (getenv x))) (and (not (emptyp g)) g)))
 
+
+;;; Native vs Lisp syntax
+
+(defun* native-namestring (x)
+  "From a CL pathname, a return namestring suitable for passing to the operating system"
+  (when x
+    (let ((p (pathname x)))
+      #+clozure (with-pathname-defaults ((root-pathname))
+                  (ccl:native-translated-namestring p)) ; see ccl bug 978
+      #+(or cmu scl) (ext:unix-namestring p nil)
+      #+sbcl (sb-ext:native-namestring p)
+      #-(or clozure cmu sbcl scl)
+      (if (os-unix-p) (unix-namestring p)
+          (namestring p)))))
+
+(defun* parse-native-namestring (string &rest constraints &key want-directory &allow-other-keys)
+  "From a native namestring suitable for use by the operating system, return
+a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
+  (check-type string (or string null))
+  (let* ((pathname
+           (when string
+             (with-pathname-defaults ((root-pathname))
+               #+clozure (ccl:native-to-pathname string)
+               #+sbcl (sb-ext:parse-native-namestring string)
+               #-(or clozure sbcl)
+               (if (os-unix-p)
+                   (parse-unix-namestring string :type (when want-directory :directory))
+                   (parse-namestring string)))))
+         (pathname
+           (if want-directory
+               (and pathname (ensure-directory-pathname pathname))
+               pathname)))
+    (apply 'ensure-pathname pathname constraints)))
+
+
+;;; Native pathnames in environment
 (defun* inter-directory-separator ()
   (if (os-unix-p) #\: #\;))
-(defun* split-pathnames* (x want-absolute want-directory fmt &rest args)
-  (loop :for dir :in (split-string
-                      x :separator (string (inter-directory-separator)))
-        :collect (apply 'ensure-pathname* dir want-absolute want-directory fmt args)))
-(defun* getenv-pathname (x &key want-absolute want-directory &aux (s (getenv x)))
-  (ensure-pathname* s want-absolute want-directory "from (getenv ~S)" x))
-(defun* getenv-pathnames (x &key want-absolute want-directory &aux (s (getenv x)))
-  (and (plusp (length s))
-       (split-pathnames* s want-absolute want-directory "from (getenv ~S) = ~S" x s)))
+(defun* split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
+  (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
+        :collect (apply 'parse-native-namestring namestring constraints)))
+(defun* getenv-pathname (x &rest constraints &key (error-arguments () eap) &allow-other-keys)
+  (declare (ignore error-arguments))
+  (apply 'parse-native-namestring (getenvp x)
+         (if eap constraints
+             (list* :error-arguments '("~? from (getenv ~S)") constraints))))
+(defun* getenv-pathnames (x &rest constraints &key (error-arguments () eap) &allow-other-keys)
+  (declare (ignore error-arguments))
+  (apply 'split-native-pathnames-string (getenvp x)
+         (if eap constraints
+             (list* :error-arguments '("~? from (getenv ~S)") constraints))))
 (defun* getenv-absolute-directory (x)
   (getenv-pathname x :want-absolute t :want-directory t))
 (defun* getenv-absolute-directories (x)
@@ -266,12 +307,13 @@ then returning the non-empty string value of the variable"
 ;;; Using temporary files
 
 (defun* default-temporary-directory ()
-  (flet ((f (s v d) (format nil "~A~A" (or (getenvp v) d (error "No temporary directory!")) s)))
-    (let ((dir (cond
-                 ((os-unix-p) (f #\/ "TMPDIR" "/tmp"))
-                 ((os-windows-p) (f #\\ "TEMP" nil))))
-          #+mcl (dir (probe-posix dir)))
-      (or (parse-native-namestring dir) (default-directory)))))
+  (or
+   (when (os-unix-p)
+     (or (getenv-pathname "TMPDIR" :want-directory t)
+         (parse-native-namestring "/tmp/")))
+   (when (os-windows-p)
+     (getenv-pathname "TEMP" :want-directory t))
+   (subpathname (user-homedir) "tmp/")))
 
 (defvar *temporary-directory* nil)
 

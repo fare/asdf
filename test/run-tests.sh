@@ -194,7 +194,7 @@ if ! type "$command" > /dev/null ; then
     exit 43
 fi
 
-ASDFDIR="$(cd .. ; /bin/pwd)"
+ASDFDIR="$(cd $(dirname $0)/.. ; /bin/pwd)"
 export CL_SOURCE_REGISTRY="${ASDFDIR}"
 export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls\" :implementation)) :ignore-inherited-configuration)"
 
@@ -272,6 +272,7 @@ valid_upgrade_test_p () {
    return 1
 }
 run_upgrade_tests () {
+    cd ${ASDFDIR}
     su=test/script-support.lisp
     for tag in `upgrade_tags` ; do
         for method in `upgrade_methods` ; do
@@ -284,6 +285,7 @@ run_upgrade_tests () {
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {
+  cd ${ASDFDIR}/test
   create_config
   mkdir -p ../build/results
   echo failure > ../build/results/status

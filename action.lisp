@@ -112,10 +112,17 @@ You can put together sentences using this phrase."))
   "Translate output files, unless asked not to"
   operation component ;; hush genera, not convinced by declare ignorable(!)
   (values
-   (multiple-value-bind (files fixedp) (call-next-method)
-     (if fixedp
-         files
-         (mapcar *output-translation-function* files)))
+   (multiple-value-bind (pathnames fixedp) (call-next-method)
+     ;; 1- Make sure we have absolute pathnames
+     (let* ((directory (pathname-directory-pathname (component-pathname component)))
+            (absolute-pathnames
+              (loop :for pathname :in pathnames
+                    :collect (ensure-pathname
+                              (subpathname directory pathname) :want-absolute t))))
+       ;; 2- Translate those pathnames as required
+       (if fixedp
+           absolute-pathnames
+           (mapcar *output-translation-function* absolute-pathnames))))
    t))
 (defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))

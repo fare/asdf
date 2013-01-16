@@ -8,7 +8,7 @@
   (:export
    ;; Variables
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
-   #:*compile-file-function* #:*output-translation-function*
+   #:*output-translation-function*
    #:*optimization-settings* #:*previous-optimization-settings*
    #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
    #:*deferred-warnings*
@@ -17,9 +17,8 @@
    #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
    #:call-with-muffled-loader-conditions #:with-muffled-loader-conditions
    #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
-   #:lispize-pathname #:fasl-type #:call-around-hook
+   #:current-lisp-file-pathname #:lispize-pathname #:compile-file-type #:call-around-hook
    #:compile-file* #:compile-file-pathname*
-   #+(or ecl mkcl) #:compile-file-keeping-object
    #:load* #:load-from-string
    #:combine-fasls))
 (in-package :asdf/lisp-build)
@@ -34,9 +33,6 @@ Valid values are :error, :warn, and :ignore.")
   "How should ASDF react if it encounters a failure (per the ANSI spec of COMPILE-FILE)
 when compiling a file?  Valid values are :error, :warn, and :ignore.
 Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling.")
-
-(defvar *compile-file-function* 'compile-file*
-  "Function used to compile lisp files.")
 
 
 ;;; Optimization settings
@@ -165,46 +161,84 @@ for processing later (possibly in a different process)."
 
 ;;; from ASDF
 
+(defun* current-lisp-file-pathname ()
+  (or *compile-file-pathname* *load-pathname*))
+
 (defun* lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
 
-(defun* fasl-type (&rest keys)
+(defun* compile-file-type (&rest keys)
   "pathname TYPE for lisp FASt Loading files"
   (declare (ignorable keys))
-  #-ecl (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
-  #+ecl (pathname-type (apply 'compile-file-pathname "foo.lisp" keys)))
+  #-(or ecl mkcl) (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
+  #+(or ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo.lisp" keys)))
 
 (defun* call-around-hook (hook function)
   (call-function (or hook 'funcall) function))
 
-(defun* compile-file* (input-file &rest keys &key compile-check output-file &allow-other-keys)
+(defun* compile-file* (input-file &rest keys
+                                  &key compile-check output-file #+(or ecl mkcl) object-file
+                                  &allow-other-keys)
+  "This function provides a portable wrapper around COMPILE-FILE.
+It ensures that the OUTPUT-FILE value is only returned and
+the file only actually created if the compilation was successful,
+even though your implementation may not do that, and including
+an optional call to an user-provided consistency check function COMPILE-CHECK;
+it will call this function if not NIL at the end of the compilation
+with the arguments sent to COMPILE-FILE*, except with :OUTPUT-FILE TMP-FILE
+where TMP-FILE is the name of a temporary output-file.
+It also checks two flags (with legacy british spelling from ASDF1),
+*COMPILE-FILE-FAILURE-BEHAVIOUR* and *COMPILE-FILE-WARNINGS-BEHAVIOUR*
+with appropriate implementation-dependent defaults,
+and if a failure (respectively warnings) are reported by COMPILE-FILE
+with consider it an error unless the respective behaviour flag
+is one of :SUCCESS :WARN :IGNORE.
+On ECL or MKCL, it creates both the linkable object and loadable fasl files.
+On implementations that erroneously do not recognize standard keyword arguments,
+it will filter them appropriately."
   (let* ((keywords (remove-keys
-                    `(:compile-check #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
+                    `(:compile-check
+                      #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
          (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
-         (tmp-file (tmpize-pathname output-file))
-         (status :error))
+         #+ecl
+         (object-file
+           (when (use-ecl-byte-compiler-p)
+             (or object-file
+                 (compile-file-pathname output-file :type :object))))
+         #+mkcl
+         (object-file
+           (or object-file
+               (compile-file-pathname output-file #+mkcl :fasl-p #+mkcl nil)))
+         (tmp-file (make-pathname :type "fasl-tmp" :defaults output-file)))
     (multiple-value-bind (output-truename warnings-p failure-p)
-        (apply 'compile-file input-file :output-file tmp-file keywords)
+        (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
+            #+ecl (apply 'compile-file input-file
+                         (if object-file
+                             (list* :output-file object-file :type :object keywords)
+                             keywords))
+            #+mkcl (apply 'compile-file input-file :output-file object-file :fasl-p nil keywords))
       (cond
-        (failure-p
-         (setf status *compile-file-failure-behaviour*))
-        (warnings-p
-         (setf status *compile-file-warnings-behaviour*))
-        (t
-         (setf status :success)))
-      (cond
-        ((and (ecase status
-                ((:success :warn :ignore) t)
-                ((:error nil)))
-              (or (not compile-check)
-                  (apply compile-check input-file :output-file tmp-file keywords)))
+        ((and output-truename
+              (flet ((check-flag (flag behaviour)
+                       (or (not flag) (member behaviour '(:success :warn :ignore)))))
+                (and (check-flag failure-p *compile-file-failure-behaviour*)
+                     (check-flag warnings-p *compile-file-warnings-behaviour*)))
+              (progn
+                #+(or ecl mkcl)
+                (when (and (eq status :success) #+ecl object-file)
+                  (setf output-truename
+                        (compiler::build-fasl
+                         tmp-file #+ecl :lisp-files #+mkcl :lisp-object-files
+                                  (list object-file))))
+                (or (not compile-check)
+                    (apply compile-check input-file :output-file tmp-file keywords))))
          (delete-file-if-exists output-file)
          (when output-truename
            (rename-file-overwriting-target output-truename output-file)
-           (setf output-truename output-file)))
+           (setf output-truename (truename output-file))))
         (t ;; error or failed check
          (delete-file-if-exists output-truename)
-         (setf output-truename nil failure-p t)))
+         (setf output-truename nil)))
       (values output-truename warnings-p failure-p))))
 
 (defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
@@ -213,7 +247,7 @@ for processing later (possibly in a different process)."
                             ,@(unless output-file '(:output-file))) keys)))
     (if (absolute-pathname-p output-file)
         ;; what cfp should be doing, w/ mp* instead of mp
-        (let* ((type (pathname-type (apply 'fasl-type keys)))
+        (let* ((type (pathname-type (apply 'compile-file-type keys)))
                (defaults (make-pathname
                           :type type :defaults (merge-pathnames* input-file))))
           (merge-pathnames* output-file defaults))
@@ -239,31 +273,6 @@ for processing later (possibly in a different process)."
 (defun* load-from-string (string)
   "Portably read and evaluate forms from a STRING."
   (with-input-from-string (s string) (load* s)))
-
-;;; In ECL and MKCL, compilation produces *both*
-;; a loadable FASL file and the linkable object file that it was built from.
-;; Having both of them allows us to later on reuse the object files
-;; when linking bundles, libraries, standalone executables, etc.
-#+(or ecl mkcl)
-(progn
-  (setf *compile-file-function* 'compile-file-keeping-object)
-
-  (defun* compile-file-keeping-object (input-file &rest keys &key output-file &allow-other-keys)
-    (#+ecl if #+ecl (use-ecl-byte-compiler-p) #+ecl (apply 'compile-file* input-file keys)
-     #+mkcl progn
-     (let ((object-file
-             (compile-file-pathname
-              output-file #+ecl :type #+ecl :object #+mkcl :fasl-p #+mkcl nil)))
-       (multiple-value-bind (result flags1 flags2)
-           (apply 'compile-file* input-file
-                  #+ecl :system-p #+ecl t #+mkcl :fasl-p #+mkcl nil
-                  :output-file object-file keys)
-       (values (and (equal result object-file)
-                    (compiler::build-fasl
-                     output-file #+ecl :lisp-files #+mkcl :lisp-object-files (list object-file))
-                    object-file)
-               flags1
-               flags2))))))
 
 ;;; Links FASLs together
 (defun* combine-fasls (inputs output)

@@ -21,7 +21,7 @@
    #:ensure-function #:call-function #:call-functions #:register-hook-function ;; functions
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
-   #:eval-text #:load-string #:load-stream
+   #:load-string #:load-stream
    #:parse-version #:unparse-version #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
@@ -68,14 +68,14 @@
 
 ;;; Magic debugging help. See contrib/debug.lisp
 (defvar *asdf-debug-utility*
-  '(symbol-call :asdf :system-relative-pathname :asdf "contrib/debug.lisp")
+  '(ignore-errors (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
   "form that evaluates to the pathname to your favorite debugging utilities")
 
-(defmacro asdf-debug (&optional package utility-file)
+(defmacro asdf-debug (&rest keys)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (load-asdf-debug-utility ',package ',utility-file)))
+     (load-asdf-debug-utility ,@keys)))
 
-(defun* load-asdf-debug-utility (&optional package utility-file)
+(defun* load-asdf-debug-utility (&key package utility-file)
   (let* ((*package* (if package (find-package package) *package*))
          (keyword (read-from-string
                    (format nil ":DBG-~:@(~A~)" (package-name *package*)))))

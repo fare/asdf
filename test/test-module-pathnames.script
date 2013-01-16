@@ -5,7 +5,7 @@
 (with-test ()
  (asdf:load-system 'test-module-pathnames)
  (flet ((pathname-foo (x)
-          (list (or (asdf::normalize-pathname-directory-component (pathname-directory x)) '(:relative))
+          (list (or (normalize-pathname-directory-component (pathname-directory x)) '(:relative))
                 (pathname-name x) (pathname-type x))))
    (let* ((static (find-component "test-module-pathnames" '("sources/level1" "level2/static.file")))
           (test-tmp (find-component "test-module-pathnames" '("sources/level1" "test-tmp.cl"))))
@@ -21,11 +21,11 @@
          () "symbol `*file-tmp*` has wrong value")
 
  (assert (probe-file
-          (asdf::apply-output-translations
-           (asdf::merge-pathnames*
-            (asdf::make-pathname*
+          (apply-output-translations
+           (merge-pathnames*
+            (make-pathname*
              :name "file1"
-             :type (asdf::fasl-type)
+             :type (compile-file-type)
              :directory '(:relative "sources" "level1"))
             *test-directory*)))
          () "compiled file not found")
@@ -36,10 +36,10 @@
          () "symbol `*file-tmp2*` has wrong value")
 
  (assert (probe-file
-          (asdf::apply-output-translations
-           (asdf::merge-pathnames*
-            (asdf::make-pathname*
+          (apply-output-translations
+           (merge-pathnames*
+            (make-pathname*
              :name "file2"
-             :type (asdf::fasl-type)
+             :type (compile-file-type)
              :directory '(:relative "sources" "level1" "level2")))))
          nil "compiled file not found"))

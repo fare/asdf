@@ -17,7 +17,7 @@
    #:slurp-stream-string #:slurp-stream-lines
    #:slurp-stream-forms #:read-file-string
    #:read-file-lines #:read-file-forms
-   #:safe-read-first-file-form #:eval-input #:eval-text
+   #:safe-read-first-file-form #:eval-input #:eval-thunk #:standard-eval-thunk
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*))
@@ -237,11 +237,25 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
           :do (setf results (multiple-value-list (eval form)))
           :finally (return (apply 'values results)))))
 
-(defun* eval-text (text)
-  "Evaluate a form, or if a string, read and evaluate from the string."
-  (etypecase text
-    ((or cons symbol) (eval text))
-    (string (eval-input text))))
+(defun* eval-thunk (thunk)
+  "Evaluate a THUNK of code:
+If a function, FUNCALL it without arguments.
+If a constant literal and not a sequence, return it.
+If a cons or a symbol, EVAL it.
+If a string, repeatedly read and evaluate from it, returning the last values."
+  (etypecase thunk
+    ((or boolean keyword number character pathname) thunk)
+    ((or cons symbol) (eval thunk))
+    (function (funcall thunk))
+    (string (eval-input thunk))))
+
+(defun* standard-eval-thunk (thunk &key (package :cl))
+  "Like EVAL-THUNK, but in a more standardized evaluation context."
+  ;; Note: it's "standard-" not "safe-", because evaluation is never safe.
+  (when thunk
+    (with-safe-io-syntax (:package package)
+      (let ((*read-eval* t))
+        (eval-thunk thunk)))))
 
 
 ;;; Encodings

@@ -1,6 +1,9 @@
 ;;; -*- Lisp -*-
 (load "script-support.lisp")
+(in-package :asdf-test)
 (load-asdf)
+
+;;(setf *unspecific-pathname-type* nil)
 
 #+gcl (trace asdf:compile-file-pathname*)
 
@@ -49,7 +52,7 @@
            (*print-pretty* nil)
            (start-time 0))
 
-      (with-open-file (result-stream (asdf::subpathname
+      (with-open-file (result-stream (subpathname
                                       *build-directory*
                                       (format nil "results/~(~A~)-pathnames.txt" *implementation*))
                                      :direction :output
@@ -99,11 +102,11 @@
                                  "module2/module3"
                                  "module2/module3/"
                                  ,@(when support-absolute-string-pathnames
-                                     `(,(concatenate 'string root-directory-namestring "asdf-src/system1/module1")
-                                       ,(concatenate 'string root-directory-namestring "asdf-src/system1/module1/")
-                                       ,(concatenate 'string root-directory-namestring "asdf-src/system1/module2/")
-                                       ,(concatenate 'string root-directory-namestring "asdf-src/system1/module2/module3/")
-                                       ,(concatenate 'string root-directory-namestring "asdf-src/system2/module4/")))))))
+                                     `(,(strcat root-directory-namestring "asdf-src/system1/module1")
+                                       ,(strcat root-directory-namestring "asdf-src/system1/module1/")
+                                       ,(strcat root-directory-namestring "asdf-src/system1/module2/")
+                                       ,(strcat root-directory-namestring "asdf-src/system1/module2/module3/")
+                                       ,(strcat root-directory-namestring "asdf-src/system2/module4/")))))))
                 (files `(nil
                          ,(make-pathname :directory '(:relative) :name "untyped-file" :type nil)
                          "file"
@@ -203,27 +206,31 @@
               (dolist (module-pathname modules)
                 (dolist (file-pathname files)
                   (let ((configuration (list system-pathname module-pathname file-pathname))
-                        (system-definition `(asdf:defsystem :system1 :pathname ,system-pathname
-                                             :components ((:module :module1 :pathname ,module-pathname
-                                                           :components ((:file "file" :pathname ,file-pathname)
-                                                                        (:file "module2/file" :pathname ,file-pathname)
-                                                                        ,@(unless (or (typep system-pathname 'logical-pathname)
-                                                                                      (typep module-pathname 'logical-pathname))
-                                                                            `((:file "typed-file.type" :pathname ,file-pathname)
-                                                                              (:static-file "static-file.type" :pathname ,file-pathname)
-                                                                              (:file "module2/typed-file.type" :pathname ,file-pathname)
-                                                                              (:static-file "module2/static-file.type" :pathname ,file-pathname)
-                                                                              ,@(when support-absolute-string-pathnames
-                                                                                      `((:static-file ,(concatenate 'string root-directory-namestring
-                                                                                                          "asdf-src/system1/module1/file.lisp")
-                                                                                            :pathname ,file-pathname)))))))))))
+                        (system-definition
+                          `(defsystem :system1
+                             :pathname ,system-pathname
+                             :source-file ,(subpathname system-pathname "nosuchfile.asd")
+                             :components
+                             ((:module :module1 :pathname ,module-pathname
+                               :components
+                               ((:file "file" :pathname ,file-pathname)
+                                (:file "module2/file" :pathname ,file-pathname)
+                                ,@(unless (or (typep system-pathname 'logical-pathname)
+                                              (typep module-pathname 'logical-pathname))
+                                    `((:file "typed-file.type" :pathname ,file-pathname)
+                                      (:static-file "static-file.type" :pathname ,file-pathname)
+                                      (:file "module2/typed-file.type" :pathname ,file-pathname)
+                                      (:static-file "module2/static-file.type" :pathname ,file-pathname)
+                                      ,@(when support-absolute-string-pathnames
+                                          `((:static-file ,(strcat root-directory-namestring "asdf-src/system1/module1/file.lisp")
+                                             :pathname ,file-pathname)))))))))))
 
                     (block :test-system
                       (handler-bind
-                        ((error (lambda (c)
+                          ((error (lambda (c)
                                   (incf system-failures)
                                   (format *error-output* "~&error! ~a~%sysdef:~% ~S~%" c system-definition)
-                                  (asdf::print-condition-backtrace c :stream *error-output*)
+                                  (print-condition-backtrace c :stream *error-output*)
                                   (format result-stream "~&~%***~%error: ~a~%~s"
                                           c system-definition)
                                   (return-from :test-system))))
@@ -242,7 +249,7 @@
                                          pathname))
                                      (test-module (module)
                                        (incf directory-count)
-                                       (unless (asdf::probe-file* (asdf:component-pathname module))
+                                       (unless (probe-file* (asdf:component-pathname module))
                                          (incf directory-failures)
                                          (push (list (type-of module) (asdf:component-name module)
                                                      (translate-if-needed (asdf:component-pathname module))
@@ -320,13 +327,13 @@
             (error "Not the same: ~S vs ~S"  s1 s2))))
    (macrolet ((x (s1 s2) `(same ',s1 ',s2 ,s1 ,s2)))
      ;; we're testing with unix, are we not?
-     (x (asdf::resolve-location '(:home)) (truename (user-homedir-pathname)))
-     (x (asdf::resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz")
-     (x (asdf::resolve-location '("/foo" "bar" "baz") :directory t) #p"/foo/bar/baz/")
-     (x (asdf::resolve-location '("/foo" "bar" "baz") :directory t :wilden t) (asdf::wilden #p"/foo/bar/baz/"))
-     (x (asdf::resolve-location '("/foo" "bar" "baz") :directory nil :wilden t) (asdf::wilden #p"/foo/bar/"))
+     (x (resolve-location '(:home)) (truename (user-homedir-pathname)))
+     (x (resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz")
+     (x (resolve-location '("/foo" "bar" "baz") :want-directory t) #p"/foo/bar/baz/")
+     (x (resolve-location '("/foo" "bar" "baz") :want-directory t :wilden t) (wilden #p"/foo/bar/baz/"))
+     (x (resolve-location '("/foo" "bar" "baz") :want-directory nil :wilden t) (wilden #p"/foo/bar/"))
      #-gcl
-     (x (asdf::resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
+     (x (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :want-directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
 
  #-(or xcl gcl<2.7) ;;---*** pathnames are known to be massively broken on XCL and GCL 2.6
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)

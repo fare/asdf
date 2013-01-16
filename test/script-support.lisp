@@ -6,6 +6,8 @@ Some constraints:
  But we *can* rely on ASDF being present *after* we load it.
 * evaluating this file MUST NOT print anything,
  because we use it in the forward-ref test to check that nothing is printed.
+* We make sure that none of our symbols clash with asdf/driver or asdf,
+ so we may use-package them during testing.
 |#
 
 (defpackage :asdf-test
@@ -20,7 +22,7 @@ Some constraints:
    #:with-test #:test-asdf #:debug-asdf
    #:assert-compare
    #:assert-equal
-   #:leave-test
+   #:leave-test #:def-test-system
    #:quietly))
 
 (in-package :asdf-test)
@@ -75,11 +77,11 @@ Some constraints:
 (defun acall (name &rest args)
   (apply (asym name) args))
 
-(defun finish-outputs ()
+(defun finish-outputs* ()
   (loop :for s :in (list *standard-output* *error-output* *trace-output* *debug-io*)
         :do (finish-output s)))
 (defun redirect-outputs ()
-  (finish-outputs)
+  (finish-outputs*)
   (setf *error-output* *standard-output*
         *trace-output* *standard-output*))
 
@@ -167,7 +169,7 @@ Some constraints:
 
 
 (defun exit-lisp (&optional (code 0)) ;; Simplified from asdf/image:quit
-  (finish-outputs)
+  (finish-outputs*)
   #+(or abcl xcl) (ext:quit :status code)
   #+allegro (excl:exit code :quiet t)
   #+clisp (ext:quit code)
@@ -181,21 +183,21 @@ Some constraints:
   #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?
   #+mkcl (mk-ext:quit :exit-code code)
   #+sbcl #.(let ((exit (find-symbol "EXIT" :sb-ext))
-		 (quit (find-symbol "QUIT" :sb-ext)))
+		 (quit* (find-symbol "QUIT" :sb-ext)))
 	     (cond
 	       (exit `(,exit :code code :abort t))
-	       (quit `(,quit :unix-status code :recklessly-p t))))
+	       (quit* `(,quit* :unix-status code :recklessly-p t))))
   #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
 
 (defun leave-test (message return)
-  (finish-outputs)
+  (finish-outputs*)
   (fresh-line *error-output*)
   (when message
     (format *error-output* message)
     (fresh-line *error-output*))
-  (finish-outputs)
+  (finish-outputs*)
   (throw :asdf-test-done return))
 
 (defmacro with-test ((&optional) &body body)
@@ -212,7 +214,7 @@ is bound, write a message and exit on an error.  If
                 ((error (lambda (c)
                           (ignore-errors
                            (format *error-output* "~&TEST ABORTED: ~A~&" c))
-                          (finish-outputs)
+                          (finish-outputs*)
                           (cond
                             (*debug-asdf*
                              (format t "~&It's your baby, fix it!~%")
@@ -383,6 +385,7 @@ is bound, write a message and exit on an error.  If
 (defun load-asdf (&optional tag)
   (load-asdf-fasl tag)
   (use-package :asdf :asdf-test)
+  (use-package :asdf/driver :asdf-test)
   (configure-asdf)
   (setf *package* (find-package :asdf-test)))
 
@@ -395,6 +398,12 @@ is bound, write a message and exit on an error.  If
 
 ;; Actual scripts rely on this function:
 (defun common-lisp-user::load-asdf () (load-asdf))
+
+(setf *package* (find-package :asdf-test))
+
+(defmacro def-test-system (name &rest rest)
+  `(apply (asym :register-system-definition) ',name :pathname ,*test-directory*
+          :source-file nil ',rest))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

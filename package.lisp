@@ -14,10 +14,14 @@
   (:use :common-lisp)
   (:export
    #:find-package* #:find-symbol* #:symbol-call #:intern* #:unintern* #:make-symbol*
-   #:symbol-shadowing-p #:rehome-symbol
-   #:delete-package* #:package-names #:packages-from-names
-   #:reify-symbol #:unreify-symbol
-   #:package-definition-form #:ensure-package #:define-package))
+   #:symbol-shadowing-p #:home-package-p #:rehome-symbol
+   #:symbol-package-name #:standard-common-lisp-symbol-p
+   #:reify-package #:unreify-package #:reify-symbol #:unreify-symbol
+   #:nuke-symbol-in-package #:nuke-symbol
+   #:ensure-package-unused #:delete-package*
+   #:fresh-package-name #:rename-package-away #:package-names #:packages-from-names
+   #:package-definition-form #:parse-define-package-form
+   #:ensure-package #:define-package))
 
 (in-package :asdf/package)
 
@@ -581,16 +585,19 @@ or when loading the package is optional."
 
 ;;;; Final tricks to keep various implementations happy.
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  #+allegro
+  #+allegro ;; We need to disable autoloading BEFORE any mention of package ASDF.
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
-                :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
-  #+(or clisp xcl)
+                :test 'equalp :key 'car))) 
+
+;; Note that this massive package destruction makes it impossible
+;; to use asdf/driver on top of an old ASDF on these implementations
+#+(or clisp xcl)
+(eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (let ((vs (find-symbol* 'version-satisfies :asdf nil))
                 (av (find-symbol* 'asdf-version :asdf nil)))
             (and vs av (funcall vs (funcall av) "2.26.59")))
     (when (find-package :asdf)
       (delete-package* :asdf t))
     (make-package :asdf :use ())))
-
 

@@ -91,32 +91,55 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     to manage the same effects while making every effort to
     Do The Right Thing(tm) in case of hot upgrade.
 
+  * ASDF-DRIVER is a separately-usable library for Common Lisp runtime support.
+    It is transcluded in asdf.lisp (i.e. when delivering ASDF as a separate
+    bootstrap file, the contents of ASDF-DRIVER have been included in it),
+    but can also be used as a separate ASDF system on top of an old ASDF
+    (within limits: CLISP and XCL still need a recent ASDF).
+    The package ASDF/DRIVER (with short nickname :D) re-exports
+    all the functions that ASDF needed to run portably.
+
+  * Pathnames are a notable part of ASDF-DRIVER, required to deal
+    portably with pathnames despite the many bugs and variations
+    from platform to platform. See notably in pathname.lisp,
+    MERGE-PATHNAMES*, SUBPATHNAME, PARSE-UNIX-NAMESTRING,
+    PARSE-NATIVE-NAMESTRING, ENSURE-PATHNAME, and many many more.
+
+  * Image lifecycle support is included in ASDF-DRIVER (and thus ASDF);
+    this standardizes things like access to *COMMAND-LINE-ARGUMENTS*,
+    declaring an entry-point to a program, hook functions and/or a prelude
+    to run before to start the main entry, and a postlude and/or hook functions
+    to run before to dump an image, dumping or creating an image, etc.
+    ASDF provides initial implementations of an operation program-op
+    to create standalone executables (if available on your implementation).
+
   * Internals have been refactored, and some sorry features were excised.
     The semantics of OPERATION-DONE-P is simplified and now well-specified.
     FIND-COMPONENT will pass component objects through, and
     a corresponding FIND-OPERATION replaces MAKE-SUB-OPERATION.
-    Several internal accessors were renamed.
+    Many internal accessors were renamed, after checking on Quicklisp
+    that no one was using them.
 
   * Portability updates were done for
-    ABCL, CLISP, CMUCL, ECL, LispWorks Personal Edition, MKCL, XCL.
+    ABCL, CLISP, Clozure CL, CMUCL, ECL, LispWorks Personal Edition, MKCL, XCL.
     Working support for GCL 2.6 was restored, with notable limitations
     including lack of support for output-translations or logical-pathnames.
 
   * Documentation received some small updates.
 
-  * Tests were updated, notably including support for asdf-bundle.
+  * Tests were updated, notably including support for bundles and encodings.
     They were successfully run on ccl clisp sbcl ecl ecl_bytecodes
     cmucl abcl scl allegro lispworks allegromodern xcl.
     Manual tests were run on lispworks-personal-edition genera.
     Untested were cormancl mkcl rmcl.
 
-  * POIU was updated. This extension is distributed separately from ASDF.
-    It is now much simplified and made more correct by construction by
+  * POIU was updated. This extension is still distributed separately from ASDF.
+    It is now much simplified and made correct by construction by
     reusing the new TRAVERSE infrastructure of ASDF and now being able to
     assume the ASDF object model is a complete description of dependencies.
     On SBCL it will handle deferred warnings from background compilations.
-    On platforms that cannot fork it will gracefully fall back
-    to serial compilation.
+    Where forking is not possible or not supported,
+    it will gracefully fall back to serial compilation.
 
   * SLIME support for ASDF was significantly enhanced.
     It is distributed separately from ASDF, with SLIME.
