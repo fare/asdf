@@ -115,7 +115,7 @@
     ((or null string) bundle-type)
     ((eql :fasl) #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")
     #+ecl
-    ((member :binary :dll :lib :static-library :program :object)
+    ((member :binary :dll :lib :static-library :program :object :program)
      (compile-file-type :type bundle-type))
     ((eql :binary) "image")
     ((eql :dll) (cond ((os-unix-p) "so") ((os-windows-p) "dll")))
@@ -216,8 +216,8 @@
 (defun* bundlable-file-p (pathname)
   (let ((type (pathname-type pathname)))
     (declare (ignorable type))
-    (or #+ecl (or (equal type (compile-file-type :object))
-                  (equal type (compile-file-type :static-library)))
+    (or #+ecl (or (equal type (compile-file-type :type :object))
+                  (equal type (compile-file-type :type :static-library)))
         #+mkcl (equal type (compile-file-type :fasl-p nil))
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
 
@@ -482,10 +482,13 @@
 
 #+ecl
 (defmethod perform ((o bundle-op) (c system))
-  (let* ((object-files (remove "fas" (input-files o c)
-                               :key #'pathname-type :test #'string=))
-         (output (output-files o c)))
-    (apply #'c::builder (bundle-type o) (first output)
+  (let* ((object-files (input-files o c))
+         (output (output-files o c))
+         (bundle (first output))
+         (kind (bundle-type o))
+         (init-name (c::compute-init-name bundle :kind kind)))
+    (apply #'c::builder kind (first output)
+           :init-name init-name
            :lisp-files (append object-files (bundle-op-lisp-files o))
            (append (bundle-op-build-args o)
                    (when (typep o 'program-op)
