@@ -16,7 +16,7 @@
    #:shell-boolean-exit
    #:register-image-restore-hook #:register-image-dump-hook
    #:call-image-restore-hook #:call-image-dump-hook
-   #:initialize-asdf-utilities #:restore-image #:dump-image
+   #:initialize-asdf-utilities #:restore-image #:dump-image #:create-image
 ))
 (in-package :asdf/image)
 
@@ -220,14 +220,10 @@ if we are not called from a directly executable image dumped by XCVB."
                        ((:lisp-interaction *lisp-interaction*) *lisp-interaction*)
                        ((:restore-hook *image-restore-hook*) *image-restore-hook*)
                        ((:prelude *image-prelude*) *image-prelude*)
-                       ((:entry-point *image-entry-point*) *image-entry-point*)
-                       ((:package *package*) *package*))
+                       ((:entry-point *image-entry-point*) *image-entry-point*))
   (with-fatal-condition-handler ()
     (call-image-restore-hook)
-    (when *image-prelude*
-      (with-safe-io-syntax (:package *package*)
-        (let ((*read-eval* t))
-          (eval-text *image-prelude*))))
+    (standard-eval-thunk *image-prelude*)
     (let ((results (multiple-value-list
                     (if *image-entry-point*
                         (apply *image-entry-point* *command-line-arguments*)
@@ -242,14 +238,10 @@ if we are not called from a directly executable image dumped by XCVB."
 #-(or ecl mkcl)
 (defun* dump-image (filename &key output-name executable
                              ((:postlude *image-postlude*) *image-postlude*)
-                             ((:dump-hook *image-dump-hook*) *image-dump-hook*)
-                             ((:package *package*) *package*))
+                             ((:dump-hook *image-dump-hook*) *image-dump-hook*))
   (declare (ignorable filename output-name executable))
   (setf *image-dumped-p* (if executable :executable t))
-  (when *image-postlude*
-    (with-safe-io-syntax ()
-      (let ((*read-eval* t))
-        (eval-text *image-postlude*))))
+  (standard-eval-thunk *image-postlude*)
   (call-image-dump-hook)
   #-(or clisp clozure cmu lispworks sbcl)
   (when executable
@@ -296,6 +288,26 @@ if we are not called from a directly executable image dumped by XCVB."
   #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
   (die 98 "Can't dump ~S: asdf doesn't support image dumping with ~A.~%"
        filename (nth-value 1 (implementation-type))))
+
+
+#+ecl
+(defun create-image (destination object-files
+                     &key kind output-name
+                       (prelude () preludep) (entry-point () entry-point-p))
+  ;; Is it meaningful to run these in the current environment?
+  ;; only if we also track the object files that constitute the "current" image,
+  ;; and otherwise simulate dump-image, including quitting at the end.
+  ;; (standard-eval-thunk *image-postlude*) (call-image-dump-hook)
+  (check-type kind (member :program :shared-library))
+  (c::builder
+   kind (pathname destination)
+       :lisp-files object-files
+       :init-name (c::compute-init-name (or output-name destination) :kind kind)
+       :epilogue-code
+       (when (eq kind :program)
+         `(restore-image ;; default behavior would be (si::top-level)
+           ,@(when preludep `(:prelude ',prelude))
+           ,@(when entry-point-p `(:entry-point ',entry-point))))))
 
 
 ;;; Some universal image restore hooks

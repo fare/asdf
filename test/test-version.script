@@ -5,15 +5,15 @@
 (setf *central-registry* '(*default-pathname-defaults*))
 
 (with-test ()
- (defsystem :versioned-system-1
+ (def-test-system :versioned-system-1
    :pathname #.*default-pathname-defaults*
    :version "1.0")
 
- (defsystem :versioned-system-2
+ (def-test-system :versioned-system-2
    :pathname #.*default-pathname-defaults*
    :version "1.1")
 
- (defsystem :versioned-system-3
+ (def-test-system :versioned-system-3
    :pathname #.*default-pathname-defaults*
    :version "1.2")
 

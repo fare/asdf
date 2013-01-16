@@ -10,22 +10,34 @@ don't cause full rebuilds all the time...
 
 (with-test ()
 
- (load-test-system 'static-and-serial)
+  (let ((s '(def-test-system static-and-serial
+              :version "0.1"
+              :serial t
+              :components
+              ((:static-file "file2.lisp")
+               (:static-file "run-tests.sh")
+               (:file "file1")))))
+    (eval s)
+    (load-test-system 'static-and-serial)
 
- (let* ((file1 (asdf:compile-file-pathname* "file1.lisp"))
-        (file1-date (file-write-date file1))
-        (date1 (- file1-date 600))
-        (date2 (- file1-date 300))
-        (date3 (- file1-date 150)))
+    (let* ((file1 (asdf:compile-file-pathname* "file1.lisp"))
+           (file1-date (file-write-date file1))
+           (date1 (- file1-date 600))
+           (date2 (- file1-date 300))
+           (date3 (- file1-date 150)))
 
-   (assert file1-date)
-   (format t "file: ~S~%date: ~S~%" file1 file1-date)
+      (assert file1-date)
+      (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
+      (format t "file: ~S~%date: ~S~%" file1 file1-date)
 
-   ;; date should stay same
-   (clear-system 'static-and-serial)
-   (touch-file "static-and-serial.asd" :offset -10000)
-   (touch-file "file2.lisp" :timestamp date1)
-   (touch-file "file1.lisp" :timestamp date2)
-   (touch-file file1 :timestamp date3)
-   (DBG "load again" (oos 'load-op 'static-and-serial))
-   (assert-equal (file-write-date file1) date3)))
+      ;; date should stay same
+      (clear-system 'static-and-serial)
+      (delete-package :test-package)
+      (eval s)
+      (touch-file "file2.lisp" :timestamp date1)
+      (touch-file "run-tests.sh" :timestamp date1)
+      (touch-file "file1.lisp" :timestamp date2)
+      (touch-file file1 :timestamp date3)
+      (DBG "load again" (oos 'load-op 'static-and-serial))
+      (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
+      (assert-equal (file-write-date file1) date3))))

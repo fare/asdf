@@ -9,24 +9,25 @@
    #:*resolve-symlinks*
    ;; Making and merging pathnames, portably
    #:normalize-pathname-directory-component #:denormalize-pathname-directory-component
-   #:merge-pathname-directory-components #:make-pathname*
+   #:merge-pathname-directory-components #:make-pathname* #:*unspecific-pathname-type*
    #:make-pathname-component-logical #:make-pathname-logical
    #:merge-pathnames*
    ;; Directories
    #:pathname-directory-pathname #:pathname-parent-directory-pathname
    #:directory-pathname-p #:ensure-directory-pathname
    ;; Absolute vs relative pathnames
-   #:absolute-pathname-p #:ensure-pathname-absolute
+   #:ensure-pathname-absolute
    #:relativize-directory-component #:relativize-pathname-directory
    ;; Parsing filenames and lists thereof
    #:component-name-to-pathname-components
-   #:split-name-type #:coerce-pathname #:subpathname #:subpathname* #:ensure-pathname*
-   #:hidden-file-p
+   #:split-name-type #:parse-unix-namestring #:unix-namestring
+   #:subpathname #:subpathname*
    ;; Resolving symlinks somewhat
    #:truenamize #:resolve-symlinks #:resolve-symlinks*
    ;; Wildcard pathnames
    #:*wild* #:*wild-file* #:*wild-directory* #:*wild-inferiors* #:*wild-path* #:wilden
    ;; Pathname host and its root
+   #:absolute-pathname-p #:hidden-pathname-p
    #:pathname-root #:directory-separator-for-host
    #:directorize-pathname-host-device
    ;; defaults
@@ -41,17 +42,16 @@
    #:delete-file-if-exists
    ;; Translate a pathname
    #:translate-pathname*
-   #:native-namestring #:parse-native-namestring
    ;; temporary 
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname
-   ;; basic pathnames
-   #:load-pathname #:default-directory #:root-pathname
    ;; physical pathnames
-   #:physical-pathname-p #:sane-physical-pathname
+   #:physical-pathname-p #:sane-physical-pathname #:root-pathname
    ;; Windows shortcut support
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut
+   ;; Checking constraints
+   #:ensure-pathname
    ;; Output translations
    #:*output-translation-function*))
 
@@ -62,6 +62,7 @@
   "Determine whether or not ASDF resolves symlinks when defining systems.
 
 Defaults to T.")
+
 
 ;;; The hell of portably making and merging pathnames!
 
@@ -116,6 +117,13 @@ Defaults to T.")
               :do (pop reldir) (pop defrev)
               :finally (return (cons defabs (append (reverse defrev) reldir)))))))))))
 
+;; Giving :unspecific as :type argument to make-pathname is not portable.
+;; See CLHS make-pathname and 19.2.2.2.3.
+;; This will be :unspecific if supported, or NIL if not.
+(defparameter *unspecific-pathname-type*
+  #+(or abcl allegro clozure cmu gcl genera lispworks mkcl sbcl scl xcl) :unspecific
+  #+(or clisp ecl #|These haven't been tested:|# cormanlisp mcl) nil)
+
 (defun* make-pathname* (&rest keys &key (directory nil directoryp)
                               host (device () devicep) name type version defaults
                               #+scl &allow-other-keys)
@@ -154,7 +162,11 @@ if the SPECIFIED pathname does not have an absolute directory,
 then the HOST and DEVICE both come from the DEFAULTS, whereas
 if the SPECIFIED pathname does have an absolute directory,
 then the HOST and DEVICE both come from the SPECIFIED.
-Also, if either argument is NIL, then the other argument is returned unmodified."
+This is what users want on a modern Unix or Windows operating system,
+unlike the MERGE-PATHNAME behavior.
+Also, if either argument is NIL, then the other argument is returned unmodified;
+this is unlike MERGE-PATHNAME which always merges with a pathname,
+by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
   (when (null specified) (return-from merge-pathnames* defaults))
   (when (null defaults) (return-from merge-pathnames* specified))
   #+scl
@@ -184,6 +196,22 @@ Also, if either argument is NIL, then the other argument is returned unmodified.
                         :name (funcall unspecific-handler name)
                         :type (funcall unspecific-handler type)
                         :version (funcall unspecific-handler version))))))
+
+;;; Some pathname predicates
+
+(defun* absolute-pathname-p (pathspec)
+  "If PATHSPEC is a pathname or namestring object that parses as a pathname
+possessing an :ABSOLUTE directory component, return the (parsed) pathname.
+Otherwise return NIL"
+  (and pathspec
+       (typep pathspec '(or null pathname string))
+       (let ((pathname (pathname pathspec)))
+         (and (eq :absolute (car (normalize-pathname-directory-component
+                                  (pathname-directory pathname))))
+              pathname))))
+
+(defun* hidden-pathname-p (pathname)
+  (and pathname (equal (first-char (pathname-name pathname)) #\.)))
 
 
 ;;; Directories
@@ -271,7 +299,7 @@ actually-existing directory."
                   :defaults defaults))
 
 (defmacro with-pathname-defaults ((&optional defaults) &body body)
-  `(let ((*default-pathname-defaults* ,(or defaults (nil-pathname)))) ,@body))
+  `(let ((*default-pathname-defaults* ,(or defaults '(nil-pathname)))) ,@body))
 
 (defun* truename* (p)
   ;; avoids both logical-pathname merging and physical resolution issues
@@ -400,123 +428,193 @@ with given pathname and if it exists return its truename."
       (collect-sub*directories subdir collectp recursep collector))))
 
 
-
 ;;; Parsing filenames and lists thereof
-(defun* component-name-to-pathname-components (s &key force-directory force-relative)
-  "Splits the path string S, returning three values:
+(defun* component-name-to-pathname-components (unix-style-namestring &key want-directory dot-dot)
+  "Splits the path string UNIX-STYLE-NAMESTRING, returning four values:
 A flag that is either :absolute or :relative, indicating
    how the rest of the values are to be interpreted.
 A directory path --- a list of strings, suitable for
-   use with MAKE-PATHNAME when prepended with the flag
-   value.
-A filename with type extension, possibly NIL in the
-   case of a directory pathname.
-FORCE-DIRECTORY forces S to be interpreted as a directory
-pathname \(third return value will be NIL, final component
-of S will be treated as part of the directory path.
+   use with MAKE-PATHNAME when prepended with the flag value.
+   Directory components with an empty name or the name . are removed.
+   Any directory named .. is read as DOT-DOT, or :BACK if it's NIL (not :UP).
+A last-component, either a file-namestring including type extension,
+   or NIL in the case of a directory pathname.
+A flag that is true iff the unix-style-pathname was just
+   a file-namestring without / path specification.
+WANT-DIRECTORY forces the namestring to be interpreted as a directory pathname:
+the third return value will be NIL, and final component of the namestring
+will be treated as part of the directory path.
+
+An empty string is thus read as meaning a pathname object with all fields nil.
+
+Note that : characters will NOT be interpreted as host specification.
+Absolute pathnames are only appropriate on Unix-style systems.
 
 The intention of this function is to support structured component names,
-e.g., \(:file \"foo/bar\"\), which will be unpacked to relative
-pathnames."
-  (check-type s string)
-  (when (find #\: s)
-    (error (compatfmt "~@<A portable ASDF pathname designator cannot include a #\: character: ~3i~_~S~@:>") s))
-  (let* ((components (split-string s :separator "/"))
-         (last-comp (car (last components))))
-    (multiple-value-bind (relative components)
-        (if (equal (first components) "")
-            (if (equal (first-char s) #\/)
-                (progn
-                  (when force-relative
-                    (error (compatfmt "~@<Absolute pathname designator not allowed: ~3i~_~S~@:>") s))
-                  (values :absolute (cdr components)))
-                (values :relative nil))
-          (values :relative components))
-      (setf components (remove-if #'(lambda (x) (member x '("" ".") :test #'equal)) components))
-      (setf components (substitute :back ".." components :test #'equal))
-      (cond
-        ((equal last-comp "")
-         (values relative components nil)) ; "" already removed
-        (force-directory
-         (values relative components nil))
-        (t
-         (values relative (butlast components) last-comp))))))
+e.g., \(:file \"foo/bar\"\), which will be unpacked to relative pathnames."
+  (check-type unix-style-namestring string)
+  (check-type dot-dot (member nil :back :up))
+  (if (and (not (find #\/ unix-style-namestring)) (not want-directory)
+           (plusp (length unix-style-namestring)))
+      (values :relative () unix-style-namestring t)
+      (let* ((components (split-string unix-style-namestring :separator "/"))
+             (last-comp (car (last components))))
+        (multiple-value-bind (relative components)
+            (if (equal (first components) "")
+                (if (equal (first-char unix-style-namestring) #\/)
+                    (values :absolute (cdr components))
+                    (values :relative nil))
+                (values :relative components))
+          (setf components (remove-if #'(lambda (x) (member x '("" ".") :test #'equal))
+                                      components))
+          (setf components (substitute (or dot-dot :back) ".." components :test #'equal))
+          (cond
+            ((equal last-comp "")
+             (values relative components nil nil)) ; "" already removed from components
+            (want-directory
+             (values relative components nil nil))
+            (t
+             (values relative (butlast components) last-comp nil)))))))
 
 (defun* split-name-type (filename)
-  (let ((unspecific
-         ;; Giving :unspecific as argument to make-pathname is not portable.
-         ;; See CLHS make-pathname and 19.2.2.2.3.
-         ;; We only use it on implementations that support it,
-         #+(or abcl allegro clozure cmu gcl genera lispworks mkcl sbcl scl xcl) :unspecific
-         #+(or clisp ecl #|These haven't been tested:|# cormanlisp mcl) nil))
-    (destructuring-bind (name &optional (type unspecific))
-        (split-string filename :max 2 :separator ".")
-      (if (equal name "")
-          (values filename unspecific)
-          (values name type)))))
+  "Split a filename into two values NAME and TYPE that are returned.
+We assume filename has no directory component.
+The last . if any separates name and type from from type,
+except that if there is only one . and it is in first position,
+the whole filename is the NAME with an empty type.
+NAME is always a string.
+For an empty type, *UNSPECIFIC-PATHNAME-TYPE* is returned."
+  (check-type filename string)
+  (assert (plusp (length filename)))
+  (destructuring-bind (name &optional (type *unspecific-pathname-type*))
+      (split-string filename :max 2 :separator ".")
+    (if (equal name "")
+        (values filename *unspecific-pathname-type*)
+        (values name type))))
 
-(defun* coerce-pathname (name &key type defaults)
-  "coerce NAME into a PATHNAME.
-When given a string, portably decompose it into a relative pathname:
-#\\/ separates subdirectories. The last #\\/-separated string is as follows:
-if TYPE is NIL, its last #\\. if any separates name and type from from type;
-if TYPE is a string, it is the type, and the whole string is the name;
-if TYPE is :DIRECTORY, the string is a directory component;
-if the string is empty, it's a directory.
-Any directory named .. is read as :BACK.
-Host, device and version components are taken from DEFAULTS."
-  ;; The defaults are required notably because they provide the default host
-  ;; to the below make-pathname, which may crucially matter to people using
-  ;; merge-pathnames with non-default hosts,  e.g. for logical-pathnames.
-  ;; NOTE that the host and device slots will be taken from the defaults,
-  ;; but that should only matter if you later merge relative pathnames with
-  ;; CL:MERGE-PATHNAMES instead of ASDF:MERGE-PATHNAMES*
-  (etypecase name
-    ((or null pathname)
-     name)
-    (symbol
-     (coerce-pathname (string-downcase name) :type type :defaults defaults))
-    (string
-     (multiple-value-bind (relative path filename)
-         (component-name-to-pathname-components name :force-directory (eq type :directory)
-                                                :force-relative t)
-       (multiple-value-bind (name type)
+(defun* parse-unix-namestring (name &rest keys &key type defaults dot-dot want-directory
+                                    &allow-other-keys)
+  "Coerce NAME into a PATHNAME using standard Unix syntax.
+
+Unix syntax is used whether or not the underlying system is Unix;
+on such non-Unix systems it is only usable but for relative pathnames;
+but especially to manipulate relative pathnames portably, it is of crucial
+to possess a portable pathname syntax independent of the underlying OS.
+This is what PARSE-UNIX-NAMESTRING provides, and why we use it in ASDF.
+
+When given a PATHNAME object, just return it untouched.
+When given NIL, just return NIL.
+When given a non-null SYMBOL, first downcase its name and treat it as a string.
+When given a STRING, portably decompose it into a pathname as below.
+
+#\\/ separates directory components.
+
+The last #\\/-separated substring is interpreted as follows:
+if TYPE is NIL, the substring is file-namestring, and its NAME and TYPE
+are separated by SPLIT-NAME-TYPE.
+if TYPE is a string, it is the given TYPE, and the whole string is the NAME;
+if TYPE is :DIRECTORY, the string is made the last directory component,
+and NAME and TYPE are NIL.
+if the string is empty, it's the empty pathname with all slots NIL.
+
+Directory components with an empty name the name . are removed.
+Any directory named .. is read as DOT-DOT, which defaults to :BACK (not :UP).
+
+HOST, DEVICE and VERSION components are taken from DEFAULTS,
+which itself defaults to (ROOT-PATHNAME).
+No host or device can be specified in the string itself,
+which might make it unsuitable for absolute pathnames on Windows.
+
+For relative pathnames, these defaults won't matter if you use MERGE-PATHNAMES*
+but will matter if you use MERGE-PATHNAMES (which you shouldn't).
+
+Arbitrary keys are accepted, that are finally passed to ENSURE-PATHNAME,
+removing TYPE DEFAULTS and DOT-DOT.
+we recommend you use :WANT-RELATIVE T to throw an error if the pathname is absolute
+when you're running portable code and the OS may not be Unixish."
+  (block nil
+    (check-type type (or null string (eql :directory)))
+    (setf want-directory (or want-directory (eq type :directory)))
+    (etypecase name
+      ((or null pathname) (return name))
+      (symbol
+       (setf name (string-downcase name)))
+      (string))
+    (multiple-value-bind (relative path filename file-only)
+        (component-name-to-pathname-components
+         name :dot-dot dot-dot :want-directory want-directory)
+      (multiple-value-bind (name type)
+          (cond
+            ((or want-directory (null filename))
+             (values nil nil))
+            (type
+             (values filename type))
+            (t
+             (split-name-type filename)))
+        (apply 'ensure-pathname
+               (make-pathname*
+                :directory (unless file-only (cons relative path))
+                :name name :type type
+                :defaults (or defaults (nil-pathname)))
+               (remove-keys '(:type :dot-dot :defaults) keys))))))
+
+(defun* unix-namestring (pathname)
+  "Given a non-wild PATHNAME, return a Unix-style namestring for it.
+If the PATHNAME is NIL or a STRING, return it unchanged.
+
+This only considers the DIRECTORY, NAME and TYPE components of the pathname.
+This is a portable solution for representing relative pathnames,
+But unless you are running on a Unix system, it is not a general solution
+to representing native pathnames.
+
+An error is signaled if the argument is not NULL, a STRING or a PATHNAME,
+or if it is a PATHNAME but some of its components are not recognized."
+  (etypecase pathname
+    ((or null string) pathname)
+    (pathname
+     (with-output-to-string (s)
+       (flet ((err () (error "Not a valid unix-namestring ~S" pathname)))
+         (let* ((dir (normalize-pathname-directory-component (pathname-directory pathname)))
+                (name (pathname-name pathname))
+                (type (pathname-type pathname))
+                (type (and (not (eq type :unspecific)) type)))
            (cond
-             ((or (eq type :directory) (null filename))
-              (values nil nil))
-             (type
-              (values filename type))
+             ((eq dir ()))
+             ((eq dir '(:relative)) (princ "./" s))
+             ((consp dir)
+              (destructuring-bind (relabs &rest dirs) dir
+                (or (member relabs '(:relative :absolute)) (err))
+                (when (eq relabs :absolute) (princ #\/ s))
+                (loop :for x :in dirs :do
+                  (cond
+                    ((member x '(:back :up)) (princ "../" s))
+                    ((equal x "") (err))
+                    ;;((member x '("." "..") :test 'equal) (err))
+                    ((stringp x) (format s "~A/" x))
+                    (t (err))))))
+             (t (err)))
+           (cond
+             (name
+              (or (and (stringp name) (or (null type) (stringp type))) (err))
+              (format s "~A~@[.~A~]" name type))
              (t
-              (split-name-type filename)))
-         (apply 'make-pathname* :directory (cons relative path) :name name :type type
-                (when defaults `(:defaults ,defaults))))))))
+              (or (null type) (err))))))))))
 
 (defun* subpathname (pathname subpath &key type)
-  (and pathname (merge-pathnames* (coerce-pathname subpath :type type)
-                                  (pathname-directory-pathname pathname))))
+  "This function takes a PATHNAME and a SUBPATH and a TYPE.
+If SUBPATH is already a PATHNAME object (not namestring),
+and is an absolute pathname at that, it is returned unchanged;
+otherwise, SUBPATH is turned into a relative pathname with given TYPE
+as per PARSE-UNIX-NAMESTRING with :WANT-RELATIVE T :TYPE TYPE,
+then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
+  (or (and (pathnamep subpath) (absolute-pathname-p subpath))
+      (merge-pathnames* (parse-unix-namestring subpath :type type :want-relative t)
+                        (pathname-directory-pathname pathname))))
 
 (defun* subpathname* (pathname subpath &key type)
+  "returns NIL if the base pathname is NIL, otherwise like SUBPATHNAME."
   (and pathname
        (subpathname (ensure-directory-pathname pathname) subpath :type type)))
-
-(defun* absolute-pathname-p (pathspec)
-  (and (typep pathspec '(or pathname string))
-       (eq :absolute (car (normalize-pathname-directory-component
-                           (pathname-directory (pathname pathspec)))))))
-
-(defun* ensure-pathname* (x want-absolute want-directory fmt &rest args)
-  (when (plusp (length x))
-    (let ((p (if want-directory (ensure-directory-pathname x) (pathname x))))
-      (when want-absolute
-        (unless (absolute-pathname-p p)
-          (cerror "ignore relative pathname"
-                  "Invalid relative pathname ~A~@[ ~?~]" x fmt args)
-          (return-from ensure-pathname* nil)))
-      p)))
-
-(defun* hidden-file-p (pathname)
-  (equal (first-char (pathname-name pathname)) #\.))
-
 
 ;;; Pathname host and its root
 (defun* pathname-root (pathname)
@@ -551,7 +649,7 @@ Host, device and version components are taken from DEFAULTS."
                                            (eql x separator)))
                          root-namestring)))
     (multiple-value-bind (relative path filename)
-        (component-name-to-pathname-components root-string :force-directory t)
+        (component-name-to-pathname-components root-string :want-directory t)
       (declare (ignore relative filename))
       (let ((new-base
              (make-pathname* :defaults root :directory `(:absolute ,@path))))
@@ -621,9 +719,10 @@ Host, device and version components are taken from DEFAULTS."
 
 (defun* resolve-symlinks (path)
   #-allegro (truenamize path)
-  #+allegro (if (typep path 'logical-pathname)
-                path
-                (excl:pathname-resolve-symbolic-links path)))
+  #+allegro
+  (if (physical-pathname-p path)
+      (excl:pathname-resolve-symbolic-links path)
+      path))
 
 (defun* resolve-symlinks* (path)
   (if *resolve-symlinks*
@@ -692,24 +791,6 @@ Host, device and version components are taken from DEFAULTS."
      (translate-pathname path absolute-source destination))))
 
 
-;;; Native vs Lisp syntax
-
-(defun* native-namestring (x)
-  "From a CL pathname, a namestring suitable for use by the OS shell"
-  (let ((p (pathname x)))
-    #+clozure (with-pathname-defaults () (ccl:native-translated-namestring p)) ; see ccl bug 978
-    #+(or cmu scl) (ext:unix-namestring p nil)
-    #+sbcl (sb-ext:native-namestring p)
-    #-(or clozure cmu sbcl scl) (namestring p)))
-
-(defun* parse-native-namestring (x)
-  "From a native namestring suitable for use by the OS shell, a CL pathname"
-  (check-type x string)
-  #+clozure (ccl:native-to-pathname x)
-  #+sbcl (sb-ext:parse-native-namestring x)
-  #-(or clozure sbcl) (parse-namestring x))
-
-
 ;;; Temporary pathnames
 (defun* add-pathname-suffix (pathname suffix)
   (make-pathname :name (strcat (pathname-name pathname) suffix)
@@ -737,16 +818,10 @@ For the latter case, we ought pick random suffix and atomically open it."
   `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body)))
 
 ;;; Basic pathnames
-(defun* load-pathname ()
-  (resolve-symlinks* (or *load-pathname* *compile-file-pathname*)))
-
-(defun* default-directory () ;; A default absolute directory when all else fails.
-  (pathname-root (nil-pathname)))
-
 (defun* physical-pathname-p (x)
   (and (pathnamep x) (not (typep x 'logical-pathname))))
 
-(defun* sane-physical-pathname (defaults &key (keep t) fallback must-exist)
+(defun* sane-physical-pathname (&key defaults (keep t) fallback want-existing)
   (flet ((sanitize (x)
            (setf x (and x (ignore-errors (translate-logical-pathname x))))
            (when (pathnamep x)
@@ -757,15 +832,21 @@ For the latter case, we ought pick random suffix and atomically open it."
                      ((:root) (pathname-root x))
                      ((:host) (pathname-host-pathname x))
                      ((nil) (nil-pathname x))))
-             (when must-exist ;; CCL's probe-file will choke if d-p-d is logical
+             (when want-existing ;; CCL's probe-file will choke if d-p-d is logical
                (setf x (and (probe-file* x) x)))
              (and (physical-pathname-p x) x))))
     (or (sanitize defaults)
         (when fallback
-          (or (sanitize (ignore-errors (user-homedir-pathname)))
-              (sanitize (nil-pathname))))
-        (error "Could not find a sanitize ~S ~:[~;or a fallback ~] into a physical pathname"
+          (or (sanitize (nil-pathname))
+              (sanitize (ignore-errors (user-homedir-pathname)))))
+        (error "Could not find a sane a physical pathname~
+                ~@[ from ~S~]~@[~:*~@[ or~*~] fallbacks~]"
                defaults fallback))))
+
+(defun* root-pathname ()
+  "On a Unix system, this will presumably be the root pathname /.
+Otherwise, this will be the root of some implementation-dependent filesystem host."
+  (sane-physical-pathname :keep :root :fallback t))
 
 
 ;;;; -----------------------------------------------------------------
@@ -842,6 +923,82 @@ For the latter case, we ought pick random suffix and atomically open it."
       (end-of-file (c)
         (declare (ignore c))
         nil)))))
+
+
+;;; Check pathname constraints
+
+(defun* ensure-pathname
+    (pathname &key want-pathname want-existing
+              want-absolute want-relative want-directory want-file
+              want-wild want-non-wild want-truename truenamize
+              error-arguments)
+  "Coerces its argument into a PATHNAME, and checks specified constraints.
+If the argument is NIL, then NIL is returned unless the WANT-PATHNAME constraint is specified.
+If the argument is a STRING, it is first converted to a pathname via PARSE-NAMESTRING.
+Each non-nil constraint argument can be one of the symbols T, ERROR, CERROR or IGNORE.
+The boolean T is an alias for ERROR.
+ERROR means that an error will be raised if the constraint is not satisfied.
+CERROR means that an continuable error will be raised if the constraint is not satisfied.
+IGNORE means just return NIL instead of the pathname.
+The ERROR-ARGUMENTS arguments, if provided,
+will be passed on to the error primitive, together with three arguments:
+a string describing the error, that should be followed by a space and
+the pathname to report the error, the keyword that corresponds to that
+constraint name, and the pathname;
+this makes it usable whether you are using the short or long variants of ERROR,
+modulo your error object having to recognize the suitable keyword argument
+in case you use the long variant."
+  (block nil
+    (flet ((report-error (on-error keyword description)
+             (let ((err (append (or error-arguments '("Invalid pathname: ~A~* ~S"))
+                                (list description keyword pathname))))
+               (ecase on-error
+                 ((error t) (apply 'error err))
+                 ((cerror) (apply 'cerror "ignore pathname constraint" err))
+                 ((ignore) (return nil))))))
+      (macrolet ((err (constraint format)
+                   `(report-error ,constraint ',(intern* constraint :keyword) ,format)))
+        (etypecase pathname
+          (null
+           (when want-pathname
+             (err want-pathname "Expected a pathname, got"))
+           (return nil))
+          (string
+           (setf pathname (parse-namestring pathname)))
+          (pathname))
+        (when want-absolute
+          (unless (absolute-pathname-p pathname)
+            (err want-absolute "Expected an absolute pathname, got")))
+        (when want-relative
+          (when (absolute-pathname-p pathname)
+            (err want-relative "Expected a relative pathname, got")))
+        (when want-directory
+          (unless (directory-pathname-p pathname)
+            (err want-directory "Expected a directory pathname, got")))
+        (when want-file
+          (unless (pathname-name pathname)
+            (err want-file "Expected a file pathname, got")))
+        (when want-wild
+          (unless (wild-pathname-p pathname)
+            (err want-wild "Expected a wildcard pathname, got")))
+        (when (or want-non-wild want-existing)
+          (when (wild-pathname-p pathname)
+            (err want-non-wild "Expected a non-wildcard pathname, got")))
+        (when want-existing
+          (let ((existing (probe-file* pathname)))
+            (if existing
+                (err want-existing "Expected an existing pathname, got")
+                (when (or want-truename truenamize)
+                  (return existing)))))
+        (when want-truename
+          (let ((truename (truename* pathname)))
+            (if truename
+                (return truename)
+                (err want-truename "Can't get a truename for pathname"))))
+        (when truenamize
+          (return (truenamize pathname)))
+        pathname))))
+
 
 ;;; Hook for output translations
 (defvar *output-translation-function* 'identity)

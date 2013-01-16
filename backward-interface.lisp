@@ -10,7 +10,6 @@
    #:*asdf-verbose*
    #:component-load-dependencies
    #:enable-asdf-binary-locations-compatibility
-   #:merge-component-name-type
    #:operation-forced
    #:operation-on-failure
    #:operation-on-warnings
@@ -22,11 +21,12 @@
   ;; Old deprecated name for the same thing. Please update your software.
   (component-sibling-dependencies component))
 
-(defun* merge-component-name-type (name &key type defaults)
-  ;; For backward-compatibility only, for people using internals.
-  ;; Will be removed in a future release, e.g. 2.016.
-  (warn "Please don't use ASDF::MERGE-COMPONENT-NAME-TYPE. Use ASDF:COERCE-PATHNAME.")
-  (coerce-pathname name :type type :defaults defaults))
+(defun* coerce-pathname (name &key type defaults)
+  ;; For backward-compatibility only, for people using internals
+  ;; Reported users in quicklisp: hu.dwim.asdf, asdf-utils, xcvb
+  ;; Will be removed in a future release, e.g. 2.30.
+  (warn "Please don't use ASDF::COERCE-PATHNAME. Use ASDF/PATHNAME:PARSE-UNIX-NAMESTRING.")
+  (parse-unix-namestring name :type type :defaults defaults))
 
 (defgeneric* operation-forced (operation)) ;; Used by swank.asd for swank-loader.
 (defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))
@@ -71,7 +71,7 @@ if that's whay you mean." ;;)
   #+(or clisp ecl mkcl)
   (when (null map-all-source-files)
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on CLISP, ECL and MKCL"))
-  (let* ((fasl-type (fasl-type))
+  (let* ((fasl-type (compile-file-type))
          (mapped-files (if map-all-source-files *wild-file*
                            (make-pathname :type fasl-type :defaults *wild-file*)))
          (destination-directory

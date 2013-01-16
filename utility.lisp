@@ -21,7 +21,7 @@
    #:ensure-function #:call-function #:call-functions #:register-hook-function ;; functions
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
-   #:eval-text #:load-string #:load-stream
+   #:load-string #:load-stream
    #:parse-version #:unparse-version #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
@@ -34,7 +34,7 @@
   (defun undefine-function (function-spec)
     (cond
       ((symbolp function-spec)
-       #+clisp
+       #+(and clisp (or))
        (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
          (when (typep f 'clos:standard-generic-function)
            (loop :for m :in (clos:generic-function-methods f)
@@ -51,7 +51,12 @@
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
           `(progn
-             #-clisp ;; clisp is unhappy about fmakunbound.
+             ;; undefining the previous function is the portable way
+             ;; of overriding any incompatible previous gf, but somehow
+             ;; this causes CLISP to fail to see COMPONENT-NAME methods after ugprade
+             ;; so instead, for CLISP we delete-package* in package.lisp
+             ;; any time the API changes.
+             #-clisp
              (undefine-function ',name)
              #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
              ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
@@ -63,14 +68,14 @@
 
 ;;; Magic debugging help. See contrib/debug.lisp
 (defvar *asdf-debug-utility*
-  '(symbol-call :asdf :system-relative-pathname :asdf "contrib/debug.lisp")
+  '(ignore-errors (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
   "form that evaluates to the pathname to your favorite debugging utilities")
 
-(defmacro asdf-debug (&optional package utility-file)
+(defmacro asdf-debug (&rest keys)
   `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (load-asdf-debug-utility ',package ',utility-file)))
+     (load-asdf-debug-utility ,@keys)))
 
-(defun* load-asdf-debug-utility (&optional package utility-file)
+(defun* load-asdf-debug-utility (&key package utility-file)
   (let* ((*package* (if package (find-package package) *package*))
          (keyword (read-from-string
                    (format nil ":DBG-~:@(~A~)" (package-name *package*)))))

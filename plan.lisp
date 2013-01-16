@@ -16,14 +16,13 @@
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions
    #:node-for #:needed-in-image-p
-   #:action-index #:action-planned-p
+   #:action-index #:action-planned-p #:action-valid-p
    #:plan-record-dependency #:visiting-action-p
    #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
    #:visit-dependencies #:compute-action-stamp #:traverse-action
    #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
-   #:traverse-sequentially #:traverse
-   #:perform-plan #:plan-operates-on-p))
+   #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p))
 (in-package :asdf/plan)
 
 ;;;; Planned action status
@@ -82,7 +81,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (etypecase x
     ((member nil :all) x)
     (cons (list-to-hash-set (mapcar #'coerce-name x)))
-    ((eql t) (list-to-hash-set (list (coerce-name system))))))
+    ((eql t) (when system (list-to-hash-set (list (coerce-name system)))))))
 
 (defun* action-override-p (plan operation component override-accessor)
   (declare (ignorable operation))
@@ -290,6 +289,10 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (defclass sequential-plan (plan-traversal)
   ((actions-r :initform nil :accessor plan-actions-r)))
 
+(defgeneric* plan-actions (plan))
+(defmethod plan-actions ((plan sequential-plan))
+  (reverse (plan-actions-r plan)))
+
 (defmethod plan-record-dependency ((plan sequential-plan)
                                    (operation operation) (component component))
   (declare (ignorable plan operation component))
@@ -299,11 +302,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (new-status (p sequential-plan) (o operation) (c component))
   (when (action-planned-p new-status)
     (push (cons o c) (plan-actions-r p))))
-
-(defun* traverse-sequentially (operation component &rest keys &key &allow-other-keys)
-  (let ((plan (apply 'make-instance 'sequential-plan :system (component-system component) keys)))
-    (traverse-action plan operation component t)
-    (reverse (plan-actions-r plan))))
 
 
 ;;;; high-level interface: traverse, perform-plan, plan-operates-on-p
@@ -318,8 +316,12 @@ processed in order by OPERATE."))
 (defgeneric* perform-plan (plan &key))
 (defgeneric* plan-operates-on-p (plan component))
 
-(defmethod traverse ((o operation) (c component) &rest keys &key &allow-other-keys)
-  (apply 'traverse-sequentially o c keys))
+(defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
+  (let ((plan (apply 'make-instance
+                     (or plan-class 'sequential-plan)
+                     :system (component-system c) (remove-keyword :plan-class keys))))
+    (traverse-action plan o c t)
+    (plan-actions plan)))
 
 (defmethod perform-plan ((steps list) &key)
   (let ((*package* *package*)

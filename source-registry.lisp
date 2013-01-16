@@ -148,8 +148,8 @@ system names to pathnames of .asd files")
     system-source-registry-directory
     default-source-registry))
 
-(defparameter *source-registry-file* (coerce-pathname "source-registry.conf"))
-(defparameter *source-registry-directory* (coerce-pathname "source-registry.conf.d/"))
+(defparameter *source-registry-file* (parse-unix-namestring "source-registry.conf"))
+(defparameter *source-registry-directory* (parse-unix-namestring "source-registry.conf.d/"))
 
 (defun* wrapping-source-registry ()
   `(:source-registry
@@ -198,11 +198,11 @@ system names to pathnames of .asd files")
       ((:directory)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (resolve-location pathname :directory t)))))
+           (funcall register (resolve-location pathname :want-directory t)))))
       ((:tree)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (resolve-location pathname :directory t)
+           (funcall register (resolve-location pathname :want-directory t)
                     :recurse t :exclude *source-registry-exclusions*))))
       ((:exclude)
        (setf *source-registry-exclusions* rest))

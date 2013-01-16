@@ -55,7 +55,7 @@ and the order is by decreasing length of namestring of the source pathname.")
   "Undoes any initialization of the output translations."
   (setf *output-translations* '())
   (values))
-(register-clear-configuration-hook 'clear-source-registry)
+(register-clear-configuration-hook 'clear-output-translations)
 
 (defun* validate-output-translations-directive (directive)
   (or (member directive '(:enable-user-cache :disable-cache nil))
@@ -148,8 +148,8 @@ and the order is by decreasing length of namestring of the source pathname.")
     ;; We enable the user cache by default, and here is the place we do:
     :enable-user-cache))
 
-(defparameter *output-translations-file* (coerce-pathname "asdf-output-translations.conf"))
-(defparameter *output-translations-directory* (coerce-pathname "asdf-output-translations.conf.d/"))
+(defparameter *output-translations-file* (parse-unix-namestring "asdf-output-translations.conf"))
+(defparameter *output-translations-directory* (parse-unix-namestring "asdf-output-translations.conf.d/"))
 
 (defun* user-output-translations-pathname (&key (direction :input))
   (in-user-configuration-directory *output-translations-file* :direction direction))
@@ -186,7 +186,7 @@ and the order is by decreasing length of namestring of the source pathname.")
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (when src
               (let ((trusrc (or (eql src t)
-                                (let ((loc (resolve-location src :directory t :wilden t)))
+                                (let ((loc (resolve-location src :want-directory t :wilden t)))
                                   (if (absolute-pathname-p loc) (truenamize loc) loc)))))
                 (cond
                   ((location-function-p dst)
@@ -199,7 +199,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                    (funcall collect (list trusrc t)))
                   (t
                    (let* ((trudst (if dst
-                                      (resolve-location dst :directory t :wilden t)
+                                      (resolve-location dst :want-directory t :wilden t)
                                       trusrc)))
                      (funcall collect (list trudst t))
                      (funcall collect (list trusrc trudst)))))))))))

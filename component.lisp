@@ -138,10 +138,11 @@ another pathname in a degenerate way."))
         pathname)))
 
 (defmethod component-relative-pathname ((component component))
-  (coerce-pathname
+  (parse-unix-namestring
    (or (and (slot-boundp component 'relative-pathname)
             (slot-value component 'relative-pathname))
        (component-name component))
+   :want-relative t
    :type (source-file-type component (component-system component)) ;; backward-compatibility
    :defaults (component-parent-pathname component)))
 

@@ -7,7 +7,7 @@
 (with-test ()
  (format t "~D~%" (asdf:asdf-version))
 
- (defsystem test-builtin-source-file-type-1
+ (def-test-system test-builtin-source-file-type-1
    :default-component-class cl-source-file.cl
    :serial t
    :components ((:cl-source-file "file1") ; for the package
@@ -20,7 +20,8 @@
   '("lisp" "cl"))
  (delete-package :test-package)
 
- (defsystem test-builtin-source-file-type-2
+ (def-test-system
+     test-builtin-source-file-type-2
    :default-component-class cl-source-file.cl
    :serial t
    :components ((:file "file1" :type "lisp") ; for package
@@ -28,7 +29,7 @@
  (asdf:load-system 'test-builtin-source-file-type-2 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
 
- (defsystem test-builtin-source-file-type-3
+ (def-test-system test-builtin-source-file-type-3
    :default-component-class cl-source-file.lsp
    :serial t
    :components ((:cl-source-file "file1") ; for the package
@@ -41,7 +42,7 @@
   '("lisp" "cl"))
  (delete-package :test-package)
 
- (defsystem test-builtin-source-file-type-4
+ (def-test-system test-builtin-source-file-type-4
    :default-component-class cl-source-file.lsp
    :serial t
    :components ((:file "file1" :type "lisp") ; for package

@@ -16,7 +16,7 @@
 
 (with-test ()
 
-  (defsystem :test-module-excessive-depend
+  (def-test-system :test-module-excessive-depend
    :components ((:file "file1")
                 (:module "quux"
                  :pathname ""

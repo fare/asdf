@@ -24,17 +24,31 @@
    #:search-for-system-definition #:find-component #:component-find-path
    #:compile-system #:load-system #:load-systems
    #:require-system #:test-system #:clear-system
-   #:operation #:upward-operation #:downward-operation
-   #:load-op #:prepare-op #:compile-op #:load-fasl-op
+   #:operation #:upward-operation #:downward-operation #:make-operation
+   #:load-op #:prepare-op #:compile-op #:load-fasl-op #:fasl-op
    #:prepare-source-op #:load-source-op #:test-op
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
    #:input-files #:output-files #:output-file #:perform
    #:operation-done-p #:explain #:component-sibling-dependencies
+   #:needed-in-image-p
    #:run-program/ ; the recommended replacement for run-shell-command
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:precompiled-system #:compiled-file
    #+ecl #:make-build #+mkcl #:bundle-system
+   #:program-op #:program-system
+   #:concatenate-source-op
+   #:load-concatenated-source-op
+   #:compile-concatenated-source-op
+   #:load-compiled-concatenated-source-op
+   #:monolithic-concatenate-source-op
+   #:monolithic-load-concatenated-source-op
+   #:monolithic-compile-concatenated-source-op
+   #:monolithic-load-compiled-concatenated-source-op
+   #:concatenated-source-system
+   #:component-concatenated-source-file
+   #:concatenated-source-file
+   #:operation-monolithic-p
 
    #:component #:parent-component #:child-component #:system #:module
    #:source-file #:c-source-file #:java-source-file

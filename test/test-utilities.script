@@ -15,52 +15,55 @@
    (make-pathname* :type "" :directory '(:absolute "tmp"))
 ;; CLHS 19.2.2.2.3 says we can't portably specify :unspecific here,
 ;; and some implementations will enforce it.
-;;   (make-pathname :type :unspecific :directory '(:absolute "tmp"))
-;;   (make-pathname :name :unspecific :directory '(:absolute "tmp"))
-;;   (make-pathname :name :unspecific :directory '(:absolute "tmp"))
-   )))
+   (make-pathname* :type *unspecific-pathname-type* :directory '(:absolute "tmp"))
+   (make-pathname* :name *unspecific-pathname-type* :directory '(:absolute "tmp"))
+   (make-pathname* :name *unspecific-pathname-type* :directory '(:absolute "tmp")))))
 (assert
  (every (complement #'directory-pathname-p)
   (list
    (make-pathname* :name "foo" :type nil :directory '(:absolute "tmp"))
    (make-pathname* :name nil :type "bar" :directory '(:absolute "tmp")))))
-;; These are funky and non portable. Omit from tests.
+;; These are funky and non portable, omit from tests:
 ;; (make-pathname* :name "." :type nil :directory '(:absolute "tmp"))
 ;; (make-pathname* :name "." :type "" :directory '(:absolute "tmp"))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "" :force-directory t))
-               '(:relative nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components ""  :force-directory nil))
-               '(:relative nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/" :force-directory t))
-               '(:absolute nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/" :force-directory nil))
-               '(:absolute nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" :force-directory t))
-               '(:absolute ("aa" "ba") nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" :force-directory nil))
-               '(:absolute ("aa") "ba")))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "" :want-directory t))
+               '(:relative nil nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components ""  :want-directory nil))
+               '(:relative nil nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/" :want-directory t))
+               '(:absolute nil nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/" :want-directory nil))
+               '(:absolute nil nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" :want-directory t))
+               '(:absolute ("aa" "ba") nil nil)))
+(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" :want-directory nil))
+               '(:absolute ("aa") "ba" nil)))
 (assert
  (version-satisfies (asdf-version) (asdf-version)))
 (assert
  (version-satisfies (asdf-version) "2.000"))
 (assert
  (not (version-satisfies (asdf-version) "666")))
-(assert
-  (equal (asdf::split-pathnames* "foo:bar" nil nil "baz") '(#p"foo" #p"bar")))
-(assert
-  (equal (asdf::split-pathnames* "foo:bar" nil t "baz") '(#p"foo/" #p"bar/")))
-(assert
-  (equal (asdf::split-pathnames* "/foo:/bar" t nil "baz") '(#p"/foo" #p"/bar")))
-(assert
-  (equal (asdf::split-pathnames* "/foo:/bar" t t "baz") '(#p"/foo/" #p"/bar/")))
-(assert (equal (mapcar 'asdf::location-function-p
-                       '((:function f)
-                         (:function (lambda (path absolute-source)
-                                      (declare (ignore absolute-source))
-                                      path))
-                         (function previous-isnt-keyword)
-                         (:function f too many arguments)
-                         (:function (:lambda isnt lambda))
-                         (:function (lambda (too many args) blah))))
-               '(t t nil nil nil nil)))
-)
+(assert-equal
+ (mapcar 'namestring (split-native-pathnames-string "foo:bar"))
+ '("foo" "bar"))
+(assert-equal
+ (mapcar 'namestring (split-native-pathnames-string "foo:bar" :want-directory t))
+ '("foo/" "bar/"))
+(assert-equal
+ (mapcar 'namestring (split-native-pathnames-string "/foo:/bar" :want-absolute t))
+ '("/foo" "/bar"))
+(assert-equal
+ (mapcar 'namestring (split-native-pathnames-string "/foo:/bar" :want-absolute t :want-directory t))
+ '("/foo/" "/bar/"))
+(assert-equal
+ (mapcar 'location-function-p
+         '((:function f)
+           (:function (lambda (path absolute-source)
+                        (declare (ignore absolute-source))
+                        path))
+           (function previous-isnt-keyword)
+           (:function f too many arguments)
+           (:function (:lambda isnt lambda))
+           (:function (lambda (too many args) blah))))
+ '(t t nil nil nil nil)))

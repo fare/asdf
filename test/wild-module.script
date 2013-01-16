@@ -3,7 +3,7 @@
 (load-asdf)
 (with-test ()
  (load (asdf::subpathname *asdf-directory* "contrib/wild-modules.lisp"))
- (asdf:defsystem :wild-module
+ (def-test-system :wild-module
    :version "0.0"
    :components ((:wild-module "systems" :pathname #p"*.asd")))
  #-gcl<2.7

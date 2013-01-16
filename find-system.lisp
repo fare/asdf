@@ -14,7 +14,8 @@
    #:*system-definition-search-functions* #:search-for-system-definition
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
    #:make-temporary-package #:find-system-if-being-defined #:*systems-being-defined*
-   #:find-system-fallback #:sysdef-find-asdf
+   #:find-system-fallback #:sysdef-find-asdf #:contrib-sysdef-search
+   #:system-find-pre-loaded-system #:*pre-loaded-systems*
    #:make-defined-systems-table #:*defined-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
@@ -109,18 +110,21 @@ called with an object of type asdf:system."
 
 (defvar *system-definition-search-functions* '())
 
-(setf *system-definition-search-functions*
-      (append
-       ;; Remove known-incompatible sysdef functions from ancient sbcl asdf.
-       (remove 'contrib-sysdef-search *system-definition-search-functions*)
-       ;; Tuck our defaults at the end of the list if they were absent.
-       ;; This is imperfect, in case they were removed on purpose,
-       ;; but then it will be the responsibility of whoever does that
-       ;; to upgrade asdf before he does such a thing rather than after.
-       (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
-                  '(sysdef-central-registry-search
-                    sysdef-source-registry-search
-                    sysdef-find-asdf))))
+(defun cleanup-system-definition-search-functions ()
+  (setf *system-definition-search-functions*
+        (append
+         ;; Remove known-incompatible sysdef functions from old versions of asdf.
+         (remove-if #'(lambda (x) (member x '(contrib-sysdef-search sysdef-find-asdf)))
+                    *system-definition-search-functions*)
+         ;; Tuck our defaults at the end of the list if they were absent.
+         ;; This is imperfect, in case they were removed on purpose,
+         ;; but then it will be the responsibility of whoever does that
+         ;; to upgrade asdf before he does such a thing rather than after.
+         (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
+                    '(sysdef-central-registry-search
+                      sysdef-source-registry-search
+                      sysdef-find-pre-loaded-systems)))))
+(cleanup-system-definition-search-functions)
 
 (defun* search-for-system-definition (system)
   (some (let ((name (coerce-name system))) #'(lambda (x) (funcall x name)))
@@ -202,13 +206,7 @@ Going forward, we recommend new users should be using the source-registry.
                           (subseq *central-registry* (1+ position))))))))))
 
 (defun* make-temporary-package ()
-  (flet ((try (counter)
-           (ignore-errors
-             (make-package (format nil "~A~D" :asdf counter)
-                           :use '(:cl :asdf/interface)))))
-    (do* ((counter 0 (+ counter 1))
-          (package (try counter) (try counter)))
-         (package package))))
+  (make-package (fresh-package-name :asdf 0) :use '(:cl :asdf/interface)))
 
 (defmethod find-system ((name null) &optional (error-p t))
   (declare (ignorable name))
@@ -237,7 +235,7 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* load-sysdef (name pathname)
   ;; Tries to load system definition with canonical NAME from PATHNAME.
   (with-system-definitions ()
-    (let ((package (make-temporary-package)))
+    (let ((package (make-temporary-package))) ;; ASDF3: get rid of that.
       (unwind-protect
            (handler-bind
                ((error #'(lambda (condition)
@@ -322,9 +320,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   (when (equal requested fallback)
     (let ((registered (cdr (gethash fallback *defined-systems*))))
       (or registered
-          (apply 'make-instance 'system
-                 :name fallback :source-file source-file keys)))))
+          (apply 'make-instance 'system :name fallback :source-file source-file keys)))))
 
-(defun* sysdef-find-asdf (name)
-  ;; Bug: :version *asdf-version* won't be updated when ASDF is updated.
-  (find-system-fallback name "asdf" :version (asdf-version)))
+(defvar *pre-loaded-systems* `(("asdf") ("asdf-driver")))
+
+(defun* sysdef-find-pre-loaded-systems (requested)
+  (loop :for (provided . keys) :in *pre-loaded-systems*
+        :thereis (apply 'find-system-fallback requested provided keys)))

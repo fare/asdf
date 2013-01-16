@@ -9,25 +9,32 @@
    :asdf/backward-internals)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:export
-   #:defsystem #:*default-component-class*
-   #:class-for-type #:do-defsystem
-   #:determine-system-pathname #:parse-component-form
+   #:defsystem #:register-system-definition
+   #:class-for-type #:*default-component-class*
+   #:determine-system-directory #:parse-component-form
    #:duplicate-names #:sysdef-error-component #:check-component-input))
 (in-package :asdf/defsystem)
 
 ;;; Pathname
 
-(defun* determine-system-pathname (pathname)
-  ;; The defsystem macro calls us to determine
+(defun* determine-system-directory (pathname)
+  ;; The defsystem macro calls this function to determine
   ;; the pathname of a system as follows:
-  ;; 1. the one supplied,
-  ;; 2. derived from *load-pathname* via load-pathname
-  ;; 3. taken from the *default-pathname-defaults* via default-directory
-  (let* ((file-pathname (load-pathname))
-         (directory-pathname (and file-pathname (pathname-directory-pathname file-pathname))))
-    (or (and pathname (subpathname directory-pathname pathname :type :directory))
-        directory-pathname
-        (default-directory))))
+  ;; 1. if the pathname argument is an pathname object (NOT a namestring),
+  ;;    that is already an absolute pathname, return it.
+  ;; 2. otherwise, the directory containing the CURRENT-LISP-FILE-PATHNAME
+  ;;    is considered (as deduced from e.g. *LOAD-PATHNAME*), and
+  ;;    if it is indeed available and an absolute pathname, then
+  ;;    the PATHNAME argument is normalized to a relative pathname
+  ;;    as per PARSE-UNIX-NAMESTRING (with WANT-DIRECTORY T)
+  ;;    and merged into that DIRECTORY as per SUBPATHNAME.
+  ;; If no absolute pathname was found, we return NIL.
+  (check-type pathname (or null string pathname))
+  (or (and (pathnamep pathname) (absolute-pathname-p pathname))
+      (let* ((lisp-file-pathname (resolve-symlinks* (current-lisp-file-pathname))))
+        (when (absolute-pathname-p lisp-file-pathname)
+          (subpathname lisp-file-pathname pathname :type :directory)))))
+
 
 ;;; Component class
 
@@ -149,9 +156,9 @@
       (when if-component-dep-fails (%resolve-if-component-dep-fails if-component-dep-fails ret))
       ret)))
 
-(defun* do-defsystem (name &rest options
-                           &key pathname (class 'system)
-                           defsystem-depends-on &allow-other-keys)
+(defun* register-system-definition
+    (name &rest options &key pathname (class 'system) (source-file () sfp)
+          defsystem-depends-on &allow-other-keys)
   ;; The system must be registered before we parse the body,
   ;; otherwise we recur when trying to find an existing system
   ;; of the same name to reuse options (e.g. pathname) from.
@@ -160,17 +167,17 @@
   ;; we also need to remember it in a special variable *systems-being-defined*.
   (with-system-definitions ()
     (let* ((name (coerce-name name))
-           (load-pathname (load-pathname))
+           (source-file (if sfp source-file (current-lisp-file-pathname)))
            (registered (system-registered-p name))
            (registered! (if registered
-                            (rplaca registered (safe-file-write-date load-pathname))
-                            (register-system (make-instance 'system :name name :source-file load-pathname))))
+                            (rplaca registered (safe-file-write-date source-file))
+                            (register-system (make-instance 'system :name name :source-file source-file))))
            (system (reset-system (cdr registered!)
-                                :name name :source-file load-pathname))
-           (component-options (remove-keys '(:class) options)))
+                                 :name name :source-file source-file))
+           (component-options (remove-keyword :class options)))
       (setf (gethash name *systems-being-defined*) system)
       (apply 'load-systems defsystem-depends-on)
-      ;; We change-class (when necessary) AFTER we load the defsystem-dep's
+      ;; We change-class AFTER we loaded the defsystem-depends-on
       ;; since the class might be defined as part of those.
       (let ((class (class-for-type nil class)))
         (unless (eq (type-of system) class)
@@ -178,8 +185,8 @@
       (parse-component-form
        nil (list*
             :module name
-            :pathname (determine-system-pathname pathname)
+            :pathname (determine-system-directory pathname)
             component-options)))))
 
 (defmacro defsystem (name &body options)
-  `(apply 'do-defsystem ',name ',options))
+  `(apply 'register-system-definition ',name ',options))

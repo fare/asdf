@@ -132,7 +132,7 @@ be applied to the results to yield a configuration form.  Current
 values of TAG include :source-registry and :output-translations."
   (let ((files (sort (ignore-errors
                        (remove-if
-                        'hidden-file-p
+                        'hidden-pathname-p
                         (directory* (make-pathname :name *wild* :type "conf" :defaults directory))))
                      #'string< :key #'namestring)))
     `(,tag
@@ -151,118 +151,114 @@ values of TAG include :source-registry and :output-translations."
                   :do (report-invalid-form invalid-form-reporter :form form :location file)))
       :inherit-configuration)))
 
-(declaim (ftype (function (t &key (:directory boolean) (:wilden boolean))
-                          (values (or null pathname) &optional))
-                resolve-location))
-
-(defun* resolve-relative-location-component (x &key directory wilden)
-  (let ((r (etypecase x
-             (pathname x)
-             (string (coerce-pathname x :type (when directory :directory)))
-             (cons
-              (if (null (cdr x))
-                  (resolve-relative-location-component
-                   (car x) :directory directory :wilden wilden)
-                  (let* ((car (resolve-relative-location-component
-                               (car x) :directory t :wilden nil)))
-                    (merge-pathnames*
-                     (resolve-relative-location-component
-                      (cdr x) :directory directory :wilden wilden)
-                     car))))
-             ((eql :default-directory) (nil-pathname)) ;; OBSOLETE
-             ((eql :*/) *wild-directory*)
-             ((eql :**/) *wild-inferiors*)
-             ((eql :*.*.*) *wild-file*)
-             ((eql :implementation)
-              (coerce-pathname (implementation-identifier) :type :directory))
-             ((eql :implementation-type)
-              (coerce-pathname (string-downcase (implementation-type)) :type :directory))
-             ((eql :hostname)
-              (coerce-pathname (hostname) :type :directory)))))
-    (when (absolute-pathname-p r)
-      (error (compatfmt "~@<pathname ~S is not relative~@:>") x))
-    (if (or (pathnamep x) (member x '(:*/ :**/ :*.*.*)) (not wilden))
-        r (wilden r))))
+(defun* resolve-relative-location-component (x &key want-directory wilden)
+  (let* ((r (etypecase x
+              (pathname x)
+              (string (parse-unix-namestring
+                       x :want-directory want-directory))
+              (cons
+               (if (null (cdr x))
+                   (resolve-relative-location-component
+                    (car x) :want-directory want-directory :wilden wilden)
+                   (let* ((car (resolve-relative-location-component
+                                (car x) :want-directory t :wilden nil)))
+                     (merge-pathnames*
+                      (resolve-relative-location-component
+                       (cdr x) :want-directory want-directory :wilden wilden)
+                      car))))
+              ((eql :*/) *wild-directory*)
+              ((eql :**/) *wild-inferiors*)
+              ((eql :*.*.*) *wild-file*)
+              ((eql :implementation)
+               (parse-unix-namestring
+                (implementation-identifier) :want-directory t))
+              ((eql :implementation-type)
+               (parse-unix-namestring
+                (string-downcase (implementation-type)) :want-directory t))
+              ((eql :hostname)
+               (parse-unix-namestring (hostname) :want-directory t))))
+         (w (if (and wilden (not (pathnamep x)) (not (member x '(:*/ :**/ :*.*.*))))
+                (wilden r)
+                r)))
+    (ensure-pathname w :want-relative t)))
 
 (defvar *here-directory* nil
   "This special variable is bound to the currect directory during calls to
 PROCESS-SOURCE-REGISTRY in order that we be able to interpret the :here
 directive.")
 
-(defvar *user-cache*
-  (flet ((try (x &rest sub) (and x `(,x ,@sub))))
-    (or
-     (try (getenv-absolute-directory "XDG_CACHE_HOME") "common-lisp" :implementation)
-     (when (os-windows-p)
-       (try (or (get-folder-path :local-appdata)
-                (get-folder-path :appdata))
-            "common-lisp" "cache" :implementation))
-     '(:home ".cache" "common-lisp" :implementation))))
+(defvar *user-cache* nil
+  "A specification as per RESOLVE-LOCATION of where the user keeps his FASL cache")
 
-(defun* resolve-absolute-location-component (x &key directory wilden)
-  (let* ((r
-          (etypecase x
-            (pathname x)
-            (string (let ((p (#+mcl probe-posix #-mcl parse-namestring x)))
-                      #+mcl (unless p (error "POSIX pathname ~S does not exist" x))
-                      (if directory (ensure-directory-pathname p) p)))
-            (cons
-             (return-from resolve-absolute-location-component
-               (if (null (cdr x))
-                   (resolve-absolute-location-component
-                    (car x) :directory directory :wilden wilden)
-                   (merge-pathnames*
-                    (resolve-relative-location-component
-                     (cdr x) :directory directory :wilden wilden)
-                    (resolve-absolute-location-component
-                     (car x) :directory t :wilden nil)))))
-            ((eql :root)
-             ;; special magic! we encode such paths as relative pathnames,
-             ;; but it means "relative to the root of the source pathname's host and device".
-             (return-from resolve-absolute-location-component
-               (let ((p (make-pathname* :directory '(:relative))))
-                 (if wilden (wilden p) p))))
-            ((eql :home) (user-homedir))
-            ((eql :here)
-             (resolve-location (or *here-directory*
-                                   ;; give semantics in the case of use interactively
-                                   :default-directory)
-                          :directory t :wilden nil))
-            ((eql :user-cache) (resolve-location *user-cache* :directory t :wilden nil))
-            ((eql :system-cache)
-             (error "Using the :system-cache is deprecated. ~%~
-Please remove it from your ASDF configuration"))
-            ((eql :default-directory) (default-directory))))
-         (s (if (and wilden (not (or (pathnamep x))))
+(defun compute-user-cache ()
+  (setf *user-cache*
+        (flet ((try (x &rest sub) (and x `(,x ,@sub))))
+          (or
+           (try (getenv-absolute-directory "XDG_CACHE_HOME") "common-lisp" :implementation)
+           (when (os-windows-p)
+             (try (or (get-folder-path :local-appdata)
+                      (get-folder-path :appdata))
+                  "common-lisp" "cache" :implementation))
+           '(:home ".cache" "common-lisp" :implementation)))))
+(register-image-restore-hook 'compute-user-cache)
+
+(defun* resolve-absolute-location-component (x &key want-directory wilden)
+  (let* ((r (etypecase x
+              (pathname x)
+              (string
+               (let ((p #-mcl (parse-namestring x)
+                        #+mcl (probe-posix x)))
+                 #+mcl (unless p (error "POSIX pathname ~S does not exist" x))
+                 (if want-directory (ensure-directory-pathname p) p)))
+              (cons
+               (return-from resolve-absolute-location-component
+                 (if (null (cdr x))
+                     (resolve-absolute-location-component
+                      (car x) :want-directory want-directory :wilden wilden)
+                     (merge-pathnames*
+                      (resolve-relative-location-component
+                       (cdr x) :want-directory want-directory :wilden wilden)
+                      (resolve-absolute-location-component
+                       (car x) :want-directory t :wilden nil)))))
+              ((eql :root)
+               ;; special magic! we return a relative pathname,
+               ;; but what it means to the output-translations is
+               ;; "relative to the root of the source pathname's host and device".
+               (return-from resolve-absolute-location-component
+                 (let ((p (make-pathname* :directory '(:relative))))
+                   (if wilden (wilden p) p))))
+              ((eql :home) (user-homedir))
+              ((eql :here) (resolve-absolute-location-component
+                            *here-directory* :want-directory t :wilden nil))
+              ((eql :user-cache) (resolve-absolute-location-component
+                                  *user-cache* :want-directory t :wilden nil))))
+         (w (if (and wilden (not (pathnamep x)))
                 (wilden r)
                 r)))
-    (unless (absolute-pathname-p s)
-      (error (compatfmt "~@<Invalid designator for an absolute pathname: ~3i~_~S~@:>") x))
-    s))
+    (ensure-pathname w :want-absolute t)))
 
-(defun* resolve-location (x &key directory wilden)
+(defun* resolve-location (x &key want-directory wilden)
   (if (atom x)
-      (resolve-absolute-location-component x :directory directory :wilden wilden)
+      (resolve-absolute-location-component x :want-directory want-directory :wilden wilden)
       (loop :with path = (resolve-absolute-location-component
-                          (car x) :directory (and (or directory (cdr x)) t)
+                          (car x) :want-directory (and (or want-directory (cdr x)) t)
                           :wilden (and wilden (null (cdr x))))
         :for (component . morep) :on (cdr x)
-        :for dir = (and (or morep directory) t)
+        :for dir = (and (or morep want-directory) t)
         :for wild = (and wilden (not morep))
         :do (setf path (merge-pathnames*
                         (resolve-relative-location-component
-                         component :directory dir :wilden wild)
+                         component :want-directory dir :wilden wild)
                         path))
         :finally (return path))))
 
 (defun* location-designator-p (x)
   (flet ((absolute-component-p (c)
            (typep c '(or string pathname
-                      (member :root :home :here :user-cache :system-cache :default-directory))))
+                      (member :root :home :here :user-cache))))
          (relative-component-p (c)
            (typep c '(or string pathname
-                      (member :default-directory :*/ :**/ :*.*.*
-                        :implementation :implementation-type)))))
+                      (member :*/ :**/ :*.*.* :implementation :implementation-type)))))
     (or (typep x 'boolean)
         (absolute-component-p x)
         (and (consp x) (absolute-component-p (first x)) (every #'relative-component-p (rest x))))))
