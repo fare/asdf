@@ -13,33 +13,37 @@
 (describe (find-system :asdf))
 
 (defparameter *ad* (find-system :asdf-driver))
-(defparameter *asdf-directory* (system-source-directory *ad*))
-(defparameter *version*
-  (safe-read-first-file-form (subpathname *asdf-directory* "version.lisp-expr")))
-
-(DBG :foo *ad* *version* (asdf-version))
-
+(defparameter *asdf-dir*
+  (ensure-pathname (system-source-directory *ad*)
+                   :want-existing t :want-absolute t))
+(defun apath (x) (subpathname *asdf-dir* x))
+(defun ann (x) (native-namestring (apath x)))
+(defparameter *build-dir* (apath "build/"))
+(defparameter /build-dir/ (ann "build/"))
+(defun bpath (x) (subpathname *build-dir* x))
+(defun bnn (x) (native-namestring (bpath x)))
 (defparameter *files*
-  (append
-   (loop :for c :in (operated-components *ad*
-                                         :goal-operation 'load-op
-                                         :keep-operation 'load-op)
-         :for n = (enough-namestring (component-pathname c) *asdf-directory*)
-         :when (typep c 'cl-source-file)
-           :collect n)
-   (list "version.lisp-expr" "asdf-driver.asd")))
-
-;; make asdf:
-;;;(run-program/ (list "make" "-C" (native-namestring *asdf-directory*) "build/asdf.lisp"))
-
-#|
-if [ -d "tmp" ]; then
-    rm -r tmp
-fi
-mkdir tmp
-
-archive_file="tmp/asdf-$tag.tar.gz"
-echo "Create tmp/asdf.tar.gz with tag $tag"
-git archive $tag --prefix="asdf/" --format=tar | \
-    gzip > $archive_file
-|#
+  (list* "asdf-driver.asd" "version.lisp-expr"
+         (loop :for c :in (operated-components
+                           *ad* :goal-operation 'load-op
+                                :keep-operation 'load-op)
+               :for n = (enough-namestring (component-pathname c)
+                                           *asdf-directory*)
+               :when (typep c 'cl-source-file)
+                 :collect n)))
+(defparameter *version*
+  (safe-read-first-file-form (apath "version.lisp-expr")))
+(defparameter *name* (format nil "asdf-driver-~A" *version*))
+(defparameter *tarname* (strcat *name* ".tar.gz"))
+(defparameter dirname/ (strcat *name* "/"))
+(defparameter *destination*
+  (ensure-pathname (bpath dirname/)
+                   :want-directory t :want-absolute t))
+(assert (< 6 (length (pathname-directory *destination*))))
+(defparameter /destination/ (native-namestring *destination*))
+(run-program/ `("rm" "-rf" ,/destination/))
+(ensure-directory-exists *destination*)
+(run-program/ `("ln" ,@(mapcar 'ann *files*) ,/destination/))
+(run-program/ (format nil "cd ~S && tar zcf ~S ~S"
+                      ,/build-dir/, ,*tarname* ,dirname/))
+(run-program/ `("rm" "-rf" ,/destination/))

@@ -931,9 +931,11 @@ Otherwise, this will be the root of some implementation-dependent filesystem hos
 
 (defun* ensure-pathname
     (pathname &key want-pathname want-existing
-              want-absolute want-relative want-directory want-file
-              want-wild want-non-wild want-truename truenamize
-              error-arguments)
+              want-absolute want-relative
+              want-logical want-physical ensure-physical
+              want-wild want-non-wild wilden
+              ensure-directory want-directory want-file
+              want-truename truenamize error-arguments)
   "Coerces its argument into a PATHNAME, and checks specified constraints.
 If the argument is NIL, then NIL is returned unless the WANT-PATHNAME constraint is specified.
 If the argument is a STRING, it is first converted to a pathname via PARSE-NAMESTRING.
@@ -968,30 +970,42 @@ in case you use the long variant."
           (string
            (setf pathname (parse-namestring pathname)))
           (pathname))
+        (when want-logical
+          (unless (typep pathname 'logical-pathname)
+            (err want-logical "Expected a logical pathname, got")))
+        (when want-physical
+          (unless (physical-pathname-p pathname)
+            (err want-physical "Expected a physical pathname, got")))
+        (when ensure-physical
+          (setf pathname (translate-logical-pathname pathname)))
         (when want-absolute
           (unless (absolute-pathname-p pathname)
             (err want-absolute "Expected an absolute pathname, got")))
         (when want-relative
           (when (absolute-pathname-p pathname)
             (err want-relative "Expected a relative pathname, got")))
-        (when want-directory
-          (unless (directory-pathname-p pathname)
-            (err want-directory "Expected a directory pathname, got")))
-        (when want-file
-          (unless (pathname-name pathname)
-            (err want-file "Expected a file pathname, got")))
         (when want-wild
           (unless (wild-pathname-p pathname)
             (err want-wild "Expected a wildcard pathname, got")))
         (when (or want-non-wild want-existing)
           (when (wild-pathname-p pathname)
             (err want-non-wild "Expected a non-wildcard pathname, got")))
+        (when (and wilden (not (wild-pathname-p pathname)))
+          (setf pathname (wilden pathname)))
+        (when ensure-directory
+          (setf pathname (ensure-directory-pathname pathname)))
+        (when want-directory
+          (unless (directory-pathname-p pathname)
+            (err want-directory "Expected a directory pathname, got")))
+        (when want-file
+          (unless (pathname-name pathname)
+            (err want-file "Expected a file pathname, got")))
         (when want-existing
           (let ((existing (probe-file* pathname)))
             (if existing
-                (err want-existing "Expected an existing pathname, got")
                 (when (or want-truename truenamize)
-                  (return existing)))))
+                  (return existing))
+                (err want-existing "Expected an existing pathname, got"))))
         (when want-truename
           (let ((truename (truename* pathname)))
             (if truename
