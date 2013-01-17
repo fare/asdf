@@ -343,42 +343,42 @@ or when loading the package is optional."
         (when-fishy (record-fishy name))
         (labels
             ((ensure-shadowing-import (name p)
-               (let ((import (find-symbol* name p)))
+               (let ((import-me (find-symbol* name p)))
                  (multiple-value-bind (existing status) (find-symbol name package)
                    (cond
                      ((gethash name shadowed)
-                      (unless (eq import existing)
+                      (unless (eq import-me existing)
                         (error "Conflicting shadowings for ~A" name)))
                      (t
                       (setf (gethash name shadowed) t)
                       (setf (gethash name imported) t)
                       (unless (or (null status)
                                   (and (member status '(:internal :external))
-                                       (eq existing import)
+                                       (eq existing import-me)
                                        (symbol-shadowing-p existing package)))
                         (fishy :shadowing-import
-                               name (package-name p) (symbol-package-name import)
+                               name (package-name p) (symbol-package-name import-me)
                                (and status (symbol-package-name existing)) status))
-                      (shadowing-import import package))))))
+                      (shadowing-import import-me package))))))
              (ensure-import (sym p)
                (let* ((name (string sym))
-                      (import (find-symbol* name p)))
+                      (import-me (find-symbol* name p)))
                  (multiple-value-bind (existing status) (find-symbol name package)
                    (cond
                      ((gethash name imported)
-                      (unless (eq import existing)
+                      (unless (eq import-me existing)
                         (error "Can't import ~S from both ~S and ~S"
                                name (package-name (symbol-package existing)) (package-name p))))
                      ((gethash name shadowed)
                       (error "Can't both shadow ~S and import it from ~S" name (package-name p)))
                      (t
                       (setf (gethash name imported) t)
-                      (unless (and status (eq import existing))
+                      (unless (and status (eq import-me existing))
                         (when status
                           (unintern* existing package)
-                          (fishy :import name (package-name p) (symbol-package-name import)
+                          (fishy :import name (package-name p) (symbol-package-name import-me)
                                  (and status (symbol-package-name existing)) status))
-                        (import import package)))))))
+                        (import import-me package)))))))
              (ensure-mix (name symbol p)
                (unless (gethash name shadowed)
                  (multiple-value-bind (existing status) (find-symbol name package)
@@ -588,7 +588,9 @@ or when loading the package is optional."
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form)
        #+(or ecl gcl) (defpackage ,package (:use))
-       #+clisp ,(package-definition-form package :error nil)
+       #+clisp ,(package-definition-form
+                 package :nicknamesp nil :usep nil :internp nil :exportp nil
+                 :error nil)
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form))))
 

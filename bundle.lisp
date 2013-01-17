@@ -7,7 +7,7 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)
   (:export
-   #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system
+   #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
    #:monolithic-op #:monolithic-bundle-op #:dependency-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
@@ -266,7 +266,8 @@
 
 (defmethod component-depends-on ((o program-op) (c system))
   (declare (ignorable o))
-  `((#+(or ecl mkcl) monolithic-lib-op #-(or ecl mkcl) load-op ,c)))
+  #+(or ecl mkcl) (component-depends-on (make-operation 'monolithic-lib-op) c)
+  #-(or ecl mkcl) `((load-op ,c)))
 
 (defmethod component-depends-on ((o binary-op) (c system))
   (declare (ignorable o))
@@ -491,12 +492,12 @@
            :init-name init-name
            :lisp-files (append object-files (bundle-op-lisp-files o))
            (append (bundle-op-build-args o)
-                   (when (typep o 'program-op)
-                     `(:prologue-code
-                       (restore-image :entry-point ,(component-entry-point c))))
                    (when (and (typep o 'monolithic-bundle-op)
                               (monolithic-op-prologue-code o))
                      `(:prologue-code ,(monolithic-op-prologue-code o)))
+                   (when (typep o 'program-op)
+                     `(:epilogue-code
+                       (restore-image :entry-point ,(component-entry-point c))))
                    (when (and (typep o 'monolithic-bundle-op)
                               (monolithic-op-epilogue-code o))
                      `(:epilogue-code ,(monolithic-op-epilogue-code o)))))))

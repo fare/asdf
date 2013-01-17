@@ -208,8 +208,8 @@ create_config () {
     mkdir -p ../build/test-source-registry-conf.d ../build/test-asdf-output-translations-conf.d
 }
 upgrade_tags () {
-    if [ -n "$TEST_ASDF_TAGS" ] ; then
-        echo $TEST_ASDF_TAGS ; return
+    if [ -n "$ASDF_UPGRADE_TEST_TAGS" ] ; then
+        echo $ASDF_UPGRADE_TEST_TAGS ; return
     fi
     # REQUIRE is a magic tag meaning whatever your implementation provides
     # 1.37 is the last release by Daniel Barlow
@@ -222,8 +222,8 @@ upgrade_tags () {
     git tag -l '2.??'
 }
 upgrade_methods () {
-    if [ -n "$TEST_ASDF_METHODS" ] ; then
-        echo $TEST_ASDF_METHODS ; return
+    if [ -n "$ASDF_UPGRADE_TEST_METHODS" ] ; then
+        echo $ASDF_UPGRADE_TEST_METHODS ; return
     fi
     cat <<EOF
 'load-asdf-lisp'load-asdf-system
@@ -281,7 +281,10 @@ run_upgrade_tests () {
                 extract_tagged_asdf $tag
                 $command $eval \
                 "'(#.(load\"$su\")#.(in-package :asdf-test)#.(test-upgrade $method \"$tag\"))" ||
-                { echo "upgrade FAILED for $lisp from $tag using method $method" ; exit 1 ;}
+                { echo "upgrade FAILED for $lisp from $tag using method $method" ;
+                  echo "you can retry just that test with:" ;
+                  echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ADSF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
+                    exit 1 ;}
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {

@@ -20,7 +20,7 @@
    #:current-lisp-file-pathname #:lispize-pathname #:compile-file-type #:call-around-hook
    #:compile-file* #:compile-file-pathname*
    #:load* #:load-from-string #:combine-fasls)
-  (:intern #:defaults #:failure-p #:warnings-p))
+  (:intern #:defaults #:failure-p #:warnings-p #:s #:y #:body))
 (in-package :asdf/lisp-build)
 
 (defvar *compile-file-warnings-behaviour*
@@ -171,7 +171,7 @@ for processing later (possibly in a different process)."
   "pathname TYPE for lisp FASt Loading files"
   (declare (ignorable keys))
   #-(or ecl mkcl) (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
-  #+(or ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo.lisp" keys)))
+  #+(or ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo" keys)))
 
 (defun* call-around-hook (hook function)
   (call-function (or hook 'funcall) function))

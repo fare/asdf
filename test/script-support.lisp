@@ -351,10 +351,10 @@ is bound, write a message and exit on an error.  If
   (with-test ()
     (when old-method
       (cond
-        ((equal tag "REQUIRE")
+        ((string-equal tag "REQUIRE")
          (format t "Requiring some previous asdf ~A~%" tag)
          (ignore-errors (funcall 'require "asdf"))
-         (unless (member "ASDF" *modules* :test 'equal)
+         (unless (member "ASDF" *modules* :test 'equalp)
            (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)

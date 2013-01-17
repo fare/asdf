@@ -46,6 +46,9 @@
   #-asdf-unicode
   (leave-test "No Unicode support to test on this lisp implementation" 0)
 
+  #+abcl
+  (leave-test "abcl is known to fail these tests. Go update asdf-encodings" 0)
+
   ;; NB: recent clozure can autodetect without asdf-encodings with :default (!)
 
   #+sbcl

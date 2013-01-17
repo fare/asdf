@@ -723,7 +723,7 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
   #-allegro (truenamize path)
   #+allegro
   (if (physical-pathname-p path)
-      (excl:pathname-resolve-symbolic-links path)
+      (or (ignore-errors (excl:pathname-resolve-symbolic-links path)) path)
       path))
 
 (defun* resolve-symlinks* (path)
