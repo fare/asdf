@@ -1,19 +1,17 @@
-(in-package #:common-lisp-user)
+(load (make-pathname :name "prelude" :type "lisp" :defaults *load-pathname*)
+  :verbose nil :print nil)
 
-#+(or)
-(build-web-page "/repository/git/asdf/test/results/" "/tmp/x.html" :if-exists :supersede)
+(in-package :asdf)
 
-(defvar *make-helper-home* *load-truename*)  
+(defvar *make-helper-home* *load-truename*)
 
-
-;;; metatilities-base 
+;;; metatilities-base
 ;;; because sometimes copy and paste is just too easy
 
-(eval-when (:compile-toplevel :load-toplevel :execute) 
+(eval-when (:compile-toplevel :load-toplevel :execute)
   (defmacro generate-time-part-function (part-name position)
-    (let ((function-name (intern (concatenate 'string 
-                                              (symbol-name 'time) "-" (symbol-name part-name)))))
-      `(eval-when (:compile-toplevel :load-toplevel :execute) 
+    (let ((function-name (intern (strcat (symbol-name 'time) "-" (symbol-name part-name)))))
+      `(eval-when (:compile-toplevel :load-toplevel :execute)
          (export ',function-name)
          (defun ,function-name
                 (&optional (universal-time (get-universal-time))
@@ -49,7 +47,7 @@ is divisible by four but not by 100 or if it is divisible by 400."
       (= (mod year 400) 0)))
 
 (defun day-of-year (date)
-  "Returns the day of the year [1 to 366] of the specified date [which must be \(CL\) universal time format.]" 
+  "Returns the day of the year [1 to 366] of the specified date [which must be \(CL\) universal time format.]"
   (let ((leap-year? (leap-year-p (time-year date))))
     (+ (loop for month from 1 to (1- (time-month date)) sum
              (days-in-month month leap-year?))
@@ -71,7 +69,7 @@ is divisible by four but not by 100 or if it is divisible by 400."
   "Returns the name of `day-of-the-week`. The parameter should be a number between 0 and 6 where 0 represents Sunday and 6 repressents Saturday. The optional format argument can be either :long or :short. In the latter case, the return string will be of length three; in the former it will be the complete name of the appropriate day."
   (check-type day-of-the-week (mod 7))
   (check-type format (member :long :short))
-  (nth day-of-the-week 
+  (nth day-of-the-week
        (case format
          (:long (nth +longer-format-index+ +dow-output-list))
          (:short (nth +shorter-format-index+ +dow-output-list)))))
@@ -80,7 +78,7 @@ is divisible by four but not by 100 or if it is divisible by 400."
   "Returns the name \(in English\) of the month. Format can be :long or :short."
   (check-type month (integer 1 12))
   (check-type format (member :long :short))
-  (nth (1- month) 
+  (nth (1- month)
        (case format
          (:long (nth +longer-format-index+ +month-output-list+))
          (:short (nth +shorter-format-index+ +month-output-list+)))))
@@ -95,7 +93,7 @@ is divisible by four but not by 100 or if it is divisible by 400."
 %B - Full month name
 %c - Shorthand for \"%X %x\", the locale format for date and time
 %d - Day of the month as a decimal number [01-31]
-%e - Same as %d but does not print the leading 0 for days 1 through 9 
+%e - Same as %d but does not print the leading 0 for days 1 through 9
      [unlike strftime[], does not print a leading space]
 %F - Milliseconds as a decimal number [000-999]
 %H - Hour based on a 24-hour clock as a decimal number [00-23]
@@ -106,79 +104,79 @@ is divisible by four but not by 100 or if it is divisible by 400."
 %p - AM/PM designation for the locale
 %S - Second as a decimal number [00-59]
 %w - Weekday as a decimal number [0-6], where Sunday is 0
-%x - Date using the date representation for the locale, including 
+%x - Date using the date representation for the locale, including
      the time zone [produces different results from strftime[]]
-%X - Time using the time representation for the locale [produces 
+%X - Time using the time representation for the locale [produces
      different results from strftime[]]
 %y - Year without century [00-99]
 %Y - Year with century [such as 1990]
-%Z - Time zone name [such as Pacific Daylight Time; 
+%Z - Time zone name [such as Pacific Daylight Time;
      produces different results from strftime[]]
 %z - Time zone offset in hours and minutes from GMT [HHMM]
 
 None of %c, %F, %p, %x, %X, %Z, %z are implemented."
   (declare (ignore time-zone))
   (let ((format-length (length format)))
-    (format 
+    (format
      stream "~{~A~}"
-     (loop for index = 0 then (1+ index) 
-        while (< index format-length) collect 
+     (loop for index = 0 then (1+ index)
+        while (< index format-length) collect
           (let ((char (aref format index)))
-            (cond 
+            (cond
               ((char= #\% char)
                (setf char (aref format (incf index)))
-               (cond 
+               (cond
                  ;; %% - A '%' character
                  ((char= char #\%) #\%)
-                            
+
                  ;; %a - Abbreviated weekday name
                  ((char= char #\a) (day->string (time-day-of-week date) :short))
-                            
+
                  ;; %A - Full weekday name
                  ((char= char #\A) (day->string (time-day-of-week date) :long))
-                            
+
                  ;; %b - Abbreviated month name
                  ((char= char #\b) (month->string (time-month date) :short))
-                            
+
                  ;; %B - Full month name
                  ((char= char #\B) (month->string (time-month date) :long))
-                            
+
                  ;; %d - Day of the month as a decimal number [01-31]
                  ((char= char #\d) (format nil "~2,'0D" (time-date date)))
-                            
-                 ;; %e - Same as %d but does not print the leading 0 for days 1 through 9 
+
+                 ;; %e - Same as %d but does not print the leading 0 for days 1 through 9
                  ;;      Unlike strftime, does not print a leading space
                  ((char= char #\e) (format nil "~D" (time-date date)))
-                            
+
                  ;; %H - Hour based on a 24-hour clock as a decimal number [00-23]
                  ((char= char #\H) (format nil "~2,'0D" (time-hour date)))
-                            
+
                  ;; %I - Hour based on a 12-hour clock as a decimal number [01-12]
                  ((char= char #\I) (format nil "~2,'0D" (1+ (mod (time-hour date) 12))))
-                            
+
                  ;; %j - Day of the year as a decimal number [001-366]
                  ((char= char #\j) (format nil "~3,'0D" (day-of-year date)))
-                            
+
                  ;; %m - Month as a decimal number [01-12]
                  ((char= char #\m) (format nil "~2,'0D" (time-month date)))
-                            
+
                  ;; %M - Minute as a decimal number [00-59]
                  ((char= char #\M) (format nil "~2,'0D" (time-minute date)))
-                            
+
                  ;; %S - Second as a decimal number [00-59]
                  ((char= char #\S) (format nil "~2,'0D" (time-second date)))
-                            
+
                  ;; %w - Weekday as a decimal number [0-6], where Sunday is 0
                  ((char= char #\w) (format nil "~D" (time-day-of-week date)))
-                            
+
                  ;; %y - Year without century [00-99]
-                 ((char= char #\y) 
+                 ((char= char #\y)
                   (let ((year-string (format nil "~,2A" (time-year date))))
                     (subseq year-string (- (length year-string) 2))))
-                            
+
                  ;; %Y - Year with century [such as 1990]
                  ((char= char #\Y) (format nil "~D" (time-year date)))
-                                                        
+
                  (t
                   (error "Ouch - unknown formatter '%~c" char))))
               (t char)))))))
@@ -203,7 +201,7 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
   (format stream "~&<html>~&<head>")
   (when title
     (format stream "~&<title>~a</title>" title))
-  (when style-sheet 
+  (when style-sheet
     (unless (search ".css" style-sheet)
       (setf style-sheet (concatenate 'string style-sheet ".css")))
     (format stream "~&<link type='text/css' href='~a' rel='stylesheet' />"
@@ -227,7 +225,7 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
     (html-header stream title style-sheet)
     (format stream "~&~%<h1>ASDF Test results</h1>~%")
 
-    (dolist (pathname (directory 
+    (dolist (pathname (directory
                        (merge-pathnames (make-pathname :name :wild :type "text")
                                         input-directory)))
       (print pathname)
@@ -250,9 +248,9 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
              (flag-length (length flag)))
         (loop for line = (read-line in nil :eof)
            until (eq line :eof) do
-             (when (and (> (length line) flag-length) 
+             (when (and (> (length line) flag-length)
                         (string-equal flag (subseq line 0 flag-length)))
-               (if (eq state :running) 
+               (if (eq state :running)
                    (return)
                    (setf state :starting)))
              (when (eq state :running)
@@ -261,24 +259,24 @@ None of %c, %F, %p, %x, %X, %Z, %z are implemented."
                (setf state :running)))))))
 
 (defun rewrite-license ()
-  (let* ((*default-pathname-defaults* 
+  (let* ((*default-pathname-defaults*
           (make-pathname :name nil :type nil :defaults *make-helper-home*))
          (output (merge-pathnames (make-pathname :name "LICENSE"
           :directory '(:relative :up)))))
     (when (probe-file output)
       (delete-file output))
-    (extract-license 
-     (merge-pathnames (make-pathname :name "asdf" :type "lisp"
+    (extract-license
+     (merge-pathnames (make-pathname :name "header" :type "lisp"
       :directory '(:relative :up)))
      output)))
 
 (defun write-test-web-pages ()
-  (let* ((*default-pathname-defaults* 
+  (let* ((*default-pathname-defaults*
           (make-pathname :name nil :type nil :defaults *make-helper-home*))
          (source (merge-pathnames
                   (make-pathname
                    :directory '(:relative :up "test" "results"))))
-         (output (merge-pathnames (make-pathname 
+         (output (merge-pathnames (make-pathname
                                    :directory '(:relative :up "website" "output")
                                    :name "test-results"
                                    :type "html"))))

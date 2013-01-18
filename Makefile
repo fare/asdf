@@ -53,10 +53,13 @@ load: build/asdf.lisp
 
 install: archive-copy
 
-archive:
-	${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-		--eval "(rewrite-license)" --eval "(quit)"
-	bin/make-tarball
+bump-version: build/asdf.lisp
+	./bin/bump-version
+
+archive: build/asdf.lisp
+	#${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
+	#	--eval "(rewrite-license)" --eval "(quit)"
+	./bin/make-tarball
 
 archive-copy: archive build/asdf.lisp
 	git checkout release

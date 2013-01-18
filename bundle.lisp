@@ -218,7 +218,7 @@
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
 
 (defun* operated-components (system &key (goal-operation 'load-op) (keep-operation goal-operation)
-                                    (component-type t) other-systems)
+                                    (component-type t) (keep-component t) other-systems)
   (let ((goal-op (make-operation goal-operation)))
     (flet ((filter (o c)
              (declare (ignore o))
@@ -227,7 +227,7 @@
       (loop :for (o . c) :in (gather-actions goal-op system
                                              :other-systems other-systems
                                              :filter #'filter)
-            :when (typep o keep-operation)
+            :when (and (typep o keep-operation) (typep c keep-component))
               :collect c))))
 
 (defgeneric* trivial-system-p (component))

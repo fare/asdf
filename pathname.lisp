@@ -66,7 +66,7 @@
 Defaults to T.")
 
 
-;;; The hell of portably making and merging pathnames!
+;;; Normalizing pathnames across implementations
 
 (defun* normalize-pathname-directory-component (directory)
   "Given a pathname directory component, return an equivalent form that is a list"
@@ -158,46 +158,6 @@ and make a new pathname with corresponding components and specified logical HOST
    :type (make-pathname-component-logical (pathname-type pathname))
    :version (make-pathname-component-logical (pathname-version pathname))))
 
-(defun* merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
-  "MERGE-PATHNAMES* is like MERGE-PATHNAMES except that
-if the SPECIFIED pathname does not have an absolute directory,
-then the HOST and DEVICE both come from the DEFAULTS, whereas
-if the SPECIFIED pathname does have an absolute directory,
-then the HOST and DEVICE both come from the SPECIFIED.
-This is what users want on a modern Unix or Windows operating system,
-unlike the MERGE-PATHNAME behavior.
-Also, if either argument is NIL, then the other argument is returned unmodified;
-this is unlike MERGE-PATHNAME which always merges with a pathname,
-by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
-  (when (null specified) (return-from merge-pathnames* defaults))
-  (when (null defaults) (return-from merge-pathnames* specified))
-  #+scl
-  (ext:resolve-pathname specified defaults)
-  #-scl
-  (let* ((specified (pathname specified))
-         (defaults (pathname defaults))
-         (directory (normalize-pathname-directory-component (pathname-directory specified)))
-         (name (or (pathname-name specified) (pathname-name defaults)))
-         (type (or (pathname-type specified) (pathname-type defaults)))
-         (version (or (pathname-version specified) (pathname-version defaults))))
-    (labels ((unspecific-handler (p)
-               (if (typep p 'logical-pathname) #'make-pathname-component-logical #'identity)))
-      (multiple-value-bind (host device directory unspecific-handler)
-          (ecase (first directory)
-            ((:absolute)
-             (values (pathname-host specified)
-                     (pathname-device specified)
-                     directory
-                     (unspecific-handler specified)))
-            ((nil :relative)
-             (values (pathname-host defaults)
-                     (pathname-device defaults)
-                     (merge-pathname-directory-components directory (pathname-directory defaults))
-                     (unspecific-handler defaults))))
-        (make-pathname* :host host :device device :directory directory
-                        :name (funcall unspecific-handler name)
-                        :type (funcall unspecific-handler type)
-                        :version (funcall unspecific-handler version))))))
 
 ;;; Some pathname predicates
 
@@ -221,6 +181,11 @@ by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
                    (=? pathname-type)
                    (=? pathname-version)))))))
 
+(defun* logical-pathname-p (x)
+  (typep x 'logical-pathname))
+
+(defun* physical-pathname-p (x)
+  (and (pathnamep x) (not (logical-pathname-p x))))
 
 (defun* absolute-pathname-p (pathspec)
   "If PATHSPEC is a pathname or namestring object that parses as a pathname
@@ -250,6 +215,48 @@ Otherwise return NIL"
 i.e. its name starts with a dot."
   (and pathname (equal (first-char (pathname-name pathname)) #\.)))
 
+
+;;;; merging pathnames
+(defun* merge-pathnames* (specified &optional (defaults *default-pathname-defaults*))
+  "MERGE-PATHNAMES* is like MERGE-PATHNAMES except that
+if the SPECIFIED pathname does not have an absolute directory,
+then the HOST and DEVICE both come from the DEFAULTS, whereas
+if the SPECIFIED pathname does have an absolute directory,
+then the HOST and DEVICE both come from the SPECIFIED.
+This is what users want on a modern Unix or Windows operating system,
+unlike the MERGE-PATHNAME behavior.
+Also, if either argument is NIL, then the other argument is returned unmodified;
+this is unlike MERGE-PATHNAME which always merges with a pathname,
+by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
+  (when (null specified) (return-from merge-pathnames* defaults))
+  (when (null defaults) (return-from merge-pathnames* specified))
+  #+scl
+  (ext:resolve-pathname specified defaults)
+  #-scl
+  (let* ((specified (pathname specified))
+         (defaults (pathname defaults))
+         (directory (normalize-pathname-directory-component (pathname-directory specified)))
+         (name (or (pathname-name specified) (pathname-name defaults)))
+         (type (or (pathname-type specified) (pathname-type defaults)))
+         (version (or (pathname-version specified) (pathname-version defaults))))
+    (labels ((unspecific-handler (p)
+               (if (logical-pathname-p p) #'make-pathname-component-logical #'identity)))
+      (multiple-value-bind (host device directory unspecific-handler)
+          (ecase (first directory)
+            ((:absolute)
+             (values (pathname-host specified)
+                     (pathname-device specified)
+                     directory
+                     (unspecific-handler specified)))
+            ((nil :relative)
+             (values (pathname-host defaults)
+                     (pathname-device defaults)
+                     (merge-pathname-directory-components directory (pathname-directory defaults))
+                     (unspecific-handler defaults))))
+        (make-pathname* :host host :device device :directory directory
+                        :name (funcall unspecific-handler name)
+                        :type (funcall unspecific-handler type)
+                        :version (funcall unspecific-handler version))))))
 
 ;;; Directories
 (defun* pathname-directory-pathname (pathname)
@@ -875,12 +882,6 @@ For the latter case, we ought pick random suffix and atomically open it."
   `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body)))
 
 ;;; Basic pathnames
-(defun* logical-pathname-p (x)
-  (typep x 'logical-pathname))
-
-(defun* physical-pathname-p (x)
-  (and (pathnamep x) (not (logical-pathname-p x))))
-
 (defun* sane-physical-pathname (&key defaults (keep t) fallback want-existing)
   (flet ((sanitize (x)
            (setf x (and x (ignore-errors (translate-logical-pathname x))))
@@ -989,7 +990,7 @@ Otherwise, this will be the root of some implementation-dependent filesystem hos
 
 (defun* ensure-pathname
     (pathname &key
-              error-arguments
+              on-error
               defaults type dot-dot
               want-pathname
               want-logical want-physical ensure-physical
@@ -1015,15 +1016,14 @@ ERROR means that an error will be raised if the constraint is not satisfied.
 CERROR means that an continuable error will be raised if the constraint is not satisfied.
 IGNORE means just return NIL instead of the pathname.
 
-The ERROR-ARGUMENTS arguments, if provided,
-will be passed on to the error primitive, together with three arguments:
-the pathname, the keyword :reason, and a list (KEYWORD FORMAT ARGUMENTS)
-  the keyword that corresponds to that constraint name
-  a format string describing the error
-  and a list of any additional arguments required by said format string.
-This makes it usable whether you are using the short or long variants of ERROR,
-modulo your error object having to recognize the keyword :reason
-in case you use the long variant.
+The ON-ERROR argument, if not NIL, is a function designator (as per CALL-FUNCTION)
+that will be called with the the following arguments:
+a generic format string for ensure pathname, the pathname,
+the keyword argument corresponding to the failed check or transformation,
+a format string for the reason ENSURE-PATHNAME failed,
+and a list with arguments to that format string.
+If ON-ERROR is NIL, ERROR is used instead, which does the right thing.
+You could also pass (CERROR \"CONTINUE DESPITE FAILED CHECK\").
 
 The transformations and constraint checks are done in this order,
 which is also the order in the lambda-list:
@@ -1050,20 +1050,17 @@ ENSURE-DIRECTORIES-EXIST creates any parent directory with ENSURE-DIRECTORIES-EX
 ENSURE-TRUENAME replaces the pathname by its truename, or errors if not possible.
 TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
   (block nil
-    (flet ((report-error (on-error keyword description &rest arguments)
-             (let ((err (append (or error-arguments '("Invalid pathname ~S: ~*~{~*~?~}"))
-                                (list pathname :reason (list keyword description arguments)))))
-               (ecase on-error
-                 ((error t) (apply 'error err))
-                 ((cerror) (apply 'cerror "ignore pathname constraint" err))
-                 ((ignore) (return nil))))))
+    (flet ((report-error (keyword description &rest arguments)
+             (call-function (or on-error 'error)
+                            "Invalid pathname ~S: ~*~?"
+                            pathname keyword description arguments)))
       (macrolet ((err (constraint &rest arguments)
-                   `(report-error ,constraint ',(intern* constraint :keyword) ,@arguments))
+                   `(report-error ',(intern* constraint :keyword) ,@arguments))
                  (check (constraint condition &rest arguments)
                    `(when ,constraint
                       (unless ,condition (err ,constraint ,@arguments))))
-                 (transform (flag condition expr)
-                   `(when ,flag
+                 (transform (transform condition expr)
+                   `(when ,transform
                       (,@(if condition `(when ,condition) '(progn))
                        (setf p ,expr)))))
         (etypecase p
@@ -1073,14 +1070,14 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                     p :defaults defaults :type type :dot-dot dot-dot
                     :ensure-directory ensure-directory :want-relative want-relative))))
         (check want-pathname (pathnamep p) "Expected a pathname, not NIL")
-        (unless pathname (return NIL))
+        (unless (pathnamep p) (return nil))
         (check want-logical (logical-pathname-p p) "Expected a logical pathname")
         (check want-physical (physical-pathname-p p) "Expected a physical pathname")
         (transform ensure-physical () (translate-logical-pathname p))
         (check ensure-physical (physical-pathname-p p) "Could not translate to a physical pathname")
         (check want-relative (relative-pathname-p p) "Expected a relative pathname")
         (check want-absolute (absolute-pathname-p p) "Expected an absolute pathname")
-        (transform ensure-absolute (not (absolute-pathname-p p)) (merge-pathnames* defaults p))
+        (transform ensure-absolute (not (absolute-pathname-p p)) (merge-pathnames* p defaults))
         (check ensure-absolute (absolute-pathname-p p)
                "Could not make into an absolute pathname even after merging with ~S" defaults)
         (check ensure-subpath (absolute-pathname-p defaults)

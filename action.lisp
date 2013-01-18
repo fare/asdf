@@ -11,8 +11,6 @@
    #:action
    #:explain #:operation-description
    #:downward-operation #:upward-operation
-   #:source-file #:c-source-file #:java-source-file
-   #:static-file #:doc-file #:html-file
    #:operation-error #:error-component #:error-operation
    #:component-depends-on #:component-self-dependencies
    #:input-files #:output-files #:output-file #:operation-done-p
@@ -135,21 +133,6 @@ You can put together sentences using this phrase."))
 (defmethod input-files ((o operation) (c parent-component))
   (declare (ignorable o c))
   nil)
-
-
-;;;; File components
-
-(defclass source-file (file-component)
-  ((type :initform nil))) ;; NB: many systems have come to rely on this default.
-(defclass c-source-file (source-file)
-  ((type :initform "c")))
-(defclass java-source-file (source-file)
-  ((type :initform "java")))
-(defclass static-file (source-file)
-  ((type :initform nil)))
-(defclass doc-file (static-file) ())
-(defclass html-file (doc-file)
-  ((type :initform "html")))
 
 (defmethod input-files ((o operation) (c file-component))
   (or (loop :for (dep-o) :in (component-self-dependencies o c)

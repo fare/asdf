@@ -7,6 +7,8 @@
 
 (in-package :fare-utils)
 
+(asdf-debug)
+
 (defparameter *versioned-files*
   '(("version.lisp-expr" "\"" "\"")
     ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by bin/bump-revision")

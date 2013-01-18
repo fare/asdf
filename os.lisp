@@ -123,16 +123,16 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 (defun* split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
   (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
         :collect (apply 'parse-native-namestring namestring constraints)))
-(defun* getenv-pathname (x &rest constraints &key (error-arguments () eap) &allow-other-keys)
-  (declare (ignore error-arguments))
+(defun* getenv-pathname (x &rest constraints &key on-error &allow-other-keys)
   (apply 'parse-native-namestring (getenvp x)
-         (if eap constraints
-             (list* :error-arguments '("~? from (getenv ~S)") constraints))))
-(defun* getenv-pathnames (x &rest constraints &key (error-arguments () eap) &allow-other-keys)
-  (declare (ignore error-arguments))
+         :on-error (or on-error
+                       `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathname ,x))
+         constraints))
+(defun* getenv-pathnames (x &rest constraints &key on-error &allow-other-keys)
   (apply 'split-native-pathnames-string (getenvp x)
-         (if eap constraints
-             (list* :error-arguments '("~? from (getenv ~S)") constraints))))
+         :on-error (or on-error
+                       `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
+         constraints))
 (defun* getenv-absolute-directory (x)
   (getenv-pathname x :want-absolute t :ensure-directory t))
 (defun* getenv-absolute-directories (x)

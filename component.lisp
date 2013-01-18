@@ -10,6 +10,8 @@
    #:component-parent #:component-system #:component-parent-pathname
    #:child-component #:parent-component #:module
    #:file-component
+   #:source-file #:c-source-file #:java-source-file
+   #:static-file #:doc-file #:html-file
    #:source-file-type ;; backward-compatibility
    #:component-in-order-to #:component-sibling-dependencies
    #:component-if-feature #:around-compile-hook
@@ -131,6 +133,17 @@ another pathname in a degenerate way."))
 
 (defclass file-component (child-component)
   ((type :accessor file-type :initarg :type))) ; no default
+(defclass source-file (file-component)
+  ((type :initform nil))) ;; NB: many systems have come to rely on this default.
+(defclass c-source-file (source-file)
+  ((type :initform "c")))
+(defclass java-source-file (source-file)
+  ((type :initform "java")))
+(defclass static-file (source-file)
+  ((type :initform nil)))
+(defclass doc-file (static-file) ())
+(defclass html-file (doc-file)
+  ((type :initform "html")))
 
 (defclass parent-component (component)
   ((children
