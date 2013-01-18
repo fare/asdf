@@ -22,18 +22,20 @@
   ;; the pathname of a system as follows:
   ;; 1. if the pathname argument is an pathname object (NOT a namestring),
   ;;    that is already an absolute pathname, return it.
-  ;; 2. otherwise, the directory containing the CURRENT-LISP-FILE-PATHNAME
+  ;; 2. otherwise, the directory containing the LOAD-PATHNAME
   ;;    is considered (as deduced from e.g. *LOAD-PATHNAME*), and
   ;;    if it is indeed available and an absolute pathname, then
   ;;    the PATHNAME argument is normalized to a relative pathname
   ;;    as per PARSE-UNIX-NAMESTRING (with ENSURE-DIRECTORY T)
   ;;    and merged into that DIRECTORY as per SUBPATHNAME.
+  ;;    Note: avoid *COMPILE-FILE-PATHNAME* because .asd is loaded,
+  ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
   (or (and (pathnamep pathname) (absolute-pathname-p pathname) (resolve-symlinks* pathname))
-      (let* ((lisp-file-pathname (resolve-symlinks* (current-lisp-file-pathname))))
-        (when (absolute-pathname-p lisp-file-pathname)
-          (subpathname lisp-file-pathname pathname :type :directory)))))
+      (let* ((load-pathname (resolve-symlinks* (load-pathname))))
+        (when (absolute-pathname-p load-pathname)
+          (subpathname load-pathname pathname :type :directory)))))
 
 
 ;;; Component class
@@ -169,7 +171,7 @@
   ;; we also need to remember it in a special variable *systems-being-defined*.
   (with-system-definitions ()
     (let* ((name (coerce-name name))
-           (source-file (if sfp source-file (resolve-symlinks* (current-lisp-file-pathname))))
+           (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
            (registered (system-registered-p name))
            (registered! (if registered
                             (rplaca registered (safe-file-write-date source-file))

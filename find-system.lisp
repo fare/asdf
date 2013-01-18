@@ -133,10 +133,9 @@ called with an object of type asdf:system."
 (cleanup-system-definition-search-functions)
 
 (defun* search-for-system-definition (system)
-  (with-pathname-defaults ()
-    (some (let ((name (coerce-name system))) #'(lambda (x) (funcall x name)))
-          (cons 'find-system-if-being-defined
-                *system-definition-search-functions*))))
+  (some (let ((name (coerce-name system))) #'(lambda (x) (funcall x name)))
+        (cons 'find-system-if-being-defined
+              *system-definition-search-functions*)))
 
 (defvar *central-registry* nil
 "A list of 'system directory designators' ASDF uses to find systems.

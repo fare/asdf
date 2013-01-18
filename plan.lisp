@@ -7,12 +7,9 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
-  (:intern #:planned-p #:index #:forced #:forced-not #:total-action-count
-           #:planned-action-count #:planned-output-action-count #:visited-actions
-           #:visiting-action-set #:visiting-action-list #:actions-r)
   (:export
    #:component-operation-time #:mark-operation-done
-   #:plan-traversal #:sequential-plan
+   #:plan-traversal #:sequential-plan #:*default-plan-class*
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions
    #:node-for #:needed-in-image-p
@@ -22,7 +19,10 @@
    #:visit-dependencies #:compute-action-stamp #:traverse-action
    #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
-   #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p))
+   #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p
+   #:planned-p #:index #:forced #:forced-not #:total-action-count
+   #:planned-action-count #:planned-output-action-count #:visited-actions
+   #:visiting-action-set #:visiting-action-list #:actions-r))
 (in-package :asdf/plan)
 
 ;;;; Planned action status
@@ -316,9 +316,11 @@ processed in order by OPERATE."))
 (defgeneric* perform-plan (plan &key))
 (defgeneric* plan-operates-on-p (plan component))
 
+(defparameter *default-plan-class* 'sequential-plan)
+  
 (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
   (let ((plan (apply 'make-instance
-                     (or plan-class 'sequential-plan)
+                     (or plan-class *default-plan-class*)
                      :system (component-system c) (remove-key :plan-class keys))))
     (traverse-action plan o c t)
     (plan-actions plan)))

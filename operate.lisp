@@ -7,7 +7,8 @@
    :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export
-   #:operate #:oos #:*systems-being-operated* #:*asdf-upgrade-already-attempted*
+   #:operate #:oos
+   #:*systems-being-operated* #:*asdf-upgrade-already-attempted*
    #:build-system
    #:load-system #:load-systems #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
