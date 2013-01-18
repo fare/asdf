@@ -49,7 +49,7 @@
    #:operation-monolithic-p
 
    #:component #:parent-component #:child-component #:system #:module
-   #:source-file #:c-source-file #:java-source-file
+   #:file-component #:source-file #:c-source-file #:java-source-file
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:static-file #:doc-file #:html-file :text-file
    #:source-file-type

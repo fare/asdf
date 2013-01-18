@@ -53,6 +53,7 @@ load: build/asdf.lisp
 
 install: archive-copy
 
+bump: bump-version
 bump-version: build/asdf.lisp
 	./bin/asdf-builder bump-version
 

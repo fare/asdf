@@ -11,7 +11,8 @@
 
 (defun build-asdf ()
   ;; Make sure asdf.lisp is built.
-  (asdf:build-system :asdf/generate))
+  (build-system :asdf/generate)
+  (load-system :asdf))
 
 
 ;;; ASDF directory
@@ -53,7 +54,7 @@
                (system-source-directory sys)
                :want-absolute t :want-directory t))
          (components
-           (operated-components
+           (asdf::operated-components
             sys :other-systems nil
             :goal-operation 'load-op
             :keep-operation 'load-op
@@ -116,14 +117,16 @@
   (make-tarball-under-build (driver-name) *asdf-dir* (driver-files)))
 
 (defun asdf-only-files ()
-  (list* "asdf.asd" "version.lisp-expr" "header.lisp"
+  (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
          (system-source-files :asdf/generate)))
 (defun asdf-only-name ()
   (format nil "asdf-only-~A" *version*))
 (defun make-asdf-only-tarball ()
+  (build-asdf)
   (make-tarball-under-build (asdf-only-name) *asdf-dir* (asdf-only-files)))
 
 (defun make-git-tarball ()
+  (build-asdf)
   (run-program* (format nil "cd ~S && tar zcf build/asdf-~A.tar.gz build/asdf.lisp $(git ls-files)"
                         /asdf-dir/ *version*)))
 
