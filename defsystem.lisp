@@ -136,12 +136,11 @@
           (setf component (apply 'make-instance (class-for-type parent type) args)))
       (component-pathname component) ; eagerly compute the absolute pathname
       (let ((sysdir (system-source-directory (component-system component)))) ;; requires the previous
-        (when versionp
-          (setf version (normalize-version version sysdir))
-          (unless (parse-version version nil)
-            (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
-                  version name parent))
-          (setf (component-version component) version)))
+        (setf version (normalize-version version sysdir)))
+      (when (and versionp (not (parse-version version nil)))
+        (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
+              version name parent))
+      (setf (component-version component) version)
       (when (typep component 'parent-component)
         (setf (component-children component)
               (loop

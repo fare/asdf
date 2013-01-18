@@ -267,7 +267,7 @@ As a degenerate case, the PATH may be an atom of a single such accessor
 instead of a list."
   (flet ((access (object accessor)
            (etypecase accessor
-             (integer (elt object path))
+             (integer (elt object accessor))
              ((or function symbol) (funcall accessor object))
              (cons (funcall (ensure-function accessor) object)))))
     (if (listp path)
