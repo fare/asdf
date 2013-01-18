@@ -201,9 +201,9 @@ export CL_SOURCE_REGISTRY="${ASDFDIR}"
 export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls\" :implementation)) :ignore-inherited-configuration)"
 
 
-command="$command $flags"
+cmd="$command $flags"
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
-  command="$command $nodebug"
+  cmd="$cmd $nodebug"
 fi
 
 
@@ -282,12 +282,16 @@ run_upgrade_tests () {
             if valid_upgrade_test_p $lisp $tag $method ; then
                 echo "Testing ASDF upgrade from ${tag} using method $method"
                 extract_tagged_asdf $tag
-                $command $eval \
+                $cmd $eval \
                 "'(#.(load\"$su\")#.(in-package :asdf-test)#.(test-upgrade $method \"$tag\"))" ||
                 { echo "upgrade FAILED for $lisp from $tag using method $method" ;
                   echo "you can retry just that test with:" ;
                   echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ADSF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
-                    exit 1 ;}
+                  echo "or more interactively (and maybe with rlwrap or in emacs), start with:"
+                  echo "$command"
+                  echo "then copy/paste:"
+                  echo "(load\"$su\") (da) (test-upgrade $method \"$tag\")"
+                  exit 1 ;}
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {
@@ -296,7 +300,7 @@ run_tests () {
   mkdir -p ../build/results
   echo failure > ../build/results/status
     thedate=`date "+%Y-%m-%d"`
-    do_tests "$command" "$eval" 2>&1 | \
+    do_tests "$cmd" "$eval" 2>&1 | \
 	tee "../build/results/${lisp}.text" "../build/results/${lisp}-${thedate}.save"
     read a < ../build/results/status
   clean_up
@@ -317,10 +321,10 @@ test_clean_load () {
     esac
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
-    ${command} ${eval} \
+    ${cmd} ${eval} \
       '(or #.(setf *load-verbose* nil) #.(load "test/script-support.lisp") #.(asdf-test::exit-lisp 0))' \
         > $nop 2>&1
-    ${command} ${eval} \
+    ${cmd} ${eval} \
       '(or #.(setf *load-verbose* nil) #.(load "build/asdf.lisp") #.(asdf/image:quit 0))' \
         > $load 2>&1
     if diff $nop $load ; then
@@ -330,7 +334,7 @@ test_clean_load () {
     fi
 }
 
-if [ -z "$command" ] ; then
+if [ -z "$cmd" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 elif [ -n "$clean_load" ] ; then
     test_clean_load

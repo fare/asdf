@@ -284,8 +284,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
     (check-type found (or null pathname system))
     (values foundp found-system pathname previous previous-time)))
 
-(asdf-debug)
-
 (defmethod find-system ((name string) &optional (error-p t))
   (with-system-definitions ()
     (loop
