@@ -116,14 +116,14 @@
 (defun make-driver-tarball ()
   (make-tarball-under-build (driver-name) *asdf-dir* (driver-files)))
 
-(defun asdf-only-files ()
+(defun asdf-system-files ()
   (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
          (system-source-files :asdf/generate)))
-(defun asdf-only-name ()
-  (format nil "asdf-only-~A" *version*))
-(defun make-asdf-only-tarball ()
+(defun asdf-system-name ()
+  (format nil "asdf-system-~A" *version*))
+(defun make-asdf-system-tarball ()
   (build-asdf)
-  (make-tarball-under-build (asdf-only-name) *asdf-dir* (asdf-only-files)))
+  (make-tarball-under-build (asdf-system-name) *asdf-dir* (asdf-system-files)))
 
 (defun make-git-tarball ()
   (build-asdf)
@@ -132,7 +132,7 @@
 
 (defun make-tarballs ()
   (make-driver-tarball)
-  (make-asdf-only-tarball)
+  (make-asdf-system-tarball)
   (make-git-tarball))
 
 (defparameter *versioned-files*
