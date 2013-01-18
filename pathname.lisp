@@ -48,7 +48,7 @@
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname
    ;; physical pathnames
-   #:physical-pathname-p #:sane-physical-pathname #:root-pathname
+   #:logical-pathname-p #:physical-pathname-p #:sane-physical-pathname #:root-pathname
    ;; Windows shortcut support
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut

@@ -283,13 +283,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (pathname (ensure-pathname (resolve-symlinks* pathname) :want-absolute t))
          (foundp (and (or found-system pathname previous) t)))
     (check-type found (or null pathname system))
-    (when foundp
-      (when (and pathname found-system)
-        (setf (system-source-file found-system) pathname))
-      (when (and previous (not (pathname-equal (system-source-file previous) pathname)))
-        (setf (system-source-file previous) pathname)
-        (setf previous-time nil))
-      (values foundp found-system pathname previous previous-time))))
+    (values foundp found-system pathname previous previous-time)))
+
+(asdf-debug)
 
 (defmethod find-system ((name string) &optional (error-p t))
   (with-system-definitions ()
@@ -297,7 +293,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (restart-case
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)
-            (declare (ignore foundp))
+            (assert (eq foundp (and (or found-system pathname) t)))
             (when (and found-system (not previous))
               (register-system found-system))
             (when (and pathname
