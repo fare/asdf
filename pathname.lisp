@@ -28,7 +28,7 @@
    ;; Wildcard pathnames
    #:*wild* #:*wild-file* #:*wild-directory* #:*wild-inferiors* #:*wild-path* #:wilden
    ;; Pathname host and its root
-   #:absolute-pathname-p #:hidden-pathname-p
+   #:absolute-pathname-p #:relative-pathname-p #:hidden-pathname-p
    #:pathname-root #:directory-separator-for-host
    #:directorize-pathname-host-device
    ;; defaults
@@ -43,7 +43,7 @@
    #:delete-file-if-exists
    ;; Translate a pathname
    #:translate-pathname*
-   ;; temporary 
+   ;; temporary
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname
    ;; physical pathnames
@@ -211,7 +211,21 @@ Otherwise return NIL"
                                   (pathname-directory pathname))))
               pathname))))
 
+(defun* relative-pathname-p (pathspec)
+  "If PATHSPEC is a pathname or namestring object that parses as a pathname
+possessing a :RELATIVE or NIL directory component, return the (parsed) pathname.
+Otherwise return NIL"
+  (and pathspec
+       (typep pathspec '(or null pathname string))
+       (let* ((pathname (pathname pathspec))
+              (directory (normalize-pathname-directory-component
+                          (pathname-directory pathname))))
+         (when (or (null directory) (eq :relative (car directory)))
+           pathname))))
+
 (defun* hidden-pathname-p (pathname)
+  "Return a boolean that is true if the pathname is hidden as per Unix style,
+i.e. its name starts with a dot."
   (and pathname (equal (first-char (pathname-name pathname)) #\.)))
 
 
@@ -248,6 +262,21 @@ actually-existing directory."
              (check-one (pathname-name pathname))
              (check-one (pathname-type pathname))
              t)))))
+
+(defun* file-pathname-p (pathname)
+  "Does PATHNAME represent a file, i.e. has a non-null NAME component?
+
+Accepts NIL, a string (converted through PARSE-NAMESTRING) or a PATHNAME.
+
+Note that this does _not_ check to see that PATHNAME points to an
+actually-existing file.
+
+Returns the (parsed) PATHNAME when true"
+  (when pathname
+    (let* ((pathname (pathname pathname))
+           (name (pathname-name pathname)))
+      (when (not (member name '(nil :unspecific "") :test 'equal))
+        pathname))))
 
 (defun* ensure-directory-pathname (pathspec)
   "Converts the non-wild pathname designator PATHSPEC to directory form."
@@ -431,8 +460,8 @@ with given pathname and if it exists return its truename."
 
 ;;; Parsing filenames and lists thereof
 (defun* split-unix-namestring-directory-components
-    (unix-style-namestring &key want-directory dot-dot)
-  "Splits the path string UNIX-STYLE-NAMESTRING, returning four values:
+    (unix-namestring &key ensure-directory dot-dot)
+  "Splits the path string UNIX-NAMESTRING, returning four values:
 A flag that is either :absolute or :relative, indicating
    how the rest of the values are to be interpreted.
 A directory path --- a list of strings and keywords, suitable for
@@ -443,7 +472,7 @@ A last-component, either a file-namestring including type extension,
    or NIL in the case of a directory pathname.
 A flag that is true iff the unix-style-pathname was just
    a file-namestring without / path specification.
-WANT-DIRECTORY forces the namestring to be interpreted as a directory pathname:
+ENSURE-DIRECTORY forces the namestring to be interpreted as a directory pathname:
 the third return value will be NIL, and final component of the namestring
 will be treated as part of the directory path.
 
@@ -454,16 +483,16 @@ Absolute pathnames are only appropriate on Unix-style systems.
 
 The intention of this function is to support structured component names,
 e.g., \(:file \"foo/bar\"\), which will be unpacked to relative pathnames."
-  (check-type unix-style-namestring string)
+  (check-type unix-namestring string)
   (check-type dot-dot (member nil :back :up))
-  (if (and (not (find #\/ unix-style-namestring)) (not want-directory)
-           (plusp (length unix-style-namestring)))
-      (values :relative () unix-style-namestring t)
-      (let* ((components (split-string unix-style-namestring :separator "/"))
+  (if (and (not (find #\/ unix-namestring)) (not ensure-directory)
+           (plusp (length unix-namestring)))
+      (values :relative () unix-namestring t)
+      (let* ((components (split-string unix-namestring :separator "/"))
              (last-comp (car (last components))))
         (multiple-value-bind (relative components)
             (if (equal (first components) "")
-                (if (equal (first-char unix-style-namestring) #\/)
+                (if (equal (first-char unix-namestring) #\/)
                     (values :absolute (cdr components))
                     (values :relative nil))
                 (values :relative components))
@@ -473,7 +502,7 @@ e.g., \(:file \"foo/bar\"\), which will be unpacked to relative pathnames."
           (cond
             ((equal last-comp "")
              (values relative components nil nil)) ; "" already removed from components
-            (want-directory
+            (ensure-directory
              (values relative components nil nil))
             (t
              (values relative (butlast components) last-comp nil)))))))
@@ -494,7 +523,7 @@ For an empty type, *UNSPECIFIC-PATHNAME-TYPE* is returned."
         (values filename *unspecific-pathname-type*)
         (values name type))))
 
-(defun* parse-unix-namestring (name &rest keys &key type defaults dot-dot want-directory
+(defun* parse-unix-namestring (name &rest keys &key type defaults dot-dot ensure-directory
                                     &allow-other-keys)
   "Coerce NAME into a PATHNAME using standard Unix syntax.
 
@@ -512,31 +541,35 @@ When given a STRING, portably decompose it into a pathname as below.
 #\\/ separates directory components.
 
 The last #\\/-separated substring is interpreted as follows:
-if TYPE is NIL, the substring is file-namestring, and its NAME and TYPE
-are separated by SPLIT-NAME-TYPE.
-if TYPE is a string, it is the given TYPE, and the whole string is the NAME;
-if TYPE is :DIRECTORY, the string is made the last directory component,
-and NAME and TYPE are NIL.
-if the string is empty, it's the empty pathname with all slots NIL.
+1- If TYPE is :DIRECTORY or ENSURE-DIRECTORY is true,
+ the string is made the last directory component, and NAME and TYPE are NIL.
+ if the string is empty, it's the empty pathname with all slots NIL.
+2- If TYPE is NIL, the substring is file-namestring, and its NAME and TYPE
+ are separated by SPLIT-NAME-TYPE.
+3- If TYPE is a string, it is the given TYPE, and the whole string is the NAME.
 
 Directory components with an empty name the name . are removed.
-Any directory named .. is read as DOT-DOT, which defaults to :BACK (not :UP).
+Any directory named .. is read as DOT-DOT,
+which must be one of :BACK or :UP and defaults to :BACK.
 
 HOST, DEVICE and VERSION components are taken from DEFAULTS,
-which itself defaults to (ROOT-PATHNAME).
+which itself defaults to (ROOT-PATHNAME), also used if DEFAULTS in NIL.
 No host or device can be specified in the string itself,
-which might make it unsuitable for absolute pathnames on Windows.
+which makes it unsuitable for absolute pathnames outside Unix.
 
-For relative pathnames, these defaults won't matter if you use MERGE-PATHNAMES*
-but will matter if you use MERGE-PATHNAMES (which you shouldn't).
+For relative pathnames, these components (and hence the defaults) won't matter
+if you use MERGE-PATHNAMES* but will matter if you use MERGE-PATHNAMES,
+which is an important reason to always use MERGE-PATHNAMES*.
 
-Arbitrary keys are accepted, that are finally passed to ENSURE-PATHNAME,
-removing TYPE DEFAULTS and DOT-DOT.
-we recommend you use :WANT-RELATIVE T to throw an error if the pathname is absolute
-when you're running portable code and the OS may not be Unixish."
+Arbitrary keys are accepted, and the parse result is passed to ENSURE-PATHNAME
+with those keys, removing TYPE DEFAULTS and DOT-DOT.
+When you're manipulating pathnames that are supposed to make sense portably
+even though the OS may not be Unixish, we recommend you use :WANT-RELATIVE T
+to throw an error if the pathname is absolute"
   (block nil
     (check-type type (or null string (eql :directory)))
-    (setf want-directory (or want-directory (eq type :directory)))
+    (when (eq type :directory)
+      (setf ensure-directory t))
     (etypecase name
       ((or null pathname) (return name))
       (symbol
@@ -544,10 +577,10 @@ when you're running portable code and the OS may not be Unixish."
       (string))
     (multiple-value-bind (relative path filename file-only)
         (split-unix-namestring-directory-components
-         name :dot-dot dot-dot :want-directory want-directory)
+         name :dot-dot dot-dot :ensure-directory ensure-directory)
       (multiple-value-bind (name type)
           (cond
-            ((or want-directory (null filename))
+            ((or ensure-directory (null filename))
              (values nil nil))
             (type
              (values filename type))
@@ -651,7 +684,7 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
                                            (eql x separator)))
                          root-namestring)))
     (multiple-value-bind (relative path filename)
-        (split-unix-namestring-directory-components root-string :want-directory t)
+        (split-unix-namestring-directory-components root-string :ensure-directory t)
       (declare (ignore relative filename))
       (let ((new-base
              (make-pathname* :defaults root :directory `(:absolute ,@path))))
@@ -930,90 +963,125 @@ Otherwise, this will be the root of some implementation-dependent filesystem hos
 ;;; Check pathname constraints
 
 (defun* ensure-pathname
-    (pathname &key want-pathname want-existing
-              want-absolute want-relative
+    (pathname &key
+              error-arguments
+              defaults type dot-dot
+              want-pathname
               want-logical want-physical ensure-physical
-              want-wild want-non-wild wilden
-              ensure-directory want-directory want-file
-              want-truename truenamize error-arguments)
-  "Coerces its argument into a PATHNAME, and checks specified constraints.
+              want-relative want-absolute ensure-absolute ensure-subpath
+              want-non-wild want-wild wilden
+              want-file want-directory ensure-directory
+              want-existing ensure-directories-exist
+              ensure-truename truenamize
+              &aux (p pathname)) ;; mutable working copy, preserve original
+  "Coerces its argument into a PATHNAME,
+optionally doing some transformations and checking specified constraints.
+
 If the argument is NIL, then NIL is returned unless the WANT-PATHNAME constraint is specified.
-If the argument is a STRING, it is first converted to a pathname via PARSE-NAMESTRING.
+
+If the argument is a STRING, it is first converted to a pathname via PARSE-UNIX-NAMESTRING
+reusing the keywords DEFAULTS TYPE DOT-DOT ENSURE-DIRECTORY WANT-RELATIVE;
+then the result is optionally merged into the DEFAULTS if ENSURE-ABSOLUTE is true,
+and the all the checks and transformations are run.
+
 Each non-nil constraint argument can be one of the symbols T, ERROR, CERROR or IGNORE.
 The boolean T is an alias for ERROR.
 ERROR means that an error will be raised if the constraint is not satisfied.
 CERROR means that an continuable error will be raised if the constraint is not satisfied.
 IGNORE means just return NIL instead of the pathname.
+
 The ERROR-ARGUMENTS arguments, if provided,
 will be passed on to the error primitive, together with three arguments:
-a string describing the error, that should be followed by a space and
-the pathname to report the error, the keyword that corresponds to that
-constraint name, and the pathname;
-this makes it usable whether you are using the short or long variants of ERROR,
-modulo your error object having to recognize the suitable keyword argument
-in case you use the long variant."
+the pathname, the keyword :reason, and a list (KEYWORD FORMAT ARGUMENTS)
+  the keyword that corresponds to that constraint name
+  a format string describing the error
+  and a list of any additional arguments required by said format string.
+This makes it usable whether you are using the short or long variants of ERROR,
+modulo your error object having to recognize the keyword :reason
+in case you use the long variant.
+
+The transformations and constraint checks are done in this order,
+which is also the order in the lambda-list:
+
+WANT-PATHNAME checks that pathname (after parsing if needed) is not null.
+Otherwise, if the pathname is NIL, ensure-pathname returns NIL.
+WANT-LOGICAL checks that pathname is a LOGICAL-PATHNAME
+WANT-PHYSICAL checks that pathname is not a LOGICAL-PATHNAME
+ENSURE-PHYSICAL ensures that pathname is physical via TRANSLATE-LOGICAL-PATHNAME
+WANT-RELATIVE checks that pathname has a relative directory component
+WANT-ABSOLUTE checks that pathname does have an absolute directory component
+ENSURE-ABSOLUTE merges with the DEFAULTS, then checks again
+that the result absolute is an absolute pathname indeed.
+ENSURE-SUBPATH checks that the pathname is a subpath of the DEFAULTS.
+WANT-FILE checks that pathname has a non-nil FILE component
+WANT-DIRECTORY checks that pathname has nil FILE and TYPE components
+ENSURE-DIRECTORY uses ENSURE-DIRECTORY-PATHNAME to interpret
+any file and type components as being actually a last directory component.
+WANT-NON-WILD checks that pathname is not a wild pathname
+WANT-WILD checks that pathname is a wild pathname
+WILDEN merges the pathname with **/*.*.* if it is not wild
+WANT-EXISTING checks that a file (or directory) exists with that pathname.
+ENSURE-DIRECTORIES-EXIST creates any parent directory with ENSURE-DIRECTORIES-EXIST.
+ENSURE-TRUENAME replaces the pathname by its truename, or errors if not possible.
+TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
   (block nil
-    (flet ((report-error (on-error keyword description)
-             (let ((err (append (or error-arguments '("Invalid pathname: ~A~* ~S"))
-                                (list description keyword pathname))))
+    (flet ((report-error (on-error keyword description &rest arguments)
+             (let ((err (append (or error-arguments '("Invalid pathname ~S: ~*~{~*~?~}"))
+                                (list pathname :reason (list keyword description arguments)))))
                (ecase on-error
                  ((error t) (apply 'error err))
                  ((cerror) (apply 'cerror "ignore pathname constraint" err))
                  ((ignore) (return nil))))))
-      (macrolet ((err (constraint format)
-                   `(report-error ,constraint ',(intern* constraint :keyword) ,format)))
-        (etypecase pathname
-          (null
-           (when want-pathname
-             (err want-pathname "Expected a pathname, got"))
-           (return nil))
+      (macrolet ((err (constraint &rest arguments)
+                   `(report-error ,constraint ',(intern* constraint :keyword) ,@arguments))
+                 (check (constraint condition &rest arguments)
+                   `(when ,constraint
+                      (unless ,condition (err ,constraint ,@arguments))))
+                 (transform (flag condition expr)
+                   `(when ,flag
+                      (,@(if condition `(when ,condition) '(progn))
+                       (setf p ,expr)))))
+        (etypecase p
+          ((or null pathname))
           (string
-           (setf pathname (parse-namestring pathname)))
-          (pathname))
-        (when want-logical
-          (unless (typep pathname 'logical-pathname)
-            (err want-logical "Expected a logical pathname, got")))
-        (when want-physical
-          (unless (physical-pathname-p pathname)
-            (err want-physical "Expected a physical pathname, got")))
-        (when ensure-physical
-          (setf pathname (translate-logical-pathname pathname)))
-        (when want-absolute
-          (unless (absolute-pathname-p pathname)
-            (err want-absolute "Expected an absolute pathname, got")))
-        (when want-relative
-          (when (absolute-pathname-p pathname)
-            (err want-relative "Expected a relative pathname, got")))
-        (when want-wild
-          (unless (wild-pathname-p pathname)
-            (err want-wild "Expected a wildcard pathname, got")))
-        (when (or want-non-wild want-existing)
-          (when (wild-pathname-p pathname)
-            (err want-non-wild "Expected a non-wildcard pathname, got")))
-        (when (and wilden (not (wild-pathname-p pathname)))
-          (setf pathname (wilden pathname)))
-        (when ensure-directory
-          (setf pathname (ensure-directory-pathname pathname)))
-        (when want-directory
-          (unless (directory-pathname-p pathname)
-            (err want-directory "Expected a directory pathname, got")))
-        (when want-file
-          (unless (pathname-name pathname)
-            (err want-file "Expected a file pathname, got")))
+           (setf p (parse-unix-namestring
+                    p :defaults defaults :type type :dot-dot dot-dot
+                    :ensure-directory ensure-directory :want-relative want-relative))))
+        (check want-pathname (pathnamep p) "Expected a pathname, not NIL")
+        (unless pathname (return NIL))
+        (check want-logical (typep p 'logical-pathname) "Expected a logical pathname")
+        (check want-physical (physical-pathname-p p) "Expected a physical pathname")
+        (transform ensure-physical () (translate-logical-pathname p))
+        (check ensure-physical (physical-pathname-p p) "Could not translate to a physical pathname")
+        (check want-relative (relative-pathname-p p) "Expected a relative pathname")
+        (check want-absolute (absolute-pathname-p p) "Expected an absolute pathname")
+        (transform ensure-absolute (not (absolute-pathname-p p)) (merge-pathnames* defaults p))
+        (check ensure-absolute (absolute-pathname-p p)
+               "Could not make into an absolute pathname even after merging with ~S" defaults)
+        (check ensure-subpath (absolute-pathname-p defaults)
+               "cannot be checked to be a subpath of non-absolute pathname ~S" defaults)
+        (check ensure-subpath (not (absolute-pathname-p (enough-namestring p defaults)))
+               "is not a sub pathname of ~S" defaults)
+        (check want-file (file-pathname-p p) "Expected a file pathname")
+        (check want-directory (directory-pathname-p p) "Expected a directory pathname")
+        (transform ensure-directory (not (directory-pathname-p p)) (ensure-directory-pathname p))
+        (check want-non-wild (not (wild-pathname-p p)) "Expected a non-wildcard pathname")
+        (check want-wild (wild-pathname-p p) "Expected a wildcard pathname")
+        (transform wilden (not (wild-pathname-p p)) (wilden p))
         (when want-existing
-          (let ((existing (probe-file* pathname)))
+          (let ((existing (probe-file* p)))
             (if existing
-                (when (or want-truename truenamize)
+                (when (or ensure-truename truenamize)
                   (return existing))
-                (err want-existing "Expected an existing pathname, got"))))
-        (when want-truename
-          (let ((truename (truename* pathname)))
+                (err want-existing "Expected an existing pathname"))))
+        (when ensure-directories-exist (ensure-directories-exist p))
+        (when ensure-truename
+          (let ((truename (truename* p)))
             (if truename
                 (return truename)
-                (err want-truename "Can't get a truename for pathname"))))
-        (when truenamize
-          (return (truenamize pathname)))
-        pathname))))
+                (err truename "Can't get a truename for pathname"))))
+        (transform truenamize () (truenamize p))
+        p))))
 
 
 ;;; Hook for output translations

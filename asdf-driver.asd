@@ -1,5 +1,5 @@
 ;;; -*- mode: lisp -*-
-(defpackage :asdf-driver-system (:use :cl :asdf))
+(in-package :asdf)
 
 (defun call-without-redefinition-warnings (thunk)
   (handler-bind (#+clozure (ccl:compiler-warning #'muffle-warning))

@@ -10,15 +10,17 @@
    #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
    #:undefine-function #:undefine-functions #:defun* #:defgeneric* ;; (un)defining functions
    #:if-bind ;; basic flow control
-   #:while-collecting #:appendf #:length=n-p #:remove-keys #:remove-keyword ;; lists and plists
+   #:while-collecting #:appendf #:length=n-p #:remove-keys #:remove-key ;; lists and plists
    #:emptyp ;; sequences
    #:first-char #:last-char #:split-string ;; strings
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
    #:find-class* ;; CLOS
-   #:stamp< #:stamp<= #:earlier-stamp #:stamps-earliest #:earliest-stamp ;; stamps
+   #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
+   #:earlier-stamp #:stamps-earliest #:earliest-stamp
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
    #:list-to-hash-set ;; hash-table
-   #:ensure-function #:call-function #:call-functions #:register-hook-function ;; functions
+   #:ensure-function #:sub-object ;; functions
+   #:call-function #:call-functions #:register-hook-function
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
    #:load-string #:load-stream
@@ -122,22 +124,25 @@ Returns two values: \(A B C\) and \(1 2 3\)."
       ((zerop i) (return (null l)))
       ((not (consp l)) (return nil)))))
 
-;;; Keyword argument lists
-(defun* remove-keys (key-names args)
-  (loop :for (name val) :on args :by #'cddr
-    :unless (member (symbol-name name) key-names
-                    :key #'symbol-name :test 'equal)
-    :append (list name val)))
-
-(defun* remove-keyword (key args)
-  (loop :for (k v) :on args :by #'cddr
+;;; remove a key from a plist, i.e. for keyword argument cleanup
+(defun* remove-key (key plist)
+  "Remove a single key from a plist"
+  (loop :for (k v) :on plist :by #'cddr
     :unless (eq k key)
     :append (list k v)))
+
+(defun* remove-keys (keys plist)
+  "Remove a list of keys from a plist"
+  (loop :for (k v) :on plist :by #'cddr
+    :unless (member k keys)
+    :append (list k v)))
+
 
 ;;; Sequences
 (defun* emptyp (x)
   "Predicate that is true for an empty sequence"
   (or (null x) (and (vectorp x) (zerop (length x)))))
+
 
 ;;; Strings
 
@@ -207,8 +212,8 @@ starting the separation from the end, e.g. when called with arguments
             (null nil)
             ((eql t) t)
             (real (< x y))))))
-;;(defun* stamps< (list) (loop :for y :in list :for x = nil :then y :always (stamp< x y)))
-;;(defun* stamp*< (&rest list) (stamps< list))
+(defun* stamps< (list) (loop :for y :in list :for x = nil :then y :always (stamp< x y)))
+(defun* stamp*< (&rest list) (stamps< list))
 (defun* stamp<= (x y) (not (stamp< y x)))
 (defun* earlier-stamp (x y) (if (stamp< x y) x y))
 (defun* stamps-earliest (list) (reduce 'earlier-stamp list :initial-value t))
@@ -224,15 +229,44 @@ starting the separation from the end, e.g. when called with arguments
   (dolist (x list h) (setf (gethash x h) t)))
 
 
-;;; Code execution
+;;; Function designators
 (defun* ensure-function (fun &key (package :cl))
+  "Coerce the object FUN into a function.
+
+If FUN is a FUNCTION, return it.
+If the FUN is a non-sequence literal constant, return constantly that,
+i.e. for a boolean keyword character number or pathname.
+Otherwise if FUN is a non-literally constant symbol, return its FDEFINITION.
+If FUN is a CONS, return the function that applies its CAR
+to the appended list of the rest of its CDR and the arguments.
+If FUN is a string, READ a form from it in the specified PACKAGE (default: CL)
+and EVAL that in a (FUNCTION ...) context."
   (etypecase fun
+    (function fun)
     ((or boolean keyword character number pathname) (constantly fun))
     ((or function symbol) fun)
-    (cons (eval `(function ,fun)))
+    (cons #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args))))
     (string (eval `(function ,(with-standard-io-syntax
                                 (let ((*package* (find-package package)))
                                   (read-from-string fun))))))))
+
+(defun* sub-object (object path)
+  "Given an OBJECT and a PATH, list of successive accessors,
+call each accessor on the result of the previous calls.
+An accessor may be an integer, meaning a call to ELT,
+a function or symbol, meaning itself,
+or a list of a function and arguments, interpreted as per ENSURE-FUNCTION.
+As a degenerate case, the PATH may be an atom of a single such accessor
+instead of a list."
+  (flet ((access (object accessor)
+           (etypecase accessor
+             (integer (elt object path))
+             ((or function symbol) (funcall accessor object))
+             (cons (funcall (ensure-function accessor) object)))))
+    (if (listp path)
+        (dolist (accessor path object)
+          (setf object (access object accessor)))
+        (access object path))))
 
 (defun* call-function (function-spec &rest arguments)
   (apply (ensure-function function-spec) arguments))
@@ -246,27 +280,36 @@ starting the separation from the end, e.g. when called with arguments
 
 
 ;;; Version handling
-(defun* parse-version (string &optional on-error)
-  "Parse a version string as a series of natural integers separated by dots.
-Return a (non-null) list of integers if the string is valid, NIL otherwise.
-If on-error is error, warn, or designates a function of compatible signature,
-the function is called with an explanation of what is wrong with the argument.
-NB: ignores leading zeroes, and so doesn't distinguish between 2.003 and 2.3"
+(defun* unparse-version (version-list)
+  (format nil "~{~D~^.~}" version-list))
+
+(defun* parse-version (version-string &optional on-error)
+  "Parse a VERSION-STRING as a series of natural integers separated by dots.
+Return a (non-null) list of integers if the string is valid;
+otherwise return NIL.
+
+When invalid, ON-ERROR is called as per CALL-FUNCTION before to return NIL,
+with format arguments explaining why the version is invalid.
+ON-ERROR is also called if the version is not canonical
+in that it doesn't print back to itself, but the list is returned anyway."
   (block nil
-   (unless (stringp string)
-     (call-function on-error "~S: ~S is not a string" 'parse-version string)
+   (unless (stringp version-string)
+     (call-function on-error "~S: ~S is not a string" 'parse-version version-string)
      (return))
-   (unless (loop :for prev = nil :then c :for c :across string
+   (unless (loop :for prev = nil :then c :for c :across version-string
                  :always (or (digit-char-p c)
                              (and (eql c #\.) prev (not (eql prev #\.))))
                  :finally (return (and c (digit-char-p c))))
      (call-function on-error "~S: ~S doesn't follow asdf version numbering convention"
-                    'parse-version string)
+                    'parse-version version-string)
      (return))
-   (mapcar #'parse-integer (split-string string :separator "."))))
+   (let* ((version-list
+            (mapcar #'parse-integer (split-string version-string :separator ".")))
+          (normalized-version (unparse-version version-list)))
+     (unless (equal version-string normalized-version)
+       (call-function on-error "~S: ~S contains leading zeros" 'parse-version version-string))
+     version-list)))
 
-(defun* unparse-version (version-list)
-  (format nil "~{~D~^.~}" version-list))
 
 (defun* version-compatible-p (provided-version required-version)
   "Is the provided version a compatible substitution for the required-version?

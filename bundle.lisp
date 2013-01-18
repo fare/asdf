@@ -11,7 +11,7 @@
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
    #:monolithic-op #:monolithic-bundle-op #:dependency-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
-   #:program-op #:program-system
+   #:program-op
    #:compiled-file #:precompiled-system #:prebuilt-system
    #:operation-monolithic-p
    #:user-system-p #:user-system #:trivial-system-p
@@ -105,10 +105,6 @@
    (translate-output-p
     :initform nil :initarg :translate-output-p :accessor component-translate-output-p)))
 
-(defclass program-system (bundle-system)
-  ((bundle-pathname :initarg :executable-name)
-   (bundle-operation :initform 'program-op)))
-
 (defun* bundle-pathname-type (bundle-type)
   (etypecase bundle-type
     ((eql :no-output-file) nil) ;; should we error out instead?    
@@ -181,13 +177,13 @@
                          &allow-other-keys)
         (operation-original-initargs instance)
       (setf (operation-original-initargs instance)
-            (remove-keys '(lisp-files epilogue-code prologue-code) original-initargs)
+            (remove-keys '(:lisp-files :epilogue-code :prologue-code) original-initargs)
             (monolithic-op-prologue-code instance) prologue-code
             (monolithic-op-epilogue-code instance) epilogue-code)
       #-ecl (assert (null (or lisp-files epilogue-code prologue-code)))
       #+ecl (setf (bundle-op-lisp-files instance) lisp-files)))
   (setf (bundle-op-build-args instance)
-        (remove-keys '(type monolithic name-suffix)
+        (remove-keys '(:type :monolithic :name-suffix)
                      (operation-original-initargs instance))))
 
 (defmethod bundle-op-build-args :around ((o lib-op))
@@ -297,6 +293,12 @@
   (declare (ignorable o c))
   nil)
 
+(defmethod component-depends-on :around ((o bundle-op) (c component))
+  (declare (ignorable o c))
+  (if-bind (op (and (eq (type-of o) 'bundle-op) (component-bundle-operation c)))
+      `((,op ,c))
+      (call-next-method)))
+
 (defun* dependency-files (o c &key (test 'identity) (key 'output-files))
   (while-collecting (collect)
     (visit-dependencies
@@ -330,7 +332,7 @@
                              (merge-pathnames "./asdf-output/")))
          (operation (apply #'operate operation-name
                            system
-                           (remove-keys '(monolithic type move-here) args)))
+                           (remove-keys '(:monolithic :type :move-here) args)))
          (system (find-system system))
          (files (and system (output-files operation system))))
     (if (or move-here (and (null move-here-p)

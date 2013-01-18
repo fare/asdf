@@ -195,8 +195,11 @@ if ! type "$command" > /dev/null ; then
 fi
 
 ASDFDIR="$(cd $(dirname $0)/.. ; /bin/pwd)"
+
+## Make sure testing remains within the confines of this filesystem tree
 export CL_SOURCE_REGISTRY="${ASDFDIR}"
 export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls\" :implementation)) :ignore-inherited-configuration)"
+
 
 command="$command $flags"
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then

@@ -97,7 +97,7 @@ then returning the non-empty string value of the variable"
       (if (os-unix-p) (unix-namestring p)
           (namestring p)))))
 
-(defun* parse-native-namestring (string &rest constraints &key want-directory &allow-other-keys)
+(defun* parse-native-namestring (string &rest constraints &key ensure-directory &allow-other-keys)
   "From a native namestring suitable for use by the operating system, return
 a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
   (check-type string (or string null))
@@ -108,10 +108,10 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
                #+sbcl (sb-ext:parse-native-namestring string)
                #-(or clozure sbcl)
                (if (os-unix-p)
-                   (parse-unix-namestring string :type (when want-directory :directory))
+                   (parse-unix-namestring string :ensure-directory ensure-directory)
                    (parse-namestring string)))))
          (pathname
-           (if want-directory
+           (if ensure-directory
                (and pathname (ensure-directory-pathname pathname))
                pathname)))
     (apply 'ensure-pathname pathname constraints)))
@@ -134,9 +134,9 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
          (if eap constraints
              (list* :error-arguments '("~? from (getenv ~S)") constraints))))
 (defun* getenv-absolute-directory (x)
-  (getenv-pathname x :want-absolute t :want-directory t))
+  (getenv-pathname x :want-absolute t :ensure-directory t))
 (defun* getenv-absolute-directories (x)
-  (getenv-pathnames x :want-absolute t :want-directory t))
+  (getenv-pathnames x :want-absolute t :ensure-directory t))
 
 
 ;;;; implementation-identifier
@@ -259,7 +259,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
            #+gcl system::*system-directory*
            #+sbcl (if-bind (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
                      (funcall it)
-                     (getenv-pathname "SBCL_HOME" :want-directory t)))))
+                     (getenv-pathname "SBCL_HOME" :ensure-directory t)))))
     (if (and dir truename)
         (truename* dir)
         dir)))
@@ -309,10 +309,10 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 (defun* default-temporary-directory ()
   (or
    (when (os-unix-p)
-     (or (getenv-pathname "TMPDIR" :want-directory t)
+     (or (getenv-pathname "TMPDIR" :ensure-directory t)
          (parse-native-namestring "/tmp/")))
    (when (os-windows-p)
-     (getenv-pathname "TEMP" :want-directory t))
+     (getenv-pathname "TEMP" :ensure-directory t))
    (subpathname (user-homedir) "tmp/")))
 
 (defvar *temporary-directory* nil)

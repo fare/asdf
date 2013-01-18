@@ -11,7 +11,6 @@
    #:action
    #:explain #:operation-description
    #:downward-operation #:upward-operation
-   #:file-component
    #:source-file #:c-source-file #:java-source-file
    #:static-file #:doc-file #:html-file
    #:operation-error #:error-component #:error-operation
@@ -140,8 +139,6 @@ You can put together sentences using this phrase."))
 
 ;;;; File components
 
-(defclass file-component (child-component)
-  ((type :accessor file-type :initarg :type))) ; no default
 (defclass source-file (file-component)
   ((type :initform nil))) ;; NB: many systems have come to rely on this default.
 (defclass c-source-file (source-file)
@@ -160,13 +157,6 @@ You can put together sentences using this phrase."))
       ;; no non-trivial previous operations needed?
       ;; I guess we work with the original source file, then
       (list (component-pathname c))))
-
-(defmethod source-file-type ((component parent-component) system) ; not just for source-file. ASDF3: rename.
-  (declare (ignorable component system))
-  :directory)
-(defmethod source-file-type ((component file-component) system)
-  (declare (ignorable system))
-  (file-type component))
 
 
 ;;;; Done performing
@@ -249,4 +239,8 @@ in some previous image, or T if it needs to be done.")
                   (operation-description operation component)))
         (mark-operation-done operation component)
         (return)))))
+
+;;; Generic build operation
+(defmethod component-depends-on ((o build-op) (c component))
+  `((,(or (component-build-operation c) 'load-op) ,c)))
 

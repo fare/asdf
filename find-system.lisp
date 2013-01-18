@@ -6,7 +6,8 @@
   (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
-   #:coerce-name #:find-system #:locate-system #:load-sysdef #:with-system-definitions
+   #:coerce-name #:primary-system-name
+   #:find-system #:locate-system #:load-sysdef #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:system-definition-error #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
@@ -70,6 +71,11 @@ of which is a system object.")
     (symbol (string-downcase (symbol-name name)))
     (string name)
     (t (sysdef-error (compatfmt "~@<Invalid component designator: ~3i~_~A~@:>") name))))
+
+(defun* primary-system-name (name)
+  ;; When a system name has slashes, the file with defsystem is named by
+  ;; the first of the slash-separated components.
+  (first (split-string (coerce-name name) :separator "/")))
 
 (defun* system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
@@ -165,7 +171,7 @@ Going forward, we recommend new users should be using the source-registry.
                 (return (pathname target))))))))))
 
 (defun* sysdef-central-registry-search (system)
-  (let ((name (coerce-name system))
+  (let ((name (primary-system-name system))
         (to-remove nil)
         (to-replace nil))
     (block nil
@@ -280,10 +286,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (when (and pathname (not (absolute-pathname-p pathname)))
         (setf pathname (ensure-pathname-absolute pathname))
         (when found-system
-          (%set-system-source-file pathname found-system)))
+          (setf (system-source-file found-system) pathname)))
       (when (and previous (not (#-cormanlisp equal #+cormanlisp equalp
                                              (system-source-file previous) pathname)))
-        (%set-system-source-file pathname previous)
+        (setf (system-source-file previous) pathname)
         (setf previous-time nil))
       (values foundp found-system pathname previous previous-time))))
 

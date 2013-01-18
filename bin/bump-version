@@ -7,6 +7,12 @@
 
 (in-package :fare-utils)
 
+(defparameter *versioned-files*
+  '(("version.lisp-expr" "\"" "\"")
+    ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by bin/bump-revision")
+    ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
+    ("upgrade.lisp" "   (asdf-version \"" "\")")))
+
 (defvar *adir* (asdf:system-relative-pathname :asdf nil))
 
 (defun afile (x) (subpathname *adir* x))
@@ -18,24 +24,28 @@
 (defparameter *new-version* nil)
 
 (defun next-version (v)
-  (let ((pv (parse-version v)))
+  (let ((pv (parse-version v 'error)))
     (incf (third pv))
     (unparse-version pv)))
 
 (defun version-from-file ()
-  (safe-read-first-file-form *version-file*))
+  (safe-read-file-form *version-file*))
 
 (defun versions-from-argv (argv)
-  (ecase (length argv)
-    ((2) (values (second argv) (first argv)))
-    ((1) (values (version-from-file) (first argv)))
-    ((0) (let ((old (version-from-file)))
-           (values old (next-version old))))))
+  (labels ((check (old new)
+             (parse-version old 'error)
+             (parse-version new 'error)
+             (values old new)))
+    (ecase (length argv)
+      ((2) (check (second argv) (first argv)))
+      ((1) (check (version-from-file) (first argv)))
+      ((0) (let ((old (version-from-file)))
+             (check old (next-version old)))))))
 
 (multiple-value-setq (*old-version* *new-version*)
   (versions-from-argv *command-line-arguments*))
 
-(format t "Bumping ASDF version from ~A to ~A~%" *old-version* *new-version*)
+(a "Bumping ASDF version from " *old-version* " to " *new-version*)
 
 (deftype byte-vector () '(array (unsigned-byte 8) (*)))
 
@@ -57,7 +67,7 @@
           (clobber-file-with-vector file written-contents :external-format external-format)
           (format t "done.~%")))))
 
-(defun version-transformer (new-version file prefix suffix)
+(defun version-transformer (new-version file prefix suffix &optional dont-warn)
   (let* ((qprefix (cl-ppcre:quote-meta-chars prefix))
          (versionrx "([0-9]+(\\.[0-9]+)+)")
          (qsuffix (cl-ppcre:quote-meta-chars suffix))
@@ -67,15 +77,9 @@
     (lambda (text)
       (multiple-value-bind (new-text foundp)
           (cl-ppcre:regex-replace regex text replacement)
-        (unless (or foundp t)
+        (unless (or foundp dont-warn)
           (warn "Missing version in ~A" (file-namestring file)))
         (values new-text foundp)))))
-
-(defparameter *versioned-files*
-  '(("version.lisp-expr" "\"" "\"")
-    ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by bin/bump-revision")
-    ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
-    ("upgrade.lisp" "   (asdf-version \"" "\")")))
 
 (defun transform-file (new-version file prefix suffix)
   (maybe-replace-file (afile file) (version-transformer new-version file prefix suffix)))
@@ -87,7 +91,7 @@
   (let ((lines (read-file-lines (afile file))))
     (dolist (l lines (progn (warn "Couldn't find a match in ~A" file) nil))
       (multiple-value-bind (new-text foundp)
-          (funcall (version-transformer new-version file prefix suffix) l)
+          (funcall (version-transformer new-version file prefix suffix t) l)
         (when foundp
           (format t "Found a match:~%  ==> ~A~%Replacing with~%  ==> ~A~%~%"
                   l new-text)
@@ -95,3 +99,6 @@
 (defun z () (apply 'test-transform-file *new-version* (first *versioned-files*)))
 
 (transform-files)
+
+(a "Re-generate ASDF with bumped version")
+(asdf:build-system :asdf/generate)

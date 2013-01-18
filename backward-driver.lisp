@@ -27,7 +27,7 @@
   ;; (warn "Please don't use ASDF::COMPONENT-NAME-TO-PATHNAME-COMPONENTS, use SPLIT-UNIX-NAMESTRING-DIRECTORY-COMPONENTS")
   (multiple-value-bind (relabs path filename file-only)
       (split-unix-namestring-directory-components
-       unix-style-namestring :want-directory force-directory)
+       unix-style-namestring :ensure-directory force-directory)
     (declare (ignore file-only))
     (when (and force-relative (not (eq relabs :relative)))
       (error (compatfmt "~@<Absolute pathname designator not allowed: ~3i~_~S~@:>")

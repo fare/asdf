@@ -10,40 +10,103 @@
 
 (asdf-debug)
 
-(describe (find-system :asdf))
+;;; Make sure asdf.lisp is built.
+(asdf:build-system :asdf/generate)
 
-(defparameter *ad* (find-system :asdf-driver))
+;;; ASDF directory
 (defparameter *asdf-dir*
-  (ensure-pathname (system-source-directory *ad*)
-                   :want-existing t :want-absolute t))
-(defun apath (x) (subpathname *asdf-dir* x))
-(defun ann (x) (native-namestring (apath x)))
-(defparameter *build-dir* (apath "build/"))
-(defparameter /build-dir/ (ann "build/"))
-(defun bpath (x) (subpathname *build-dir* x))
-(defun bnn (x) (native-namestring (bpath x)))
-(defparameter *files*
-  (list* "asdf-driver.asd" "version.lisp-expr"
-         (loop :for c :in (operated-components
-                           *ad* :goal-operation 'load-op
-                                :keep-operation 'load-op)
-               :for n = (enough-namestring (component-pathname c)
-                                           *asdf-directory*)
-               :when (typep c 'cl-source-file)
-                 :collect n)))
+  (ensure-pathname (system-relative-pathname :asdf ())
+                   :want-physical t :want-absolute t
+                   :want-existing t :truename t))
+(defparameter /asdf-dir/
+  (native-namestring *asdf-dir*))
+
+;;; build directory
+(defparameter *build-dir*
+  (ensure-pathname
+   "build/" :defaults *asdf-dir*
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t))
+(defparameter /build-dir/
+  (native-namestring *build-dir*))
+
 (defparameter *version*
-  (safe-read-first-file-form (apath "version.lisp-expr")))
-(defparameter *name* (format nil "asdf-driver-~A" *version*))
-(defparameter *tarname* (strcat *name* ".tar.gz"))
-(defparameter dirname/ (strcat *name* "/"))
-(defparameter *destination*
-  (ensure-pathname (bpath dirname/)
-                   :want-directory t :want-absolute t))
-(assert (< 6 (length (pathname-directory *destination*))))
-(defparameter /destination/ (native-namestring *destination*))
-(run-program/ `("rm" "-rf" ,/destination/))
-(ensure-directory-exists *destination*)
-(run-program/ `("ln" ,@(mapcar 'ann *files*) ,/destination/))
-(run-program/ (format nil "cd ~S && tar zcf ~S ~S"
-                      ,/build-dir/, ,*tarname* ,dirname/))
-(run-program/ `("rm" "-rf" ,/destination/))
+  (safe-read-first-file-form
+   (subpathname *asdf-dir* "version.lisp-expr")))
+
+(defparameter *asdf-driver* (format nil "asdf-driver-~A" *version*))
+
+(defun enough-namestring! (base pathname)
+  (let ((e (enough-namestring b p)))
+    (assert (relative-pathname e))
+    e))
+
+(defun enough-namestrings (base pathnames)
+  (loop :with b = (ensure-pathname base :want-absolute t :want-directory t)
+        :for p :in pathnames
+        :collect (enough-namestring! base p)))
+
+(defun system-source-files (system)
+  (let* ((sys (find-system system))
+         (dir (ensure-pathname
+               (system-source-directory sys)
+               :want-absolute t :want-directory t))
+         (components
+           (operated-components
+            sys :other-systems nil
+            :goal-operation 'load-op
+            :keep-operation 'load-op))
+         (pathnames (mapcar 'component-pathname components)))
+    (enough-namestrings dir pathnames)))
+
+(defparameter *driver-files*
+  (list* "asdf-driver.asd" "version.lisp-expr"
+         (system-source-files :asdf-driver)))
+
+(defparameter *asdf-only*
+  (format nil "asdf-only-~A" *version*))
+(defparameter *asdf-only-files*
+  (list* "asdf.asd" "version.lisp-expr"
+         (system-source-files :asdf/generate)))
+
+(defun tarname (name) (strcat name ".tar.gz"))
+
+(defun make-tarball-under-build (name base files)
+  (let* ((/base/
+           (native-namestring
+            (ensure-pathname
+             base
+             :want-absolute t :want-directory t
+             :want-existing t :want-truename t)))
+         (destination
+           (ensure-pathname
+            name
+            :defaults *build-dir*
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t :ensure-directory t))
+         (/destination/
+           (native-namestring destination))
+         (/tarball/
+           (native-namestring
+            (ensure-pathname
+             (tarname name)
+             :defaults *build-dir*
+             :want-relative t :ensure-absolute t
+             :ensure-subpath t :want-file t
+             :ensure-directories-exist t)))
+         (/files/
+           (mapcar 'native-namestring files)))
+    (assert (< 6 (length (pathname-directory destination))))
+    (run-program/ `("rm" "-rf" ,/destination/))
+    (ensure-directories-exist destination)
+    (run-program/ (format nil "cd ~S && cp -lax --parents ~{~S ~} ~S"
+                          /base/ /files/ /destination/))
+    (run-program/ (format nil "tar zcvfC ~S ~S ~S/"
+                          /tarball/ /build/ name))
+    (run-program/ `("rm" "-rf" ,/destination/))))
+
+(make-tarball-under-build *asdf-driver* *asdf-directory* *asdf-driver-files*)
+(make-tarball-under-build *asdf-only* *asdf-directory* *asdf-only-files*)
+
+(run-program/ (format nil "cd ~S && tar zcf build/asdf-~A.tar.gz build/asdf.lisp $(git ls-files)"
+                      /asdf-dir/ *version*))

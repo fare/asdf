@@ -25,7 +25,8 @@
    #:compile-system #:load-system #:load-systems
    #:require-system #:test-system #:clear-system
    #:operation #:upward-operation #:downward-operation #:make-operation
-   #:load-op #:prepare-op #:compile-op #:load-fasl-op #:fasl-op
+   #:build-system #:build-op
+   #:load-op #:prepare-op #:compile-op
    #:prepare-source-op #:load-source-op #:test-op
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
@@ -34,9 +35,9 @@
    #:needed-in-image-p
    #:run-program/ ; the recommended replacement for run-shell-command
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
-   #:precompiled-system #:compiled-file
-   #+ecl #:make-build #+mkcl #:bundle-system
-   #:program-op #:program-system
+   #:bundle-op  #:precompiled-system #:compiled-file #:bundle-system
+   #+ecl #:make-build
+   #:program-op #:load-fasl-op #:fasl-op #:lib-op #:binary-op
    #:concatenate-source-op
    #:load-concatenated-source-op
    #:compile-concatenated-source-op
@@ -45,9 +46,6 @@
    #:monolithic-load-concatenated-source-op
    #:monolithic-compile-concatenated-source-op
    #:monolithic-load-compiled-concatenated-source-op
-   #:concatenated-source-system
-   #:component-concatenated-source-file
-   #:concatenated-source-file
    #:operation-monolithic-p
 
    #:component #:parent-component #:child-component #:system #:module
@@ -148,8 +146,3 @@
    #:system-source-registry
    #:user-source-registry-directory
    #:system-source-registry-directory))
-(in-package :asdf/interface)
-
-(when-upgrade (:when (fboundp 'make-sub-operation))
-  (defun* make-sub-operation (c o dep-c dep-o)
-    (declare (ignore c o dep-c dep-o)) (asdf-upgrade-error)))

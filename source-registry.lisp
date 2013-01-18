@@ -198,11 +198,11 @@ system names to pathnames of .asd files")
       ((:directory)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (resolve-location pathname :want-directory t)))))
+           (funcall register (resolve-location pathname :ensure-directory t)))))
       ((:tree)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (resolve-location pathname :want-directory t)
+           (funcall register (resolve-location pathname :ensure-directory t)
                     :recurse t :exclude *source-registry-exclusions*))))
       ((:exclude)
        (setf *source-registry-exclusions* rest))
@@ -312,4 +312,4 @@ system names to pathnames of .asd files")
 
 (defun* sysdef-source-registry-search (system)
   (ensure-source-registry)
-  (values (gethash (coerce-name system) *source-registry*)))
+  (values (gethash (primary-system-name system) *source-registry*)))

@@ -258,7 +258,7 @@ it will filter them appropriately."
   (etypecase x
     ((or pathname string #-(or gcl<2.7 clozure allegro) stream)
      (apply 'load x
-            #-gcl<2.7 keys #+gcl<2.7 (remove-keyword :external-format keys)))
+            #-gcl<2.7 keys #+gcl<2.7 (remove-key :external-format keys)))
     #-(or gcl<2.7 clozure allegro)
     ;; GCL 2.6 can't load from a string-input-stream
     ;; ClozureCL 1.6 can only load from file input stream

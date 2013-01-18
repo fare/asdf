@@ -12,19 +12,19 @@
    #:asdf-version #:*upgraded-p*
    #:asdf-message #:*asdf-verbose* #:*verbose-out*
    ;; There will be no symbol left behind!
-   #:o #:c #:dep-o #:dep-c #:intern*)
+   #:intern*)
   (:import-from :asdf/package #:intern* #:find-symbol*))
 (in-package :asdf/upgrade)
 
 ;; Note that this massive package destruction makes it impossible
 ;; to use asdf/driver on top of an old ASDF on these implementations
-#+(or clisp xcl)
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  #+(or clisp xcl)
   (unless (let ((vs (find-symbol* 'version-satisfies :asdf nil))
                 (av (find-symbol* 'asdf-version :asdf nil)))
             (and vs av (funcall vs (funcall av) "2.26.59")))
     (if-bind (p (find-package :asdf))
-      (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s))))))
+             (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s))))))
 
 ;;; Special magic to detect if this is an upgrade
 
@@ -45,7 +45,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.105")
+         (asdf-version "2.26.106")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version)))

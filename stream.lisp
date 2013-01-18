@@ -11,13 +11,11 @@
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file
    #:finish-outputs #:format! #:safe-format!
-   #:read-file-forms #:read-first-file-form
    #:copy-stream-to-stream #:concatenate-files
    #:copy-stream-to-stream-line-by-line
-   #:slurp-stream-string #:slurp-stream-lines
-   #:slurp-stream-forms #:read-file-string
-   #:read-file-lines #:read-file-forms
-   #:safe-read-first-file-form #:eval-input #:eval-thunk #:standard-eval-thunk
+   #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-forms #:slurp-stream-form
+   #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form
+   #:eval-input #:eval-thunk #:standard-eval-thunk
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*))
@@ -110,14 +108,17 @@ as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
   `(call-with-input ,value #'(lambda (,input-var) ,@body)))
 
 (defun* call-with-input-file (pathname thunk
-                             &key (element-type *default-stream-element-type*)
-                             (external-format :default))
-  "Open FILE for input with given options, call THUNK with the resulting stream."
+                                       &key
+                                       (element-type *default-stream-element-type*)
+                                       (external-format :default)
+                                       (if-does-not-exist :error))
+  "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
+Other keys are accepted but discarded."
   #+gcl<2.7 (declare (ignore external-format))
   (with-open-file (s pathname :direction :input
                      :element-type element-type
                      #-gcl<2.7 :external-format #-gcl<2.7 external-format
-                     :if-does-not-exist :error)
+                     :if-does-not-exist if-does-not-exist)
     (funcall thunk s)))
 
 (defmacro with-input-file ((var pathname &rest keys &key element-type external-format) &body body)
@@ -193,13 +194,41 @@ reading contents line by line."
   (with-open-stream (input input)
     (loop :for l = (read-line input nil nil) :while l :collect l)))
 
-(defun* slurp-stream-forms (input)
-  "Read the contents of the INPUT stream as a list of forms.
+(defun* slurp-stream-forms (input &key count)
+"Read the contents of the INPUT stream as a list of forms,
+and return those forms.
+
+If COUNT is null, read to the end of the stream;
+if COUNT is an integer, stop after COUNT forms were read.
+
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
-  (with-open-stream (input input)
-    (loop :with eof = '#:eof
-      :for form = (read input nil eof)
-      :until (eq form eof) :collect form)))
+  (check-type count (or null integer))
+  (loop :with eof = '#:eof
+        :for n :from 0
+        :for form = (if (and count (>= n count))
+                        eof
+                        (read-preserving-whitespace input nil eof))
+        :until (eq form eof) :collect form))
+
+(defun* slurp-stream-form (input &key (path 0))
+"Read the contents of the INPUT stream as a list of forms,
+then return the SUB-OBJECT of these forms following the PATH.
+PATH defaults to 0, i.e. return the first form.
+PATH is typically a list of integers.
+If PATH is NIL, it will return all the forms in the file.
+
+The stream will not be read beyond the Nth form,
+where N is the index specified by path,
+if path is either an integer or a list that starts with an integer.
+
+BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
+  (let* ((count (cond
+                  ((integerp path)
+                   (1+ path))
+                  ((and (consp path) (integerp (first path)))
+                   (1+ (first path)))))
+         (forms (slurp-stream-forms input :count count)))
+    (sub-object forms path)))
 
 (defun* read-file-string (file &rest keys)
   "Open FILE with option KEYS, read its contents as a string"
@@ -210,23 +239,28 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (apply 'call-with-input-file file 'slurp-stream-lines keys))
 
-(defun* read-file-forms (file &rest keys)
-  "Open FILE with option KEYS, read its contents as a list of forms.
+(defun* read-file-forms (file &rest keys &key count &allow-other-keys)
+  "Open input FILE with option KEYS (except COUNT),
+and read its contents as per SLURP-STREAM-FORMS with given COUNT.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
-  (apply 'call-with-input-file file 'slurp-stream-forms keys))
+  (apply 'call-with-input-file file
+         #'(lambda (input) (slurp-stream-forms input :count count))
+         (remove-key :count keys)))
 
-(defun* read-first-file-form (pathname &key eof-error-p eof-value)
-  "Reads the first form from the top of a file.
+(defun* read-file-form (file &rest keys &key (path 0) &allow-other-keys)
+  "Open input FILE with option KEYS (except path),
+and read its contents as per SLURP-STREAM-FORM with given PATH.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
-  (with-input-file (in pathname)
-    (read-preserving-whitespace in eof-error-p eof-value)))
+  (apply 'call-with-input-file file
+         #'(lambda (input) (slurp-stream-form input :path path))
+         (remove-key :path keys)))
 
-(defun* safe-read-first-file-form (pathname &key
-                                            (package :cl)
-                                            eof-error-p eof-value)
-  "Reads the first form from the top of a file using a safe standardized syntax"
+(defun* safe-read-file-form (pathname &rest keys &key (package :cl) &allow-other-keys)
+  "Reads the specified form from the top of a file using a safe standardized syntax.
+Extracts the form using READ-FILE-FORM,
+within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
   (with-safe-io-syntax (:package package)
-    (read-first-file-form pathname :eof-error-p eof-error-p :eof-value eof-value)))
+    (apply 'read-file-form pathname (remove-key :package keys))))
 
 (defun* eval-input (input)
   "Portably read and evaluate forms from INPUT, return the last values."

@@ -7,7 +7,8 @@
    :asdf/system :asdf/component :asdf/find-system :asdf/action)
   (:export ;; for internal use
    #:%refresh-component-inline-methods
-   #:%resolve-if-component-dep-fails))
+   #:%resolve-if-component-dep-fails
+   #:make-sub-operation))
 (in-package :asdf/backward-internals)
 
 ;;;; Backward compatibility with "inline methods"
@@ -65,3 +66,6 @@
               :when (eq feature? 'feature) :do
                 (setf (component-if-feature c) feature)))))
 
+(when-upgrade (:when (fboundp 'make-sub-operation))
+  (defun* make-sub-operation (c o dep-c dep-o)
+    (declare (ignore c o dep-c dep-o)) (asdf-upgrade-error)))
