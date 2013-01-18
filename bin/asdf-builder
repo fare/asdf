@@ -4,14 +4,14 @@
 (load (make-pathname :name "prelude" :type "lisp" :defaults *load-pathname*)
   :verbose nil :print nil)
 
-(defpackage :asdf-builder (:use :cl :asdf/driver :asdf :fare-utils))
+(defpackage :asdf-builder (:use :cl :asdf/driver :asdf :fare-utils :inferior-shell))
 (in-package :asdf-builder)
 
 (asdf-debug)
 
 (defun build-asdf ()
   ;; Make sure asdf.lisp is built.
-  (build-system :asdf/generate)
+  (build-system :asdf/defsystem)
   (load-system :asdf)
   (values))
 
@@ -119,14 +119,14 @@
 (defun make-driver-tarball ()
   (make-tarball-under-build (driver-name) *asdf-dir* (driver-files)))
 
-(defun asdf-system-files ()
+(defun asdf-defsystem-files ()
   (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
-         (system-source-files :asdf/generate)))
-(defun asdf-system-name ()
+         (system-source-files :asdf/defsystem)))
+(defun asdf-defsystem-name ()
   (format nil "asdf-system-~A" *version*))
-(defun make-asdf-system-tarball ()
+(defun make-asdf-defsystem-tarball ()
   (build-asdf)
-  (make-tarball-under-build (asdf-system-name) *asdf-dir* (asdf-system-files)))
+  (make-tarball-under-build (asdf-defsystem-name) *asdf-dir* (asdf-defsystem-files)))
 
 (defun asdf-git-name ()
   (format nil "asdf-~A" *version*))
@@ -143,7 +143,7 @@
   (values))
 
 (defun publish-tarballs ()
-  (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-system-name) (asdf-git-name)))))
+  (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
     (run-program* (format nil "cd ~S && rsync ~{~S ~}clnet:/project/asdf/public_html/archives/"
                           /build-dir/ tarballs)))
   (format t "~&To download the tarballs, point your browser at:~%

@@ -11,7 +11,7 @@
 (upgrade-asdf)
 (format t "At ASDF ~A.~%" (asdf-version))
 (format t "Now loading some dependencies... ~%")
-(load-systems :cl-ppcre :fare-utils)
+(load-systems :cl-ppcre :fare-utils :inferior-shell)
 
 (format t "There we are!~%")
 (restore-image)
