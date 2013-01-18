@@ -51,7 +51,7 @@ system names to pathnames of .asd files")
 (register-clear-configuration-hook 'clear-source-registry)
 
 (defparameter *wild-asd*
-  (make-pathname* :directory nil :name *wild* :type "asd" :version :newest))
+  (make-pathname* :directory nil :name *wild* :type "asd"))
 
 (defun* directory-asd-files (directory)
   (directory-files directory *wild-asd*))

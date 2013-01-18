@@ -9,6 +9,7 @@
    #:*resolve-symlinks*
    ;; Making and merging pathnames, portably
    #:normalize-pathname-directory-component #:denormalize-pathname-directory-component
+   #:pathname-equal
    #:merge-pathname-directory-components #:make-pathname* #:*unspecific-pathname-type*
    #:make-pathname-component-logical #:make-pathname-logical
    #:merge-pathnames*
@@ -199,6 +200,27 @@ by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
                         :version (funcall unspecific-handler version))))))
 
 ;;; Some pathname predicates
+
+(defun* pathname-equal (p1 p2)
+  (when (stringp p1) (setf p1 (pathname p1)))
+  (when (stringp p2) (setf p2 (pathname p2)))
+  (flet ((normalize-component (x)
+           (and (not (member x '(nil :unspecific :newest (:relative)) :test 'equal)) x)))
+    (macrolet ((=? (&rest accessors)
+                 (flet ((frob (x)
+                          (reduce 'list (cons 'normalize-component accessors)
+                                  :initial-value x :from-end t)))
+                   `(equal ,(frob 'p1) ,(frob 'p2)))))
+      (or (and (null p1) (null 2))
+          (and (pathnamep p1) (pathnamep p2)
+               (or (equal p1 p2)
+                   (=? pathname-host)
+                   (=? pathname-device)
+                   (=? normalize-pathname-directory-component pathname-directory)
+                   (=? pathname-name)
+                   (=? pathname-type)
+                   (=? pathname-version)))))))
+
 
 (defun* absolute-pathname-p (pathspec)
   "If PATHSPEC is a pathname or namestring object that parses as a pathname
@@ -853,8 +875,11 @@ For the latter case, we ought pick random suffix and atomically open it."
   `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body)))
 
 ;;; Basic pathnames
+(defun* logical-pathname-p (x)
+  (typep x 'logical-pathname))
+
 (defun* physical-pathname-p (x)
-  (and (pathnamep x) (not (typep x 'logical-pathname))))
+  (and (pathnamep x) (not (logical-pathname-p x))))
 
 (defun* sane-physical-pathname (&key defaults (keep t) fallback want-existing)
   (flet ((sanitize (x)
@@ -1049,7 +1074,7 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                     :ensure-directory ensure-directory :want-relative want-relative))))
         (check want-pathname (pathnamep p) "Expected a pathname, not NIL")
         (unless pathname (return NIL))
-        (check want-logical (typep p 'logical-pathname) "Expected a logical pathname")
+        (check want-logical (logical-pathname-p p) "Expected a logical pathname")
         (check want-physical (physical-pathname-p p) "Expected a physical pathname")
         (transform ensure-physical () (translate-logical-pathname p))
         (check ensure-physical (physical-pathname-p p) "Could not translate to a physical pathname")

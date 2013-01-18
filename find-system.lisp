@@ -133,9 +133,10 @@ called with an object of type asdf:system."
 (cleanup-system-definition-search-functions)
 
 (defun* search-for-system-definition (system)
-  (some (let ((name (coerce-name system))) #'(lambda (x) (funcall x name)))
-        (cons 'find-system-if-being-defined
-              *system-definition-search-functions*)))
+  (with-pathname-defaults ()
+    (some (let ((name (coerce-name system))) #'(lambda (x) (funcall x name)))
+          (cons 'find-system-if-being-defined
+                *system-definition-search-functions*))))
 
 (defvar *central-registry* nil
 "A list of 'system directory designators' ASDF uses to find systems.
@@ -155,14 +156,14 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* probe-asd (name defaults)
   (block nil
     (when (directory-pathname-p defaults)
-      (let* ((file (probe-file* (subpathname defaults (strcat name ".asd")))))
+      (let* ((file (probe-file* (subpathname defaults name :type "asd"))))
         (when file
           (return file)))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
       (when (os-windows-p)
         (let ((shortcut
                (make-pathname
-                :defaults defaults :version :newest :case :local
+                :defaults defaults :case :local
                 :name (strcat name ".asd")
                 :type "lnk")))
           (when (probe-file* shortcut)
@@ -279,16 +280,13 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (pathname (or (and (typep found '(or pathname string)) (pathname found))
                        (and found-system (system-source-file found-system))
                        (and previous (system-source-file previous))))
+         (pathname (ensure-pathname (resolve-symlinks* pathname) :want-absolute t))
          (foundp (and (or found-system pathname previous) t)))
     (check-type found (or null pathname system))
     (when foundp
-      (setf pathname (resolve-symlinks* pathname))
-      (when (and pathname (not (absolute-pathname-p pathname)))
-        (setf pathname (ensure-pathname-absolute pathname))
-        (when found-system
-          (setf (system-source-file found-system) pathname)))
-      (when (and previous (not (#-cormanlisp equal #+cormanlisp equalp
-                                             (system-source-file previous) pathname)))
+      (when (and pathname found-system)
+        (setf (system-source-file found-system) pathname))
+      (when (and previous (not (pathname-equal (system-source-file previous) pathname)))
         (setf (system-source-file previous) pathname)
         (setf previous-time nil))
       (values foundp found-system pathname previous previous-time))))
@@ -302,9 +300,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
             (declare (ignore foundp))
             (when (and found-system (not previous))
               (register-system found-system))
-            (unless (and (equal pathname (and previous (system-source-file previous)))
-                         (stamp<= (safe-file-write-date pathname) previous-time))
-              ;; only load when it's a different pathname, or newer file content
+            (when (and pathname
+                       (not (and previous
+                                 (pathname-equal pathname (system-source-file previous))
+                                 (stamp<= (safe-file-write-date pathname) previous-time))))
+              ;; only load when it's a pathname that is different or has newer content
               (load-sysdef name pathname))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
               (return

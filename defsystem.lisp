@@ -30,7 +30,7 @@
   ;;    and merged into that DIRECTORY as per SUBPATHNAME.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (or (and (pathnamep pathname) (absolute-pathname-p pathname))
+  (or (and (pathnamep pathname) (absolute-pathname-p pathname) (resolve-symlinks* pathname))
       (let* ((lisp-file-pathname (resolve-symlinks* (current-lisp-file-pathname))))
         (when (absolute-pathname-p lisp-file-pathname)
           (subpathname lisp-file-pathname pathname :type :directory)))))
@@ -169,7 +169,7 @@
   ;; we also need to remember it in a special variable *systems-being-defined*.
   (with-system-definitions ()
     (let* ((name (coerce-name name))
-           (source-file (if sfp source-file (current-lisp-file-pathname)))
+           (source-file (if sfp source-file (resolve-symlinks* (current-lisp-file-pathname))))
            (registered (system-registered-p name))
            (registered! (if registered
                             (rplaca registered (safe-file-write-date source-file))
