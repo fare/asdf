@@ -293,7 +293,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (restart-case
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)
-            (assert (eq foundp (and (or found-system pathname) t)))
+            (assert (eq foundp (and (or found-system pathname previous) t)))
             (when (and found-system (not previous))
               (register-system found-system))
             (when (and pathname
