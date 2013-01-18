@@ -34,6 +34,7 @@ tmp/
 *.ufasl
 *.vbin
 *.~*~
+*.sse2f
 test/try-reloading-dependency.asd
 test/fileMissing.lisp
 test/hello-world-example

@@ -275,7 +275,7 @@ If WARNINGS-FILE is defined, deferred warnings are saved to that file.
 On ECL or MKCL, it creates both the linkable object and loadable fasl files.
 On implementations that erroneously do not recognize standard keyword arguments,
 it will filter them appropriately."
-  (let* ((keywords (remove-keys
+  (let* ((keywords (remove-plist-keys
                     `(:compile-check :warnings-file
                       #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
          (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
@@ -324,7 +324,7 @@ it will filter them appropriately."
 
 (defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
   (let* ((keys
-           (remove-keys `(#+(and allegro (not (version>= 8 2))) :external-format
+           (remove-plist-keys `(#+(and allegro (not (version>= 8 2))) :external-format
                             ,@(unless output-file '(:output-file))) keys)))
     (if (absolute-pathname-p output-file)
         ;; what cfp should be doing, w/ mp* instead of mp
@@ -339,7 +339,7 @@ it will filter them appropriately."
   (etypecase x
     ((or pathname string #-(or gcl<2.7 clozure allegro) stream)
      (apply 'load x
-            #-gcl<2.7 keys #+gcl<2.7 (remove-key :external-format keys)))
+            #-gcl<2.7 keys #+gcl<2.7 (remove-plist-key :external-format keys)))
     #-(or gcl<2.7 clozure allegro)
     ;; GCL 2.6 can't load from a string-input-stream
     ;; ClozureCL 1.6 can only load from file input stream

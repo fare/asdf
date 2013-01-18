@@ -57,6 +57,9 @@ bump: bump-version
 bump-version: build/asdf.lisp
 	./bin/asdf-builder bump-version
 
+driver-files:
+	@echo $(driver_lisp)
+
 archive: build/asdf.lisp
 	#${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
 	#	--eval "(rewrite-license)" --eval "(quit)"

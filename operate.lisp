@@ -57,7 +57,8 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
   (let* ((system (etypecase system
                    (system system)
                    ((or string symbol) (find-system system))))
-         ;; I'd like to remove-keys :force :force-not :verbose, but swank.asd relies on :force (!).
+         ;; I'd like to remove-plist-keys :force :force-not :verbose,
+         ;; but swank.asd relies on :force (!).
          (op (apply 'make-operation operation-class args))
          (systems-being-operated *systems-being-operated*)
          (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))

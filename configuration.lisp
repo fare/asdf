@@ -239,15 +239,16 @@ directive.")
   (when directory (setf ensure-directory t)) ;; :directory backward compatibility, until 2014-01-16.
   (if (atom x)
       (resolve-absolute-location-component x :ensure-directory ensure-directory :wilden wilden)
-      (loop :with path = (resolve-absolute-location-component
-                          (car x) :ensure-directory (and (or ensure-directory (cdr x)) t)
-                          :wilden (and wilden (null (cdr x))))
-        :for (component . morep) :on (cdr x)
+      (loop :with (first . rest) = x
+        :with path = (resolve-absolute-location-component
+                          first :ensure-directory (and (or ensure-directory rest) t)
+                          :wilden (and wilden (null rest)))
+        :for (element . morep) :on rest
         :for dir = (and (or morep ensure-directory) t)
         :for wild = (and wilden (not morep))
         :do (setf path (merge-pathnames*
                         (resolve-relative-location-component
-                         component :ensure-directory dir :wilden wild)
+                         element :ensure-directory dir :wilden wild)
                         path))
         :finally (return path))))
 

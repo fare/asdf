@@ -15,7 +15,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.115" ;; to be automatically updated by bin/bump-revision
+  :version "2.26.116" ;; to be automatically updated by bin/bump-revision
   :depends-on ()
   :components ((:module "build" :components ((:file "asdf"))))
   :in-order-to (#+asdf2.27 (compile-op (monolithic-load-concatenated-source-op generate-asdf))))
@@ -37,6 +37,7 @@
   :description "All the components needed to build asdf.lisp"
   :description "Generate asdf.lisp based on this and monolithic-concatenate-source-op"
   :defsystem-depends-on (:asdf)
+  :version (:read-file-form "version.lisp-expr")
   :class :bundle-system
   :build-operation monolithic-concatenate-source-op
   :bundle-pathname "build/asdf"

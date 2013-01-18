@@ -321,7 +321,7 @@ processed in order by OPERATE."))
 (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
   (let ((plan (apply 'make-instance
                      (or plan-class *default-plan-class*)
-                     :system (component-system c) (remove-key :plan-class keys))))
+                     :system (component-system c) (remove-plist-key :plan-class keys))))
     (traverse-action plan o c t)
     (plan-actions plan)))
 

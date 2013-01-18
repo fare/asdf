@@ -177,13 +177,13 @@
                          &allow-other-keys)
         (operation-original-initargs instance)
       (setf (operation-original-initargs instance)
-            (remove-keys '(:lisp-files :epilogue-code :prologue-code) original-initargs)
+            (remove-plist-keys '(:lisp-files :epilogue-code :prologue-code) original-initargs)
             (monolithic-op-prologue-code instance) prologue-code
             (monolithic-op-epilogue-code instance) epilogue-code)
       #-ecl (assert (null (or lisp-files epilogue-code prologue-code)))
       #+ecl (setf (bundle-op-lisp-files instance) lisp-files)))
   (setf (bundle-op-build-args instance)
-        (remove-keys '(:type :monolithic :name-suffix)
+        (remove-plist-keys '(:type :monolithic :name-suffix)
                      (operation-original-initargs instance))))
 
 (defmethod bundle-op-build-args :around ((o lib-op))
@@ -332,7 +332,7 @@
                              (merge-pathnames "./asdf-output/")))
          (operation (apply #'operate operation-name
                            system
-                           (remove-keys '(:monolithic :type :move-here) args)))
+                           (remove-plist-keys '(:monolithic :type :move-here) args)))
          (system (find-system system))
          (files (and system (output-files operation system))))
     (if (or move-here (and (null move-here-p)

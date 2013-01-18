@@ -101,7 +101,7 @@
   (destructuring-bind
       (type name &rest rest &key
        ;; the following list of keywords is reproduced below in the
-       ;; remove-keys form.  important to keep them in sync
+       ;; remove-plist-keys form.  important to keep them in sync
        components pathname perform explain output-files operation-done-p
        weakly-depends-on depends-on serial
        do-first if-component-dep-fails (version nil versionp)
@@ -119,7 +119,7 @@
     (let* ((args `(:name ,(coerce-name name)
                    :pathname ,pathname
                    ,@(when parent `(:parent ,parent))
-                   ,@(remove-keys
+                   ,@(remove-plist-keys
                       '(:components :pathname :if-component-dep-fails :version
                         :perform :explain :output-files :operation-done-p
                         :weakly-depends-on :depends-on :serial)
@@ -178,7 +178,7 @@
                              (make-instance 'system :name name :source-file source-file))))
            (system (reset-system (cdr registered!)
                                  :name name :source-file source-file))
-           (component-options (remove-key :class options)))
+           (component-options (remove-plist-key :class options)))
       (apply 'load-systems defsystem-depends-on)
       ;; We change-class AFTER we loaded the defsystem-depends-on
       ;; since the class might be defined as part of those.

@@ -10,7 +10,7 @@
    #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
    #:undefine-function #:undefine-functions #:defun* #:defgeneric* ;; (un)defining functions
    #:if-let ;; basic flow control
-   #:while-collecting #:appendf #:length=n-p #:remove-keys #:remove-key ;; lists and plists
+   #:while-collecting #:appendf #:length=n-p #:remove-plist-keys #:remove-plist-key ;; lists and plists
    #:emptyp ;; sequences
    #:first-char #:last-char #:split-string ;; strings
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
@@ -132,13 +132,13 @@ Returns two values: \(A B C\) and \(1 2 3\)."
       ((not (consp l)) (return nil)))))
 
 ;;; remove a key from a plist, i.e. for keyword argument cleanup
-(defun* remove-key (key plist)
+(defun* remove-plist-key (key plist)
   "Remove a single key from a plist"
   (loop :for (k v) :on plist :by #'cddr
     :unless (eq k key)
     :append (list k v)))
 
-(defun* remove-keys (keys plist)
+(defun* remove-plist-keys (keys plist)
   "Remove a list of keys from a plist"
   (loop :for (k v) :on plist :by #'cddr
     :unless (member k keys)

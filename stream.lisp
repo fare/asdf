@@ -245,7 +245,7 @@ and read its contents as per SLURP-STREAM-FORMS with given COUNT.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (apply 'call-with-input-file file
          #'(lambda (input) (slurp-stream-forms input :count count))
-         (remove-key :count keys)))
+         (remove-plist-key :count keys)))
 
 (defun* read-file-form (file &rest keys &key (path 0) &allow-other-keys)
   "Open input FILE with option KEYS (except path),
@@ -253,14 +253,14 @@ and read its contents as per SLURP-STREAM-FORM with given PATH.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (apply 'call-with-input-file file
          #'(lambda (input) (slurp-stream-form input :path path))
-         (remove-key :path keys)))
+         (remove-plist-key :path keys)))
 
 (defun* safe-read-file-form (pathname &rest keys &key (package :cl) &allow-other-keys)
   "Reads the specified form from the top of a file using a safe standardized syntax.
 Extracts the form using READ-FILE-FORM,
 within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
   (with-safe-io-syntax (:package package)
-    (apply 'read-file-form pathname (remove-key :package keys))))
+    (apply 'read-file-form pathname (remove-plist-key :package keys))))
 
 (defun* eval-input (input)
   "Portably read and evaluate forms from INPUT, return the last values."

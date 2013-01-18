@@ -12,7 +12,8 @@
 (defun build-asdf ()
   ;; Make sure asdf.lisp is built.
   (build-system :asdf/generate)
-  (load-system :asdf))
+  (load-system :asdf)
+  (values))
 
 
 ;;; ASDF directory
@@ -66,7 +67,8 @@
 
 (defun run-program* (x)
   (format t "~A~%" x)
-  (run-program/ x))
+  (run-program/ x)
+  (values))
 
 (defun make-tarball-under-build (name base files)
   (check-type name string)
@@ -106,7 +108,8 @@
                           /base/ /files/ /destination/))
     (run-program* (format nil "tar zcfC ~S ~S ~S/"
                           /tarball/ /build-dir/ name))
-    (run-program* `("rm" "-rf" ,/destination/))))
+    (run-program* `("rm" "-rf" ,/destination/)))
+  (values))
 
 (defun driver-files ()
   (list* "asdf-driver.asd" "version.lisp-expr"
@@ -125,15 +128,32 @@
   (build-asdf)
   (make-tarball-under-build (asdf-system-name) *asdf-dir* (asdf-system-files)))
 
+(defun asdf-git-name ()
+  (format nil "asdf-~A" *version*))
 (defun make-git-tarball ()
   (build-asdf)
-  (run-program* (format nil "cd ~S && tar zcf build/asdf-~A.tar.gz build/asdf.lisp $(git ls-files)"
-                        /asdf-dir/ *version*)))
+  (run-program* (format nil "cd ~S && tar zcf build/~A.tar.gz build/asdf.lisp $(git ls-files)"
+                        /asdf-dir/ (asdf-git-name)))
+  (values))
 
 (defun make-tarballs ()
   (make-driver-tarball)
   (make-asdf-system-tarball)
-  (make-git-tarball))
+  (make-git-tarball)
+  (values))
+
+(defun publish-tarballs ()
+  (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-system-name) (asdf-git-name)))))
+    (run-program* (format nil "cd ~S && rsync ~{~S ~}clnet:/project/asdf/public_html/archives/"
+                          /build-dir/ tarballs)))
+  (format t "~&To download the tarballs, point your browser at:~%
+        http://common-lisp.net/project/asdf/archives/
+~%")
+  (values))
+
+(defun make-and-publish-tarballs ()
+  (make-tarballs)
+  (publish-tarballs))
 
 (defparameter *versioned-files*
   '(("version.lisp-expr" "\"" "\"")

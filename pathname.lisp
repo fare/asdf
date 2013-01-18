@@ -620,7 +620,7 @@ to throw an error if the pathname is absolute"
                 :directory (unless file-only (cons relative path))
                 :name name :type type
                 :defaults (or defaults (nil-pathname)))
-               (remove-keys '(:type :dot-dot :defaults) keys))))))
+               (remove-plist-keys '(:type :dot-dot :defaults) keys))))))
 
 (defun* unix-namestring (pathname)
   "Given a non-wild PATHNAME, return a Unix-style namestring for it.
@@ -769,11 +769,11 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
                   sofar)))
           (loop :with directory = (normalize-pathname-directory-component
                                    (pathname-directory p))
-            :for component :in (cdr directory)
+            :for dir :in (cdr directory)
             :for rest :on (cdr directory)
             :for more = (probe-file*
                          (merge-pathnames*
-                          (make-pathname* :directory `(:relative ,component))
+                          (make-pathname* :directory `(:relative ,dir))
                           sofar)) :do
             (if more
                 (setf sofar more)

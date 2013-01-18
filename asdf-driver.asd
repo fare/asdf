@@ -14,7 +14,7 @@ that you can't portably construct a complete program without using them."
   :defsystem-depends-on (#+(and (not asdf2.27) (or clisp xcl)) :asdf)
   :around-compile call-without-redefinition-warnings
   :components
-  ((:file "header")
+  ((:static-file "version.lisp-expr")
    (:file "package")
    (:file "compatibility" :depends-on ("package"))
    (:file "utility" :depends-on ("compatibility"))
