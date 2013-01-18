@@ -7,7 +7,6 @@
 (in-package :asdf-test)
 
 (with-test ()
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (handler-case
      (asdf:oos 'asdf:load-op 'system-does-not-exist)
    (asdf:missing-component-of-version (c)

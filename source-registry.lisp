@@ -153,7 +153,7 @@ system names to pathnames of .asd files")
 
 (defun* wrapping-source-registry ()
   `(:source-registry
-    #+(or ecl sbcl) (:tree ,(lisp-implementation-directory :truename t))
+    #+(or ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
     #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
     :inherit-configuration
     #+cmu (:tree #p"modules:")
@@ -221,10 +221,10 @@ system names to pathnames of .asd files")
 (defmethod process-source-registry ((pathname #-gcl<2.7 pathname #+gcl<2.7 t) &key inherit register)
   (cond
     ((directory-pathname-p pathname)
-     (let ((*here-directory* (truenamize pathname)))
+     (let ((*here-directory* (resolve-symlinks* pathname)))
        (process-source-registry (validate-source-registry-directory pathname)
                                 :inherit inherit :register register)))
-    ((probe-file* pathname)
+    ((probe-file* pathname :truename *resolve-symlinks*)
      (let ((*here-directory* (pathname-directory-pathname pathname)))
        (process-source-registry (validate-source-registry-file pathname)
                                 :inherit inherit :register register)))

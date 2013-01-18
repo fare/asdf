@@ -337,7 +337,7 @@
          (files (and system (output-files operation system))))
     (if (or move-here (and (null move-here-p)
                            (member operation-name '(:program :binary))))
-        (loop :with dest-path = (truename* (ensure-directories-exist move-here-path))
+        (loop :with dest-path = (resolve-symlinks* (ensure-directories-exist move-here-path))
               :for f :in files
               :for new-f = (make-pathname :name (pathname-name f)
                                 :type (pathname-type f)

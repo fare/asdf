@@ -20,7 +20,7 @@
 (defvar *asdf-dir*
   (ensure-pathname (system-relative-pathname :asdf ())
                    :want-physical t :want-absolute t
-                   :want-existing t :ensure-truename t))
+                   :want-existing t :truename t))
 (defparameter /asdf-dir/
   (native-namestring *asdf-dir*))
 (defun apath (x &rest keys) (apply 'subpathname *asdf-dir* x keys))
@@ -34,6 +34,7 @@
             :ensure-subpath t))
 (defparameter /build-dir/
   (native-namestring *build-dir*))
+(defun bpath (x &rest keys) (apply 'subpathname *build-dir* x keys))
 
 (defparameter *version*
   (safe-read-file-form
@@ -65,11 +66,6 @@
 
 (defun tarname (name) (strcat name ".tar.gz"))
 
-(defun run-program* (x)
-  (format t "~A~%" x)
-  (run-program/ x)
-  (values))
-
 (defun make-tarball-under-build (name base files)
   (check-type name string)
   (ensure-pathname base :want-absolute t :want-existing t :want-directory t)
@@ -80,7 +76,7 @@
             (ensure-pathname
              base
              :want-absolute t :want-directory t
-             :want-existing t :ensure-truename t)))
+             :want-existing t :truename t)))
          (destination
            (ensure-pathname
             name
@@ -104,12 +100,12 @@
       (error "Destination ~S already exists, not taking chances - you can delete it yourself."
              destination))
     (ensure-directories-exist destination)
-    (run-program* (format nil "cd ~S && cp -lax --parents ~{~S ~} ~S"
-                          /base/ /files/ /destination/))
-    (run-program* (format nil "tar zcfC ~S ~S ~S/"
-                          /tarball/ /build-dir/ name))
-    (run-program* `("rm" "-rf" ,/destination/)))
-  (values))
+    (run (format nil "cd ~S && cp -lax --parents ~{~S ~} ~S"
+                 /base/ /files/ /destination/) :show t)
+    (run (format nil "tar zcfC ~S ~S ~S/"
+                 /tarball/ /build-dir/ name) :show t)
+    (run `("rm" "-rf" ,/destination/) :show t)
+    (values)))
 
 (defun driver-files ()
   (list* "asdf-driver.asd" "version.lisp-expr"
@@ -123,7 +119,7 @@
   (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
          (system-source-files :asdf/defsystem)))
 (defun asdf-defsystem-name ()
-  (format nil "asdf-system-~A" *version*))
+  (format nil "asdf-defsystem-~A" *version*))
 (defun make-asdf-defsystem-tarball ()
   (build-asdf)
   (make-tarball-under-build (asdf-defsystem-name) *asdf-dir* (asdf-defsystem-files)))
@@ -132,28 +128,47 @@
   (format nil "asdf-~A" *version*))
 (defun make-git-tarball ()
   (build-asdf)
-  (run-program* (format nil "cd ~S && tar zcf build/~A.tar.gz build/asdf.lisp $(git ls-files)"
-                        /asdf-dir/ (asdf-git-name)))
+  (run (format nil "cd ~S && tar zcf build/~A.tar.gz build/asdf.lisp $(git ls-files)"
+               /asdf-dir/ (asdf-git-name)) :show t)
   (values))
 
-(defun make-tarballs ()
+(defun asdf-lisp-name ()
+  (format nil "asdf-~A.lisp" *version*))
+
+(defun make-asdf-lisp ()
+  (build-asdf)
+  (concatenate-files (list (apath "build/asdf.lisp"))
+                     (bpath (asdf-lisp-name))))
+
+(defun make-archive ()
   (make-driver-tarball)
-  (make-asdf-system-tarball)
+  (make-asdf-defsystem-tarball)
   (make-git-tarball)
+  (make-asdf-lisp)
   (values))
 
-(defun publish-tarballs ()
+(defvar *clnet* "clnet")
+(defvar *clnet-asdf-public* "/project/asdf/public_html/")
+
+(defun publish-archive ()
   (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
-    (run-program* (format nil "cd ~S && rsync ~{~S ~}clnet:/project/asdf/public_html/archives/"
-                          /build-dir/ tarballs)))
+    (run (format nil "cd ~S && rsync ~{~S ~}~S clnet:/project/asdf/public_html/archives/"
+                 /build-dir/ tarballs (asdf-lisp-name)) :show t))
   (format t "~&To download the tarballs, point your browser at:~%
         http://common-lisp.net/project/asdf/archives/
 ~%")
   (values))
 
-(defun make-and-publish-tarballs ()
-  (make-tarballs)
-  (publish-tarballs))
+(defun link-archive ()
+  (run `(ln -sf ,(tarname (driver-name))
+            (,*clnet-asdf-public* "archives/asdf-driver.tar.gz"))
+       :show t :host *clnet*)
+  (values))
+
+(defun make-and-publish-archive ()
+  (make-archive)
+  (publish-archive)
+  (link-archive))
 
 (defparameter *versioned-files*
   '(("version.lisp-expr" "\"" "\"")
@@ -248,7 +263,8 @@
     (build-asdf)))
 
 (defun git-version ()
-  (first (run-program/ '("git" "describe" "--tags" "--match" "[0-9].[0-9][0-9]") :output :lines)))
+  (first (run '("git" "describe" "--tags" "--match" "[0-9].[0-9][0-9]") :output :lines
+              :show t)))
 
 
 ;;;; Main entry point

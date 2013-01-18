@@ -71,7 +71,9 @@ in which the system specification (.asd file) is located."
 (defmethod builtin-system-p ((s system))
   (let* ((system (find-system s nil))
          (sysdir (and system (component-pathname system)))
-         (truesysdir (and sysdir (truename* sysdir)))
-         (impdir (lisp-implementation-directory :truename t)))
-    (and truesysdir impdir (pathname-match-p truesysdir (wilden impdir)) t)))
-
+         (truesysdir (truename* sysdir))
+         (impdir (lisp-implementation-directory))
+         (trueimpdir (truename* impdir)))
+    (and sysdir impdir
+         (or (subpathp sysdir impdir)
+             (subpathp truesysdir trueimpdir)))))

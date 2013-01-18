@@ -23,7 +23,7 @@
    #:component-name-to-pathname-components
    #:split-name-type #:parse-unix-namestring #:unix-namestring
    #:split-unix-namestring-directory-components
-   #:subpathname #:subpathname*
+   #:subpathname #:subpathname* #:subpathp
    ;; Resolving symlinks somewhat
    #:truenamize #:resolve-symlinks #:resolve-symlinks*
    ;; Wildcard pathnames
@@ -362,27 +362,35 @@ Returns the (parsed) PATHNAME when true"
 
 (defun* truename* (p)
   ;; avoids both logical-pathname merging and physical resolution issues
-  (ignore-errors (with-pathname-defaults () (truename p))))
+  (and p (ignore-errors (with-pathname-defaults () (truename p)))))
 
-(defun* probe-file* (p)
-  "when given a pathname P, probes the filesystem for a file or directory
-with given pathname and if it exists return its truename."
+(defun* probe-file* (p &key truename)
+  "when given a pathname P (designated by a string as per PARSE-NAMESTRING),
+probes the filesystem for a file or directory with given pathname.
+If it exists, return its truename is ENSURE-PATHNAME is true,
+or the original (parsed) pathname if it is false (the default)."
   (with-pathname-defaults () ;; avoids logical-pathname issues on some implementations
     (etypecase p
       (null nil)
-      (string (probe-file* (parse-namestring p)))
+      (string (probe-file* (parse-namestring p) :truename truename))
       (pathname (unless (wild-pathname-p p)
-                  #.(or #+(or allegro clozure cmu cormanlisp ecl lispworks mkcl sbcl scl)
-                        '(probe-file p)
-                        #+clisp (if-let (it (find-symbol* '#:probe-pathname :ext nil))
-                                   `(ignore-errors (,it p)))
-                        #+gcl<2.7
-                        '(or (probe-file p)
-                          (and (directory-pathname-p p)
-                           (ignore-errors
-                            (ensure-directory-pathname
-                             (truename* (subpathname (ensure-directory-pathname p) "."))))))
-                        '(truename* p)))))))
+                  (let ((foundtrue
+                          #.(or #+(or allegro clozure cmu cormanlisp ecl lispworks mkcl sbcl scl)
+                                '(probe-file p)
+                                #+clisp (if-let (it (find-symbol* '#:probe-pathname :ext nil))
+                                          `(ignore-errors (,it p)))
+                                #+gcl<2.7
+                                '(or (probe-file p)
+                                  (and (directory-pathname-p p)
+                                   (ignore-errors
+                                    (ensure-directory-pathname
+                                     (truename* (subpathname
+                                                 (ensure-directory-pathname p) "."))))))
+                                '(truename* p))))
+                    (cond
+                      (truename foundtrue)
+                      (foundtrue p)
+                      (t nil))))))))
 
 (defun* safe-file-write-date (pathname)
   ;; If FILE-WRITE-DATE returns NIL, it's possible that
@@ -597,8 +605,8 @@ even though the OS may not be Unixish, we recommend you use :WANT-RELATIVE T
 to throw an error if the pathname is absolute"
   (block nil
     (check-type type (or null string (eql :directory)))
-    (when (eq type :directory)
-      (setf ensure-directory t))
+    (when ensure-directory
+      (setf type :directory))
     (etypecase name
       ((or null pathname) (return name))
       (symbol
@@ -606,10 +614,10 @@ to throw an error if the pathname is absolute"
       (string))
     (multiple-value-bind (relative path filename file-only)
         (split-unix-namestring-directory-components
-         name :dot-dot dot-dot :ensure-directory ensure-directory)
+         name :dot-dot dot-dot :ensure-directory (eq type :directory))
       (multiple-value-bind (name type)
           (cond
-            ((or ensure-directory (null filename))
+            ((or (eq type :directory) (null filename))
              (values nil nil))
             (type
              (values filename type))
@@ -679,6 +687,14 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
   "returns NIL if the base pathname is NIL, otherwise like SUBPATHNAME."
   (and pathname
        (subpathname (ensure-directory-pathname pathname) subpath :type type)))
+
+(defun* subpathp (maybe-subpath base-pathname)
+  (and (pathnamep maybe-subpath) (pathnamep base-pathname)
+       (absolute-pathname-p maybe-subpath) (absolute-pathname-p base-pathname)
+       (directory-pathname-p base-pathname) (not (wild-pathname-p base-pathname))
+       (with-pathname-defaults ()
+         (let ((enough (enough-namestring maybe-subpath base-pathname)))
+           (and (relative-pathname-p enough) (pathname enough))))))
 
 ;;; Pathname host and its root
 (defun* pathname-root (pathname)
@@ -795,16 +811,16 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
 
 
 ;;; absolute vs relative
-(defun* ensure-pathname-absolute (path)
+(defun* ensure-pathname-absolute (path &optional defaults)
   (cond
     ((absolute-pathname-p path) path)
-    ((stringp path) (ensure-pathname-absolute (pathname path)))
+    ((stringp path) (ensure-pathname-absolute (pathname path) defaults))
     ((not (pathnamep path)) (error "not a valid pathname designator ~S" path))
-    (t (let ((resolved (resolve-symlinks path)))
-         (assert (absolute-pathname-p resolved))
-         resolved))))
+    ((absolute-pathname-p defaults) (merge-pathnames* path defaults))
+    (t (error "Cannot ensure ~S is evaluated as an absolute pathname with defaults ~S"
+              path defaults))))
 
-(defun* relativize-directory-component (directory-component)
+(defun relativize-directory-component (directory-component)
   (let ((directory (normalize-pathname-directory-component directory-component)))
     (cond
       ((stringp directory)
@@ -998,7 +1014,7 @@ Otherwise, this will be the root of some implementation-dependent filesystem hos
               want-non-wild want-wild wilden
               want-file want-directory ensure-directory
               want-existing ensure-directories-exist
-              ensure-truename truenamize
+              truename resolve-symlinks truenamize
               &aux (p pathname)) ;; mutable working copy, preserve original
   "Coerces its argument into a PATHNAME,
 optionally doing some transformations and checking specified constraints.
@@ -1047,7 +1063,8 @@ WANT-WILD checks that pathname is a wild pathname
 WILDEN merges the pathname with **/*.*.* if it is not wild
 WANT-EXISTING checks that a file (or directory) exists with that pathname.
 ENSURE-DIRECTORIES-EXIST creates any parent directory with ENSURE-DIRECTORIES-EXIST.
-ENSURE-TRUENAME replaces the pathname by its truename, or errors if not possible.
+TRUENAME replaces the pathname by its truename, or errors if not possible.
+RESOLVE-SYMLINKS replaces the pathname by a variant with symlinks resolved by RESOLVE-SYMLINKS.
 TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
   (block nil
     (flet ((report-error (keyword description &rest arguments)
@@ -1082,8 +1099,7 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                "Could not make into an absolute pathname even after merging with ~S" defaults)
         (check ensure-subpath (absolute-pathname-p defaults)
                "cannot be checked to be a subpath of non-absolute pathname ~S" defaults)
-        (check ensure-subpath (not (absolute-pathname-p (enough-namestring p defaults)))
-               "is not a sub pathname of ~S" defaults)
+        (check ensure-subpath (subpathp p defaults) "is not a sub pathname of ~S" defaults)
         (check want-file (file-pathname-p p) "Expected a file pathname")
         (check want-directory (directory-pathname-p p) "Expected a directory pathname")
         (transform ensure-directory (not (directory-pathname-p p)) (ensure-directory-pathname p))
@@ -1091,17 +1107,18 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
         (check want-wild (wild-pathname-p p) "Expected a wildcard pathname")
         (transform wilden (not (wild-pathname-p p)) (wilden p))
         (when want-existing
-          (let ((existing (probe-file* p)))
+          (let ((existing (probe-file* p :truename truename)))
             (if existing
-                (when (or ensure-truename truenamize)
+                (when truename
                   (return existing))
                 (err want-existing "Expected an existing pathname"))))
         (when ensure-directories-exist (ensure-directories-exist p))
-        (when ensure-truename
+        (when truename
           (let ((truename (truename* p)))
             (if truename
                 (return truename)
                 (err truename "Can't get a truename for pathname"))))
+        (transform resolve-symlinks () (resolve-symlinks p))
         (transform truenamize () (truenamize p))
         p))))
 

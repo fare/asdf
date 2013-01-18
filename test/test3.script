@@ -7,7 +7,6 @@
         (ns1 (asdf::native-namestring fasl1))
         (ns2 (asdf::native-namestring fasl2)))
    (asdf:run-shell-command "rm -f ~A ~A" ns1 ns2)
-   (setf asdf:*central-registry* '(*default-pathname-defaults*))
    (DBG "should load file1 but not file2")
    (asdf:load-system :test3)
    (assert (probe-file fasl1))

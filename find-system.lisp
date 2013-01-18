@@ -148,14 +148,14 @@ which evaluates to a pathname. For example:
                 #p\"/home/me/cl/systems/\"
                 #p\"/usr/share/common-lisp/systems/\"))
 
-This is for backward compatibilily.
+This is for backward compatibility.
 Going forward, we recommend new users should be using the source-registry.
 ")
 
-(defun* probe-asd (name defaults)
+(defun* probe-asd (name defaults &key truename)
   (block nil
     (when (directory-pathname-p defaults)
-      (let* ((file (probe-file* (subpathname defaults name :type "asd"))))
+      (let* ((file (probe-file* (subpathname defaults name :type "asd") :truename truename)))
         (when file
           (return file)))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
@@ -177,10 +177,12 @@ Going forward, we recommend new users should be using the source-registry.
     (block nil
       (unwind-protect
            (dolist (dir *central-registry*)
-             (let ((defaults (eval dir)))
+             (let ((defaults (resolve-symlinks* (eval dir)))
+                   directorized truenamized)
                (when defaults
-                 (cond ((directory-pathname-p defaults)
-                        (let ((file (probe-asd name defaults)))
+                 (cond ((and (directory-pathname-p defaults)
+                             (absolute-pathname-p defaults))
+                        (let* ((file (probe-asd name defaults :truename *resolve-symlinks*)))
                           (when file
                             (return file))))
                        (t
@@ -188,17 +190,29 @@ Going forward, we recommend new users should be using the source-registry.
                             (let* ((*print-circle* nil)
                                    (message
                                     (format nil
-                                            (compatfmt "~@<While searching for system ~S: ~3i~_~S evaluated to ~S which is not a directory.~@:>")
+                                            (compatfmt "~@<While searching for system ~S: ~3i~_~S evaluated to ~S which is not an absolute directory.~@:>")
                                             system dir defaults)))
                               (error message))
                           (remove-entry-from-registry ()
                             :report "Remove entry from *central-registry* and continue"
                             (push dir to-remove))
+                          (coerce-to-truename ()
+                            :test (lambda (c) (declare (ignore c))
+                                    (setf truenamized (truename* defaults)))
+                            :report (lambda (s)
+                                      (format s (compatfmt "~@<Coerce entry to truename ~S and continue.~@:>")
+                                              truenamized))
+                            (push dir to-remove))
                           (coerce-entry-to-directory ()
+                            :test (lambda (c) (declare (ignore c))
+                                    (and (not (directory-pathname-p defaults))
+                                         (directory-pathname-p
+                                          (setf directorized
+                                                (ensure-directory-pathname defaults)))))
                             :report (lambda (s)
                                       (format s (compatfmt "~@<Coerce entry to ~a, replace ~a and continue.~@:>")
-                                              (ensure-directory-pathname defaults) dir))
-                            (push (cons dir (ensure-directory-pathname defaults)) to-replace))))))))
+                                              directorized dir))
+                            (push (cons dir directorized) to-replace))))))))
         ;; cleanup
         (dolist (dir to-remove)
           (setf *central-registry* (remove dir *central-registry*)))

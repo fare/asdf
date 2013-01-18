@@ -113,9 +113,9 @@ You can put together sentences using this phrase."))
      ;; 1- Make sure we have absolute pathnames
      (let* ((directory (pathname-directory-pathname (component-pathname component)))
             (absolute-pathnames
-              (loop :for pathname :in pathnames
-                    :collect (ensure-pathname
-                              (subpathname directory pathname) :want-absolute t))))
+              (loop
+                :for pathname :in pathnames
+                :collect (ensure-pathname-absolute pathname directory))))
        ;; 2- Translate those pathnames as required
        (if fixedp
            absolute-pathnames

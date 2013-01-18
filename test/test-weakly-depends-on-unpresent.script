@@ -10,7 +10,6 @@
 (load-asdf)
 
 (with-test ()
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-weakly-depends-on-unpresent)
  ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))

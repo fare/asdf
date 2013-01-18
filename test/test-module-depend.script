@@ -3,7 +3,6 @@
 (load-asdf)
 
 (with-test ()
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-module-depend)
 
  ;; test that it compiled
