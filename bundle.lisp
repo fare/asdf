@@ -295,7 +295,7 @@
 
 (defmethod component-depends-on :around ((o bundle-op) (c component))
   (declare (ignorable o c))
-  (if-bind (op (and (eq (type-of o) 'bundle-op) (component-bundle-operation c)))
+  (if-let (op (and (eq (type-of o) 'bundle-op) (component-bundle-operation c)))
       `((,op ,c))
       (call-next-method)))
 

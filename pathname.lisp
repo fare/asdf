@@ -374,7 +374,7 @@ with given pathname and if it exists return its truename."
       (pathname (unless (wild-pathname-p p)
                   #.(or #+(or allegro clozure cmu cormanlisp ecl lispworks mkcl sbcl scl)
                         '(probe-file p)
-                        #+clisp (if-bind (it (find-symbol* '#:probe-pathname :ext nil))
+                        #+clisp (if-let (it (find-symbol* '#:probe-pathname :ext nil))
                                    `(ignore-errors (,it p)))
                         #+gcl<2.7
                         '(or (probe-file p)

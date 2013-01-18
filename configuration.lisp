@@ -57,7 +57,7 @@
   (cond
     ((os-unix-p) '(#p"/etc/common-lisp/"))
     ((os-windows-p)
-     (if-bind (it (subpathname* (get-folder-path :common-appdata) "common-lisp/config/"))
+     (if-let (it (subpathname* (get-folder-path :common-appdata) "common-lisp/config/"))
        (list it)))))
 
 (defun* in-first-directory (dirs x &key (direction :input))

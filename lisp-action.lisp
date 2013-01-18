@@ -71,7 +71,7 @@
   nil)
 (defmethod input-files ((o prepare-op) (s system))
   (declare (ignorable o))
-  (if-bind (it (system-source-file s)) (list it)))
+  (if-let (it (system-source-file s)) (list it)))
 
 ;;; compile-op
 (defmethod operation-description ((o compile-op) (c component))
@@ -158,7 +158,7 @@
                           (component-name c)))
         (perform (find-operation o 'compile-op) c)))))
 (defun* perform-lisp-load-fasl (o c)
-  (if-bind (fasl (first (input-files o c)))
+  (if-let (fasl (first (input-files o c)))
     (with-muffled-loader-conditions () (load* fasl))))
 (defmethod perform ((o load-op) (c cl-source-file))
   (perform-lisp-load-fasl o c))
@@ -187,7 +187,7 @@
   nil)
 (defmethod input-files ((o prepare-source-op) (s system))
   (declare (ignorable o))
-  (if-bind (it (system-source-file s)) (list it)))
+  (if-let (it (system-source-file s)) (list it)))
 (defmethod perform ((o prepare-source-op) (c component))
   (declare (ignorable o c))
   nil)

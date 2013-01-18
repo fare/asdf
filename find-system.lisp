@@ -91,7 +91,7 @@ of which is a system object.")
     (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
     (unless (eq system (cdr (gethash name *defined-systems*)))
       (setf (gethash name *defined-systems*)
-            (cons (if-bind (file (ignore-errors (system-source-file system)))
+            (cons (if-let (file (ignore-errors (system-source-file system)))
                     (safe-file-write-date file))
                   system)))))
 

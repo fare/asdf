@@ -121,7 +121,7 @@ another pathname in a degenerate way."))
     (format stream "~{~S~^ ~}" (component-find-path c))))
 
 (defmethod component-system ((component component))
-  (if-bind (system (component-parent component))
+  (if-let (system (component-parent component))
     (component-system system)
     component))
 

@@ -1,0 +1,243 @@
+":" ; exec sbcl --script "$0" "$@" ; exit # -*- Lisp -*-
+;;;;; Really runs on any decent Common Lisp implementation
+
+(load (make-pathname :name "prelude" :type "lisp" :defaults *load-pathname*)
+  :verbose nil :print nil)
+
+(defpackage :asdf-builder (:use :cl :asdf/driver :asdf :fare-utils))
+(in-package :asdf-builder)
+
+(asdf-debug)
+
+(defun build-asdf ()
+  ;; Make sure asdf.lisp is built.
+  (asdf:build-system :asdf/generate))
+
+
+;;; ASDF directory
+(defvar *asdf-dir*
+  (ensure-pathname (system-relative-pathname :asdf ())
+                   :want-physical t :want-absolute t
+                   :want-existing t :ensure-truename t))
+(defparameter /asdf-dir/
+  (native-namestring *asdf-dir*))
+(defun apath (x &rest keys) (apply 'subpathname *asdf-dir* x keys))
+
+
+;;; build directory
+(defparameter *build-dir*
+  (ensure-pathname
+   "build/" :defaults *asdf-dir*
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t))
+(defparameter /build-dir/
+  (native-namestring *build-dir*))
+
+(defparameter *version*
+  (safe-read-file-form
+   (subpathname *asdf-dir* "version.lisp-expr")))
+
+(defun enough-namestring! (base pathname)
+  (let ((e (enough-namestring base pathname)))
+    (assert (relative-pathname-p e))
+    e))
+
+(defun enough-namestrings (base pathnames)
+  (loop :with b = (ensure-pathname base :want-absolute t :want-directory t)
+        :for p :in pathnames
+        :collect (enough-namestring! p base)))
+
+(defun system-source-files (system)
+  (let* ((sys (find-system system))
+         (dir (ensure-pathname
+               (system-source-directory sys)
+               :want-absolute t :want-directory t))
+         (components
+           (operated-components
+            sys :other-systems nil
+            :goal-operation 'load-op
+            :keep-operation 'load-op
+            :keep-component 'file-component))
+         (pathnames (mapcar 'component-pathname components)))
+    (enough-namestrings dir pathnames)))
+
+(defun tarname (name) (strcat name ".tar.gz"))
+
+(defun run-program* (x)
+  (format t "~A~%" x)
+  (run-program/ x))
+
+(defun make-tarball-under-build (name base files)
+  (check-type name string)
+  (ensure-pathname base :want-absolute t :want-existing t :want-directory t)
+  (dolist (f files)
+    (check-type f string))
+  (let* ((/base/
+           (native-namestring
+            (ensure-pathname
+             base
+             :want-absolute t :want-directory t
+             :want-existing t :ensure-truename t)))
+         (destination
+           (ensure-pathname
+            name
+            :defaults *build-dir*
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t :ensure-directory t))
+         (/destination/
+           (native-namestring destination))
+         (/tarball/
+           (native-namestring
+            (ensure-pathname
+             (tarname name)
+             :defaults *build-dir*
+             :want-relative t :ensure-absolute t
+             :ensure-subpath t :want-file t
+             :ensure-directories-exist t)))
+         (/files/
+           (mapcar 'native-namestring files)))
+    (assert (< 6 (length (pathname-directory destination))))
+    (when (probe-file* destination)
+      (error "Destination ~S already exists, not taking chances - you can delete it yourself."
+             destination))
+    (ensure-directories-exist destination)
+    (run-program* (format nil "cd ~S && cp -lax --parents ~{~S ~} ~S"
+                          /base/ /files/ /destination/))
+    (run-program* (format nil "tar zcfC ~S ~S ~S/"
+                          /tarball/ /build-dir/ name))
+    (run-program* `("rm" "-rf" ,/destination/))))
+
+(defun driver-files ()
+  (list* "asdf-driver.asd" "version.lisp-expr"
+         (system-source-files :asdf-driver)))
+(defun driver-name ()
+  (format nil "asdf-driver-~A" *version*))
+(defun make-driver-tarball ()
+  (make-tarball-under-build (driver-name) *asdf-dir* (driver-files)))
+
+(defun asdf-only-files ()
+  (list* "asdf.asd" "version.lisp-expr" "header.lisp"
+         (system-source-files :asdf/generate)))
+(defun asdf-only-name ()
+  (format nil "asdf-only-~A" *version*))
+(defun make-asdf-only-tarball ()
+  (make-tarball-under-build (asdf-only-name) *asdf-dir* (asdf-only-files)))
+
+(defun make-git-tarball ()
+  (run-program* (format nil "cd ~S && tar zcf build/asdf-~A.tar.gz build/asdf.lisp $(git ls-files)"
+                        /asdf-dir/ *version*)))
+
+(defun make-tarballs ()
+  (make-driver-tarball)
+  (make-asdf-only-tarball)
+  (make-git-tarball))
+
+(defparameter *versioned-files*
+  '(("version.lisp-expr" "\"" "\"")
+    ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by bin/bump-revision")
+    ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
+    ("upgrade.lisp" "   (asdf-version \"" "\")")))
+
+(defparameter *version-file*
+  (apath "version.lisp-expr"))
+
+(defparameter *old-version* nil)
+(defparameter *new-version* nil)
+
+(defun next-version (v)
+  (let ((pv (parse-version v 'error)))
+    (incf (third pv))
+    (unparse-version pv)))
+
+(defun version-from-file ()
+  (safe-read-file-form *version-file*))
+
+(defun versions-from-args (&optional v1 v2)
+  (labels ((check (old new)
+             (parse-version old 'error)
+             (parse-version new 'error)
+             (values old new)))
+    (cond
+      ((and v1 v2) (check v1 v2))
+      (v1 (check (version-from-file) v1))
+      (t (let ((old (version-from-file)))
+           (check old (next-version old)))))))
+
+(deftype byte-vector () '(array (unsigned-byte 8) (*)))
+
+(defun maybe-replace-file (file transformer
+                           &key (reader 'read-file-string)
+                             (writer nil) (comparator 'equalp)
+                             (external-format *utf-8-external-format*))
+  (format t "Transforming file ~A... " (file-namestring file))
+  (let* ((old-contents (funcall reader file))
+         (new-contents (funcall transformer old-contents)))
+    (if (funcall comparator old-contents new-contents)
+        (format t "no changes needed!~%")
+        (let ((written-contents
+                (if writer
+                    (with-output (s ())
+                      (funcall writer s new-contents))
+                    new-contents)))
+          (check-type written-contents (or string (byte-vector)))
+          (clobber-file-with-vector file written-contents :external-format external-format)
+          (format t "done.~%")))))
+
+(defun version-transformer (new-version file prefix suffix &optional dont-warn)
+  (let* ((qprefix (cl-ppcre:quote-meta-chars prefix))
+         (versionrx "([0-9]+(\\.[0-9]+)+)")
+         (qsuffix (cl-ppcre:quote-meta-chars suffix))
+         (regex (strcat "(" qprefix ")(" versionrx ")(" qsuffix ")"))
+         (replacement
+           (constantly (strcat prefix new-version suffix))))
+    (lambda (text)
+      (multiple-value-bind (new-text foundp)
+          (cl-ppcre:regex-replace regex text replacement)
+        (unless (or foundp dont-warn)
+          (warn "Missing version in ~A" (file-namestring file)))
+        (values new-text foundp)))))
+
+(defun transform-file (new-version file prefix suffix)
+  (maybe-replace-file (apath file) (version-transformer new-version file prefix suffix)))
+
+(defun transform-files (new-version)
+  (loop :for f :in *versioned-files* :do (apply 'transform-file new-version f)))
+
+(defun test-transform-file (new-version file prefix suffix)
+  (let ((lines (read-file-lines (apath file))))
+    (dolist (l lines (progn (warn "Couldn't find a match in ~A" file) nil))
+      (multiple-value-bind (new-text foundp)
+          (funcall (version-transformer new-version file prefix suffix t) l)
+        (when foundp
+          (format t "Found a match:~%  ==> ~A~%Replacing with~%  ==> ~A~%~%"
+                  l new-text)
+          (return t))))))
+
+(defun test-transform (new-version)
+  (apply 'test-transform-file new-version (first *versioned-files*)))
+
+(defun bump-version (&optional v1 v2)
+  (multiple-value-bind (old-version new-version)
+      (versions-from-args v1 v2)
+    (a "Bumping ASDF version from " old-version " to " new-version)
+    (transform-files new-version)
+    (a "Rebuilding ASDF with bumped version")
+    (build-asdf)))
+
+(defun git-version ()
+  (first (run-program/ '("git" "describe" "--tags" "--match" "[0-9].[0-9][0-9]") :output :lines)))
+
+
+;;;; Main entry point
+(defun main (args)
+  (block nil
+    (unless args
+      (format t "No command provided~%")
+      (return))
+    (if-let (sym (find-symbol* (string-upcase (first args)) :asdf-builder nil))
+      (let ((results (multiple-value-list (apply sym (rest args)))))
+        (when results
+          (format t "~&Results:~%~{  ~S~%~}" results)))
+      (format t "Command ~A not found~%" (first args)))))
+
+(main *command-line-arguments*)

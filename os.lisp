@@ -257,7 +257,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
            #+clozure #p"ccl:"
            #+(or ecl mkcl) #p"SYS:"
            #+gcl system::*system-directory*
-           #+sbcl (if-bind (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
+           #+sbcl (if-let (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
                      (funcall it)
                      (getenv-pathname "SBCL_HOME" :ensure-directory t)))))
     (if (and dir truename)

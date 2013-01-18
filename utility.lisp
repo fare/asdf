@@ -9,7 +9,7 @@
    ;; magic helper to define debugging functions:
    #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
    #:undefine-function #:undefine-functions #:defun* #:defgeneric* ;; (un)defining functions
-   #:if-bind ;; basic flow control
+   #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:remove-keys #:remove-key ;; lists and plists
    #:emptyp ;; sequences
    #:first-char #:last-char #:split-string ;; strings
@@ -89,9 +89,16 @@
 
 
 ;;; Flow control
-(defmacro if-bind ((var test) then &optional else)
-  `(let ((,var ,test)) (if ,var ,then ,else)))
-
+(defmacro if-let (bindings &body (then-form &optional else-form)) ;; from alexandria
+  ;; bindings can be (var form) or ((var1 form1) ...)
+  (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                           (list bindings)
+                           bindings))
+         (variables (mapcar #'car binding-list)))
+    `(let ,binding-list
+       (if (and ,@variables)
+           ,then-form
+           ,else-form))))
 
 ;;; List manipulation
 (defmacro while-collecting ((&rest collectors) &body body)
