@@ -8,6 +8,10 @@
    #:component #:component-find-path
    #:component-name #:component-pathname #:component-relative-pathname
    #:component-parent #:component-system #:component-parent-pathname
+   #:child-component #:parent-component #:module
+   #:file-component
+   #:source-file #:c-source-file #:java-source-file
+   #:static-file #:doc-file #:html-file
    #:source-file-type ;; backward-compatibility
    #:component-in-order-to #:component-sibling-dependencies
    #:component-if-feature #:around-compile-hook
@@ -18,6 +22,10 @@
    #:component-operation-times ;; For internal use only.
    ;; portable ASDF encoding and implementation-specific external-format
    #:component-external-format #:component-encoding
+   #:component-children-by-name #:component-children #:compute-children-by-name
+   #:component-build-operation
+   #:module-default-component-class
+   #:module-components ;; backward-compatibility. DO NOT USE.
 
    ;; Internals we'd like to share with the ASDF package.
    #:name #:version #:description #:long-description
@@ -44,6 +52,9 @@ another pathname in a degenerate way."))
 (defgeneric* component-external-format (component))
 (defgeneric* component-encoding (component))
 (defgeneric* version-satisfies (component version))
+
+;;; Backward compatible way of computing the FILE-TYPE of a component.
+;;; TODO: find users, have them stop using that.
 (defgeneric* source-file-type (component system))
 
 (when-upgrade (:when (find-class 'component nil))
@@ -95,7 +106,9 @@ another pathname in a degenerate way."))
    (properties :accessor component-properties :initarg :properties
                :initform nil)
    ;; For backward-compatibility, this slot is part of component rather than child-component
-   (parent :initarg :parent :initform nil :reader component-parent)))
+   (parent :initarg :parent :initform nil :reader component-parent)
+   (build-operation
+    :initarg :build-operation :initform nil :reader component-build-operation)))
 
 (defun* component-find-path (component)
   (check-type component (or null component))
@@ -108,9 +121,71 @@ another pathname in a degenerate way."))
     (format stream "~{~S~^ ~}" (component-find-path c))))
 
 (defmethod component-system ((component component))
-  (if-bind (system (component-parent component))
+  (if-let (system (component-parent component))
     (component-system system)
     component))
+
+
+;;;; Component hierarchy within a system
+;; The tree typically but not necessarily follows the filesystem hierarchy.
+
+(defclass child-component (component) ())
+
+(defclass file-component (child-component)
+  ((type :accessor file-type :initarg :type))) ; no default
+(defclass source-file (file-component)
+  ((type :initform nil))) ;; NB: many systems have come to rely on this default.
+(defclass c-source-file (source-file)
+  ((type :initform "c")))
+(defclass java-source-file (source-file)
+  ((type :initform "java")))
+(defclass static-file (source-file)
+  ((type :initform nil)))
+(defclass doc-file (static-file) ())
+(defclass html-file (doc-file)
+  ((type :initform "html")))
+
+(defclass parent-component (component)
+  ((children
+    :initform nil
+    :initarg :components
+    :reader module-components ; backward-compatibility
+    :accessor component-children)
+   (children-by-name
+    :reader module-components-by-name ; backward-compatibility
+    :accessor component-children-by-name)
+   (default-component-class
+    :initform nil
+    :initarg :default-component-class
+    :accessor module-default-component-class)))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun* compute-children-by-name (parent &key only-if-needed-p)
+    (unless (and only-if-needed-p (slot-boundp parent 'children-by-name))
+      (let ((hash (make-hash-table :test 'equal)))
+        (setf (component-children-by-name parent) hash)
+        (loop :for c :in (component-children parent)
+              :for name = (component-name c)
+              :for previous = (gethash name hash)
+              :do (when previous (error 'duplicate-names :name name))
+                  (setf (gethash name hash) c))
+        hash))))
+
+(when-upgrade (:when (find-class 'module nil))
+  (defmethod reinitialize-instance :after ((m module) &rest initargs &key)
+    (declare (ignorable m initargs)) (values))
+  (defmethod update-instance-for-redefined-class :after
+      ((m module) added deleted plist &key)
+    (declare (ignorable m added deleted plist))
+    (when (and (member 'children added) (member 'components deleted))
+      (setf (slot-value m 'children)
+            ;; old ECLs provide an alist instead of a plist(!)
+            (if (or #+ecl (consp (first plist))) (or #+ecl (cdr (assoc 'components plist)))
+                (getf plist 'components)))
+      (compute-children-by-name m))))
+
+(defclass module (child-component parent-component)
+  ())
 
 
 ;;;; component pathnames
@@ -138,13 +213,24 @@ another pathname in a degenerate way."))
         pathname)))
 
 (defmethod component-relative-pathname ((component component))
+  ;; source-file-type is backward-compatibility with ASDF1;
+  ;; we ought to be able to extract this from the component alone with COMPONENT-TYPE.
+  ;; TODO: track who uses it, and have them not use it anymore.
   (parse-unix-namestring
    (or (and (slot-boundp component 'relative-pathname)
             (slot-value component 'relative-pathname))
        (component-name component))
    :want-relative t
-   :type (source-file-type component (component-system component)) ;; backward-compatibility
+   :type (source-file-type component (component-system component))
    :defaults (component-parent-pathname component)))
+
+(defmethod source-file-type ((component parent-component) system)
+  (declare (ignorable component system))
+  :directory)
+
+(defmethod source-file-type ((component file-component) system)
+  (declare (ignorable system))
+  (file-type component))
 
 
 ;;;; General component-property - ASDF3: remove? Define clean subclasses, not messy "properties".

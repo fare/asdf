@@ -329,11 +329,11 @@
      ;; we're testing with unix, are we not?
      (x (resolve-location '(:home)) (truename (user-homedir-pathname)))
      (x (resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz")
-     (x (resolve-location '("/foo" "bar" "baz") :want-directory t) #p"/foo/bar/baz/")
-     (x (resolve-location '("/foo" "bar" "baz") :want-directory t :wilden t) (wilden #p"/foo/bar/baz/"))
-     (x (resolve-location '("/foo" "bar" "baz") :want-directory nil :wilden t) (wilden #p"/foo/bar/"))
+     (x (resolve-location '("/foo" "bar" "baz") :ensure-directory t) #p"/foo/bar/baz/")
+     (x (resolve-location '("/foo" "bar" "baz") :ensure-directory t :wilden t) (wilden #p"/foo/bar/baz/"))
+     (x (resolve-location '("/foo" "bar" "baz") :ensure-directory nil :wilden t) (wilden #p"/foo/bar/"))
      #-gcl
-     (x (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :want-directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
+     (x (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :ensure-directory nil :wilden t) #p"/foo/bar/**/baz/*.*")))
 
  #-(or xcl gcl<2.7) ;;---*** pathnames are known to be massively broken on XCL and GCL 2.6
  (or (test-component-pathnames :delete-host t :support-string-pathnames nil)

@@ -16,7 +16,6 @@
    #:monolithic-load-concatenated-source-op
    #:monolithic-compile-concatenated-source-op
    #:monolithic-load-compiled-concatenated-source-op
-   #:concatenated-source-system
    #:component-concatenated-source-file
    #:concatenated-source-file))
 (in-package :asdf/concatenate-source)
@@ -37,10 +36,6 @@
 (defclass monolithic-load-concatenated-source-op (load-concatenated-source-op monolithic-op) ())
 (defclass monolithic-compile-concatenated-source-op (compile-concatenated-source-op monolithic-op) ())
 (defclass monolithic-load-compiled-concatenated-source-op (load-compiled-concatenated-source-op monolithic-op) ())
-
-(defclass concatenated-source-system (bundle-system)
-  ((bundle-pathname :initarg :concatenated-source-file)
-   (bundle-operation :initform :load-compiled-concatenated-source-op)))
 
 (defmethod input-files ((operation concatenate-source-op) (s system))
   (loop :with encoding = (or (component-encoding s) *default-encoding*)

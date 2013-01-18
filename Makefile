@@ -18,11 +18,6 @@ endif
 ## MAJOR FAIL: gclcvs -- Compiler bug fixed upstream, but gcl fails to compile on modern Linuxen.
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
 
-## Make sure testing remains within the confines of this filesystem tree
-export ASDF_OUTPUT_TRANSLATIONS := (:output-translations (t ("${sourceDirectory}/build/fasls" :implementation)) :ignore-inherited-configuration)
-export CL_SOURCE_REGISTRY := (:source-registry (:tree "${sourceDirectory}") :ignore-inherited-configuration)
-
-
 lisp ?= sbcl
 
 ABCL ?= abcl
@@ -41,24 +36,37 @@ XCL ?= xcl
 
 # website, tag, install
 
-driver_lisp := header.lisp package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
-asdf_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
+header_lisp := header.lisp
+driver_lisp := package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
+defsystem_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
 
 # Making ASDF itself should be our first, default, target:
 build/asdf.lisp: $(wildcard *.lisp)
 	mkdir -p build
-	cat $(driver_lisp) $(asdf_lisp) > $@
+	cat $(header_lisp) $(driver_lisp) $(defsystem_lisp) > $@
 
 # This quickly locates such mistakes as unbalanced parentheses:
-load:
-	rlwrap sbcl `for i in $(driver_lisp) $(asdf_lisp) ; do echo --load $$i ; done`
+load: build/asdf.lisp
+	rlwrap sbcl \
+	`for i in $(driver_lisp) $(defsystem_lisp) ; do echo --load $$i ; done` \
+	--eval '(in-package :asdf)'
 
 install: archive-copy
 
-archive:
-	${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-		--eval "(rewrite-license)" --eval "(quit)"
-	bin/make-tarball
+bump: bump-version
+bump-version: build/asdf.lisp
+	./bin/asdf-builder bump-version
+
+driver-files:
+	@echo $(driver_lisp)
+
+defsystem-files:
+	@echo $(defsystem_lisp)
+
+archive: build/asdf.lisp
+	#${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
+	#	--eval "(rewrite-license)" --eval "(quit)"
+	./bin/asdf-builder make-and-publish-archive
 
 archive-copy: archive build/asdf.lisp
 	git checkout release
@@ -71,9 +79,9 @@ archive-copy: archive build/asdf.lisp
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
 	@wc $(driver_lisp) | sort -n ; echo ; \
-	wc $(asdf_lisp) | sort -n ; \
+	wc $(header_lisp) $(defsystem_lisp) | sort -n ; \
 	echo ; \
-	wc $(driver_lisp) $(asdf_lisp) | tail -n 1
+	wc $(header_lisp) $(driver_lisp) $(defsystem_lisp) | tail -n 1
 
 push:
 	git status

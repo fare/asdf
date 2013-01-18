@@ -6,7 +6,8 @@
   (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
-   #:coerce-name #:find-system #:locate-system #:load-sysdef #:with-system-definitions
+   #:coerce-name #:primary-system-name
+   #:find-system #:locate-system #:load-sysdef #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:system-definition-error #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
@@ -71,6 +72,11 @@ of which is a system object.")
     (string name)
     (t (sysdef-error (compatfmt "~@<Invalid component designator: ~3i~_~A~@:>") name))))
 
+(defun* primary-system-name (name)
+  ;; When a system name has slashes, the file with defsystem is named by
+  ;; the first of the slash-separated components.
+  (first (split-string (coerce-name name) :separator "/")))
+
 (defun* system-registered-p (name)
   (gethash (coerce-name name) *defined-systems*))
 
@@ -85,7 +91,7 @@ of which is a system object.")
     (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
     (unless (eq system (cdr (gethash name *defined-systems*)))
       (setf (gethash name *defined-systems*)
-            (cons (if-bind (file (ignore-errors (system-source-file system)))
+            (cons (if-let (file (ignore-errors (system-source-file system)))
                     (safe-file-write-date file))
                   system)))))
 
@@ -142,21 +148,21 @@ which evaluates to a pathname. For example:
                 #p\"/home/me/cl/systems/\"
                 #p\"/usr/share/common-lisp/systems/\"))
 
-This is for backward compatibilily.
+This is for backward compatibility.
 Going forward, we recommend new users should be using the source-registry.
 ")
 
-(defun* probe-asd (name defaults)
+(defun* probe-asd (name defaults &key truename)
   (block nil
     (when (directory-pathname-p defaults)
-      (let* ((file (probe-file* (subpathname defaults (strcat name ".asd")))))
+      (let* ((file (probe-file* (subpathname defaults name :type "asd") :truename truename)))
         (when file
           (return file)))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
       (when (os-windows-p)
         (let ((shortcut
                (make-pathname
-                :defaults defaults :version :newest :case :local
+                :defaults defaults :case :local
                 :name (strcat name ".asd")
                 :type "lnk")))
           (when (probe-file* shortcut)
@@ -165,16 +171,18 @@ Going forward, we recommend new users should be using the source-registry.
                 (return (pathname target))))))))))
 
 (defun* sysdef-central-registry-search (system)
-  (let ((name (coerce-name system))
+  (let ((name (primary-system-name system))
         (to-remove nil)
         (to-replace nil))
     (block nil
       (unwind-protect
            (dolist (dir *central-registry*)
-             (let ((defaults (eval dir)))
+             (let ((defaults (resolve-symlinks* (eval dir)))
+                   directorized truenamized)
                (when defaults
-                 (cond ((directory-pathname-p defaults)
-                        (let ((file (probe-asd name defaults)))
+                 (cond ((and (directory-pathname-p defaults)
+                             (absolute-pathname-p defaults))
+                        (let* ((file (probe-asd name defaults :truename *resolve-symlinks*)))
                           (when file
                             (return file))))
                        (t
@@ -182,17 +190,29 @@ Going forward, we recommend new users should be using the source-registry.
                             (let* ((*print-circle* nil)
                                    (message
                                     (format nil
-                                            (compatfmt "~@<While searching for system ~S: ~3i~_~S evaluated to ~S which is not a directory.~@:>")
+                                            (compatfmt "~@<While searching for system ~S: ~3i~_~S evaluated to ~S which is not an absolute directory.~@:>")
                                             system dir defaults)))
                               (error message))
                           (remove-entry-from-registry ()
                             :report "Remove entry from *central-registry* and continue"
                             (push dir to-remove))
+                          (coerce-to-truename ()
+                            :test (lambda (c) (declare (ignore c))
+                                    (setf truenamized (truename* defaults)))
+                            :report (lambda (s)
+                                      (format s (compatfmt "~@<Coerce entry to truename ~S and continue.~@:>")
+                                              truenamized))
+                            (push dir to-remove))
                           (coerce-entry-to-directory ()
+                            :test (lambda (c) (declare (ignore c))
+                                    (and (not (directory-pathname-p defaults))
+                                         (directory-pathname-p
+                                          (setf directorized
+                                                (ensure-directory-pathname defaults)))))
                             :report (lambda (s)
                                       (format s (compatfmt "~@<Coerce entry to ~a, replace ~a and continue.~@:>")
-                                              (ensure-directory-pathname defaults) dir))
-                            (push (cons dir (ensure-directory-pathname defaults)) to-replace))))))))
+                                              directorized dir))
+                            (push (cons dir directorized) to-replace))))))))
         ;; cleanup
         (dolist (dir to-remove)
           (setf *central-registry* (remove dir *central-registry*)))
@@ -273,19 +293,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
          (pathname (or (and (typep found '(or pathname string)) (pathname found))
                        (and found-system (system-source-file found-system))
                        (and previous (system-source-file previous))))
+         (pathname (ensure-pathname (resolve-symlinks* pathname) :want-absolute t))
          (foundp (and (or found-system pathname previous) t)))
     (check-type found (or null pathname system))
-    (when foundp
-      (setf pathname (resolve-symlinks* pathname))
-      (when (and pathname (not (absolute-pathname-p pathname)))
-        (setf pathname (ensure-pathname-absolute pathname))
-        (when found-system
-          (%set-system-source-file pathname found-system)))
-      (when (and previous (not (#-cormanlisp equal #+cormanlisp equalp
-                                             (system-source-file previous) pathname)))
-        (%set-system-source-file pathname previous)
-        (setf previous-time nil))
-      (values foundp found-system pathname previous previous-time))))
+    (values foundp found-system pathname previous previous-time)))
 
 (defmethod find-system ((name string) &optional (error-p t))
   (with-system-definitions ()
@@ -293,12 +304,14 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (restart-case
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)
-            (declare (ignore foundp))
+            (assert (eq foundp (and (or found-system pathname previous) t)))
             (when (and found-system (not previous))
               (register-system found-system))
-            (unless (and (equal pathname (and previous (system-source-file previous)))
-                         (stamp<= (safe-file-write-date pathname) previous-time))
-              ;; only load when it's a different pathname, or newer file content
+            (when (and pathname
+                       (not (and previous
+                                 (pathname-equal pathname (system-source-file previous))
+                                 (stamp<= (safe-file-write-date pathname) previous-time))))
+              ;; only load when it's a pathname that is different or has newer content
               (load-sysdef name pathname))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
               (return

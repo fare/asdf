@@ -2,19 +2,17 @@
 (load "script-support.lisp")
 (load-asdf)
 
-(setf *central-registry* '(*default-pathname-defaults*))
-
 (with-test ()
  (def-test-system :versioned-system-1
-   :pathname #.*default-pathname-defaults*
+   :pathname #.*test-directory*
    :version "1.0")
 
  (def-test-system :versioned-system-2
-   :pathname #.*default-pathname-defaults*
+   :pathname #.*test-directory*
    :version "1.1")
 
  (def-test-system :versioned-system-3
-   :pathname #.*default-pathname-defaults*
+   :pathname #.*test-directory*
    :version "1.2")
 
  (flet ((test (name v &optional (true t))

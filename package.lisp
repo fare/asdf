@@ -113,6 +113,24 @@ or when loading the package is optional."
              (make-symbol* symbol-name)))))))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  (defvar *all-package-happiness* '())
+  (defvar *all-package-fishiness* (list t))
+  (defvar *package-fishiness* '())
+  (defun flush-fishy ()
+    (when *package-fishiness*
+      (if (null (rest *package-fishiness*))
+          (push (first *package-fishiness*) *all-package-happiness*)
+          (push (nreverse *package-fishiness*) *all-package-fishiness*))
+      (setf *package-fishiness* nil)))
+  (defun record-fishy (info)
+    ;;(format t "~&FISHY: ~S~%" info)
+    (push info *package-fishiness*))
+  (defmacro when-package-fishiness (&body body)
+    `(when *all-package-fishiness* ,@body))
+  (defmacro note-package-fishiness (&rest info)
+    `(when-package-fishiness (record-fishy (list ,@info)))))
+
+(eval-when (:load-toplevel :compile-toplevel :execute)
   #+(or clisp clozure)
   (defun get-setf-function-symbol (symbol)
     #+clisp (let ((sym (get symbol 'system::setf-function)))
@@ -133,7 +151,9 @@ or when loading the package is optional."
       ((eq kind :setf-function)
        (setf (get symbol 'system::setf-function) new-setf-symbol))
       ((eq kind :setf-expander)
-       (setf (get symbol 'system::setf-expander) new-setf-symbol)))
+       (setf (get symbol 'system::setf-expander) new-setf-symbol))
+      (t (error "invalid kind of setf-function ~S for ~S to be set to ~S"
+                kind symbol new-setf-symbol)))
     #+clozure
     (progn
       (gethash symbol ccl::%setf-function-names%) new-setf-symbol
@@ -181,6 +201,10 @@ or when loading the package is optional."
           (let ((overwritten-symbol-shadowing-p
                   (and overwritten-symbol-status
                        (symbol-shadowing-p overwritten-symbol package))))
+            (note-package-fishiness
+             :rehome-symbol name (package-name old-package)
+             (package-name package) old-status (and shadowing t)
+             overwritten-symbol-status overwritten-symbol-shadowing-p)
             (when old-package
               (if shadowing
                   (shadowing-import shadowing old-package))
@@ -201,8 +225,15 @@ or when loading the package is optional."
               (when kind
                 (let* ((setf-function (fdefinition setf-symbol))
                        (new-setf-symbol (create-setf-function-symbol symbol)))
+                  (note-package-fishiness
+                   :setf-function
+                   name (package-name package)
+                   (symbol-name setf-symbol) (symbol-package-name setf-symbol)
+                   (symbol-name new-setf-symbol) (symbol-package-name new-setf-symbol))
+                  (when (symbol-package setf-symbol)
+                    (unintern setf-symbol (symbol-package setf-symbol)))
                   (setf (fdefinition new-setf-symbol) setf-function)
-                  (set-setf-function-symbol symbol new-setf-symbol kind))))
+                  (set-setf-function-symbol new-setf-symbol symbol kind))))
             #+(or clisp clozure)
             (multiple-value-bind (overwritten-setf foundp)
                 (get-setf-function-symbol overwritten-symbol)
@@ -299,34 +330,21 @@ or when loading the package is optional."
 ;;; ensure-package, define-package
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defvar *all-package-happiness* '())
-  (defvar *all-package-fishiness* (list t))
-  (defvar *package-fishiness* '())
-  (defun flush-fishy ()
-    (when *package-fishiness*
-      (if (null (rest *package-fishiness*))
-          (push (first *package-fishiness*) *all-package-happiness*)
-          (push (nreverse *package-fishiness*) *all-package-fishiness*))
-      (setf *package-fishiness* nil)))
-  (defun record-fishy (info)
-    (push info *package-fishiness*))
   (defun ensure-package (name &key
                                 nicknames documentation use
                                 shadow shadowing-import-from
                                 import-from export intern
                                 recycle mix reexport
                                 unintern)
-    (macrolet ((when-fishy (&body body)
-                 `(when *all-package-fishiness* ,@body))
-               (fishy (&rest info)
-                 `(when-fishy (record-fishy (list ,@info)))))
-      (let* ((name (string name))
+    (macrolet ((when-fishy (&body body) `(when-package-fishiness ,@body))
+               (fishy (&rest info) `(note-package-fishiness ,@info)))
+      (let* ((package-name (string name))
              (nicknames (mapcar #'string nicknames))
-             (names (cons name nicknames))
+             (names (cons package-name nicknames))
              (previous (packages-from-names names))
              (discarded (cdr previous))
              (to-delete ())
-             (package (or (first previous) (make-package name :nicknames nicknames)))
+             (package (or (first previous) (make-package package-name :nicknames nicknames)))
              (recycle (packages-from-names recycle))
              (use (mapcar 'find-package* use))
              (mix (mapcar 'find-package* mix))
@@ -340,45 +358,45 @@ or when loading the package is optional."
              (exported (make-hash-table :test 'equal)) ; string to bool
              ;; string to list home package and use package:
              (inherited (make-hash-table :test 'equal)))
-        (when-fishy (record-fishy name))
+        (when-fishy (record-fishy package-name))
         (labels
             ((ensure-shadowing-import (name p)
-               (let ((import (find-symbol* name p)))
+               (let ((import-me (find-symbol* name p)))
                  (multiple-value-bind (existing status) (find-symbol name package)
                    (cond
                      ((gethash name shadowed)
-                      (unless (eq import existing)
+                      (unless (eq import-me existing)
                         (error "Conflicting shadowings for ~A" name)))
                      (t
                       (setf (gethash name shadowed) t)
                       (setf (gethash name imported) t)
                       (unless (or (null status)
                                   (and (member status '(:internal :external))
-                                       (eq existing import)
+                                       (eq existing import-me)
                                        (symbol-shadowing-p existing package)))
                         (fishy :shadowing-import
-                               name (package-name p) (symbol-package-name import)
+                               name (package-name p) (symbol-package-name import-me)
                                (and status (symbol-package-name existing)) status))
-                      (shadowing-import import package))))))
+                      (shadowing-import import-me package))))))
              (ensure-import (sym p)
                (let* ((name (string sym))
-                      (import (find-symbol* name p)))
+                      (import-me (find-symbol* name p)))
                  (multiple-value-bind (existing status) (find-symbol name package)
                    (cond
                      ((gethash name imported)
-                      (unless (eq import existing)
+                      (unless (eq import-me existing)
                         (error "Can't import ~S from both ~S and ~S"
                                name (package-name (symbol-package existing)) (package-name p))))
                      ((gethash name shadowed)
                       (error "Can't both shadow ~S and import it from ~S" name (package-name p)))
                      (t
                       (setf (gethash name imported) t)
-                      (unless (and status (eq import existing))
+                      (unless (and status (eq import-me existing))
                         (when status
-                          (unintern* existing package)
-                          (fishy :import name (package-name p) (symbol-package-name import)
-                                 (and status (symbol-package-name existing)) status))
-                        (import import package)))))))
+                          (fishy :import name (package-name p) (symbol-package-name import-me)
+                                 (and status (symbol-package-name existing)) status)
+                          (unintern* existing package))
+                        (import import-me package)))))))
              (ensure-mix (name symbol p)
                (unless (gethash name shadowed)
                  (multiple-value-bind (existing status) (find-symbol name package)
@@ -424,16 +442,17 @@ or when loading the package is optional."
                           (if shadowing (ensure-shadowing-import name p)
                               (unintern* existing package)))))))))
              (recycle-symbol (name)
-               (let (recycled foundp)
-                 (dolist (r recycle (values recycled foundp))
-                   (multiple-value-bind (symbol status) (find-symbol name r)
-                     (when (and status (home-package-p symbol r))
-                       (cond
-                         (foundp
-                          ;; (nuke-symbol symbol)) -- even simple variable names like O or C will do that.
-                          (fishy :recycled-duplicate name (package-name foundp) (package-name r)))
-                         (t
-                          (setf recycled symbol foundp r))))))))
+               (when (gethash name exported) ;; don't bother recycling private symbols
+                 (let (recycled foundp)
+                   (dolist (r recycle (values recycled foundp))
+                     (multiple-value-bind (symbol status) (find-symbol name r)
+                       (when (and status (home-package-p symbol r))
+                         (cond
+                           (foundp
+                            ;; (nuke-symbol symbol)) -- even simple variable names like O or C will do that.
+                            (fishy :recycled-duplicate name (package-name foundp) (package-name r)))
+                           (t
+                            (setf recycled symbol foundp r)))))))))
              (symbol-recycled-p (sym)
                (member (symbol-package sym) recycle))
              (ensure-symbol (name &optional intern)
@@ -450,10 +469,10 @@ or when loading the package is optional."
                        ((and status (eq package (symbol-package existing))))
                        (t
                         (when status
-                          (unintern existing)
                           (fishy :ensure-symbol name
                                  (reify-package (symbol-package existing) package)
-                                 status intern))
+                                 status intern)
+                          (unintern existing))
                         (when intern
                           (intern* name package))))))))
              (ensure-export (name p)
@@ -468,22 +487,22 @@ or when loading the package is optional."
                (multiple-value-bind (usym ustat) (find-symbol name u)
                  (unless (and ustat (eq sym usym))
                    (let ((accessible
-                           (when ustat
-                             (let ((shadowing (symbol-shadowing-p usym u))
-                                   (recycled (symbol-recycled-p usym)))
-                               (unless (and shadowing (not recycled))
-                                 (if (or (eq ustat :inherited) shadowing)
-                                     (shadowing-import sym u)
-                                     (unintern usym u))
-                                 (fishy :ensure-export name (symbol-package-name sym)
-                                        (package-name u)
-                                        (and ustat (symbol-package-name usym)) ustat shadowing)
-                                 t)))))
+                           (or (null ustat)
+                               (let ((shadowing (symbol-shadowing-p usym u))
+                                     (recycled (symbol-recycled-p usym)))
+                                 (unless (and shadowing (not recycled))
+                                   (fishy :ensure-export name (symbol-package-name sym)
+                                          (package-name u)
+                                          (and ustat (symbol-package-name usym)) ustat shadowing)
+                                   (if (or (eq ustat :inherited) shadowing)
+                                       (shadowing-import sym u)
+                                       (unintern usym u))
+                                   t)))))
                      (when (and accessible (eq ustat :external))
                        (ensure-exported name sym u)))))))
           #-gcl (setf (documentation package t) documentation) #+gcl documentation
           (loop :for p :in (set-difference (package-use-list package) (append mix use))
-                :do (unuse-package p package) (fishy :use (package-names p)))
+                :do (fishy :use (package-names p)) (unuse-package p package))
           (loop :for p :in discarded
                 :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
                                     (package-names p))
@@ -491,13 +510,13 @@ or when loading the package is optional."
                     (cond (n (rename-package p (first n) (rest n)))
                           (t (rename-package-away p)
                              (push p to-delete))))
-          (rename-package package name nicknames)
+          (rename-package package package-name nicknames)
           (dolist (name unintern)
             (multiple-value-bind (existing status) (find-symbol name package)
               (when status
                 (unless (eq status :inherited)
-                  (unintern* name package nil))
-                (fishy :unintern name (symbol-package-name existing) status))))
+                  (fishy :unintern name (symbol-package-name existing) status)
+                  (unintern* name package nil)))))
           (dolist (name export)
             (setf (gethash name exported) t))
           (dolist (p reexport)
@@ -516,8 +535,6 @@ or when loading the package is optional."
                   (cond
                     ((eq previous package))
                     (previous
-                     (fishy :shadow-recycled name (package-name previous)
-                            (and status (symbol-package-name existing)) status shadowing)
                      (rehome-symbol recycled package))
                     ((or (member status '(nil :inherited))
                          (home-package-p existing package)))
@@ -588,7 +605,9 @@ or when loading the package is optional."
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form)
        #+(or ecl gcl) (defpackage ,package (:use))
-       #+clisp ,(package-definition-form package :error nil)
+       #+clisp ,(package-definition-form
+                 package :nicknamesp nil :usep nil :internp nil :exportp nil
+                 :error nil)
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form))))
 

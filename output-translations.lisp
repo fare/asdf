@@ -138,7 +138,8 @@ and the order is by decreasing length of namestring of the source pathname.")
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
     #+(or #|clozure|# ecl mkcl sbcl)
-    ,@(let ((h (lisp-implementation-directory :truename t))) (when h `(((,h ,*wild-path*) ()))))
+    ,@(let ((h (resolve-symlinks* (lisp-implementation-directory))))
+        (when h `(((,h ,*wild-path*) ()))))
     #+mkcl (,(translate-logical-pathname "CONTRIB:") ())
     ;; All-import, here is where we want user stuff to be:
     :inherit-configuration
@@ -186,8 +187,8 @@ and the order is by decreasing length of namestring of the source pathname.")
               (process-output-translations (pathname dst) :inherit nil :collect collect))
             (when src
               (let ((trusrc (or (eql src t)
-                                (let ((loc (resolve-location src :want-directory t :wilden t)))
-                                  (if (absolute-pathname-p loc) (truenamize loc) loc)))))
+                                (let ((loc (resolve-location src :ensure-directory t :wilden t)))
+                                  (if (absolute-pathname-p loc) (resolve-symlinks* loc) loc)))))
                 (cond
                   ((location-function-p dst)
                    (funcall collect
@@ -199,7 +200,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                    (funcall collect (list trusrc t)))
                   (t
                    (let* ((trudst (if dst
-                                      (resolve-location dst :want-directory t :wilden t)
+                                      (resolve-location dst :ensure-directory t :wilden t)
                                       trusrc)))
                      (funcall collect (list trudst t))
                      (funcall collect (list trusrc trudst)))))))))))
@@ -213,7 +214,7 @@ and the order is by decreasing length of namestring of the source pathname.")
     ((directory-pathname-p pathname)
      (process-output-translations (validate-output-translations-directory pathname)
                                   :inherit inherit :collect collect))
-    ((probe-file* pathname)
+    ((probe-file* pathname :truename *resolve-symlinks*)
      (process-output-translations (validate-output-translations-file pathname)
                                   :inherit inherit :collect collect))
     (t
@@ -260,13 +261,13 @@ effectively disabling the output translation facility."
       (initialize-output-translations)))
 
 (defun* apply-output-translations (path)
-  #+cormanlisp (truenamize path) #-cormanlisp
+  #+cormanlisp (resolve-symlinks* path) #-cormanlisp
   (etypecase path
     (logical-pathname
      path)
     ((or pathname string)
      (ensure-output-translations)
-     (loop :with p = (truenamize path)
+     (loop :with p = (resolve-symlinks* path)
        :for (source destination) :in (car *output-translations*)
        :for root = (when (or (eq source t)
                              (and (pathnamep source)

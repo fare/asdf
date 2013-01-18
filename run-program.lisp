@@ -167,7 +167,7 @@ by /bin/sh in POSIX"
 
 (defmethod slurp-input-stream ((x (eql :forms)) stream &key &allow-other-keys)
   (declare (ignorable x))
-  (slurp-stream-forms stream))
+  (slurp-stream-form stream :path nil))
 
 (defmethod slurp-input-stream (x stream &key (element-type 'character) &allow-other-keys)
   (declare (ignorable stream element-type))

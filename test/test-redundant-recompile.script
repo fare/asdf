@@ -3,7 +3,6 @@
 (load-asdf)
 
 (with-test ()
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:operate 'asdf:load-op 'test-redundant-recompile)
  ;; test that it compiled
  (let* ((file1 (asdf:compile-file-pathname* "file1"))

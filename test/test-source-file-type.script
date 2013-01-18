@@ -5,7 +5,6 @@
 ;;(trace asdf::source-file-type asdf::source-file-explicit-type)
 
 (with-test ()
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (asdf:load-system 'test-source-file-type-1 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
  (assert

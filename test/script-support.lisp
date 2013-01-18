@@ -158,9 +158,10 @@ Some constraints:
 (defun touch-file (file &key (offset 0) timestamp)
   (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
     (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl<2.7 -5)
-      (acall :run-shell-command
-             "touch -t ~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D ~S"
-             year month day hr min sec (namestring file))
+      (acall :run-program/
+             `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
+                                     year month day hr min sec)
+                       ,(namestring file)))
       (assert-equal (file-write-date file) timestamp))))
 
 (defun hash-table->alist (table)
@@ -351,10 +352,10 @@ is bound, write a message and exit on an error.  If
   (with-test ()
     (when old-method
       (cond
-        ((equal tag "REQUIRE")
+        ((string-equal tag "REQUIRE")
          (format t "Requiring some previous asdf ~A~%" tag)
          (ignore-errors (funcall 'require "asdf"))
-         (unless (member "ASDF" *modules* :test 'equal)
+         (unless (member "ASDF" *modules* :test 'equalp)
            (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)

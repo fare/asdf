@@ -2,7 +2,6 @@
 (load "script-support.lisp")
 (load-asdf)
 (with-test ()
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  (DBG "test2: loading test2b1")
  (asdf:load-system 'test2b1)
  (DBG "test2: file3 and file4 were compiled")

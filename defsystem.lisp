@@ -22,18 +22,26 @@
   ;; the pathname of a system as follows:
   ;; 1. if the pathname argument is an pathname object (NOT a namestring),
   ;;    that is already an absolute pathname, return it.
-  ;; 2. otherwise, the directory containing the CURRENT-LISP-FILE-PATHNAME
+  ;; 2. otherwise, the directory containing the LOAD-PATHNAME
   ;;    is considered (as deduced from e.g. *LOAD-PATHNAME*), and
   ;;    if it is indeed available and an absolute pathname, then
   ;;    the PATHNAME argument is normalized to a relative pathname
-  ;;    as per PARSE-UNIX-NAMESTRING (with WANT-DIRECTORY T)
+  ;;    as per PARSE-UNIX-NAMESTRING (with ENSURE-DIRECTORY T)
   ;;    and merged into that DIRECTORY as per SUBPATHNAME.
+  ;;    Note: avoid *COMPILE-FILE-PATHNAME* because .asd is loaded,
+  ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (or (and (pathnamep pathname) (absolute-pathname-p pathname))
-      (let* ((lisp-file-pathname (resolve-symlinks* (current-lisp-file-pathname))))
-        (when (absolute-pathname-p lisp-file-pathname)
-          (subpathname lisp-file-pathname pathname :type :directory)))))
+  (or (and (absolute-pathname-p pathname) (resolve-symlinks* pathname))
+      (let* ((load-pathname (load-pathname))
+             (load-absolute
+               (or (absolute-pathname-p load-pathname)
+                   (let ((defaults (resolve-symlinks* *default-pathname-defaults*)))
+                     (and (absolute-pathname-p defaults)
+                          (merge-pathnames* load-pathname defaults))))))
+        (when (absolute-pathname-p load-absolute)
+          (resolve-symlinks*
+           (subpathname load-absolute pathname :type :directory))))))
 
 
 ;;; Component class
@@ -71,7 +79,7 @@
                 type name value))
 
 (defun* check-component-input (type name weakly-depends-on
-                              depends-on components in-order-to)
+                                    depends-on components)
   "A partial test of the values of a component."
   (unless (listp depends-on)
     (sysdef-error-component ":depends-on must be a list."
@@ -81,80 +89,81 @@
                             type name weakly-depends-on))
   (unless (listp components)
     (sysdef-error-component ":components must be NIL or a list of components."
-                            type name components))
-  (unless (and (listp in-order-to) (listp (car in-order-to)))
-    (sysdef-error-component ":in-order-to must be NIL or a list of components."
-                            type name in-order-to)))
+                            type name components)))
 
 (defun* normalize-version (form pathname)
-  (cond
-    ((typep form '(or string null)) form)
-    ((length=n-p form 2)
+  (etypecase form
+    ((or string null) form)
+    (cons
      (ecase (first form)
        ((:read-file-form)
-        (safe-read-first-file-form (subpathname pathname (second form))))))))
+        (destructuring-bind (subpath &key (path 0)) (rest form)
+          (safe-read-file-form (subpathname pathname subpath) :path path)))))))
+
 
 ;;; Main parsing function
 
 (defun* parse-component-form (parent options &key previous-serial-component)
   (destructuring-bind
-        (type name &rest rest &key
-              ;; the following list of keywords is reproduced below in the
-              ;; remove-keys form.  important to keep them in sync
-              components pathname
-              perform explain output-files operation-done-p
-              weakly-depends-on depends-on serial in-order-to
-              do-first if-component-dep-fails
-              (version nil versionp)
-              ;; list ends
-              &allow-other-keys) options
+      (type name &rest rest &key
+       ;; the following list of keywords is reproduced below in the
+       ;; remove-plist-keys form.  important to keep them in sync
+       components pathname perform explain output-files operation-done-p
+       weakly-depends-on depends-on serial
+       do-first if-component-dep-fails (version nil versionp)
+       ;; list ends
+       &allow-other-keys) options
     (declare (ignorable perform explain output-files operation-done-p))
-    (check-component-input type name weakly-depends-on depends-on components in-order-to)
+    (check-component-input type name weakly-depends-on depends-on components)
     (when (and parent
                (find-component parent name)
                (not ;; ignore the same object when rereading the defsystem
                 (typep (find-component parent name)
                        (class-for-type parent type))))
       (error 'duplicate-names :name name))
-    (when do-first (error "DO-FIRST is not supported anymore since ASDF 2.27"))
+    (when do-first (error "DO-FIRST is not supported anymore as of ASDF 2.27"))
     (let* ((args `(:name ,(coerce-name name)
                    :pathname ,pathname
                    ,@(when parent `(:parent ,parent))
-                   ,@(remove-keys
-                      '(components pathname if-component-dep-fails
-                        perform explain output-files operation-done-p
-                        weakly-depends-on depends-on serial in-order-to)
+                   ,@(remove-plist-keys
+                      '(:components :pathname :if-component-dep-fails :version
+                        :perform :explain :output-files :operation-done-p
+                        :weakly-depends-on :depends-on :serial)
                       rest)))
-           (ret (find-component parent name)))
+           (component (find-component parent name)))
       (when weakly-depends-on
-        (appendf depends-on (remove-if (complement #'(lambda (x) (find-system x nil))) weakly-depends-on)))
+        ;; ASDF3: deprecate this feature and remove it.
+        (appendf depends-on
+                 (remove-if (complement #'(lambda (x) (find-system x nil))) weakly-depends-on)))
       (when previous-serial-component
         (push previous-serial-component depends-on))
-      (if ret ; preserve identity
-          (apply 'reinitialize-instance ret args)
-          (setf ret (apply 'make-instance (class-for-type parent type) args)))
-      (component-pathname ret) ; eagerly compute the absolute pathname
-      (when versionp
-        (unless (parse-version (normalize-version
-                                version (system-source-directory (component-system ret))) nil)
-          (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
-                version name parent)))
-      (when (typep ret 'parent-component)
-        (setf (component-children ret)
+      (if component ; preserve identity
+          (apply 'reinitialize-instance component args)
+          (setf component (apply 'make-instance (class-for-type parent type) args)))
+      (component-pathname component) ; eagerly compute the absolute pathname
+      (let ((sysdir (system-source-directory (component-system component)))) ;; requires the previous
+        (setf version (normalize-version version sysdir)))
+      (when (and versionp (not (parse-version version nil)))
+        (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
+              version name parent))
+      (setf (component-version component) version)
+      (when (typep component 'parent-component)
+        (setf (component-children component)
               (loop
                 :with previous-component = nil
                 :for c-form :in components
-                :for c = (parse-component-form ret c-form
+                :for c = (parse-component-form component c-form
                                                :previous-serial-component previous-component)
                 :for name = (component-name c)
                 :collect c
                 :when serial :do (setf previous-component name)))
-        (compute-children-by-name ret))
-      (setf (component-sibling-dependencies ret) depends-on) ;; Used by POIU. ASDF3: rename to component-depends-on
-      (setf (component-in-order-to ret) in-order-to)
-      (%refresh-component-inline-methods ret rest)
-      (when if-component-dep-fails (%resolve-if-component-dep-fails if-component-dep-fails ret))
-      ret)))
+        (compute-children-by-name component))
+      ;; Used by POIU. ASDF3: rename to component-depends-on
+      (setf (component-sibling-dependencies component) depends-on)
+      (%refresh-component-inline-methods component rest)
+      (when if-component-dep-fails
+        (%resolve-if-component-dep-fails if-component-dep-fails component))
+      component)))
 
 (defun* register-system-definition
     (name &rest options &key pathname (class 'system) (source-file () sfp)
@@ -167,15 +176,15 @@
   ;; we also need to remember it in a special variable *systems-being-defined*.
   (with-system-definitions ()
     (let* ((name (coerce-name name))
-           (source-file (if sfp source-file (current-lisp-file-pathname)))
+           (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
            (registered (system-registered-p name))
            (registered! (if registered
                             (rplaca registered (safe-file-write-date source-file))
-                            (register-system (make-instance 'system :name name :source-file source-file))))
+                            (register-system
+                             (make-instance 'system :name name :source-file source-file))))
            (system (reset-system (cdr registered!)
                                  :name name :source-file source-file))
-           (component-options (remove-keyword :class options)))
-      (setf (gethash name *systems-being-defined*) system)
+           (component-options (remove-plist-key :class options)))
       (apply 'load-systems defsystem-depends-on)
       ;; We change-class AFTER we loaded the defsystem-depends-on
       ;; since the class might be defined as part of those.

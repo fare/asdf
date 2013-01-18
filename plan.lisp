@@ -7,12 +7,9 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
-  (:intern #:planned-p #:index #:forced #:forced-not #:total-action-count
-           #:planned-action-count #:planned-output-action-count #:visited-actions
-           #:visiting-action-set #:visiting-action-list #:actions-r)
   (:export
    #:component-operation-time #:mark-operation-done
-   #:plan-traversal #:sequential-plan
+   #:plan-traversal #:sequential-plan #:*default-plan-class*
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions
    #:node-for #:needed-in-image-p
@@ -22,7 +19,10 @@
    #:visit-dependencies #:compute-action-stamp #:traverse-action
    #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
-   #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p))
+   #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p
+   #:planned-p #:index #:forced #:forced-not #:total-action-count
+   #:planned-action-count #:planned-output-action-count #:visited-actions
+   #:visiting-action-set #:visiting-action-list #:actions-r))
 (in-package :asdf/plan)
 
 ;;;; Planned action status
@@ -105,7 +105,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (:documentation "Is this action valid to include amongst dependencies?"))
 (defmethod action-valid-p (plan operation (c component))
   (declare (ignorable plan operation))
-  (if-bind (it (component-if-feature c)) (featurep it) t))
+  (if-let (it (component-if-feature c)) (featurep it) t))
 (defmethod action-valid-p (plan (o null) c) (declare (ignorable plan o c)) nil)
 (defmethod action-valid-p (plan o (c null)) (declare (ignorable plan o c)) nil)
 
@@ -140,7 +140,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   ;; In a distant future, safe-file-write-date and component-operation-time
   ;; shall also be parametrized by the plan, or by a second model object.
   (let* ((stamp-lookup #'(lambda (o c)
-                           (if-bind (it (plan-action-status plan o c)) (action-stamp it) t)))
+                           (if-let (it (plan-action-status plan o c)) (action-stamp it) t)))
          (out-files (output-files o c))
          (in-files (input-files o c))
          ;; Three kinds of actions:
@@ -316,10 +316,12 @@ processed in order by OPERATE."))
 (defgeneric* perform-plan (plan &key))
 (defgeneric* plan-operates-on-p (plan component))
 
+(defparameter *default-plan-class* 'sequential-plan)
+  
 (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
   (let ((plan (apply 'make-instance
-                     (or plan-class 'sequential-plan)
-                     :system (component-system c) (remove-keyword :plan-class keys))))
+                     (or plan-class *default-plan-class*)
+                     :system (component-system c) (remove-plist-key :plan-class keys))))
     (traverse-action plan o c t)
     (plan-actions plan)))
 

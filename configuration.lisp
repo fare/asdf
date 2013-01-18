@@ -57,7 +57,7 @@
   (cond
     ((os-unix-p) '(#p"/etc/common-lisp/"))
     ((os-windows-p)
-     (if-bind (it (subpathname* (get-folder-path :common-appdata) "common-lisp/config/"))
+     (if-let (it (subpathname* (get-folder-path :common-appdata) "common-lisp/config/"))
        (list it)))))
 
 (defun* in-first-directory (dirs x &key (direction :input))
@@ -151,36 +151,35 @@ values of TAG include :source-registry and :output-translations."
                   :do (report-invalid-form invalid-form-reporter :form form :location file)))
       :inherit-configuration)))
 
-(defun* resolve-relative-location-component (x &key want-directory wilden)
-  (let* ((r (etypecase x
-              (pathname x)
-              (string (parse-unix-namestring
-                       x :want-directory want-directory))
-              (cons
-               (if (null (cdr x))
-                   (resolve-relative-location-component
-                    (car x) :want-directory want-directory :wilden wilden)
-                   (let* ((car (resolve-relative-location-component
-                                (car x) :want-directory t :wilden nil)))
-                     (merge-pathnames*
-                      (resolve-relative-location-component
-                       (cdr x) :want-directory want-directory :wilden wilden)
-                      car))))
-              ((eql :*/) *wild-directory*)
-              ((eql :**/) *wild-inferiors*)
-              ((eql :*.*.*) *wild-file*)
-              ((eql :implementation)
-               (parse-unix-namestring
-                (implementation-identifier) :want-directory t))
-              ((eql :implementation-type)
-               (parse-unix-namestring
-                (string-downcase (implementation-type)) :want-directory t))
-              ((eql :hostname)
-               (parse-unix-namestring (hostname) :want-directory t))))
-         (w (if (and wilden (not (pathnamep x)) (not (member x '(:*/ :**/ :*.*.*))))
-                (wilden r)
-                r)))
-    (ensure-pathname w :want-relative t)))
+(defun* resolve-relative-location-component (x &key ensure-directory wilden)
+  (ensure-pathname
+   (etypecase x
+     (pathname x)
+     (string (parse-unix-namestring
+              x :ensure-directory ensure-directory))
+     (cons
+      (if (null (cdr x))
+          (resolve-relative-location-component
+           (car x) :ensure-directory ensure-directory :wilden wilden)
+          (let* ((car (resolve-relative-location-component
+                       (car x) :ensure-directory t :wilden nil)))
+            (merge-pathnames*
+             (resolve-relative-location-component
+              (cdr x) :ensure-directory ensure-directory :wilden wilden)
+             car))))
+     ((eql :*/) *wild-directory*)
+     ((eql :**/) *wild-inferiors*)
+     ((eql :*.*.*) *wild-file*)
+     ((eql :implementation)
+      (parse-unix-namestring
+       (implementation-identifier) :ensure-directory t))
+     ((eql :implementation-type)
+      (parse-unix-namestring
+       (string-downcase (implementation-type)) :ensure-directory t))
+     ((eql :hostname)
+      (parse-unix-namestring (hostname) :ensure-directory t)))
+  :wilden (and wilden (not (pathnamep x)) (not (member x '(:*/ :**/ :*.*.*))))
+  :want-relative t))
 
 (defvar *here-directory* nil
   "This special variable is bound to the currect directory during calls to
@@ -202,54 +201,54 @@ directive.")
            '(:home ".cache" "common-lisp" :implementation)))))
 (register-image-restore-hook 'compute-user-cache)
 
-(defun* resolve-absolute-location-component (x &key want-directory wilden)
-  (let* ((r (etypecase x
-              (pathname x)
-              (string
-               (let ((p #-mcl (parse-namestring x)
-                        #+mcl (probe-posix x)))
-                 #+mcl (unless p (error "POSIX pathname ~S does not exist" x))
-                 (if want-directory (ensure-directory-pathname p) p)))
-              (cons
-               (return-from resolve-absolute-location-component
-                 (if (null (cdr x))
-                     (resolve-absolute-location-component
-                      (car x) :want-directory want-directory :wilden wilden)
-                     (merge-pathnames*
-                      (resolve-relative-location-component
-                       (cdr x) :want-directory want-directory :wilden wilden)
-                      (resolve-absolute-location-component
-                       (car x) :want-directory t :wilden nil)))))
-              ((eql :root)
-               ;; special magic! we return a relative pathname,
-               ;; but what it means to the output-translations is
-               ;; "relative to the root of the source pathname's host and device".
-               (return-from resolve-absolute-location-component
-                 (let ((p (make-pathname* :directory '(:relative))))
-                   (if wilden (wilden p) p))))
-              ((eql :home) (user-homedir))
-              ((eql :here) (resolve-absolute-location-component
-                            *here-directory* :want-directory t :wilden nil))
-              ((eql :user-cache) (resolve-absolute-location-component
-                                  *user-cache* :want-directory t :wilden nil))))
-         (w (if (and wilden (not (pathnamep x)))
-                (wilden r)
-                r)))
-    (ensure-pathname w :want-absolute t)))
+(defun* resolve-absolute-location-component (x &key ensure-directory wilden)
+  (ensure-pathname
+   (etypecase x
+     (pathname x)
+     (string
+      (let ((p #-mcl (parse-namestring x)
+               #+mcl (probe-posix x)))
+        #+mcl (unless p (error "POSIX pathname ~S does not exist" x))
+        (if ensure-directory (ensure-directory-pathname p) p)))
+     (cons
+      (return-from resolve-absolute-location-component
+        (if (null (cdr x))
+            (resolve-absolute-location-component
+             (car x) :ensure-directory ensure-directory :wilden wilden)
+            (merge-pathnames*
+             (resolve-relative-location-component
+              (cdr x) :ensure-directory ensure-directory :wilden wilden)
+             (resolve-absolute-location-component
+              (car x) :ensure-directory t :wilden nil)))))
+     ((eql :root)
+      ;; special magic! we return a relative pathname,
+      ;; but what it means to the output-translations is
+      ;; "relative to the root of the source pathname's host and device".
+      (return-from resolve-absolute-location-component
+        (let ((p (make-pathname* :directory '(:relative))))
+          (if wilden (wilden p) p))))
+     ((eql :home) (user-homedir))
+     ((eql :here) (resolve-absolute-location-component
+                   *here-directory* :ensure-directory t :wilden nil))
+     ((eql :user-cache) (resolve-absolute-location-component
+                         *user-cache* :ensure-directory t :wilden nil)))
+   :wilden (and wilden (not (pathnamep x)))
+   :want-absolute t))
 
-(defun* resolve-location (x &key want-directory wilden directory)
-  (when directory (setf want-directory t)) ;; :directory backward compatibility, until 2014-01-16.
+(defun* resolve-location (x &key ensure-directory wilden directory)
+  (when directory (setf ensure-directory t)) ;; :directory backward compatibility, until 2014-01-16.
   (if (atom x)
-      (resolve-absolute-location-component x :want-directory want-directory :wilden wilden)
-      (loop :with path = (resolve-absolute-location-component
-                          (car x) :want-directory (and (or want-directory (cdr x)) t)
-                          :wilden (and wilden (null (cdr x))))
-        :for (component . morep) :on (cdr x)
-        :for dir = (and (or morep want-directory) t)
+      (resolve-absolute-location-component x :ensure-directory ensure-directory :wilden wilden)
+      (loop :with (first . rest) = x
+        :with path = (resolve-absolute-location-component
+                          first :ensure-directory (and (or ensure-directory rest) t)
+                          :wilden (and wilden (null rest)))
+        :for (element . morep) :on rest
+        :for dir = (and (or morep ensure-directory) t)
         :for wild = (and wilden (not morep))
         :do (setf path (merge-pathnames*
                         (resolve-relative-location-component
-                         component :want-directory dir :wilden wild)
+                         element :ensure-directory dir :wilden wild)
                         path))
         :finally (return path))))
 

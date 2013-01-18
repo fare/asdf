@@ -5,7 +5,6 @@
 (require :http-library)
 
 (with-test ()
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
  ;; Compare the source files with local versions before loading them.
  #+(and (or abcl scl) trust-the-net)
  (flet ((compare (url local)

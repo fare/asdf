@@ -50,6 +50,9 @@
      ;; and it tries to load ASDF from a logical-pathname.
      '(:source-registry (:tree #p"ASDF:test;")
        :ignore-inherited-configuration))
-    (load-system :test-logical-pathname :force t))
+    (load-system :test-logical-pathname :force t)
+    (let ((sys (find-system :test-logical-pathname)))
+      (assert (logical-pathname-p (component-pathname sys)))
+      (assert (logical-pathname-p (system-source-file sys)))))
 
   (DBG "Done"))

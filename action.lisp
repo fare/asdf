@@ -11,9 +11,6 @@
    #:action
    #:explain #:operation-description
    #:downward-operation #:upward-operation
-   #:file-component
-   #:source-file #:c-source-file #:java-source-file
-   #:static-file #:doc-file #:html-file
    #:operation-error #:error-component #:error-operation
    #:component-depends-on #:component-self-dependencies
    #:input-files #:output-files #:output-file #:operation-done-p
@@ -95,7 +92,7 @@ You can put together sentences using this phrase."))
 ;; For backward-compatibility reasons, a system inherits from module and is a child-component
 ;; so we must guard against this case. ASDF3: remove that.
 (defmethod component-depends-on ((o upward-operation) (c child-component))
-  `(,@(if-bind (p (component-parent c)) `((,o ,p))) ,@(call-next-method)))
+  `(,@(if-let (p (component-parent c)) `((,o ,p))) ,@(call-next-method)))
 
 
 ;;;; Inputs, Outputs, and invisible dependencies
@@ -116,9 +113,9 @@ You can put together sentences using this phrase."))
      ;; 1- Make sure we have absolute pathnames
      (let* ((directory (pathname-directory-pathname (component-pathname component)))
             (absolute-pathnames
-              (loop :for pathname :in pathnames
-                    :collect (ensure-pathname
-                              (subpathname directory pathname) :want-absolute t))))
+              (loop
+                :for pathname :in pathnames
+                :collect (ensure-pathname-absolute pathname directory))))
        ;; 2- Translate those pathnames as required
        (if fixedp
            absolute-pathnames
@@ -137,36 +134,12 @@ You can put together sentences using this phrase."))
   (declare (ignorable o c))
   nil)
 
-
-;;;; File components
-
-(defclass file-component (child-component)
-  ((type :accessor file-type :initarg :type))) ; no default
-(defclass source-file (file-component)
-  ((type :initform nil))) ;; NB: many systems have come to rely on this default.
-(defclass c-source-file (source-file)
-  ((type :initform "c")))
-(defclass java-source-file (source-file)
-  ((type :initform "java")))
-(defclass static-file (source-file)
-  ((type :initform nil)))
-(defclass doc-file (static-file) ())
-(defclass html-file (doc-file)
-  ((type :initform "html")))
-
 (defmethod input-files ((o operation) (c file-component))
   (or (loop :for (dep-o) :in (component-self-dependencies o c)
             :append (or (output-files dep-o c) (input-files dep-o c)))
       ;; no non-trivial previous operations needed?
       ;; I guess we work with the original source file, then
       (list (component-pathname c))))
-
-(defmethod source-file-type ((component parent-component) system) ; not just for source-file. ASDF3: rename.
-  (declare (ignorable component system))
-  :directory)
-(defmethod source-file-type ((component file-component) system)
-  (declare (ignorable system))
-  (file-type component))
 
 
 ;;;; Done performing
@@ -249,4 +222,8 @@ in some previous image, or T if it needs to be done.")
                   (operation-description operation component)))
         (mark-operation-done operation component)
         (return)))))
+
+;;; Generic build operation
+(defmethod component-depends-on ((o build-op) (c component))
+  `((,(or (component-build-operation c) 'load-op) ,c)))
 

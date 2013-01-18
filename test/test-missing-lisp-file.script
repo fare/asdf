@@ -18,12 +18,12 @@
                       (make-pathname  :name "fileMissing"
                                       :type "lisp"
                                       :defaults
-                                      *default-pathname-defaults*)))
+                                      *test-directory*)))
        (template-file (namestring
                       (make-pathname  :name "file1"
                                       :type "lisp"
                                       :defaults
-                                      *default-pathname-defaults*))))
+                                      *test-directory*))))
  (asdf::concatenate-files (list template-file) missing-name)
  (unless (probe-file missing-name)
    (format t "File copy failed.~%"))

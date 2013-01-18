@@ -7,7 +7,9 @@
    :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export
-   #:operate #:oos #:*systems-being-operated* #:*asdf-upgrade-already-attempted*
+   #:operate #:oos
+   #:*systems-being-operated* #:*asdf-upgrade-already-attempted*
+   #:build-system
    #:load-system #:load-systems #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
    #:component-loaded-p #:already-loaded-systems
@@ -55,7 +57,8 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
   (let* ((system (etypecase system
                    (system system)
                    ((or string symbol) (find-system system))))
-         ;; I'd like to remove-keys :force :force-not :verbose, but swank.asd relies on :force (!).
+         ;; I'd like to remove-plist-keys :force :force-not :verbose,
+         ;; but swank.asd relies on :force (!).
          (op (apply 'make-operation operation-class args))
          (systems-being-operated *systems-being-operated*)
          (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))
@@ -93,6 +96,11 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 
 This may change in the future as we will implement component-based strategy
 for how to load or compile stuff")
+
+(defun* build-system (system &rest keys)
+  "Shorthand for `(operate 'asdf:build-op system)`."
+  (apply 'operate 'build-op system keys)
+  t)
 
 (defun* load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
   "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
@@ -147,6 +155,7 @@ for how to load or compile stuff")
 
 (defun* reset-asdf-systems ()
   (let ((asdf (find-system :asdf)))
+    (setf (component-version asdf) (asdf-version))
     ;; Invalidate all systems but ASDF itself.
     (setf *defined-systems* (make-defined-systems-table))
     (register-system asdf)

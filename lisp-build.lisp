@@ -16,11 +16,16 @@
    #:get-optimization-settings #:proclaim-optimization-settings
    #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
    #:call-with-muffled-loader-conditions #:with-muffled-loader-conditions
+   #:reify-simple-sexp #:unreify-simple-sexp
+   #:reify-deferred-warnings #:reify-undefined-warning #:unreify-deferred-warnings
+   #:reset-deferred-warnings #:save-deferred-warnings
+   #:with-saved-deferred-warnings
    #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
-   #:current-lisp-file-pathname #:lispize-pathname #:compile-file-type #:call-around-hook
+   #:current-lisp-file-pathname #:load-pathname
+   #:lispize-pathname #:compile-file-type #:call-around-hook
    #:compile-file* #:compile-file-pathname*
    #:load* #:load-from-string #:combine-fasls)
-  (:intern #:defaults #:failure-p #:warnings-p))
+  (:intern #:defaults #:failure-p #:warnings-p #:s #:y #:body))
 (in-package :asdf/lisp-build)
 
 (defvar *compile-file-warnings-behaviour*
@@ -108,61 +113,133 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   "Run BODY where uninteresting compiler and additional loader conditions are muffled"
   `(call-with-muffled-loader-conditions #'(lambda () ,@body)))
 
-(defun* save-forward-references (forward-references)
-  ;; TODO: replace with stuff in POIU
+
+;;;; Deferred-warnings treatment, originally implemented by Douglas Katzman.
+
+(defun reify-simple-sexp (sexp)
+  (etypecase sexp
+    (symbol (reify-symbol sexp))
+    ((or number character simple-string pathname) sexp)
+    (cons (cons (reify-simple-sexp (car sexp)) (reify-simple-sexp (cdr sexp))))))
+(defun unreify-simple-sexp (sexp)
+  (etypecase sexp
+    ((or symbol number character simple-string pathname) sexp)
+    (cons (cons (unreify-simple-sexp (car sexp)) (unreify-simple-sexp (cdr sexp))))
+    ((simple-vector 2) (unreify-symbol sexp))))
+
+(defun reify-undefined-warning (warning)
+  ;; Extracting undefined-warnings from the compilation-unit
+  ;; To be passed through the above reify/unreify link, it must be a "simple-sexp"
+  #-sbcl (declare (ignore warning))
+  #+sbcl
+  (list*
+   (sb-c::undefined-warning-kind warning)
+   (sb-c::undefined-warning-name warning)
+   (sb-c::undefined-warning-count warning)
+   (mapcar
+    #'(lambda (frob)
+        ;; the lexenv slot can be ignored for reporting purposes
+        `(:enclosing-source ,(sb-c::compiler-error-context-enclosing-source frob)
+          :source ,(sb-c::compiler-error-context-source frob)
+          :original-source ,(sb-c::compiler-error-context-original-source frob)
+          :context ,(sb-c::compiler-error-context-context frob)
+          :file-name ,(sb-c::compiler-error-context-file-name frob) ; a pathname
+          :file-position ,(sb-c::compiler-error-context-file-position frob) ; an integer
+          :original-source-path ,(sb-c::compiler-error-context-original-source-path frob)))
+    (sb-c::undefined-warning-warnings warning))))
+
+(defun reify-deferred-warnings ()
+  #-sbcl nil
+  #+sbcl
+  (when sb-c::*in-compilation-unit*
+    ;; Try to send nothing through the pipe if nothing needs to be accumulated
+    `(,@(when sb-c::*undefined-warnings*
+          `((sb-c::*undefined-warnings*
+             ,@(mapcar #'reify-undefined-warning sb-c::*undefined-warnings*))))
+      ,@(loop :for what :in '(sb-c::*aborted-compilation-unit-count*
+                              sb-c::*compiler-error-count*
+                              sb-c::*compiler-warning-count*
+                              sb-c::*compiler-style-warning-count*
+                              sb-c::*compiler-note-count*)
+              :for value = (symbol-value what)
+              :when (plusp value)
+                :collect `(,what . ,value)))))
+
+(defun unreify-deferred-warnings (constructor-list)
+  #-sbcl (declare (ignore constructor-list))
+  #+sbcl
+  (dolist (item constructor-list)
+    ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
+    ;; For *undefined-warnings*, the adjustment is a list of initargs.
+    ;; For everything else, it's an integer.
+    (destructuring-bind (symbol . adjustment) item
+      (case symbol
+        ((sb-c::*undefined-warnings*)
+         (setf sb-c::*undefined-warnings*
+               (nconc (mapcan
+                       #'(lambda (stuff)
+                           (destructuring-bind (kind name count . rest) stuff
+                             (if (and (eq kind :function) (fboundp name))
+                                 nil
+                                 (list
+                                  (sb-c::make-undefined-warning
+                                   :name name
+                                   :kind kind
+                                   :count count
+                                   :warnings
+                                   (mapcar #'(lambda (x)
+                                               (apply #'sb-c::make-compiler-error-context x))
+                                           rest))))))
+                       adjustment)
+                      sb-c::*undefined-warnings*)))
+        (otherwise
+         (set symbol (+ (symbol-value symbol) adjustment)))))))
+
+(defun reset-deferred-warnings ()
+  #+sbcl
+  (when sb-c::*in-compilation-unit*
+    (setf sb-c::*undefined-warnings* nil
+          sb-c::*aborted-compilation-unit-count* 0
+          sb-c::*compiler-error-count* 0
+          sb-c::*compiler-warning-count* 0
+          sb-c::*compiler-style-warning-count* 0
+          sb-c::*compiler-note-count* 0)))
+
+(defun* save-deferred-warnings (warnings-file)
   "Save forward reference conditions so they may be issued at a latter time,
 possibly in a different process."
-  #+sbcl
-  (loop :for w :in sb-c::*undefined-warnings*
-    :for kind = (sb-c::undefined-warning-kind w) ; :function :variable :type
-    :for name = (sb-c::undefined-warning-name w)
-    :for symbol = (cond
-                    ((consp name)
-                     (unless (eq kind :function)
-                       (error "unrecognized warning ~S not a function?" w))
-                     (ecase (car name)
-                       ((setf)
-                        (assert (and (consp (cdr name)) (null (cddr name))) ())
-				  (setf kind :setf-function)
-                        (second name))
-                       ((sb-pcl::slot-accessor)
-                        (assert (eq :global (second name)))
-                        (assert (eq 'boundp (fourth name)))
-                        (assert (null (nthcdr 4 name)))
-                        (setf kind :sb-pcl-global-boundp-slot-accessor)
-                        (third name))))
-                    (t
-                     (assert (member kind '(:function :variable :type)) ())
-                     name))
-    :for symbol-name = (symbol-name symbol)
-    :for package-name = (package-name (symbol-package symbol))
-    :collect `(:undefined ,symbol-name ,package-name ,kind) :into undefined-warnings
-    :finally (setf *deferred-warnings* undefined-warnings
-                   sb-c::*undefined-warnings* nil))
-  (when forward-references
-    (with-open-file (s forward-references :direction :output :if-exists :supersede)
-      (write *deferred-warnings* :stream s :pretty t :readably t)
-      (terpri s))))
+  (with-open-file (s warnings-file :direction :output :if-exists :supersede)
+    (if-let ((deferred-warnings (reify-deferred-warnings)))
+      (with-safe-io-syntax ()
+        (write deferred-warnings :stream s :pretty t :readably t)
+        (terpri s))))
+  (reset-deferred-warnings))
 
-(defun* call-with-asdf-compilation-unit (thunk &key forward-references)
-  (with-compilation-unit (:override t)
-    (let ((*deferred-warnings* ())
-          #+sbcl (sb-c::*undefined-warnings* nil))
-      (multiple-value-prog1
-          (with-muffled-compiler-conditions ()
-            (funcall thunk))
-        (save-forward-references forward-references)))))
+(defun* call-with-saved-deferred-warnings (thunk warnings-file)
+  (if warnings-file
+      (with-compilation-unit (:override t)
+        (let ((*deferred-warnings* ())
+              #+sbcl (sb-c::*undefined-warnings* nil))
+          (multiple-value-prog1
+              (with-muffled-compiler-conditions ()
+                (funcall thunk))
+            (save-deferred-warnings warnings-file))))
+      (funcall thunk)))
 
-(defmacro with-asdf-compilation-unit ((&key forward-references) &body body)
-  "Like WITH-COMPILATION-UNIT, but saving forward-reference issues
-for processing later (possibly in a different process)."
-  `(call-with-xcvb-compilation-unit #'(lambda () ,@body) :forward-references ,forward-references))
+(defmacro with-saved-deferred-warnings ((warnings-file) &body body)
+  "If WARNINGS-FILE is not nil, records the deferred-warnings around the BODY
+and saves those warnings to the given file for latter use,
+possibly in a different process. Otherwise just run the BODY."
+  `(call-with-saved-deferred-warnings #'(lambda () ,@body) ,warnings-file))
 
 
 ;;; from ASDF
 
 (defun* current-lisp-file-pathname ()
   (or *compile-file-pathname* *load-pathname*))
+
+(defun* load-pathname ()
+  *load-pathname*)
 
 (defun* lispize-pathname (input-file)
   (make-pathname :type "lisp" :defaults input-file))
@@ -171,13 +248,14 @@ for processing later (possibly in a different process)."
   "pathname TYPE for lisp FASt Loading files"
   (declare (ignorable keys))
   #-(or ecl mkcl) (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
-  #+(or ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo.lisp" keys)))
+  #+(or ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo" keys)))
 
 (defun* call-around-hook (hook function)
   (call-function (or hook 'funcall) function))
 
 (defun* compile-file* (input-file &rest keys
-                                  &key compile-check output-file #+(or ecl mkcl) object-file
+                                  &key compile-check output-file warnings-file
+                                  #+(or ecl mkcl) object-file
                                   &allow-other-keys)
   "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
@@ -193,11 +271,12 @@ with appropriate implementation-dependent defaults,
 and if a failure (respectively warnings) are reported by COMPILE-FILE
 with consider it an error unless the respective behaviour flag
 is one of :SUCCESS :WARN :IGNORE.
+If WARNINGS-FILE is defined, deferred warnings are saved to that file.
 On ECL or MKCL, it creates both the linkable object and loadable fasl files.
 On implementations that erroneously do not recognize standard keyword arguments,
 it will filter them appropriately."
-  (let* ((keywords (remove-keys
-                    `(:compile-check
+  (let* ((keywords (remove-plist-keys
+                    `(:compile-check :warnings-file
                       #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
          (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
          #+ecl
@@ -211,12 +290,14 @@ it will filter them appropriately."
                (compile-file-pathname output-file :fasl-p nil)))
          (tmp-file (tmpize-pathname output-file)))
     (multiple-value-bind (output-truename warnings-p failure-p)
-        (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
-            #+ecl (apply 'compile-file input-file :output-file
-                         (if object-file
-                             (list* object-file :system-p t keywords)
-                             (list* output-file keywords)))
-            #+mkcl (apply 'compile-file input-file :output-file object-file :fasl-p nil keywords))
+        (with-saved-deferred-warnings (warnings-file)
+          (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
+              #+ecl (apply 'compile-file input-file :output-file
+                           (if object-file
+                               (list* object-file :system-p t keywords)
+                               (list* output-file keywords)))
+              #+mkcl (apply 'compile-file input-file
+                            :output-file object-file :fasl-p nil keywords)))
       (cond
         ((and output-truename
               (flet ((check-flag (flag behaviour)
@@ -243,7 +324,7 @@ it will filter them appropriately."
 
 (defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
   (let* ((keys
-           (remove-keys `(#+(and allegro (not (version>= 8 2))) :external-format
+           (remove-plist-keys `(#+(and allegro (not (version>= 8 2))) :external-format
                             ,@(unless output-file '(:output-file))) keys)))
     (if (absolute-pathname-p output-file)
         ;; what cfp should be doing, w/ mp* instead of mp
@@ -258,7 +339,7 @@ it will filter them appropriately."
   (etypecase x
     ((or pathname string #-(or gcl<2.7 clozure allegro) stream)
      (apply 'load x
-            #-gcl<2.7 keys #+gcl<2.7 (remove-keyword :external-format keys)))
+            #-gcl<2.7 keys #+gcl<2.7 (remove-plist-key :external-format keys)))
     #-(or gcl<2.7 clozure allegro)
     ;; GCL 2.6 can't load from a string-input-stream
     ;; ClozureCL 1.6 can only load from file input stream
@@ -301,3 +382,4 @@ it will filter them appropriately."
            (scm:concatenate-system output :fasls-to-concatenate))
       (loop :for f :in fasls :do (ignore-errors (delete-file f)))
       (ignore-errors (lispworks:delete-system :fasls-to-concatenate)))))
+

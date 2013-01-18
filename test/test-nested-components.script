@@ -7,7 +7,7 @@
 
 (with-test ()
  (setf asdf:*central-registry* nil)
- (load (merge-pathnames "test-nested-components-1.asd"))
+ (load "test-nested-components-1.asd")
  (print
   (list
    :a

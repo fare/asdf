@@ -7,6 +7,7 @@
   (:export
    #:operation
    #:operation-original-initargs ;; backward-compatibility only. DO NOT USE.
+   #:build-op ;; THE generic operation
    #:make-operation
    #:find-operation))
 (in-package :asdf/operation)
@@ -50,3 +51,5 @@
 (defmethod find-operation (context (spec symbol))
   (apply 'make-operation spec (operation-original-initargs context)))
 (defmethod operation-original-initargs ((context null)) context)
+
+(defclass build-op (operation) ())

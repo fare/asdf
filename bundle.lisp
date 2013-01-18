@@ -7,11 +7,11 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)
   (:export
-   #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system
+   #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
    #:monolithic-op #:monolithic-bundle-op #:dependency-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
-   #:program-op #:program-system
+   #:program-op
    #:compiled-file #:precompiled-system #:prebuilt-system
    #:operation-monolithic-p
    #:user-system-p #:user-system #:trivial-system-p
@@ -105,10 +105,6 @@
    (translate-output-p
     :initform nil :initarg :translate-output-p :accessor component-translate-output-p)))
 
-(defclass program-system (bundle-system)
-  ((bundle-pathname :initarg :executable-name)
-   (bundle-operation :initform 'program-op)))
-
 (defun* bundle-pathname-type (bundle-type)
   (etypecase bundle-type
     ((eql :no-output-file) nil) ;; should we error out instead?    
@@ -181,13 +177,13 @@
                          &allow-other-keys)
         (operation-original-initargs instance)
       (setf (operation-original-initargs instance)
-            (remove-keys '(lisp-files epilogue-code prologue-code) original-initargs)
+            (remove-plist-keys '(:lisp-files :epilogue-code :prologue-code) original-initargs)
             (monolithic-op-prologue-code instance) prologue-code
             (monolithic-op-epilogue-code instance) epilogue-code)
       #-ecl (assert (null (or lisp-files epilogue-code prologue-code)))
       #+ecl (setf (bundle-op-lisp-files instance) lisp-files)))
   (setf (bundle-op-build-args instance)
-        (remove-keys '(type monolithic name-suffix)
+        (remove-plist-keys '(:type :monolithic :name-suffix)
                      (operation-original-initargs instance))))
 
 (defmethod bundle-op-build-args :around ((o lib-op))
@@ -222,7 +218,7 @@
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
 
 (defun* operated-components (system &key (goal-operation 'load-op) (keep-operation goal-operation)
-                                    (component-type t) other-systems)
+                                    (component-type t) (keep-component t) other-systems)
   (let ((goal-op (make-operation goal-operation)))
     (flet ((filter (o c)
              (declare (ignore o))
@@ -231,7 +227,7 @@
       (loop :for (o . c) :in (gather-actions goal-op system
                                              :other-systems other-systems
                                              :filter #'filter)
-            :when (typep o keep-operation)
+            :when (and (typep o keep-operation) (typep c keep-component))
               :collect c))))
 
 (defgeneric* trivial-system-p (component))
@@ -266,7 +262,8 @@
 
 (defmethod component-depends-on ((o program-op) (c system))
   (declare (ignorable o))
-  `((#+(or ecl mkcl) monolithic-lib-op #-(or ecl mkcl) load-op ,c)))
+  #+(or ecl mkcl) (component-depends-on (make-operation 'monolithic-lib-op) c)
+  #-(or ecl mkcl) `((load-op ,c)))
 
 (defmethod component-depends-on ((o binary-op) (c system))
   (declare (ignorable o))
@@ -295,6 +292,12 @@
 (defmethod component-depends-on ((o bundle-op) c)
   (declare (ignorable o c))
   nil)
+
+(defmethod component-depends-on :around ((o bundle-op) (c component))
+  (declare (ignorable o c))
+  (if-let (op (and (eq (type-of o) 'bundle-op) (component-bundle-operation c)))
+      `((,op ,c))
+      (call-next-method)))
 
 (defun* dependency-files (o c &key (test 'identity) (key 'output-files))
   (while-collecting (collect)
@@ -329,12 +332,12 @@
                              (merge-pathnames "./asdf-output/")))
          (operation (apply #'operate operation-name
                            system
-                           (remove-keys '(monolithic type move-here) args)))
+                           (remove-plist-keys '(:monolithic :type :move-here) args)))
          (system (find-system system))
          (files (and system (output-files operation system))))
     (if (or move-here (and (null move-here-p)
                            (member operation-name '(:program :binary))))
-        (loop :with dest-path = (truename* (ensure-directories-exist move-here-path))
+        (loop :with dest-path = (resolve-symlinks* (ensure-directories-exist move-here-path))
               :for f :in files
               :for new-f = (make-pathname :name (pathname-name f)
                                 :type (pathname-type f)
@@ -491,12 +494,12 @@
            :init-name init-name
            :lisp-files (append object-files (bundle-op-lisp-files o))
            (append (bundle-op-build-args o)
-                   (when (typep o 'program-op)
-                     `(:prologue-code
-                       (restore-image :entry-point ,(component-entry-point c))))
                    (when (and (typep o 'monolithic-bundle-op)
                               (monolithic-op-prologue-code o))
                      `(:prologue-code ,(monolithic-op-prologue-code o)))
+                   (when (typep o 'program-op)
+                     `(:epilogue-code
+                       (restore-image :entry-point ,(component-entry-point c))))
                    (when (and (typep o 'monolithic-bundle-op)
                               (monolithic-op-epilogue-code o))
                      `(:epilogue-code ,(monolithic-op-epilogue-code o)))))))

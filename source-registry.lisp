@@ -51,7 +51,7 @@ system names to pathnames of .asd files")
 (register-clear-configuration-hook 'clear-source-registry)
 
 (defparameter *wild-asd*
-  (make-pathname* :directory nil :name *wild* :type "asd" :version :newest))
+  (make-pathname* :directory nil :name *wild* :type "asd"))
 
 (defun* directory-asd-files (directory)
   (directory-files directory *wild-asd*))
@@ -153,7 +153,7 @@ system names to pathnames of .asd files")
 
 (defun* wrapping-source-registry ()
   `(:source-registry
-    #+(or ecl sbcl) (:tree ,(lisp-implementation-directory :truename t))
+    #+(or ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
     #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
     :inherit-configuration
     #+cmu (:tree #p"modules:")
@@ -198,11 +198,11 @@ system names to pathnames of .asd files")
       ((:directory)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (resolve-location pathname :want-directory t)))))
+           (funcall register (resolve-location pathname :ensure-directory t)))))
       ((:tree)
        (destructuring-bind (pathname) rest
          (when pathname
-           (funcall register (resolve-location pathname :want-directory t)
+           (funcall register (resolve-location pathname :ensure-directory t)
                     :recurse t :exclude *source-registry-exclusions*))))
       ((:exclude)
        (setf *source-registry-exclusions* rest))
@@ -221,10 +221,10 @@ system names to pathnames of .asd files")
 (defmethod process-source-registry ((pathname #-gcl<2.7 pathname #+gcl<2.7 t) &key inherit register)
   (cond
     ((directory-pathname-p pathname)
-     (let ((*here-directory* (truenamize pathname)))
+     (let ((*here-directory* (resolve-symlinks* pathname)))
        (process-source-registry (validate-source-registry-directory pathname)
                                 :inherit inherit :register register)))
-    ((probe-file* pathname)
+    ((probe-file* pathname :truename *resolve-symlinks*)
      (let ((*here-directory* (pathname-directory-pathname pathname)))
        (process-source-registry (validate-source-registry-file pathname)
                                 :inherit inherit :register register)))
@@ -312,4 +312,4 @@ system names to pathnames of .asd files")
 
 (defun* sysdef-source-registry-search (system)
   (ensure-source-registry)
-  (values (gethash (coerce-name system) *source-registry*)))
+  (values (gethash (primary-system-name system) *source-registry*)))

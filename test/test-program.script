@@ -10,6 +10,7 @@
     (assert (absolute-pathname-p exe))
 
     (unless (and #-(or clisp clozure cmu ecl lispworks sbcl) nil
+                 #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
                  #+clisp (version-satisfies
                           (first (split-string (lisp-implementation-version) :separator " "))
                           "2.48"))
