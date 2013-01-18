@@ -26,17 +26,17 @@
 ;; These are funky and non portable, omit from tests:
 ;; (make-pathname* :name "." :type nil :directory '(:absolute "tmp"))
 ;; (make-pathname* :name "." :type "" :directory '(:absolute "tmp"))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "" :want-directory t))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "" :ensure-directory t))
                '(:relative nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components ""  :want-directory nil))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components ""  :ensure-directory nil))
                '(:relative nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :want-directory t))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :ensure-directory t))
                '(:absolute nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :want-directory nil))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :ensure-directory nil))
                '(:absolute nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :want-directory t))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :ensure-directory t))
                '(:absolute ("aa" "ba") nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :want-directory nil))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :ensure-directory nil))
                '(:absolute ("aa") "ba" nil)))
 (assert
  (version-satisfies (asdf-version) (asdf-version)))
@@ -48,13 +48,13 @@
  (mapcar 'namestring (split-native-pathnames-string "foo:bar"))
  '("foo" "bar"))
 (assert-equal
- (mapcar 'namestring (split-native-pathnames-string "foo:bar" :want-directory t))
+ (mapcar 'namestring (split-native-pathnames-string "foo:bar" :ensure-directory t))
  '("foo/" "bar/"))
 (assert-equal
  (mapcar 'namestring (split-native-pathnames-string "/foo:/bar" :want-absolute t))
  '("/foo" "/bar"))
 (assert-equal
- (mapcar 'namestring (split-native-pathnames-string "/foo:/bar" :want-absolute t :want-directory t))
+ (mapcar 'namestring (split-native-pathnames-string "/foo:/bar" :want-absolute t :ensure-directory t))
  '("/foo/" "/bar/"))
 (assert-equal
  (mapcar 'location-function-p
