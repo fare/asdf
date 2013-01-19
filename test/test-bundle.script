@@ -22,12 +22,14 @@
          (bundle-1 (asdf:output-file op (find-system :test-bundle-1)))
          (bundle-2 (asdf:output-file op (find-system :test-bundle-2))))
     (DBG :test-bundle bundle-1 bundle-2)
+    (assert-equal (list bundle-2)
+                  (input-files (make-operation 'load-fasl-op) (find-system :test-bundle-2)))
     (delete-file-if-exists bundle-1)
     (delete-file-if-exists bundle-2)
     (operate 'load-fasl-op :test-bundle-2)
     ;; Check that the bundles were indeed created.
-    (assert (probe-file bundle-1))
     (assert (probe-file bundle-2))
+    (assert (probe-file bundle-1))
     ;; Check that the files were indeed loaded.
     (assert (symbol-value (find-symbol* :*file1* :test-package)))
     (assert (symbol-value (find-symbol* :*file3* :test-package)))))

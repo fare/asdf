@@ -32,16 +32,9 @@
   ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (or (and (absolute-pathname-p pathname) (resolve-symlinks* pathname))
-      (let* ((load-pathname (load-pathname))
-             (load-absolute
-               (or (absolute-pathname-p load-pathname)
-                   (let ((defaults (resolve-symlinks* *default-pathname-defaults*)))
-                     (and (absolute-pathname-p defaults)
-                          (merge-pathnames* load-pathname defaults))))))
-        (when (absolute-pathname-p load-absolute)
-          (resolve-symlinks*
-           (subpathname load-absolute pathname :type :directory))))))
+  (absolutize-pathnames
+   (list pathname (load-pathname) *default-pathname-defaults* (getcwd))
+   :resolve-symlinks *resolve-symlinks*))
 
 
 ;;; Component class

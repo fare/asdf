@@ -65,7 +65,6 @@ in which the system specification (.asd file) is located."
 (defun* system-relative-pathname (system name &key type)
   (subpathname (system-source-directory system) name :type type))
 
-
 ;;;; Beware of builtin systems
 (defgeneric* builtin-system-p (system))
 (defmethod builtin-system-p ((s system))
