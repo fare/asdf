@@ -311,7 +311,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                 (setf (system-source-file system) pathname))
               (when (and pathname
                          (not (and previous
-                                   (pathname-equal pathname previous-pathname)
+                                   (or (pathname-equal pathname previous-pathname)
+                                       (and pathname previous-pathname
+                                            (pathname-equal
+                                             (translate-logical-pathname pathname)
+                                             (translate-logical-pathname previous-pathname))))
                                    (stamp<= (safe-file-write-date pathname) previous-time))))
                 ;; only load when it's a pathname that is different or has newer content
                 (load-sysdef name pathname)))
