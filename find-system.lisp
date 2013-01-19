@@ -158,7 +158,8 @@ Going forward, we recommend new users should be using the source-registry.
       (let* ((file (probe-file*
                     (absolutize-pathnames
                      (list (make-pathname :name name :type "asd")
-                           defaults *default-pathname-defaults* (getcwd))
+                           defaults *default-pathname-defaults*
+                           #-(or abcl gcl genera) (getcwd))
                      :resolve-symlinks truename)
                     :truename truename)))
         (when file

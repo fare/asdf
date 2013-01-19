@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/plan
   (:recycle :asdf/plan :asdf)
   (:use :common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component
+   :asdf/component :asdf/operation :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:export
@@ -16,13 +16,17 @@
    #:action-index #:action-planned-p #:action-valid-p
    #:plan-record-dependency #:visiting-action-p
    #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
+   #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies
    #:visit-dependencies #:compute-action-stamp #:traverse-action
    #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
    #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p
    #:planned-p #:index #:forced #:forced-not #:total-action-count
    #:planned-action-count #:planned-output-action-count #:visited-actions
-   #:visiting-action-set #:visiting-action-list #:actions-r))
+   #:visiting-action-set #:visiting-action-list #:plan-actions-r
+   #:operated-components #:filtered-sequential-plan
+   #:plan-action-filter #:plan-component-type #:plan-keep-operation #:plan-keep-component
+   #:traverse-actions #:traverse-sub-actions))
 (in-package :asdf/plan)
 
 ;;;; Planned action status
@@ -97,6 +101,12 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (defmethod action-forced-not-p (plan operation component)
   (and (action-override-p plan operation component 'plan-forced-not)
        (not (action-forced-p plan operation component))))
+(defmethod action-forced-p ((plan null) operation component)
+  (declare (ignorable plan operation component))
+  nil)
+(defmethod action-forced-not-p ((plan null) operation component)
+  (declare (ignorable plan operation component))
+  nil)
 
 
 ;;;; action-valid-p
@@ -108,6 +118,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (if-let (it (component-if-feature c)) (featurep it) t))
 (defmethod action-valid-p (plan (o null) c) (declare (ignorable plan o c)) nil)
 (defmethod action-valid-p (plan o (c null)) (declare (ignorable plan o c)) nil)
+(defmethod action-valid-p ((plan null) operation component)
+  (declare (ignorable plan operation component))
+  (and operation component t))
 
 
 ;;;; Is the action needed in this image?
@@ -126,14 +139,30 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
 ;;;; Visiting dependencies of an action and computing action stamps
 
-(defun* visit-dependencies (plan operation component fun &aux stamp)
+(defun* map-direct-dependencies (operation component fun)
   (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
         :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
           :do (loop :with dep-o = (find-operation operation dep-o-spec)
                     :for dep-c-spec :in dep-c-specs
                     :for dep-c = (resolve-dependency-spec component dep-c-spec)
-                    :when (action-valid-p plan dep-o dep-c)
-                      :do (latest-stamp-f stamp (funcall fun dep-o dep-c))))
+                    :do (funcall fun dep-o dep-c))))
+
+(defun* reduce-direct-dependencies (operation component combinator seed)
+  (map-direct-dependencies
+   operation component
+   (lambda (dep-o dep-c)
+     (setf seed (funcall combinator dep-o dep-c seed))))
+  seed)
+
+(defun* direct-dependencies (operation component)
+  (reduce-direct-dependencies operation component #'acons nil))
+
+(defun* visit-dependencies (plan operation component dependency-stamper &aux stamp)
+  (map-direct-dependencies
+   operation component
+   (lambda (dep-o dep-c)
+     (when (action-valid-p plan dep-o dep-c)
+       (latest-stamp-f stamp (funcall dependency-stamper dep-o dep-c)))))
   stamp)
 
 (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
@@ -205,7 +234,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
    (visiting-action-list :initform () :accessor plan-visiting-action-list)))
 
 (defmethod initialize-instance :after ((plan plan-traversal)
-                                       &key (force () fp) (force-not () fnp) system &allow-other-keys)
+                                       &key (force () fp) (force-not () fnp) system
+                                       &allow-other-keys)
   (with-slots (forced forced-not) plan
     (when fp (setf forced (normalize-forced-systems force system)))
     (when fnp (setf forced-not (normalize-forced-systems force-not system)))))
@@ -315,9 +345,10 @@ of ASDF operation object and a COMPONENT object. The pairs will be
 processed in order by OPERATE."))
 (defgeneric* perform-plan (plan &key))
 (defgeneric* plan-operates-on-p (plan component))
+(define-convenience-action-methods traverse (operation component &key))
 
 (defparameter *default-plan-class* 'sequential-plan)
-  
+
 (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
   (let ((plan (apply 'make-instance
                      (or plan-class *default-plan-class*)
@@ -325,14 +356,59 @@ processed in order by OPERATE."))
     (traverse-action plan o c t)
     (plan-actions plan)))
 
+
 (defmethod perform-plan ((steps list) &key)
   (let ((*package* *package*)
         (*readtable* *readtable*))
-    (with-compilation-unit ()
-      (loop :for (op . component) :in steps :do
-        (perform-with-restarts op component)))))
+    (loop :for (op . component) :in steps :do
+      (perform-with-restarts op component))))
 
 (defmethod plan-operates-on-p ((plan list) (component-path list))
   (find component-path (mapcar 'cdr plan)
         :test 'equal :key 'component-find-path))
+
+
+;;;; Incidental traversals 
+
+(defclass filtered-sequential-plan (sequential-plan)
+  ((action-filter :initform t :initarg :action-filter :reader plan-action-filter)
+   (component-type :initform t :initarg :component-type :reader plan-component-type)
+   (keep-operation :initform t :initarg :keep-operation :reader plan-keep-operation)
+   (keep-component :initform t :initarg :keep-component :reader plan-keep-component)))
+
+(defmethod initialize-instance :after ((plan filtered-sequential-plan)
+                                       &key (force () fp) (force-not () fnp)
+                                         system other-systems)
+  (declare (ignore force force-not))
+  (with-slots (forced forced-not action-filter) plan
+    (unless fp (setf forced (normalize-forced-systems (if other-systems :all t) system)))
+    (unless fnp (setf forced-not (normalize-forced-systems (if other-systems nil :all) system)))
+    (setf action-filter (ensure-function action-filter))))
+
+(defmethod action-valid-p ((plan filtered-sequential-plan) o c)
+  (and (funcall (plan-action-filter plan) o c)
+       (typep c (plan-component-type plan))
+       (call-next-method)))
+
+(defun* traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
+  (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
+    (loop :for (o . c) :in actions :do
+      (traverse-action plan o c t))
+    (plan-actions plan)))
+
+(defun* traverse-sub-actions (operation component &rest keys)
+  (apply 'traverse-actions (direct-dependencies operation component)
+         :system (component-system component) keys))
+
+(defmethod plan-actions ((plan filtered-sequential-plan))
+  (with-slots (keep-operation keep-component) plan
+  (loop :for (o . c) :in (call-next-method)
+        :when (and (typep o keep-operation)
+                   (typep c keep-component))
+          :collect (cons o c))))
+
+(defun* operated-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
+  (remove-duplicates
+   (mapcar 'cdr (apply 'traverse-sub-actions (make-operation goal-operation) system keys))
+   :from-end t))
 

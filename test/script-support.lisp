@@ -36,7 +36,6 @@ Some constraints:
   `(;; If you want to trace some stuff while debugging ASDF,
     ;; here's a nice place to say what.
     ;; These string designators will be interned in ASDF after it is loaded.
-    :absolutize-pathnames
     ))
 
 (defvar *debug-asdf* nil)

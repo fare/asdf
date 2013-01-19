@@ -8,10 +8,10 @@
              (let ((asdf:*compile-file-failure-behaviour* :warn))
                (asdf:load-system 'test-compile-file-failure :force t)
                t)
-           (asdf:compile-error () nil)))
+           (asdf/lisp-build:compile-file-error () nil)))
  #-gcl<2.7
  (assert (handler-case
              (let ((asdf:*compile-file-failure-behaviour* :error))
                (asdf:load-system 'test-compile-file-failure :force t)
                nil)
-           (asdf:compile-error () t))))
+           (asdf/lisp-build:compile-file-error () t))))

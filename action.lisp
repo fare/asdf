@@ -2,24 +2,57 @@
 ;;;; Actions
 
 (asdf/package:define-package :asdf/action
+  (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
   (:use :common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
   #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:intern #:stamp #:done-p)
   (:export
-   #:action
+   #:action #:define-convenience-action-methods
    #:explain #:operation-description
-   #:downward-operation #:upward-operation
-   #:operation-error #:error-component #:error-operation
+   #:downward-operation #:upward-operation #:sibling-operation
    #:component-depends-on #:component-self-dependencies
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
-   #:perform #:perform-with-restarts #:retry #:accept #:feature))
+   #:perform #:perform-with-restarts #:retry #:accept #:feature
+   #:gather-actions #:operated-components
+   #:traverse-sub-actions #:dependency-files
+   ))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
+(declaim (ftype (function (t &rest t) t) operated-components traverse-actions)
+         (ftype (function (t t &rest t) t)
+                traverse-sub-actions dependency-files))
+
+;;;; Convenience methods
+(defmacro define-convenience-action-methods
+  (function (operation component &rest more-args) &key if-no-operation if-no-component)
+  (let ((rest (gensym "REST"))
+        (found (gensym "FOUND")))
+    `(progn
+       (defmethod ,function ((,operation symbol) ,component
+                             ,@(when more-args `(&rest ,rest))
+                             ,@(when (member '&key more-args) `(&key &allow-other-keys)))
+         (if ,operation
+             ,(if more-args
+                  `(apply ',function (make-operation ,operation) ,component ,rest)
+                  `(,function (make-operation ,operation) ,component))
+             ,if-no-operation))
+       (defmethod ,function ((,operation operation) ,component
+                             ,@(when more-args `(&rest ,rest))
+                             ,@(when (member '&key more-args) `(&key &allow-other-keys)))
+         (if (typep ,component 'component)
+             (error "No defined method for ~S on ~S" ',function ,component)
+             (let ((,found (find-component () ,component)))
+               (if ,found
+                   ,(if more-args
+                        `(apply ',function ,operation ,found ,rest)
+                        `(,function ,operation ,found))
+                   ,if-no-component)))))))
+
 
 ;;;; self-description
 
@@ -30,23 +63,17 @@ You can put together sentences using this phrase."))
 (defmethod operation-description (operation component)
   (format nil (compatfmt "~@<~A on ~A~@:>")
           (class-of operation) component))
+(define-convenience-action-methods operation-description (operation component))
 
 (defgeneric* explain (operation component))
 (defmethod explain ((o operation) (c component))
   (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (operation-description o c)))
+(define-convenience-action-methods explain (operation component))
 
-
-;;;; Error
-
-(define-condition operation-error (error) ;; Bad, backward-compatible name
-  ;; We want to rename it to action-error, but that breaks upgrade on SBCL.
-  ;; Before to rename it, fix these other culprits, too:
-  ;; cffi-tests, clsql-mysql, clsql-uffi, qt, elephant, uffi-tests, sb-grovel
-  ((component :reader error-component :initarg :component)
-   (operation :reader error-operation :initarg :operation))
-  (:report (lambda (c s)
-               (format s (compatfmt "~@<~A while invoking ~A on ~A~@:>")
-                       (type-of c) (error-operation c) (error-component c)))))
+(defun* format-action (stream action &optional colon-p at-sign-p)
+  (assert (null colon-p)) (assert (null at-sign-p))
+  (destructuring-bind (operation . component) action
+    (princ (operation-description operation component) stream)))
 
 
 ;;;; Dependencies
@@ -68,6 +95,8 @@ You can put together sentences using this phrase."))
     should usually append the results of CALL-NEXT-METHOD to the
     list."))
 (defgeneric* component-self-dependencies (operation component))
+(define-convenience-action-methods component-depends-on (operation component))
+(define-convenience-action-methods component-self-dependencies (operation component))
 
 (defmethod component-depends-on ((o operation) (c component))
   (cdr (assoc (type-of o) (component-in-order-to c)))) ; User-specified in-order dependencies
@@ -82,17 +111,34 @@ You can put together sentences using this phrase."))
 ;; These together handle actions that propagate along the component hierarchy.
 ;; Downward operations like load-op or compile-op propagate down the hierarchy:
 ;; operation on a parent depends-on operation on its children.
-(defclass downward-operation (operation) ())
+;; By default, an operation propagates itself, but it may propagate another one instead.
+(defclass downward-operation (operation)
+  ((downward-operation
+    :initform nil :initarg :downward-operation :reader downward-operation)))
+(defmethod component-depends-on ((o downward-operation) (c parent-component))
+  `((,(or (downward-operation o) o) ,@(component-children c)) ,@(call-next-method)))
 ;; Upward operations like prepare-op propagate up the component hierarchy:
 ;; operation on a child depends-on operation on its parent.
-(defclass upward-operation (operation) ())
-
-(defmethod component-depends-on ((o downward-operation) (c parent-component))
-  `((,o ,@(component-children c)) ,@(call-next-method)))
+;; By default, an operation propagates itself, but it may propagate another one instead.
+(defclass upward-operation (operation)
+  ((upward-operation
+    :initform nil :initarg :downward-operation :reader upward-operation)))
 ;; For backward-compatibility reasons, a system inherits from module and is a child-component
 ;; so we must guard against this case. ASDF3: remove that.
 (defmethod component-depends-on ((o upward-operation) (c child-component))
-  `(,@(if-let (p (component-parent c)) `((,o ,p))) ,@(call-next-method)))
+  `(,@(if-let (p (component-parent c))
+        `((,(or (upward-operation o) o) ,p))) ,@(call-next-method)))
+;; Sibling operations propagate to siblings in the component hierarchy:
+;; operation on a child depends-on operation on its parent.
+;; By default, an operation propagates itself, but it may propagate another one instead.
+(defclass sibling-operation (operation)
+  ((sibling-operation
+    :initform nil :initarg :sibling-operation :reader sibling-operation)))
+(defmethod component-depends-on ((o sibling-operation) (c component))
+  `((,(or (sibling-operation o) o)
+     ,@(loop :for dep :in (component-sibling-dependencies c)
+             :collect (resolve-dependency-spec c dep)))
+    ,@(call-next-method)))
 
 
 ;;;; Inputs, Outputs, and invisible dependencies
@@ -100,6 +146,9 @@ You can put together sentences using this phrase."))
 (defgeneric* input-files (operation component))
 (defgeneric* operation-done-p (operation component)
   (:documentation "Returns a boolean, which is NIL if the action is forced to be performed again"))
+(define-convenience-action-methods output-files (operation component))
+(define-convenience-action-methods input-files (operation component))
+(define-convenience-action-methods operation-done-p (operation component))
 
 (defmethod operation-done-p ((o operation) (c component))
   (declare (ignorable o c))
@@ -145,6 +194,9 @@ You can put together sentences using this phrase."))
 ;;;; Done performing
 
 (defgeneric* component-operation-time (operation component)) ;; ASDF3: hide it behind plan-action-stamp
+(define-convenience-action-methods component-operation-time (operation component))
+
+
 (defgeneric* mark-operation-done (operation component)) ;; ASDF3: hide it behind (setf plan-action-stamp)
 (defgeneric* compute-action-stamp (plan operation component &key just-done)
   (:documentation "Has this action been successfully done already,
@@ -188,6 +240,7 @@ in some previous image, or T if it needs to be done.")
 
 (defgeneric* perform-with-restarts (operation component))
 (defgeneric* perform (operation component))
+(define-convenience-action-methods perform (operation component))
 
 (defmethod perform :before ((o operation) (c component))
   (ensure-all-directories-exist (output-files o c)))

@@ -8,6 +8,8 @@
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*
+   #:operation-error #:compile-error #:compile-failed #:compile-warned
+   #:error-component #:error-operation
    #:component-load-dependencies
    #:enable-asdf-binary-locations-compatibility
    #:operation-forced
@@ -16,6 +18,17 @@
    #:run-shell-command
    #:system-definition-pathname))
 (in-package :asdf/backward-interface)
+
+(define-condition operation-error (error) ;; Bad, backward-compatible name
+  ;; Used by SBCL, cffi-tests, clsql-mysql, clsql-uffi, qt, elephant, uffi-tests, sb-grovel
+  ((component :reader error-component :initarg :component)
+   (operation :reader error-operation :initarg :operation))
+  (:report (lambda (c s)
+               (format s (compatfmt "~@<~A while invoking ~A on ~A~@:>")
+                       (type-of c) (error-operation c) (error-component c)))))
+(define-condition compile-error (operation-error) ())
+(define-condition compile-failed (compile-error) ())
+(define-condition compile-warned (compile-error) ())
 
 (defun* component-load-dependencies (component)
   ;; Old deprecated name for the same thing. Please update your software.

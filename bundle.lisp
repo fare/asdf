@@ -15,7 +15,6 @@
    #:compiled-file #:precompiled-system #:prebuilt-system
    #:operation-monolithic-p
    #:user-system-p #:user-system #:trivial-system-p
-   #:gather-actions #:operated-components
    #+ecl #:make-build
    #:register-pre-built-system
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
@@ -192,23 +191,6 @@
     (remf args :ld-flags)
     args))
 
-(defclass filtered-sequential-plan (sequential-plan)
-  ((action-filter :initarg :action-filter :reader plan-action-filter)))
-
-(defmethod action-valid-p ((plan filtered-sequential-plan) o c)
-  (and (funcall (plan-action-filter plan) o c) (call-next-method)))
-
-(defun* gather-actions (operation component &key other-systems (filter t))
-  ;; This function creates a list of sub-actions performed
-  ;; while building the targeted action.
-  ;; This list may be restricted to sub-components of SYSTEM
-  ;; if OTHER-SYSTEMS is NIL (default).
-  (traverse operation component
-            :plan-class 'filtered-sequential-plan
-            :action-filter (ensure-function filter)
-            :force (if other-systems :all t)
-            :force-not (if other-systems nil :all)))
-
 (defun* bundlable-file-p (pathname)
   (let ((type (pathname-type pathname)))
     (declare (ignorable type))
@@ -216,19 +198,6 @@
                   (equal type (compile-file-type :type :static-library)))
         #+mkcl (equal type (compile-file-type :fasl-p nil))
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
-
-(defun* operated-components (system &key (goal-operation 'load-op) (keep-operation goal-operation)
-                                    (component-type t) (keep-component t) other-systems)
-  (let ((goal-op (make-operation goal-operation)))
-    (flet ((filter (o c)
-             (declare (ignore o))
-             (or (eq c system)
-                 (typep c component-type))))
-      (loop :for (o . c) :in (gather-actions goal-op system
-                                             :other-systems other-systems
-                                             :filter #'filter)
-            :when (and (typep o keep-operation) (typep c keep-component))
-              :collect c))))
 
 (defgeneric* trivial-system-p (component))
 
