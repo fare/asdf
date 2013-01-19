@@ -2,20 +2,9 @@
  and that breakage gets fixed quickly.
 * Test stassats's thing:
    (asdf:enable-asdf-binary-locations-compatibility :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
-* Split ASDF in parts
-** Have it pass test-lisp
-** Have it pass test-upgrade
-** Get package upgrade right
+* Get package upgrade right
    Try a newer CLISP than 2.44.1, and if it still breaks, try harder,
    by e.g. having ensure-package return a working defpackage form.
-** The unconditional ensure-package-unused breaks test-encodings.script,
-   since asdf severs itself from its client package hosting the
-   defsystem form during defsystem-depends-on.
-** Solution 1: emulate hook on the *upgraded-p* solution, either using
-   explicit flag, explicit version numbers or implicit version information
-   (e.g. source-code or sxhash thereof, also accounting for dependency
-   package information).
-** Solution 2: Just "do the right thing" with exported symbols.
 * Make load-op a generic operation that selects the proper strategy
   for each system, module or file, according to component properties and user-configuration:
   compile the lisp file then load the fasl (load-compiled-op),
