@@ -24,7 +24,7 @@
    #:planned-p #:index #:forced #:forced-not #:total-action-count
    #:planned-action-count #:planned-output-action-count #:visited-actions
    #:visiting-action-set #:visiting-action-list #:plan-actions-r
-   #:operated-components #:filtered-sequential-plan
+   #:required-components #:filtered-sequential-plan
    #:plan-action-filter #:plan-component-type #:plan-keep-operation #:plan-keep-component
    #:traverse-actions #:traverse-sub-actions))
 (in-package :asdf/plan)
@@ -407,7 +407,7 @@ processed in order by OPERATE."))
                    (typep c keep-component))
           :collect (cons o c))))
 
-(defun* operated-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
+(defun* required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
   (remove-duplicates
    (mapcar 'cdr (apply 'traverse-sub-actions (make-operation goal-operation) system keys))
    :from-end t))

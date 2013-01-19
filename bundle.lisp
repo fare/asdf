@@ -9,7 +9,7 @@
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
-   #:monolithic-op #:monolithic-bundle-op #:dependency-files
+   #:monolithic-op #:monolithic-bundle-op #:required-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
    #:program-op
    #:compiled-file #:precompiled-system #:prebuilt-system
@@ -219,13 +219,13 @@
 
 (defmethod component-depends-on ((o monolithic-lib-op) (c system))
   (declare (ignorable o))
-  `((lib-op ,@(operated-components c :other-systems t :component-type 'system
+  `((lib-op ,@(required-components c :other-systems t :component-type 'system
                                      :goal-operation 'load-op
                                      :keep-operation 'load-op))))
 
 (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
   (declare (ignorable o))
-  `((fasl-op ,@(operated-components c :other-systems t :component-type 'system
+  `((fasl-op ,@(required-components c :other-systems t :component-type 'system
                                       :goal-operation 'load-fasl-op
                                       :keep-operation 'load-fasl-op))))
 
@@ -245,7 +245,7 @@
 
 (defmethod component-depends-on ((o lib-op) (c system))
   (declare (ignorable o))
-  `((compile-op ,@(operated-components c :other-systems nil :component-type '(not system)
+  `((compile-op ,@(required-components c :other-systems nil :component-type '(not system)
                                          :goal-operation 'load-op
                                          :keep-operation 'load-op))))
 
@@ -268,7 +268,7 @@
       `((,op ,c))
       (call-next-method)))
 
-(defun* dependency-files (o c &key (test 'identity) (key 'output-files))
+(defun* required-files (o c &key (test 'identity) (key 'output-files))
   (while-collecting (collect)
     (visit-dependencies
      () o c #'(lambda (sub-o sub-c)
@@ -276,7 +276,7 @@
                       :when (funcall test f) :do (collect f))))))
 
 (defmethod input-files ((o bundle-op) (c system))
-  (dependency-files o c :test 'bundlable-file-p :key 'output-files))
+  (required-files o c :test 'bundlable-file-p :key 'output-files))
 
 (defun* select-bundle-operation (type &optional monolithic)
   (ecase type
