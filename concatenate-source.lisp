@@ -42,7 +42,7 @@
         :with other-encodings = '()
         :with around-compile = (around-compile-hook s)
         :with other-around-compile = '()
-        :for c :in (operated-components
+        :for c :in (required-components
                     s :goal-operation 'compile-op
                       :keep-operation 'compile-op
                       :other-systems (operation-monolithic-p operation))
@@ -65,14 +65,14 @@
            (return inputs)))
 
 (defmethod input-files ((o load-concatenated-source-op) (s system))
-  (dependency-files o s))
+  (required-files o s))
 (defmethod input-files ((o compile-concatenated-source-op) (s system))
-  (dependency-files o s))
+  (required-files o s))
 (defmethod output-files ((o compile-concatenated-source-op) (s system))
   (let ((input (first (input-files o s))))
     (list (compile-file-pathname input))))
 (defmethod input-files ((o load-compiled-concatenated-source-op) (s system))
-  (dependency-files o s))
+  (required-files o s))
 
 (defmethod perform ((o concatenate-source-op) (s system))
   (let ((inputs (input-files o s))

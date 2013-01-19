@@ -16,16 +16,19 @@
    #:upgrade-asdf #:cleanup-upgraded-asdf #:*post-upgrade-hook*))
 (in-package :asdf/operate)
 
-(defgeneric* operate (operation-class system &key &allow-other-keys))
+(defgeneric* operate (operation component &key &allow-other-keys))
+(define-convenience-action-methods
+    operate (operation component &key)
+    :if-no-component (error 'missing-component :requires component))
 
 (defvar *systems-being-operated* nil
   "A boolean indicating that some systems are being operated on")
 
-(defmethod operate :around (operation-class system
+(defmethod operate :around (operation component
                             &key verbose
                               (on-warnings *compile-file-warnings-behaviour*)
                               (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
-  (declare (ignorable operation-class system))
+  (declare (ignorable operation component))
   ;; Setup proper bindings around any operate call.
   (with-system-definitions ()
     (let* ((*asdf-verbose* verbose)
@@ -34,7 +37,8 @@
            (*compile-file-failure-behaviour* on-failure))
       (call-next-method))))
 
-(defmethod operate (operation-class system &rest args &key version &allow-other-keys)
+(defmethod operate ((operation operation) (component component)
+                    &rest args &key version &allow-other-keys)
   "Operate does three things:
 
 1. It creates an instance of OPERATION-CLASS using any keyword parameters as initargs.
@@ -54,33 +58,27 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
   :ALL to force all systems including other systems we depend on to be rebuilt (resp. not).
   (SYSTEM1 SYSTEM2 ... SYSTEMN) to force systems named in a given list
 :FORCE has precedence over :FORCE-NOT; builtin systems cannot be forced."
-  (let* ((system (etypecase system
-                   (system system)
-                   ((or string symbol) (find-system system))))
-         ;; I'd like to remove-plist-keys :force :force-not :verbose,
+  (let* (;; I'd like to remove-plist-keys :force :force-not :verbose,
          ;; but swank.asd relies on :force (!).
-         (op (apply 'make-operation operation-class args))
          (systems-being-operated *systems-being-operated*)
-         (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal))))
-    (check-type system system)
+         (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
+         (system (component-system component)))
     (setf (gethash (coerce-name system) *systems-being-operated*) system)
-    (unless (version-satisfies system version)
-      (error 'missing-component-of-version :requires system :version version))
+    (unless (version-satisfies component version)
+      (error 'missing-component-of-version :requires component :version version))
     ;; Before we operate on any system, make sure ASDF is up-to-date,
     ;; for if an upgrade is attempted at any later time, there may be trouble.
     ;; If we upgraded, restart the OPERATE from scratch,
     ;; for the function will have been redefined,
     ;; maybe from a new symbol for it may have been uninterned.
     (if (upgrade-asdf)
-        (apply 'symbol-call :asdf 'operate operation-class system args)
-        (let ((plan (apply 'traverse op system args)))
+        (apply 'symbol-call :asdf 'operate operation component args)
+        (let ((plan (apply 'traverse operation system args)))
           (perform-plan plan)
-          (values op plan)))))
+          (values operation plan)))))
 
-(defun* oos (operation-class system &rest args
-             &key force force-not verbose version &allow-other-keys)
-  (declare (ignore force force-not verbose version))
-  (apply 'operate operation-class system args))
+(defun* oos (operation component &rest args &key &allow-other-keys)
+  (apply 'operate operation component args))
 
 (setf (documentation 'oos 'function)
       (format nil "Short for _operate on system_ and an alias for the OPERATE function.~%~%~a"

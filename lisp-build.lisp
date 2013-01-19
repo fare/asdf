@@ -10,6 +10,9 @@
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
    #:*output-translation-function*
    #:*optimization-settings* #:*previous-optimization-settings*
+   #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
+   #:compile-warned-warning #:compile-failed-warning
+   #:check-lisp-compile-results #:check-lisp-compile-warnings
    #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
    #:*deferred-warnings*
    ;; Functions & Macros
@@ -18,8 +21,8 @@
    #:call-with-muffled-loader-conditions #:with-muffled-loader-conditions
    #:reify-simple-sexp #:unreify-simple-sexp
    #:reify-deferred-warnings #:reify-undefined-warning #:unreify-deferred-warnings
-   #:reset-deferred-warnings #:save-deferred-warnings
-   #:with-saved-deferred-warnings
+   #:reset-deferred-warnings #:save-deferred-warnings #:check-deferred-warnings
+   #:with-saved-deferred-warnings #:warnings-file-p
    #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
    #:current-lisp-file-pathname #:load-pathname
    #:lispize-pathname #:compile-file-type #:call-around-hook
@@ -114,6 +117,57 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   `(call-with-muffled-loader-conditions #'(lambda () ,@body)))
 
 
+;;;; Handle warnings and failures
+(define-condition compile-condition (condition)
+  ((context-format
+    :initform nil :reader compile-condition-context-format :initarg :context-format)
+   (context-arguments
+    :initform nil :reader compile-condition-context-arguments :initarg :context-arguments)
+   (description
+    :initform nil :reader compile-condition-description :initarg :description))
+  (:report (lambda (c s)
+               (format s (compatfmt "~@<~A~@[ while ~?~]~@:>")
+                       (or (compile-condition-description c) (type-of c))
+                       (compile-condition-context-format c)
+                       (compile-condition-context-arguments c)))))
+(define-condition compile-file-error (compile-condition error) ())
+(define-condition compile-warned-warning (compile-condition warning) ())
+(define-condition compile-warned-error (compile-condition error) ())
+(define-condition compile-failed-warning (compile-condition warning) ())
+(define-condition compile-failed-error (compile-condition error) ())
+
+(defun* check-lisp-compile-warnings (warnings-p failure-p
+                                                &optional context-format context-arguments)
+  (when failure-p
+    (case *compile-file-failure-behaviour*
+      (:warn (warn 'compile-failed-warning
+                   :description "Lisp compilation failed"
+                   :context-format context-format
+                   :context-arguments context-arguments))
+      (:error (error 'compile-failed-error
+                   :description "Lisp compilation failed"
+                   :context-format context-format
+                   :context-arguments context-arguments))
+      (:ignore nil)))
+  (when warnings-p
+    (case *compile-file-warnings-behaviour*
+      (:warn (warn 'compile-warned-warning
+                   :description "Lisp compilation had style-warnings"
+                   :context-format context-format
+                   :context-arguments context-arguments))
+      (:error (error 'compile-warned-error
+                   :description "Lisp compilation had style-warnings"
+                   :context-format context-format
+                   :context-arguments context-arguments))
+      (:ignore nil))))
+
+(defun* check-lisp-compile-results (output warnings-p failure-p
+                                           &optional context-format context-arguments)
+  (unless output
+    (error 'compile-file-error :context-format context-format :context-arguments context-arguments))
+  (check-lisp-compile-warnings warnings-p failure-p context-format context-arguments))
+
+
 ;;;; Deferred-warnings treatment, originally implemented by Douglas Katzman.
 
 (defun reify-simple-sexp (sexp)
@@ -179,17 +233,16 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                (nconc (mapcan
                        #'(lambda (stuff)
                            (destructuring-bind (kind name count . rest) stuff
-                             (if (and (eq kind :function) (fboundp name))
-                                 nil
-                                 (list
-                                  (sb-c::make-undefined-warning
-                                   :name name
-                                   :kind kind
-                                   :count count
-                                   :warnings
-                                   (mapcar #'(lambda (x)
-                                               (apply #'sb-c::make-compiler-error-context x))
-                                           rest))))))
+                             (unless (case kind (:function (fboundp name)))
+                               (list
+                                (sb-c::make-undefined-warning
+                                 :name name
+                                 :kind kind
+                                 :count count
+                                 :warnings
+                                 (mapcar #'(lambda (x)
+                                             (apply #'sb-c::make-compiler-error-context x))
+                                         rest))))))
                        adjustment)
                       sb-c::*undefined-warnings*)))
         (otherwise
@@ -209,11 +262,38 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   "Save forward reference conditions so they may be issued at a latter time,
 possibly in a different process."
   (with-open-file (s warnings-file :direction :output :if-exists :supersede)
-    (if-let ((deferred-warnings (reify-deferred-warnings)))
-      (with-safe-io-syntax ()
-        (write deferred-warnings :stream s :pretty t :readably t)
-        (terpri s))))
+    (with-safe-io-syntax ()
+      (write (reify-deferred-warnings) :stream s :pretty t :readably t)
+      (terpri s)))
   (reset-deferred-warnings))
+
+(defun* warnings-file-p (file)
+  (equal (pathname-type file) "sbcl-warnings"))
+
+(defun* check-deferred-warnings (files &optional context-format context-arguments)
+  (let ((file-errors nil)
+        (failure-p nil)
+        (warnings-p nil))
+    (handler-bind
+        ((warning #'(lambda (c)
+                      (setf warnings-p t)
+                      (unless (typep c 'style-warning)
+                        (setf failure-p t)))))
+      (with-compilation-unit (:override t)
+        (reset-deferred-warnings)
+        (dolist (file files)
+          (unreify-deferred-warnings
+           (handler-case (safe-read-file-form file)
+             (error (c)
+               (delete-file-if-exists file)
+               (push c file-errors)
+               nil))))))
+    (dolist (error file-errors) (error error))
+    (check-lisp-compile-warnings
+     (or failure-p warnings-p) failure-p context-format context-arguments)))
+
+
+;;;; Deferred warnings
 
 (defun* call-with-saved-deferred-warnings (thunk warnings-file)
   (if warnings-file
@@ -223,7 +303,8 @@ possibly in a different process."
           (multiple-value-prog1
               (with-muffled-compiler-conditions ()
                 (funcall thunk))
-            (save-deferred-warnings warnings-file))))
+            (save-deferred-warnings warnings-file)
+            (reset-deferred-warnings))))
       (funcall thunk)))
 
 (defmacro with-saved-deferred-warnings ((warnings-file) &body body)
@@ -252,6 +333,19 @@ possibly in a different process. Otherwise just run the BODY."
 
 (defun* call-around-hook (hook function)
   (call-function (or hook 'funcall) function))
+
+(defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
+  (let* ((keys
+           (remove-plist-keys `(#+(and allegro (not (version>= 8 2))) :external-format
+                            ,@(unless output-file '(:output-file))) keys)))
+    (if (absolute-pathname-p output-file)
+        ;; what cfp should be doing, w/ mp* instead of mp
+        (let* ((type (pathname-type (apply 'compile-file-type keys)))
+               (defaults (make-pathname
+                          :type type :defaults (merge-pathnames* input-file))))
+          (merge-pathnames* output-file defaults))
+        (funcall *output-translation-function*
+                 (apply 'compile-file-pathname input-file keys)))))
 
 (defun* compile-file* (input-file &rest keys
                                   &key compile-check output-file warnings-file
@@ -321,19 +415,6 @@ it will filter them appropriately."
          (delete-file-if-exists output-truename)
          (setf output-truename nil)))
       (values output-truename warnings-p failure-p))))
-
-(defun* compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
-  (let* ((keys
-           (remove-plist-keys `(#+(and allegro (not (version>= 8 2))) :external-format
-                            ,@(unless output-file '(:output-file))) keys)))
-    (if (absolute-pathname-p output-file)
-        ;; what cfp should be doing, w/ mp* instead of mp
-        (let* ((type (pathname-type (apply 'compile-file-type keys)))
-               (defaults (make-pathname
-                          :type type :defaults (merge-pathnames* input-file))))
-          (merge-pathnames* output-file defaults))
-        (funcall *output-translation-function*
-                 (apply 'compile-file-pathname input-file keys)))))
 
 (defun* load* (x &rest keys &key &allow-other-keys)
   (etypecase x

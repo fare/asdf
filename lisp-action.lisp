@@ -7,7 +7,7 @@
   (:use :common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
   (:export
-   #:compile-error #:compile-failed #:compile-warned #:try-recompiling
+   #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:basic-load-op #:basic-compile-op #:compile-op-flags #:compile-op-proclamations
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
@@ -15,16 +15,8 @@
    #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source))
 (in-package :asdf/lisp-action)
 
-;;;; Conditions
-
-(define-condition compile-error (operation-error) ())
-(define-condition compile-failed (compile-error) ())
-(define-condition compile-warned (compile-error) ())
-
 
 ;;;; Component classes
-
-
 (defclass cl-source-file (source-file)
   ((type :initform "lisp")))
 (defclass cl-source-file.cl (cl-source-file)
@@ -34,7 +26,6 @@
 
 
 ;;;; Operation classes
-
 (defclass basic-load-op (operation) ())
 (defclass basic-compile-op (operation)
   ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
@@ -42,12 +33,15 @@
           :initform nil)))
 
 ;;; Our default operations: loading into the current lisp image
-(defclass load-op (basic-load-op downward-operation) ())
-(defclass prepare-op (upward-operation) ())
-(defclass compile-op (basic-compile-op downward-operation) ())
+(defclass load-op (basic-load-op downward-operation sibling-operation) ())
+(defclass prepare-op (upward-operation sibling-operation)
+  ((sibling-operation :initform 'load-op :allocation :class)))
+(defclass compile-op (basic-compile-op downward-operation)
+  ((downward-operation :initform 'load-op :allocation :class)))
 
 (defclass load-source-op (basic-load-op downward-operation) ())
-(defclass prepare-source-op (upward-operation) ())
+(defclass prepare-source-op (upward-operation sibling-operation)
+  ((sibling-operation :initform 'load-source-op :allocation :class)))
 
 (defclass test-op (operation) ())
 
@@ -58,11 +52,6 @@
 (defmethod operation-description ((o prepare-op) (c component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<loading dependencies of ~3i~_~A~@:>") c))
-(defmethod component-depends-on ((o prepare-op) (c component))
-  (declare (ignorable o))
-  `((load-op ,@(loop :for dep :in (component-sibling-dependencies c)
-                     :collect (resolve-dependency-spec c dep)))
-    ,@(call-next-method)))
 (defmethod perform ((o prepare-op) (c component))
   (declare (ignorable o c))
   nil)
@@ -79,7 +68,7 @@
   (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") c))
 (defmethod operation-description ((o compile-op) (c parent-component))
   (declare (ignorable o))
-  (format nil (compatfmt "~@<compiled ~3i~_~A~@:>") c))
+  (format nil (compatfmt "~@<completing compilation for ~3i~_~A~@:>") c))
 (defgeneric* call-with-around-compile-hook (component thunk))
 (defmethod call-with-around-compile-hook ((c component) function)
   (call-around-hook (around-compile-hook c) function))
@@ -89,44 +78,47 @@
         (input-file (first (input-files o c)))
         ;; on some implementations, there are more than one output-file,
         ;; but the first one should always be the primary fasl that gets loaded.
-        (output-file (first (output-files o c))))
+        (outputs (output-files o c)))
     (multiple-value-bind (output warnings-p failure-p)
-        (call-with-around-compile-hook
-         c #'(lambda (&rest flags)
-               (with-muffled-compiler-conditions ()
-                 (apply 'compile-file* input-file
-                        :output-file output-file
-                        :external-format (component-external-format c)
-                        (append flags (compile-op-flags o))))))
-      (unless output
-        (error 'compile-error :component c :operation o))
-      (when failure-p
-        (case *compile-file-failure-behaviour*
-          (:warn (warn
-                  (compatfmt "~@<COMPILE-FILE failed while performing ~A.~@:>")
-                  (operation-description o c)))
-          (:error (error 'compile-failed :component c :operation o))
-          (:ignore nil)))
-      (when warnings-p
-        (case *compile-file-warnings-behaviour*
-          (:warn (warn
-                  (compatfmt "~@<COMPILE-FILE warned while performing ~A.~@:>")
-                  (operation-description o c)))
-          (:error (error 'compile-warned :component c :operation o))
-          (:ignore nil))))))
+        (destructuring-bind
+            (output-file &optional #+(or ecl mkcl) object-file #+sbcl warnings-file) outputs
+          (call-with-around-compile-hook
+           c #'(lambda (&rest flags)
+                 (with-muffled-compiler-conditions ()
+                   (apply 'compile-file* input-file
+                          :output-file output-file
+                          :external-format (component-external-format c)
+                      (append
+                       #+(or ecl mkcl) (list :object-file object-file)
+                       #+sbcl (list :warnings-file warnings-file)
+                       flags (compile-op-flags o)))))))
+      (check-lisp-compile-results output warnings-p failure-p
+                                  "~/asdf-action::format-action/" (list (cons o c))))))
+
+(defun* report-file-p (f)
+  (equal (pathname-type f) "build-report"))
+(defun* perform-lisp-warnings-check (o c)
+  (check-deferred-warnings
+   (remove-if-not #'warnings-file-p (input-files o c))
+   "~/asdf-action::format-action/" (list (cons o c)))
+  (let* ((output (output-files o c))
+         (report (find-if #'report-file-p output)))
+    (when report
+      (with-open-file (s report :direction :output :if-exists :supersede)
+        (format s ":success~%")))))
 (defmethod perform ((o compile-op) (c cl-source-file))
   (perform-lisp-compilation o c))
 (defmethod output-files ((o compile-op) (c cl-source-file))
   (declare (ignorable o))
   (let* ((i (first (input-files o c)))
          (f (compile-file-pathname
-             i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl))
-         #+mkcl (o (compile-file-pathname i :fasl-p nil))) ;; object file
-    #+ecl (if (use-ecl-byte-compiler-p)
-              (list f)
-              (list f (compile-file-pathname i :type :object)))
-    #+mkcl (list f o)
-    #-(or ecl mkcl) (list f)))
+             i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl)))
+    `(,f ;; the fasl is the primary output, in first position
+      #+ecl ,@(unless (use-ecl-byte-compiler-p)
+                (compile-file-pathname i :type :object))
+      #+mkcl ,(compile-file-pathname i :fasl-p nil) ;; object file
+      #+sbcl ,@(unless (builtin-system-p (component-system c))
+                 `(,(make-pathname :type "sbcl-warnings" :defaults f))))))
 (defmethod component-depends-on ((o compile-op) (c component))
   (declare (ignorable o))
   `((prepare-op ,c) ,@(call-next-method)))
@@ -136,6 +128,25 @@
 (defmethod output-files ((o compile-op) (c static-file))
   (declare (ignorable o c))
   nil)
+(defmethod perform ((o compile-op) (c system))
+  (declare (ignorable o c))
+  nil
+  #+sbcl (perform-lisp-warnings-check o c))
+#+sbcl
+(defmethod input-files ((o compile-op) (c system))
+  (declare (ignorable o c))
+  (unless (builtin-system-p c)
+    (loop :for (sub-o . sub-c)
+          :in (traverse-sub-actions
+               o c :other-systems nil
+                   :keep-operation 'compile-op :keep-component 'cl-source-file)
+          :append (remove-if-not 'warnings-file-p
+                               (output-files sub-o sub-c)))))
+#+sbcl
+(defmethod output-files ((o compile-op) (c system))
+  (unless (builtin-system-p c)
+    (if-let ((pathname (component-pathname c)))
+      (list (subpathname pathname (component-name c) :type "build-report")))))
 
 ;;; load-op
 (defmethod operation-description ((o load-op) (c cl-source-file))
@@ -143,7 +154,7 @@
   (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>") c))
 (defmethod operation-description ((o load-op) (c parent-component))
   (declare (ignorable o))
-  (format nil (compatfmt "~@<loaded ~3i~_~A~@:>") c))
+  (format nil (compatfmt "~@<completing load for ~3i~_~A~@:>") c))
 (defmethod operation-description ((o load-op) component)
   (declare (ignorable o))
   (format nil (compatfmt "~@<loading ~3i~_~A~@:>")
@@ -167,10 +178,10 @@
   nil)
 (defmethod component-depends-on ((o load-op) (c component))
   (declare (ignorable o))
-  `((prepare-op ,c) ,@(call-next-method)))
-(defmethod component-depends-on ((o load-op) (c source-file))
-  (declare (ignorable o))
-  `((compile-op ,c) ,@(call-next-method)))
+  ;; NB: even though compile-op depends-on on prepare-op,
+  ;; it is not needed-in-image-p, whereas prepare-op is,
+  ;; so better not omit prepare-op and think it will happen.
+  `((prepare-op ,c) (compile-op ,c) ,@(call-next-method)))
 
 
 ;;;; prepare-source-op, load-source-op
@@ -179,9 +190,6 @@
 (defmethod operation-description ((o prepare-source-op) (c component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<loading source for dependencies of ~3i~_~A~@:>") c))
-(defmethod component-depends-on ((o prepare-source-op) (c source-file))
-  (declare (ignorable o))
-  `((load-source-op ,@(component-sibling-dependencies c)) ,@(call-next-method)))
 (defmethod input-files ((o prepare-source-op) (c component))
   (declare (ignorable o c))
   nil)

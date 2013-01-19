@@ -9,13 +9,12 @@
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
-   #:monolithic-op #:monolithic-bundle-op #:dependency-files
+   #:monolithic-op #:monolithic-bundle-op #:required-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
    #:program-op
    #:compiled-file #:precompiled-system #:prebuilt-system
    #:operation-monolithic-p
    #:user-system-p #:user-system #:trivial-system-p
-   #:gather-actions #:operated-components
    #+ecl #:make-build
    #:register-pre-built-system
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
@@ -192,23 +191,6 @@
     (remf args :ld-flags)
     args))
 
-(defclass filtered-sequential-plan (sequential-plan)
-  ((action-filter :initarg :action-filter :reader plan-action-filter)))
-
-(defmethod action-valid-p ((plan filtered-sequential-plan) o c)
-  (and (funcall (plan-action-filter plan) o c) (call-next-method)))
-
-(defun* gather-actions (operation component &key other-systems (filter t))
-  ;; This function creates a list of sub-actions performed
-  ;; while building the targeted action.
-  ;; This list may be restricted to sub-components of SYSTEM
-  ;; if OTHER-SYSTEMS is NIL (default).
-  (traverse operation component
-            :plan-class 'filtered-sequential-plan
-            :action-filter (ensure-function filter)
-            :force (if other-systems :all t)
-            :force-not (if other-systems nil :all)))
-
 (defun* bundlable-file-p (pathname)
   (let ((type (pathname-type pathname)))
     (declare (ignorable type))
@@ -216,19 +198,6 @@
                   (equal type (compile-file-type :type :static-library)))
         #+mkcl (equal type (compile-file-type :fasl-p nil))
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
-
-(defun* operated-components (system &key (goal-operation 'load-op) (keep-operation goal-operation)
-                                    (component-type t) (keep-component t) other-systems)
-  (let ((goal-op (make-operation goal-operation)))
-    (flet ((filter (o c)
-             (declare (ignore o))
-             (or (eq c system)
-                 (typep c component-type))))
-      (loop :for (o . c) :in (gather-actions goal-op system
-                                             :other-systems other-systems
-                                             :filter #'filter)
-            :when (and (typep o keep-operation) (typep c keep-component))
-              :collect c))))
 
 (defgeneric* trivial-system-p (component))
 
@@ -250,13 +219,13 @@
 
 (defmethod component-depends-on ((o monolithic-lib-op) (c system))
   (declare (ignorable o))
-  `((lib-op ,@(operated-components c :other-systems t :component-type 'system
+  `((lib-op ,@(required-components c :other-systems t :component-type 'system
                                      :goal-operation 'load-op
                                      :keep-operation 'load-op))))
 
 (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
   (declare (ignorable o))
-  `((fasl-op ,@(operated-components c :other-systems t :component-type 'system
+  `((fasl-op ,@(required-components c :other-systems t :component-type 'system
                                       :goal-operation 'load-fasl-op
                                       :keep-operation 'load-fasl-op))))
 
@@ -276,7 +245,7 @@
 
 (defmethod component-depends-on ((o lib-op) (c system))
   (declare (ignorable o))
-  `((compile-op ,@(operated-components c :other-systems nil :component-type '(not system)
+  `((compile-op ,@(required-components c :other-systems nil :component-type '(not system)
                                          :goal-operation 'load-op
                                          :keep-operation 'load-op))))
 
@@ -299,7 +268,7 @@
       `((,op ,c))
       (call-next-method)))
 
-(defun* dependency-files (o c &key (test 'identity) (key 'output-files))
+(defmethod required-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
   (while-collecting (collect)
     (visit-dependencies
      () o c #'(lambda (sub-o sub-c)
@@ -307,7 +276,7 @@
                       :when (funcall test f) :do (collect f))))))
 
 (defmethod input-files ((o bundle-op) (c system))
-  (dependency-files o c :test 'bundlable-file-p :key 'output-files))
+  (required-files o c :test 'bundlable-file-p :key 'output-files))
 
 (defun* select-bundle-operation (type &optional monolithic)
   (ecase type

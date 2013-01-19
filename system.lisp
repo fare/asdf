@@ -46,12 +46,6 @@
 
 ;;;; Pathnames
 
-(defmethod component-pathname ((system system))
-  (and (or (slot-boundp system 'relative-pathname)
-           (slot-boundp system 'absolute-pathname)
-           (slot-value system 'source-file))
-    (call-next-method)))
-
 (defmethod system-source-file ((system-name string))
   (system-source-file (find-system system-name)))
 (defmethod system-source-file ((system-name symbol))
@@ -64,6 +58,23 @@ in which the system specification (.asd file) is located."
 
 (defun* system-relative-pathname (system name &key type)
   (subpathname (system-source-directory system) name :type type))
+
+(defmethod component-pathname ((system system))
+  (or (call-next-method)
+      (system-source-directory system)))
+
+(defmethod component-relative-pathname ((system system))
+  (parse-unix-namestring
+   (and (slot-boundp system 'relative-pathname)
+        (slot-value system 'relative-pathname))
+   :want-relative t
+   :type :directory
+   :ensure-absolute t
+   :defaults (system-source-directory system)))
+
+(defmethod component-parent-pathname ((system system))
+  (system-source-directory system))
+
 
 ;;;; Beware of builtin systems
 (defgeneric* builtin-system-p (system))

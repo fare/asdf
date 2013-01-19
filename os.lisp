@@ -268,14 +268,21 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 ;;; Current directory
 
 (defun* getcwd ()
-  "Get the current working directory as per POSIX getcwd(3)"
-  (or #+clisp (ext:default-directory)
+  "Get the current working directory as per POSIX getcwd(3), as a pathname object"
+  (or ;; missing: abcl gcl genera
+      #+allegro (excl::current-directory)
+      #+clisp (ext:default-directory)
       #+clozure (ccl:current-directory)
-      #+cmu (unix:unix-current-directory)
-      #+cormanlisp (pl::get-current-directory)
+      #+(or cmu scl) (parse-native-namestring
+                      (nth-value 1 (unix:unix-current-directory)) :ensure-directory t)
+      #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
       #+ecl (ext:getcwd)
+      #+gcl (parse-native-namestring
+             (first (symbol-call :asdf/driver :run-program/ '("/bin/pwd") :output :lines)))
+      #+lispworks (system:current-directory)
       #+mkcl (mk-ext:getcwd)
-      #+sbcl (sb-unix:posix-getcwd/)
+      #+sbcl (parse-native-namestring (sb-unix:posix-getcwd/))
+      #+xcl (extensions:current-directory)
       (error "getcwd not supported on your implementation")))
 
 (defun* chdir (x)

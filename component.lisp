@@ -190,14 +190,9 @@ another pathname in a degenerate way."))
 
 ;;;; component pathnames
 
-(defun* component-parent-pathname (component)
-  ;; No default anymore (in particular, no *default-pathname-defaults*).
-  ;; If you force component to have a NULL pathname, you better arrange
-  ;; for any of its children to explicitly provide a proper absolute pathname
-  ;; wherever a pathname is actually wanted.
-  (let ((parent (component-parent component)))
-    (when parent
-      (component-pathname parent))))
+(defgeneric* component-parent-pathname (component))
+(defmethod component-parent-pathname (component)
+  (component-pathname (component-parent component)))
 
 (defmethod component-pathname ((component component))
   (if (slot-boundp component 'absolute-pathname)

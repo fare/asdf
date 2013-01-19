@@ -33,7 +33,8 @@
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
   (absolutize-pathnames
-   (list pathname (load-pathname) *default-pathname-defaults* (getcwd))
+   (list pathname (load-pathname) *default-pathname-defaults*
+         #-(or abcl gcl genera) (getcwd))
    :resolve-symlinks *resolve-symlinks*))
 
 
