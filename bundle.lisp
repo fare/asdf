@@ -16,7 +16,7 @@
    #:operation-monolithic-p
    #:user-system-p #:user-system #:trivial-system-p
    #:gather-actions #:operated-components
-   #+ecl #:make-build #+mkcl #:bundle-system
+   #+ecl #:make-build
    #:register-pre-built-system
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
    #:component-translate-output-p #:translate-output-p

@@ -54,6 +54,7 @@
    #:parse-file-location-info #:parse-windows-shortcut
    ;; Checking constraints
    #:ensure-pathname
+   #:absolutize-pathnames
    ;; Output translations
    #:*output-translation-function*))
 
@@ -165,21 +166,21 @@ and make a new pathname with corresponding components and specified logical HOST
   (when (stringp p1) (setf p1 (pathname p1)))
   (when (stringp p2) (setf p2 (pathname p2)))
   (flet ((normalize-component (x)
-           (and (not (member x '(nil :unspecific :newest (:relative)) :test 'equal)) x)))
+           (unless (member x '(nil :unspecific :newest (:relative)) :test 'equal)
+             x)))
     (macrolet ((=? (&rest accessors)
                  (flet ((frob (x)
                           (reduce 'list (cons 'normalize-component accessors)
                                   :initial-value x :from-end t)))
                    `(equal ,(frob 'p1) ,(frob 'p2)))))
-      (or (and (null p1) (null 2))
+      (or (and (null p1) (null p2))
           (and (pathnamep p1) (pathnamep p2)
-               (or (equal p1 p2)
-                   (=? pathname-host)
-                   (=? pathname-device)
-                   (=? normalize-pathname-directory-component pathname-directory)
-                   (=? pathname-name)
-                   (=? pathname-type)
-                   (=? pathname-version)))))))
+               (and (=? pathname-host)
+                    (=? pathname-device)
+                    (=? normalize-pathname-directory-component pathname-directory)
+                    (=? pathname-name)
+                    (=? pathname-type)
+                    (=? pathname-version)))))))
 
 (defun* logical-pathname-p (x)
   (typep x 'logical-pathname))
@@ -401,7 +402,7 @@ or the original (parsed) pathname if it is false (the default)."
   ;; and we can survive and we will continue the planning
   ;; as if the file were very old.
   ;; (or should we treat the case in a different, special way?)
-  (and pathname (probe-file* pathname) (ignore-errors (file-write-date pathname))))
+  (and (probe-file* pathname) (ignore-errors (file-write-date pathname))))
 
 (defun* directory* (pathname-spec &rest keys &key &allow-other-keys)
   (apply 'directory pathname-spec
@@ -413,7 +414,7 @@ or the original (parsed) pathname if it is false (the default)."
                                       '(:resolve-symlinks nil))))))
 
 (defun* filter-logical-directory-results (directory entries merger)
-  (if (typep directory 'logical-pathname)
+  (if (logical-pathname-p directory)
       ;; Try hard to not resolve logical-pathname into physical pathnames;
       ;; otherwise logical-pathname users/lovers will be disappointed.
       ;; If directory* could use some implementation-dependent magic,
@@ -421,7 +422,7 @@ or the original (parsed) pathname if it is false (the default)."
       ;; we only keep pathnames for which specifying the name and
       ;; translating the LPN commute.
       (loop :for f :in entries
-        :for p = (or (and (typep f 'logical-pathname) f)
+        :for p = (or (and (logical-pathname-p f) f)
                      (let* ((u (ignore-errors (funcall merger f))))
                        ;; The first u avoids a cumbersome (truename u) error.
                        ;; At this point f should already be a truename,
@@ -432,7 +433,7 @@ or the original (parsed) pathname if it is false (the default)."
 
 (defun* directory-files (directory &optional (pattern *wild-file*))
   (let ((dir (pathname directory)))
-    (when (typep dir 'logical-pathname)
+    (when (logical-pathname-p dir)
       ;; Because of the filtering we do below,
       ;; logical pathnames have restrictions on wild patterns.
       ;; Not that the results are very portable when you use these patterns on physical pathnames.
@@ -688,14 +689,6 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
   (and pathname
        (subpathname (ensure-directory-pathname pathname) subpath :type type)))
 
-(defun* subpathp (maybe-subpath base-pathname)
-  (and (pathnamep maybe-subpath) (pathnamep base-pathname)
-       (absolute-pathname-p maybe-subpath) (absolute-pathname-p base-pathname)
-       (directory-pathname-p base-pathname) (not (wild-pathname-p base-pathname))
-       (with-pathname-defaults ()
-         (let ((enough (enough-namestring maybe-subpath base-pathname)))
-           (and (relative-pathname-p enough) (pathname enough))))))
-
 ;;; Pathname host and its root
 (defun* pathname-root (pathname)
   (make-pathname* :directory '(:absolute)
@@ -758,6 +751,15 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
                           :defaults pathname)))
     pathname)))
 
+(defun* subpathp (maybe-subpath base-pathname)
+  (and (pathnamep maybe-subpath) (pathnamep base-pathname)
+       (absolute-pathname-p maybe-subpath) (absolute-pathname-p base-pathname)
+       (directory-pathname-p base-pathname) (not (wild-pathname-p base-pathname))
+       (pathname-equal (pathname-root maybe-subpath) (pathname-root base-pathname))
+       (with-pathname-defaults ()
+         (let ((enough (enough-namestring maybe-subpath base-pathname)))
+           (and (relative-pathname-p enough) (pathname enough))))))
+
 
 ;;; Resolving symlinks somewhat
 (defun* truenamize (pathname &optional (defaults *default-pathname-defaults*))
@@ -765,15 +767,15 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
   (block nil
     (when (typep pathname '(or null logical-pathname)) (return pathname))
     (let ((p (merge-pathnames* pathname defaults)))
-      (when (typep p 'logical-pathname) (return p))
-      (let ((found (probe-file* p)))
+      (when (logical-pathname-p p) (return p))
+      (let ((found (probe-file* p :truename t)))
         (when found (return found)))
       (unless (absolute-pathname-p p)
         (let ((true-defaults (truename* defaults)))
           (when true-defaults
             (setf p (merge-pathnames pathname true-defaults)))))
       (unless (absolute-pathname-p p) (return p))
-      (let ((sofar (probe-file* (pathname-root p))))
+      (let ((sofar (probe-file* (pathname-root p) :truename t)))
         (unless sofar (return p))
         (flet ((solution (directories)
                  (merge-pathnames*
@@ -790,7 +792,7 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
             :for more = (probe-file*
                          (merge-pathnames*
                           (make-pathname* :directory `(:relative ,dir))
-                          sofar)) :do
+                          sofar) :truename t) :do
             (if more
                 (setf sofar more)
                 (return (solution rest)))
@@ -811,14 +813,18 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
 
 
 ;;; absolute vs relative
-(defun* ensure-pathname-absolute (path &optional defaults)
+(defun* ensure-pathname-absolute (path &optional defaults (on-error 'error))
   (cond
-    ((absolute-pathname-p path) path)
+    ((absolute-pathname-p path))
     ((stringp path) (ensure-pathname-absolute (pathname path) defaults))
-    ((not (pathnamep path)) (error "not a valid pathname designator ~S" path))
-    ((absolute-pathname-p defaults) (merge-pathnames* path defaults))
-    (t (error "Cannot ensure ~S is evaluated as an absolute pathname with defaults ~S"
-              path defaults))))
+    ((not (pathnamep path)) (call-function on-error "not a valid pathname designator ~S" path))
+    ((absolute-pathname-p defaults)
+     (or (absolute-pathname-p (merge-pathnames* path defaults))
+         (call-function on-error "Failed to merge ~S with ~S into an absolute pathname"
+                        path defaults)))
+    (t (call-function on-error
+                      "Cannot ensure ~S is evaluated as an absolute pathname with defaults ~S"
+                      path defaults))))
 
 (defun relativize-directory-component (directory-component)
   (let ((directory (normalize-pathname-directory-component directory-component)))
@@ -850,7 +856,7 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
                #+clozure :if-exists #+clozure :rename-and-delete))
 
 (defun* delete-file-if-exists (x)
-  (when (and x (probe-file* x))
+  (when (probe-file* x)
     (delete-file x)))
 
 ;;; Translate a pathname
@@ -891,8 +897,7 @@ For the latter case, we ought pick random suffix and atomically open it."
          (multiple-value-prog1
              (funcall fun staging)
            (rename-file-overwriting-target staging pathname))
-      (when (probe-file* staging)
-        (delete-file staging)))))
+      (delete-file-if-exists staging))))
 
 (defmacro with-staging-pathname ((pathname-var &optional (pathname-value pathname-var)) &body body)
   `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body)))
@@ -910,7 +915,7 @@ For the latter case, we ought pick random suffix and atomically open it."
                      ((:host) (pathname-host-pathname x))
                      ((nil) (nil-pathname x))))
              (when want-existing ;; CCL's probe-file will choke if d-p-d is logical
-               (setf x (and (probe-file* x) x)))
+               (setf x (probe-file* x)))
              (and (physical-pathname-p x) x))))
     (or (sanitize defaults)
         (when fallback
@@ -1121,6 +1126,31 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
         (transform resolve-symlinks () (resolve-symlinks p))
         (transform truenamize () (truenamize p))
         p))))
+
+
+(defun absolutize-pathnames
+    (pathnames &key type (resolve-symlinks *resolve-symlinks*) truename)
+    "Given a list of PATHNAMES where each is in the context of the next ones,
+try to resolve these pathnames into an absolute pathname; first gently, then harder."
+  (block nil
+    (labels ((resolve (x)
+               (or (when truename
+                     (absolute-pathname-p (truename* x)))
+                   (when resolve-symlinks
+                     (absolute-pathname-p (resolve-symlinks x)))
+                   (absolute-pathname-p x)
+                   (unless resolve-symlinks
+                     (absolute-pathname-p (resolve-symlinks x)))
+                   (unless truename
+                     (absolute-pathname-p (truename* x)))
+                   (return nil)))
+             (tryone (x type rest)
+               (resolve (or (absolute-pathname-p x)
+                            (subpathname (recurse rest :directory) x :type type))))
+             (recurse (pathnames type)
+               (if (null pathnames) (return nil)
+                   (tryone (first pathnames) type (rest pathnames)))))
+      (recurse pathnames type))))
 
 
 ;;; Hook for output translations

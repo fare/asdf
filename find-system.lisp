@@ -155,7 +155,12 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* probe-asd (name defaults &key truename)
   (block nil
     (when (directory-pathname-p defaults)
-      (let* ((file (probe-file* (subpathname defaults name :type "asd") :truename truename)))
+      (let* ((file (probe-file*
+                    (absolutize-pathnames
+                     (list (make-pathname :name name :type "asd")
+                           defaults *default-pathname-defaults* (getcwd))
+                     :resolve-symlinks truename)
+                    :truename truename)))
         (when file
           (return file)))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
@@ -177,11 +182,10 @@ Going forward, we recommend new users should be using the source-registry.
     (block nil
       (unwind-protect
            (dolist (dir *central-registry*)
-             (let ((defaults (resolve-symlinks* (eval dir)))
-                   directorized truenamized)
+             (let ((defaults (eval dir))
+                   directorized)
                (when defaults
-                 (cond ((and (directory-pathname-p defaults)
-                             (absolute-pathname-p defaults))
+                 (cond ((directory-pathname-p defaults)
                         (let* ((file (probe-asd name defaults :truename *resolve-symlinks*)))
                           (when file
                             (return file))))
@@ -195,13 +199,6 @@ Going forward, we recommend new users should be using the source-registry.
                               (error message))
                           (remove-entry-from-registry ()
                             :report "Remove entry from *central-registry* and continue"
-                            (push dir to-remove))
-                          (coerce-to-truename ()
-                            :test (lambda (c) (declare (ignore c))
-                                    (setf truenamized (truename* defaults)))
-                            :report (lambda (s)
-                                      (format s (compatfmt "~@<Coerce entry to truename ~S and continue.~@:>")
-                                              truenamized))
                             (push dir to-remove))
                           (coerce-entry-to-directory ()
                             :test (lambda (c) (declare (ignore c))
@@ -305,14 +302,18 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)
             (assert (eq foundp (and (or found-system pathname previous) t)))
-            (when (and found-system (not previous))
-              (register-system found-system))
-            (when (and pathname
-                       (not (and previous
-                                 (pathname-equal pathname (system-source-file previous))
-                                 (stamp<= (safe-file-write-date pathname) previous-time))))
-              ;; only load when it's a pathname that is different or has newer content
-              (load-sysdef name pathname))
+            (let ((previous-pathname (and previous (system-source-file previous)))
+                  (system (or previous found-system)))
+              (when (and found-system (not previous))
+                (register-system found-system))
+              (when (and system pathname)
+                (setf (system-source-file system) pathname))
+              (when (and pathname
+                         (not (and previous
+                                   (pathname-equal pathname previous-pathname)
+                                   (stamp<= (safe-file-write-date pathname) previous-time))))
+                ;; only load when it's a pathname that is different or has newer content
+                (load-sysdef name pathname)))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
               (return
                 (cond
