@@ -117,8 +117,9 @@
       #+ecl ,@(unless (use-ecl-byte-compiler-p)
                 (compile-file-pathname i :type :object))
       #+mkcl ,(compile-file-pathname i :fasl-p nil) ;; object file
-      #+sbcl ,@(unless (builtin-system-p (component-system c))
-                 `(,(make-pathname :type "sbcl-warnings" :defaults f))))))
+      #+sbcl ,@(let ((s (component-system c)))
+                 (unless (or (builtin-system-p s) (equal (component-name s) "asdf"))
+                   `(,(make-pathname :type "sbcl-warnings" :defaults f)))))))
 (defmethod component-depends-on ((o compile-op) (c component))
   (declare (ignorable o))
   `((prepare-op ,c) ,@(call-next-method)))
