@@ -17,17 +17,16 @@
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:feature
-   #:gather-actions #:required-components
-   #:traverse-sub-actions #:required-files
+   #:traverse-actions #:traverse-sub-actions #:required-components #:required-files ;; in plan
    ))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
 
-(defgeneric* traverse-actions (actions &key))
-(defgeneric* traverse-sub-actions (operation component &key))
-(defgeneric* required-components (component &key))
-(defgeneric* required-files (operation component &key))
+(defgeneric* traverse-actions (actions &key &allow-other-keys))
+(defgeneric* traverse-sub-actions (operation component &key &allow-other-keys))
+(defgeneric* required-components (component &key &allow-other-keys))
+(defgeneric* required-files (operation component &key &allow-other-keys))
 
 
 ;;;; Convenience methods

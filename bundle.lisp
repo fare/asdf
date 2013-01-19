@@ -268,7 +268,7 @@
       `((,op ,c))
       (call-next-method)))
 
-(defun* required-files (o c &key (test 'identity) (key 'output-files))
+(defmethod required-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
   (while-collecting (collect)
     (visit-dependencies
      () o c #'(lambda (sub-o sub-c)

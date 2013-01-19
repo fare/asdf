@@ -55,6 +55,7 @@ Some constraints:
         excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
+  #+cmucl (setf ext:*gc-verbose* nil)
   #+gcl
   (when (or (< system::*gcl-major-version* 2)
             (and (= system::*gcl-major-version* 2)

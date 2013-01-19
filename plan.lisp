@@ -390,13 +390,13 @@ processed in order by OPERATE."))
        (typep c (plan-component-type plan))
        (call-next-method)))
 
-(defun* traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
+(defmethod traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
   (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
     (loop :for (o . c) :in actions :do
       (traverse-action plan o c t))
     (plan-actions plan)))
 
-(defun* traverse-sub-actions (operation component &rest keys)
+(defmethod traverse-sub-actions (operation component &rest keys &key &allow-other-keys)
   (apply 'traverse-actions (direct-dependencies operation component)
          :system (component-system component) keys))
 
@@ -407,7 +407,7 @@ processed in order by OPERATE."))
                    (typep c keep-component))
           :collect (cons o c))))
 
-(defun* required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
+(defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
   (remove-duplicates
    (mapcar 'cdr (apply 'traverse-sub-actions (make-operation goal-operation) system keys))
    :from-end t))
