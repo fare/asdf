@@ -10,6 +10,8 @@
 ;; and reexported in a different package
 ;; (alternatively the package may be dropped & replaced by one with a new name).
 
+#+clisp (declaim (optimize (speed 1)(safety 3)(debug 3)))
+
 (defpackage :asdf/package
   (:use :common-lisp)
   (:export
@@ -253,6 +255,10 @@ or when loading the package is optional."
         (when nuke (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s))))
         (ensure-package-unused p)
         (delete-package package))))
+  (defun package-names (package)
+    (cons (package-name package) (package-nicknames package)))
+  (defun packages-from-names (names)
+    (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t))
   (defun fresh-package-name (&key (prefix :%TO-BE-DELETED)
                                separator
                                (index (random most-positive-fixnum)))
@@ -260,12 +266,11 @@ or when loading the package is optional."
           :for n = (format nil "~A~@[~A~D~]" prefix (and (plusp i) (or separator "")) i)
           :thereis (and (not (find-package n)) n)))
   (defun rename-package-away (p &rest keys &key prefix &allow-other-keys)
-    (rename-package
-     p (apply 'fresh-package-name :prefix (or prefix (format nil "__~A__" (package-name p))) keys)))
-  (defun package-names (package)
-    (cons (package-name package) (package-nicknames package)))
-  (defun packages-from-names (names)
-    (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t)))
+    (let ((new-name
+            (apply 'fresh-package-name
+                   :prefix (or prefix (format nil "__~A__" (package-name p))) keys)))
+      (record-fishy (list :rename-away (package-names p) new-name))
+      (rename-package p new-name))))
 
 
 ;;; Communicable representation of symbol and package information

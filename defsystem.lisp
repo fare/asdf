@@ -136,7 +136,7 @@
       (component-pathname component) ; eagerly compute the absolute pathname
       (let ((sysdir (system-source-directory (component-system component)))) ;; requires the previous
         (setf version (normalize-version version sysdir)))
-      (when (and versionp (not (parse-version version nil)))
+      (when (and versionp version (not (parse-version version nil)))
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
               version name parent))
       (setf (component-version component) version)

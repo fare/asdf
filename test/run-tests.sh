@@ -249,6 +249,7 @@ upgrade_methods () {
         echo $ASDF_UPGRADE_TEST_METHODS ; return
     fi
     cat <<EOF
+'load-asdf-lisp'load-asdf-lisp-clean
 'load-asdf-lisp'load-asdf-system
 'load-asdf-lisp'compile-load-asdf
 'load-asdf-lisp'load-asdf-fasl

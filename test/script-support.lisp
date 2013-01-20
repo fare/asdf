@@ -17,7 +17,7 @@ Some constraints:
    #:*test-directory* #:*asdf-directory*
    #:load-asdf #:maybe-compile-asdf
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl
-   #:compile-load-asdf #:load-asdf-system
+   #:compile-load-asdf #:load-asdf-system #:clean-load-asdf-system
    #:register-directory #:load-test-system
    #:with-test #:test-asdf #:debug-asdf
    #:assert-compare
@@ -250,6 +250,14 @@ is bound, write a message and exit on an error.  If
 
 (defun register-directory (dir)
   (pushnew dir (symbol-value (asym :*central-registry*))))
+
+(defun clean-asdf-system ()
+  (let ((fasl (resolve-output "asdf" "build" "asdf.fasl")))
+    (when (DBG :clean fasl (probe-file fasl)) (delete-file fasl))))
+
+(defun load-asdf-lisp-clean ()
+  (load-asdf-lisp)
+  (clean-asdf-system))
 
 (defun load-asdf-system (&rest keys)
   (quietly

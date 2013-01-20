@@ -29,7 +29,9 @@
 
    ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
    #:name #:version #:description #:long-description #:author #:maintainer #:licence
-   #:defsystem-depends-on
+   #:components-by-name #:components
+   #:children #:children-by-name #:default-component-class
+   #:author #:maintainer #:licence #:source-file #:defsystem-depends-on
    #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
    #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
    #:%encoding #:properties #:parent))

@@ -35,7 +35,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.126")
+         (asdf-version "2.26.127")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version))
@@ -45,7 +45,7 @@
              #:component-depends-on #:input-files
              #:perform-with-restarts #:component-relative-pathname
              #:system-source-file #:operate #:find-component #:find-system
-             #:apply-output-translations
+             #:apply-output-translations #:component-self-dependencies
              #:system-relative-pathname
              #:inherit-source-registry #:process-source-registry
              #:process-source-registry-directive #:source-file-type
@@ -57,13 +57,15 @@
              #:split #:make-collector #:do-dep #:do-one-dep
              #:resolve-relative-location-component #:resolve-absolute-location-component
              #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
+    (declare (ignorable redefined-functions uninterned-symbols))
+    (setf *asdf-version* asdf-version)
     (when (and existing-asdf (not already-there))
-      (when existing-asdf
-        (asdf-message "~&; Upgrading ASDF ~@[from version ~A ~]to version ~A~%"
-                      existing-version asdf-version)
-        (push existing-version *upgraded-p*))
-      ;;(format t "UPGRADE FROBBING! ~S~%" (list existing-asdf existing-version asdf-version)) ;XXX
-      (loop :for name :in (append #-(or clisp ecl) redefined-functions)
+      (push existing-version *upgraded-p*)
+      (when *asdf-verbose*
+        (format *trace-output*
+                (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
+                existing-version asdf-version))
+      (loop :for name :in (append #-(or clisp ecl common-lisp) redefined-functions)
               :for sym = (find-symbol* name :asdf nil) :do
                 (when sym
                   ;;(format t "Undefining ~S~%" sym);XXX
@@ -84,13 +86,12 @@
                        (shadowing-import new asdf))))))
         ;; Note that this massive package destruction makes it impossible
         ;; to use asdf/driver on top of an old ASDF on these implementations
-        #+(or clisp xcl)
+        #+(or xcl)
         (let ((p (find-package :asdf)))
           (when p
             (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s)))
             (rename-package-away p :prefix (format nil "~A-~A" :asdf (or existing-version :1.x))
-                         :index 0 :separator "-"))))
-    (setf *asdf-version* asdf-version)))
+                         :index 0 :separator "-"))))))
 
 
 ;;; Upgrade interface

@@ -63,8 +63,7 @@
              ;; but we usually try to do it only for the functions that need it,
              ;; which happens in asdf/upgrade - however, for ECL, we need this hammer,
              ;; (which causes issues in clisp)
-               #-ecl ;XXX
-               ,@(when (or supersede #+(or (and gcl (not gcl-pre2.7))) t)
+               ,@(when (or #-ecl supersede #+(or (and gcl (not gcl-pre2.7))) t) ; XXX
                    `((undefine-function ',name)))
                #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
                ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl

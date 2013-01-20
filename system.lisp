@@ -4,8 +4,6 @@
 (asdf/package:define-package :asdf/system
   (:recycle :asdf :asdf/system)
   (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component)
-  (:intern #:children #:children-by-name #:default-component-class
-           #:author #:maintainer #:licence #:source-file #:defsystem-depends-on)
   (:export
    #:system #:proto-system
    #:system-source-file #:system-source-directory #:system-relative-pathname
