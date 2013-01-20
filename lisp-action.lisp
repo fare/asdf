@@ -115,10 +115,10 @@
              i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl)))
     `(,f ;; the fasl is the primary output, in first position
       #+ecl ,@(unless (use-ecl-byte-compiler-p)
-                (compile-file-pathname i :type :object))
+                `(,(compile-file-pathname i :type :object)))
       #+mkcl ,(compile-file-pathname i :fasl-p nil) ;; object file
       #+sbcl ,@(let ((s (component-system c)))
-                 (unless (or (builtin-system-p s) (equal (component-name s) "asdf"))
+                 (unless (builtin-system-p s) ; includes ASDF itself
                    `(,(make-pathname :type "sbcl-warnings" :defaults f)))))))
 (defmethod component-depends-on ((o compile-op) (c component))
   (declare (ignorable o))

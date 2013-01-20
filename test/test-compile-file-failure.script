@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
-(with-test ()
+(progn
  #-gcl<2.7
  (assert (handler-case
              (let ((asdf:*compile-file-failure-behaviour* :warn))

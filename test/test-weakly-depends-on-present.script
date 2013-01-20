@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
 ;;;---------------------------------------------------------------------------
@@ -7,24 +7,24 @@
 ;;; directory, actually gets loaded.
 ;;;---------------------------------------------------------------------------
 
+(def-test-system test-weakly-depends-on-present
+  :weakly-depends-on (file3-only)
+  :components ((:file "file1")))
 
-(with-test ()
- (asdf:load-system 'test-weakly-depends-on-present)
- ;; The weakly-depended-on system, file3-only, should be loaded...
- (let* ((file3 (asdf:compile-file-pathname* "file3"))
-        (file3-date (file-write-date file3)))
+(DBG "Loading" (operate 'load-op 'test-weakly-depends-on-present))
 
-   ;; (format t "~&test1 1: ~S ~S~%" file1 file1-date)
-   (assert file3-date)
-   ;; and loaded
-   (assert (symbol-value (find-symbol (symbol-name :*file3*) :test-package)))))
+(DBG "The weakly-depended-on system, file3-only, should be loaded...")
+(defparameter *file3* (test-fasl "file3"))
+(defparameter *file3-date* (file-write-date *file3*))
 
- ;; The depending system (test-weakly-depends-on-present) loads
- ;; successfully. [2011/12/14:rpg]
- (let* ((file1 (asdf:compile-file-pathname* "file1"))
-        (file1-date (file-write-date file1)))
+(DBG "test1 1" *file3* *file3-date*)
+(assert *file3-date*)
+(assert (symbol-value (find-symbol (symbol-name :*file3*) :test-package)))
 
-   ;; (format t "~&test1 1: ~S ~S~%" file1 file1-date)
-   (assert file1-date)
-   ;; and loaded
-   (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))))
+(DBG "The depending system (test-weakly-depends-on-present) loads successfully. [2011/12/14:rpg]")
+(defparameter *file1* (test-fasl "file1"))
+(defparameter *file1-date* (file-write-date *file1*))
+
+(DBG "test1 2" *file1* *file1-date*)
+(assert *file1-date*)
+(assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))

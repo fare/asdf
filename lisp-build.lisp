@@ -39,7 +39,8 @@ Valid values are :error, :warn, and :ignore.")
 (defvar *compile-file-failure-behaviour*
   (or #+(or mkcl sbcl) :error #+clisp :ignore :warn)
   "How should ASDF react if it encounters a failure (per the ANSI spec of COMPILE-FILE)
-when compiling a file?  Valid values are :error, :warn, and :ignore.
+when compiling a file, which includes any non-style-warning warning.
+Valid values are :error, :warn, and :ignore.
 Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling.")
 
 
@@ -71,17 +72,28 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 ;;; Condition control
 
+#+sbcl
+(progn
+  (defun sb-grovel-unknown-constant-condition-p (c)
+    (and (typep c 'sb-int:simple-style-warning)
+         (string-enclosed-p
+          "Couldn't grovel for "
+          (simple-condition-format-control c)
+          " (unknown to the C compiler).")))
+  (deftype sb-grovel-unknown-constant-condition ()
+    '(and style-warning (satisfies sb-grovel-unknown-constant-condition-p))))
+
 (defvar *uninteresting-compiler-conditions*
   (append
    #+sbcl
-   '(sb-c::simple-compiler-note
+   `(sb-c::simple-compiler-note
      "&OPTIONAL and &KEY found in the same lambda list: ~S"
      sb-int:package-at-variance
      sb-kernel:uninteresting-redefinition
      sb-kernel:undefined-alien-style-warning
-     sb-ext:implicit-generic-function-warning
+     ;; sb-ext:implicit-generic-function-warning ; controversial, but let's allow it by default.
      sb-kernel:lexical-environment-too-complex
-     "Couldn't grovel for ~A (unknown to the C compiler)."
+     sb-grovel-unknown-constant-condition ; defined above.
      ;; BEWARE: the below four are controversial to include here.
      sb-kernel:redefinition-with-defun
      sb-kernel:redefinition-with-defgeneric
@@ -347,10 +359,10 @@ possibly in a different process. Otherwise just run the BODY."
         (funcall *output-translation-function*
                  (apply 'compile-file-pathname input-file keys)))))
 
-(defun* compile-file* (input-file &rest keys
-                                  &key compile-check output-file warnings-file
-                                  #+(or ecl mkcl) object-file
-                                  &allow-other-keys)
+(defun* (compile-file*) (input-file &rest keys
+                                    &key compile-check output-file warnings-file
+                                    #+(or ecl mkcl) object-file
+                                    &allow-other-keys)
   "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
 the file only actually created if the compilation was successful,
@@ -370,7 +382,7 @@ On ECL or MKCL, it creates both the linkable object and loadable fasl files.
 On implementations that erroneously do not recognize standard keyword arguments,
 it will filter them appropriately."
   (let* ((keywords (remove-plist-keys
-                    `(:compile-check :warnings-file
+                    `(:compile-check :warnings-file #+(or ecl mkcl) :object-file
                       #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
          (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
          #+ecl
@@ -383,6 +395,10 @@ it will filter them appropriately."
            (or object-file
                (compile-file-pathname output-file :fasl-p nil)))
          (tmp-file (tmpize-pathname output-file)))
+    #+ecl (when (and object-file (equal (compile-file-type) (pathname object-file)))
+            (format t "Whoa, funky upgrade API switching happening in ~S with ~S ~S~%"
+                    'compile-file* output-file object-file)
+            (rotatef output-file object-file))
     (multiple-value-bind (output-truename warnings-p failure-p)
         (with-saved-deferred-warnings (warnings-file)
           (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)

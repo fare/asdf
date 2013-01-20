@@ -1,12 +1,12 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
 (defun call-in-base-2 (thunk)
   (let ((*read-base* 2))
     (funcall thunk)))
 
-(with-test ()
+(progn
   (def-test-system test-around-compile
     :around-compile call-in-base-2
     ;; :depends-on ((:version :asdf "2.017.18")) ; no :around-compile before that.

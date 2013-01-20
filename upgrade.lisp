@@ -9,22 +9,12 @@
    #:upgrade-asdf #:asdf-upgrade-error #:when-upgrade
    #:*asdf-upgrade-already-attempted*
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
-   #:asdf-version #:*upgraded-p*
+   #:asdf-version #:*upgraded-p* #:*asdf-version*
    #:asdf-message #:*asdf-verbose* #:*verbose-out*
    ;; There will be no symbol left behind!
    #:intern*)
   (:import-from :asdf/package #:intern* #:find-symbol*))
 (in-package :asdf/upgrade)
-
-;; Note that this massive package destruction makes it impossible
-;; to use asdf/driver on top of an old ASDF on these implementations
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  #+(or clisp xcl)
-  (unless (let ((vs (find-symbol* 'version-satisfies :asdf nil))
-                (av (find-symbol* 'asdf-version :asdf nil)))
-            (and vs av (funcall vs (funcall av) "2.26.59")))
-    (if-let (p (find-package :asdf))
-      (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s))))))
 
 ;;; Special magic to detect if this is an upgrade
 
@@ -45,17 +35,62 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.125")
+         (asdf-version "2.26.126")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
-         (already-there (equal asdf-version existing-version)))
-    (unless (and existing-asdf already-there)
+         (already-there (equal asdf-version existing-version))
+         (redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
+           '(#:perform #:explain #:output-files #:operation-done-p
+             #:component-parent-pathname #:traverse
+             #:component-depends-on #:input-files
+             #:perform-with-restarts #:component-relative-pathname
+             #:system-source-file #:operate #:find-component #:find-system
+             #:apply-output-translations
+             #:system-relative-pathname
+             #:inherit-source-registry #:process-source-registry
+             #:process-source-registry-directive #:source-file-type
+             #:process-output-translations-directive
+             #:trivial-system-p
+             ))
+         (uninterned-symbols
+           '(#:*asdf-revision* #:around #:asdf-method-combination
+             #:split #:make-collector #:do-dep #:do-one-dep
+             #:resolve-relative-location-component #:resolve-absolute-location-component
+             #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
+    (when (and existing-asdf (not already-there))
       (when existing-asdf
         (asdf-message "~&; Upgrading ASDF ~@[from version ~A ~]to version ~A~%"
-                      existing-version asdf-version))
-      (unless already-there
+                      existing-version asdf-version)
         (push existing-version *upgraded-p*))
-      (setf *asdf-version* asdf-version))))
+      ;;(format t "UPGRADE FROBBING! ~S~%" (list existing-asdf existing-version asdf-version)) ;XXX
+      (loop :for name :in (append #-(or clisp ecl) redefined-functions)
+              :for sym = (find-symbol* name :asdf nil) :do
+                (when sym
+                  ;;(format t "Undefining ~S~%" sym);XXX
+                  (fmakunbound sym)))
+        (loop :with asdf = (find-package :asdf)
+              :for name :in (append #+(or clisp ecl) redefined-functions uninterned-symbols) ;XXX
+              :for sym = (find-symbol* name :asdf nil)
+              :for base-pkg = (and sym (symbol-package sym)) :do
+                (when sym
+                  ;;(format t "frobbing symbol ~S~%" sym);XXX
+                  (cond
+                    ((or (eq base-pkg asdf) (not base-pkg))
+                     (unintern* sym asdf)
+                     (intern* sym asdf))
+                    (t
+                     (unintern* sym base-pkg)
+                     (let ((new (intern* sym base-pkg)))
+                       (shadowing-import new asdf))))))
+        ;; Note that this massive package destruction makes it impossible
+        ;; to use asdf/driver on top of an old ASDF on these implementations
+        #+(or clisp xcl)
+        (let ((p (find-package :asdf)))
+          (when p
+            (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s)))
+            (rename-package-away p :prefix (format nil "~A-~A" :asdf (or existing-version :1.x))
+                         :index 0 :separator "-"))))
+    (setf *asdf-version* asdf-version)))
 
 
 ;;; Upgrade interface
@@ -80,8 +115,6 @@ You can compare this string with e.g.:
 
 
 ;;; Self-upgrade functions
-
-(defvar *asdf-upgrade-already-attempted* nil)
 
 (defvar *post-upgrade-cleanup-hook* ())
 (defvar *post-upgrade-restart-hook* ())
@@ -108,9 +141,9 @@ You can compare this string with e.g.:
 (defun* upgrade-asdf ()
   "Try to upgrade of ASDF. If a different version was used, return T.
    We need do that before we operate on anything that may possibly depend on ASDF."
-  (unless *asdf-upgrade-already-attempted*
-    (setf *asdf-upgrade-already-attempted* t)
-    (let ((version (asdf-version)))
-      (handler-bind (((or style-warning warning) #'muffle-warning))
-        (symbol-call :asdf :load-system :asdf :verbose nil))
-      (cleanup-upgraded-asdf version))))
+  (let ((version (asdf-version))
+        (*load-print* nil)
+        (*compile-print* nil))
+    (handler-bind (((or style-warning warning) #'muffle-warning))
+      (symbol-call :asdf :load-system :asdf :verbose nil))
+    (cleanup-upgraded-asdf version)))

@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
-(with-test ()
+(progn
  (asdf:load-system 'test-module-pathnames)
  (flet ((pathname-foo (x)
           (list (or (normalize-pathname-directory-component (pathname-directory x)) '(:relative))

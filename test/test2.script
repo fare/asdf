@@ -1,27 +1,30 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
-(with-test ()
- (DBG "test2: loading test2b1")
- (asdf:load-system 'test2b1)
- (DBG "test2: file3 and file4 were compiled")
- (assert (and (probe-file (asdf:compile-file-pathname* (truename "file3.lisp")))
-              (probe-file (asdf:compile-file-pathname* (truename "file4.lisp")))))
- (DBG "test2: loading test2b2 should fail")
- #-gcl
- (handler-case
-     (asdf:load-system 'test2b2)
-   (asdf:missing-dependency (c)
-     (format t "load failed as expected: - ~%~A~%" c))
-   (:no-error (c)
-     (declare (ignore c))
-     (error "should have failed, oops")))
- (DBG "test2: loading test2b3 should fail")
- #-gcl
- (handler-case
-     (asdf:load-system 'test2b3)
-   (asdf:missing-dependency (c)
-     (format t "load failed as expected: - ~%~A~%" c))
-   (:no-error (c)
-     (declare (ignore c))
-     (error "should have failed, oops"))))
+
+(DBG "test2: loading test2b1")
+(asdf:load-system 'test2b1)
+
+(DBG "test2: file3 and file4 were compiled")
+(assert (and (probe-file (test-fasl "file3.lisp"))
+             (probe-file (test-fasl "file4.lisp"))))
+
+(DBG "test2: loading test2b2 should fail")
+#-gcl
+(handler-case
+    (asdf:load-system 'test2b2)
+  (asdf:missing-dependency (c)
+    (format t "load failed as expected: - ~%~A~%" c))
+  (:no-error (c)
+    (declare (ignore c))
+    (error "should have failed, oops")))
+
+(DBG "test2: loading test2b3 should fail")
+#-gcl
+(handler-case
+    (asdf:load-system 'test2b3)
+  (asdf:missing-dependency (c)
+    (format t "load failed as expected: - ~%~A~%" c))
+  (:no-error (c)
+    (declare (ignore c))
+    (error "should have failed, oops")))

@@ -9,7 +9,7 @@
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
-   #:monolithic-op #:monolithic-bundle-op #:required-files
+   #:monolithic-op #:monolithic-bundle-op #:direct-dependency-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
    #:program-op
    #:compiled-file #:precompiled-system #:prebuilt-system
@@ -199,7 +199,7 @@
         #+mkcl (equal type (compile-file-type :fasl-p nil))
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
 
-(defgeneric* trivial-system-p (component))
+(defgeneric* (trivial-system-p) (component))
 
 (defun* user-system-p (s)
   (and (typep s 'system)
@@ -221,13 +221,13 @@
   (declare (ignorable o))
   `((lib-op ,@(required-components c :other-systems t :component-type 'system
                                      :goal-operation 'load-op
-                                     :keep-operation 'load-op))))
+                                     :keep-operation 'compile-op))))
 
 (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
   (declare (ignorable o))
   `((fasl-op ,@(required-components c :other-systems t :component-type 'system
                                       :goal-operation 'load-fasl-op
-                                      :keep-operation 'load-fasl-op))))
+                                      :keep-operation 'fasl-op))))
 
 (defmethod component-depends-on ((o program-op) (c system))
   (declare (ignorable o))
@@ -247,7 +247,7 @@
   (declare (ignorable o))
   `((compile-op ,@(required-components c :other-systems nil :component-type '(not system)
                                          :goal-operation 'load-op
-                                         :keep-operation 'load-op))))
+                                         :keep-operation 'compile-op))))
 
 (defmethod component-depends-on ((o fasl-op) (c system))
   (declare (ignorable o))
@@ -268,15 +268,15 @@
       `((,op ,c))
       (call-next-method)))
 
-(defmethod required-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
+(defun* direct-dependency-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
   (while-collecting (collect)
-    (visit-dependencies
-     () o c #'(lambda (sub-o sub-c)
-                (loop :for f :in (funcall key sub-o sub-c)
-                      :when (funcall test f) :do (collect f))))))
+    (map-direct-dependencies
+     o c #'(lambda (sub-o sub-c)
+             (loop :for f :in (funcall key sub-o sub-c)
+                   :when (funcall test f) :do (collect f))))))
 
 (defmethod input-files ((o bundle-op) (c system))
-  (required-files o c :test 'bundlable-file-p :key 'output-files))
+  (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files))
 
 (defun* select-bundle-operation (type &optional monolithic)
   (ecase type
@@ -427,6 +427,7 @@
          (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'string=))
          (output-files (output-files o c))
          (output-file (first output-files)))
+    (unless input-files (format t "WTF no input-files for ~S on ~S !???" o c))
     (when input-files
       (assert output-files)
       (when non-fasl-files

@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
-(with-test ()
+(progn
 
   (DBG :foo (current-lisp-file-pathname))
 

@@ -50,7 +50,9 @@
   spec)
 (defmethod find-operation (context (spec symbol))
   (apply 'make-operation spec (operation-original-initargs context)))
-(defmethod operation-original-initargs ((context null)) context)
+(defmethod operation-original-initargs ((context symbol))
+  (declare (ignorable context))
+  nil)
 
 (defclass build-op (operation) ())
 

@@ -9,7 +9,9 @@
    :asdf/run-program :asdf/lisp-build
    :asdf/configuration)
   (:export
-   #:coerce-pathname #:component-name-to-pathname-components))
+   #:coerce-pathname #:component-name-to-pathname-components
+   #+(or ecl mkcl) #:compile-file-keeping-object
+   ))
 (in-package :asdf/backward-driver)
 
 ;;;; Backward compatibility with various pathname functions.
@@ -34,3 +36,5 @@
              unix-style-namestring))
     (values relabs path filename)))
 
+#+(or ecl mkcl)
+(defun* compile-file-keeping-object (&rest args) (apply #'compile-file* args))

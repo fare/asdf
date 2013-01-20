@@ -6,16 +6,15 @@
 ;;; system will still load successfully. [2011/12/14:rpg]
 ;;;---------------------------------------------------------------------------
 
-(load "script-support.lisp")
+
 (load-asdf)
 
-(with-test ()
- (asdf:load-system 'test-weakly-depends-on-unpresent)
- ;; test that it compiled
- (let* ((file1 (asdf:compile-file-pathname* "file1"))
-        (file1-date (file-write-date file1)))
+(asdf:load-system 'test-weakly-depends-on-unpresent)
+;; test that it compiled
+(defparameter file1 (test-fasl "file1"))
+(defparameter file1-date (file-write-date file1))
 
-   (format t "~&test1 1: ~S ~S~%" file1 file1-date)
-   (assert file1-date)
-   ;; and loaded
-   (assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))))
+(format t "~&test1 1: ~S ~S~%" file1 file1-date)
+(assert file1-date)
+;; and loaded
+(assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))

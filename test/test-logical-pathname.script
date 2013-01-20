@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
 #+clisp
@@ -16,7 +16,7 @@
                       `(,*asdf-directory* "build/fasls" :implementation "logical-host-asdf")
                       :wilden t))))
 
-(with-test ()
+(progn
   #-gcl<2.7
   (DBG :logical
        (logical-pathname-translations "ASDF")

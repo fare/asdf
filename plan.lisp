@@ -25,9 +25,24 @@
    #:planned-action-count #:planned-output-action-count #:visited-actions
    #:visiting-action-set #:visiting-action-list #:plan-actions-r
    #:required-components #:filtered-sequential-plan
+   #:plan-system
    #:plan-action-filter #:plan-component-type #:plan-keep-operation #:plan-keep-component
    #:traverse-actions #:traverse-sub-actions))
 (in-package :asdf/plan)
+
+;;;; Generic plan traversal class
+
+(defclass plan-traversal ()
+  ((system :initform nil :initarg :system :accessor plan-system)
+   (forced :initform nil :initarg :force :accessor plan-forced)
+   (forced-not :initform nil :initarg :force-not :accessor plan-forced-not)
+   (total-action-count :initform 0 :accessor plan-total-action-count)
+   (planned-action-count :initform 0 :accessor plan-planned-action-count)
+   (planned-output-action-count :initform 0 :accessor plan-planned-output-action-count)
+   (visited-actions :initform (make-hash-table :test 'equal) :accessor plan-visited-actions)
+   (visiting-action-set :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
+   (visiting-action-list :initform () :accessor plan-visiting-action-list)))
+
 
 ;;;; Planned action status
 
@@ -52,6 +67,10 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (print-unreadable-object (status stream :type t)
     (with-slots (stamp done-p planned-p) status
       (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p :planned-p planned-p))))
+
+(defmethod action-planned-p (action-status)
+  (declare (ignorable action-status)) ; default method for non planned-action-status objects
+  t)
 
 ;; TODO: eliminate NODE-FOR, use CONS.
 ;; Supposes cleaner protocol for operation initargs passed to MAKE-OPERATION.
@@ -96,14 +115,26 @@ the action of OPERATION on COMPONENT in the PLAN"))
              t))))
 
 (defmethod action-forced-p (plan operation component)
-  (and (action-override-p plan operation component 'plan-forced)
-       (not (builtin-system-p (component-system component)))))
+  (and
+   ;; Did the user ask us to re-perform the action?
+   (action-override-p plan operation component 'plan-forced)
+   ;; You really can't force a builtin system and :all doesn't apply to it,
+   ;; except it it's the specifically the system currently being built.
+   (not (let ((system (component-system component)))
+          (and (builtin-system-p system)
+               (not (eq system (plan-system plan))))))))
+
 (defmethod action-forced-not-p (plan operation component)
-  (and (action-override-p plan operation component 'plan-forced-not)
-       (not (action-forced-p plan operation component))))
+  (and
+   ;; Did the user ask us to not re-perform the action?
+   (action-override-p plan operation component 'plan-forced-not)
+   ;; Force takes precedence over force-not
+   (not (action-forced-p plan operation component))))
+
 (defmethod action-forced-p ((plan null) operation component)
   (declare (ignorable plan operation component))
   nil)
+
 (defmethod action-forced-not-p ((plan null) operation component)
   (declare (ignorable plan operation component))
   nil)
@@ -223,16 +254,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (defgeneric call-while-visiting-action (plan operation component function)
   (:documentation "Detect circular dependencies"))
 
-(defclass plan-traversal ()
-  ((forced :initform nil :initarg :force :accessor plan-forced)
-   (forced-not :initform nil :initarg :force-not :accessor plan-forced-not)
-   (total-action-count :initform 0 :accessor plan-total-action-count)
-   (planned-action-count :initform 0 :accessor plan-planned-action-count)
-   (planned-output-action-count :initform 0 :accessor plan-planned-output-action-count)
-   (visited-actions :initform (make-hash-table :test 'equal) :accessor plan-visited-actions)
-   (visiting-action-set :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
-   (visiting-action-list :initform () :accessor plan-visiting-action-list)))
-
 (defmethod initialize-instance :after ((plan plan-traversal)
                                        &key (force () fp) (force-not () fnp) system
                                        &allow-other-keys)
@@ -336,7 +357,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
 ;;;; high-level interface: traverse, perform-plan, plan-operates-on-p
 
-(defgeneric* traverse (operation component &key &allow-other-keys)
+(defgeneric* (traverse) (operation component &key &allow-other-keys)
   (:documentation
 "Generate and return a plan for performing OPERATION on COMPONENT.
 
@@ -378,9 +399,9 @@ processed in order by OPERATE."))
 
 (defmethod initialize-instance :after ((plan filtered-sequential-plan)
                                        &key (force () fp) (force-not () fnp)
-                                         system other-systems)
+                                         other-systems)
   (declare (ignore force force-not))
-  (with-slots (forced forced-not action-filter) plan
+  (with-slots (forced forced-not action-filter system) plan
     (unless fp (setf forced (normalize-forced-systems (if other-systems :all t) system)))
     (unless fnp (setf forced-not (normalize-forced-systems (if other-systems nil :all) system)))
     (setf action-filter (ensure-function action-filter))))

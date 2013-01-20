@@ -1,25 +1,24 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
-(with-test ()
- (asdf:operate 'asdf:load-op 'test-force)
+(asdf:operate 'asdf:load-op 'test-force)
 
-  (let* ((file1 (asdf:compile-file-pathname* "file1"))
-         (file1-date (file-write-date file1))
-         (date1 (- file1-date 600))
-         (date2 (- file1-date 300)))
+(defparameter file1 (test-fasl "file1"))
+(defparameter file1-date (file-write-date file1))
+(defparameter date1 (- file1-date 600))
+(defparameter date2 (- file1-date 300))
 
-    (assert file1)
-    (assert file1-date)
+(assert file1)
+(assert file1-date)
 
-    ;; unforced, date should stay same
-    (touch-file "test-force.asd" :timestamp date1)
-    (touch-file "file1.lisp" :timestamp date1)
-    (touch-file file1 :timestamp date2)
-    (asdf:operate 'asdf:load-op 'test-force)
-    (assert (equal (file-write-date file1) date2))
+;; unforced, date should stay same
+(touch-file "test-force.asd" :timestamp date1)
+(touch-file "file1.lisp" :timestamp date1)
+(touch-file file1 :timestamp date2)
+(asdf:operate 'asdf:load-op 'test-force)
+(assert (equal (file-write-date file1) date2))
 
-    ;; forced, it should be later
-    (asdf:operate 'asdf:load-op 'test-force :force t)
-    (assert (>= (file-write-date file1) file1-date))))
+;; forced, it should be later
+(asdf:operate 'asdf:load-op 'test-force :force t)
+(assert (>= (file-write-date file1) file1-date))

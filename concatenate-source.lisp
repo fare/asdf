@@ -65,14 +65,14 @@
            (return inputs)))
 
 (defmethod input-files ((o load-concatenated-source-op) (s system))
-  (required-files o s))
+  (direct-dependency-files o s))
 (defmethod input-files ((o compile-concatenated-source-op) (s system))
-  (required-files o s))
+  (direct-dependency-files o s))
 (defmethod output-files ((o compile-concatenated-source-op) (s system))
   (let ((input (first (input-files o s))))
     (list (compile-file-pathname input))))
 (defmethod input-files ((o load-compiled-concatenated-source-op) (s system))
-  (required-files o s))
+  (direct-dependency-files o s))
 
 (defmethod perform ((o concatenate-source-op) (s system))
   (let ((inputs (input-files o s))

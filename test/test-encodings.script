@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
 (defparameter *lambda-string* nil)
@@ -37,7 +37,7 @@
        (eval `(assert-equal (string-char-codes ,*lambda-string*)
                             (expected-char-codes ',',encoding))))))
 
-(with-test ()
+(progn
 
   (with-encoding-test (:utf-8)
     (def-test-system :test-encoding-explicit-u8

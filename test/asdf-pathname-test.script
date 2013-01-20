@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (in-package :asdf-test)
 (load-asdf)
 
@@ -313,7 +313,7 @@
       (setf (logical-pathname-translations "ASDFTEST") nil))
     (remhash "test-system" asdf::*defined-systems*)))
 
-(with-test ()
+(progn
  (asdf:initialize-source-registry)
  (format t "source registry: ~S~%" (hash-table->alist asdf::*source-registry*))
  (asdf:initialize-output-translations)

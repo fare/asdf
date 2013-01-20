@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
-(with-test ()
+(progn
  (def-test-system :versioned-system-1
    :pathname #.*test-directory*
    :version "1.0")

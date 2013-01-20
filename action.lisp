@@ -17,7 +17,7 @@
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:feature
-   #:traverse-actions #:traverse-sub-actions #:required-components #:required-files ;; in plan
+   #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
    ))
 (in-package :asdf/action)
 
@@ -26,34 +26,35 @@
 (defgeneric* traverse-actions (actions &key &allow-other-keys))
 (defgeneric* traverse-sub-actions (operation component &key &allow-other-keys))
 (defgeneric* required-components (component &key &allow-other-keys))
-(defgeneric* required-files (operation component &key &allow-other-keys))
 
 
 ;;;; Convenience methods
 (defmacro define-convenience-action-methods
-  (function (operation component &rest more-args) &key if-no-operation if-no-component)
-  (let ((rest (gensym "REST"))
-        (found (gensym "FOUND")))
-    `(progn
-       (defmethod ,function ((,operation symbol) ,component
-                             ,@(when more-args `(&rest ,rest))
-                             ,@(when (member '&key more-args) `(&key &allow-other-keys)))
-         (if ,operation
-             ,(if more-args
-                  `(apply ',function (make-operation ,operation) ,component ,rest)
-                  `(,function (make-operation ,operation) ,component))
-             ,if-no-operation))
-       (defmethod ,function ((,operation operation) ,component
-                             ,@(when more-args `(&rest ,rest))
-                             ,@(when (member '&key more-args) `(&key &allow-other-keys)))
-         (if (typep ,component 'component)
-             (error "No defined method for ~S on ~S" ',function ,component)
-             (let ((,found (find-component () ,component)))
-               (if ,found
-                   ,(if more-args
-                        `(apply ',function ,operation ,found ,rest)
-                        `(,function ,operation ,found))
-                   ,if-no-component)))))))
+  (function (operation component &optional keyp)
+   &key if-no-operation if-no-component operation-initargs)
+  (let* ((rest (gensym "REST"))
+         (found (gensym "FOUND"))
+         (more-args (when keyp `(&rest ,rest &key &allow-other-keys))))
+    (flet ((next-method (o c)
+             (if keyp
+                 `(apply ',function ,o ,c ,rest)
+                 `(,function ,o ,c))))
+      `(progn
+         (defmethod ,function ((,operation symbol) ,component ,@more-args)
+           (if ,operation
+               ,(next-method
+                 (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.
+                     `(apply 'make-operation ,operation :original-initargs ,rest ,rest)
+                     `(make-operation ,operation))
+                 `(find-component () ,component))
+               ,if-no-operation))
+         (defmethod ,function ((,operation operation) ,component ,@more-args)
+           (if (typep ,component 'component)
+               (error "No defined method for ~S on ~S" ',function ,component)
+               (let ((,found (find-component () ,component)))
+                 (if ,found
+                     ,(next-method operation found)
+                     ,if-no-component))))))))
 
 
 ;;;; self-description
@@ -64,9 +65,7 @@ on this component, e.g. \"loading /a/b/c\".
 You can put together sentences using this phrase."))
 (defmethod operation-description (operation component)
   (format nil (compatfmt "~@<~A on ~A~@:>")
-          (class-of operation) component))
-(define-convenience-action-methods operation-description (operation component))
-
+          (type-of operation) component))
 (defgeneric* explain (operation component))
 (defmethod explain ((o operation) (c component))
   (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (operation-description o c)))
@@ -144,8 +143,8 @@ You can put together sentences using this phrase."))
 
 
 ;;;; Inputs, Outputs, and invisible dependencies
-(defgeneric* output-files (operation component))
-(defgeneric* input-files (operation component))
+(defgeneric* (output-files) (operation component))
+(defgeneric* (input-files) (operation component))
 (defgeneric* operation-done-p (operation component)
   (:documentation "Returns a boolean, which is NIL if the action is forced to be performed again"))
 (define-convenience-action-methods output-files (operation component))
@@ -162,7 +161,8 @@ You can put together sentences using this phrase."))
   (values
    (multiple-value-bind (pathnames fixedp) (call-next-method)
      ;; 1- Make sure we have absolute pathnames
-     (let* ((directory (pathname-directory-pathname (component-pathname component)))
+     (let* ((directory (pathname-directory-pathname
+                        (component-pathname (find-component () component))))
             (absolute-pathnames
               (loop
                 :for pathname :in pathnames

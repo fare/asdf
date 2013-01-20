@@ -1,31 +1,30 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
+
 (load-asdf)
 
-(with-test ()
- (asdf:load-system 'test-module-depend)
+(asdf:load-system 'test-module-depend)
 
- ;; test that it compiled
- (let* ((file1.fasl (asdf:compile-file-pathname* "file1"))
-        (file2.fasl (asdf:compile-file-pathname* "file2"))
-        (file3.fasl (asdf:compile-file-pathname* "file3"))
-        (file1-date (file-write-date file1.fasl))
-        (file3-date (file-write-date file3.fasl)))
+;; test that it compiled
+(defparameter file1.fasl (test-fasl "file1"))
+(defparameter file2.fasl (test-fasl "file2"))
+(defparameter file3.fasl (test-fasl "file3"))
+(defparameter file1-date (file-write-date file1.fasl))
+(defparameter file3-date (file-write-date file3.fasl))
 
-   (assert (and file1-date file3-date))
+(assert (and file1-date file3-date))
 
-   ;; and loaded
-   (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
+;; and loaded
+(assert (eval (intern (symbol-name '#:*file1*) :test-package)))
 
-   ;; now touch file1 and its fasl so the fasl is out of date,
-   ;; and check that file2 _is_ also recompiled
-   ;; this didn't work before the cross-module (intra-system) dependency bug was fixed.
+;; now touch file1 and its fasl so the fasl is out of date,
+;; and check that file2 _is_ also recompiled
+;; this didn't work before the cross-module (intra-system) dependency bug was fixed.
 
-   (touch-file "file1.lisp" :timestamp (- file3-date 60))
-   (touch-file file1.fasl :timestamp (- file3-date 90))
-   (touch-file file2.fasl :timestamp (- file3-date 30))
-   (touch-file file3.fasl :timestamp (- file3-date 15))
-   (asdf:operate 'asdf:load-op 'test-module-depend)
-   (assert (>= (file-write-date (asdf:compile-file-pathname* "file2")) file3-date))
-   ;; does this properly go to the second level?
-   (assert (>= (file-write-date (asdf:compile-file-pathname* "file3")) file3-date))))
+(touch-file "file1.lisp" :timestamp (- file3-date 60))
+(touch-file file1.fasl :timestamp (- file3-date 90))
+(touch-file file2.fasl :timestamp (- file3-date 30))
+(touch-file file3.fasl :timestamp (- file3-date 15))
+(asdf:operate 'asdf:load-op 'test-module-depend)
+(assert (>= (file-write-date (test-fasl "file2")) file3-date))
+;; does this properly go to the second level?
+(assert (>= (file-write-date (test-fasl "file3")) file3-date))

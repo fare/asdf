@@ -269,7 +269,8 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 
 (defun* getcwd ()
   "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-  (or ;; missing: abcl gcl genera
+  (or #+abcl (parse-native-namestring
+              (java:jstatic "getProperty" "java.lang.System" "user.dir") :ensure-directory t)
       #+allegro (excl::current-directory)
       #+clisp (ext:default-directory)
       #+clozure (ccl:current-directory)
@@ -277,8 +278,9 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
                       (nth-value 1 (unix:unix-current-directory)) :ensure-directory t)
       #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
       #+ecl (ext:getcwd)
-      #+gcl (parse-native-namestring
+      #+gcl (parse-native-namestring ;; this is a joke. Isn't there a better way?
              (first (symbol-call :asdf/driver :run-program/ '("/bin/pwd") :output :lines)))
+      #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
       #+lispworks (system:current-directory)
       #+mkcl (mk-ext:getcwd)
       #+sbcl (parse-native-namestring (sb-unix:posix-getcwd/))

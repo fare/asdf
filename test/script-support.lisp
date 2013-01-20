@@ -23,6 +23,7 @@ Some constraints:
    #:assert-compare
    #:assert-equal
    #:leave-test #:def-test-system
+   #:test-source #:test-fasl #:resolve-output #:output-location
    #:quietly))
 
 (in-package :asdf-test)
@@ -36,15 +37,16 @@ Some constraints:
   `(;; If you want to trace some stuff while debugging ASDF,
     ;; here's a nice place to say what.
     ;; These string designators will be interned in ASDF after it is loaded.
+    
+    ;;#+ecl ,@'( :perform :input-files :output-files :compile-file* :compile-file-pathname* :load*)
     ))
 
 (defvar *debug-asdf* nil)
 (defvar *quit-when-done* t)
 
-(defun verbose (&optional (verbose t))
-  (loop :for v :in '(*load-verbose* *compile-verbose*
-                     *load-print* *compile-print*)
-        :do (setf (symbol-value v) verbose)))
+(defun verbose (&optional (verbose t) (print verbose))
+  (setf *load-verbose* verbose *compile-verbose* verbose)
+  (setf *load-print* print *compile-print* print))
 
 (verbose nil)
 
@@ -142,6 +144,7 @@ Some constraints:
 ;;; Test helper functions
 
 (load (debug-lisp))
+(verbose t nil)
 
 (defmacro assert-compare (expr)
   (destructuring-bind (op x y) expr
@@ -168,7 +171,6 @@ Some constraints:
 (defun hash-table->alist (table)
   (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
     :collect (cons key value)))
-
 
 (defun exit-lisp (&optional (code 0)) ;; Simplified from asdf/image:quit
   (finish-outputs*)
@@ -351,6 +353,7 @@ is bound, write a message and exit on an error.  If
 
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
+    #+clisp (trace compile-file load)
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")
@@ -369,6 +372,20 @@ is bound, write a message and exit on an error.  If
     (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
     (assert (eval (intern (symbol-name '#:*file3*) :test-package)))))
 
+(defun output-location (&rest sublocation)
+  (list* *asdf-directory* "build/fasls" :implementation sublocation))
+(defun resolve-output (&rest sublocation)
+  (acall :resolve-location (apply 'output-location sublocation)))
+
+(defun test-source (file)
+  (acall :subpathname *test-directory* file))
+(defun test-output-dir ()
+  (resolve-output "asdf" "test"))
+(defun test-output (file)
+  (acall :subpathname (test-output-dir) file))
+(defun test-fasl (file)
+  (acall :compile-file-pathname* (test-source file)))
+
 (defun configure-asdf ()
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
   (untrace)
@@ -377,8 +394,8 @@ is bound, write a message and exit on an error.  If
          `(:source-registry :ignore-inherited-configuration))
   (acall :initialize-output-translations
          `(:output-translations
-           ((,*asdf-directory* :**/ :*.*.*) (,*asdf-directory* "build/fasls" :implementation "asdf"))
-           (t (,*asdf-directory* "build/fasls" :implementation "root"))
+           ((,*asdf-directory* :**/ :*.*.*) ,(output-location "asdf"))
+           (t ,(output-location "root"))
            :ignore-inherited-configuration))
   (set (asym :*central-registry*) `(,*test-directory*))
   (set (asym :*verbose-out*) *standard-output*)
@@ -420,5 +437,4 @@ is bound, write a message and exit on an error.  If
  It depends on the DBG macro in contrib/debug.lisp,
  that you should load in your asdf/plan by inserting an (asdf-debug) form in it.
 
-#+DBG-ASDF (DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))
-|#
+#+DBG-ASDF (DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))|#

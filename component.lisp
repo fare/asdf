@@ -27,8 +27,9 @@
    #:module-default-component-class
    #:module-components ;; backward-compatibility. DO NOT USE.
 
-   ;; Internals we'd like to share with the ASDF package.
-   #:name #:version #:description #:long-description
+   ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
+   #:name #:version #:description #:long-description #:author #:maintainer #:licence
+   #:defsystem-depends-on
    #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
    #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
    #:%encoding #:properties #:parent))
@@ -101,8 +102,7 @@ another pathname in a degenerate way."))
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
    (%encoding :accessor %component-encoding :initform nil :initarg :encoding)
-   ;; XXX we should provide some atomic interface for updating the
-   ;; component properties
+   ;; ASDF3: get rid of these "component properties" ?
    (properties :accessor component-properties :initarg :properties
                :initform nil)
    ;; For backward-compatibility, this slot is part of component rather than child-component
@@ -190,7 +190,7 @@ another pathname in a degenerate way."))
 
 ;;;; component pathnames
 
-(defgeneric* component-parent-pathname (component))
+(defgeneric* (component-parent-pathname) (component))
 (defmethod component-parent-pathname (component)
   (component-pathname (component-parent component)))
 

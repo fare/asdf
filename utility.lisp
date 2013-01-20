@@ -52,18 +52,24 @@
 (macrolet
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
-          `(progn
+          (destructuring-bind (name &key (supersede t))
+              (if (or (atom name) (eq (car name) 'setf))
+                  (list name :supersede nil)
+                  name)
+            (declare (ignorable supersede))
+            `(progn
              ;; undefining the previous function is the portable way
-             ;; of overriding any incompatible previous gf, but somehow
-             ;; this causes CLISP to fail to see COMPONENT-NAME methods after ugprade
-             ;; so instead, for CLISP we delete-package* in package.lisp
-             ;; any time the API changes.
-             #-clisp
-             (undefine-function ',name)
-             #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
-             ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
-                 `((declaim (notinline ,name))))
-             (,',def ,name ,formals ,@rest)))))
+             ;; of overriding any incompatible previous gf,
+             ;; but we usually try to do it only for the functions that need it,
+             ;; which happens in asdf/upgrade - however, for ECL, we need this hammer,
+             ;; (which causes issues in clisp)
+               #-ecl ;XXX
+               ,@(when (or supersede #+(or (and gcl (not gcl-pre2.7))) t)
+                   `((undefine-function ',name)))
+               #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
+               ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
+                   `((declaim (notinline ,name))))
+               (,',def ,name ,formals ,@rest))))))
   (defdef defgeneric* defgeneric)
   (defdef defun* defun))
 

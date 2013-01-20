@@ -253,14 +253,15 @@ or when loading the package is optional."
         (when nuke (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s))))
         (ensure-package-unused p)
         (delete-package package))))
-  (defun fresh-package-name (&optional (prefix :%TO-BE-DELETED)
+  (defun fresh-package-name (&key (prefix :%TO-BE-DELETED)
+                               separator
                                (index (random most-positive-fixnum)))
     (loop :for i :from index
-          :for n = (format nil "~A-~D" prefix i)
+          :for n = (format nil "~A~@[~A~D~]" prefix (and (plusp i) (or separator "")) i)
           :thereis (and (not (find-package n)) n)))
-  (defun rename-package-away (p)
+  (defun rename-package-away (p &rest keys &key prefix &allow-other-keys)
     (rename-package
-     p (fresh-package-name (format nil "__~A__" (package-name p)) 0)))
+     p (apply 'fresh-package-name :prefix (or prefix (format nil "__~A__" (package-name p))) keys)))
   (defun package-names (package)
     (cons (package-name package) (package-nicknames package)))
   (defun packages-from-names (names)
@@ -421,6 +422,10 @@ or when loading the package is optional."
                  (let* ((sp (symbol-package symbol))
                         (in (gethash name inherited))
                         (xp (and status (symbol-package existing))))
+                   (when (null sp)
+                     (fishy :import-uninterned name (package-name p) mix)
+                     (import symbol p)
+                     (setf sp (package-name p)))
                    (cond
                      ((gethash name shadowed))
                      (in

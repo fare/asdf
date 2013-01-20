@@ -2,10 +2,10 @@
 
 ;;; test asdf:try-recompiling restart
 
-(load "script-support.lisp")
+
 (load-asdf)
 (defvar *caught-error* nil)
-(with-test ()
+(progn
  (DBG "trlc1 1")
  (asdf::delete-file-if-exists "try-reloading-dependency.asd")
  (setf asdf::*defined-systems* (asdf::make-defined-systems-table))

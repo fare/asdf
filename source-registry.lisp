@@ -287,9 +287,6 @@ system names to pathnames of .asd files")
 (defvar *source-registry-parameter* nil)
 
 (defun* initialize-source-registry (&optional (parameter *source-registry-parameter*))
-  ;; In case we haven't upgraded ASDF yet, and it appears in the registry,
-  ;; clear the upgrade attempt flag:
-  (setf *asdf-upgrade-already-attempted* (not *upgraded-p*))
   ;; Record the parameter used to configure the registry 
   (setf *source-registry-parameter* parameter)
   ;; Clear the previous registry database:
