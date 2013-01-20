@@ -240,7 +240,7 @@ upgrade_tags () {
     # 1.369 is the last release by Gary King
     # 2.000 to 2.019 and 2.20 to 2.27 and beyond are Faré's "stable" releases
     # 2.26.61 is the last single-package ASDF.
-    echo REQUIRE 1.37 1.97 1.369 2.26.61
+    echo REQUIRE 1.37 1.97 1.369
     git tag -l '2.0??'
     git tag -l '2.??'
 }

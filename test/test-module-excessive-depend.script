@@ -56,8 +56,8 @@
                                      '("file1" "file2" "file3"))))))
 
 ;; and loaded
-(assert (eval (asdf::find-symbol* '#:*file1* :test-package)))
-(assert (eval (asdf::find-symbol* '#:*file3* :test-package)))
+(assert (eval (find-symbol* '#:*file1* :test-package)))
+(assert (eval (find-symbol* '#:*file3* :test-package)))
 
 
 ;; now touch file1 and check that file2 _is_ also recompiled
@@ -66,21 +66,19 @@
 ;; dependency bug is fixed and the excessive compilation bug is fixed.
 
 (defparameter before file3-date)
-(touch-file "file1.lisp" :timestamp (- before 60))
+(touch-file (test-source "file1.lisp") :timestamp (- before 60))
 (touch-file file1 :timestamp (- before 90))
-(touch-file "file2.lisp" :timestamp (- before 30))
+(touch-file (test-source "file2.lisp") :timestamp (- before 30))
 (touch-file file2 :timestamp (- before 15))
 
-(defparameter plan (asdf::traverse
-                    (make-instance 'asdf:load-op)
-                    (asdf:find-system 'test-module-excessive-depend)))
-(defparameter file3 (asdf:find-component :file3-only "file3"))
+(defparameter plan (traverse 'load-op 'test-module-excessive-depend))
+(defparameter file3c (find-component :file3-only "file3"))
 #|(format t "~%Operation plan is:~%")(pprint plan)(terpri)|#
-(when (loop :for (o . c) :in plan :thereis (and (eq c file3) (typep o 'asdf:compile-op)))
+(when (loop :for (o . c) :in plan :thereis (and (eq c file3c) (typep o 'asdf:compile-op)))
   (error "Excessive operations on file3-only system.  Bad propagation of dependencies."))
 (asdf:operate 'asdf:load-op 'test-module-excessive-depend)
 (assert (>= (file-write-date file1) before))
-(assert (>= (file-write-date file2) before)))
+(assert (>= (file-write-date file2) before))
 (unless (= (file-write-date file3)
            file3-date)
   (error "Excessive compilation of file3.lisp:  traverse bug."))

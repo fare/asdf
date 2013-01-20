@@ -251,14 +251,6 @@ is bound, write a message and exit on an error.  If
 (defun register-directory (dir)
   (pushnew dir (symbol-value (asym :*central-registry*))))
 
-(defun clean-asdf-system ()
-  (let ((fasl (resolve-output "asdf" "build" "asdf.fasl")))
-    (when (DBG :clean fasl (probe-file fasl)) (delete-file fasl))))
-
-(defun load-asdf-lisp-clean ()
-  (load-asdf-lisp)
-  (clean-asdf-system))
-
 (defun load-asdf-system (&rest keys)
   (quietly
    (register-directory *asdf-directory*)
@@ -359,16 +351,22 @@ is bound, write a message and exit on an error.  If
     (register-directory *test-directory*)
     (acall :oos (asym :load-op) x :verbose verbose)))
 
+(defun get-asdf-version ()
+  (when (find-package :asdf)
+    (or (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
+                          (find-symbol (string :*asdf-revision*) :asdf)))
+        (string :1.x))))
+
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
-    #+clisp (trace compile-file load)
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")
-         (format t "Requiring some previous asdf ~A~%" tag)
+         (format t "Requiring some previous ASDF ~A~%" tag)
          (ignore-errors (funcall 'require "asdf"))
-         (unless (member "ASDF" *modules* :test 'equalp)
-           (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
+         (if (member "ASDF" *modules* :test 'equalp)
+             (format t "Your Lisp implementation provided ASDF ~A~%" (get-asdf-version))
+             (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)
          (funcall old-method tag))))
@@ -393,6 +391,14 @@ is bound, write a message and exit on an error.  If
   (acall :subpathname (test-output-dir) file))
 (defun test-fasl (file)
   (acall :compile-file-pathname* (test-source file)))
+
+(defun clean-asdf-system ()
+  (let ((fasl (resolve-output "asdf" "build" "asdf.fasl")))
+    (when (DBG :clean fasl (probe-file fasl)) (delete-file fasl))))
+
+(defun load-asdf-lisp-clean ()
+  (load-asdf-lisp)
+  (clean-asdf-system))
 
 (defun configure-asdf ()
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))

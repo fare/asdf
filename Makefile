@@ -55,7 +55,7 @@ install: archive-copy
 
 bump: bump-version
 bump-version: build/asdf.lisp
-	./bin/asdf-builder bump-version
+	./bin/asdf-builder bump-version ${v}
 
 driver-files:
 	@echo $(driver_lisp)

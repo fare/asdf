@@ -59,11 +59,11 @@
             (declare (ignorable supersede))
             `(progn
              ;; undefining the previous function is the portable way
-             ;; of overriding any incompatible previous gf,
-             ;; but we usually try to do it only for the functions that need it,
+             ;; of overriding any incompatible previous gf, except on CLISP.
+             ;; We usually try to do it only for the functions that need it,
              ;; which happens in asdf/upgrade - however, for ECL, we need this hammer,
              ;; (which causes issues in clisp)
-               ,@(when (or #-ecl supersede #+(or (and gcl (not gcl-pre2.7))) t) ; XXX
+               ,@(when (or supersede #+(or ecl (and gcl (not gcl-pre2.7))) t) ; XXX
                    `((undefine-function ',name)))
                #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
                ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl

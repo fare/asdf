@@ -10,8 +10,6 @@
 ;; and reexported in a different package
 ;; (alternatively the package may be dropped & replaced by one with a new name).
 
-#+clisp (declaim (optimize (speed 1)(safety 3)(debug 3)))
-
 (defpackage :asdf/package
   (:use :common-lisp)
   (:export

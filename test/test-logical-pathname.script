@@ -2,9 +2,6 @@
 
 (load-asdf)
 
-#+clisp
-(trace load compile-file)
-
 #-gcl<2.7
 (setf (logical-pathname-translations "ASDF")
       #+(or allegro clisp)

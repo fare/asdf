@@ -226,7 +226,7 @@ if we are not called from a directly executable image dumped by XCVB."
     (standard-eval-thunk *image-prelude*)
     (let ((results (multiple-value-list
                     (if *image-entry-point*
-                        (apply (ensure-function *image-entry-point*) *command-line-arguments*)
+                        (call-function *image-entry-point*)
                         t))))
       (if *lisp-interaction*
           (apply 'values results)
