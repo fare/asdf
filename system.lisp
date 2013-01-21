@@ -14,8 +14,8 @@
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
-(defgeneric* find-system (system &optional error-p))
-(defgeneric* system-source-file (system)
+(defgeneric* (find-system) (system &optional error-p))
+(defgeneric* (system-source-file) (system)
   (:documentation "Return the source file in which system is defined."))
 (defgeneric* builtin-system-p (system))
 
@@ -55,7 +55,7 @@
 in which the system specification (.asd file) is located."
   (pathname-directory-pathname (system-source-file system-designator)))
 
-(defun* system-relative-pathname (system name &key type)
+(defun* (system-relative-pathname) (system name &key type)
   (subpathname (system-source-directory system) name :type type))
 
 (defmethod component-pathname ((system system))

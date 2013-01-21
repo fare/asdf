@@ -16,7 +16,7 @@
    #:upgrade-asdf #:cleanup-upgraded-asdf #:*post-upgrade-hook*))
 (in-package :asdf/operate)
 
-(defgeneric* operate (operation component &key &allow-other-keys))
+(defgeneric* (operate) (operation component &key &allow-other-keys))
 (define-convenience-action-methods
     operate (operation component &key)
     :operation-initargs t ;; backward-compatibility with ASDF1. Yuck.

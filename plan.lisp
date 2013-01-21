@@ -365,6 +365,7 @@ of ASDF operation object and a COMPONENT object. The pairs will be
 processed in order by OPERATE."))
 (defgeneric* perform-plan (plan &key))
 (defgeneric* plan-operates-on-p (plan component))
+(defgeneric* (traverse) (operation component &key &allow-other-keys))
 (define-convenience-action-methods traverse (operation component &key))
 
 (defparameter *default-plan-class* 'sequential-plan)

@@ -73,7 +73,7 @@ You can put together sentences using this phrase."))
 (defmethod operation-description (operation component)
   (format nil (compatfmt "~@<~A on ~A~@:>")
           (type-of operation) component))
-(defgeneric* explain (operation component))
+(defgeneric* (explain) (operation component))
 (defmethod explain ((o operation) (c component))
   (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (operation-description o c)))
 (define-convenience-action-methods explain (operation component))
@@ -110,10 +110,11 @@ You can put together sentences using this phrase."))
   (cdr (assoc (type-of o) (component-in-order-to c)))) ; User-specified in-order dependencies
 
 (defmethod component-self-dependencies ((o operation) (c component))
+  ;; NB: result in the same format as component-depends-on
   (loop :for (o-spec . c-spec) :in (component-depends-on o c)
         :unless (eq o-spec 'feature) ;; avoid the FEATURE "feature"
           :when (find c c-spec :key #'(lambda (dep) (resolve-dependency-spec c dep)))
-            :collect (cons (find-operation o o-spec) c)))
+            :collect (list o-spec c)))
 
 ;;;; upward-operation, downward-operation
 ;; These together handle actions that propagate along the component hierarchy.
@@ -152,7 +153,7 @@ You can put together sentences using this phrase."))
 ;;;; Inputs, Outputs, and invisible dependencies
 (defgeneric* (output-files) (operation component))
 (defgeneric* (input-files) (operation component))
-(defgeneric* operation-done-p (operation component)
+(defgeneric* (operation-done-p) (operation component)
   (:documentation "Returns a boolean, which is NIL if the action is forced to be performed again"))
 (define-convenience-action-methods output-files (operation component))
 (define-convenience-action-methods input-files (operation component))
@@ -192,12 +193,13 @@ You can put together sentences using this phrase."))
   (declare (ignorable o c))
   nil)
 
-(defmethod input-files ((o operation) (c file-component))
+(defmethod input-files ((o operation) (c component))
   (or (loop :for (dep-o) :in (component-self-dependencies o c)
             :append (or (output-files dep-o c) (input-files dep-o c)))
       ;; no non-trivial previous operations needed?
       ;; I guess we work with the original source file, then
-      (list (component-pathname c))))
+      (if-let ((pathname (component-pathname c)))
+        (and (file-pathname-p pathname) (list pathname)))))
 
 
 ;;;; Done performing
@@ -247,8 +249,8 @@ in some previous image, or T if it needs to be done.")
 
 ;;;; Perform
 
-(defgeneric* perform-with-restarts (operation component))
-(defgeneric* perform (operation component))
+(defgeneric* (perform-with-restarts) (operation component))
+(defgeneric* (perform) (operation component))
 (define-convenience-action-methods perform (operation component))
 
 (defmethod perform :before ((o operation) (c component))

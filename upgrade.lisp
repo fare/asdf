@@ -35,22 +35,24 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.135")
+         (asdf-version "2.26.136")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version))
          (redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
-           '(#:perform #:explain #:output-files #:operation-done-p
-             #:component-parent-pathname #:traverse
-             #:component-depends-on #:input-files
-             #:perform-with-restarts #:component-relative-pathname
-             #:system-source-file #:operate #:find-component #:find-system
-             #:apply-output-translations #:component-self-dependencies
-             #:system-relative-pathname
-             #:inherit-source-registry #:process-source-registry
-             #:process-source-registry-directive #:source-file-type
+           '(#:component-relative-pathname #:component-parent-pathname ;; component
+             #:source-file-type
+             #:find-system #:system-source-file #:system-relative-pathname ;; system
+             #:find-component ;; find-component
+             #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
+             #:component-depends-on #:component-self-dependencies #:operation-done-p
+             #:traverse ;; plan
+             #:operate  ;; operate
+             #:apply-output-translations ;; output-translations
              #:process-output-translations-directive
-             #:trivial-system-p
+             #:inherit-source-registry #:process-source-registry ;; source-registry
+             #:process-source-registry-directive 
+             #:trivial-system-p ;; bundle
              ;; NB: it's too late to do anything about asdf-driver functions!
              ))
          (uninterned-symbols

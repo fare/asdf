@@ -47,7 +47,7 @@
 
 ;;;; Finding components
 
-(defgeneric* find-component (base path)
+(defgeneric* (find-component) (base path)
   (:documentation "Find a component by resolving the PATH starting from BASE parent"))
 (defgeneric* resolve-dependency-combination (component combinator arguments))
 

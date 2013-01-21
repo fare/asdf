@@ -15,7 +15,7 @@
    #:merge-pathnames*
    ;; Directories
    #:pathname-directory-pathname #:pathname-parent-directory-pathname
-   #:directory-pathname-p #:ensure-directory-pathname
+   #:directory-pathname-p #:ensure-directory-pathname #:file-pathname-p
    ;; Absolute vs relative pathnames
    #:ensure-pathname-absolute
    #:relativize-directory-component #:relativize-pathname-directory

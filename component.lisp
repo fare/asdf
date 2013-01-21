@@ -43,7 +43,7 @@
   (:documentation "Find the top-level system containing COMPONENT"))
 (defgeneric* component-pathname (component)
   (:documentation "Extracts the pathname applicable for a particular component."))
-(defgeneric* component-relative-pathname (component)
+(defgeneric* (component-relative-pathname) (component)
   (:documentation "Returns a pathname for the component argument intended to be
 interpreted relative to the pathname of that component's parent.
 Despite the function's name, the return value may be an absolute
@@ -58,7 +58,7 @@ another pathname in a degenerate way."))
 
 ;;; Backward compatible way of computing the FILE-TYPE of a component.
 ;;; TODO: find users, have them stop using that.
-(defgeneric* source-file-type (component system))
+(defgeneric* (source-file-type) (component system))
 
 (when-upgrade (:when (find-class 'component nil))
   (defmethod reinitialize-instance :after ((c component) &rest initargs &key)

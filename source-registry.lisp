@@ -183,13 +183,13 @@ system names to pathnames of .asd files")
 (defun* environment-source-registry ()
   (getenv "CL_SOURCE_REGISTRY"))
 
-(defgeneric* process-source-registry (spec &key inherit register))
+(defgeneric* (process-source-registry) (spec &key inherit register))
 
-(defun* inherit-source-registry (inherit &key register)
+(defun* (inherit-source-registry) (inherit &key register)
   (when inherit
     (process-source-registry (first inherit) :register register :inherit (rest inherit))))
 
-(defun* process-source-registry-directive (directive &key inherit register)
+(defun* (process-source-registry-directive) (directive &key inherit register)
   (destructuring-bind (kw &rest rest) (if (consp directive) directive (list directive))
     (ecase kw
       ((:include)
