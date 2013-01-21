@@ -15,21 +15,21 @@
 (defparameter mlccso (make-operation 'monolithic-load-compiled-concatenated-source-op))
 (defparameter sys (find-system :test-concatenate-source))
 (assert (operation-monolithic-p mcso))
-(assert-equal ;; on CLISP, we get un-equal pathnames with same namestrings. Sigh.
-              (princ-to-string (input-files mcso sys))
-              (princ-to-string (loop :for n :in '(3 1 2)
-                                     :collect (test-source (format nil "file~D.lisp" n)))))
-(assert-equal
+(assert-pathnames-equal
+ (input-files mcso sys)
+ (loop :for n :in '(3 1 2) :collect (test-source (format nil "file~D.lisp" n))))
+(assert-pathname-equal
  (output-file mcso sys)
  (apply-output-translations
   (resolve-output "asdf/test/test-concatenate-source.all-systems.lisp")))
-(assert-equal
+(assert-pathname-equal
  (output-files mcso sys)
  (input-files mccso sys))
-(assert-equal ;; on ECL, we get un-equal pathnames.
-              (princ-to-string (output-file mccso sys))
-              (princ-to-string (test-fasl "test-concatenate-source.all-systems.lisp")))
-(assert-equal
+;; on ECL, we get un-equal pathnames.
+(assert-pathname-equal
+ (output-file mccso sys)
+ (test-fasl "test-concatenate-source.all-systems.lisp"))
+(assert-pathname-equal
  (output-files mccso sys)
  (input-files mlccso sys))
 (operate 'monolithic-load-compiled-concatenated-source-op sys)

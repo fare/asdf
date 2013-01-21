@@ -447,6 +447,48 @@ is bound, write a message and exit on an error.  If
 
 (defun in-plan-p (plan x) (member x plan :key (asym :action-path) :test 'equal))
 
+;;; Helpful for debugging
+
+(defun pathname-components (p)
+  (when p
+    (let ((p (pathname p)))
+      (list :host (pathname-host p)
+            :device (pathname-device p)
+            :directory (pathname-directory p)
+            :name (pathname-name p)
+            :type (pathname-type p)
+            :version (pathname-version p)))))
+
+(defun assert-pathname-equal-helper (qx x qy y)
+  (cond
+    ((equal x y)
+     (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
+    ((acall :pathname-equal x y)
+     (format t "These two expressions yield pathname-equal yet not equal path~%  ~S~%" x)
+     (format t "the first expression ~S yields this:~%  ~S~%" qx (pathname-components x))
+     (format t "the other expression ~S yields that:~%  ~S~%" qy (pathname-components y)))
+    (t
+     (format t "These two expressions yield paths that are not pathname-equal~%")
+     (format t "the first expression ~S yields this:~%  ~S~%  ~S~%" qx x (pathname-components x))
+     (format t "the other expression ~S yields that:~%  ~S~%  ~S~%" qy y (pathname-components y)))))
+(defmacro assert-pathname-equal (x y)
+  `(assert-pathname-equal-helper ',x ,x ',y ,y))
+(defun assert-length-equal-helper (qx qy x y)
+  (unless (= (length x) (length y))
+    (format t "These two expressions yield sequences of unequal length~%")
+    (format t "The first, ~S, has value ~S of length ~S~%" qx x (length x))
+    (format t "The other, ~S, has value ~S of length ~S~%" qy y (length y))))
+(defun assert-pathnames-equal-helper (qx x qy y)
+  (assert-length-equal-helper qx x qy y)
+  (loop :for n :from 0
+        :for qpx = `(nth ,n ,qx)
+        :for qpy = `(nth ,n ,qy)
+        :for px :in x
+        :for py :in y :do
+        (assert-pathname-equal-helper qpx px qpy py)))
+(defmacro assert-pathnames-equal (x y)
+  `(assert-pathnames-equal-helper ',x ,x ',y ,y))
+
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a
