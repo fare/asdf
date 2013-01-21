@@ -14,4 +14,3 @@
               (load-system 'test-compile-file-failure :force t)
               nil)
           (compile-file-error () t)))
-

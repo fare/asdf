@@ -20,14 +20,13 @@
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
    #:component-translate-output-p #:translate-output-p
    #:component-bundle-pathname #:bundle-pathname
-   #:component-bundle-operation #:bundle-operation
    #:component-entry-point #:entry-point))
 (in-package :asdf/bundle)
 
 (defclass bundle-op (operation)
   ((build-args :initarg :args :initform nil :accessor bundle-op-build-args)
    (name-suffix :initarg :name-suffix :initform nil)
-   (bundle-type :reader bundle-type)
+   (bundle-type :initform :no-output-file :reader bundle-type)
    #+ecl (lisp-files :initform nil :accessor bundle-op-lisp-files)
    #+mkcl (do-fasb :initarg :do-fasb :initform t :reader bundle-op-do-fasb-p)
    #+mkcl (do-static-library :initarg :do-static-library :initform t :reader bundle-op-do-static-library-p)))
@@ -97,8 +96,6 @@
 (defclass bundle-system (system)
   ((bundle-pathname
     :initform nil :initarg :bundle-pathname :accessor component-bundle-pathname)
-   (bundle-operation
-    :initarg :bundle-operation :accessor component-bundle-operation)
    (entry-point
     :initform nil :initarg :entry-point :accessor component-entry-point)
    (translate-output-p
@@ -264,7 +261,7 @@
 
 (defmethod component-depends-on :around ((o bundle-op) (c component))
   (declare (ignorable o c))
-  (if-let (op (and (eq (type-of o) 'bundle-op) (component-bundle-operation c)))
+  (if-let (op (and (eq (type-of o) 'bundle-op) (component-build-operation c)))
       `((,op ,c))
       (call-next-method)))
 

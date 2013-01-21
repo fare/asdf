@@ -33,5 +33,12 @@
               :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))))
 (assert (probe-file* exe))
 
-(assert-equal (run-program/ (native-namestring exe) :output :lines)
+(assert-equal (run-program/ `(,(native-namestring exe)) :output :lines)
               '("hello, world"))
+
+(assert-equal (run-program/ `(,(native-namestring exe) "a" "b c" "d") :output :lines)
+              '("hello, world"
+                "You passed 3 arguments:"
+                "  \"a\""
+                "  \"b c\""
+                "  \"d\""))

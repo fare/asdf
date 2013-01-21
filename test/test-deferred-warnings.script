@@ -1,0 +1,29 @@
+;;; -*- Lisp -*-
+
+(clear-system :test-deferred-warnings)
+(def-test-system :test-deferred-warnings
+  :serial t
+  :components ((:file "undefined-function")
+               (:file "file1")))
+(assert
+ (handler-case
+     (let ((*compile-file-warnings-behaviour* :ignore))
+       (load-system :test-deferred-warnings :force t)
+       t)
+   (compile-file-error () nil)))
+
+#-ecl
+(assert
+ (handler-case
+     (let ((*compile-file-warnings-behaviour* :error))
+       (load-system :test-deferred-warnings :force t)
+       nil)
+   (compile-warned-error () t)))
+
+#+(or clozure sbcl)
+(assert
+ (handler-case
+     (let ((*compile-file-warnings-behaviour* :error))
+       (perform 'compile-op :test-deferred-warnings)
+       nil)
+   (compile-warned-error () t)))

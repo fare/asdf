@@ -3,7 +3,7 @@
 (defsystem :hello-world-example
   :class :bundle-system
   :build-operation program-op
-  :entry-point "hello:main"
+  :entry-point "hello:entry-point"
   :depends-on (:asdf-driver)
   :translate-output-p nil
   :components ((:file "hello")))

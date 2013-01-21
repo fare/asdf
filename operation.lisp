@@ -8,6 +8,7 @@
    #:operation
    #:operation-original-initargs ;; backward-compatibility only. DO NOT USE.
    #:build-op ;; THE generic operation
+   #:*operations*
    #:make-operation
    #:find-operation))
 (in-package :asdf/operation)
