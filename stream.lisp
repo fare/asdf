@@ -13,7 +13,8 @@
    #:finish-outputs #:format! #:safe-format!
    #:copy-stream-to-stream #:concatenate-files
    #:copy-stream-to-stream-line-by-line
-   #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-forms #:slurp-stream-form
+   #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
+   #:slurp-stream-forms #:slurp-stream-form
    #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding

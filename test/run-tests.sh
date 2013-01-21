@@ -343,10 +343,10 @@ test_clean_load () {
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
     ${cmd} ${eval} \
-      '(or #.(setf *load-verbose* nil) #.(load "test/script-support.lisp") #.(asdf-test::exit-lisp 0))' \
+      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::exit-lisp 0))' \
         > $nop 2>&1
     ${cmd} ${eval} \
-      '(or #.(setf *load-verbose* nil) #.(load "build/asdf.lisp") #.(asdf/image:quit 0))' \
+      '(or #.(load "build/asdf.lisp" :verbose nil :print nil) #.(asdf/image:quit 0))' \
         > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
