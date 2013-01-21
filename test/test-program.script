@@ -2,16 +2,16 @@
 
 (DBG :foo (current-lisp-file-pathname))
 
-(defparameter exe (output-file (make-operation 'program-op) (find-system :hello-world-example)))
-(assert (absolute-pathname-p exe))
-
-(unless (and #-(or clisp clozure cmu ecl lispworks sbcl) nil
-             #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
-             #+clisp (version-satisfies
-                      (first (split-string (lisp-implementation-version) :separator " "))
-                      "2.48"))
+(unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks sbcl) t
+            #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
+            #+clisp (version-satisfies
+                     (first (split-string (lisp-implementation-version) :separator " "))
+                     "2.48"))
   (DBG "Creating standalone programs is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
+
+(defparameter exe (output-file (make-operation 'program-op) (find-system :hello-world-example)))
+(assert (absolute-pathname-p exe))
 
 ;; Try to load lisp-invocation from xcvb
 (setf *central-registry*
