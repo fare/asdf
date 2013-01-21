@@ -146,7 +146,10 @@ test-all-upgrade:
 		${MAKE} test-upgrade l=$$lisp || exit 1 ; \
 	done
 
-test-all: test-forward-references doc test-all-lisps
+test-all: doc test-all-lisps
+
+test-all-no-stop:
+	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
