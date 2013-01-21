@@ -202,8 +202,8 @@ This is designed to abstract away the implementation specific quit forms."
 
 (defun* command-line-arguments (&optional (arguments (raw-command-line-arguments)))
   "Extract user arguments from command-line invocation of current process.
-Assume the calling conventions of an XCVB-generated script
-if we are not called from a directly executable image dumped by XCVB."
+Assume the calling conventions of a generated script that uses --
+if we are not called from a directly executable image."
   #+abcl arguments
   #-abcl
   (let* (#-(or sbcl allegro)
@@ -292,22 +292,27 @@ if we are not called from a directly executable image dumped by XCVB."
 
 #+ecl
 (defun create-image (destination object-files
-                     &key kind output-name
-                       (prelude () preludep) (entry-point () entry-point-p))
+                     &key kind output-name prologue-code epilogue-code 
+                       (prelude () preludep) (entry-point () entry-point-p) build-args)
   ;; Is it meaningful to run these in the current environment?
   ;; only if we also track the object files that constitute the "current" image,
   ;; and otherwise simulate dump-image, including quitting at the end.
   ;; (standard-eval-thunk *image-postlude*) (call-image-dump-hook)
-  (check-type kind (member :program :shared-library))
-  (c::builder
-   kind (pathname destination)
-       :lisp-files object-files
-       :init-name (c::compute-init-name (or output-name destination) :kind kind)
-       :epilogue-code
-       (when (eq kind :program)
-         `(restore-image ;; default behavior would be (si::top-level)
-           ,@(when preludep `(:prelude ',prelude))
-           ,@(when entry-point-p `(:entry-point ',entry-point))))))
+  (check-type kind (member :binary :dll :lib :static-library :program :object :fasl :program))
+  (apply 'c::builder
+         kind (pathname destination)
+         :lisp-files object-files
+         :init-name (c::compute-init-name (or output-name destination) :kind kind)
+         :prologue-code prologue-code
+         :epilogue-code
+         `(progn
+            ,epilogue-code
+            ,@(when (eq kind :program)
+                `((setf *image-dumped-p* :executable)
+                  (restore-image ;; default behavior would be (si::top-level)
+                   ,@(when preludep `(:prelude ',prelude))
+                   ,@(when entry-point-p `(:entry-point ',entry-point))))))
+         build-args))
 
 
 ;;; Some universal image restore hooks

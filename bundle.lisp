@@ -455,21 +455,18 @@
   (let* ((object-files (input-files o c))
          (output (output-files o c))
          (bundle (first output))
-         (kind (bundle-type o))
-         (init-name (c::compute-init-name bundle :kind kind)))
-    (apply #'c::builder kind (first output)
-           :init-name init-name
-           :lisp-files (append object-files (bundle-op-lisp-files o))
-           (append (bundle-op-build-args o)
-                   (when (and (typep o 'monolithic-bundle-op)
-                              (monolithic-op-prologue-code o))
-                     `(:prologue-code ,(monolithic-op-prologue-code o)))
-                   (when (typep o 'program-op)
-                     `(:epilogue-code
-                       (restore-image :entry-point ,(component-entry-point c))))
-                   (when (and (typep o 'monolithic-bundle-op)
-                              (monolithic-op-epilogue-code o))
-                     `(:epilogue-code ,(monolithic-op-epilogue-code o)))))))
+         (kind (bundle-type o)))
+    (create-image
+     bundle (append object-files (bundle-op-lisp-files o))
+     :kind kind
+     :entry-point (component-entry-point c)
+     :prologue-code
+     (when (typep o 'monolithic-bundle-op)
+       (monolithic-op-prologue-code o))
+     :epilogue-code
+     (when (typep o 'monolithic-bundle-op)
+       (monolithic-op-epilogue-code o))
+     :build-args (bundle-op-build-args o))))
 
 #+mkcl
 (progn
