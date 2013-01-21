@@ -28,15 +28,15 @@
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
 (delete-file-if-exists exe)
-(run-program/
+(run-program
  (symbol-call :lisp-invocation :lisp-invocation-arglist
               :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))))
 (assert (probe-file* exe))
 
-(assert-equal (run-program/ `(,(native-namestring exe)) :output :lines)
+(assert-equal (run-program `(,(native-namestring exe)) :output :lines)
               '("hello, world"))
 
-(assert-equal (run-program/ `(,(native-namestring exe) "a" "b c" "d") :output :lines)
+(assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines)
               '("hello, world"
                 "You passed 3 arguments:"
                 "  \"a\""

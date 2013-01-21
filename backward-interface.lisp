@@ -113,12 +113,16 @@ call that function where you would otherwise have loaded and configured A-B-L.")
 ;;;; run-shell-command
 ;;
 ;; WARNING! The function below is dysfunctional and deprecated.
-;; Please use asdf/run-program:run-program/ instead.
-
+;; Please use asdf/run-program:run-program instead.
+;;
 (defun* run-shell-command (control-string &rest args)
   "Interpolate ARGS into CONTROL-STRING as if by FORMAT, and
 synchronously execute the result using a Bourne-compatible shell, with
-output to *VERBOSE-OUT*.  Returns the shell's exit code."
+output to *VERBOSE-OUT*.  Returns the shell's exit code.
+
+PLEASE DO NOT USE.
+Deprecated function, for backward-compatibility only.
+Please use ASDF-DRIVER:RUN-PROGRAM instead."
   (let ((command (apply 'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
-    (run-program/ command :force-shell t :ignore-error-status t :output *verbose-out*)))
+    (run-program command :force-shell t :ignore-error-status t :output *verbose-out*)))

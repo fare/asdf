@@ -165,7 +165,7 @@ Some constraints:
 (defun touch-file (file &key (offset 0) timestamp)
   (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
     (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl<2.7 -5)
-      (acall :run-program/
+      (acall :run-program
              `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                      year month day hr min sec)
                        ,(namestring file)))

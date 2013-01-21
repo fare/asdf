@@ -18,7 +18,6 @@
    #+ecl #:make-build
    #:register-pre-built-system
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
-   #:component-translate-output-p #:translate-output-p
    #:component-bundle-pathname #:bundle-pathname
    #:component-entry-point #:entry-point))
 (in-package :asdf/bundle)
@@ -80,15 +79,11 @@
   ((bundle-type :initform :program)))
 
 (defgeneric* component-bundle-pathname (component))
-(defgeneric* component-translate-output-p (component))
 (defgeneric* component-entry-point (component))
 
 (defmethod component-bundle-pathname ((c component))
   (declare (ignorable c))
   nil)
-(defmethod component-translate-output-p ((c component))
-  (declare (ignorable c))
-  t)
 (defmethod component-entry-point ((c component))
   (declare (ignorable c))
   nil)
@@ -97,9 +92,7 @@
   ((bundle-pathname
     :initform nil :initarg :bundle-pathname :accessor component-bundle-pathname)
    (entry-point
-    :initform nil :initarg :entry-point :accessor component-entry-point)
-   (translate-output-p
-    :initform nil :initarg :translate-output-p :accessor component-translate-output-p)))
+    :initform nil :initarg :entry-point :accessor component-entry-point)))
 
 (defun* bundle-pathname-type (bundle-type)
   (etypecase bundle-type
@@ -121,7 +114,7 @@
                       (format nil "~A~@[~A~]" (component-name c) (slot-value o 'name-suffix))))
             (type (bundle-pathname-type bundle-type)))
         (values (list (subpathname (component-pathname c) name :type type))
-                (not (component-translate-output-p c)))))))
+                (eq (type-of o) (component-build-operation c)))))))
 
 (defmethod output-files ((o bundle-op) (c system))
   (bundle-output-files o c))

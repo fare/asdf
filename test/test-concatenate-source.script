@@ -22,8 +22,7 @@
 (assert-equal
  (output-file mcso sys)
  (apply-output-translations
-  (subpathname *test-directory*
-               "test-concatenate-source.all-systems.lisp")))
+  (resolve-output "asdf/test/test-concatenate-source.all-systems.lisp")))
 (assert-equal
  (output-files mcso sys)
  (input-files mccso sys))

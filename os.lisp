@@ -282,7 +282,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
       #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
       #+ecl (ext:getcwd)
       #+gcl (parse-native-namestring ;; this is a joke. Isn't there a better way?
-             (first (symbol-call :asdf/driver :run-program/ '("/bin/pwd") :output :lines)))
+             (first (symbol-call :asdf/driver :run-program '("/bin/pwd") :output :lines)))
       #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
       #+lispworks (system:current-directory)
       #+mkcl (mk-ext:getcwd)

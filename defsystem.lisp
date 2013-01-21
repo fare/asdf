@@ -90,8 +90,8 @@
     (cons
      (ecase (first form)
        ((:read-file-form)
-        (destructuring-bind (subpath &key (path 0)) (rest form)
-          (safe-read-file-form (subpathname pathname subpath) :path path)))))))
+        (destructuring-bind (subpath &key (at 0)) (rest form)
+          (safe-read-file-form (subpathname pathname subpath) :at at)))))))
 
 
 ;;; Main parsing function

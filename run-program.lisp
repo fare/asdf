@@ -1,5 +1,5 @@
 ;;;; -------------------------------------------------------------------------
-;;;; run-program/ initially from xcvb-driver.
+;;;; run-program initially from xcvb-driver.
 
 (asdf/package:define-package :asdf/run-program
   (:recycle :asdf/run-program :xcvb-driver)
@@ -10,9 +10,9 @@
    #:escape-windows-token #:escape-windows-command
    #:escape-token #:escape-command
 
-   ;;; run-program/
+   ;;; run-program
    #:slurp-input-stream
-   #:run-program/
+   #:run-program
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
    ))
@@ -145,9 +145,10 @@ by /bin/sh in POSIX"
 
 #-(or gcl<2.7 genera)
 (defmethod slurp-input-stream ((output-stream stream) input-stream
-                               &key (element-type 'character) &allow-other-keys)
+                               &key linewise prefix (element-type 'character) buffer-size &allow-other-keys)
   (copy-stream-to-stream
-   input-stream output-stream :element-type element-type))
+   input-stream output-stream
+   :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
 
 (defmethod slurp-input-stream ((x (eql 'string)) stream &key &allow-other-keys)
   (declare (ignorable x))
@@ -157,29 +158,34 @@ by /bin/sh in POSIX"
   (declare (ignorable x))
   (slurp-stream-string stream))
 
-(defmethod slurp-input-stream ((x (eql :lines)) stream &rest keys &key &allow-other-keys)
+(defmethod slurp-input-stream ((x (eql :lines)) stream &key count &allow-other-keys)
   (declare (ignorable x))
-  (apply 'slurp-stream-lines stream keys))
+  (slurp-stream-lines stream :count count))
 
-(defmethod slurp-input-stream ((x (eql :line)) stream &rest keys &key &allow-other-keys)
+(defmethod slurp-input-stream ((x (eql :line)) stream &key (at 0) &allow-other-keys)
   (declare (ignorable x))
-  (apply 'slurp-stream-line stream keys))
+  (slurp-stream-line stream :at at))
 
-(defmethod slurp-input-stream ((x (eql :forms)) stream &rest keys &key &allow-other-keys)
+(defmethod slurp-input-stream ((x (eql :forms)) stream &key count &allow-other-keys)
   (declare (ignorable x))
-  (apply 'slurp-stream-forms stream keys))
+  (slurp-stream-forms stream :count count))
 
-(defmethod slurp-input-stream ((x (eql :form)) stream &rest keys &key &allow-other-keys)
+(defmethod slurp-input-stream ((x (eql :form)) stream &key (at 0) &allow-other-keys)
   (declare (ignorable x))
-  (apply 'slurp-stream-form stream keys))
+  (slurp-stream-form stream :at at))
 
-(defmethod slurp-input-stream (x stream &key (element-type 'character) &allow-other-keys)
-  (declare (ignorable stream element-type))
+(defmethod slurp-input-stream (x stream
+                               &key linewise prefix (element-type 'character) buffer-size
+                               &allow-other-keys)
+  (declare (ignorable linewise prefix element-type buffer-size))
   (cond
     #+(or gcl<2.7 genera)
     ((functionp x) (funcall x stream))
     #+(or gcl<2.7 genera)
-    ((output-stream-p x) (copy-stream-to-stream stream x :element-type element-type))
+    ((output-stream-p x)
+     (copy-stream-to-stream
+      input-stream output-stream
+      :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
     (t
      (error "Invalid ~S destination ~S" 'slurp-input-stream x))))
 
@@ -198,7 +204,7 @@ by /bin/sh in POSIX"
                      (subprocess-error-command condition)
                      (subprocess-error-code condition)))))
 
-(defun* run-program/ (command
+(defun* run-program (command
                      &key output ignore-error-status force-shell
                      (element-type *default-stream-element-type*)
                      (external-format :default)
@@ -217,7 +223,7 @@ Return the exit status code of the process that was called.
 Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
   (declare (ignorable ignore-error-status element-type external-format))
   #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl sbcl scl xcl)
-  (error "RUN-PROGRAM/ not implemented for this Lisp")
+  (error "RUN-PROGRAM not implemented for this Lisp")
   (labels (#+(or allegro clisp clozure cmu ecl (and lispworks os-unix) sbcl scl)
            (run-program (command &key pipe interactive)
              "runs the specified command (a list of program and arguments).

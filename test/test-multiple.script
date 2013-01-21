@@ -10,7 +10,7 @@
 (defparameter asd2 (subpathname tmp "test-multiple-too.asd"))
 (defparameter file4 (test-fasl "file4"))
 (setf *central-registry* `(,*test-directory* ,tmp))
-(run-program/
+(run-program
  (format nil "/bin/ln -sf ~A ~A 2>&1"
          (native-namestring asd)
          (native-namestring asd2)))
