@@ -1,3 +1,4 @@
+* 2.6.134: fix u (abcl, ccl, clisp, cmucl)
 * Learn to use cl-grid-test, to make sure ASDF changes don't break stuff,
  and that breakage gets fixed quickly.
 * Test stassats's thing:

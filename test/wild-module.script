@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
-(with-test ()
+
+
+(progn
  (load (asdf::subpathname *asdf-directory* "contrib/wild-modules.lisp"))
  (def-test-system :wild-module
    :version "0.0"

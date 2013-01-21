@@ -27,8 +27,11 @@
    #:module-default-component-class
    #:module-components ;; backward-compatibility. DO NOT USE.
 
-   ;; Internals we'd like to share with the ASDF package.
-   #:name #:version #:description #:long-description
+   ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
+   #:name #:version #:description #:long-description #:author #:maintainer #:licence
+   #:components-by-name #:components
+   #:children #:children-by-name #:default-component-class
+   #:author #:maintainer #:licence #:source-file #:defsystem-depends-on
    #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
    #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
    #:%encoding #:properties #:parent))
@@ -40,7 +43,7 @@
   (:documentation "Find the top-level system containing COMPONENT"))
 (defgeneric* component-pathname (component)
   (:documentation "Extracts the pathname applicable for a particular component."))
-(defgeneric* component-relative-pathname (component)
+(defgeneric* (component-relative-pathname) (component)
   (:documentation "Returns a pathname for the component argument intended to be
 interpreted relative to the pathname of that component's parent.
 Despite the function's name, the return value may be an absolute
@@ -55,7 +58,7 @@ another pathname in a degenerate way."))
 
 ;;; Backward compatible way of computing the FILE-TYPE of a component.
 ;;; TODO: find users, have them stop using that.
-(defgeneric* source-file-type (component system))
+(defgeneric* (source-file-type) (component system))
 
 (when-upgrade (:when (find-class 'component nil))
   (defmethod reinitialize-instance :after ((c component) &rest initargs &key)
@@ -101,8 +104,7 @@ another pathname in a degenerate way."))
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
    (%encoding :accessor %component-encoding :initform nil :initarg :encoding)
-   ;; XXX we should provide some atomic interface for updating the
-   ;; component properties
+   ;; ASDF3: get rid of these "component properties" ?
    (properties :accessor component-properties :initarg :properties
                :initform nil)
    ;; For backward-compatibility, this slot is part of component rather than child-component
@@ -190,7 +192,7 @@ another pathname in a degenerate way."))
 
 ;;;; component pathnames
 
-(defgeneric* component-parent-pathname (component))
+(defgeneric* (component-parent-pathname) (component))
 (defmethod component-parent-pathname (component)
   (component-pathname (component-parent component)))
 

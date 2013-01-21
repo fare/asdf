@@ -4,21 +4,20 @@
 (asdf/package:define-package :asdf/system
   (:recycle :asdf :asdf/system)
   (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component)
-  (:intern #:children #:children-by-name #:default-component-class
-           #:author #:maintainer #:licence #:source-file #:defsystem-depends-on)
   (:export
    #:system #:proto-system
    #:system-source-file #:system-source-directory #:system-relative-pathname
-   #:reset-system #:builtin-system-p
+   #:reset-system
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
-   #:find-system ;; forward-reference, defined in find-system
-   #:system-defsystem-depends-on))
+   #:system-defsystem-depends-on
+   #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
-(defgeneric* find-system (system &optional error-p))
-(defgeneric* system-source-file (system)
+(defgeneric* (find-system) (system &optional error-p))
+(defgeneric* (system-source-file) (system)
   (:documentation "Return the source file in which system is defined."))
+(defgeneric* builtin-system-p (system))
 
 ;;;; The system class
 
@@ -56,7 +55,7 @@
 in which the system specification (.asd file) is located."
   (pathname-directory-pathname (system-source-file system-designator)))
 
-(defun* system-relative-pathname (system name &key type)
+(defun* (system-relative-pathname) (system name &key type)
   (subpathname (system-source-directory system) name :type type))
 
 (defmethod component-pathname ((system system))
@@ -76,14 +75,3 @@ in which the system specification (.asd file) is located."
   (system-source-directory system))
 
 
-;;;; Beware of builtin systems
-(defgeneric* builtin-system-p (system))
-(defmethod builtin-system-p ((s system))
-  (let* ((system (find-system s nil))
-         (sysdir (and system (component-pathname system)))
-         (truesysdir (truename* sysdir))
-         (impdir (lisp-implementation-directory))
-         (trueimpdir (truename* impdir)))
-    (and sysdir impdir
-         (or (subpathp sysdir impdir)
-             (subpathp truesysdir trueimpdir)))))

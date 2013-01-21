@@ -15,7 +15,7 @@
    #:merge-pathnames*
    ;; Directories
    #:pathname-directory-pathname #:pathname-parent-directory-pathname
-   #:directory-pathname-p #:ensure-directory-pathname
+   #:directory-pathname-p #:ensure-directory-pathname #:file-pathname-p
    ;; Absolute vs relative pathnames
    #:ensure-pathname-absolute
    #:relativize-directory-component #:relativize-pathname-directory
@@ -860,7 +860,7 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
     (delete-file x)))
 
 ;;; Translate a pathname
-(defun* translate-pathname* (path absolute-source destination &optional root source)
+(defun* (translate-pathname*) (path absolute-source destination &optional root source)
   (declare (ignore source))
   (cond
     ((functionp destination)

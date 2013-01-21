@@ -33,7 +33,7 @@
    #:input-files #:output-files #:output-file #:perform
    #:operation-done-p #:explain #:component-sibling-dependencies
    #:needed-in-image-p
-   #:run-program/ ; the recommended replacement for run-shell-command
+   ;; #:run-program ; we can't export it, because SB-GROVEL :use's both ASDF and SB-EXT.
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:bundle-op  #:precompiled-system #:compiled-file #:bundle-system
    #+ecl #:make-build
@@ -146,3 +146,4 @@
    #:system-source-registry
    #:user-source-registry-directory
    #:system-source-registry-directory))
+

@@ -253,18 +253,22 @@ or when loading the package is optional."
         (when nuke (do-symbols (s p) (when (home-package-p s p) (nuke-symbol s))))
         (ensure-package-unused p)
         (delete-package package))))
-  (defun fresh-package-name (&optional (prefix :%TO-BE-DELETED)
-                               (index (random most-positive-fixnum)))
-    (loop :for i :from index
-          :for n = (format nil "~A-~D" prefix i)
-          :thereis (and (not (find-package n)) n)))
-  (defun rename-package-away (p)
-    (rename-package
-     p (fresh-package-name (format nil "__~A__" (package-name p)) 0)))
   (defun package-names (package)
     (cons (package-name package) (package-nicknames package)))
   (defun packages-from-names (names)
-    (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t)))
+    (remove-duplicates (remove nil (mapcar #'find-package names)) :from-end t))
+  (defun fresh-package-name (&key (prefix :%TO-BE-DELETED)
+                               separator
+                               (index (random most-positive-fixnum)))
+    (loop :for i :from index
+          :for n = (format nil "~A~@[~A~D~]" prefix (and (plusp i) (or separator "")) i)
+          :thereis (and (not (find-package n)) n)))
+  (defun rename-package-away (p &rest keys &key prefix &allow-other-keys)
+    (let ((new-name
+            (apply 'fresh-package-name
+                   :prefix (or prefix (format nil "__~A__" (package-name p))) keys)))
+      (record-fishy (list :rename-away (package-names p) new-name))
+      (rename-package p new-name))))
 
 
 ;;; Communicable representation of symbol and package information
@@ -421,6 +425,10 @@ or when loading the package is optional."
                  (let* ((sp (symbol-package symbol))
                         (in (gethash name inherited))
                         (xp (and status (symbol-package existing))))
+                   (when (null sp)
+                     (fishy :import-uninterned name (package-name p) mix)
+                     (import symbol p)
+                     (setf sp (package-name p)))
                    (cond
                      ((gethash name shadowed))
                      (in

@@ -33,8 +33,7 @@
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
   (absolutize-pathnames
-   (list pathname (load-pathname) *default-pathname-defaults*
-         #-(or abcl gcl genera) (getcwd))
+   (list pathname (load-pathname) *default-pathname-defaults* (getcwd))
    :resolve-symlinks *resolve-symlinks*))
 
 
@@ -91,8 +90,8 @@
     (cons
      (ecase (first form)
        ((:read-file-form)
-        (destructuring-bind (subpath &key (path 0)) (rest form)
-          (safe-read-file-form (subpathname pathname subpath) :path path)))))))
+        (destructuring-bind (subpath &key (at 0)) (rest form)
+          (safe-read-file-form (subpathname pathname subpath) :at at)))))))
 
 
 ;;; Main parsing function
@@ -137,7 +136,7 @@
       (component-pathname component) ; eagerly compute the absolute pathname
       (let ((sysdir (system-source-directory (component-system component)))) ;; requires the previous
         (setf version (normalize-version version sysdir)))
-      (when (and versionp (not (parse-version version nil)))
+      (when (and versionp version (not (parse-version version nil)))
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
               version name parent))
       (setf (component-version component) version)

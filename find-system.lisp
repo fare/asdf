@@ -158,8 +158,7 @@ Going forward, we recommend new users should be using the source-registry.
       (let* ((file (probe-file*
                     (absolutize-pathnames
                      (list (make-pathname :name name :type "asd")
-                           defaults *default-pathname-defaults*
-                           #-(or abcl gcl genera) (getcwd))
+                           defaults *default-pathname-defaults* (getcwd))
                      :resolve-symlinks truename)
                     :truename truename)))
         (when file
@@ -224,7 +223,7 @@ Going forward, we recommend new users should be using the source-registry.
                           (subseq *central-registry* (1+ position))))))))))
 
 (defun* make-temporary-package ()
-  (make-package (fresh-package-name :asdf 0) :use '(:cl :asdf/interface)))
+  (make-package (fresh-package-name :prefix :asdf :index 0) :use '(:cl :asdf/interface)))
 
 (defmethod find-system ((name null) &optional (error-p t))
   (declare (ignorable name))
@@ -346,3 +345,20 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (defun* sysdef-find-pre-loaded-systems (requested)
   (loop :for (provided . keys) :in *pre-loaded-systems*
         :thereis (apply 'find-system-fallback requested provided keys)))
+
+;;;; Beware of builtin systems
+(defmethod builtin-system-p ((s system))
+  (or
+   ;; For most purposes, asdf itself specially counts as builtin.
+   ;; if you want to link it or do something forbidden to builtins,
+   ;; specify separate dependencies on asdf-driver and asdf-defsystem.
+   (equal "asdf" (coerce-name s))
+   ;; Other builtin systems are those under the implementation directory
+   (let* ((system (find-system s nil))
+          (sysdir (and system (component-pathname system)))
+          (truesysdir (truename* sysdir))
+          (impdir (lisp-implementation-directory))
+          (trueimpdir (truename* impdir)))
+     (and sysdir impdir
+          (or (subpathp sysdir impdir)
+              (subpathp truesysdir trueimpdir))))))

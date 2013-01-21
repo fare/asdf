@@ -9,7 +9,7 @@
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
-   #:monolithic-op #:monolithic-bundle-op #:required-files
+   #:monolithic-op #:monolithic-bundle-op #:direct-dependency-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
    #:program-op
    #:compiled-file #:precompiled-system #:prebuilt-system
@@ -18,16 +18,14 @@
    #+ecl #:make-build
    #:register-pre-built-system
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
-   #:component-translate-output-p #:translate-output-p
    #:component-bundle-pathname #:bundle-pathname
-   #:component-bundle-operation #:bundle-operation
    #:component-entry-point #:entry-point))
 (in-package :asdf/bundle)
 
 (defclass bundle-op (operation)
   ((build-args :initarg :args :initform nil :accessor bundle-op-build-args)
    (name-suffix :initarg :name-suffix :initform nil)
-   (bundle-type :reader bundle-type)
+   (bundle-type :initform :no-output-file :reader bundle-type)
    #+ecl (lisp-files :initform nil :accessor bundle-op-lisp-files)
    #+mkcl (do-fasb :initarg :do-fasb :initform t :reader bundle-op-do-fasb-p)
    #+mkcl (do-static-library :initarg :do-static-library :initform t :reader bundle-op-do-static-library-p)))
@@ -81,15 +79,11 @@
   ((bundle-type :initform :program)))
 
 (defgeneric* component-bundle-pathname (component))
-(defgeneric* component-translate-output-p (component))
 (defgeneric* component-entry-point (component))
 
 (defmethod component-bundle-pathname ((c component))
   (declare (ignorable c))
   nil)
-(defmethod component-translate-output-p ((c component))
-  (declare (ignorable c))
-  t)
 (defmethod component-entry-point ((c component))
   (declare (ignorable c))
   nil)
@@ -97,12 +91,8 @@
 (defclass bundle-system (system)
   ((bundle-pathname
     :initform nil :initarg :bundle-pathname :accessor component-bundle-pathname)
-   (bundle-operation
-    :initarg :bundle-operation :accessor component-bundle-operation)
    (entry-point
-    :initform nil :initarg :entry-point :accessor component-entry-point)
-   (translate-output-p
-    :initform nil :initarg :translate-output-p :accessor component-translate-output-p)))
+    :initform nil :initarg :entry-point :accessor component-entry-point)))
 
 (defun* bundle-pathname-type (bundle-type)
   (etypecase bundle-type
@@ -124,7 +114,7 @@
                       (format nil "~A~@[~A~]" (component-name c) (slot-value o 'name-suffix))))
             (type (bundle-pathname-type bundle-type)))
         (values (list (subpathname (component-pathname c) name :type type))
-                (not (component-translate-output-p c)))))))
+                (eq (type-of o) (component-build-operation c)))))))
 
 (defmethod output-files ((o bundle-op) (c system))
   (bundle-output-files o c))
@@ -199,7 +189,7 @@
         #+mkcl (equal type (compile-file-type :fasl-p nil))
         #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
 
-(defgeneric* trivial-system-p (component))
+(defgeneric* (trivial-system-p) (component))
 
 (defun* user-system-p (s)
   (and (typep s 'system)
@@ -221,13 +211,13 @@
   (declare (ignorable o))
   `((lib-op ,@(required-components c :other-systems t :component-type 'system
                                      :goal-operation 'load-op
-                                     :keep-operation 'load-op))))
+                                     :keep-operation 'compile-op))))
 
 (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
   (declare (ignorable o))
   `((fasl-op ,@(required-components c :other-systems t :component-type 'system
                                       :goal-operation 'load-fasl-op
-                                      :keep-operation 'load-fasl-op))))
+                                      :keep-operation 'fasl-op))))
 
 (defmethod component-depends-on ((o program-op) (c system))
   (declare (ignorable o))
@@ -247,7 +237,7 @@
   (declare (ignorable o))
   `((compile-op ,@(required-components c :other-systems nil :component-type '(not system)
                                          :goal-operation 'load-op
-                                         :keep-operation 'load-op))))
+                                         :keep-operation 'compile-op))))
 
 (defmethod component-depends-on ((o fasl-op) (c system))
   (declare (ignorable o))
@@ -264,19 +254,19 @@
 
 (defmethod component-depends-on :around ((o bundle-op) (c component))
   (declare (ignorable o c))
-  (if-let (op (and (eq (type-of o) 'bundle-op) (component-bundle-operation c)))
+  (if-let (op (and (eq (type-of o) 'bundle-op) (component-build-operation c)))
       `((,op ,c))
       (call-next-method)))
 
-(defmethod required-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
+(defun* direct-dependency-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
   (while-collecting (collect)
-    (visit-dependencies
-     () o c #'(lambda (sub-o sub-c)
-                (loop :for f :in (funcall key sub-o sub-c)
-                      :when (funcall test f) :do (collect f))))))
+    (map-direct-dependencies
+     o c #'(lambda (sub-o sub-c)
+             (loop :for f :in (funcall key sub-o sub-c)
+                   :when (funcall test f) :do (collect f))))))
 
 (defmethod input-files ((o bundle-op) (c system))
-  (required-files o c :test 'bundlable-file-p :key 'output-files))
+  (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files))
 
 (defun* select-bundle-operation (type &optional monolithic)
   (ecase type
@@ -427,6 +417,7 @@
          (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'string=))
          (output-files (output-files o c))
          (output-file (first output-files)))
+    (unless input-files (format t "WTF no input-files for ~S on ~S !???" o c))
     (when input-files
       (assert output-files)
       (when non-fasl-files
@@ -457,21 +448,18 @@
   (let* ((object-files (input-files o c))
          (output (output-files o c))
          (bundle (first output))
-         (kind (bundle-type o))
-         (init-name (c::compute-init-name bundle :kind kind)))
-    (apply #'c::builder kind (first output)
-           :init-name init-name
-           :lisp-files (append object-files (bundle-op-lisp-files o))
-           (append (bundle-op-build-args o)
-                   (when (and (typep o 'monolithic-bundle-op)
-                              (monolithic-op-prologue-code o))
-                     `(:prologue-code ,(monolithic-op-prologue-code o)))
-                   (when (typep o 'program-op)
-                     `(:epilogue-code
-                       (restore-image :entry-point ,(component-entry-point c))))
-                   (when (and (typep o 'monolithic-bundle-op)
-                              (monolithic-op-epilogue-code o))
-                     `(:epilogue-code ,(monolithic-op-epilogue-code o)))))))
+         (kind (bundle-type o)))
+    (create-image
+     bundle (append object-files (bundle-op-lisp-files o))
+     :kind kind
+     :entry-point (component-entry-point c)
+     :prologue-code
+     (when (typep o 'monolithic-bundle-op)
+       (monolithic-op-prologue-code o))
+     :epilogue-code
+     (when (typep o 'monolithic-bundle-op)
+       (monolithic-op-epilogue-code o))
+     :build-args (bundle-op-build-args o))))
 
 #+mkcl
 (progn

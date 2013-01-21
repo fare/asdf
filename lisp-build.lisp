@@ -22,7 +22,7 @@
    #:reify-simple-sexp #:unreify-simple-sexp
    #:reify-deferred-warnings #:reify-undefined-warning #:unreify-deferred-warnings
    #:reset-deferred-warnings #:save-deferred-warnings #:check-deferred-warnings
-   #:with-saved-deferred-warnings #:warnings-file-p
+   #:with-saved-deferred-warnings #:warnings-file-p #:warnings-file-type
    #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
    #:current-lisp-file-pathname #:load-pathname
    #:lispize-pathname #:compile-file-type #:call-around-hook
@@ -39,7 +39,8 @@ Valid values are :error, :warn, and :ignore.")
 (defvar *compile-file-failure-behaviour*
   (or #+(or mkcl sbcl) :error #+clisp :ignore :warn)
   "How should ASDF react if it encounters a failure (per the ANSI spec of COMPILE-FILE)
-when compiling a file?  Valid values are :error, :warn, and :ignore.
+when compiling a file, which includes any non-style-warning warning.
+Valid values are :error, :warn, and :ignore.
 Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling.")
 
 
@@ -71,17 +72,28 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 ;;; Condition control
 
+#+sbcl
+(progn
+  (defun sb-grovel-unknown-constant-condition-p (c)
+    (and (typep c 'sb-int:simple-style-warning)
+         (string-enclosed-p
+          "Couldn't grovel for "
+          (simple-condition-format-control c)
+          " (unknown to the C compiler).")))
+  (deftype sb-grovel-unknown-constant-condition ()
+    '(and style-warning (satisfies sb-grovel-unknown-constant-condition-p))))
+
 (defvar *uninteresting-compiler-conditions*
   (append
    #+sbcl
-   '(sb-c::simple-compiler-note
+   `(sb-c::simple-compiler-note
      "&OPTIONAL and &KEY found in the same lambda list: ~S"
      sb-int:package-at-variance
      sb-kernel:uninteresting-redefinition
      sb-kernel:undefined-alien-style-warning
-     sb-ext:implicit-generic-function-warning
+     ;; sb-ext:implicit-generic-function-warning ; controversial, but let's allow it by default.
      sb-kernel:lexical-environment-too-complex
-     "Couldn't grovel for ~A (unknown to the C compiler)."
+     sb-grovel-unknown-constant-condition ; defined above.
      ;; BEWARE: the below four are controversial to include here.
      sb-kernel:redefinition-with-defun
      sb-kernel:redefinition-with-defgeneric
@@ -181,11 +193,41 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (cons (cons (unreify-simple-sexp (car sexp)) (unreify-simple-sexp (cdr sexp))))
     ((simple-vector 2) (unreify-symbol sexp))))
 
+#+clozure
+(progn
+  (defun reify-source-note (source-note)
+    (when source-note
+      (with-accessors ((source ccl::source-note-source) (filename ccl:source-note-filename)
+                       (start-pos ccl:source-note-start-pos) (end-pos ccl:source-note-end-pos)) source-note
+          (declare (ignorable source))
+          (list :filename filename :start-pos start-pos :end-pos end-pos
+                #|:source (reify-source-note source)|#))))
+  (defun unreify-source-note (source-note)
+    (when source-note
+      (destructuring-bind (&key filename start-pos end-pos source) source-note
+        (ccl::make-source-note :filename filename :start-pos start-pos :end-pos end-pos
+                               :source (unreify-source-note source)))))
+  (defun reify-deferred-warning (deferred-warning)
+    (with-accessors ((warning-type ccl::compiler-warning-warning-type)
+                     (args ccl::compiler-warning-args)
+                     (source-note ccl:compiler-warning-source-note)
+                     (function-name ccl:compiler-warning-function-name)) deferred-warning
+      (list :warning-type warning-type :function-name (reify-simple-sexp function-name)
+            :source-note (reify-source-note source-note) :args (reify-simple-sexp args))))
+  (defun unreify-deferred-warning (reified-deferred-warning)
+    (destructuring-bind (&key warning-type function-name source-note args)
+        reified-deferred-warning
+      (make-condition (or (cdr (ccl::assq warning-type ccl::*compiler-whining-conditions*))
+                          'ccl::compiler-warning)
+                      :function-name (unreify-simple-sexp function-name)
+                      :source-note (unreify-source-note source-note)
+                      :warning-type warning-type
+                      :args (unreify-simple-sexp args)))))
+
+#+sbcl
 (defun reify-undefined-warning (warning)
   ;; Extracting undefined-warnings from the compilation-unit
   ;; To be passed through the above reify/unreify link, it must be a "simple-sexp"
-  #-sbcl (declare (ignore warning))
-  #+sbcl
   (list*
    (sb-c::undefined-warning-kind warning)
    (sb-c::undefined-warning-name warning)
@@ -203,7 +245,11 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (sb-c::undefined-warning-warnings warning))))
 
 (defun reify-deferred-warnings ()
-  #-sbcl nil
+  #+clozure
+  (mapcar 'reify-deferred-warning
+          (if-let (dw ccl::*outstanding-deferred-warnings*)
+            (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
+              (ccl::deferred-warnings.warnings mdw))))
   #+sbcl
   (when sb-c::*in-compilation-unit*
     ;; Try to send nothing through the pipe if nothing needs to be accumulated
@@ -219,10 +265,15 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
               :when (plusp value)
                 :collect `(,what . ,value)))))
 
-(defun unreify-deferred-warnings (constructor-list)
-  #-sbcl (declare (ignore constructor-list))
+(defun unreify-deferred-warnings (reified-deferred-warnings)
+  (declare (ignorable reified-deferred-warnings))
+  #+clozure
+  (let ((dw (or ccl::*outstanding-deferred-warnings*
+                (setf ccl::*outstanding-deferred-warnings* (ccl::%defer-warnings t)))))
+    (appendf (ccl::deferred-warnings.warnings dw)
+             (mapcar 'unreify-deferred-warning reified-deferred-warnings)))
   #+sbcl
-  (dolist (item constructor-list)
+  (dolist (item reified-deferred-warnings)
     ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
     ;; For *undefined-warnings*, the adjustment is a list of initargs.
     ;; For everything else, it's an integer.
@@ -249,6 +300,10 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
          (set symbol (+ (symbol-value symbol) adjustment)))))))
 
 (defun reset-deferred-warnings ()
+  #+clozure
+  (if-let (dw ccl::*outstanding-deferred-warnings*)
+    (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
+      (setf (ccl::deferred-warnings.warnings mdw) nil)))
   #+sbcl
   (when sb-c::*in-compilation-unit*
     (setf sb-c::*undefined-warnings* nil
@@ -267,8 +322,14 @@ possibly in a different process."
       (terpri s)))
   (reset-deferred-warnings))
 
-(defun* warnings-file-p (file)
-  (equal (pathname-type file) "sbcl-warnings"))
+(defun* warnings-file-type (&optional implementation-type)
+  (case (or implementation-type *implementation-type*)
+    (:sbcl "sbcl-warnings")
+    ((:clozure :ccl) "ccl-warnings")))
+
+(defun* warnings-file-p (file &optional implementation-type)
+  (if-let (type (warnings-file-type implementation-type))
+    (equal (pathname-type file) type)))
 
 (defun* check-deferred-warnings (files &optional context-format context-arguments)
   (let ((file-errors nil)
@@ -294,6 +355,26 @@ possibly in a different process."
 
 
 ;;;; Deferred warnings
+#|
+Mini-guide to adding support for deferred warnings on an implementation.
+
+First, look at what such a warning looks like:
+
+(describe
+ (handler-case
+     (and (eval '(lambda () (some-undefined-function))) nil)
+   (t (c) c)))
+
+Then you can grep for the condition type in your compiler sources
+and see how to catch those that have been deferred,
+and/or read, clear and restore the deferred list.
+
+ccl::
+undefined-function-reference
+verify-deferred-warning
+report-deferred-warnings
+
+|#
 
 (defun* call-with-saved-deferred-warnings (thunk warnings-file)
   (if warnings-file
@@ -347,10 +428,10 @@ possibly in a different process. Otherwise just run the BODY."
         (funcall *output-translation-function*
                  (apply 'compile-file-pathname input-file keys)))))
 
-(defun* compile-file* (input-file &rest keys
-                                  &key compile-check output-file warnings-file
-                                  #+(or ecl mkcl) object-file
-                                  &allow-other-keys)
+(defun* (compile-file*) (input-file &rest keys
+                                    &key compile-check output-file warnings-file
+                                    #+(or ecl mkcl) object-file
+                                    &allow-other-keys)
   "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
 the file only actually created if the compilation was successful,
@@ -369,10 +450,16 @@ If WARNINGS-FILE is defined, deferred warnings are saved to that file.
 On ECL or MKCL, it creates both the linkable object and loadable fasl files.
 On implementations that erroneously do not recognize standard keyword arguments,
 it will filter them appropriately."
+  #+ecl (when (and object-file (equal (compile-file-type) (pathname object-file)))
+          (format t "Whoa, some funky ASDF upgrade switched ~S calling convention for ~S and ~S~%"
+                  'compile-file* output-file object-file)
+          (rotatef output-file object-file))
   (let* ((keywords (remove-plist-keys
-                    `(:compile-check :warnings-file
+                    `(:compile-check :warnings-file #+(or ecl mkcl) :object-file :output-file
                       #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
-         (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
+         (output-file
+           (or output-file
+               (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
          #+ecl
          (object-file
            (unless (use-ecl-byte-compiler-p)
@@ -389,7 +476,7 @@ it will filter them appropriately."
               #+ecl (apply 'compile-file input-file :output-file
                            (if object-file
                                (list* object-file :system-p t keywords)
-                               (list* output-file keywords)))
+                               (list* tmp-file keywords)))
               #+mkcl (apply 'compile-file input-file
                             :output-file object-file :fasl-p nil keywords)))
       (cond

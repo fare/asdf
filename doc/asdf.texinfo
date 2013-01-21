@@ -261,13 +261,19 @@ whether a recent version is loaded, an old version is loaded,
 or none at all:
 
 @lisp
-(or #+asdf2 (asdf:asdf-version) #+asdf :old)
+(when (find-package :asdf)
+  (let ((ver (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
+                               (find-symbol (string :*asdf-revision*) :asdf)))))
+    (etypecase ver
+      (string ver)
+      (cons (format nil "~{~D~^.~}" ver))
+      (null "1.0"))))
 @end lisp
 
-If it returns a version number, that's the version of ASDF installed.
-If it returns the keyword @code{:OLD},
-then you're using an old version of ASDF (from before 1.635).
 If it returns @code{NIL} then ASDF is not installed.
+Otherwise it should return a string.
+If it returns @code{"1.0"}, then it can actually be
+any version before 1.77 or so, or some buggy variant of 1.x.
 
 If you are experiencing problems with ASDF,
 please try upgrading to the latest released version,
@@ -277,12 +283,18 @@ before you contact us and raise an issue.
 
 @section Upgrading ASDF
 
+If your implementation provides ASDF 2.27 or later,
+you only need to @code{(require "asdf")}:
+ASDF will automatically look whether an updated version of itself is available
+amongst the regularly configured systems, before it compiles anything else.
+See @pxref{Configuring ASDF} below.
+
 If your implementation does provide ASDF 2 or later,
+but not ASDF 2.27 or later,
 and you want to upgrade to a more recent version,
-just install ASDF like any other package
-(see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below),
-configure ASDF as usual (see @pxref{Configuring ASDF} below),
-and upgrade with:
+you need to install and configure your ASDF as above,
+and additionally, you need to explicitly tell ASDF to load itself,
+right after you require your implementation's old ASDF 2:
 
 @lisp
 (require "asdf")
@@ -290,7 +302,9 @@ and upgrade with:
 @end lisp
 
 If on the other hand, your implementation only provides an old ASDF,
-you will require a special configuration step and an old-style loading:
+you will require a special configuration step and an old-style loading.
+Take special attention to not omit the trailing directory separator
+@code{/} at the end of your pathname:
 
 @lisp
 (require "asdf")
@@ -298,9 +312,7 @@ you will require a special configuration step and an old-style loading:
 (asdf:oos 'asdf:load-op :asdf)
 @end lisp
 
-Don't forget the trailing @code{/} at the end of your pathname.
-
-Also, note that older versions of ASDF won't redirect their output,
+Note that ASDF 1 won't redirect its output files,
 or at least won't do it according to your usual ASDF 2 configuration.
 You therefore need write access on the directory
 where you install the new ASDF,
@@ -312,7 +324,11 @@ Note that to our knowledge all implementations that provide ASDF
 provide ASDF 2 in their latest release, so
 you may want to upgrade your implementation rather than go through that hoop.
 
-Finally, note that there are some limitations to upgrading ASDF:
+Finally, if you are using an unmaintained implementation
+that does not provide ASDF at all,
+see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
+
+Note that there are some limitations to upgrading ASDF:
 @itemize
 @item
 Previously loaded ASDF extension becomes invalid, and will need to be reloaded.
@@ -321,13 +337,15 @@ Since it isn't possible to automatically detect what extensions are present
 that need to be invalidated,
 ASDF will actually invalidate all previously loaded systems
 when it is loaded on top of a different ASDF version,
-starting with ASDF 2.014.8 (as far as releases go, 2.015).
+starting with ASDF 2.014.8 (as far as releases go, 2.015);
+and it will automatically attempt this self-upgrade as its very first step
+starting with ASDF 2.27.
 
 @item
 For this an many other reasons,
 it important reason to load, configure and upgrade ASDF (if needed)
 as one of the very first things done by your build and startup scripts.
-Until all implementations provide ASDF 2.015 or later,
+Until all implementations provide ASDF 2.27 or later,
 it is safer if you upgrade ASDF and its extensions as a special step
 at the very beginning of whatever script you are running,
 before you start using ASDF to load anything else;
@@ -335,7 +353,7 @@ even afterwards, it is still a good idea, to avoid having to
 load and reload code twice as it gets invalidated.
 
 @item
-Until all implementations provide ASDF 2.015 or later,
+Until all implementations provide ASDF 2.27 or later,
 it is unsafe to upgrade ASDF as part of loading a system
 that depends on a more recent version of ASDF,
 since the new one might shadow the old one while the old one is running,
@@ -851,9 +869,13 @@ Instead of a string representing the version,
 the @code{:version} argument can be an expression that is resolved to
 such a string using the following trivial domain-specific language:
 in addition to being a literal string, it can be an expression of the form
-@code{(:read-file-form <pathname-or-string>)}, which will be resolved
-by reading the first form in the specified pathname or string
-(merged against the pathname of the current system if relative).
+@code{(:read-file-form <pathname-or-string> :at <access-at-specifier>)},
+which will be resolved by reading a form
+in the specified pathname
+(read as a subpathname of the current system if relative or a unix-namestring).
+You may use an access-at specifier with the (optional) :at keyword,
+by default the specifier is 0, meaning the first form is returned.
+
 @cindex :version
 
 @end itemize
@@ -2243,6 +2265,30 @@ Additionally, some implementation-specific directories
 may be automatically prepended to whatever directories are specified
 in configuration files, no matter if the last one inherits or not.
 
+
+@section Truenames and other dangers
+
+One great innovation of the original ASDF was its ability to leverage
+@code{CL:TRUENAME} to locate where your source code was and where to build it,
+allowing for symlink farms as a simple but effective configuration mechanism
+that is easy to control programmatically.
+ASDF2 still supports this configuration style, and it is enabled by default;
+however we recommend you instead use
+our source-registry configuration mechanism described below,
+because it is easier to setup in a portable way across users and implementations.
+
+Addtionally, some people dislike truename,
+either because it is very slow on their system, or
+because they are using content-addressed storage where the truename of a file
+is related to a digest of its individual contents,
+and not to other files in the same intended project.
+For these people, ASDF 2.27 allows to eschew the @code{TRUENAME} mechanism,
+by setting the variable @var{asdf:*resolve-symlinks*} to @code{NIL}.
+
+PS: Yes, if you haven't read Vernor Vinge's short but great classic
+``True Names... and Other Dangers'' then you're in for a treat.
+
+
 @section XDG base directory
 
 Note that we purport to respect the XDG base directory specification
@@ -2260,10 +2306,9 @@ On Windows platforms, when not using Cygwin,
 instead of the XDG base directory specification,
 we try to use folder configuration from the registry regarding
 @code{Common AppData} and similar directories.
-However, support for querying the Windows registry is limited as of ASDF 2,
-and on many implementations, we may fall back to always using the defaults
-without consulting the registry.
-Patches welcome.
+Since support for querying the Windows registry
+is not possible to do in reasonable amounts of portable Common Lisp code,
+ASDF 2 relies on the environment variables that Windows usually exports.
 
 @section Backward Compatibility
 
@@ -3448,22 +3493,99 @@ with respect to its own code, and what it does is ridiculously complex;
 look at the beginning of @file{asdf.lisp} to see what it does.
 @end defun
 
+@defun run-program
+
+run-program takes a @var{COMMAND} argument that is either
+a list of a program path and its arguments,
+or a string to be executed by a shell.
+It spawns the command, waits for it to return,
+verifies that it exited cleanly (unless told not too below),
+and optionally captures and processes its output.
+It accepts many keyword arguments to configure its behavior.
+
+@code{output} is its most important argument;
+it specifies how the output is captured and processed.
+If it is @code{nil}, then the output is not captured.
+If it is @code{:interactive}, then
+input and output are inherited from the current process,
+which the subprocess can control until it exits.
+Otherwise, the output is captured and redirected to a stream,
+and processed by @code{slurp-input-stream} with the object as first argument.
+See below.
+
+@code{element-type} and @code{external-format} are passed on
+to your Lisp implementation, when available, for creation of the output stream.
+
+@code{force-shell} forces evaluation of the command through a shell,
+even if it was passed as a list rather than a string.
+
+@code{ignore-error-status} causes @code{run-program}
+to not raise an error if the spawned program exits in error.
+Following POSIX convention, an error is anything but
+a normal exit with status code zero.
+
+run-program works on all platforms supported by ASDF, except Genera.
+
+@end defun
+
+@defun slurp-input-stream
+
+It's a generic function of two arguments, a target object and an input stream,
+and accepting keyword arguments.
+Predefined methods based on the target object are as follow:
+
+If the object is a function, the function is called with the stream as argument.
+
+If the object is a cons, its first element is applied to its rest appended by
+a list of the input stream.
+
+If the object is an output stream, the contents of the input stream are copied to it.
+If the linewise argument is provided, copying happens line by line,
+and an optional prefix is printed before each line.
+Otherwise, copying happen based on a buffer of size buffer-size,
+using the element-type.
+
+If the object is 'string or :string, the content is captured into a string
+of the given element-type.
+
+If the object is :lines, the content is captured as a list of strings,
+one per line, without line ending. If the count argument is provided,
+it is a maximum count of lines to be read.
+
+If the object is :line, the content is capture as with :lines above,
+and then its sub-object is extracted with the path argument,
+which defaults to 0, extracting the first line.
+A number will extract the corresponding line.
+See the documentation for asdf-driver:sub-object.
+
+If the object is :forms, the content is captured as a list of S-expressions,
+as read by the Lisp reader.
+If the count argument is provided,
+it is a maximum count of lines to be read.
+We recommend you control the syntax with such macro as
+asdf-driver:with-safe-io-syntax.
+
+If the object is :form, the content is capture as with :forms above,
+and then its sub-object is extracted with the path argument,
+which defaults to 0, extracting the first form.
+A number will extract the corresponding form.
+See the documentation for asdf-driver:sub-object.
+We recommend you control the syntax with such macro as
+asdf-driver:with-safe-io-syntax.
+
+@end defun
+
 @defun run-shell-command
 
 This function is obsolete and present only for the sake of backwards-compatibility:
 ``If it's not backwards, it's not compatible''. We strongly discourage its use.
 Its current behavior is only well-defined on Unix platforms
 (which include MacOS X and cygwin). On Windows, anything goes.
+The following documentation is only for the purpose of your migrating away from it
+in a way that preserves semantics.
 
-Instead we recommend the use of such a function as
-@code{xcvb-driver:run-program/}
-from the @code{xcvb-driver} system that is distributed with XCVB:
-@url{http://common-lisp.net/project/xcvb}.
-It's the only alternative that supports
-as many implementations and operating systems as ASDF does,
-and provides well-defined behavior outside Unix (i.e. on Windows).
-(The only unsupported exception is Genera, since on it
-@code{run-shell-command} doesn't make sense anyway on that platform).
+Instead we recommend the use @code{run-program} above
+available as part of ASDF since ASDF 2.27.
 
 @code{run-shell-command} takes as arguments a @code{format} control-string
 and arguments to be passed to @code{format} after this control-string
@@ -3642,11 +3764,16 @@ The following issues and many others have been fixed:
 
 @itemize
 @item
-The infamous TRAVERSE function has been revamped completely,
-with many bugs squashed.
+The infamous TRAVERSE function has been revamped completely
+between ASDF 1 and ASDF 2, with many bugs squashed.
 In particular, dependencies were not correctly propagated
 across modules but now are.
-Timestamps were not correctly propagated at all.
+It has been completely rewritten many times over
+between ASDF 2.000 and ASDF 2.27,
+with fundamental issues in the original model being fixed.
+Timestamps were not propagated at all, and now are.
+The internal model of how actions depend on each other
+is now both consistent and complete.
 The :version and
 the :force (system1 .. systemN) feature have been fixed.
 
@@ -3671,7 +3798,7 @@ except for GCL (due to GCL bugs).
 @item
 Support was lacking for some implementations.
 ABCL and GCL were notably wholly broken.
-ECL extensions were not integrated in the ASDF release.
+ECL extensions were not integrated with ASDF release.
 
 @item
 The documentation was grossly out of date.

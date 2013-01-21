@@ -1,11 +1,11 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
 
 (in-package :asdf)
 (use-package :asdf-test)
 
-(with-test ()
+(progn
 
 (assert
  (every #'directory-pathname-p

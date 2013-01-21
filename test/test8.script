@@ -2,11 +2,11 @@
 
 ;;; make sure we get a missing-component error
 
-(load "script-support.lisp")
-(load-asdf)
+
+
 (in-package :asdf-test)
 
-(with-test ()
+(progn
   (trace operate)
   (handler-case
       (asdf:oos 'asdf:load-op 'system-does-not-exist)

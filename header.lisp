@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; coding: utf-8 -*-
-;;; This is ASDF 2.26.125: Another System Definition Facility.
+;;; This is ASDF 2.26.139: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -46,3 +46,25 @@
 ;;; we can't use defsystem to compile it.  Hence, all in one file.
 
 #+xcvb (module ())
+
+(in-package :cl-user)
+
+#+cmu
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (declaim (optimize (speed 1) (safety 3) (debug 3)))
+  (setf ext:*gc-verbose* nil))
+
+#+(or abcl clisp cmu)
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (member :asdf2.27 *features*)
+    (let* ((existing-version
+             (when (find-package :asdf)
+               (or (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
+                                     (find-symbol (string :*asdf-revision*) :asdf)))
+                   (string :1.x))))
+           (away (format nil "~A-~A" :asdf existing-version)))
+      (when existing-version
+        (rename-package :asdf away)
+        (when *load-verbose*
+          (format t "; Renamed package ~A away to ~A~%" :asdf away))))))
+

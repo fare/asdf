@@ -3,9 +3,9 @@
 ;;; test system definition reloading if touched
 ;;; system that canNOT be found using *system-definition-search-functions*
 
-(load "script-support.lisp")
-(load-asdf)
-(with-test ()
+
+
+(progn
  (flet ((system-load-time (name)
           (let ((data (asdf::system-registered-p name)))
             (when data

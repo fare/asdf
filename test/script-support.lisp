@@ -17,12 +17,14 @@ Some constraints:
    #:*test-directory* #:*asdf-directory*
    #:load-asdf #:maybe-compile-asdf
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl
-   #:compile-load-asdf #:load-asdf-system
+   #:compile-load-asdf #:load-asdf-system #:clean-load-asdf-system
    #:register-directory #:load-test-system
    #:with-test #:test-asdf #:debug-asdf
    #:assert-compare
    #:assert-equal
    #:leave-test #:def-test-system
+   #:action-name #:in-plan-p
+   #:test-source #:test-fasl #:resolve-output #:output-location
    #:quietly))
 
 (in-package :asdf-test)
@@ -36,15 +38,16 @@ Some constraints:
   `(;; If you want to trace some stuff while debugging ASDF,
     ;; here's a nice place to say what.
     ;; These string designators will be interned in ASDF after it is loaded.
+    
+    ;;#+ecl ,@'( :perform :input-files :output-files :compile-file* :compile-file-pathname* :load*)
     ))
 
 (defvar *debug-asdf* nil)
 (defvar *quit-when-done* t)
 
-(defun verbose (&optional (verbose t))
-  (loop :for v :in '(*load-verbose* *compile-verbose*
-                     *load-print* *compile-print*)
-        :do (setf (symbol-value v) verbose)))
+(defun verbose (&optional (verbose t) (print verbose))
+  (setf *load-verbose* verbose *compile-verbose* verbose)
+  (setf *load-print* print *compile-print* print))
 
 (verbose nil)
 
@@ -60,7 +63,9 @@ Some constraints:
   (when (or (< system::*gcl-major-version* 2)
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
-    (shadowing-import 'system:*load-pathname* :asdf-test)))
+    (shadowing-import 'system:*load-pathname* :asdf-test))
+  #+lispworks
+  (setf system:*stack-overflow-behaviour* :warn))
 
 #+(or gcl genera)
 (unless (fboundp 'ensure-directories-exist)
@@ -142,6 +147,7 @@ Some constraints:
 ;;; Test helper functions
 
 (load (debug-lisp))
+(verbose t nil)
 
 (defmacro assert-compare (expr)
   (destructuring-bind (op x y) expr
@@ -159,7 +165,7 @@ Some constraints:
 (defun touch-file (file &key (offset 0) timestamp)
   (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
     (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl<2.7 -5)
-      (acall :run-program/
+      (acall :run-program
              `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                      year month day hr min sec)
                        ,(namestring file)))
@@ -168,7 +174,6 @@ Some constraints:
 (defun hash-table->alist (table)
   (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
     :collect (cons key value)))
-
 
 (defun exit-lisp (&optional (code 0)) ;; Simplified from asdf/image:quit
   (finish-outputs*)
@@ -349,15 +354,26 @@ is bound, write a message and exit on an error.  If
     (register-directory *test-directory*)
     (acall :oos (asym :load-op) x :verbose verbose)))
 
+(defun get-asdf-version ()
+  (when (find-package :asdf)
+    (let ((ver (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
+                                 (find-symbol (string :*asdf-revision*) :asdf)))))
+      (typecase ver
+        (string ver)
+        (cons (format nil "~{~D~^.~}" ver))
+        (null "1.0")))))
+
+
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")
-         (format t "Requiring some previous asdf ~A~%" tag)
+         (format t "Requiring some previous ASDF ~A~%" tag)
          (ignore-errors (funcall 'require "asdf"))
-         (unless (member "ASDF" *modules* :test 'equalp)
-           (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
+         (if (member "ASDF" *modules* :test 'equalp)
+             (format t "Your Lisp implementation provided ASDF ~A~%" (get-asdf-version))
+             (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)
          (funcall old-method tag))))
@@ -369,6 +385,28 @@ is bound, write a message and exit on an error.  If
     (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
     (assert (eval (intern (symbol-name '#:*file3*) :test-package)))))
 
+(defun output-location (&rest sublocation)
+  (list* *asdf-directory* "build/fasls" :implementation sublocation))
+(defun resolve-output (&rest sublocation)
+  (acall :resolve-location (apply 'output-location sublocation)))
+
+(defun test-source (file)
+  (acall :subpathname *test-directory* file))
+(defun test-output-dir ()
+  (resolve-output "asdf" "test"))
+(defun test-output (file)
+  (acall :subpathname (test-output-dir) file))
+(defun test-fasl (file)
+  (acall :compile-file-pathname* (test-source file)))
+
+(defun clean-asdf-system ()
+  (let ((fasl (resolve-output "asdf" "build" "asdf.fasl")))
+    (when (DBG :clean fasl (probe-file fasl)) (delete-file fasl))))
+
+(defun load-asdf-lisp-clean ()
+  (load-asdf-lisp)
+  (clean-asdf-system))
+
 (defun configure-asdf ()
   (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
   (untrace)
@@ -377,8 +415,8 @@ is bound, write a message and exit on an error.  If
          `(:source-registry :ignore-inherited-configuration))
   (acall :initialize-output-translations
          `(:output-translations
-           ((,*asdf-directory* :**/ :*.*.*) (,*asdf-directory* "build/fasls" :implementation "asdf"))
-           (t (,*asdf-directory* "build/fasls" :implementation "root"))
+           ((,*asdf-directory* :**/ :*.*.*) ,(output-location "asdf"))
+           (t ,(output-location "root"))
            :ignore-inherited-configuration))
   (set (asym :*central-registry*) `(,*test-directory*))
   (set (asym :*verbose-out*) *standard-output*)
@@ -407,6 +445,51 @@ is bound, write a message and exit on an error.  If
   `(apply (asym :register-system-definition) ',name :pathname ,*test-directory*
           :source-file nil ',rest))
 
+(defun in-plan-p (plan x) (member x plan :key (asym :action-path) :test 'equal))
+
+;;; Helpful for debugging
+
+(defun pathname-components (p)
+  (when p
+    (let ((p (pathname p)))
+      (list :host (pathname-host p)
+            :device (pathname-device p)
+            :directory (pathname-directory p)
+            :name (pathname-name p)
+            :type (pathname-type p)
+            :version (pathname-version p)))))
+
+(defun assert-pathname-equal-helper (qx x qy y)
+  (cond
+    ((equal x y)
+     (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
+    ((acall :pathname-equal x y)
+     (format t "These two expressions yield pathname-equal yet not equal path~%  ~S~%" x)
+     (format t "the first expression ~S yields this:~%  ~S~%" qx (pathname-components x))
+     (format t "the other expression ~S yields that:~%  ~S~%" qy (pathname-components y)))
+    (t
+     (format t "These two expressions yield paths that are not pathname-equal~%")
+     (format t "the first expression ~S yields this:~%  ~S~%  ~S~%" qx x (pathname-components x))
+     (format t "the other expression ~S yields that:~%  ~S~%  ~S~%" qy y (pathname-components y)))))
+(defmacro assert-pathname-equal (x y)
+  `(assert-pathname-equal-helper ',x ,x ',y ,y))
+(defun assert-length-equal-helper (qx qy x y)
+  (unless (= (length x) (length y))
+    (format t "These two expressions yield sequences of unequal length~%")
+    (format t "The first, ~S, has value ~S of length ~S~%" qx x (length x))
+    (format t "The other, ~S, has value ~S of length ~S~%" qy y (length y))))
+(defun assert-pathnames-equal-helper (qx x qy y)
+  (assert-length-equal-helper qx x qy y)
+  (loop :for n :from 0
+        :for qpx = `(nth ,n ,qx)
+        :for qpy = `(nth ,n ,qy)
+        :for px :in x
+        :for py :in y :do
+        (assert-pathname-equal-helper qpx px qpy py)))
+(defmacro assert-pathnames-equal (x y)
+  `(assert-pathnames-equal-helper ',x ,x ',y ,y))
+
+
 ;; These are shorthands for interactive debugging of test scripts:
 (!a
  common-lisp-user::debug-asdf debug-asdf
@@ -420,5 +503,7 @@ is bound, write a message and exit on an error.  If
  It depends on the DBG macro in contrib/debug.lisp,
  that you should load in your asdf/plan by inserting an (asdf-debug) form in it.
 
-#+DBG-ASDF (DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))
+ (let ((action-path (action-path (cons o c)))) (DBG :cas action-path just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c)
+;;; blah
+))
 |#

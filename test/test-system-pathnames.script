@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
 
-(with-test ()
+
+
+(progn
  (asdf:load-system 'test-system-pathnames)
  (assert (find-package :test-package)
          () "package test-package not found")

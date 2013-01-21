@@ -1,8 +1,8 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
 
-(with-test ()
+
+
+(progn
  (asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
  (asdf:load-system :asdf)
  (asdf:initialize-source-registry `(:source-registry (:directory ,*asdf-directory*) :ignore-inherited-configuration))

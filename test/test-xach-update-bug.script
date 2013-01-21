@@ -1,9 +1,9 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
 
 #+gcl (trace load compile-file asdf:perform asdf::perform-plan)
-(with-test ()
+(progn
   (let ((foo :test-asdf-location-change))
     (DBG "load foo. Should load from xach-foo-1/")
     (setf *central-registry* (list (subpathname *test-directory* "xach-foo-1/")))

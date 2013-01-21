@@ -18,7 +18,7 @@ endif
 ## MAJOR FAIL: gclcvs -- Compiler bug fixed upstream, but gcl fails to compile on modern Linuxen.
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
 
-lisp ?= sbcl
+l ?= sbcl
 
 ABCL ?= abcl
 ALLEGRO ?= alisp
@@ -55,7 +55,7 @@ install: archive-copy
 
 bump: bump-version
 bump-version: build/asdf.lisp
-	./bin/asdf-builder bump-version
+	./bin/asdf-builder bump-version ${v}
 
 driver-files:
 	@echo $(driver_lisp)
@@ -117,33 +117,39 @@ mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
 test-upgrade: build/asdf.lisp
-	./test/run-tests.sh -u ${lisp}
+	./test/run-tests.sh -u ${l}
+u: test-upgrade
 
 test-clean-load: build/asdf.lisp
-	./test/run-tests.sh -c ${lisp}
+	./test/run-tests.sh -c ${l}
 
+# test-glob has been replaced by t, and lisp by l, easier to type
 test-lisp: build/asdf.lisp
-	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
+	@cd test; ${MAKE} clean;./run-tests.sh ${l} ${t}
+t: test-lisp
 
 test: test-lisp test-clean-load doc
 
 test-all-lisps:
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp test-upgrade lisp=$$lisp || exit 1 ; \
+		${MAKE} test-lisp test-upgrade l=$$lisp || exit 1 ; \
 	done
 
 # test upgrade is a very long run... This does just the regression tests
 test-all-noupgrade:
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp lisp=$$lisp || exit 1 ; \
+		${MAKE} test-lisp l=$$lisp || exit 1 ; \
 	done
 
 test-all-upgrade:
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-upgrade lisp=$$lisp || exit 1 ; \
+		${MAKE} test-upgrade l=$$lisp || exit 1 ; \
 	done
 
-test-all: test-forward-references doc test-all-lisps
+test-all: doc test-all-lisps
+
+test-all-no-stop:
+	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git

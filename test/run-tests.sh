@@ -47,23 +47,38 @@ if [ x"$1" = "xhelp" ]; then
 fi
 lisp=${1:-sbcl} ; shift
 
-if [ -z "$*" ]; then
-    scripts="*.script"
-else
-    scripts="$*"
-fi
 
-sok=1
-
-DO () { ( set -x ; "$@" ); }
+ECHO () { printf '%s\n' "$*" ;}
+ECHOn () { printf '%s' "$*" ;}
+DBG () { ECHO "$*" >& 2 ;}
+simple_term_p () {
+  case "$1" in *[!a-zA-Z0-9-+_,.:=%/]*) return 1 ;; *) return 0 ;; esac
+}
+kwote0 () { ECHOn "$1" | sed -e "s/\([\\\\\"\$\`]\)/\\\\\\1/g" ;}
+kwote1 () { if simple_term_p "$1" ; then ECHOn "$1"
+  else ECHOn "\"$(kwote0 "$1")\"" ; fi ;}
+kwote () { ( set +x
+  k="" ; for i ; do ECHOn "$k" ; kwote1 "$i" ; k=" " ; done ; echo
+) }
+DO () { kwote "$@" ; "$@" ; }
 
 do_tests() {
-  command="$1" eval="$2"
+  if [ -z "$*" ]; then
+       scripts="*.script"
+  else
+       scripts="$*"
+  fi
   env | grep -i asdf
   rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-  ( cd .. && DO $command $eval '(or #.(load "test/script-support.lisp") #.(asdf-test::compile-asdf-script))' )
+  ( cd .. && DO $cmd $debugp $eval '(or #.(load "test/script-support.lisp") #.(asdf-test::compile-asdf-script))' )
   if [ $? -ne 0 ] ; then
     echo "Compilation FAILED" >&2
+    echo "you can retry compilation with:" >&2
+    echo ./test/run-tests.sh $lisp >&2
+    echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
+    echo "$cmd" >&2
+    echo "then copy/paste:" >&2
+    echo '(load "test/script-support.lisp") (asdf-test::compile-asdf-script)' >&2
   else
     echo "Compiled OK" >&2
     test_count=0
@@ -75,14 +90,19 @@ do_tests() {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if DO $command $eval "(load \"$i\")" ; then
+      if DO $cmd $debugp $eval "(load \"script-support.lisp\")" $eval "(asdf-test::load-asdf)" $eval "(asdf-test::with-test () (load \"$i\"))" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
         echo "Using $command, $i failed" >&2
 	test_fail=`expr "$test_fail" + 1`
 	failed_list="$failed_list $i"
-        sok=0
+        echo "you can retry compilation with:" >&2
+        echo ./test/run-tests.sh $lisp $i >&2
+        echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
+        echo "(cd test ; $cmd )" >&2
+        echo "then copy/paste:" >&2
+        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(load \"$i\"))" >&2
       fi
       echo >&2
       echo >&2
@@ -200,10 +220,10 @@ ASDFDIR="$(cd $(dirname $0)/.. ; /bin/pwd)"
 export CL_SOURCE_REGISTRY="${ASDFDIR}"
 export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls\" :implementation)) :ignore-inherited-configuration)"
 
-
 cmd="$command $flags"
+debugp=
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
-  cmd="$cmd $nodebug"
+  debugp="$nodebug"
 fi
 
 
@@ -220,7 +240,7 @@ upgrade_tags () {
     # 1.369 is the last release by Gary King
     # 2.000 to 2.019 and 2.20 to 2.27 and beyond are Faré's "stable" releases
     # 2.26.61 is the last single-package ASDF.
-    echo REQUIRE 1.37 1.97 1.369 2.26.61
+    echo REQUIRE 1.37 1.97 1.369
     git tag -l '2.0??'
     git tag -l '2.??'
 }
@@ -229,6 +249,7 @@ upgrade_methods () {
         echo $ASDF_UPGRADE_TEST_METHODS ; return
     fi
     cat <<EOF
+'load-asdf-lisp'load-asdf-lisp-clean
 'load-asdf-lisp'load-asdf-system
 'load-asdf-lisp'compile-load-asdf
 'load-asdf-lisp'load-asdf-fasl
@@ -282,13 +303,13 @@ run_upgrade_tests () {
             if valid_upgrade_test_p $lisp $tag $method ; then
                 echo "Testing ASDF upgrade from ${tag} using method $method"
                 extract_tagged_asdf $tag
-                $cmd $eval \
+                $cmd $debugp $eval \
                 "'(#.(load\"$su\")#.(in-package :asdf-test)#.(test-upgrade $method \"$tag\"))" ||
                 { echo "upgrade FAILED for $lisp from $tag using method $method" ;
                   echo "you can retry just that test with:" ;
                   echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ADSF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
                   echo "or more interactively (and maybe with rlwrap or in emacs), start with:"
-                  echo "$command"
+                  echo "$cmd"
                   echo "then copy/paste:"
                   echo "(load\"$su\") (da) (test-upgrade $method \"$tag\")"
                   exit 1 ;}
@@ -300,7 +321,7 @@ run_tests () {
   mkdir -p ../build/results
   echo failure > ../build/results/status
     thedate=`date "+%Y-%m-%d"`
-    do_tests "$cmd" "$eval" 2>&1 | \
+    do_tests "$@" 2>&1 | \
 	tee "../build/results/${lisp}.text" "../build/results/${lisp}-${thedate}.save"
     read a < ../build/results/status
   clean_up
@@ -322,10 +343,10 @@ test_clean_load () {
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
     ${cmd} ${eval} \
-      '(or #.(setf *load-verbose* nil) #.(load "test/script-support.lisp") #.(asdf-test::exit-lisp 0))' \
+      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::exit-lisp 0))' \
         > $nop 2>&1
     ${cmd} ${eval} \
-      '(or #.(setf *load-verbose* nil) #.(load "build/asdf.lisp") #.(asdf/image:quit 0))' \
+      '(or #.(load "build/asdf.lisp" :verbose nil :print nil) #.(asdf/image:quit 0))' \
         > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
@@ -341,5 +362,5 @@ elif [ -n "$clean_load" ] ; then
 elif [ -n "$upgrade" ] ; then
     run_upgrade_tests
 else
-    run_tests
+    run_tests "$@"
 fi

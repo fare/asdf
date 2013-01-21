@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
 (in-package :cl-user)
 (asdf-test::with-test ()
  (defun module () 1)

@@ -1,6 +1,9 @@
 (defpackage :test-asdf-system
-  (:use :cl :asdf :asdf/driver))
+  (:use :cl :asdf))
 (in-package :test-asdf-system)
+
+(defsystem :test-asdf
+  :components ())
 
 (defsystem :test-asdf/test9-1
     :version "1.1"

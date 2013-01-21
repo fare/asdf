@@ -12,7 +12,8 @@
    #:getenv-pathname #:getenv-pathnames
    #:getenv-absolute-directory #:getenv-absolute-directories
    #:implementation-identifier ;; implementation identifier
-   #:implementation-type #:operating-system #:architecture #:lisp-version-string
+   #:implementation-type #:*implementation-type*
+   #:operating-system #:architecture #:lisp-version-string
    #:hostname #:user-homedir #:lisp-implementation-directory
    #:getcwd #:chdir #:call-with-current-directory #:with-current-directory
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
@@ -161,6 +162,8 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
      (:lwpe :lispworks-personal-edition) (:lw :lispworks)
      :mcl :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
 
+(defvar *implementation-type* (implementation-type))
+
 (defun* operating-system ()
   (first-feature
    '(:cygwin (:win :windows :mswindows :win32 :mingw32) ;; try cygwin first!
@@ -269,7 +272,8 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 
 (defun* getcwd ()
   "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-  (or ;; missing: abcl gcl genera
+  (or #+abcl (parse-native-namestring
+              (java:jstatic "getProperty" "java.lang.System" "user.dir") :ensure-directory t)
       #+allegro (excl::current-directory)
       #+clisp (ext:default-directory)
       #+clozure (ccl:current-directory)
@@ -277,8 +281,9 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
                       (nth-value 1 (unix:unix-current-directory)) :ensure-directory t)
       #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
       #+ecl (ext:getcwd)
-      #+gcl (parse-native-namestring
-             (first (symbol-call :asdf/driver :run-program/ '("/bin/pwd") :output :lines)))
+      #+gcl (parse-native-namestring ;; this is a joke. Isn't there a better way?
+             (first (symbol-call :asdf/driver :run-program '("/bin/pwd") :output :lines)))
+      #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
       #+lispworks (system:current-directory)
       #+mkcl (mk-ext:getcwd)
       #+sbcl (parse-native-namestring (sb-unix:posix-getcwd/))

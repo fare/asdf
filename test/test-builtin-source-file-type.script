@@ -1,10 +1,10 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
 
 ;;(trace source-file-type)
 
-(with-test ()
+(progn
  (format t "~D~%" (asdf:asdf-version))
 
  (def-test-system test-builtin-source-file-type-1

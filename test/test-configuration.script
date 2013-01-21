@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
 
 (in-package :asdf)
 (use-package :asdf-test)
@@ -63,7 +63,7 @@
                        :if-does-not-exist :create)
       (format s "(defsystem :foo~D)~%" i))))
 
-(with-test ()
+(progn
  (assert-equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")
                '(:output-translations ("/foo" "/bar") :inherit-configuration
                  ("/baz" "/quux")))

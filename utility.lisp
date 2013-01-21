@@ -19,7 +19,7 @@
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
    #:list-to-hash-set ;; hash-table
-   #:ensure-function #:sub-object ;; functions
+   #:ensure-function #:access-at #:access-at-count ;; functions
    #:call-function #:call-functions #:register-hook-function
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
@@ -52,18 +52,23 @@
 (macrolet
     ((defdef (def* def)
        `(defmacro ,def* (name formals &rest rest)
-          `(progn
+          (destructuring-bind (name &key (supersede t))
+              (if (or (atom name) (eq (car name) 'setf))
+                  (list name :supersede nil)
+                  name)
+            (declare (ignorable supersede))
+            `(progn
              ;; undefining the previous function is the portable way
-             ;; of overriding any incompatible previous gf, but somehow
-             ;; this causes CLISP to fail to see COMPONENT-NAME methods after ugprade
-             ;; so instead, for CLISP we delete-package* in package.lisp
-             ;; any time the API changes.
-             #-clisp
-             (undefine-function ',name)
-             #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
-             ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
-                 `((declaim (notinline ,name))))
-             (,',def ,name ,formals ,@rest)))))
+             ;; of overriding any incompatible previous gf, except on CLISP.
+             ;; We usually try to do it only for the functions that need it,
+             ;; which happens in asdf/upgrade - however, for ECL, we need this hammer,
+             ;; (which causes issues in clisp)
+               ,@(when (or supersede #+(or ecl (and gcl (not gcl-pre2.7))) t) ; XXX
+                   `((undefine-function ',name)))
+               #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
+               ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
+                   `((declaim (notinline ,name))))
+               (,',def ,name ,formals ,@rest))))))
   (defdef defgeneric* defgeneric)
   (defdef defun* defun))
 
@@ -257,23 +262,37 @@ and EVAL that in a (FUNCTION ...) context."
                                 (let ((*package* (find-package package)))
                                   (read-from-string fun))))))))
 
-(defun* sub-object (object path)
-  "Given an OBJECT and a PATH, list of successive accessors,
+(defun* access-at (object at)
+  "Given an OBJECT and an AT specifier, list of successive accessors,
 call each accessor on the result of the previous calls.
 An accessor may be an integer, meaning a call to ELT,
-a function or symbol, meaning itself,
-or a list of a function and arguments, interpreted as per ENSURE-FUNCTION.
-As a degenerate case, the PATH may be an atom of a single such accessor
+a keyword, meaning a call to GETF,
+NIL, meaning identity,
+a function or other symbol, meaning itself,
+or a list of a function designator and arguments, interpreted as per ENSURE-FUNCTION.
+As a degenerate case, the AT specifier may be an atom of a single such accessor
 instead of a list."
   (flet ((access (object accessor)
            (etypecase accessor
+             (function (funcall accessor object))
              (integer (elt object accessor))
-             ((or function symbol) (funcall accessor object))
+             (keyword (getf object accessor))
+             (null object)
+             (symbol (funcall accessor object))
              (cons (funcall (ensure-function accessor) object)))))
-    (if (listp path)
-        (dolist (accessor path object)
+    (if (listp at)
+        (dolist (accessor at object)
           (setf object (access object accessor)))
-        (access object path))))
+        (access object at))))
+
+(defun* access-at-count (at)
+  "From an AT specification, extract a COUNT of maximum number
+   of sub-objects to read as per ACCESS-AT"
+  (cond
+    ((integerp at)
+     (1+ at))
+    ((and (consp at) (integerp (first at)))
+     (1+ (first at)))))
 
 (defun* call-function (function-spec &rest arguments)
   (apply (ensure-function function-spec) arguments))

@@ -1,21 +1,20 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
 
 (in-package :asdf)
 (use-package :asdf-test)
 
-(with-test ()
- (let* ((asd (subpathname *test-directory* "test-multiple.asd"))
-        (tmp (subpathname *test-directory* "../build/"))
-        (asd2 (subpathname tmp "test-multiple-too.asd"))
-        (file4 (compile-file-pathname* "file4")))
-   (setf *central-registry* `(,*test-directory* ,tmp))
-   (run-shell-command
-    (format nil "/bin/ln -sf ~A ~A 2>&1"
-            (native-namestring asd)
-            (native-namestring asd2)))
-   (oos 'load-source-op 'test-multiple-too)
-   (assert (symbol-value (asdf::find-symbol* :*file3* :test-package)))
-   (load-system 'test-multiple-free)
-   (assert (asdf::probe-file* file4))))
+(defparameter asd (subpathname *test-directory* "test-multiple.asd"))
+(defparameter tmp (subpathname *test-directory* "../build/"))
+(defparameter asd2 (subpathname tmp "test-multiple-too.asd"))
+(defparameter file4 (test-fasl "file4"))
+(setf *central-registry* `(,*test-directory* ,tmp))
+(run-program
+ (format nil "/bin/ln -sf ~A ~A 2>&1"
+         (native-namestring asd)
+         (native-namestring asd2)))
+(oos 'load-source-op 'test-multiple-too)
+(assert (symbol-value (find-symbol* :*file3* :test-package)))
+(load-system 'test-multiple-free)
+(assert (probe-file* file4))

@@ -13,7 +13,8 @@
    #:finish-outputs #:format! #:safe-format!
    #:copy-stream-to-stream #:concatenate-files
    #:copy-stream-to-stream-line-by-line
-   #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-forms #:slurp-stream-form
+   #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
+   #:slurp-stream-forms #:slurp-stream-form
    #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
@@ -152,16 +153,27 @@ Useful for portably flushing I/O before user input or program exit."
 
 ;;; Simple Whole-Stream processing
 
-(defun* copy-stream-to-stream (input output &key (element-type 'character) (buffer-size 8192))
-  "Copy the contents of the INPUT stream into the OUTPUT stream,
-using WRITE-SEQUENCE and a sensibly sized buffer."
+
+(defun* copy-stream-to-stream (input output &key element-type buffer-size linewise prefix)
+  "Copy the contents of the INPUT stream into the OUTPUT stream.
+If LINEWISE is true, then read and copy the stream line by line, with an optional PREFIX.
+Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
   (with-open-stream (input input)
-    (loop
-      :for buffer = (make-array (list buffer-size) :element-type element-type)
-      :for end = (read-sequence buffer input)
-      :until (zerop end)
-      :do (write-sequence buffer output :end end)
-          (when (< end buffer-size) (return)))))
+    (if linewise
+        (loop :for (line eof) = (multiple-value-list (read-line input nil nil))
+              :while line :do
+                (when prefix (princ prefix output))
+                (princ line output)
+                (unless eof (terpri output))
+                (finish-output output)
+                (when eof (return)))
+        (loop
+          :with buffer-size = (or buffer-size 8192)
+          :for buffer = (make-array (list buffer-size) :element-type (or element-type 'character))
+          :for end = (read-sequence buffer input)
+          :until (zerop end)
+          :do (write-sequence buffer output :end end)
+              (when (< end buffer-size) (return))))))
 
 (defun* concatenate-files (inputs output)
   (with-open-file (o output :element-type '(unsigned-byte 8)
@@ -171,28 +183,34 @@ using WRITE-SEQUENCE and a sensibly sized buffer."
                                :direction :input :if-does-not-exist :error)
         (copy-stream-to-stream i o :element-type '(unsigned-byte 8))))))
 
-(defun* copy-stream-to-stream-line-by-line (input output &key prefix)
-  "Copy the contents of the INPUT stream into the OUTPUT stream,
-reading contents line by line."
-  (with-open-stream (input input)
-    (loop :for (line eof) = (multiple-value-list (read-line input nil nil))
-      :while line :do
-      (when prefix (princ prefix output))
-      (princ line output)
-      (unless eof (terpri output))
-      (finish-output output)
-      (when eof (return)))))
-
 (defun* slurp-stream-string (input &key (element-type 'character))
   "Read the contents of the INPUT stream as a string"
   (with-open-stream (input input)
     (with-output-to-string (output)
       (copy-stream-to-stream input output :element-type element-type))))
 
-(defun* slurp-stream-lines (input)
-  "Read the contents of the INPUT stream as a list of lines"
+(defun* slurp-stream-lines (input &key count)
+  "Read the contents of the INPUT stream as a list of lines, return those lines.
+
+Read no more than COUNT lines."
+  (check-type count (or null integer))
   (with-open-stream (input input)
-    (loop :for l = (read-line input nil nil) :while l :collect l)))
+    (loop :for n :from 0
+          :for l = (and (or (not count) (< n count))
+                        (read-line input nil nil))
+          :while l :collect l)))
+
+(defun* slurp-stream-line (input &key (at 0))
+  "Read the contents of the INPUT stream as a list of lines,
+then return the ACCESS-AT of that list of lines using the AT specifier.
+PATH defaults to 0, i.e. return the first line.
+PATH is typically an integer, or a list of an integer and a function.
+If PATH is NIL, it will return all the lines in the file.
+
+The stream will not be read beyond the Nth lines,
+where N is the index specified by path
+if path is either an integer or a list that starts with an integer."
+  (access-at (slurp-stream-lines input :count (access-at-count at)) at))
 
 (defun* slurp-stream-forms (input &key count)
 "Read the contents of the INPUT stream as a list of forms,
@@ -210,25 +228,19 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
                         (read-preserving-whitespace input nil eof))
         :until (eq form eof) :collect form))
 
-(defun* slurp-stream-form (input &key (path 0))
+(defun* slurp-stream-form (input &key (at 0))
 "Read the contents of the INPUT stream as a list of forms,
-then return the SUB-OBJECT of these forms following the PATH.
-PATH defaults to 0, i.e. return the first form.
-PATH is typically a list of integers.
-If PATH is NIL, it will return all the forms in the file.
+then return the ACCESS-AT of these forms following the AT.
+AT defaults to 0, i.e. return the first form.
+AT is typically a list of integers.
+If AT is NIL, it will return all the forms in the file.
 
 The stream will not be read beyond the Nth form,
 where N is the index specified by path,
 if path is either an integer or a list that starts with an integer.
 
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
-  (let* ((count (cond
-                  ((integerp path)
-                   (1+ path))
-                  ((and (consp path) (integerp (first path)))
-                   (1+ (first path)))))
-         (forms (slurp-stream-forms input :count count)))
-    (sub-object forms path)))
+  (access-at (slurp-stream-forms input :count (access-at-count at)) at))
 
 (defun* read-file-string (file &rest keys)
   "Open FILE with option KEYS, read its contents as a string"
@@ -247,13 +259,13 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
          #'(lambda (input) (slurp-stream-forms input :count count))
          (remove-plist-key :count keys)))
 
-(defun* read-file-form (file &rest keys &key (path 0) &allow-other-keys)
-  "Open input FILE with option KEYS (except path),
-and read its contents as per SLURP-STREAM-FORM with given PATH.
+(defun* read-file-form (file &rest keys &key (at 0) &allow-other-keys)
+  "Open input FILE with option KEYS (except AT),
+and read its contents as per SLURP-STREAM-FORM with given AT specifier.
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
   (apply 'call-with-input-file file
-         #'(lambda (input) (slurp-stream-form input :path path))
-         (remove-plist-key :path keys)))
+         #'(lambda (input) (slurp-stream-form input :at at))
+         (remove-plist-key :at keys)))
 
 (defun* safe-read-file-form (pathname &rest keys &key (package :cl) &allow-other-keys)
   "Reads the specified form from the top of a file using a safe standardized syntax.

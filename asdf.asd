@@ -15,7 +15,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.125" ;; to be automatically updated by bin/bump-revision
+  :version "2.26.139" ;; to be automatically updated by make bump-version
   :depends-on ()
   :components ((:module "build" :components ((:file "asdf"))))
   :in-order-to (#+asdf2.27 (compile-op (monolithic-load-concatenated-source-op asdf/defsystem))))
@@ -28,9 +28,6 @@
   (declare (ignorable o))
   (perform (make-instance 'load-source-op) c))
 
-#+(and clisp (not asdf2.27))
-(rename-package :asdf :asdf-utilities)
-
 #+asdf2.27
 (defsystem :asdf/defsystem
   :licence "MIT"
@@ -41,7 +38,6 @@
   :class :bundle-system
   :build-operation monolithic-concatenate-source-op
   :bundle-pathname "build/asdf"
-  :translate-output-p nil
   :serial t
   :around-compile call-without-redefinition-warnings ;; be the same as asdf-driver
   :depends-on (:asdf/header :asdf-driver)

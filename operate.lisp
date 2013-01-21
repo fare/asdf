@@ -16,9 +16,10 @@
    #:upgrade-asdf #:cleanup-upgraded-asdf #:*post-upgrade-hook*))
 (in-package :asdf/operate)
 
-(defgeneric* operate (operation component &key &allow-other-keys))
+(defgeneric* (operate) (operation component &key &allow-other-keys))
 (define-convenience-action-methods
     operate (operation component &key)
+    :operation-initargs t ;; backward-compatibility with ASDF1. Yuck.
     :if-no-component (error 'missing-component :requires component))
 
 (defvar *systems-being-operated* nil
@@ -67,15 +68,20 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
     (unless (version-satisfies component version)
       (error 'missing-component-of-version :requires component :version version))
     ;; Before we operate on any system, make sure ASDF is up-to-date,
-    ;; for if an upgrade is attempted at any later time, there may be trouble.
-    ;; If we upgraded, restart the OPERATE from scratch,
-    ;; for the function will have been redefined,
-    ;; maybe from a new symbol for it may have been uninterned.
-    (if (upgrade-asdf)
-        (apply 'symbol-call :asdf 'operate operation component args)
-        (let ((plan (apply 'traverse operation system args)))
-          (perform-plan plan)
-          (values operation plan)))))
+    ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
+    (unless systems-being-operated
+      (let ((operation-name (reify-symbol (type-of operation)))
+            (component-path (component-find-path component)))
+        (when (upgrade-asdf)
+          ;; If we were upgraded, restart OPERATE the hardest of ways, for
+          ;; its function may have been redefined, its symbol uninterned, its package deleted.
+          (return-from operate
+            (apply (find-symbol* 'operate :asdf)
+                   (unreify-symbol operation-name)
+                   component-path args)))))
+    (let ((plan (apply 'traverse operation system args)))
+      (perform-plan plan)
+      (values operation plan))))
 
 (defun* oos (operation component &rest args &key &allow-other-keys)
   (apply 'operate operation component args))

@@ -2,10 +2,10 @@
 
 ;;; check that added nesting via modules doesn't confuse ASDF
 
-(load "script-support.lisp")
-(load-asdf)
 
-(with-test ()
+
+
+(progn
  (setf asdf:*central-registry* nil)
  (load "test-nested-components-1.asd")
  (print

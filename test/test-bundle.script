@@ -1,35 +1,34 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
+(in-package :asdf-test)
 
 ;;;---------------------------------------------------------------------------
 ;;; Check to see if the bundle functionality is doing something.
 ;;;---------------------------------------------------------------------------
 
-(with-test ()
-  (asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
-  (asdf:clear-system :test-bundle-1)
-  (asdf:clear-system :test-bundle-2)
-  (when (find-package :test-package) (delete-package :test-package))
-  (eval `(def-test-system :test-bundle-1
-           :pathname ,*test-directory*
-           :components ((:file "file1") (:file "file3"))))
-  (eval `(def-test-system :test-bundle-2
-           :pathname ,*test-directory*
-           :depends-on (:test-bundle-1) :components ((:file "file2"))))
-  #-(or abcl (and ecl ecl-bytecmp) gcl)
-  (let* ((op (make-instance 'asdf::fasl-op))
-         (bundle-1 (asdf:output-file op (find-system :test-bundle-1)))
-         (bundle-2 (asdf:output-file op (find-system :test-bundle-2))))
-    (DBG :test-bundle bundle-1 bundle-2)
-    (assert-equal (list bundle-2)
-                  (input-files (make-operation 'load-fasl-op) (find-system :test-bundle-2)))
-    (delete-file-if-exists bundle-1)
-    (delete-file-if-exists bundle-2)
-    (operate 'load-fasl-op :test-bundle-2)
-    ;; Check that the bundles were indeed created.
-    (assert (probe-file bundle-2))
-    (assert (probe-file bundle-1))
-    ;; Check that the files were indeed loaded.
-    (assert (symbol-value (find-symbol* :*file1* :test-package)))
-    (assert (symbol-value (find-symbol* :*file3* :test-package)))))
+(asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
+(asdf:clear-system :test-bundle-1)
+(asdf:clear-system :test-bundle-2)
+(when (find-package :test-package) (delete-package :test-package))
+(def-test-system :test-bundle-1
+  :components ((:file "file1") (:file "file3")))
+(def-test-system :test-bundle-2
+  :depends-on (:test-bundle-1) :components ((:file "file2")))
+#+(or abcl (and ecl ecl-bytecmp) gcl)
+(leave-test "bundles not on this implementation" 0)
+
+(defparameter *bundle-1* (output-file 'fasl-op :test-bundle-1))
+(defparameter *bundle-2* (output-file 'fasl-op :test-bundle-2))
+(DBG :test-bundle *bundle-1* *bundle-2*)
+(assert-equal (list *bundle-2*)
+              (input-files 'load-fasl-op :test-bundle-2))
+(delete-file-if-exists *bundle-1*)
+(delete-file-if-exists *bundle-2*)
+(operate 'load-fasl-op :test-bundle-2)
+;; Check that the bundles were indeed created.
+(assert (probe-file *bundle-2*))
+(assert (probe-file *bundle-1*))
+;; Check that the files were indeed loaded.
+(assert (symbol-value (find-symbol* :*file1* :test-package)))
+(assert (symbol-value (find-symbol* :*file3* :test-package)))

@@ -47,7 +47,7 @@
 
 ;;;; Finding components
 
-(defgeneric* find-component (base path)
+(defgeneric* (find-component) (base path)
   (:documentation "Find a component by resolving the PATH starting from BASE parent"))
 (defgeneric* resolve-dependency-combination (component combinator arguments))
 
@@ -107,9 +107,10 @@
                    (equal (missing-requires c) name))))))))
 
 (defun* resolve-dependency-spec (component dep-spec)
-  (if (atom dep-spec)
-      (resolve-dependency-name component dep-spec)
-      (resolve-dependency-combination component (car dep-spec) (cdr dep-spec))))
+  (let ((component (find-component () component)))
+    (if (atom dep-spec)
+        (resolve-dependency-name component dep-spec)
+        (resolve-dependency-combination component (car dep-spec) (cdr dep-spec)))))
 
 (defmethod resolve-dependency-combination (component combinator arguments)
   (error (compatfmt "~@<Bad dependency ~S for ~S~@:>")

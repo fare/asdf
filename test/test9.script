@@ -2,10 +2,10 @@
 
 ;;; make sure we get a missing-component-of-version error
 
-(load "script-support.lisp")
-(load-asdf)
 
-(with-test ()
+
+
+(progn
   (handler-case
       (load-test-system :test-asdf/test9-1)
     (asdf:missing-component-of-version (c)

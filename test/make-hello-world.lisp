@@ -1,4 +1,5 @@
 ;;; -*- Lisp -*-
+#+lispworks (lispworks:load-all-patches)
 (load "script-support.lisp")
 (load-asdf)
 #+ecl (require :cmp)
