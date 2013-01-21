@@ -63,7 +63,10 @@ Some constraints:
   (when (or (< system::*gcl-major-version* 2)
             (and (= system::*gcl-major-version* 2)
                  (< system::*gcl-minor-version* 7)))
-    (shadowing-import 'system:*load-pathname* :asdf-test)))
+    (shadowing-import 'system:*load-pathname* :asdf-test))
+  #+lispworks
+  (setf system:*stack-overflow-behaviour* :warn)
+  (setf system:*sg-default-size* 200000))
 
 #+(or gcl genera)
 (unless (fboundp 'ensure-directories-exist)

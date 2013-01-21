@@ -12,7 +12,7 @@
        t)
    (compile-file-error () nil)))
 
-#-ecl
+#+(or clozure sbcl)
 (assert
  (handler-case
      (let ((*compile-file-warnings-behaviour* :error))
