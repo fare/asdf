@@ -81,7 +81,7 @@
         (outputs (output-files o c)))
     (multiple-value-bind (output warnings-p failure-p)
         (destructuring-bind
-            (output-file &optional #+(or ecl mkcl) object-file #+sbcl warnings-file) outputs
+            (output-file &optional #+(or ecl mkcl) object-file #+(or clozure sbcl) warnings-file) outputs
           (call-with-around-compile-hook
            c #'(lambda (&rest flags)
                  (with-muffled-compiler-conditions ()
@@ -90,7 +90,7 @@
                           :external-format (component-external-format c)
                       (append
                        #+(or ecl mkcl) (list :object-file object-file)
-                       #+sbcl (list :warnings-file warnings-file)
+                       #+(or clozure sbcl) (list :warnings-file warnings-file)
                        flags (compile-op-flags o)))))))
       (check-lisp-compile-results output warnings-p failure-p
                                   "~/asdf-action::format-action/" (list (cons o c))))))
@@ -114,12 +114,15 @@
          (f (compile-file-pathname
              i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl)))
     `(,f ;; the fasl is the primary output, in first position
-      #+ecl ,@(unless (use-ecl-byte-compiler-p)
-                `(,(compile-file-pathname i :type :object)))
-      #+mkcl ,(compile-file-pathname i :fasl-p nil) ;; object file
-      #+sbcl ,@(let ((s (component-system c)))
-                 (unless (builtin-system-p s) ; includes ASDF itself
-                   `(,(make-pathname :type "sbcl-warnings" :defaults f)))))))
+      #+(or clozure sbcl)
+      ,@(let ((s (component-system c)))
+          (unless (builtin-system-p s) ; includes ASDF itself
+            `(,(make-pathname :type (warnings-file-type) :defaults f))))
+      #+ecl
+      ,@(unless (use-ecl-byte-compiler-p)
+          `(,(compile-file-pathname i :type :object)))
+      #+mkcl
+      ,(compile-file-pathname i :fasl-p nil)))) ;; object file
 (defmethod component-depends-on ((o compile-op) (c component))
   (declare (ignorable o))
   `((prepare-op ,c) ,@(call-next-method)))
@@ -133,7 +136,7 @@
   (declare (ignorable o c))
   nil
   #+sbcl (perform-lisp-warnings-check o c))
-#+sbcl
+#+(or clozure sbcl)
 (defmethod input-files ((o compile-op) (c system))
   (declare (ignorable o c))
   (unless (builtin-system-p c)
@@ -142,7 +145,7 @@
                o c :other-systems nil
                    :keep-operation 'compile-op :keep-component 'cl-source-file)
           :append (remove-if-not 'warnings-file-p
-                               (output-files sub-o sub-c)))))
+                                 (output-files sub-o sub-c)))))
 #+sbcl
 (defmethod output-files ((o compile-op) (c system))
   (unless (builtin-system-p c)

@@ -196,6 +196,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
        (latest-stamp-f stamp (funcall dependency-stamper dep-o dep-c)))))
   stamp)
 
+(asdf-debug)
+
 (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
   ;; In a distant future, safe-file-write-date and component-operation-time
   ;; shall also be parametrized by the plan, or by a second model object.
@@ -245,7 +247,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
                         (and op-time (eql op-time done-stamp))))) ;; with the matching stamp
         ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
         (values t nil))))
-
 
 ;;;; Generic support for plan-traversal
 

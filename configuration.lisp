@@ -235,6 +235,10 @@ directive.")
    :wilden (and wilden (not (pathnamep x)))
    :want-absolute t))
 
+;; Try to override declaration in previous versions of ASDF.
+(declaim (ftype (function (t &key (:directory boolean) (:wilden boolean)
+                             (:ensure-directory boolean)) t) resolve-location))
+
 (defun* (resolve-location) (x &key ensure-directory wilden directory)
   (when directory (setf ensure-directory t)) ;; :directory backward compatibility, until 2014-01-16.
   (if (atom x)

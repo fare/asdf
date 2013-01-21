@@ -23,6 +23,7 @@ Some constraints:
    #:assert-compare
    #:assert-equal
    #:leave-test #:def-test-system
+   #:action-name #:in-plan-p
    #:test-source #:test-fasl #:resolve-output #:output-location
    #:quietly))
 
@@ -438,6 +439,9 @@ is bound, write a message and exit on an error.  If
   `(apply (asym :register-system-definition) ',name :pathname ,*test-directory*
           :source-file nil ',rest))
 
+(defun in-plan-p (plan x) (member x plan :key (asym :action-path) :test 'equal))
+
+
 ;; These are shorthands for interactive debugging of test scripts:
 (!a
  common-lisp-user::debug-asdf debug-asdf
@@ -451,4 +455,7 @@ is bound, write a message and exit on an error.  If
  It depends on the DBG macro in contrib/debug.lisp,
  that you should load in your asdf/plan by inserting an (asdf-debug) form in it.
 
-#+DBG-ASDF (DBG :cas o c just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c))|#
+ (let ((action-path (action-path (cons o c)))) (DBG :cas action-path just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c)
+;;; blah
+))
+|#

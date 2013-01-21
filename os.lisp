@@ -12,7 +12,8 @@
    #:getenv-pathname #:getenv-pathnames
    #:getenv-absolute-directory #:getenv-absolute-directories
    #:implementation-identifier ;; implementation identifier
-   #:implementation-type #:operating-system #:architecture #:lisp-version-string
+   #:implementation-type #:*implementation-type*
+   #:operating-system #:architecture #:lisp-version-string
    #:hostname #:user-homedir #:lisp-implementation-directory
    #:getcwd #:chdir #:call-with-current-directory #:with-current-directory
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
@@ -160,6 +161,8 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
      (:cmu :cmucl :cmu) :ecl :gcl
      (:lwpe :lispworks-personal-edition) (:lw :lispworks)
      :mcl :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
+
+(defvar *implementation-type* (implementation-type))
 
 (defun* operating-system ()
   (first-feature

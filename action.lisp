@@ -18,6 +18,7 @@
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:feature
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
+   #:action-path #:find-action
    ))
 (in-package :asdf/action)
 
@@ -26,6 +27,12 @@
 (defgeneric* traverse-actions (actions &key &allow-other-keys))
 (defgeneric* traverse-sub-actions (operation component &key &allow-other-keys))
 (defgeneric* required-components (component &key &allow-other-keys))
+
+;;;; Reified representation for storage or debugging. Note: dropping original-initags
+(defun action-path (action)
+  (destructuring-bind (o . c) action (cons (type-of o) (component-find-path c))))
+(defun find-action (path)
+  (destructuring-bind (o . c) path (cons (make-operation o) (find-component () c))))
 
 
 ;;;; Convenience methods
