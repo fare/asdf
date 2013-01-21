@@ -262,15 +262,18 @@ or none at all:
 
 @lisp
 (when (find-package :asdf)
-  (or (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
-                        (find-symbol (string :*asdf-revision*) :asdf)))
-      :antique))
+  (let ((ver (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
+                               (find-symbol (string :*asdf-revision*) :asdf)))))
+    (etypecase ver
+      (string ver)
+      (cons (format nil "~{~D~^.~}" ver))
+      (null "1.0"))))
 @end lisp
 
-If it returns a version number as a string, that's the version of ASDF installed.
-If it returns a version number as a list, that's an old CVS version from before 1.365.
-If it returns the keyword @code{:ANTIQUE}, it's so old that's not funny.
 If it returns @code{NIL} then ASDF is not installed.
+Otherwise it should return a string.
+If it returns @code{"1.0"}, then it can actually be
+any version before 1.77 or so, or some buggy variant of 1.x.
 
 If you are experiencing problems with ASDF,
 please try upgrading to the latest released version,

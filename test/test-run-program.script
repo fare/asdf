@@ -16,6 +16,8 @@
   ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
   ;; If you want 2>&1 redirection, you know where to find it.
   (assert-equal '("ok 1") (run-program "echo ok  1" :output :lines))
-  (assert-equal '("ok  1") (run-program '("echo" "ok  1") :output :lines))
+  (assert-equal "ok  1" (run-program '("echo" "ok  1") :output :line))
+  (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
+  (assert-equal (format nil "ok  1~%") (run-program '("echo" "ok  1") :output :string))
 
   t)

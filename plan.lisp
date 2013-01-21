@@ -363,10 +363,10 @@ the action of OPERATION on COMPONENT in the PLAN"))
 The plan returned is a list of dotted-pairs. Each pair is the CONS
 of ASDF operation object and a COMPONENT object. The pairs will be
 processed in order by OPERATE."))
+(define-convenience-action-methods traverse (operation component &key))
+
 (defgeneric* perform-plan (plan &key))
 (defgeneric* plan-operates-on-p (plan component))
-(defgeneric* (traverse) (operation component &key &allow-other-keys))
-(define-convenience-action-methods traverse (operation component &key))
 
 (defparameter *default-plan-class* 'sequential-plan)
 
