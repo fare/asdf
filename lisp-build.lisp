@@ -244,8 +244,6 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
           :original-source-path ,(sb-c::compiler-error-context-original-source-path frob)))
     (sb-c::undefined-warning-warnings warning))))
 
-(asdf-debug)
-
 (defun reify-deferred-warnings ()
   #+clozure
   (mapcar 'reify-deferred-warning

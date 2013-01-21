@@ -189,10 +189,34 @@ reading contents line by line."
     (with-output-to-string (output)
       (copy-stream-to-stream input output :element-type element-type))))
 
-(defun* slurp-stream-lines (input)
-  "Read the contents of the INPUT stream as a list of lines"
+(defun* slurp-stream-lines (input &key count)
+  "Read the contents of the INPUT stream as a list of lines, return those lines.
+
+Read no more than COUNT lines."
+  (check-type count (or null integer))
   (with-open-stream (input input)
-    (loop :for l = (read-line input nil nil) :while l :collect l)))
+    (loop :for n :from 0
+          :for l = (and (or (not count) (< n count))
+                        (read-line input nil nil))
+          :while l :collect l)))
+
+(defun* slurp-stream-line (input &key (path 0))
+  "Read the contents of the INPUT stream as a list of lines,
+then return the SUB-OBJECT of that list of lines following the PATH.
+PATH defaults to 0, i.e. return the first line.
+PATH is typically an integer, or a list of an integer and a function.
+If PATH is NIL, it will return all the lines in the file.
+
+The stream will not be read beyond the Nth lines,
+where N is the index specified by path
+if path is either an integer or a list that starts with an integer."
+  (let* ((count (cond
+                  ((integerp path)
+                   (1+ path))
+                  ((and (consp path) (integerp (first path)))
+                   (1+ (first path)))))
+         (forms (slurp-stream-lines input :count count)))
+    (sub-object forms path)))
 
 (defun* slurp-stream-forms (input &key count)
 "Read the contents of the INPUT stream as a list of forms,

@@ -157,17 +157,21 @@ by /bin/sh in POSIX"
   (declare (ignorable x))
   (slurp-stream-string stream))
 
-(defmethod slurp-input-stream ((x (eql :lines)) stream &key &allow-other-keys)
+(defmethod slurp-input-stream ((x (eql :lines)) stream &rest keys &key &allow-other-keys)
   (declare (ignorable x))
-  (slurp-stream-lines stream))
+  (apply 'slurp-stream-lines stream keys))
 
-(defmethod slurp-input-stream ((x (eql :form)) stream &key &allow-other-keys)
+(defmethod slurp-input-stream ((x (eql :line)) stream &rest keys &key &allow-other-keys)
   (declare (ignorable x))
-  (read stream))
+  (apply 'slurp-stream-line stream keys))
 
-(defmethod slurp-input-stream ((x (eql :forms)) stream &key &allow-other-keys)
+(defmethod slurp-input-stream ((x (eql :forms)) stream &rest keys &key &allow-other-keys)
   (declare (ignorable x))
-  (slurp-stream-form stream :path nil))
+  (apply 'slurp-stream-forms stream keys))
+
+(defmethod slurp-input-stream ((x (eql :form)) stream &rest keys &key &allow-other-keys)
+  (declare (ignorable x))
+  (apply 'slurp-stream-form stream keys))
 
 (defmethod slurp-input-stream (x stream &key (element-type 'character) &allow-other-keys)
   (declare (ignorable stream element-type))

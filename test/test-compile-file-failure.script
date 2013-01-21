@@ -1,17 +1,17 @@
 ;;; -*- Lisp -*-
 
+(in-package :asdf)
 
+#-gcl<2.7
+(assert (handler-case
+            (let ((*compile-file-failure-behaviour* :warn))
+              (load-system 'test-compile-file-failure :force t)
+              t)
+          (compile-file-error () nil)))
+#-gcl<2.7
+(assert (handler-case
+            (let ((*compile-file-failure-behaviour* :error))
+              (load-system 'test-compile-file-failure :force t)
+              nil)
+          (compile-file-error () t)))
 
-(progn
- #-gcl<2.7
- (assert (handler-case
-             (let ((asdf:*compile-file-failure-behaviour* :warn))
-               (asdf:load-system 'test-compile-file-failure :force t)
-               t)
-           (asdf/lisp-build:compile-file-error () nil)))
- #-gcl<2.7
- (assert (handler-case
-             (let ((asdf:*compile-file-failure-behaviour* :error))
-               (asdf:load-system 'test-compile-file-failure :force t)
-               nil)
-           (asdf/lisp-build:compile-file-error () t))))
