@@ -213,7 +213,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                      (source-note ccl:compiler-warning-source-note)
                      (function-name ccl:compiler-warning-function-name)) deferred-warning
       (list :warning-type warning-type :function-name (reify-simple-sexp function-name)
-            :source (reify-source-note source-note) :args (reify-simple-sexp args))))
+            :source-note (reify-source-note source-note) :args (reify-simple-sexp args))))
   (defun unreify-deferred-warning (reified-deferred-warning)
     (destructuring-bind (&key warning-type function-name source-note args)
         reified-deferred-warning
@@ -244,11 +244,14 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
           :original-source-path ,(sb-c::compiler-error-context-original-source-path frob)))
     (sb-c::undefined-warning-warnings warning))))
 
+(asdf-debug)
+
 (defun reify-deferred-warnings ()
   #+clozure
   (mapcar 'reify-deferred-warning
           (if-let (dw ccl::*outstanding-deferred-warnings*)
-            (ccl::deferred-warnings.warnings dw)))
+            (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
+              (ccl::deferred-warnings.warnings mdw))))
   #+sbcl
   (when sb-c::*in-compilation-unit*
     ;; Try to send nothing through the pipe if nothing needs to be accumulated
@@ -269,8 +272,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   #+clozure
   (let ((dw (or ccl::*outstanding-deferred-warnings*
                 (setf ccl::*outstanding-deferred-warnings* (ccl::%defer-warnings t)))))
-    (setf (ccl::deferred-warnings.warnings dw)
-          (mapcar 'unreify-deferred-warning reified-deferred-warnings)))
+    (appendf (ccl::deferred-warnings.warnings dw)
+             (mapcar 'unreify-deferred-warning reified-deferred-warnings)))
   #+sbcl
   (dolist (item reified-deferred-warnings)
     ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
@@ -300,8 +303,9 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 (defun reset-deferred-warnings ()
   #+clozure
-  (if-let ((dw ccl::*outstanding-deferred-warnings*))
-    (setf (ccl::deferred-warnings.warnings dw) nil))
+  (if-let (dw ccl::*outstanding-deferred-warnings*)
+    (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
+      (setf (ccl::deferred-warnings.warnings mdw) nil)))
   #+sbcl
   (when sb-c::*in-compilation-unit*
     (setf sb-c::*undefined-warnings* nil

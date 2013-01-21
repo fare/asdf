@@ -134,8 +134,7 @@
   nil)
 (defmethod perform ((o compile-op) (c system))
   (declare (ignorable o c))
-  nil
-  #+sbcl (perform-lisp-warnings-check o c))
+  #+(or clozure sbcl) (perform-lisp-warnings-check o c))
 #+(or clozure sbcl)
 (defmethod input-files ((o compile-op) (c system))
   (declare (ignorable o c))
