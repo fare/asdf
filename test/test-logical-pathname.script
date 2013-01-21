@@ -13,43 +13,44 @@
                       `(,*asdf-directory* "build/fasls" :implementation "logical-host-asdf")
                       :wilden t))))
 
+#-gcl<2.7
+(DBG :logical
+     (logical-pathname-translations "ASDF")
+     (translate-logical-pathname "ASDF:test;test-force.asd")
+     (truename "ASDF:test;test-force.asd"))
+
+#-(or xcl gcl<2.7)
 (progn
-  #-gcl<2.7
-  (DBG :logical
-       (logical-pathname-translations "ASDF")
-       (translate-logical-pathname "ASDF:test;test-force.asd")
-       (truename "ASDF:test;test-force.asd"))
+  (DBG "Test logical pathnames in central registry")
+  (setf *central-registry* '(#p"ASDF:test;"))
+  (initialize-source-registry '(:source-registry :ignore-inherited-configuration))
+  (DBG "loading" (oos 'load-op :test-logical-pathname :force t)))
 
-  #-(or xcl gcl<2.7)
-  (progn
-    (DBG "Test logical pathnames in central registry")
-    (setf *central-registry* '(#p"ASDF:test;"))
-    (initialize-source-registry '(:source-registry :ignore-inherited-configuration))
-    (DBG "loading" (oos 'load-op :test-logical-pathname :force t)))
+#-(or xcl gcl<2.7)
+(progn
+  (DBG "Test logical pathnames in source-registry, non-recursive")
+  (clear-system :test-logical-pathname)
+  (setf *central-registry* '())
+  (initialize-source-registry
+   '(:source-registry (:directory #p"ASDF:test;") :ignore-inherited-configuration))
+  (load-system :test-logical-pathname :force t :verbose t))
 
-  #-(or xcl gcl<2.7)
-  (progn
-    (DBG "Test logical pathnames in source-registry, non-recursive")
-    (clear-system :test-logical-pathname)
-    (setf *central-registry* '())
-    (initialize-source-registry
-     '(:source-registry (:directory #p"ASDF:test;") :ignore-inherited-configuration))
-    (load-system :test-logical-pathname :force t :verbose t))
-
-  #-(or xcl gcl<2.7)
-  (progn
-    (DBG "Test logical pathnames in source-registry, recursive")
-    (clear-system :test-logical-pathname)
-    (setf *central-registry* '())
-    (initialize-source-registry
-     ;; Bug: Allegro Express 8.2 and 9.0 incorrectly read #p"ASDF:" as relative.
-     ;; other bug: around 2.26.xx, CLISP borks badly if this is ASDF:
-     ;; and it tries to load ASDF from a logical-pathname.
-     '(:source-registry (:tree #p"ASDF:test;")
-       :ignore-inherited-configuration))
+#-(or xcl gcl<2.7)
+(progn
+  (DBG "Test logical pathnames in source-registry, recursive")
+  (clear-system :test-logical-pathname)
+  (setf *central-registry* '())
+  (initialize-source-registry
+   ;; Bug: Allegro Express 8.2 and 9.0 incorrectly read #p"ASDF:" as relative.
+   ;; other bug: around 2.26.xx, CLISP borks badly if this is ASDF:
+   ;; and it tries to load ASDF from a logical-pathname.
+   '(:source-registry (:tree #p"ASDF:test;")
+     :ignore-inherited-configuration))
     (load-system :test-logical-pathname :force t)
+    #-(or clisp abcl)
     (let ((sys (find-system :test-logical-pathname)))
-      #-clisp (assert (logical-pathname-p (component-pathname sys)))
-      #-clisp (assert (logical-pathname-p (system-source-file sys)))))
+      (assert (logical-pathname-p (component-pathname sys)))
+      (assert (logical-pathname-p (system-source-file sys)))))
 
-  (DBG "Done"))
+(DBG "Done")
+
