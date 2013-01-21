@@ -177,7 +177,7 @@ by /bin/sh in POSIX"
 (defmethod slurp-input-stream (x stream
                                &key linewise prefix (element-type 'character) buffer-size
                                &allow-other-keys)
-  (declare (ignorable linewise prefix element-type buffer-size))
+  (declare (ignorable stream linewise prefix element-type buffer-size))
   (cond
     #+(or gcl<2.7 genera)
     ((functionp x) (funcall x stream))
