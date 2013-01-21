@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 ;;; TODO: write tests for run-program/ instead -- and/or
 ;;; import those from the original xcvb-driver-test

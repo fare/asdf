@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 ;;;---------------------------------------------------------------------------
 ;;; Check to see if a weakly-depended-on system, which is present in the

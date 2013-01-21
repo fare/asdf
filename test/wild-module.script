@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 (progn
  (load (asdf::subpathname *asdf-directory* "contrib/wild-modules.lisp"))
  (def-test-system :wild-module

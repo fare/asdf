@@ -3,7 +3,7 @@
 ;;; test system def reloading if touched
 ;;; system that can be found using *system-definition-search-functions*
 
-(load-asdf)
+
 
 (defun system-load-time (name)
   (if-let (data (asdf::system-registered-p name))

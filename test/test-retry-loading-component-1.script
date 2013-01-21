@@ -3,7 +3,7 @@
 ;;; test asdf:try-recompiling restart
 
 
-(load-asdf)
+
 (defvar *caught-error* nil)
 (progn
  (DBG "trlc1 1")

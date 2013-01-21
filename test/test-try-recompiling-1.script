@@ -3,7 +3,7 @@
 ;;; test asdf:try-recompiling restart
 
 
-(load-asdf)
+
 (defparameter *caught-error* nil)
 
 (delete-file-if-exists (test-fasl "try-recompiling-1"))

@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (defparameter *lambda-string* nil)
 

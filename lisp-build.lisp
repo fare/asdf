@@ -448,10 +448,16 @@ If WARNINGS-FILE is defined, deferred warnings are saved to that file.
 On ECL or MKCL, it creates both the linkable object and loadable fasl files.
 On implementations that erroneously do not recognize standard keyword arguments,
 it will filter them appropriately."
+  #+ecl (when (and object-file (equal (compile-file-type) (pathname object-file)))
+          (format t "Whoa, some funky ASDF upgrade switched ~S calling convention for ~S and ~S~%"
+                  'compile-file* output-file object-file)
+          (rotatef output-file object-file))
   (let* ((keywords (remove-plist-keys
-                    `(:compile-check :warnings-file #+(or ecl mkcl) :object-file
+                    `(:compile-check :warnings-file #+(or ecl mkcl) :object-file :output-file
                       #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
-         (output-file (apply 'compile-file-pathname* input-file :output-file output-file keywords))
+         (output-file
+           (or output-file
+               (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
          #+ecl
          (object-file
            (unless (use-ecl-byte-compiler-p)
@@ -462,17 +468,13 @@ it will filter them appropriately."
            (or object-file
                (compile-file-pathname output-file :fasl-p nil)))
          (tmp-file (tmpize-pathname output-file)))
-    #+ecl (when (and object-file (equal (compile-file-type) (pathname object-file)))
-            (format t "Whoa, funky upgrade API switching happening in ~S with ~S ~S~%"
-                    'compile-file* output-file object-file)
-            (rotatef output-file object-file))
     (multiple-value-bind (output-truename warnings-p failure-p)
         (with-saved-deferred-warnings (warnings-file)
           (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
               #+ecl (apply 'compile-file input-file :output-file
                            (if object-file
                                (list* object-file :system-p t keywords)
-                               (list* output-file keywords)))
+                               (list* tmp-file keywords)))
               #+mkcl (apply 'compile-file input-file
                             :output-file object-file :fasl-p nil keywords)))
       (cond

@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (progn
  (asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))

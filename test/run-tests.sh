@@ -90,7 +90,7 @@ do_tests() {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if DO $cmd $debugp $eval "(load \"script-support.lisp\")" $eval "(asdf-test::with-test () (load \"$i\"))" ; then
+      if DO $cmd $debugp $eval "(load \"script-support.lisp\")" $eval "(asdf-test::load-asdf)" $eval "(asdf-test::with-test () (load \"$i\"))" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
@@ -102,7 +102,7 @@ do_tests() {
         echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
         echo "(cd test ; $cmd )" >&2
         echo "then copy/paste:" >&2
-        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(asdf-test::with-test () (load \"$i\")))" >&2
+        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(load \"$i\"))" >&2
       fi
       echo >&2
       echo >&2

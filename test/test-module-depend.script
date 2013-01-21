@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (asdf:load-system 'test-module-depend)
 

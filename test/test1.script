@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (touch-file (test-source "test1.asd") :offset -3600) ;; touch test1.asd an hour ago.
 (defparameter *date* (file-write-date (test-source "test1.asd")))

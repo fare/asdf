@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (asdf:operate 'asdf:load-op 'test-force)
 

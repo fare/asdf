@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 #-gcl<2.7
 (setf (logical-pathname-translations "ASDF")

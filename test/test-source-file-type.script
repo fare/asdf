@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 ;;(trace asdf::source-file-type asdf::source-file-explicit-type)
 

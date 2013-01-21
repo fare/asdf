@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 ;;;---------------------------------------------------------------------------
 ;;; Here's what we are trying to test.  Let us say we have a system X that

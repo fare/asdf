@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (DBG "loading test-samedir-modules")
 (asdf:operate 'asdf:load-op 'test-samedir-modules)

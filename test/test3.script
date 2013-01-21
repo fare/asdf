@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (defparameter *fasl1* (test-fasl "file1.lisp"))
 (defparameter *fasl2* (test-fasl "file2.lisp"))

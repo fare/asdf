@@ -7,7 +7,7 @@
 ;;;---------------------------------------------------------------------------
 
 
-(load-asdf)
+
 
 (asdf:load-system 'test-weakly-depends-on-unpresent)
 ;; test that it compiled

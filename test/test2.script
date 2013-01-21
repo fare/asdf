@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (DBG "test2: loading test2b1")
 (asdf:load-system 'test2b1)

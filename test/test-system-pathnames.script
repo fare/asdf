@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (progn
  (asdf:load-system 'test-system-pathnames)

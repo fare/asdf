@@ -3,7 +3,7 @@
 ;;; make sure we get a missing-component error
 
 
-(load-asdf)
+
 (in-package :asdf-test)
 
 (progn

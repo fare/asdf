@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 
 (in-package :asdf-test)
-(load-asdf)
+
 
 ;;(setf *unspecific-pathname-type* nil)
 

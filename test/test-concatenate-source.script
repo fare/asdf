@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(load-asdf)
+
 
 (def-test-system :test-concatenate-source
   :depends-on (:file3-only)
