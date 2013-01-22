@@ -81,7 +81,11 @@
         (outputs (output-files o c)))
     (multiple-value-bind (output warnings-p failure-p)
         (destructuring-bind
-            (output-file &optional #+(or ecl mkcl) object-file #+(or clozure sbcl) warnings-file) outputs
+            (output-file
+             &optional
+               #+clisp lib-file
+               #+(or ecl mkcl) object-file
+               #+(or clozure sbcl) warnings-file) outputs
           (call-with-around-compile-hook
            c #'(lambda (&rest flags)
                  (with-muffled-compiler-conditions ()
@@ -89,6 +93,7 @@
                           :output-file output-file
                           :external-format (component-external-format c)
                       (append
+                       #+clisp (list :lib-file lib-file)
                        #+(or ecl mkcl) (list :object-file object-file)
                        #+(or clozure sbcl) (list :warnings-file warnings-file)
                        flags (compile-op-flags o)))))))
@@ -114,6 +119,8 @@
          (f (compile-file-pathname
              i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl)))
     `(,f ;; the fasl is the primary output, in first position
+      #+clisp
+      ,@`(,(make-pathname :type "lib" :defaults f))
       #+(or clozure sbcl)
       ,@(let ((s (component-system c)))
           (unless (builtin-system-p s) ; includes ASDF itself
