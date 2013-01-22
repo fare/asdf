@@ -34,7 +34,7 @@
   (check-type pathname (or null string pathname))
   (absolutize-pathnames
    (list pathname (load-pathname) *default-pathname-defaults* (getcwd))
-   :resolve-symlinks *resolve-symlinks*))
+   :type :directory :resolve-symlinks *resolve-symlinks*))
 
 
 ;;; Component class

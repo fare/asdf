@@ -1,4 +1,7 @@
-* 2.6.134: fix u (abcl, ccl, clisp, cmucl)
+* Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
+  are not in strict dependency order.
+* fix upgrade on (abcl, clisp, cmucl)
+** Extract minimal test case
 * Learn to use cl-grid-test, to make sure ASDF changes don't break stuff,
  and that breakage gets fixed quickly.
 * Test stassats's thing:

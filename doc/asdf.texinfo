@@ -21,6 +21,12 @@
 @macro &body
 &body
 @end macro
+@macro &curly
+{
+@end macro
+@macro &ylruc
+}
+@end macro
 
 @c for install-info
 @dircategory Software development
@@ -266,7 +272,8 @@ or none at all:
                                (find-symbol (string :*asdf-revision*) :asdf)))))
     (etypecase ver
       (string ver)
-      (cons (format nil "~{~D~^.~}" ver))
+      (cons (with-output-to-string (s)
+              (loop for (n . m) on ver do (princ n s) (when m (princ "." s)))))
       (null "1.0"))))
 @end lisp
 
