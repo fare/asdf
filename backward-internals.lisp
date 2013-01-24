@@ -4,7 +4,8 @@
 (asdf/package:define-package :asdf/backward-internals
   (:recycle :asdf/backward-internals :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/system :asdf/component :asdf/find-system :asdf/action)
+   :asdf/system :asdf/component :asdf/operation
+   :asdf/find-system :asdf/action :asdf/lisp-action)
   (:export ;; for internal use
    #:%refresh-component-inline-methods
    #:%resolve-if-component-dep-fails
@@ -60,7 +61,7 @@
   (check-type component parent-component)
   (check-type if-component-dep-fails (member :fail :ignore :try-next))
   (unless (eq if-component-dep-fails :fail)
-    (loop :with o = (make-instance 'compile-op)
+    (loop :with o = (make-operation 'compile-op)
       :for c :in (component-children component) :do
         (loop* :for (feature? feature) :in (component-depends-on o c)
                :when (eq feature? 'feature) :do

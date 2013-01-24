@@ -1,0 +1,11 @@
+(defparameter *a* nil)
+
+(def-test-system :foo
+  :components
+  ((:file "file1" :perform (load-op :before (o c)
+                             (setf *a* t)
+                             (format t "Method run before ~A~%" (operation-description o c))))))
+
+(load-system :foo)
+
+(assert *a*)
