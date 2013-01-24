@@ -19,19 +19,19 @@
                #+sbcl sb-impl::*default-external-format*
                #-(or clozure sbcl) (error "can't determine default external-format")))))
 
-(defmacro with-encoding-test ((encoding &key (op 'asdf:load-source-op) (path "lambda")) def-test-system &body body)
+(defmacro with-encoding-test ((encoding &key (op 'load-source-op) (path "lambda")) def-test-system &body body)
   (let ((sys (second def-test-system)))
-    `(progn
+    `(with-stamp-cache (:override t)
        (format t "~&Test ~A: should be ~A~%" ',sys ',encoding)
        (setf *lambda-string* nil)
        ,def-test-system
-       (let ((c (asdf:find-component ',sys ',path)))
+       (let ((c (find-component ',sys ',path)))
          ;; mlisp has an issue of :LATIN-2 vs :latin-2. Smooth things with string-equal.
-         (assert-compare (string-equal (asdf:component-encoding c) ',encoding))
-         (loop :for o :in (asdf:output-files (asdf::make-operation 'asdf:compile-op) c)
-               :do (asdf::delete-file-if-exists o)))
+         (assert-compare (string-equal (component-encoding c) ',encoding))
+         (loop :for o :in (output-files 'compile-op c)
+               :do (delete-file-if-exists o)))
        ,@(when op
-           `((asdf:operate ',op ',(second def-test-system))))
+           `((operate ',op ',(second def-test-system))))
        ,@body
        (eval `(assert-equal (string-char-codes ,*lambda-string*)
                             (expected-char-codes ',',encoding))))))
@@ -72,7 +72,7 @@
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
 
-(asdf:load-system :asdf-encodings)
+(load-system :asdf-encodings)
 #-lispworks
 (with-encoding-test (:latin-2)
   (def-test-system :test-encoding-implicit-autodetect
@@ -90,11 +90,11 @@
   (def-test-system :test-file-encoding-l1
     :encoding :utf-8
     :components ((:file "lambda" :encoding :latin-1))))
-(with-encoding-test (:utf-8 :op asdf:load-source-op)
+(with-encoding-test (:utf-8 :op load-source-op)
   (def-test-system :test-system-encoding-u8
     :encoding :utf-8
     :components ((:file "lambda"))))
-(with-encoding-test (:utf-8 :op asdf:load-op)
+(with-encoding-test (:utf-8 :op load-op)
   (def-test-system :test-system-encoding-u8-load-op
     :encoding :utf-8
     :components ((:file "lambda"))))
@@ -103,7 +103,7 @@
     :encoding :latin-1
     :components ((:file "lambda"))))
 #-ecl-bytecmp
-(with-encoding-test (:latin-1 :op asdf:load-op)
+(with-encoding-test (:latin-1 :op load-op)
   (def-test-system :test-system-encoding-l1-load-op
     :encoding :latin-1
     :components ((:file "lambda"))))

@@ -1,8 +1,6 @@
 ;;; -*- Lisp -*-
 
-
-
-(asdf:operate 'asdf:load-op 'test-force)
+(load-system 'test-force)
 
 (defparameter file1 (test-fasl "file1"))
 (defparameter file1-date (file-write-date file1))
@@ -16,9 +14,9 @@
 (touch-file "test-force.asd" :timestamp date1)
 (touch-file "file1.lisp" :timestamp date1)
 (touch-file file1 :timestamp date2)
-(asdf:operate 'asdf:load-op 'test-force)
-(assert (equal (file-write-date file1) date2))
+(load-system 'test-force)
+(assert (equal (get-file-stamp file1) date2))
 
 ;; forced, it should be later
-(asdf:operate 'asdf:load-op 'test-force :force t)
-(assert (>= (file-write-date file1) file1-date))
+(load-system 'test-force :force t)
+(assert (>= (get-file-stamp file1) file1-date))

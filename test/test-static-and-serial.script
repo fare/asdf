@@ -26,7 +26,7 @@ don't cause full rebuilds all the time...
 (defparameter date3 (- file1-date 150))
 
 (assert file1-date)
-(assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
+(assert (asymval :*file1* :test-package))
 (format t "file: ~S~%date: ~S~%" file1 file1-date)
 
 ;; date should stay same
@@ -38,5 +38,5 @@ don't cause full rebuilds all the time...
 (touch-file "file1.lisp" :timestamp date2)
 (touch-file file1 :timestamp date3)
 (DBG "load again" (oos 'load-op 'static-and-serial))
-(assert (symbol-value (find-symbol (symbol-name :*file1*) :test-package)))
-(assert-equal (file-write-date file1) date3)
+(assert (asymval :*file1* :test-package))
+(assert-equal (get-file-stamp file1) date3)

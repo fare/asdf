@@ -4,7 +4,8 @@
 (asdf/package:define-package :asdf/plan
   (:recycle :asdf/plan :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/operation :asdf/system :asdf/find-system :asdf/find-component
+   :asdf/component :asdf/operation :asdf/system
+   :asdf/stamp-cache :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   (:export
    #:component-operation-time #:mark-operation-done
@@ -196,7 +197,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   stamp)
 
 (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
-  ;; In a distant future, safe-file-write-date and component-operation-time
+  ;; In a distant future, get-file-stamp and component-operation-time
   ;; shall also be parametrized by the plan, or by a second model object.
   (let* ((stamp-lookup #'(lambda (o c)
                            (if-let (it (plan-action-status plan o c)) (action-stamp it) t)))
@@ -211,8 +212,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
          ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
          (dep-stamp (visit-dependencies plan o c stamp-lookup))
          ;; Time stamps from the files at hand, and whether any is missing
-         (out-stamps (mapcar #'safe-file-write-date out-files))
-         (in-stamps (mapcar #'safe-file-write-date in-files))
+         (out-stamps (mapcar (if just-done 'register-file-stamp 'get-file-stamp) out-files))
+         (in-stamps (mapcar #'get-file-stamp in-files))
          (missing-in
            (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
          (missing-out

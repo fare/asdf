@@ -17,6 +17,11 @@ endif
 ## Some are manually tested once in a while.
 ## MAJOR FAIL: gclcvs -- Compiler bug fixed upstream, but gcl fails to compile on modern Linuxen.
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
+ifdef ASDF_TEST_SYSTEMS
+s ?= ${ASDF_TEST_SYSTEMS}
+else
+s ?= fare-all
+endif
 
 l ?= sbcl
 
@@ -38,7 +43,7 @@ XCL ?= xcl
 
 header_lisp := header.lisp
 driver_lisp := package.lisp common-lisp.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
-defsystem_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
+defsystem_lisp := upgrade.lisp component.lisp system.lisp stamp-cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
 
 # Making ASDF itself should be our first, default, target:
 build/asdf.lisp: $(wildcard *.lisp)
@@ -128,17 +133,21 @@ test-lisp: build/asdf.lisp
 	@cd test; ${MAKE} clean;./run-tests.sh ${l} ${t}
 t: test-lisp
 
-test: test-lisp test-clean-load doc
+test: test-lisp test-clean-load test-load-systems doc
+
+test-load-systems:
+	./test/run-tests.sh -l ${l} ${s}
 
 test-all-lisps:
+	${MAKE} test-load-systems
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp test-upgrade l=$$lisp || exit 1 ; \
+		${MAKE} test-lisp test-upgrade test-clean-load l=$$lisp || exit 1 ; \
 	done
 
 # test upgrade is a very long run... This does just the regression tests
 test-all-noupgrade:
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp l=$$lisp || exit 1 ; \
+		${MAKE} test-lisp test-clean-load l=$$lisp || exit 1 ; \
 	done
 
 test-all-upgrade:

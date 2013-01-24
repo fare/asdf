@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/defsystem
   (:recycle :asdf/defsystem :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system
+   :asdf/component :asdf/system :asdf/stamp-cache
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
   (:export
@@ -175,7 +175,7 @@
            (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
            (registered (system-registered-p name))
            (registered! (if registered
-                            (rplaca registered (safe-file-write-date source-file))
+                            (rplaca registered (get-file-stamp source-file))
                             (register-system
                              (make-instance 'system :name name :source-file source-file))))
            (system (reset-system (cdr registered!)

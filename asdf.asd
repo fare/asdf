@@ -14,8 +14,9 @@
   ;; Note that it's polite to sort the defsystem forms in dependency order,
   ;; and compulsory to sort them in defsystem-depends-on order.
   :version (:read-file-form "version.lisp-expr")
+  :around-compile call-without-redefinition-warnings ;; we need be the same as asdf-driver
   :components
-  ((:static-file "header.lisp")))
+  ((:file "header")))
 
 #+asdf2.27
 (defsystem :asdf/defsystem
@@ -31,17 +32,18 @@
   ((:file "upgrade")
    (:file "component" :depends-on ("upgrade"))
    (:file "system" :depends-on ("component"))
-   (:file "find-system" :depends-on ("system"))
+   (:file "stamp-cache" :depends-on ("upgrade"))
+   (:file "find-system" :depends-on ("system" "stamp-cache"))
    (:file "find-component" :depends-on ("find-system"))
    (:file "operation" :depends-on ("upgrade"))
    (:file "action" :depends-on ("find-component" "operation"))
    (:file "lisp-action" :depends-on ("action"))
-   (:file "plan" :depends-on ("lisp-action"))
+   (:file "plan" :depends-on ("lisp-action" "stamp-cache"))
    (:file "operate" :depends-on ("plan"))
    (:file "output-translations" :depends-on ("operate"))
    (:file "source-registry" :depends-on ("find-system"))
    (:file "backward-internals" :depends-on ("lisp-action" "operate"))
-   (:file "defsystem" :depends-on ("backward-internals"))
+   (:file "defsystem" :depends-on ("backward-internals" "stamp-cache"))
    (:file "bundle" :depends-on ("lisp-action"))
    (:file "concatenate-source" :depends-on ("bundle"))
    (:file "backward-interface" :depends-on ("operate" "output-translations"))
@@ -57,7 +59,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.144" ;; to be automatically updated by make bump-version
+  :version "2.26.145" ;; to be automatically updated by make bump-version
   :depends-on ()
   :components
   ((:module "build"
