@@ -357,12 +357,12 @@ is bound, write a message and exit on an error.  If
 
 (defun get-asdf-version ()
   (when (find-package :asdf)
-    (let ((ver (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
-                                 (find-symbol (string :*asdf-revision*) :asdf)))))
-      (typecase ver
-        (string ver)
-        (cons (format nil "~{~D~^.~}" ver))
-        (null "1.0")))))
+    (or (symbol-value (find-symbol (string :*asdf-version*) :asdf))
+        (let ((ver (symbol-value (find-symbol (string :*asdf-revision*) :asdf))))
+          (etypecase ver
+            (string ver)
+            (cons (format nil "~{~D~^.~}" ver))
+            (null "1.0"))))))
 
 
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
