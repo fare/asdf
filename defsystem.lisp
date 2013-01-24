@@ -3,11 +3,10 @@
 
 (asdf/package:define-package :asdf/defsystem
   (:recycle :asdf/defsystem :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
-  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:export
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
@@ -32,9 +31,13 @@
   ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (absolutize-pathnames
-   (list pathname (load-pathname) *default-pathname-defaults* (getcwd))
-   :type :directory :resolve-symlinks *resolve-symlinks*))
+  (let ((pathname (parse-unix-namestring pathname :type :directory))
+        (load-pathname (load-pathname)))
+    (when (or pathname load-pathname)
+      (pathname-directory-pathname
+       (absolutize-pathnames
+        (list pathname load-pathname *default-pathname-defaults* (getcwd))
+        :resolve-symlinks *resolve-symlinks*)))))
 
 
 ;;; Component class

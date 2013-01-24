@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/lisp-build
   (:recycle :asdf/interface :asdf :asdf/lisp-build)
-  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility
+  (:use :asdf/common-lisp :asdf/package :asdf/utility
         :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    ;; Variables
@@ -457,7 +457,7 @@ it will filter them appropriately."
   (let* ((keywords (remove-plist-keys
                     `(:output-file :compile-check :warnings-file
                       #+clisp :lib-file #+(or ecl mkcl) :object-file
-                      #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
+                      #+gcl2.6 ,@'(:external-format :print :verbose)) keys))
          (output-file
            (or output-file
                (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
@@ -510,13 +510,13 @@ it will filter them appropriately."
 
 (defun* load* (x &rest keys &key &allow-other-keys)
   (etypecase x
-    ((or pathname string #-(or gcl<2.7 clozure allegro) stream)
+    ((or pathname string #-(or allegro clozure gcl2.6 genera) stream)
      (apply 'load x
-            #-gcl<2.7 keys #+gcl<2.7 (remove-plist-key :external-format keys)))
-    #-(or gcl<2.7 clozure allegro)
-    ;; GCL 2.6 can't load from a string-input-stream
+            #-gcl2.6 keys #+gcl2.6 (remove-plist-key :external-format keys)))
+    ;; GCL 2.6, Genera can't load from a string-input-stream
     ;; ClozureCL 1.6 can only load from file input stream
     ;; Allegro 5, I don't remember but it must have been broken when I tested.
+    #+(or allegro clozure gcl2.6 genera)
     (stream ;; make do this way
      (let ((*package* *package*)
            (*readtable* *readtable*)

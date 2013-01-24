@@ -60,9 +60,9 @@ Some constraints:
                 :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
   #+cmucl (setf ext:*gc-verbose* nil)
   #+gcl
-  (when (or (< system::*gcl-major-version* 2)
-            (and (= system::*gcl-major-version* 2)
-                 (< system::*gcl-minor-version* 7)))
+  (when (and (= system::*gcl-major-version* 2)
+             (= system::*gcl-minor-version* 6))
+    (pushnew :gcl2.6 *features*)
     (shadowing-import 'system:*load-pathname* :asdf-test))
   #+lispworks
   (setf system:*stack-overflow-behaviour* :warn))
@@ -164,7 +164,7 @@ Some constraints:
 
 (defun touch-file (file &key (offset 0) timestamp)
   (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
-    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl<2.7 -5)
+    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl2.6 -5)
       (acall :run-program
              `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                      year month day hr min sec)
@@ -324,6 +324,7 @@ is bound, write a message and exit on an error.  If
 
 (defun compile-asdf-script ()
   (with-test ()
+    #-gcl2.6
     (ecase (with-asdf-conditions () (maybe-compile-asdf))
       (:not-found
        (leave-test "Testsuite failed: unable to find ASDF source" 3))
@@ -423,6 +424,7 @@ is bound, write a message and exit on an error.  If
   (set (asym :*asdf-verbose*) t))
 
 (defun load-asdf (&optional tag)
+  #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
   (use-package :asdf :asdf-test)
   (use-package :asdf/driver :asdf-test)

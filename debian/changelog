@@ -84,12 +84,23 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     or do the same while including all other system dependencies.
     ASDF was broken up into lots of small files, to be delivered that way.
 
+  * FOO/BAR/BAZ names will be recognized by defsystem as having to be located
+    in a file called foo.asd. This is backward compatible in the case where
+    you somehow arranged to load foo.asd before to use the other subsystems,
+    except now ASDF can find the subsystems by name without the main system
+    definition having been loaded. See uses of function PRIMARY-SYSTEM-NAME.
+
+  * BUILD-OP is a generic operation that can do the "right thing" for
+    each system, without users having to maintain the knowledge of
+    what the right thing is for each system they may indirectly depend on.
+
   * Packages were introduced as ASDF was broken up into small files.
     Each file now has its own package, importing and exporting functionality,
     following the style made popular by faslpath and quick-build.
     A macro DEFINE-PACKAGE was defined in replacement to DEFPACKAGE
     to manage the same effects while making every effort to
-    Do The Right Thing(tm) in case of hot upgrade.
+    Do The Right Thing(tm) in case of hot upgrade. It also provides
+    new forms :MIX and :REEXPORT which can be quite practical.
 
   * ASDF-DRIVER is a separately-usable library for Common Lisp runtime support.
     It is transcluded in asdf.lisp (i.e. when delivering ASDF as a separate
@@ -104,14 +115,41 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     from platform to platform. See notably in pathname.lisp,
     MERGE-PATHNAMES*, SUBPATHNAME, PARSE-UNIX-NAMESTRING,
     PARSE-NATIVE-NAMESTRING, ENSURE-PATHNAME, and many many more.
+    Although we strongly disrecommended the use of logical pathnames
+    (so called), ASDF better supports them than ever;
+    the actual support also depends on your implementation.
 
   * Image lifecycle support is included in ASDF-DRIVER (and thus ASDF);
     this standardizes things like access to *COMMAND-LINE-ARGUMENTS*,
     declaring an entry-point to a program, hook functions and/or a prelude
     to run before to start the main entry, and a postlude and/or hook functions
     to run before to dump an image, dumping or creating an image, etc.
-    ASDF provides initial implementations of an operation program-op
-    to create standalone executables (if available on your implementation).
+
+  * PROGRAM-OP allows you to create standalone executables on implementations
+    that support it: CLISP, Clozure CL, CMUCL ECL, LispWorks, SBCL, SCL.
+    A hello-world-example system shows demonstrates how to use it.
+
+  * Run-program is a replacement for the old run-shell-command.
+    Unlike run-shell-command, it is portable to Windows as well as Unix,
+    it can avoid going through a shell and will sensibly escape arguments
+    when it does go through a shell, it has a usable interface
+    to either capture program output or run the program interactively.
+    This supersedes run-program/ previously available from xcvb-driver.
+
+  * Conditions can be selectively muffled around compilation
+    thanks to around-compile hook and the *UNINTERESTING-COMPILER-CONDITIONS*
+    parameter and the additional *UNINTERESTING-LOADER-CONDITIONS*.
+    This supersedes the functionality previously available from xcvb-driver.
+
+  * Deferred warnings for yet undefined functions, that in a single-session
+    build are usually signaled at the end of a compilation unit will be saved
+    and reassembled to make each system a compilation unit of its own,
+    even when compilation of file happens across multiple sessions;
+    only CCL and SBCL support this feature at this time.
+
+  * COMPILE-FILE* was beefed up to support all these features and more,
+    doing the right thing on all implementations, including
+    support for their various extensions.
 
   * Internals have been refactored, and some sorry features were excised.
     The semantics of OPERATION-DONE-P is simplified and now well-specified.
@@ -120,18 +158,47 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     Many internal accessors were renamed, after checking on Quicklisp
     that no one was using them.
 
+  * Per-file packages are now used by ASDF internally, in the style of
+    quick-build or faslpath. ASDF does not yet include builtin support
+    for quick-build or faslpath systems and dependencies, however.
+
   * Portability updates were done for
     ABCL, CLISP, Clozure CL, CMUCL, ECL, LispWorks Personal Edition, MKCL, XCL.
     Working support for GCL 2.6 was restored, with notable limitations
     including lack of support for output-translations or logical-pathnames.
 
-  * Documentation received some small updates.
+  * TRUENAME resolution can be reliably turned off in all cases where
+    ASDF was using them by setting the variable *RESOLVE-SYMLINKS* to NIL.
+    This is useful if your operating system makes that operation slow,
+    or if your build system uses symlinks to content-addressed storage
+    in which case TRUENAME just does the wrong thing.
 
-  * Tests were updated, notably including support for bundles and encodings.
-    They were successfully run on ccl clisp sbcl ecl ecl_bytecodes
-    cmucl abcl scl allegro lispworks allegromodern xcl.
-    Manual tests were run on lispworks-personal-edition genera.
-    Untested were cormancl mkcl rmcl.
+  * VERSION strings can now be specified as having to be fetched
+    from a file using a (:read-file-form <path>) specification,
+    that can use an optional :at keyword argument to specify
+    a form or subform other than the first form in the file,
+    as per the utility asdf-driver:access-at.
+    This makes it easier for developers to manage versioning
+    of one or multiple systems with a single master version location.
+
+  * self-upgrage of ASDF will happen automatically as the first thing
+    before any attempt to build anything, as it was determined that
+    doing it in the midst of a build breaks everything, and it is not
+    otherwise possible to reliably detect in advance whether ASDF may
+    be needed in such midst. If you don't want an ASDF upgrade, just
+    don't configure your source-registry to include any copy of ASDF.
+
+  * Documentation received some updates.
+
+  * Tests were updated, notably including support for bundles, encodings,
+    run-program, and more. They were successfully run on
+	ccl clisp sbcl ecl ecl_bytecodes
+	cmucl abcl scl allegro lispworks allegromodern xcl
+    Manual tests were manually run on lispworks-personal-edition genera.
+    Untested remain cormancl mkcl rmcl.
+
+  * asdf-debug is a simple utility to make your favorite debugging primitives
+    available in the package you're debugging.
 
   * POIU was updated. This extension is still distributed separately from ASDF.
     It is now much simplified and made correct by construction by
@@ -143,13 +210,12 @@ cl-asdf (2:2.27-1) unstable; urgency=low
 
   * SLIME support for ASDF was significantly enhanced.
     It is distributed separately from ASDF, with SLIME.
-    See latest checkin from 2012-12-26.
+    See latest checkin from 2013-01-20.
     We recommend that in your ~/.swank.lisp you should:
     (in-package :swank)
-    (defparameter *upgrade-asdf-p* t)
     (pushnew 'try-compile-file-with-asdf *compile-file-for-emacs-hook*)
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 10 Jan 2012 22:59:44 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 22 Jan 2013 22:59:44 -0500
 
 cl-asdf (2:2.26-1) unstable; urgency=low
 

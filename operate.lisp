@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export

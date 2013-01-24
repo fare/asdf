@@ -3,7 +3,8 @@
 
 (asdf/package:define-package :asdf/find-component
   (:recycle :asdf/find-component :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component :asdf/system :asdf/find-system)
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system :asdf/find-system)
   (:export
    #:find-component
    #:resolve-dependency-name #:resolve-dependency-spec

@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade)
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:*output-translations* #:*output-translations-parameter*
    #:invalid-output-translation
@@ -209,7 +209,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                                         (inherit *default-output-translations*)
                                         collect)
   (process-output-translations (funcall x) :inherit inherit :collect collect))
-(defmethod process-output-translations ((pathname #-gcl<2.7 pathname #+gcl<2.7 t) &key inherit collect)
+(defmethod process-output-translations ((pathname #-gcl2.6 pathname #+gcl2.6 t) &key inherit collect)
   (cond
     ((directory-pathname-p pathname)
      (process-output-translations (validate-output-translations-directory pathname)
@@ -267,7 +267,7 @@ effectively disabling the output translation facility."
      path)
     ((or pathname string)
      (ensure-output-translations)
-     (loop :with p = (resolve-symlinks* path)
+     (loop* :with p = (resolve-symlinks* path)
        :for (source destination) :in (car *output-translations*)
        :for root = (when (or (eq source t)
                              (and (pathnamep source)

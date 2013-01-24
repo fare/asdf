@@ -4,7 +4,7 @@
 
 (asdf/package:define-package :asdf/upgrade
   (:recycle :asdf/upgrade :asdf)
-  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility)
   (:export
    #:upgrade-asdf #:asdf-upgrade-error #:when-upgrade
    #:*asdf-upgrade-already-attempted*
@@ -35,7 +35,7 @@
          ;; "2.345.6" would be a development version in the official upstream
          ;; "2.345.0.7" would be your seventh local modification of official release 2.345
          ;; "2.345.6.7" would be your seventh local modification of development version 2.345.6
-         (asdf-version "2.26.141")
+         (asdf-version "2.26.142")
          (existing-asdf (find-class (find-symbol* :component :asdf nil) nil))
          (existing-version *asdf-version*)
          (already-there (equal asdf-version existing-version))

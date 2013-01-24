@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/backward-internals
   (:recycle :asdf/backward-internals :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/system :asdf/component :asdf/find-system :asdf/action)
   (:export ;; for internal use
    #:%refresh-component-inline-methods
@@ -62,9 +62,9 @@
   (unless (eq if-component-dep-fails :fail)
     (loop :with o = (make-instance 'compile-op)
       :for c :in (component-children component) :do
-        (loop :for (feature? feature) :in (component-depends-on o c)
-              :when (eq feature? 'feature) :do
-                (setf (component-if-feature c) feature)))))
+        (loop* :for (feature? feature) :in (component-depends-on o c)
+               :when (eq feature? 'feature) :do
+                 (setf (component-if-feature c) feature)))))
 
 (when-upgrade (:when (fboundp 'make-sub-operation))
   (defun* make-sub-operation (c o dep-c dep-o)

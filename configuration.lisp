@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/configuration
   (:recycle :asdf/configuration :asdf)
-  (:use :common-lisp :asdf/compatibility :asdf/utility
+  (:use :asdf/common-lisp :asdf/utility
    :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    #:get-folder-path
@@ -243,7 +243,7 @@ directive.")
   (when directory (setf ensure-directory t)) ;; :directory backward compatibility, until 2014-01-16.
   (if (atom x)
       (resolve-absolute-location x :ensure-directory ensure-directory :wilden wilden)
-      (loop :with (first . rest) = x
+      (loop* :with (first . rest) = x
         :with path = (resolve-absolute-location
                           first :ensure-directory (and (or ensure-directory rest) t)
                           :wilden (and wilden (null rest)))

@@ -2,7 +2,7 @@
 
 
 
-#-gcl<2.7
+#-gcl2.6
 (setf (logical-pathname-translations "ASDF")
       #+(or allegro clisp)
       `(("**;*.*.*" ,(asdf::wilden *asdf-directory*)))
@@ -13,20 +13,20 @@
                       `(,*asdf-directory* "build/fasls" :implementation "logical-host-asdf")
                       :wilden t))))
 
-#-gcl<2.7
+#-gcl2.6
 (DBG :logical
      (logical-pathname-translations "ASDF")
      (translate-logical-pathname "ASDF:test;test-force.asd")
      (truename "ASDF:test;test-force.asd"))
 
-#-(or xcl gcl<2.7)
+#-(or xcl gcl2.6)
 (progn
   (DBG "Test logical pathnames in central registry")
   (setf *central-registry* '(#p"ASDF:test;"))
   (initialize-source-registry '(:source-registry :ignore-inherited-configuration))
   (DBG "loading" (oos 'load-op :test-logical-pathname :force t)))
 
-#-(or xcl gcl<2.7)
+#-(or xcl gcl2.6)
 (progn
   (DBG "Test logical pathnames in source-registry, non-recursive")
   (clear-system :test-logical-pathname)
@@ -35,7 +35,7 @@
    '(:source-registry (:directory #p"ASDF:test;") :ignore-inherited-configuration))
   (load-system :test-logical-pathname :force t :verbose t))
 
-#-(or xcl gcl<2.7)
+#-(or xcl gcl2.6)
 (progn
   (DBG "Test logical pathnames in source-registry, recursive")
   (clear-system :test-logical-pathname)

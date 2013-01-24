@@ -13,7 +13,8 @@
 (defpackage :asdf/package
   (:use :common-lisp)
   (:export
-   #:find-package* #:find-symbol* #:symbol-call #:intern* #:unintern* #:make-symbol*
+   #:find-package* #:find-symbol* #:symbol-call
+   #:intern* #:unintern* #:export* #:make-symbol*
    #:symbol-shadowing-p #:home-package-p #:rehome-symbol
    #:symbol-package-name #:standard-common-lisp-symbol-p
    #:reify-package #:unreify-package #:reify-symbol #:unreify-symbol
@@ -56,6 +57,10 @@ or when loading the package is optional."
     (apply (find-symbol* name package) args))
   (defun intern* (name package-designator &optional (error t))
     (intern (string name) (find-package* package-designator error)))
+  (defun export* (name package-designator)
+    (let* ((package (find-package* package-designator))
+           (symbol (intern* name package)))
+      (export (or symbol (list symbol)) package)))
   (defun make-symbol* (name)
     (etypecase name
       (string (make-symbol name))
@@ -240,9 +245,9 @@ or when loading the package is optional."
               (when foundp
                 (unintern overwritten-setf)))
             (when (eq old-status :external)
-              (export symbol old-package))
+              (export* symbol old-package))
             (when (eq overwritten-symbol-status :external)
-              (export symbol package))))
+              (export* symbol package))))
         (values overwritten-symbol overwritten-symbol-status))))
   (defun ensure-package-unused (package)
     (loop :for p :in (package-used-by-list package) :do
@@ -340,6 +345,7 @@ or when loading the package is optional."
                                 import-from export intern
                                 recycle mix reexport
                                 unintern)
+    (declare (ignorable documentation))
     (macrolet ((when-fishy (&body body) `(when-package-fishiness ,@body))
                (fishy (&rest info) `(note-package-fishiness ,@info)))
       (let* ((package-name (string name))
@@ -490,7 +496,7 @@ or when loading the package is optional."
              (ensure-exported (name sym p)
                (dolist (u (package-used-by-list p))
                  (ensure-exported-to-user name sym u))
-               (export sym p))
+               (export* sym p))
              (ensure-exported-to-user (name sym u)
                (multiple-value-bind (usym ustat) (find-symbol name u)
                  (unless (and ustat (eq sym usym))
@@ -508,7 +514,7 @@ or when loading the package is optional."
                                    t)))))
                      (when (and accessible (eq ustat :external))
                        (ensure-exported name sym u)))))))
-          #-gcl (setf (documentation package t) documentation) #+gcl documentation
+          #-(or gcl genera) (setf (documentation package t) documentation) #+gcl documentation
           (loop :for p :in (set-difference (package-use-list package) (append mix use))
                 :do (fishy :use (package-names p)) (unuse-package p package))
           (loop :for p :in discarded
@@ -563,10 +569,10 @@ or when loading the package is optional."
             (do-external-symbols (sym p) (ensure-inherited (string sym) sym p nil))
             (use-package p package))
           (loop :for name :being :the :hash-keys :of exported :do
-            (ensure-symbol (string name) t)
+            (ensure-symbol name t)
             (ensure-export name package))
           (dolist (name intern)
-            (ensure-symbol (string name) t))
+            (ensure-symbol name t))
           (do-symbols (sym package)
             (ensure-symbol (symbol-name sym)))
           (map () 'delete-package* to-delete)
@@ -607,22 +613,35 @@ or when loading the package is optional."
 (defmacro define-package (package &rest clauses)
   (let ((ensure-form
           `(apply 'ensure-package ',(parse-define-package-form package clauses))))
-    (eval ensure-form)
     `(progn
        #+clisp
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form)
-       #+(or ecl gcl) (defpackage ,package (:use))
-       #+clisp ,(package-definition-form
-                 package :nicknamesp nil :usep nil :internp nil :exportp nil
-                 :error nil)
+       #+(or clisp ecl gcl) (defpackage ,package (:use))
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form))))
 
 ;;;; Final tricks to keep various implementations happy.
+;; We want most such tricks in common-lisp.lisp,
+;; but these need to be done before the define-package form there,
+;; that we nevertheless want to be the very first form.
 (eval-when (:load-toplevel :compile-toplevel :execute)
   #+allegro ;; We need to disable autoloading BEFORE any mention of package ASDF.
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
-                :test 'equalp :key 'car))) 
+                :test 'equalp :key 'car))
 
+  #+gcl
+  ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff,
+  ;; but can run ASDF 2.011. GCL 2.6 has even more issues.
+  (cond
+    ((or (< system::*gcl-major-version* 2)
+         (and (= system::*gcl-major-version* 2)
+              (< system::*gcl-minor-version* 6)))
+     (error "GCL 2.6 or later required to use ASDF"))
+    ((and (= system::*gcl-major-version* 2)
+          (= system::*gcl-minor-version* 6))
+     (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
+     (pushnew :gcl2.6 *features*))
+    (t
+     (pushnew :gcl2.7 *features*))))

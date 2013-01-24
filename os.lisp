@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/os
   (:recycle :asdf/os :asdf)
-  (:use :cl :asdf/package :asdf/compatibility :asdf/utility :asdf/pathname :asdf/stream)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/pathname :asdf/stream)
   (:export
    #:featurep #:os-unix-p #:os-windows-p ;; features
    #:getenv #:getenvp ;; environment variables
@@ -37,14 +37,18 @@
   (defun* os-windows-p ()
     (and (not (os-unix-p)) (featurep '(:or :win32 :windows :mswindows :mingw32))))
 
+  (defun* os-genera-p ()
+    (featurep :genera))
+
   (defun* detect-os ()
     (flet ((yes (yes) (pushnew yes *features*))
            (no (no) (setf *features* (remove no *features*))))
       (cond
         ((os-unix-p) (yes :os-unix) (no :os-windows))
         ((os-windows-p) (yes :os-windows) (no :os-unix))
+        ((os-genera-p) (no :os-unix) (no :os-windows))
         (t (error "Congratulations for trying XCVB on an operating system~%~
-that is neither Unix, nor Windows.~%Now you port it.")))))
+that is neither Unix, nor Windows, nor even Genera.~%Now you port it.")))))
 
   (detect-os))
 
@@ -335,14 +339,14 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 (defun setup-temporary-directory ()
   (setf *temporary-directory* (default-temporary-directory))
   ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
-  #+(and gcl (not gcl<2.7)) (setf system::*tmp-dir* *temporary-directory*))
+  #+(and gcl (not gcl2.6)) (setf system::*tmp-dir* *temporary-directory*))
 
 (defun* call-with-temporary-file
     (thunk &key
      prefix keep (direction :io)
      (element-type *default-stream-element-type*)
      (external-format :default))
-  #+gcl<2.7 (declare (ignorable external-format))
+  #+gcl2.6 (declare (ignorable external-format))
   (check-type direction (member :output :io))
   (loop
     :with prefix = (or prefix (format nil "~Atmp" (native-namestring (temporary-directory))))
@@ -354,7 +358,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
     (with-open-file (stream pathname
                             :direction direction
                             :element-type element-type
-                            #-gcl<2.7 :external-format #-gcl<2.7 external-format
+                            #-gcl2.6 :external-format #-gcl2.6 external-format
                             :if-exists nil :if-does-not-exist :create)
       (when stream
         (return

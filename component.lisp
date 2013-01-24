@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/component
   (:recycle :asdf/component :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade)
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:component #:component-find-path
    #:component-name #:component-pathname #:component-relative-pathname
@@ -50,7 +50,7 @@ Despite the function's name, the return value may be an absolute
 pathname, because an absolute pathname may be interpreted relative to
 another pathname in a degenerate way."))
 (defgeneric* component-property (component property))
-#-gcl<2.7
+#-gcl2.6
 (defgeneric* (setf component-property) (new-value component property))
 (defgeneric* component-external-format (component))
 (defgeneric* component-encoding (component))

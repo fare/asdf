@@ -3,8 +3,7 @@
 
 (asdf/package:define-package :asdf/backward-driver
   (:recycle :asdf/backward-driver :asdf)
-  (:use :common-lisp
-   :asdf/package :asdf/compatibility :asdf/utility
+  (:use :asdf/common-lisp :asdf/package :asdf/utility
    :asdf/pathname :asdf/stream :asdf/os :asdf/image
    :asdf/run-program :asdf/lisp-build
    :asdf/configuration)

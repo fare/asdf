@@ -3,23 +3,25 @@
 ;;; This file is for papering over the deficiencies and peculiarities
 ;;; of various Common Lisp implementations.
 ;;; For implementation-specific access to the system, see os.lisp instead.
+;;; A few functions are defined here, but actually exported from utility;
+;;; from this package only common-lisp symbols are exported.
 
-(asdf/package:define-package :asdf/compatibility
-  (:use :common-lisp :asdf/package)
-  (:recycle :asdf/compatibility :asdf)
+(asdf/package:define-package :asdf/common-lisp
+  (:nicknames :asdf/cl)
+  (:use #-genera :common-lisp #+genera :future-common-lisp :asdf/package)
+  (:reexport :common-lisp)
+  (:recycle :asdf/common-lisp :asdf)
   #+allegro (:intern #:*acl-warn-save*)
   #+cormanlisp
   (:export
    #:logical-pathname #:translate-logical-pathname
    #:make-broadcast-stream #:file-namestring)
-  #+ecl (:export #:use-ecl-byte-compiler-p)
-  ;;#+gcl (:shadow #:type-of #:with-standard-io-syntax) ; causes errors when loading fasl(!)
-  #+genera (:import-from :scl #:boolean)
+  #+gcl2.6 (:shadow #:type-of #:with-standard-io-syntax) ; causes errors when loading fasl(!)
+  #+gcl2.6 (:shadowing-import-from :system #:*load-pathname*)
+  #+genera (:shadowing-import-from :scl #:boolean)
   #+genera (:export #:boolean #:ensure-directories-exist)
-  #+mcl (:export #:probe-posix #:current-user-homedir-pathname)
-  (:export
-   #:strcat #:compatfmt))
-(in-package :asdf/compatibility)
+  #+mcl (:shadow #:user-homedir-pathname))
+(in-package :asdf/common-lisp)
 
 #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
 (error "ASDF is not supported on your implementation. Please help us port it.")
@@ -43,35 +45,6 @@
     (setf excl:*warn-on-nested-reader-conditionals* nil))
   (setf *print-readably* nil))
 
-#+ecl
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (setf *load-verbose* nil)
-  (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
-  (unless (use-ecl-byte-compiler-p) (require :cmp)))
-
-#+gcl ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff, but can run ASDF 2.011
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (when (or (< system::*gcl-major-version* 2) ;; GCL 2.6 lacks output-translations and more.
-            (and (= system::*gcl-major-version* 2)
-                 (< system::*gcl-minor-version* 7)))
-    (shadow 'type-of :asdf/compatibility)
-    ;;(shadow 'with-standard-io-syntax :asdf/compatibility)
-    ;;(format t "Detected an old GCL 2.6. Only limited functionality available.~%")
-    (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
-    (pushnew :gcl<2.7 *features*))
-  (unless (member :ansi-cl *features*)
-    (error "ASDF only supports GCL in ANSI mode. Aborting.~%"))
-  (setf compiler::*compiler-default-type* (pathname "")
-        compiler::*lsp-ext* ""))
-
-#+mkcl
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (require :cmp)
-  (setq clos::*redefine-class-in-place* t)) ;; Make sure we have strict ANSI class redefinition semantics
-
-
-;;;; Compatibility layers
-
 #+cormanlisp
 (progn
   (deftype logical-pathname () nil)
@@ -81,9 +54,32 @@
     (setf p (pathname p))
     (format nil "~@[~A~]~@[.~A~]" (pathname-name p) (pathname-type p))))
 
-#+gcl<2.7
+#+ecl
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (setf *load-verbose* nil)
+  (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
+  (unless (use-ecl-byte-compiler-p) (require :cmp)))
+
+#+gcl ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff, but can run ASDF 2.011
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (member :ansi-cl *features*)
+    (error "ASDF only supports GCL in ANSI mode. Aborting.~%"))
+  (setf compiler::*compiler-default-type* (pathname "")
+        compiler::*lsp-ext* ""))
+
+#+gcl2.6
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (shadow 'type-of :asdf/common-lisp)
+  (shadowing-import 'system:*load-pathname* :asdf/common-lisp))
+
+#+gcl2.6
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (export 'type-of :asdf/common-lisp)
+  (export 'system:*load-pathname* :asdf/common-lisp))
+
+#+gcl2.6
 (progn ;; Doesn't support either logical-pathnames or output-translations.
-  (defvar *gcl<2.7* t)
+  (defvar *gcl2.6* t)
   (deftype logical-pathname () nil)
   (defun type-of (x) (class-name (class-of x)))
   (defun wild-pathname-p (path) (declare (ignore path)) nil)
@@ -121,7 +117,7 @@
           ;; the pathname of the current user's home directory, whereas
           ;; MCL by default provides the directory from which MCL was started.
           ;; See http://code.google.com/p/mcl/wiki/Portability
-          (defun current-user-homedir-pathname ()
+          (defun user-homedir-pathname ()
             (ccl::findfolder #$kuserdomain #$kCurrentUserFolderType))
           (defun probe-posix (posix-namestring)
             \"If a file exists for the posix namestring, return the pathname\"
@@ -131,9 +127,17 @@
                 (when (eq #$noerr (#_fspathmakeref cpath fsref is-dir))
                   (ccl::%path-from-fsref fsref is-dir))))))"))
 
+#+mkcl
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (require :cmp)
+  (setq clos::*redefine-class-in-place* t)) ;; Make sure we have strict ANSI class redefinition semantics
+
 
 ;;;; compatfmt: avoid fancy format directives when unsupported
-;; Confirm (?) has to be inside an eval-when to make Lispworks happy
+
+(defmacro loop* (&rest rest)
+  #-genera `(loop ,@rest)
+  #+genera `(lisp:loop ,@rest)) ;; In genera, CL:LOOP can't destructure, so we use LOOP*. Sigh.
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun strcat (&rest strings)
@@ -141,10 +145,10 @@
 
 (defmacro compatfmt (format)
   #+(or gcl genera)
-  (loop :for (unsupported . replacement)
-        :in (append
-             '(("~3i~_" . ""))
-             #+(or genera gcl<2.7) '(("~@<" . "") ("; ~@;" . "; ") ("~@:>" . "") ("~:>" . ""))) :do
+  (loop* :for (unsupported . replacement)
+         :in (append
+              '(("~3i~_" . ""))
+              #+(or genera gcl2.6) '(("~@<" . "") ("; ~@;" . "; ") ("~@:>" . "") ("~:>" . ""))) :do
       (loop :for found = (search unsupported format) :while found :do
         (setf format (strcat (subseq format 0 found) replacement
                              (subseq format (+ found (length unsupported)))))))

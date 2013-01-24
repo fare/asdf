@@ -4,7 +4,7 @@
 
 (asdf/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/find-system)
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade :asdf/find-system)
   (:export
    #:*source-registry* #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry
@@ -218,7 +218,7 @@ system names to pathnames of .asd files")
 
 (defmethod process-source-registry ((x symbol) &key inherit register)
   (process-source-registry (funcall x) :inherit inherit :register register))
-(defmethod process-source-registry ((pathname #-gcl<2.7 pathname #+gcl<2.7 t) &key inherit register)
+(defmethod process-source-registry ((pathname #-gcl2.6 pathname #+gcl2.6 t) &key inherit register)
   (cond
     ((directory-pathname-p pathname)
      (let ((*here-directory* (resolve-symlinks* pathname)))

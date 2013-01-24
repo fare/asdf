@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/bundle
   (:recycle :asdf/bundle :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)
   (:export
@@ -18,7 +18,6 @@
    #+ecl #:make-build
    #:register-pre-built-system
    #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
-   #:component-bundle-pathname #:bundle-pathname
    #:component-entry-point #:entry-point))
 (in-package :asdf/bundle)
 
@@ -78,20 +77,14 @@
   ;; All: create an executable file from the system and its dependencies
   ((bundle-type :initform :program)))
 
-(defgeneric* component-bundle-pathname (component))
 (defgeneric* component-entry-point (component))
 
-(defmethod component-bundle-pathname ((c component))
-  (declare (ignorable c))
-  nil)
 (defmethod component-entry-point ((c component))
   (declare (ignorable c))
   nil)
 
 (defclass bundle-system (system)
-  ((bundle-pathname
-    :initform nil :initarg :bundle-pathname :accessor component-bundle-pathname)
-   (entry-point
+  ((entry-point
     :initform nil :initarg :entry-point :accessor component-entry-point)))
 
 (defun* bundle-pathname-type (bundle-type)
@@ -110,7 +103,7 @@
 (defun* bundle-output-files (o c)
   (let ((bundle-type (bundle-type o)))
     (unless (eq bundle-type :no-output-file) ;; NIL already means something regarding type.
-      (let ((name (or (component-bundle-pathname c)
+      (let ((name (or (component-build-pathname c)
                       (format nil "~A~@[~A~]" (component-name c) (slot-value o 'name-suffix))))
             (type (bundle-pathname-type bundle-type)))
         (values (list (subpathname (component-pathname c) name :type type))
@@ -134,10 +127,10 @@
   ((type :initform #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")))
 
 (defclass precompiled-system (system)
-  ((bundle-pathname :initarg :fasl)))
+  ((build-pathname :initarg :fasl)))
 
 (defclass prebuilt-system (system)
-  ((bundle-pathname :initarg :static-library :initarg :lib
+  ((build-pathname :initarg :static-library :initarg :lib
                     :accessor prebuilt-system-static-library)))
 
 ;;;

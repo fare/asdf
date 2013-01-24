@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
   (:export
@@ -39,8 +39,8 @@
 
 (defgeneric* operation-on-warnings (operation))
 (defgeneric* operation-on-failure (operation))
-#-gcl<2.7 (defgeneric* (setf operation-on-warnings) (x operation))
-#-gcl<2.7 (defgeneric* (setf operation-on-failure) (x operation))
+#-gcl2.6 (defgeneric* (setf operation-on-warnings) (x operation))
+#-gcl2.6 (defgeneric* (setf operation-on-failure) (x operation))
 (defmethod operation-on-warnings ((o operation))
   (declare (ignorable o)) *compile-file-warnings-behaviour*)
 (defmethod operation-on-failure ((o operation))

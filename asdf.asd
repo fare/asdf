@@ -11,6 +11,9 @@
 
 #+asdf2.27
 (defsystem :asdf/header
+  ;; Note that it's polite to sort the defsystem forms in dependency order,
+  ;; and compulsory to sort them in defsystem-depends-on order.
+  :version (:read-file-form "version.lisp-expr")
   :components
   ((:static-file "header.lisp")))
 
@@ -18,12 +21,11 @@
 (defsystem :asdf/defsystem
   :licence "MIT"
   :description "The defsystem part of ASDF"
-  :description "Generate asdf.lisp based on this and monolithic-concatenate-source-op"
+  :long-description "Another System Definition Facility, the portable defsystem for Common Lisp"
   :version (:read-file-form "version.lisp-expr")
-  :class :bundle-system
   :build-operation monolithic-concatenate-source-op
-  :bundle-pathname "build/asdf"
-  :around-compile call-without-redefinition-warnings ;; be the same as asdf-driver
+  :build-pathname "build/asdf" ;; our target
+  :around-compile call-without-redefinition-warnings ;; we need be the same as asdf-driver
   :depends-on (:asdf/header :asdf-driver)
   :components
   ((:file "upgrade")
@@ -34,7 +36,7 @@
    (:file "operation" :depends-on ("upgrade"))
    (:file "action" :depends-on ("find-component" "operation"))
    (:file "lisp-action" :depends-on ("action"))
-   (:file "plan" :depends-on ("action"))
+   (:file "plan" :depends-on ("lisp-action"))
    (:file "operate" :depends-on ("plan"))
    (:file "output-translations" :depends-on ("operate"))
    (:file "source-registry" :depends-on ("find-system"))
@@ -42,7 +44,7 @@
    (:file "defsystem" :depends-on ("backward-internals"))
    (:file "bundle" :depends-on ("lisp-action"))
    (:file "concatenate-source" :depends-on ("bundle"))
-   (:file "backward-interface" :depends-on ("lisp-action"))
+   (:file "backward-interface" :depends-on ("operate" "output-translations"))
    (:file "interface" :depends-on
           ("defsystem" "concatenate-source"
            "backward-interface" "backward-internals"
@@ -55,12 +57,14 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.141" ;; to be automatically updated by make bump-version
+  :version "2.26.142" ;; to be automatically updated by make bump-version
   :depends-on ()
   :components
   ((:module "build"
     :components
-    ((:file "asdf"
-      :in-order-to (#-asdf2.27 (compile-op (load-source-op "asdf")))))))
+    (#-gcl2.6
+     (:file "asdf"
+      #-asdf2.27 :do-first #-asdf2.27 ((compile-op (load-source-op "asdf")))
+      ))))
   :in-order-to
   (#+asdf2.27 (compile-op (monolithic-load-concatenated-source-op asdf/defsystem))))

@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/find-system :asdf/find-component :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/operate :asdf/bundle :asdf/concatenate-source
    :asdf/output-translations :asdf/source-registry
@@ -59,7 +59,7 @@
 #+allegro
 (eval-when (:compile-toplevel :execute)
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
-    (setf excl:*warn-on-nested-reader-conditionals* asdf/compatibility::*acl-warn-save*)))
+    (setf excl:*warn-on-nested-reader-conditionals* asdf/common-lisp::*acl-warn-save*)))
 
 (dolist (f '(:asdf :asdf2 :asdf2.27)) (pushnew f *features*))
 

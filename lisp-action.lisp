@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
   (:export
    #:try-recompiling
@@ -146,12 +146,12 @@
 (defmethod input-files ((o compile-op) (c system))
   (declare (ignorable o c))
   (unless (builtin-system-p c)
-    (loop :for (sub-o . sub-c)
-          :in (traverse-sub-actions
-               o c :other-systems nil
-                   :keep-operation 'compile-op :keep-component 'cl-source-file)
-          :append (remove-if-not 'warnings-file-p
-                                 (output-files sub-o sub-c)))))
+    (loop* :for (sub-o . sub-c)
+           :in (traverse-sub-actions
+                o c :other-systems nil
+                    :keep-operation 'compile-op :keep-component 'cl-source-file)
+           :append (remove-if-not 'warnings-file-p
+                                  (output-files sub-o sub-c)))))
 #+sbcl
 (defmethod output-files ((o compile-op) (c system))
   (unless (builtin-system-p c)
