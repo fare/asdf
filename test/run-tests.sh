@@ -17,11 +17,13 @@ usage () {
     echo "    -d -- debug mode"
     echo "    -h -- show this message."
     echo "    -u -- upgrade tests."
+    echo "    -c -- clean load test"
+    echo "    -l -- load systems tests"
 }
 
-unset DEBUG_ASDF_TEST upgrade clean_load
+unset DEBUG_ASDF_TEST upgrade clean_load load_systems
 
-while getopts "duhc" OPTION
+while getopts "cdhulhu" OPTION
 do
     case $OPTION in
         d)
@@ -32,6 +34,9 @@ do
             ;;
         c)
             clean_load=t
+            ;;
+        l)
+            load_systems=t
             ;;
         h)
             usage
@@ -354,11 +359,21 @@ test_clean_load () {
       echo "BAD: Loading ASDF on $lisp produces messages" >&2 ; return 1
     fi
 }
+test_load_systems () {
+    case $lisp in
+        gcl) return 0 ;; # This one is hopeless
+    esac
+    ${cmd} ${eval} \
+      "(or #.(load \"test/script-support.lisp\") #.(asdf-test::with-test () (asdf-test::test-load-systems ${s})))" \
+        2>&1 | tee build/results/${lisp}-systems.text
+}
 
 if [ -z "$cmd" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 elif [ -n "$clean_load" ] ; then
     test_clean_load
+elif [ -n "$load_systems" ] ; then
+    test_load_systems
 elif [ -n "$upgrade" ] ; then
     run_upgrade_tests
 else

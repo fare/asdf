@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system)
+   :asdf/component :asdf/system :asdf/stamp-cache)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name
@@ -93,7 +93,7 @@ of which is a system object.")
     (unless (eq system (cdr (gethash name *defined-systems*)))
       (setf (gethash name *defined-systems*)
             (cons (if-let (file (ignore-errors (system-source-file system)))
-                    (safe-file-write-date file))
+                    (get-file-stamp file))
                   system)))))
 
 (defun* clear-system (name)
@@ -243,9 +243,9 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defun* call-with-system-definitions (thunk)
   (if *systems-being-defined*
-      (funcall thunk)
+      (call-with-stamp-cache thunk)
       (let ((*systems-being-defined* (make-hash-table :test 'equal)))
-        (funcall thunk))))
+        (call-with-stamp-cache thunk))))
 
 (defmacro with-system-definitions ((&optional) &body body)
   `(call-with-system-definitions #'(lambda () ,@body)))
@@ -316,7 +316,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                                             (pathname-equal
                                              (translate-logical-pathname pathname)
                                              (translate-logical-pathname previous-pathname))))
-                                   (stamp<= (safe-file-write-date pathname) previous-time))))
+                                   (stamp<= (get-file-stamp pathname) previous-time))))
                 ;; only load when it's a pathname that is different or has newer content
                 (load-sysdef name pathname)))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
@@ -324,7 +324,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                 (cond
                   (in-memory
                    (when pathname
-                     (setf (car in-memory) (safe-file-write-date pathname)))
+                     (setf (car in-memory) (get-file-stamp pathname)))
                    (cdr in-memory))
                   (error-p
                    (error 'missing-component :requires name))))))

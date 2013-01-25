@@ -12,6 +12,7 @@
    #:system-author #:system-maintainer #:system-licence #:system-license
    #:system-defsystem-depends-on
    #:component-build-pathname #:build-pathname
+   #:component-entry-point #:entry-point
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
@@ -20,6 +21,12 @@
   (:documentation "Return the source file in which system is defined."))
 (defgeneric* builtin-system-p (system))
 (defgeneric* component-build-pathname (component))
+
+(defgeneric* component-entry-point (component))
+(defmethod component-entry-point ((c component))
+  (declare (ignorable c))
+  nil)
+
 
 ;;;; The system class
 
@@ -39,6 +46,8 @@
             :accessor system-license :initarg :license)
    (build-pathname
     :initform nil :initarg :build-pathname :accessor component-build-pathname)
+   (entry-point
+    :initform nil :initarg :entry-point :accessor component-entry-point)
    (source-file :initform nil :initarg :source-file :accessor system-source-file)
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
 

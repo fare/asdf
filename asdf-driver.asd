@@ -14,6 +14,7 @@ that you can't portably construct a complete program without using them."
   :around-compile call-without-redefinition-warnings
   :components
   ((:static-file "version.lisp-expr")
+   (:static-file "contrib/debug.lisp")
    (:file "package")
    (:file "common-lisp" :depends-on ("package"))
    (:file "utility" :depends-on ("common-lisp"))

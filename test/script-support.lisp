@@ -13,7 +13,7 @@ Some constraints:
 (defpackage :asdf-test
   (:use :common-lisp)
   (:export
-   #:asym #:acall
+   #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory*
    #:load-asdf #:maybe-compile-asdf
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl
@@ -75,13 +75,23 @@ Some constraints:
                                (namestring (make-pathname :name nil :type nil :defaults path))))))
 
 ;;; Survival utilities
-(defun asym (name)
-  (let ((asdf (find-package :asdf)))
-    (unless asdf (error "Can't find package ASDF"))
-    (or (find-symbol (string name) asdf)
-        (error "Can't find symbol ~A in ASDF" name))))
+(defun asym (name &optional package (errorp t))
+  (let* ((pname (or package :asdf))
+         (package (find-package pname)))
+    (if package
+        (or (find-symbol (string name) package)
+            (when errorp (error "Can't find symbol ~A in ~A" name pname)))
+        (when errorp (error "Can't find package ~A" pname)))))
 (defun acall (name &rest args)
-  (apply (asym name) args))
+  (apply (apply 'asym (if (consp name) name (list name))) args))
+(defun asymval (name &optional package)
+  (symbol-value (asym name package)))
+(defsetf asymval (name &optional package) (new-value) ;; NB: defun setf won't work on GCL2.6
+  (let ((sym (gensym "SYM")))
+    `(let ((,sym (asym ,name ,package)))
+       (if ,sym
+           (setf (symbol-value ,sym) ,new-value)
+           (error "NIHIL EX NIHILO")))))
 
 (defun finish-outputs* ()
   (loop :for s :in (list *standard-output* *error-output* *trace-output* *debug-io*)
@@ -93,7 +103,49 @@ Some constraints:
 
 (redirect-outputs) ;; Put everything on standard output, for the sake of scripts
 
-;;; First, some pathname madness.
+;;; Helpful for debugging
+
+(defun pathname-components (p)
+  (when p
+    (let ((p (pathname p)))
+      (list :host (pathname-host p)
+            :device (pathname-device p)
+            :directory (pathname-directory p)
+            :name (pathname-name p)
+            :type (pathname-type p)
+            :version (pathname-version p)))))
+
+(defun assert-pathname-equal-helper (qx x qy y)
+  (cond
+    ((equal x y)
+     (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
+    ((acall :pathname-equal x y)
+     (format t "These two expressions yield pathname-equal yet not equal path~%  ~S~%" x)
+     (format t "the first expression ~S yields this:~%  ~S~%" qx (pathname-components x))
+     (format t "the other expression ~S yields that:~%  ~S~%" qy (pathname-components y)))
+    (t
+     (format t "These two expressions yield paths that are not pathname-equal~%")
+     (format t "the first expression ~S yields this:~%  ~S~%  ~S~%" qx x (pathname-components x))
+     (format t "the other expression ~S yields that:~%  ~S~%  ~S~%" qy y (pathname-components y)))))
+(defmacro assert-pathname-equal (x y)
+  `(assert-pathname-equal-helper ',x ,x ',y ,y))
+(defun assert-length-equal-helper (qx qy x y)
+  (unless (= (length x) (length y))
+    (format t "These two expressions yield sequences of unequal length~%")
+    (format t "The first, ~S, has value ~S of length ~S~%" qx x (length x))
+    (format t "The other, ~S, has value ~S of length ~S~%" qy y (length y))))
+(defun assert-pathnames-equal-helper (qx x qy y)
+  (assert-length-equal-helper qx x qy y)
+  (loop :for n :from 0
+        :for qpx = `(nth ,n ,qx)
+        :for qpy = `(nth ,n ,qy)
+        :for px :in x
+        :for py :in y :do
+        (assert-pathname-equal-helper qpx px qpy py)))
+(defmacro assert-pathnames-equal (x y)
+  `(assert-pathnames-equal-helper ',x ,x ',y ,y))
+
+;; More pathname madness.
 ;; We can't use goodies from asdf/pathnames because ASDF isn't loaded yet.
 ;; We still want to work despite and host/device funkiness,
 ;; so we do it the hard way.
@@ -143,7 +195,6 @@ Some constraints:
 (defun asdf-fasl (&optional tag)
   (early-compile-file-pathname (asdf-lisp tag)))
 
-
 ;;; Test helper functions
 
 (load (debug-lisp))
@@ -155,21 +206,29 @@ Some constraints:
 
 (defun assert-compare-helper (op qx qy x y)
   (unless (funcall op x y)
-    (error "These two expressions fail comparison with ~S:~%~
+    (error "These two expressions fail comparison with ~S:~% ~
             ~S evaluates to ~S~% ~S evaluates to ~S~%"
             op qx x qy y)))
 
 (defmacro assert-equal (x y)
   `(assert-compare (equal ,x ,y)))
 
-(defun touch-file (file &key (offset 0) timestamp)
-  (let ((timestamp (or timestamp (+ offset (get-universal-time)))))
-    (multiple-value-bind (sec min hr day month year) (decode-universal-time timestamp #+gcl2.6 -5)
-      (acall :run-program
-             `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
-                                     year month day hr min sec)
-                       ,(namestring file)))
-      (assert-equal (file-write-date file) timestamp))))
+(defun touch-file (file &key offset timestamp)
+  (let* ((base (or timestamp (get-universal-time)))
+         (stamp (if offset (+ base offset) base)))
+    (if (asymval :*stamp-cache*)
+        (acall :register-file-stamp file stamp)
+        (multiple-value-bind (sec min hr day month year)
+            (decode-universal-time stamp #+gcl2.6 -5) ;; -5 is for *my* localtime
+          (error "Y U NO use stamp cache?")
+          (acall :run-program
+                 `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
+                                         year month day hr min sec)
+                           ,(acall :native-namestring file)))
+          (assert-equal (file-write-date file) stamp)))))
+(defun mark-file-deleted (file)
+  (unless (asymval :*stamp-cache*) (error "Y U NO use stamp cache?"))
+  (acall :register-file-stamp file nil))
 
 (defun hash-table->alist (table)
   (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
@@ -231,7 +290,7 @@ is bound, write a message and exit on an error.  If
                               (acall :print-condition-backtrace
                                      c :count 69 :stream *error-output*))
                              (leave-test "Script failed" 1))))))
-              (funcall thunk)
+              (funcall (or (asym :call-with-stamp-cache :asdf nil) 'funcall) thunk)
               (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
@@ -421,13 +480,23 @@ is bound, write a message and exit on an error.  If
            :ignore-inherited-configuration))
   (set (asym :*central-registry*) `(,*test-directory*))
   (set (asym :*verbose-out*) *standard-output*)
-  (set (asym :*asdf-verbose*) t))
+  (set (asym :*asdf-verbose*) t)
+  (let ((x (acall :system-source-directory :hello-world-example)))
+    (assert-pathname-equal *test-directory* x) ;; not always EQUAL (!)
+    (unless (equal *test-directory* x)
+      (format t "Interestingly, while *test-directory* has components~% ~S~%~
+                 ASDF finds the ASDs in~% ~S~%Using the latter.~%"
+              (pathname-components *test-directory*)
+              (pathname-components x)))
+    (setf *test-directory* x))
+  t)
 
 (defun load-asdf (&optional tag)
   #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
   (use-package :asdf :asdf-test)
   (use-package :asdf/driver :asdf-test)
+  (use-package :asdf/stamp-cache :asdf-test)
   (configure-asdf)
   (setf *package* (find-package :asdf-test)))
 
@@ -449,48 +518,15 @@ is bound, write a message and exit on an error.  If
 
 (defun in-plan-p (plan x) (member x plan :key (asym :action-path) :test 'equal))
 
-;;; Helpful for debugging
+(defmacro test-load-systems (&rest x)
+  `(do-test-load-systems ',x))
 
-(defun pathname-components (p)
-  (when p
-    (let ((p (pathname p)))
-      (list :host (pathname-host p)
-            :device (pathname-device p)
-            :directory (pathname-directory p)
-            :name (pathname-name p)
-            :type (pathname-type p)
-            :version (pathname-version p)))))
-
-(defun assert-pathname-equal-helper (qx x qy y)
-  (cond
-    ((equal x y)
-     (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
-    ((acall :pathname-equal x y)
-     (format t "These two expressions yield pathname-equal yet not equal path~%  ~S~%" x)
-     (format t "the first expression ~S yields this:~%  ~S~%" qx (pathname-components x))
-     (format t "the other expression ~S yields that:~%  ~S~%" qy (pathname-components y)))
-    (t
-     (format t "These two expressions yield paths that are not pathname-equal~%")
-     (format t "the first expression ~S yields this:~%  ~S~%  ~S~%" qx x (pathname-components x))
-     (format t "the other expression ~S yields that:~%  ~S~%  ~S~%" qy y (pathname-components y)))))
-(defmacro assert-pathname-equal (x y)
-  `(assert-pathname-equal-helper ',x ,x ',y ,y))
-(defun assert-length-equal-helper (qx qy x y)
-  (unless (= (length x) (length y))
-    (format t "These two expressions yield sequences of unequal length~%")
-    (format t "The first, ~S, has value ~S of length ~S~%" qx x (length x))
-    (format t "The other, ~S, has value ~S of length ~S~%" qy y (length y))))
-(defun assert-pathnames-equal-helper (qx x qy y)
-  (assert-length-equal-helper qx x qy y)
-  (loop :for n :from 0
-        :for qpx = `(nth ,n ,qx)
-        :for qpy = `(nth ,n ,qy)
-        :for px :in x
-        :for py :in y :do
-        (assert-pathname-equal-helper qpx px qpy py)))
-(defmacro assert-pathnames-equal (x y)
-  `(assert-pathnames-equal-helper ',x ,x ',y ,y))
-
+(defun do-test-load-systems (systems)
+  (load-asdf-lisp)
+  (dolist (sys systems)
+    (format t "~&Trying to load ~A~%" sys)
+    (acall :load-system sys))
+  (format t "~&Done!~%"))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

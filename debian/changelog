@@ -4,24 +4,25 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     This notably means fewer headaches for users of ECL;
     it also means a new load-fasl-op feature for all users of a modern CL,
     making it easier to deliver software as a single fasl.
-    All remnants of its predecessor asdf-ecl were removed.
+    After release, I plan to offer a patch so SBCL use that for its contrib's.
+    All remnants of asdf-bundle's predecessor asdf-ecl were removed.
 
   * *decades-old* bugs of notable significance were fixed:
     (a) changes in dependencies now trigger a rebuild across systems, and
     https://bugs.launchpad.net/asdf/+bug/479522
-    (b) timestamps are now correctly propagated
+    (b) timestamps are now correctly propagated (they weren't at all!)
     https://bugs.launchpad.net/asdf/+bug/1087609
     In olden days, some have argued for not rebuilding systems that :depend-on
     a modified one as a "feature". It really isn't. On the other hand,
-    if they want to explicitly prevent a rebuild, the actual feature :force-not
-    is there to help them (released as part of 2.21 in April 2012).
-    I will write about those bugs.
+    it is now possible to explicitly prevent a system from being rebuilt, using
+    an actual feature, :force-not, which was released in 2.21 in April 2012.
+    Someday I will write about those bugs.
 
   * PREPARE-OP was introduced to fix a conceptual bug in the ASDF object model.
     It corresponds to "loading the dependencies of a component and its parents"
-    and is explicitly depends-on'ed before to load or compile the component,
-    instead of implicitly depending on it via magic in the TRAVERSE algorithm,
-    which magic proved insufficient in cases revealed by the above bugs.
+    and is explicitly depends-on'ed by LOAD-OP and COMPILE-OP of the component,
+    instead of their implicitly depending on it via the TRAVERSE algorithm,
+    which implicit dependency proved fatal in cases revealed by the above bugs.
     It propagates upward in the component hierarchy, rather than downward,
     like the TRAVERSE algorithm used to systematically propagate dependencies.
 
@@ -72,10 +73,6 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     an old version of nibbles or ironclad; please upgrade them
     a recent version that was updated to support ASDF 2.27.
 
-  * ASDF2.27 was added to the *features* so you can detect the presence of
-    this massively updated ASDF and its new features with #+asdf2.27.
-    This is *not* ASDF3, for we painfully maintained backwards compatibility.
-
   * CONCATENATE-SOURCE-OP is a new operation that builds a single Lisp file
     from all the source files in a system,
     which allows you to develop in a structured way with many compact files,
@@ -94,13 +91,17 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     each system, without users having to maintain the knowledge of
     what the right thing is for each system they may indirectly depend on.
 
+  * Convenience methods were added to most exported generic functions,
+    so you can (input-files 'compile-op '(system1 "file1")) instead of
+    (input-files (make-instance 'compile-op) (find-component 'system1 "file1"))
+    This notably makes it much easier to interact with ASDF at the REPL
+    and debug your system definitions or ASDF extensions (or modifications).
+
   * Packages were introduced as ASDF was broken up into small files.
     Each file now has its own package, importing and exporting functionality,
     following the style made popular by faslpath and quick-build.
-    A macro DEFINE-PACKAGE was defined in replacement to DEFPACKAGE
-    to manage the same effects while making every effort to
-    Do The Right Thing(tm) in case of hot upgrade. It also provides
-    new forms :MIX and :REEXPORT which can be quite practical.
+    ASDF does not yet include builtin support for quick-build or faslpath
+    systems and dependencies, however. Possibly in ASDF 2.28.
 
   * ASDF-DRIVER is a separately-usable library for Common Lisp runtime support.
     It is transcluded in asdf.lisp (i.e. when delivering ASDF as a separate
@@ -115,9 +116,16 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     from platform to platform. See notably in pathname.lisp,
     MERGE-PATHNAMES*, SUBPATHNAME, PARSE-UNIX-NAMESTRING,
     PARSE-NATIVE-NAMESTRING, ENSURE-PATHNAME, and many many more.
-    Although we strongly disrecommended the use of logical pathnames
-    (so called), ASDF better supports them than ever;
-    the actual support also depends on your implementation.
+
+  * Pathname use by ASDF was also improved in countless small ways,
+    closing more buglets that appeared in as many corner cases.
+    For instance, system pathname defaulting was improved,
+    and systems not associated with a file will now have NIL as their pathname,
+    which will otherwise be correctly treated.
+    Many things that would vary depending on implementation will work better.
+    Also, although we cannot strongly enough disrecommend the use of so-called
+    "logical pathnames", especially where portability matters in any way, we
+    support them better than ever within the limitations of the implementation.
 
   * Image lifecycle support is included in ASDF-DRIVER (and thus ASDF);
     this standardizes things like access to *COMMAND-LINE-ARGUMENTS*,
@@ -132,23 +140,28 @@ cl-asdf (2:2.27-1) unstable; urgency=low
   * Run-program is a replacement for the old run-shell-command.
     Unlike run-shell-command, it is portable to Windows as well as Unix,
     it can avoid going through a shell and will sensibly escape arguments
-    when it does go through a shell, it has a usable interface
+    when it does go through a shell, and it has a usable interface
     to either capture program output or run the program interactively.
-    This supersedes run-program/ previously available from xcvb-driver.
+    This supersedes run-program/ previously available from xcvb-driver,
+    including several improvements and portability fixes.
 
-  * Conditions can be selectively muffled around compilation
-    thanks to around-compile hook and the *UNINTERESTING-COMPILER-CONDITIONS*
-    parameter and the additional *UNINTERESTING-LOADER-CONDITIONS*.
-    This supersedes the functionality previously available from xcvb-driver.
+  * Conditions can be selectively muffled around compilation thanks to
+    the an around-compile hook and the *UNINTERESTING-COMPILER-CONDITIONS*
+    parameter, and around loading with *UNINTERESTING-LOADER-CONDITIONS*
+    which is _appended_ to the former during loading.
+    This supersedes the functionality previously available from xcvb-driver
+    and its thin wrapper asdf-condition-control, which was retired.
 
   * Deferred warnings for yet undefined functions, that in a single-session
-    build are usually signaled at the end of a compilation unit will be saved
-    and reassembled to make each system a compilation unit of its own,
+    build are usually signaled at the end of a compilation unit, will be
+    saved and reassembled to make each system a compilation unit of its own,
     even when compilation of file happens across multiple sessions;
     only CCL and SBCL support this feature at this time.
+    I welcome patches for other compilers, for which ASDF will _not_
+    wrap an implicit WITH-COMPILATION-UNIT around its operate method anymore.
 
   * COMPILE-FILE* was beefed up to support all these features and more,
-    doing the right thing on all implementations, including
+    and the Right Thing(tm) on all implementations, including
     support for their various extensions.
 
   * Internals have been refactored, and some sorry features were excised.
@@ -157,10 +170,6 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     a corresponding FIND-OPERATION replaces MAKE-SUB-OPERATION.
     Many internal accessors were renamed, after checking on Quicklisp
     that no one was using them.
-
-  * Per-file packages are now used by ASDF internally, in the style of
-    quick-build or faslpath. ASDF does not yet include builtin support
-    for quick-build or faslpath systems and dependencies, however.
 
   * Portability updates were done for
     ABCL, CLISP, Clozure CL, CMUCL, ECL, LispWorks Personal Edition, MKCL, XCL.
@@ -177,16 +186,28 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     from a file using a (:read-file-form <path>) specification,
     that can use an optional :at keyword argument to specify
     a form or subform other than the first form in the file,
-    as per the utility asdf-driver:access-at.
+    as per the utility asdf-driver:access-at. For instance,
+    if your file specials.lisp is a defpackage, an in-package
+    and a defparameter of the version, then you could use:
+	(:read-file-form "specials.lisp" :at (2 2))
     This makes it easier for developers to manage versioning
     of one or multiple systems with a single master version location.
 
-  * self-upgrage of ASDF will happen automatically as the first thing
+  * Self-Upgrade of ASDF will happen automatically as the first thing
     before any attempt to build anything, as it was determined that
     doing it in the midst of a build breaks everything, and it is not
     otherwise possible to reliably detect in advance whether ASDF may
     be needed in such midst. If you don't want an ASDF upgrade, just
     don't configure your source-registry to include any copy of ASDF.
+
+  * DEFINE-PACKAGE is provided as a replacement to DEFPACKAGE that supports
+    hot upgrade of software where some packages have changed.
+    It also provides new forms :MIX and :REEXPORT which can be quite practical.
+
+  * ASDF2.27 was added to the *features* so you can detect the presence of
+    this massively updated ASDF and its new features with #+asdf2.27.
+    This is *not* ASDF3, for we painfully maintained backwards compatibility,
+    though it may have been temporarily broken during development.
 
   * Documentation received some updates.
 
@@ -194,11 +215,20 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     run-program, and more. They were successfully run on
 	ccl clisp sbcl ecl ecl_bytecodes
 	cmucl abcl scl allegro lispworks allegromodern xcl
-    Manual tests were manually run on lispworks-personal-edition genera.
+    Manual tests were run on gcl2.6 genera lispworks-personal-edition.
     Untested remain cormancl mkcl rmcl.
 
-  * asdf-debug is a simple utility to make your favorite debugging primitives
-    available in the package you're debugging.
+  * ASDF-DEBUG is a simple utility to make your favorite debugging primitives
+    available in the package you're debugging. See contrib/debug.lisp
+    and the asdf/utility:*asdf-debug-utility* variable.
+
+  * ASDF-UTILS is now but an empty shell that depends-on ASDF-DRIVER.
+    The ASDF-DRIVER package has the ASDF-UTILS nickname, and exports
+    all the functionality that used to be in ASDF-UTILS, and much more,
+    minus a few misdesigned things from ASDF1 that you ought not
+    to have been using, and for which there are non-broken replacements.
+    ASDF-UTILS was distributed separately from ASDF; ASDF-DRIVER is available
+    both as part of ASDF 2.27 and later and separately.
 
   * POIU was updated. This extension is still distributed separately from ASDF.
     It is now much simplified and made correct by construction by
@@ -208,12 +238,18 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     Where forking is not possible or not supported,
     it will gracefully fall back to serial compilation.
 
+  * INFERIOR-SHELL (distributed separately) was updated to use asdf-driver
+    instead of xcvb-driver, providing a richer interface to
+    the RUN-PROGRAM functionality.
+
   * SLIME support for ASDF was significantly enhanced.
-    It is distributed separately from ASDF, with SLIME.
-    See latest checkin from 2013-01-20.
-    We recommend that in your ~/.swank.lisp you should:
+    It is distributed with SLIME, separately from ASDF.
+    See latest slime checkin from 2013-01-20.
+    We recommend that you should include slime-asdf in your slime-setup
+    and that in your ~/.swank.lisp you should include:
     (in-package :swank)
     (pushnew 'try-compile-file-with-asdf *compile-file-for-emacs-hook*)
+    This requires ASDF 2.014.6 or later (as used by older quicklisp releases).
 
  -- Francois-Rene Rideau <fare@tunes.org>  Thu, 22 Jan 2013 22:59:44 -0500
 

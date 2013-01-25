@@ -3,23 +3,23 @@
 ;;; test system definition reloading if touched
 ;;; system that canNOT be found using *system-definition-search-functions*
 
+(defun system-registered-time (name)
+  (let ((data (asdf::system-registered-p name)))
+    (when data
+      (car data))))
 
+(defparameter test1.asd (nth-value 2 (locate-system :test1)))
+(assert-pathname-equal test1.asd (test-source "test1.asd"))
+(assert test1.asd)
 
-(progn
- (flet ((system-load-time (name)
-          (let ((data (asdf::system-registered-p name)))
-            (when data
-              (car data)))))
-   (setf asdf:*central-registry* nil)
-   (load "test1.asd")
-   (assert (find-system :test1))
-   (let ((date1 (system-load-time :test1))
-         (file "test1.asd"))
-     (assert date1)
-     (assert file)
-     (sleep 2)
-     (touch-file file)
-     (asdf:find-system :test1)
-     (let ((date2 (system-load-time :test1)))
-       (assert date2)
-       (assert (> date2 date1))))))
+(setf asdf:*central-registry* nil)
+(load test1.asd)
+(assert (find-system :test1))
+(defparameter date1 (system-registered-time :test1))
+(assert date1)
+(touch-file test1.asd :timestamp date1 :offset +2)
+(find-system :test1)
+;;(DBG :bloh (hash-table->alist asdf::*stamp-cache*))
+(defparameter date2 (system-registered-time :test1))
+(assert date2)
+(assert (> date2 date1))
