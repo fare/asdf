@@ -3,8 +3,12 @@
 
 (asdf/package:define-package :asdf/utility
   (:recycle :asdf/utility :asdf)
-  (:use :common-lisp :asdf/package :asdf/compatibility)
-  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:with-standard-io-syntax)
+  (:use :asdf/common-lisp :asdf/package)
+  ;; import and reexport a few things defined in :asdf/common-lisp
+  (:import-from :asdf/common-lisp #:strcat #:compatfmt #:loop*
+   #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
+  (:export #:nil #:strcat #:compatfmt #:loop*
+   #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
    #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
@@ -36,7 +40,7 @@
   (defun undefine-function (function-spec)
     (cond
       ((symbolp function-spec)
-       #+(and clisp (or))
+       #+clisp
        (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
          (when (typep f 'clos:standard-generic-function)
            (loop :for m :in (clos:generic-function-methods f)
@@ -44,7 +48,7 @@
        (fmakunbound function-spec))
       ((and (consp function-spec) (eq (car function-spec) 'setf)
             (consp (cdr function-spec)) (null (cddr function-spec)))
-       #-(or gcl<2.7) (fmakunbound function-spec))
+       #-gcl2.6 (fmakunbound function-spec))
       (t (error "bad function spec ~S" function-spec))))
   (defun undefine-functions (function-spec-list)
     (map () 'undefine-function function-spec-list)))
@@ -63,7 +67,7 @@
              ;; We usually try to do it only for the functions that need it,
              ;; which happens in asdf/upgrade - however, for ECL, we need this hammer,
              ;; (which causes issues in clisp)
-               ,@(when (or supersede #+(or ecl (and gcl (not gcl-pre2.7))) t) ; XXX
+               ,@(when (or #-clisp supersede #+(or ecl gcl2.7) t) ; XXX
                    `((undefine-function ',name)))
                #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
                ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
@@ -139,13 +143,13 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 ;;; remove a key from a plist, i.e. for keyword argument cleanup
 (defun* remove-plist-key (key plist)
   "Remove a single key from a plist"
-  (loop :for (k v) :on plist :by #'cddr
+  (loop* :for (k v) :on plist :by #'cddr
     :unless (eq k key)
     :append (list k v)))
 
 (defun* remove-plist-keys (keys plist)
   "Remove a list of keys from a plist"
-  (loop :for (k v) :on plist :by #'cddr
+  (loop* :for (k v) :on plist :by #'cddr
     :unless (member k keys)
     :append (list k v)))
 
@@ -210,7 +214,7 @@ starting the separation from the end, e.g. when called with arguments
 (defun* find-class* (x &optional (errorp t) environment)
   (etypecase x
     ((or standard-class built-in-class) x)
-    #+gcl<2.7 (keyword nil)
+    #+gcl2.6 (keyword nil)
     (symbol (find-class x errorp environment))))
 
 

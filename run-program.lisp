@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/run-program
   (:recycle :asdf/run-program :xcvb-driver)
-  (:use :common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+  (:use :asdf/common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
   (:export
    ;;; Escaping the command invocation madness
    #:easy-sh-character-p #:escape-sh-token #:escape-sh-command
@@ -33,9 +33,9 @@ as either a recognizing function or a sequence of characters."
      ((functionp bad-chars)
       bad-chars)
      ((and good-chars (typep good-chars 'sequence))
-      (lambda (c) (not (find c good-chars))))
+      #'(lambda (c) (not (find c good-chars))))
      ((and bad-chars (typep bad-chars 'sequence))
-      (lambda (c) (find c bad-chars)))
+      #'(lambda (c) (find c bad-chars)))
      (t (error "requires-escaping-p: no good-char criterion")))
    token))
 
@@ -61,7 +61,7 @@ for use within a MS Windows command-line, outputing to S."
         ((#\") (issue-backslash 1) (issue #\") (setf i i+1))
         ((#\\)
          (let* ((j (and (< i+1 l) (position-if-not
-                                   (lambda (c) (eql c #\\)) x :start i+1)))
+                                   #'(lambda (c) (eql c #\\)) x :start i+1)))
                 (n (- (or j l) i)))
            (cond
              ((null j)
@@ -136,14 +136,14 @@ by /bin/sh in POSIX"
 
 (defgeneric* slurp-input-stream (processor input-stream &key &allow-other-keys))
 
-#-(or gcl<2.7 genera)
+#-(or gcl2.6 genera)
 (defmethod slurp-input-stream ((function function) input-stream &key &allow-other-keys)
   (funcall function input-stream))
 
 (defmethod slurp-input-stream ((list cons) input-stream &key &allow-other-keys)
   (apply (first list) (cons input-stream (rest list))))
 
-#-(or gcl<2.7 genera)
+#-(or gcl2.6 genera)
 (defmethod slurp-input-stream ((output-stream stream) input-stream
                                &key linewise prefix (element-type 'character) buffer-size &allow-other-keys)
   (copy-stream-to-stream
@@ -179,9 +179,9 @@ by /bin/sh in POSIX"
                                &allow-other-keys)
   (declare (ignorable stream linewise prefix element-type buffer-size))
   (cond
-    #+(or gcl<2.7 genera)
+    #+(or gcl2.6 genera)
     ((functionp x) (funcall x stream))
-    #+(or gcl<2.7 genera)
+    #+(or gcl2.6 genera)
     ((output-stream-p x)
      (copy-stream-to-stream
       input-stream output-stream
@@ -377,7 +377,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
 					     :direction :input
 					     :if-does-not-exist :error
 					     :element-type element-type
-                                             #-gcl<2.7 :external-format #-gcl<2.7 external-format)
+                                             #-gcl2.6 :external-format #-gcl2.6 external-format)
 		       (slurp-input-stream output stream)))
 		   (call-system (system-command command) :interactive interactive)))))
     (if (and (not force-shell)

@@ -2,13 +2,13 @@
 
 (in-package :asdf)
 
-#-gcl<2.7
+#-gcl2.6
 (assert (handler-case
             (let ((*compile-file-failure-behaviour* :warn))
               (load-system 'test-compile-file-failure :force t)
               t)
           (compile-file-error () nil)))
-#-gcl<2.7
+#-gcl2.6
 (assert (handler-case
             (let ((*compile-file-failure-behaviour* :error))
               (load-system 'test-compile-file-failure :force t)

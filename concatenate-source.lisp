@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/concatenate-source
   (:recycle :asdf/concatenate-source :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/operation
    :asdf/system :asdf/find-system :asdf/defsystem
    :asdf/action :asdf/lisp-action :asdf/bundle)

@@ -3,10 +3,9 @@
 
 (asdf/package:define-package :asdf/plan
   (:recycle :asdf/plan :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/operation :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
-  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:export
    #:component-operation-time #:mark-operation-done
    #:plan-traversal #:sequential-plan #:*default-plan-class*
@@ -171,18 +170,18 @@ the action of OPERATION on COMPONENT in the PLAN"))
 ;;;; Visiting dependencies of an action and computing action stamps
 
 (defun* map-direct-dependencies (operation component fun)
-  (loop :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
-        :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
-          :do (loop :with dep-o = (find-operation operation dep-o-spec)
-                    :for dep-c-spec :in dep-c-specs
-                    :for dep-c = (resolve-dependency-spec component dep-c-spec)
-                    :do (funcall fun dep-o dep-c))))
+  (loop* :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
+     :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
+        :do (loop :with dep-o = (find-operation operation dep-o-spec)
+                  :for dep-c-spec :in dep-c-specs
+                  :for dep-c = (resolve-dependency-spec component dep-c-spec)
+                  :do (funcall fun dep-o dep-c))))
 
 (defun* reduce-direct-dependencies (operation component combinator seed)
   (map-direct-dependencies
    operation component
-   (lambda (dep-o dep-c)
-     (setf seed (funcall combinator dep-o dep-c seed))))
+   #'(lambda (dep-o dep-c)
+       (setf seed (funcall combinator dep-o dep-c seed))))
   seed)
 
 (defun* direct-dependencies (operation component)
@@ -191,9 +190,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (defun* visit-dependencies (plan operation component dependency-stamper &aux stamp)
   (map-direct-dependencies
    operation component
-   (lambda (dep-o dep-c)
-     (when (action-valid-p plan dep-o dep-c)
-       (latest-stamp-f stamp (funcall dependency-stamper dep-o dep-c)))))
+   #'(lambda (dep-o dep-c)
+       (when (action-valid-p plan dep-o dep-c)
+         (latest-stamp-f stamp (funcall dependency-stamper dep-o dep-c)))))
   stamp)
 
 (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
@@ -381,7 +380,7 @@ processed in order by OPERATE."))
 (defmethod perform-plan ((steps list) &key)
   (let ((*package* *package*)
         (*readtable* *readtable*))
-    (loop :for (op . component) :in steps :do
+    (loop* :for (op . component) :in steps :do
       (perform-with-restarts op component))))
 
 (defmethod plan-operates-on-p ((plan list) (component-path list))
@@ -413,7 +412,7 @@ processed in order by OPERATE."))
 
 (defmethod traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
   (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
-    (loop :for (o . c) :in actions :do
+    (loop* :for (o . c) :in actions :do
       (traverse-action plan o c t))
     (plan-actions plan)))
 
@@ -423,10 +422,10 @@ processed in order by OPERATE."))
 
 (defmethod plan-actions ((plan filtered-sequential-plan))
   (with-slots (keep-operation keep-component) plan
-  (loop :for (o . c) :in (call-next-method)
-        :when (and (typep o keep-operation)
-                   (typep c keep-component))
-          :collect (cons o c))))
+  (loop* :for (o . c) :in (call-next-method)
+         :when (and (typep o keep-operation)
+                    (typep c keep-component))
+           :collect (cons o c))))
 
 (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
   (remove-duplicates

@@ -3,7 +3,8 @@
 
 (asdf/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component :asdf/system)
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+   :asdf/component :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name
@@ -15,8 +16,8 @@
    #:*system-definition-search-functions* #:search-for-system-definition
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
    #:make-temporary-package #:find-system-if-being-defined #:*systems-being-defined*
-   #:find-system-fallback #:sysdef-find-asdf #:contrib-sysdef-search
-   #:system-find-pre-loaded-system #:*pre-loaded-systems*
+   #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
+   #:system-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
    #:make-defined-systems-table #:*defined-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
@@ -81,8 +82,8 @@ of which is a system object.")
   (gethash (coerce-name name) *defined-systems*))
 
 (defun* registered-systems ()
-  (loop :for (() . system) :being :the :hash-values :of *defined-systems*
-    :collect (coerce-name system)))
+  (loop :for registered :being :the :hash-values :of *defined-systems*
+    :collect (coerce-name (cdr registered))))
 
 (defun* register-system (system)
   (check-type system system)
@@ -108,8 +109,8 @@ Note that this does NOT in any way cause the code of the system to be unloaded."
 
 FN should be a function of one argument. It will be
 called with an object of type asdf:system."
-  (loop :for (nil . system) :being :the hash-values :of *defined-systems*
-        :do (funcall fn system)))
+  (loop :for registered :being :the :hash-values :of *defined-systems*
+     :do (funcall fn (cdr registered))))
 
 ;;; for the sake of keeping things reasonably neat, we adopt a
 ;;; convention that functions in this list are prefixed SYSDEF-
@@ -129,7 +130,7 @@ called with an object of type asdf:system."
          (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
                     '(sysdef-central-registry-search
                       sysdef-source-registry-search
-                      sysdef-find-pre-loaded-systems)))))
+                      sysdef-find-preloaded-systems)))))
 (cleanup-system-definition-search-functions)
 
 (defun* search-for-system-definition (system)
@@ -332,19 +333,19 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                     (format s (compatfmt "~@<Retry finding system ~A after reinitializing the source-registry.~@:>") name))
           (initialize-source-registry))))))
 
-(defun* find-system-fallback (requested fallback &rest keys &key source-file &allow-other-keys)
-  (setf fallback (coerce-name fallback)
-        requested (coerce-name requested))
-  (when (equal requested fallback)
-    (let ((registered (cdr (gethash fallback *defined-systems*))))
-      (or registered
-          (apply 'make-instance 'system :name fallback :source-file source-file keys)))))
+(defvar *preloaded-systems* (make-hash-table :test 'equal))
 
-(defvar *pre-loaded-systems* `(("asdf") ("asdf-driver")))
+(defun* sysdef-find-preloaded-systems (requested)
+  (let ((name (coerce-name requested)))
+    (multiple-value-bind (keys foundp) (gethash name *preloaded-systems*)
+      (when foundp
+        (apply 'make-instance 'system :name name :source-file (getf keys :source-file) keys)))))
 
-(defun* sysdef-find-pre-loaded-systems (requested)
-  (loop :for (provided . keys) :in *pre-loaded-systems*
-        :thereis (apply 'find-system-fallback requested provided keys)))
+(defun register-preloaded-system (system-name &rest keys)
+  (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
+
+(register-preloaded-system "asdf")
+(register-preloaded-system "asdf-driver")
 
 ;;;; Beware of builtin systems
 (defmethod builtin-system-p ((s system))

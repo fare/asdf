@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/image
   (:recycle :asdf/image :xcvb-driver)
-  (:use :common-lisp :asdf/package :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
   (:export
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments
@@ -194,10 +194,11 @@ This is designed to abstract away the implementation specific quit forms."
   #+(or cmu scl) extensions:*command-line-strings*
   #+ecl (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
   #+gcl si:*command-args*
+  #+genera nil
   #+lispworks sys:*line-arguments-list*
   #+sbcl sb-ext:*posix-argv*
   #+xcl system:*argv*
-  #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl xcl)
+  #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks sbcl scl xcl)
   (error "raw-command-line-arguments not implemented yet"))
 
 (defun* command-line-arguments (&optional (arguments (raw-command-line-arguments)))
@@ -243,7 +244,7 @@ if we are not called from a directly executable image."
   (setf *image-dumped-p* (if executable :executable t))
   (standard-eval-thunk *image-postlude*)
   (call-image-dump-hook)
-  #-(or clisp clozure cmu lispworks sbcl)
+  #-(or clisp clozure cmu lispworks sbcl scl)
   (when executable
     (error "Dumping an executable is not supported on this implementation! Aborting."))
   #+allegro

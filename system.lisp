@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/system
   (:recycle :asdf :asdf/system)
-  (:use :common-lisp :asdf/driver :asdf/upgrade :asdf/component)
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade :asdf/component)
   (:export
    #:system #:proto-system
    #:system-source-file #:system-source-directory #:system-relative-pathname
@@ -11,6 +11,7 @@
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
    #:system-defsystem-depends-on
+   #:component-build-pathname #:build-pathname
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
@@ -18,6 +19,7 @@
 (defgeneric* (system-source-file) (system)
   (:documentation "Return the source file in which system is defined."))
 (defgeneric* builtin-system-p (system))
+(defgeneric* component-build-pathname (component))
 
 ;;;; The system class
 
@@ -35,6 +37,8 @@
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
             :accessor system-license :initarg :license)
+   (build-pathname
+    :initform nil :initarg :build-pathname :accessor component-build-pathname)
    (source-file :initform nil :initarg :source-file :accessor system-source-file)
    (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
 
@@ -74,4 +78,6 @@ in which the system specification (.asd file) is located."
 (defmethod component-parent-pathname ((system system))
   (system-source-directory system))
 
-
+(defmethod component-build-pathname ((c component))
+  (declare (ignorable c))
+  nil)

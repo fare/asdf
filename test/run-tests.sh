@@ -235,12 +235,12 @@ upgrade_tags () {
         echo $ASDF_UPGRADE_TEST_TAGS ; return
     fi
     # REQUIRE is a magic tag meaning whatever your implementation provides
-    # 1.37 is the last release by Daniel Barlow
+    # 1.85 is the last release by Daniel Barlow (not 1.37, which is the README revision!)
     # 1.97 is the last release before Gary King takes over
     # 1.369 is the last release by Gary King
     # 2.000 to 2.019 and 2.20 to 2.27 and beyond are Faré's "stable" releases
     # 2.26.61 is the last single-package ASDF.
-    echo REQUIRE 1.37 1.97 1.369
+    echo REQUIRE 1.85 1.97 1.369
     git tag -l '2.0??'
     git tag -l '2.??'
 }

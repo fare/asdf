@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/lisp-build
   (:recycle :asdf/interface :asdf :asdf/lisp-build)
-  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility
+  (:use :asdf/common-lisp :asdf/package :asdf/utility
         :asdf/pathname :asdf/stream :asdf/os :asdf/image)
   (:export
    ;; Variables
@@ -430,7 +430,7 @@ possibly in a different process. Otherwise just run the BODY."
 
 (defun* (compile-file*) (input-file &rest keys
                                     &key compile-check output-file warnings-file
-                                    #+(or ecl mkcl) object-file
+                                    #+clisp lib-file #+(or ecl mkcl) object-file
                                     &allow-other-keys)
   "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
@@ -455,8 +455,9 @@ it will filter them appropriately."
                   'compile-file* output-file object-file)
           (rotatef output-file object-file))
   (let* ((keywords (remove-plist-keys
-                    `(:compile-check :warnings-file #+(or ecl mkcl) :object-file :output-file
-                      #+gcl<2.7 ,@'(:external-format :print :verbose)) keys))
+                    `(:output-file :compile-check :warnings-file
+                      #+clisp :lib-file #+(or ecl mkcl) :object-file
+                      #+gcl2.6 ,@'(:external-format :print :verbose)) keys))
          (output-file
            (or output-file
                (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
@@ -469,7 +470,9 @@ it will filter them appropriately."
          (object-file
            (or object-file
                (compile-file-pathname output-file :fasl-p nil)))
-         (tmp-file (tmpize-pathname output-file)))
+         (tmp-file (tmpize-pathname output-file))
+         #+clisp
+         (tmp-lib (make-pathname :type "lib" :defaults tmp-file)))
     (multiple-value-bind (output-truename warnings-p failure-p)
         (with-saved-deferred-warnings (warnings-file)
           (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
@@ -496,8 +499,10 @@ it will filter them appropriately."
                     (apply compile-check input-file :output-file tmp-file keywords))))
          (delete-file-if-exists output-file)
          (when output-truename
+           #+clisp (when lib-file (rename-file-overwriting-target tmp-lib lib-file))
            (rename-file-overwriting-target output-truename output-file)
-           (setf output-truename (truename output-file))))
+           (setf output-truename (truename output-file)))
+         #+clisp (delete-file-if-exists tmp-lib))
         (t ;; error or failed check
          (delete-file-if-exists output-truename)
          (setf output-truename nil)))
@@ -505,13 +510,13 @@ it will filter them appropriately."
 
 (defun* load* (x &rest keys &key &allow-other-keys)
   (etypecase x
-    ((or pathname string #-(or gcl<2.7 clozure allegro) stream)
+    ((or pathname string #-(or allegro clozure gcl2.6 genera) stream)
      (apply 'load x
-            #-gcl<2.7 keys #+gcl<2.7 (remove-plist-key :external-format keys)))
-    #-(or gcl<2.7 clozure allegro)
-    ;; GCL 2.6 can't load from a string-input-stream
+            #-gcl2.6 keys #+gcl2.6 (remove-plist-key :external-format keys)))
+    ;; GCL 2.6, Genera can't load from a string-input-stream
     ;; ClozureCL 1.6 can only load from file input stream
     ;; Allegro 5, I don't remember but it must have been broken when I tested.
+    #+(or allegro clozure gcl2.6 genera)
     (stream ;; make do this way
      (let ((*package* *package*)
            (*readtable* *readtable*)

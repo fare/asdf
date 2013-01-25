@@ -37,7 +37,7 @@ XCL ?= xcl
 # website, tag, install
 
 header_lisp := header.lisp
-driver_lisp := package.lisp compatibility.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
+driver_lisp := package.lisp common-lisp.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
 defsystem_lisp := upgrade.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp footer.lisp
 
 # Making ASDF itself should be our first, default, target:
@@ -167,11 +167,10 @@ replace-sbcl-asdf: build/asdf.lisp
 replace-ccl-asdf: build/asdf.lisp
 	${CCL} --eval '(progn(compile-file "$<" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
 
-WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE
+WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE # It's not 1.37, it's 1.85! 1.37 is for the README.
 # Delete wrongful tags from local repository
 fix-local-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git tag -d $$i ; done
-	git tag 1.37 c7738c62 # restore the *correct* 1.37 tag.
 
 # Delete wrongful tags from remote repository
 fix-remote-git-tags:

@@ -3,8 +3,7 @@
 
 (asdf/package:define-package :asdf/pathname
   (:recycle :asdf/pathname :asdf)
-  #+gcl<2.7 (:shadowing-import-from :system :*load-pathname*) ;; GCL 2.6 sucks
-  (:use :common-lisp :asdf/package :asdf/compatibility :asdf/utility)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility)
   (:export
    #:*resolve-symlinks*
    ;; Making and merging pathnames, portably
@@ -71,25 +70,25 @@ Defaults to T.")
 
 (defun* normalize-pathname-directory-component (directory)
   "Given a pathname directory component, return an equivalent form that is a list"
-  #+gcl<2.7 (setf directory (substitute :back :parent directory))
+  #+gcl2.6 (setf directory (substitute :back :parent directory))
   (cond
     #-(or cmu sbcl scl) ;; these implementations already normalize directory components.
     ((stringp directory) `(:absolute ,directory))
-    #+gcl<2.7
+    #+gcl2.6
     ((and (consp directory) (eq :root (first directory)))
      `(:absolute ,@(rest directory)))
     ((or (null directory)
          (and (consp directory) (member (first directory) '(:absolute :relative))))
      directory)
-    #+gcl<2.7
+    #+gcl2.6
     ((consp directory)
      `(:relative ,@directory))
     (t
      (error (compatfmt "~@<Unrecognized pathname directory component ~S~@:>") directory))))
 
 (defun* denormalize-pathname-directory-component (directory-component)
-  #-gcl<2.7 directory-component
-  #+gcl<2.7
+  #-gcl2.6 directory-component
+  #+gcl2.6
   (let ((d (substitute-if :parent (lambda (x) (member x '(:up :back)))
                           directory-component)))
     (cond
@@ -329,8 +328,8 @@ Returns the (parsed) PATHNAME when true"
 
 ;;; Wildcard pathnames
 (defparameter *wild* (or #+cormanlisp "*" :wild))
-(defparameter *wild-directory-component* (or #+gcl<2.7 "*" :wild))
-(defparameter *wild-inferiors-component* (or #+gcl<2.7 "**" :wild-inferiors))
+(defparameter *wild-directory-component* (or #+gcl2.6 "*" :wild))
+(defparameter *wild-inferiors-component* (or #+gcl2.6 "**" :wild-inferiors))
 (defparameter *wild-file*
   (make-pathname :directory nil :name *wild* :type *wild*
                  :version (or #-(or allegro abcl xcl) *wild*)))
@@ -380,7 +379,7 @@ or the original (parsed) pathname if it is false (the default)."
                                 '(probe-file p)
                                 #+clisp (if-let (it (find-symbol* '#:probe-pathname :ext nil))
                                           `(ignore-errors (,it p)))
-                                #+gcl<2.7
+                                #+gcl2.6
                                 '(or (probe-file p)
                                   (and (directory-pathname-p p)
                                    (ignore-errors

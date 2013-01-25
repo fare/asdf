@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
   (:export
    #:try-recompiling
@@ -81,7 +81,11 @@
         (outputs (output-files o c)))
     (multiple-value-bind (output warnings-p failure-p)
         (destructuring-bind
-            (output-file &optional #+(or ecl mkcl) object-file #+(or clozure sbcl) warnings-file) outputs
+            (output-file
+             &optional
+               #+clisp lib-file
+               #+(or ecl mkcl) object-file
+               #+(or clozure sbcl) warnings-file) outputs
           (call-with-around-compile-hook
            c #'(lambda (&rest flags)
                  (with-muffled-compiler-conditions ()
@@ -89,6 +93,7 @@
                           :output-file output-file
                           :external-format (component-external-format c)
                       (append
+                       #+clisp (list :lib-file lib-file)
                        #+(or ecl mkcl) (list :object-file object-file)
                        #+(or clozure sbcl) (list :warnings-file warnings-file)
                        flags (compile-op-flags o)))))))
@@ -114,6 +119,8 @@
          (f (compile-file-pathname
              i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl)))
     `(,f ;; the fasl is the primary output, in first position
+      #+clisp
+      ,@`(,(make-pathname :type "lib" :defaults f))
       #+(or clozure sbcl)
       ,@(let ((s (component-system c)))
           (unless (builtin-system-p s) ; includes ASDF itself
@@ -139,12 +146,12 @@
 (defmethod input-files ((o compile-op) (c system))
   (declare (ignorable o c))
   (unless (builtin-system-p c)
-    (loop :for (sub-o . sub-c)
-          :in (traverse-sub-actions
-               o c :other-systems nil
-                   :keep-operation 'compile-op :keep-component 'cl-source-file)
-          :append (remove-if-not 'warnings-file-p
-                                 (output-files sub-o sub-c)))))
+    (loop* :for (sub-o . sub-c)
+           :in (traverse-sub-actions
+                o c :other-systems nil
+                    :keep-operation 'compile-op :keep-component 'cl-source-file)
+           :append (remove-if-not 'warnings-file-p
+                                  (output-files sub-o sub-c)))))
 #+sbcl
 (defmethod output-files ((o compile-op) (c system))
   (unless (builtin-system-p c)

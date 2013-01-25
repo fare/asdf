@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 #+lispworks (lispworks:load-all-patches)
-(load "script-support.lisp")
+(load (make-pathname :name "script-support" :defaults *load-pathname*))
 (load-asdf)
 #+ecl (require :cmp)
 

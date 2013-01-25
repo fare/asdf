@@ -1,11 +1,12 @@
-* 2.6.134: fix u (abcl, ccl, clisp, cmucl)
+* fix upgrade on (abcl, clisp, cmucl)
+** Extract minimal test case
+* Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
+  are not in strict defsystem-depends-on dependency order. Document the issue.
+* fe[nl]ix: Defer evaluation of defsystem forms?
 * Learn to use cl-grid-test, to make sure ASDF changes don't break stuff,
  and that breakage gets fixed quickly.
 * Test stassats's thing:
    (asdf:enable-asdf-binary-locations-compatibility :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
-* Get package upgrade right
-   Try a newer CLISP than 2.44.1, and if it still breaks, try harder,
-   by e.g. having ensure-package return a working defpackage form.
 * Make load-op a generic operation that selects the proper strategy
   for each system, module or file, according to component properties and user-configuration:
   compile the lisp file then load the fasl (load-compiled-op),

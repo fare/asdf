@@ -4,9 +4,8 @@
 (asdf/package:define-package :asdf/action
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
-  (:use :common-lisp :asdf/driver :asdf/upgrade
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
-  #+gcl<2.7 (:shadowing-import-from :asdf/compatibility #:type-of)
   (:intern #:stamp #:done-p)
   (:export
    #:action #:define-convenience-action-methods
@@ -111,10 +110,10 @@ You can put together sentences using this phrase."))
 
 (defmethod component-self-dependencies ((o operation) (c component))
   ;; NB: result in the same format as component-depends-on
-  (loop :for (o-spec . c-spec) :in (component-depends-on o c)
-        :unless (eq o-spec 'feature) ;; avoid the FEATURE "feature"
-          :when (find c c-spec :key #'(lambda (dep) (resolve-dependency-spec c dep)))
-            :collect (list o-spec c)))
+  (loop* :for (o-spec . c-spec) :in (component-depends-on o c)
+         :unless (eq o-spec 'feature) ;; avoid the FEATURE "feature"
+           :when (find c c-spec :key #'(lambda (dep) (resolve-dependency-spec c dep)))
+             :collect (list o-spec c)))
 
 ;;;; upward-operation, downward-operation
 ;; These together handle actions that propagate along the component hierarchy.
@@ -194,8 +193,8 @@ You can put together sentences using this phrase."))
   nil)
 
 (defmethod input-files ((o operation) (c component))
-  (or (loop :for (dep-o) :in (component-self-dependencies o c)
-            :append (or (output-files dep-o c) (input-files dep-o c)))
+  (or (loop* :for (dep-o) :in (component-self-dependencies o c)
+             :append (or (output-files dep-o c) (input-files dep-o c)))
       ;; no non-trivial previous operations needed?
       ;; I guess we work with the original source file, then
       (if-let ((pathname (component-pathname c)))

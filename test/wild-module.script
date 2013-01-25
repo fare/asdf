@@ -6,5 +6,5 @@
  (def-test-system :wild-module
    :version "0.0"
    :components ((:wild-module "systems" :pathname #p"*.asd")))
- #-gcl<2.7
+ #-gcl2.6
  (load-system :wild-module))
