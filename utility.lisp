@@ -79,7 +79,9 @@
 
 ;;; Magic debugging help. See contrib/debug.lisp
 (defvar *asdf-debug-utility*
-  '(ignore-errors (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
+  '(or (ignore-errors
+        (symbol-call :asdf :system-relative-pathname :asdf-driver "contrib/debug.lisp"))
+    (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
   "form that evaluates to the pathname to your favorite debugging utilities")
 
 (defmacro asdf-debug (&rest keys)

@@ -345,7 +345,7 @@ or when loading the package is optional."
                                 import-from export intern
                                 recycle mix reexport
                                 unintern)
-    (declare (ignorable documentation))
+    #+(or gcl2.6 genera) (declare (ignore documentation))
     (macrolet ((when-fishy (&body body) `(when-package-fishiness ,@body))
                (fishy (&rest info) `(note-package-fishiness ,@info)))
       (let* ((package-name (string name))
@@ -514,7 +514,8 @@ or when loading the package is optional."
                                    t)))))
                      (when (and accessible (eq ustat :external))
                        (ensure-exported name sym u)))))))
-          #-(or gcl genera) (setf (documentation package t) documentation) #+gcl documentation
+          #-(or gcl2.6 genera)
+          (when documentation (setf (documentation package t) documentation))
           (loop :for p :in (set-difference (package-use-list package) (append mix use))
                 :do (fishy :use (package-names p)) (unuse-package p package))
           (loop :for p :in discarded
@@ -630,7 +631,6 @@ or when loading the package is optional."
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car))
-
   #+gcl
   ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff,
   ;; but can run ASDF 2.011. GCL 2.6 has even more issues.

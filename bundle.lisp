@@ -17,8 +17,7 @@
    #:user-system-p #:user-system #:trivial-system-p
    #+ecl #:make-build
    #:register-pre-built-system
-   #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library
-   #:component-entry-point #:entry-point))
+   #:build-args #:name-suffix #:prologue-code #:epilogue-code #:static-library))
 (in-package :asdf/bundle)
 
 (defclass bundle-op (operation)
@@ -76,16 +75,6 @@
 (defclass program-op (monolithic-bundle-op)
   ;; All: create an executable file from the system and its dependencies
   ((bundle-type :initform :program)))
-
-(defgeneric* component-entry-point (component))
-
-(defmethod component-entry-point ((c component))
-  (declare (ignorable c))
-  nil)
-
-(defclass bundle-system (system)
-  ((entry-point
-    :initform nil :initarg :entry-point :accessor component-entry-point)))
 
 (defun* bundle-pathname-type (bundle-type)
   (etypecase bundle-type

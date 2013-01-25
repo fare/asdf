@@ -10,10 +10,6 @@
    :asdf/backward-internals :asdf/defsystem :asdf/backward-interface))
 (in-package :asdf/footer)
 
-;;;; Configure
-(setf asdf/utility:*asdf-debug-utility*
-      '(asdf/system:system-relative-pathname :asdf "contrib/debug.lisp"))
-
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
 
 #+(or abcl clisp clozure cmu ecl mkcl sbcl)

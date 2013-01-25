@@ -377,12 +377,16 @@ processed in order by OPERATE."))
     (traverse-action plan o c t)
     (plan-actions plan)))
 
-
-(defmethod perform-plan ((steps list) &key)
+(defmethod perform-plan :around (plan &key)
+  (declare (ignorable plan))
   (let ((*package* *package*)
         (*readtable* *readtable*))
-    (loop* :for (op . component) :in steps :do
-      (perform-with-restarts op component))))
+    (with-compilation-unit () ;; backward-compatibility.
+      (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
+
+(defmethod perform-plan ((steps list) &key)
+  (loop* :for (op . component) :in steps :do
+         (perform-with-restarts op component)))
 
 (defmethod plan-operates-on-p ((plan list) (component-path list))
   (find component-path (mapcar 'cdr plan)
