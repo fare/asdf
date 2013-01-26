@@ -127,6 +127,7 @@
    #:apply-output-translations
    #:compile-file*
    #:compile-file-pathname*
+   #:*warnings-file-type*
    #:enable-asdf-binary-locations-compatibility
    #:*default-source-registries*
    #:*source-registry-parameter*

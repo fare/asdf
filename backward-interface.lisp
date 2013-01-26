@@ -73,13 +73,18 @@ if that's whay you mean." ;;)
          (subpathname (user-homedir) ".fasls/")) ;; Use ".cache/common-lisp/" instead ???
      (include-per-user-information nil)
      (map-all-source-files (or #+(or clisp ecl mkcl) t nil))
-     (source-to-target-mappings nil))
+     (source-to-target-mappings nil)
+     (file-types (list (compile-file-type)
+                         #+ecl (compile-file-type :type :object)
+                         #+mkcl (compile-file-type :fasl-p nil)
+                         #+clisp "lib" #+sbcl "cfasl"
+                         #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
   #+(or clisp ecl mkcl)
   (when (null map-all-source-files)
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on CLISP, ECL and MKCL"))
-  (let* ((fasl-type (compile-file-type))
-         (mapped-files (if map-all-source-files *wild-file*
-                           (make-pathname :type fasl-type :defaults *wild-file*)))
+  (let* ((patterns (if map-all-source-files (list *wild-file*)
+                       (loop :for type :in file-types
+                             :collect (make-pathname :type type :defaults *wild-file*))))
          (destination-directory
           (if centralize-lisp-binaries
               `(,default-toplevel-directory
@@ -92,8 +97,9 @@ if that's whay you mean." ;;)
        ,@source-to-target-mappings
        #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
        #+abcl (#p"/___jar___file___root___/**/*.*" (,@destination-directory))
-       ((:root ,*wild-inferiors* ,mapped-files)
-        (,@destination-directory ,mapped-files))
+       ,(loop :for pattern :in patterns
+              :collect `((:root ,*wild-inferiors* ,pattern)
+                         (,@destination-directory ,pattern)))
        (t t)
        :ignore-inherited-configuration))))
 
