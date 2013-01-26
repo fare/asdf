@@ -97,9 +97,9 @@ if that's whay you mean." ;;)
        ,@source-to-target-mappings
        #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
        #+abcl (#p"/___jar___file___root___/**/*.*" (,@destination-directory))
-       ,(loop :for pattern :in patterns
-              :collect `((:root ,*wild-inferiors* ,pattern)
-                         (,@destination-directory ,pattern)))
+       ,@(loop :for pattern :in patterns
+               :collect `((:root ,*wild-inferiors* ,pattern)
+                          (,@destination-directory ,pattern)))
        (t t)
        :ignore-inherited-configuration))))
 
