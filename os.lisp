@@ -274,13 +274,14 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 
 (defun* lisp-implementation-pathname-p (pathname)
   ;; Other builtin systems are those under the implementation directory
-  (when pathname
-    (if-let (impdir (lisp-implementation-directory))
-      (or (subpathp pathname impdir)
-          (when *resolve-symlinks*
-            (if-let (truename (truename* pathname))
-              (if-let (trueimpdir (truename* impdir))
-                (subpathp truename trueimpdir))))))))
+  (and (when pathname
+         (if-let (impdir (lisp-implementation-directory))
+           (or (subpathp pathname impdir)
+               (when *resolve-symlinks*
+                 (if-let (truename (truename* pathname))
+                   (if-let (trueimpdir (truename* impdir))
+                     (subpathp truename trueimpdir)))))))
+       t))
 
 
 ;;; Current directory
