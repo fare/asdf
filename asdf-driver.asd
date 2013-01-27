@@ -11,6 +11,7 @@
   :long-description "Basic general-purpose utilities that are in such a need
 that you can't portably construct a complete program without using them."
   #+asdf3 :version #+asdf3 (:read-file-form "version.lisp-expr")
+  #+asdf3 :encoding #+asdf3 :utf-8
   :around-compile call-without-redefinition-warnings
   :components
   ((:static-file "version.lisp-expr")
