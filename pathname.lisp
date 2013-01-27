@@ -401,7 +401,7 @@ or the original (parsed) pathname if it is false (the default)."
   ;; and we can survive and we will continue the planning
   ;; as if the file were very old.
   ;; (or should we treat the case in a different, special way?)
-  (and (probe-file* pathname) (ignore-errors (file-write-date pathname))))
+  (handler-case (file-write-date pathname) (file-error () nil)))
 
 (defun* directory* (pathname-spec &rest keys &key &allow-other-keys)
   (apply 'directory pathname-spec

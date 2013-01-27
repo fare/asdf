@@ -34,18 +34,18 @@
   ((:file "upgrade")
    (:file "component" :depends-on ("upgrade"))
    (:file "system" :depends-on ("component"))
-   (:file "stamp-cache" :depends-on ("upgrade"))
-   (:file "find-system" :depends-on ("system" "stamp-cache"))
+   (:file "cache" :depends-on ("upgrade"))
+   (:file "find-system" :depends-on ("system" "cache"))
    (:file "find-component" :depends-on ("find-system"))
    (:file "operation" :depends-on ("upgrade"))
-   (:file "action" :depends-on ("find-component" "operation"))
+   (:file "action" :depends-on ("find-component" "operation" "cache"))
    (:file "lisp-action" :depends-on ("action"))
-   (:file "plan" :depends-on ("lisp-action" "stamp-cache"))
+   (:file "plan" :depends-on ("lisp-action" "cache"))
    (:file "operate" :depends-on ("plan"))
    (:file "output-translations" :depends-on ("operate"))
    (:file "source-registry" :depends-on ("find-system"))
    (:file "backward-internals" :depends-on ("lisp-action" "operate"))
-   (:file "defsystem" :depends-on ("backward-internals" "stamp-cache"))
+   (:file "defsystem" :depends-on ("backward-internals" "cache"))
    (:file "bundle" :depends-on ("lisp-action"))
    (:file "concatenate-source" :depends-on ("bundle"))
    (:file "backward-interface" :depends-on ("operate" "output-translations"))
@@ -62,7 +62,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.152" ;; to be automatically updated by make bump-version
+  :version "2.26.153" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   :components

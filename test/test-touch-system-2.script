@@ -19,7 +19,6 @@
 (assert date1)
 (touch-file test1.asd :timestamp date1 :offset +2)
 (find-system :test1)
-;;(DBG :bloh (hash-table->alist asdf::*stamp-cache*))
 (defparameter date2 (system-registered-time :test1))
 (assert date2)
 (assert (> date2 date1))

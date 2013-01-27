@@ -5,7 +5,7 @@
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
+   :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
   (:intern #:stamp #:done-p)
   (:export
    #:action #:define-convenience-action-methods
@@ -17,8 +17,7 @@
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:feature
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
-   #:action-path #:find-action
-   ))
+   #:action-path #:find-action))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
@@ -164,22 +163,23 @@ You can put together sentences using this phrase."))
   t)
 
 (defmethod output-files :around (operation component)
-  "Translate output files, unless asked not to"
+  "Translate output files, unless asked not to. Memoize the result."
   operation component ;; hush genera, not convinced by declare ignorable(!)
-  (values
-   (multiple-value-bind (pathnames fixedp) (call-next-method)
-     ;; 1- Make sure we have absolute pathnames
-     (let* ((directory (pathname-directory-pathname
-                        (component-pathname (find-component () component))))
-            (absolute-pathnames
-              (loop
-                :for pathname :in pathnames
-                :collect (ensure-pathname-absolute pathname directory))))
-       ;; 2- Translate those pathnames as required
-       (if fixedp
-           absolute-pathnames
-           (mapcar *output-translation-function* absolute-pathnames))))
-   t))
+  (do-asdf-cache `(output-files ,operation ,component)
+    (values
+     (multiple-value-bind (pathnames fixedp) (call-next-method)
+       ;; 1- Make sure we have absolute pathnames
+       (let* ((directory (pathname-directory-pathname
+                          (component-pathname (find-component () component))))
+              (absolute-pathnames
+                (loop
+                  :for pathname :in pathnames
+                  :collect (ensure-pathname-absolute pathname directory))))
+         ;; 2- Translate those pathnames as required
+         (if fixedp
+             absolute-pathnames
+             (mapcar *output-translation-function* absolute-pathnames))))
+     t)))
 (defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))
   nil)
@@ -188,6 +188,11 @@ You can put together sentences using this phrase."))
   (let ((files (output-files operation component)))
     (assert (length=n-p files 1))
     (first files)))
+
+(defmethod input-files :around (operation component)
+  "memoize input files."
+  (do-asdf-cache `(input-files ,operation ,component)
+    (call-next-method)))
 
 (defmethod input-files ((o operation) (c parent-component))
   (declare (ignorable o c))

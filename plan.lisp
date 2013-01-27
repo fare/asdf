@@ -5,7 +5,7 @@
   (:recycle :asdf/plan :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/operation :asdf/system
-   :asdf/stamp-cache :asdf/find-system :asdf/find-component
+   :asdf/cache :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   (:export
    #:component-operation-time #:mark-operation-done

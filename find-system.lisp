@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/stamp-cache)
+   :asdf/component :asdf/system :asdf/cache)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name
@@ -240,9 +240,9 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defun* call-with-system-definitions (thunk)
   (if *systems-being-defined*
-      (call-with-stamp-cache thunk)
+      (call-with-asdf-cache thunk)
       (let ((*systems-being-defined* (make-hash-table :test 'equal)))
-        (call-with-stamp-cache thunk))))
+        (call-with-asdf-cache thunk))))
 
 (defmacro with-system-definitions ((&optional) &body body)
   `(call-with-system-definitions #'(lambda () ,@body)))

@@ -43,7 +43,7 @@ XCL ?= xcl
 
 header_lisp := header.lisp
 driver_lisp := package.lisp common-lisp.lisp utility.lisp pathname.lisp stream.lisp os.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
-defsystem_lisp := upgrade.lisp component.lisp system.lisp stamp-cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
+defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
 
 # Making ASDF itself should be our first, default, target:
 build/asdf.lisp: $(wildcard *.lisp)

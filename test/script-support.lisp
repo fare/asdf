@@ -216,7 +216,7 @@ Some constraints:
 (defun touch-file (file &key offset timestamp)
   (let* ((base (or timestamp (get-universal-time)))
          (stamp (if offset (+ base offset) base)))
-    (if (asymval :*stamp-cache*)
+    (if (asymval :*asdf-cache*)
         (acall :register-file-stamp file stamp)
         (multiple-value-bind (sec min hr day month year)
             (decode-universal-time stamp #+gcl2.6 -5) ;; -5 is for *my* localtime
@@ -227,7 +227,7 @@ Some constraints:
                            ,(acall :native-namestring file)))
           (assert-equal (file-write-date file) stamp)))))
 (defun mark-file-deleted (file)
-  (unless (asymval :*stamp-cache*) (error "Y U NO use stamp cache?"))
+  (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
   (acall :register-file-stamp file nil))
 
 (defun hash-table->alist (table)
@@ -290,7 +290,7 @@ is bound, write a message and exit on an error.  If
                               (acall :print-condition-backtrace
                                      c :count 69 :stream *error-output*))
                              (leave-test "Script failed" 1))))))
-              (funcall (or (asym :call-with-stamp-cache :asdf nil) 'funcall) thunk)
+              (funcall (or (asym :call-with-asdf-cache :asdf nil) 'funcall) thunk)
               (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
@@ -496,7 +496,7 @@ is bound, write a message and exit on an error.  If
   (load-asdf-fasl tag)
   (use-package :asdf :asdf-test)
   (use-package :asdf/driver :asdf-test)
-  (use-package :asdf/stamp-cache :asdf-test)
+  (use-package :asdf/cache :asdf-test)
   (configure-asdf)
   (setf *package* (find-package :asdf-test)))
 

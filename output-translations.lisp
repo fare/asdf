@@ -18,6 +18,7 @@
    #:user-output-translations-directory-pathname #:system-output-translations-directory-pathname
    #:environment-output-translations #:process-output-translations
    #:compute-output-translations
+   #+abcl #:translate-jar-pathname
    ))
 (in-package :asdf/output-translations)
 
