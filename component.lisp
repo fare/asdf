@@ -99,6 +99,7 @@ another pathname in a degenerate way."))
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
+   (properties) ;; Only for backward-compatibility during upgrades from ASDF2. DO NOT USE.
    (%encoding :accessor %component-encoding :initform nil :initarg :encoding)
    ;; For backward-compatibility, this slot is part of component rather than child-component. ASDF4: don't.
    (parent :initarg :parent :initform nil :reader component-parent)

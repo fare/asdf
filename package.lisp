@@ -4,7 +4,7 @@
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;
 ;; CAUTION: we must handle the first few packages specially for hot-upgrade.
-;; asdf/package will be frozen as of 2.27
+;; asdf/package will be frozen as of ASDF 3
 ;; to forever export the same exact symbols.
 ;; Any other symbol must be import-from'ed
 ;; and reexported in a different package

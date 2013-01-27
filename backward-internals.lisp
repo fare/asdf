@@ -55,7 +55,7 @@
 (defun* %resolve-if-component-dep-fails (if-component-dep-fails component)
   (asdf-message "The system definition for ~S uses deprecated ~
                  ASDF option :IF-COMPONENT-DEP-DAILS. ~
-                 Starting with ASDF 2.27, please use :IF-FEATURE instead"
+                 Starting with ASDF 3, please use :IF-FEATURE instead"
                 (coerce-name (component-system component)))
   ;; This only supports the pattern of use of the "feature" seen in the wild
   (check-type component parent-component)

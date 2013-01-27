@@ -60,14 +60,12 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.149" ;; to be automatically updated by make bump-version
+  :version "2.26.150" ;; to be automatically updated by make bump-version
   :depends-on ()
   :components
   ((:module "build"
     :components
     (#-gcl2.6
      (:file "asdf"
-      #-asdf3 :do-first #-asdf3 ((compile-op (load-source-op "asdf")))
-      ))))
-  :in-order-to
-  (#+asdf3 (compile-op (monolithic-load-concatenated-source-op asdf/defsystem))))
+      #-asdf3 :do-first #+asdf3 :in-order-to ((compile-op (load-source-op "asdf")))))))
+  :in-order-to (#+asdf3 (prepare-source-op (monolithic-concatenate-source-op :asdf/defsystem))))

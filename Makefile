@@ -206,7 +206,7 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 
 # RELEASE checklist:
 # make test-all
-# ./bin/bump-version 2.27
+# ./bin/bump-version 3.0
 # edit debian/changelog
 # make release-push archive-copy website debian-package
 # dput mentors ../*.changes

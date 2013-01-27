@@ -4,14 +4,13 @@
 (load (make-pathname :name "prelude" :type "lisp" :defaults *load-pathname*)
   :verbose nil :print nil)
 
-(defpackage :asdf-builder (:use :cl :asdf/driver :asdf :fare-utils :inferior-shell))
+(defpackage :asdf-builder (:use :cl :asdf/driver :asdf/operate :asdf :fare-utils :inferior-shell))
 (in-package :asdf-builder)
 
 (asdf-debug)
 
 (defun build-asdf ()
-  ;; Make sure asdf.lisp is built.
-  (build-system :asdf/defsystem)
+  "Make sure asdf.lisp is built"
   (load-system :asdf)
   (values))
 

@@ -117,7 +117,7 @@
                 (typep (find-component parent name)
                        (class-for-type parent type))))
       (error 'duplicate-names :name name))
-    (when do-first (error "DO-FIRST is not supported anymore as of ASDF 2.27"))
+    (when do-first (error "DO-FIRST is not supported anymore as of ASDF 3"))
     (let* ((args `(:name ,(coerce-name name)
                    :pathname ,pathname
                    ,@(when parent `(:parent ,parent))
