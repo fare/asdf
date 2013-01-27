@@ -128,7 +128,7 @@
                       rest)))
            (component (find-component parent name)))
       (when weakly-depends-on
-        ;; ASDF3: deprecate this feature and remove it.
+        ;; ASDF4: deprecate this feature and remove it.
         (appendf depends-on
                  (remove-if (complement #'(lambda (x) (find-system x nil))) weakly-depends-on)))
       (when previous-serial-component
@@ -154,7 +154,7 @@
                 :collect c
                 :when serial :do (setf previous-component name)))
         (compute-children-by-name component))
-      ;; Used by POIU. ASDF3: rename to component-depends-on
+      ;; Used by POIU. ASDF4: rename to component-depends-on?
       (setf (component-sibling-dependencies component) depends-on)
       (%refresh-component-inline-methods component rest)
       (when if-component-dep-fails

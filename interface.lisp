@@ -31,7 +31,7 @@
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
    #:input-files #:output-files #:output-file #:perform
-   #:operation-done-p #:explain #:component-sibling-dependencies
+   #:operation-done-p #:explain #:action-description #:component-sibling-dependencies
    #:needed-in-image-p
    ;; #:run-program ; we can't export it, because SB-GROVEL :use's both ASDF and SB-EXT.
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
@@ -61,7 +61,6 @@
    #:component-name
    #:component-version
    #:component-parent
-   #:component-property
    #:component-system
    #:component-encoding
    #:component-external-format
@@ -80,8 +79,6 @@
    #:system-source-directory
    #:system-relative-pathname
    #:map-systems
-
-   #:operation-description
 
    #:*system-definition-search-functions*   ; variables
    #:*central-registry*

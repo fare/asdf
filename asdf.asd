@@ -9,7 +9,7 @@
 
 (in-package :asdf)
 
-#+asdf2.27
+#+asdf3
 (defsystem :asdf/header
   ;; Note that it's polite to sort the defsystem forms in dependency order,
   ;; and compulsory to sort them in defsystem-depends-on order.
@@ -18,7 +18,7 @@
   :components
   ((:file "header")))
 
-#+asdf2.27
+#+asdf3
 (defsystem :asdf/defsystem
   :licence "MIT"
   :description "The defsystem part of ASDF"
@@ -51,7 +51,8 @@
           ("defsystem" "concatenate-source"
            "backward-interface" "backward-internals"
            "output-translations" "source-registry"))
-   (:file "footer" :depends-on ("interface"))))
+   (:file "user" :depends-on ("interface"))
+   (:file "footer" :depends-on ("user"))))
 
 (defsystem :asdf
   :author ("Daniel Barlow")
@@ -59,14 +60,14 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.148" ;; to be automatically updated by make bump-version
+  :version "2.26.149" ;; to be automatically updated by make bump-version
   :depends-on ()
   :components
   ((:module "build"
     :components
     (#-gcl2.6
      (:file "asdf"
-      #-asdf2.27 :do-first #-asdf2.27 ((compile-op (load-source-op "asdf")))
+      #-asdf3 :do-first #-asdf3 ((compile-op (load-source-op "asdf")))
       ))))
   :in-order-to
-  (#+asdf2.27 (compile-op (monolithic-load-concatenated-source-op asdf/defsystem))))
+  (#+asdf3 (compile-op (monolithic-load-concatenated-source-op asdf/defsystem))))

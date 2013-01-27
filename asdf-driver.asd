@@ -10,7 +10,7 @@
   :description "Runtime support for Common Lisp programs"
   :long-description "Basic general-purpose utilities that are in such a need
 that you can't portably construct a complete program without using them."
-  #+asdf2.27 :version #+asdf2.27 (:read-file-form "version.lisp-expr")
+  #+asdf3 :version #+asdf3 (:read-file-form "version.lisp-expr")
   :around-compile call-without-redefinition-warnings
   :components
   ((:static-file "version.lisp-expr")

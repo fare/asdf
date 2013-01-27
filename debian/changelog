@@ -1,4 +1,4 @@
-cl-asdf (2:2.27-1) unstable; urgency=low
+cl-asdf (2:3.0-1) unstable; urgency=low
 
   * ASDF-BUNDLE was merged into ASDF.
     This notably means fewer headaches for users of ECL;

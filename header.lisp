@@ -1,5 +1,5 @@
 ;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.26.148: Another System Definition Facility.
+;;; This is ASDF 2.26.149: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -56,7 +56,7 @@
 
 #+(or abcl clisp cmu)
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (unless (member :asdf2.27 *features*)
+  (unless (member :asdf3 *features*)
     (let* ((existing-version
              (when (find-package :asdf)
                (or (symbol-value (find-symbol (string :*asdf-version*) :asdf))

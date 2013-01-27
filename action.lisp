@@ -9,7 +9,7 @@
   (:intern #:stamp #:done-p)
   (:export
    #:action #:define-convenience-action-methods
-   #:explain #:operation-description
+   #:explain #:action-description
    #:downward-operation #:upward-operation #:sibling-operation
    #:component-depends-on #:component-self-dependencies
    #:input-files #:output-files #:output-file #:operation-done-p
@@ -65,27 +65,27 @@
 
 ;;;; self-description
 
-(defgeneric* operation-description (operation component) ;; ASDF3: rename to action-description
+(defgeneric* action-description (operation component)
   (:documentation "returns a phrase that describes performing this operation
 on this component, e.g. \"loading /a/b/c\".
 You can put together sentences using this phrase."))
-(defmethod operation-description (operation component)
+(defmethod action-description (operation component)
   (format nil (compatfmt "~@<~A on ~A~@:>")
           (type-of operation) component))
 (defgeneric* (explain) (operation component))
 (defmethod explain ((o operation) (c component))
-  (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (operation-description o c)))
+  (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c)))
 (define-convenience-action-methods explain (operation component))
 
 (defun* format-action (stream action &optional colon-p at-sign-p)
   (assert (null colon-p)) (assert (null at-sign-p))
   (destructuring-bind (operation . component) action
-    (princ (operation-description operation component) stream)))
+    (princ (action-description operation component) stream)))
 
 
 ;;;; Dependencies
 
-(defgeneric* component-depends-on (operation component) ;; ASDF3: rename to component-dependencies
+(defgeneric* component-depends-on (operation component) ;; ASDF4: rename to component-dependencies
   (:documentation
    "Returns a list of dependencies needed by the component to perform
     the operation.  A dependency has one of the following forms:
@@ -132,7 +132,7 @@ You can put together sentences using this phrase."))
   ((upward-operation
     :initform nil :initarg :downward-operation :reader upward-operation)))
 ;; For backward-compatibility reasons, a system inherits from module and is a child-component
-;; so we must guard against this case. ASDF3: remove that.
+;; so we must guard against this case. ASDF4: remove that.
 (defmethod component-depends-on ((o upward-operation) (c child-component))
   `(,@(if-let (p (component-parent c))
         `((,(or (upward-operation o) o) ,p))) ,@(call-next-method)))
@@ -203,11 +203,10 @@ You can put together sentences using this phrase."))
 
 ;;;; Done performing
 
-(defgeneric* component-operation-time (operation component)) ;; ASDF3: hide it behind plan-action-stamp
+(defgeneric* component-operation-time (operation component)) ;; ASDF4: hide it behind plan-action-stamp
 (define-convenience-action-methods component-operation-time (operation component))
 
-
-(defgeneric* mark-operation-done (operation component)) ;; ASDF3: hide it behind (setf plan-action-stamp)
+(defgeneric* mark-operation-done (operation component)) ;; ASDF4: hide it behind (setf plan-action-stamp)
 (defgeneric* compute-action-stamp (plan operation component &key just-done)
   (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
@@ -277,12 +276,12 @@ in some previous image, or T if it needs to be done.")
         :report
         (lambda (s)
           (format s (compatfmt "~@<Retry ~A.~@:>")
-                  (operation-description operation component))))
+                  (action-description operation component))))
       (accept ()
         :report
         (lambda (s)
           (format s (compatfmt "~@<Continue, treating ~A as having been successful.~@:>")
-                  (operation-description operation component)))
+                  (action-description operation component)))
         (mark-operation-done operation component)
         (return)))))
 

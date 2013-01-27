@@ -17,7 +17,6 @@
    #:component-if-feature #:around-compile-hook
    #:component-description #:component-long-description
    #:component-version #:version-satisfies
-   #:component-properties #:component-property ;; backward-compatibility only. DO NOT USE!
    #:component-inline-methods ;; backward-compatibility only. DO NOT USE!
    #:component-operation-times ;; For internal use only.
    ;; portable ASDF encoding and implementation-specific external-format
@@ -49,9 +48,6 @@ interpreted relative to the pathname of that component's parent.
 Despite the function's name, the return value may be an absolute
 pathname, because an absolute pathname may be interpreted relative to
 another pathname in a degenerate way."))
-(defgeneric* component-property (component property))
-#-gcl2.6
-(defgeneric* (setf component-property) (new-value component property))
 (defgeneric* component-external-format (component))
 (defgeneric* component-encoding (component))
 (defgeneric* version-satisfies (component version))
@@ -104,10 +100,7 @@ another pathname in a degenerate way."))
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
    (%encoding :accessor %component-encoding :initform nil :initarg :encoding)
-   ;; ASDF3: get rid of these "component properties" ?
-   (properties :accessor component-properties :initarg :properties
-               :initform nil)
-   ;; For backward-compatibility, this slot is part of component rather than child-component
+   ;; For backward-compatibility, this slot is part of component rather than child-component. ASDF4: don't.
    (parent :initarg :parent :initform nil :reader component-parent)
    (build-operation
     :initarg :build-operation :initform nil :reader component-build-operation)))
@@ -228,20 +221,6 @@ another pathname in a degenerate way."))
 (defmethod source-file-type ((component file-component) system)
   (declare (ignorable system))
   (file-type component))
-
-
-;;;; General component-property - ASDF3: remove? Define clean subclasses, not messy "properties".
-
-(defmethod component-property ((c component) property)
-  (cdr (assoc property (slot-value c 'properties) :test #'equal)))
-
-(defmethod (setf component-property) (new-value (c component) property)
-  (let ((a (assoc property (slot-value c 'properties) :test #'equal)))
-    (if a
-        (setf (cdr a) new-value)
-        (setf (slot-value c 'properties)
-              (acons property new-value (slot-value c 'properties)))))
-  new-value)
 
 
 ;;;; Encodings

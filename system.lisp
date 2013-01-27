@@ -36,7 +36,7 @@
   ((name) (source-file) #|(children) (children-by-names)|#))
 
 (defclass system (module proto-system)
-  ;; Backward-compatibility: inherit from module. ASDF3: only inherit from parent-component.
+  ;; Backward-compatibility: inherit from module. ASDF4: only inherit from parent-component.
   (;; {,long-}description is now inherited from component, but we add the legacy accessors
    (description :accessor system-description)
    (long-description :accessor system-long-description)

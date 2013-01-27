@@ -49,7 +49,7 @@
 ;;;; prepare-op, compile-op and load-op
 
 ;;; prepare-op
-(defmethod operation-description ((o prepare-op) (c component))
+(defmethod action-description ((o prepare-op) (c component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<loading dependencies of ~3i~_~A~@:>") c))
 (defmethod perform ((o prepare-op) (c component))
@@ -63,10 +63,10 @@
   (if-let (it (system-source-file s)) (list it)))
 
 ;;; compile-op
-(defmethod operation-description ((o compile-op) (c component))
+(defmethod action-description ((o compile-op) (c component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") c))
-(defmethod operation-description ((o compile-op) (c parent-component))
+(defmethod action-description ((o compile-op) (c parent-component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<completing compilation for ~3i~_~A~@:>") c))
 (defgeneric* call-with-around-compile-hook (component thunk))
@@ -159,13 +159,13 @@
       (list (subpathname pathname (component-name c) :type "build-report")))))
 
 ;;; load-op
-(defmethod operation-description ((o load-op) (c cl-source-file))
+(defmethod action-description ((o load-op) (c cl-source-file))
   (declare (ignorable o))
   (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>") c))
-(defmethod operation-description ((o load-op) (c parent-component))
+(defmethod action-description ((o load-op) (c parent-component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<completing load for ~3i~_~A~@:>") c))
-(defmethod operation-description ((o load-op) component)
+(defmethod action-description ((o load-op) component)
   (declare (ignorable o))
   (format nil (compatfmt "~@<loading ~3i~_~A~@:>")
           component))
@@ -197,7 +197,7 @@
 ;;;; prepare-source-op, load-source-op
 
 ;;; prepare-source-op
-(defmethod operation-description ((o prepare-source-op) (c component))
+(defmethod action-description ((o prepare-source-op) (c component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<loading source for dependencies of ~3i~_~A~@:>") c))
 (defmethod input-files ((o prepare-source-op) (c component))
@@ -211,10 +211,10 @@
   nil)
 
 ;;; load-source-op
-(defmethod operation-description ((o load-source-op) c)
+(defmethod action-description ((o load-source-op) c)
   (declare (ignorable o))
   (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>") c))
-(defmethod operation-description ((o load-source-op) (c parent-component))
+(defmethod action-description ((o load-source-op) (c parent-component))
   (declare (ignorable o))
   (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") c))
 (defmethod component-depends-on ((o load-source-op) (c component))

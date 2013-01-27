@@ -4,12 +4,12 @@
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/operation :asdf/action
+   :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
-   #:error-component #:error-operation
+   #:error-component #:error-operation #:load-sysdef
    #:component-load-dependencies
    #:enable-asdf-binary-locations-compatibility
    #:operation-forced
@@ -116,6 +116,11 @@ ASDF:ENABLE-ASDF-BINARY-LOCATIONS-COMPATIBILITY as documented in the manual;
 call that function where you would otherwise have loaded and configured A-B-L.")))
 
 
+;;;; load-sysdef
+(defun* load-sysdef (name pathname)
+  (load-asd pathname name))
+
+
 ;;;; run-shell-command
 ;;
 ;; WARNING! The function below is dysfunctional and deprecated.
@@ -132,3 +137,4 @@ Please use ASDF-DRIVER:RUN-PROGRAM instead."
   (let ((command (apply 'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
     (run-program command :force-shell t :ignore-error-status t :output *verbose-out*)))
+

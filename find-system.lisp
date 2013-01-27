@@ -8,14 +8,14 @@
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name
-   #:find-system #:locate-system #:load-sysdef #:with-system-definitions
+   #:find-system #:locate-system #:load-asd #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:system-definition-error #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition
    #:*system-definition-search-functions* #:search-for-system-definition
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
-   #:make-temporary-package #:find-system-if-being-defined #:*systems-being-defined*
+   #:find-system-if-being-defined #:*systems-being-defined*
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:system-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
    #:make-defined-systems-table #:*defined-systems*
@@ -223,9 +223,6 @@ Going forward, we recommend new users should be using the source-registry.
                           (list new)
                           (subseq *central-registry* (1+ position))))))))))
 
-(defun* make-temporary-package ()
-  (make-package (fresh-package-name :prefix :asdf :index 0) :use '(:cl :asdf/interface)))
-
 (defmethod find-system ((name null) &optional (error-p t))
   (declare (ignorable name))
   (when error-p
@@ -250,26 +247,22 @@ Going forward, we recommend new users should be using the source-registry.
 (defmacro with-system-definitions ((&optional) &body body)
   `(call-with-system-definitions #'(lambda () ,@body)))
 
-(defun* load-sysdef (name pathname)
+(defun* load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))))
   ;; Tries to load system definition with canonical NAME from PATHNAME.
   (with-system-definitions ()
-    (let ((package (make-temporary-package))) ;; ASDF3: get rid of that.
-      (unwind-protect
-           (handler-bind
-               ((error #'(lambda (condition)
-                           (error 'load-system-definition-error
-                                  :name name :pathname pathname
-                                  :condition condition))))
-             (let ((*package* package)
-                   (*default-pathname-defaults*
-                    ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
-                    (pathname-directory-pathname (translate-logical-pathname pathname)))
-                   (external-format (encoding-external-format (detect-encoding pathname))))
-               (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
-                             pathname package)
-               (with-muffled-loader-conditions ()
-                 (load* pathname :external-format external-format))))
-        (delete-package package)))))
+    (let ((*package* (find-package :asdf-user))
+          (*default-pathname-defaults*
+            ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
+            (pathname-directory-pathname (translate-logical-pathname pathname))))
+      (handler-bind
+          ((error #'(lambda (condition)
+                      (error 'load-system-definition-error
+                             :name name :pathname pathname
+                             :condition condition))))
+        (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
+                      name pathname)
+        (with-muffled-loader-conditions ()
+          (load* pathname :external-format external-format))))))
 
 (defun* locate-system (name)
   "Given a system NAME designator, try to locate where to load the system from.
@@ -318,7 +311,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                                              (translate-logical-pathname previous-pathname))))
                                    (stamp<= (get-file-stamp pathname) previous-time))))
                 ;; only load when it's a pathname that is different or has newer content
-                (load-sysdef name pathname)))
+                (load-asd pathname :name name)))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
               (return
                 (cond
