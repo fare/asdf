@@ -13,4 +13,4 @@
    :asdf/package :asdf/utility
    :asdf/pathname :asdf/stream :asdf/os :asdf/image
    :asdf/run-program :asdf/lisp-build
-   :asdf/configuration))
+   :asdf/configuration :asdf/backward-driver))

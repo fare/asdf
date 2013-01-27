@@ -25,6 +25,7 @@
    #:component-build-operation
    #:module-default-component-class
    #:module-components ;; backward-compatibility. DO NOT USE.
+   #:sub-components
 
    ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
    #:name #:version #:description #:long-description #:author #:maintainer #:licence
@@ -257,3 +258,16 @@ another pathname in a degenerate way."))
 
 (defmethod version-satisfies ((cver string) version)
   (version-compatible-p cver version))
+
+
+;;; all sub-components (of a given type)
+
+(defun* sub-components (component &key (type t))
+  (while-collecting (c)
+    (labels ((recurse (x)
+               (when (if-let (it (component-if-feature x)) (featurep it) t)
+                 (when (typep x type)
+                   (c x))
+                 (when (typep x 'parent-component)
+                   (map () #'recurse (component-children x))))))
+      (recurse component))))

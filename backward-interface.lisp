@@ -9,7 +9,7 @@
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
-   #:error-component #:error-operation #:load-sysdef
+   #:error-component #:error-operation
    #:component-load-dependencies
    #:enable-asdf-binary-locations-compatibility
    #:operation-forced
@@ -114,11 +114,6 @@ In case you insist on preserving your previous A-B-L configuration, but
 do not know how to achieve the same effect with A-O-T, you may use function
 ASDF:ENABLE-ASDF-BINARY-LOCATIONS-COMPATIBILITY as documented in the manual;
 call that function where you would otherwise have loaded and configured A-B-L.")))
-
-
-;;;; load-sysdef
-(defun* load-sysdef (name pathname)
-  (load-asd pathname :name name))
 
 
 ;;;; run-shell-command

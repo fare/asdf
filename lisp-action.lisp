@@ -145,13 +145,13 @@
 #+(or clozure sbcl)
 (defmethod input-files ((o compile-op) (c system))
   (declare (ignorable o c))
-  (unless (builtin-system-p c)
-    (loop* :for (sub-o . sub-c)
-           :in (traverse-sub-actions
-                o c :other-systems nil
-                    :keep-operation 'compile-op :keep-component 'cl-source-file)
-           :append (remove-if-not 'warnings-file-p
-                                  (output-files sub-o sub-c)))))
+  (when *warnings-file-type*
+    (unless (builtin-system-p c)
+      ;; The most correct way to do it would be to use:
+      ;; (traverse-sub-actions o c :other-systems nil :keep-operation 'compile-op :keep-component 'cl-source-file)
+      ;; but it's expensive and we don't care too much about file order or ASDF extensions.
+      (loop :for sub :in (sub-components c :type 'cl-source-file)
+            :nconc (remove-if-not 'warnings-file-p (output-files o sub))))))
 #+sbcl
 (defmethod output-files ((o compile-op) (c system))
   (unless (builtin-system-p c)

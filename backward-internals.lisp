@@ -7,9 +7,11 @@
    :asdf/system :asdf/component :asdf/operation
    :asdf/find-system :asdf/action :asdf/lisp-action)
   (:export ;; for internal use
+   #:load-sysdef #:make-temporary-package
    #:%refresh-component-inline-methods
    #:%resolve-if-component-dep-fails
-   #:make-sub-operation))
+   #:make-sub-operation
+   #:load-sysdef #:make-temporary-package))
 (in-package :asdf/backward-internals)
 
 ;;;; Backward compatibility with "inline methods"
@@ -70,3 +72,13 @@
 (when-upgrade (:when (fboundp 'make-sub-operation))
   (defun* make-sub-operation (c o dep-c dep-o)
     (declare (ignore c o dep-c dep-o)) (asdf-upgrade-error)))
+
+
+;;;; load-sysdef
+(defun* load-sysdef (name pathname)
+  (load-asd pathname :name name))
+
+(defun* make-temporary-package ()
+  (make-package (fresh-package-name :prefix :asdf :index 0) :use '(:cl :asdf/interface)))
+
+

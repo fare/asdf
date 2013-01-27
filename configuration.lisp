@@ -240,21 +240,22 @@ directive.")
                              (:ensure-directory boolean)) t) resolve-location))
 
 (defun* (resolve-location) (x &key ensure-directory wilden directory)
-  (when directory (setf ensure-directory t)) ;; :directory backward compatibility, until 2014-01-16.
-  (if (atom x)
-      (resolve-absolute-location x :ensure-directory ensure-directory :wilden wilden)
-      (loop* :with (first . rest) = x
-        :with path = (resolve-absolute-location
-                          first :ensure-directory (and (or ensure-directory rest) t)
-                          :wilden (and wilden (null rest)))
-        :for (element . morep) :on rest
-        :for dir = (and (or morep ensure-directory) t)
-        :for wild = (and wilden (not morep))
-        :do (setf path (merge-pathnames*
-                        (resolve-relative-location
-                         element :ensure-directory dir :wilden wild)
-                        path))
-        :finally (return path))))
+  ;; :directory backward compatibility, until 2014-01-16: accept directory as well as ensure-directory
+  (let ((dirp (or directory ensure-directory)))
+    (if (atom x)
+        (resolve-absolute-location x :ensure-directory dirp :wilden wilden)
+        (loop* :with (first . rest) = x
+               :with path = (resolve-absolute-location
+                             first :ensure-directory (and (or dirp rest) t)
+                                   :wilden (and wilden (null rest)))
+               :for (element . morep) :on rest
+               :for dir = (and (or morep dirp) t)
+               :for wild = (and wilden (not morep))
+               :do (setf path (merge-pathnames*
+                               (resolve-relative-location
+                                element :ensure-directory dir :wilden wild)
+                               path))
+               :finally (return path)))))
 
 (defun* location-designator-p (x)
   (flet ((absolute-component-p (c)
