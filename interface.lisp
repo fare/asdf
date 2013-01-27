@@ -91,7 +91,9 @@
 
    #:asdf-version
 
-   #:operation-error #:compile-failed #:compile-warned #:compile-error
+   #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
+   #:compile-warned-warning #:compile-failed-warning
+   #:operation-error #:compile-failed #:compile-warned #:compile-error ;; backward compatibility
    #:error-name
    #:error-pathname
    #:load-system-definition-error

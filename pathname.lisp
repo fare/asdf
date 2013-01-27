@@ -32,7 +32,7 @@
    #:pathname-root #:directory-separator-for-host
    #:directorize-pathname-host-device
    ;; defaults
-   #:nil-pathname #:with-pathname-defaults
+   #:nil-pathname #:with-pathname-defaults #:*nil-pathname*
    ;; probe filesystem
    #:truename* #:probe-file* #:safe-file-write-date
    #:subdirectories #:directory-files #:directory*
@@ -47,7 +47,8 @@
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname
    ;; physical pathnames
-   #:logical-pathname-p #:physical-pathname-p #:sane-physical-pathname #:root-pathname
+   #:logical-pathname-p #:physical-pathname-p #:sane-physical-pathname
+   #:root-pathname #:*root-pathname*
    ;; Windows shortcut support
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut
@@ -357,8 +358,10 @@ Returns the (parsed) PATHNAME when true"
                   ;; the default shouldn't matter, but we really want something physical
                   :defaults defaults))
 
+(defvar *nil-pathname* (nil-pathname (translate-logical-pathname (user-homedir-pathname))))
+
 (defmacro with-pathname-defaults ((&optional defaults) &body body)
-  `(let ((*default-pathname-defaults* ,(or defaults '(nil-pathname)))) ,@body))
+  `(let ((*default-pathname-defaults* ,(or defaults '*nil-pathname*))) ,@body))
 
 (defun* truename* (p)
   ;; avoids both logical-pathname merging and physical resolution issues
@@ -590,7 +593,7 @@ Any directory named .. is read as DOT-DOT,
 which must be one of :BACK or :UP and defaults to :BACK.
 
 HOST, DEVICE and VERSION components are taken from DEFAULTS,
-which itself defaults to (ROOT-PATHNAME), also used if DEFAULTS in NIL.
+which itself defaults to *NIL-PATHNAME*, also used if DEFAULTS in NIL.
 No host or device can be specified in the string itself,
 which makes it unsuitable for absolute pathnames outside Unix.
 
@@ -627,7 +630,7 @@ to throw an error if the pathname is absolute"
                (make-pathname*
                 :directory (unless file-only (cons relative path))
                 :name name :type type
-                :defaults (or defaults (nil-pathname)))
+                :defaults (or defaults *nil-pathname*))
                (remove-plist-keys '(:type :dot-dot :defaults) keys))))))
 
 (defun* unix-namestring (pathname)
@@ -855,8 +858,7 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
                #+clozure :if-exists #+clozure :rename-and-delete))
 
 (defun* delete-file-if-exists (x)
-  (when (probe-file* x)
-    (delete-file x)))
+  (handler-case (delete-file x) (file-error () nil)))
 
 ;;; Translate a pathname
 (defun* (translate-pathname*) (path absolute-source destination &optional root source)
@@ -929,6 +931,7 @@ For the latter case, we ought pick random suffix and atomically open it."
 Otherwise, this will be the root of some implementation-dependent filesystem host."
   (sane-physical-pathname :keep :root :fallback t))
 
+(defvar *root-pathname* (root-pathname))
 
 ;;;; -----------------------------------------------------------------
 ;;;; Windows shortcut support.  Based on:

@@ -340,19 +340,3 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (register-preloaded-system "asdf")
 (register-preloaded-system "asdf-driver")
 
-;;;; Beware of builtin systems
-(defmethod builtin-system-p ((s system))
-  (or
-   ;; For most purposes, asdf itself specially counts as builtin.
-   ;; if you want to link it or do something forbidden to builtins,
-   ;; specify separate dependencies on asdf-driver and asdf-defsystem.
-   (equal "asdf" (coerce-name s))
-   ;; Other builtin systems are those under the implementation directory
-   (let* ((system (find-system s nil))
-          (sysdir (and system (component-pathname system)))
-          (truesysdir (truename* sysdir))
-          (impdir (lisp-implementation-directory))
-          (trueimpdir (truename* impdir)))
-     (and sysdir impdir
-          (or (subpathp sysdir impdir)
-              (subpathp truesysdir trueimpdir))))))

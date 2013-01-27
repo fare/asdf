@@ -102,6 +102,7 @@
 (defun* parse-component-form (parent options &key previous-serial-component)
   (destructuring-bind
       (type name &rest rest &key
+       (builtin-system-p () bspp)
        ;; the following list of keywords is reproduced below in the
        ;; remove-plist-keys form.  important to keep them in sync
        components pathname perform explain output-files operation-done-p
@@ -109,7 +110,7 @@
        do-first if-component-dep-fails (version nil versionp)
        ;; list ends
        &allow-other-keys) options
-    (declare (ignorable perform explain output-files operation-done-p))
+    (declare (ignorable perform explain output-files operation-done-p builtin-system-p))
     (check-component-input type name weakly-depends-on depends-on components)
     (when (and parent
                (find-component parent name)
@@ -138,6 +139,8 @@
           (setf component (apply 'make-instance (class-for-type parent type) args)))
       (component-pathname component) ; eagerly compute the absolute pathname
       (let ((sysdir (system-source-directory (component-system component)))) ;; requires the previous
+        (when (and (typep component 'system) (not bspp))
+          (setf (builtin-system-p component) (lisp-implementation-pathname-p sysdir)))
         (setf version (normalize-version version sysdir)))
       (when (and versionp version (not (parse-version version nil)))
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")

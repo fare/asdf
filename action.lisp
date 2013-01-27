@@ -51,7 +51,7 @@
                  (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.
                      `(apply 'make-operation ,operation :original-initargs ,rest ,rest)
                      `(make-operation ,operation))
-                 `(find-component () ,component))
+                 `(or (find-component () ,component) ,if-no-component))
                ,if-no-operation))
          (defmethod ,function ((,operation operation) ,component ,@more-args)
            (if (typep ,component 'component)
