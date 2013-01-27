@@ -56,7 +56,8 @@
                ,if-no-operation))
          (defmethod ,function ((,operation operation) ,component ,@more-args)
            (if (typep ,component 'component)
-               (error "No defined method for ~S on ~S" ',function ,component)
+               (error "No defined method for ~S on ~/asdf-action:format-action/"
+                      ',function (cons ,operation ,component))
                (let ((,found (find-component () ,component)))
                  (if ,found
                      ,(next-method operation found)
