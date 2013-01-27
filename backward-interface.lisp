@@ -118,7 +118,7 @@ call that function where you would otherwise have loaded and configured A-B-L.")
 
 ;;;; load-sysdef
 (defun* load-sysdef (name pathname)
-  (load-asd pathname name))
+  (load-asd pathname :name name))
 
 
 ;;;; run-shell-command
