@@ -2,7 +2,9 @@
 (in-package :asdf)
 
 (defun call-without-redefinition-warnings (thunk)
-  (handler-bind (#+clozure (ccl:compiler-warning #'muffle-warning))
+  (handler-bind ((or #+clozure ccl:compiler-warning
+                     #+cmu kernel:simple-style-warning)
+                 #'muffle-warning)
     (funcall thunk)))
 
 (defsystem :asdf-driver
@@ -20,8 +22,9 @@ that you can't portably construct a complete program without using them."
    (:file "common-lisp" :depends-on ("package"))
    (:file "utility" :depends-on ("common-lisp"))
    (:file "os" :depends-on ("utility"))
-   (:file "pathname" :depends-on ("os"))
-   (:file "stream" :depends-on ("pathname"))
+   (:file "pathname" :depends-on ("utility"))
+   (:file "filesystem" :depends-on ("os" "pathname"))
+   (:file "stream" :depends-on ("filesystem"))
    (:file "image" :depends-on ("stream"))
    (:file "run-program" :depends-on ("stream"))
    (:file "lisp-build" :depends-on ("image"))

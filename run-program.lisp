@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/run-program
   (:recycle :asdf/run-program :xcvb-driver)
-  (:use :asdf/common-lisp :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+  (:use :asdf/common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/filesystem :asdf/stream)
   (:export
    ;;; Escaping the command invocation madness
    #:easy-sh-character-p #:escape-sh-token #:escape-sh-command

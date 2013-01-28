@@ -84,13 +84,15 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 (defvar *uninteresting-compiler-conditions*
   (append
+   ;;#+clozure '(ccl:compiler-warning)
+   #+cmu '("Deleting unreachable code.")
    #+sbcl
-   `(sb-c::simple-compiler-note
+   '(sb-c::simple-compiler-note
      "&OPTIONAL and &KEY found in the same lambda list: ~S"
      sb-int:package-at-variance
      sb-kernel:uninteresting-redefinition
      sb-kernel:undefined-alien-style-warning
-     ;; sb-ext:implicit-generic-function-warning ; controversial, but let's allow it by default.
+     ;; sb-ext:implicit-generic-function-warning ; Controversial. Let's allow it by default.
      sb-kernel:lexical-environment-too-complex
      sb-grovel-unknown-constant-condition ; defined above.
      ;; BEWARE: the below four are controversial to include here.
@@ -98,7 +100,6 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
      sb-kernel:redefinition-with-defgeneric
      sb-kernel:redefinition-with-defmethod
      sb-kernel::redefinition-with-defmacro) ; not exported by old SBCLs
-   ;;#+clozure '(ccl:compiler-warning)
    '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.")) ;; from closer2mop
   "Conditions that may be skipped while compiling")
 

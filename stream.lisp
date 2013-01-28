@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/stream
   (:recycle :asdf/stream)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os :asdf/pathname)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os :asdf/pathname :asdf/filesystem)
   (:export
    #:*default-stream-element-type* #:*stderr* #:setup-stderr
    #:with-safe-io-syntax #:call-with-safe-io-syntax

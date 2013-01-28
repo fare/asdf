@@ -194,6 +194,12 @@ then returning the non-empty string value of the variable"
 
 
 ;;; Current directory
+#+(or cmu scl)
+(defun* parse-unix-namestring* (unix-namestring)
+  (multiple-value-bind (host device directory name type version)
+      (lisp::parse-unix-namestring unix-namestring 0 (length unix-namestring))
+    (make-pathname :host (or host #+cmu lisp::*unix-host*) :device device
+                   :directory directory :name name :type type :version version)))
 
 (defun* getcwd ()
   "Get the current working directory as per POSIX getcwd(3), as a pathname object"
@@ -202,8 +208,8 @@ then returning the non-empty string value of the variable"
       #+allegro (excl::current-directory)
       #+clisp (ext:default-directory)
       #+clozure (ccl:current-directory)
-      #+(or cmu scl) (ext:parse-unix-namestring
-                      (nth-value 1 (unix:unix-current-directory)) :ensure-directory t)
+      #+(or cmu scl) (parse-unix-namestring*
+                      (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
       #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
       #+ecl (ext:getcwd)
       #+gcl (parse-namestring ;; this is a joke. Isn't there a better way?
@@ -216,21 +222,21 @@ then returning the non-empty string value of the variable"
       (error "getcwd not supported on your implementation")))
 
 (defun* chdir (x)
-  "Change current directory, as per POSIX chdir(2)"
-  (declare (ignorable x))
-  (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
-      #+allegro (excl:chdir x)
-      #+clisp (ext:cd x)
-      #+clozure (setf (ccl:current-directory) x)
-      #+(or cmu scl) (unix:unix-chdir (ext:unix-namestring x))
-      #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
-                     (error "Could not set current directory to ~A" x))
-      #+ecl (ext:chdir x)
-      #+genera (setf *default-pathname-defaults* (pathname x))
-      #+lispworks (hcl:change-directory x)
-      #+mkcl (mk-ext:chdir x)
-      #+sbcl (symbol-call :sb-posix :chdir (sb-ext:native-namestring x))
-      (error "chdir not supported on your implementation")))
+  "Change current directory, as per POSIX chdir(2), to a given pathname object"
+  (if-let (x (pathname x))
+    (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
+        #+allegro (excl:chdir x)
+        #+clisp (ext:cd x)
+        #+clozure (setf (ccl:current-directory) x)
+        #+(or cmu scl) (unix:unix-chdir (ext:unix-namestring x))
+        #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
+                       (error "Could not set current directory to ~A" x))
+        #+ecl (ext:chdir x)
+        #+genera (setf *default-pathname-defaults* x)
+        #+lispworks (hcl:change-directory x)
+        #+mkcl (mk-ext:chdir x)
+        #+sbcl (symbol-call :sb-posix :chdir (sb-ext:native-namestring x))
+        (error "chdir not supported on your implementation"))))
 
 
 ;;;; -----------------------------------------------------------------

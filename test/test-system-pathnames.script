@@ -1,7 +1,5 @@
 ;;; -*- Lisp -*-
 
-(trace parse-unix-namestring asdf::determine-system-directory)
-
 (defsystem :test-system-pathnames
   :pathname "sources/level1"
   :components
