@@ -44,25 +44,16 @@ XCL ?= xcl
 header_lisp := header.lisp
 driver_lisp := package.lisp common-lisp.lisp utility.lisp os.lisp pathname.lisp filesystem.lisp stream.lisp image.lisp run-program.lisp lisp-build.lisp configuration.lisp backward-driver.lisp driver.lisp
 defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
+all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 
 # Making ASDF itself should be our first, default, target:
-build/asdf.lisp: $(wildcard *.lisp)
+build/asdf.lisp: $(all_lisp)
 	mkdir -p build
-	cat $(header_lisp) $(driver_lisp) $(defsystem_lisp) > $@
+	cat $(all_lisp) > $@
 
 # This quickly locates such mistakes as unbalanced parentheses:
-load: load-in-sbcl
-
-load-in-sbcl: build/asdf.lisp
-	rlwrap sbcl --eval '(setf *load-verbose* t *compile-verbose* t)' \
-	`for i in $(driver_lisp) $(defsystem_lisp) ; do echo --load $$i ; done` \
-	--eval '(in-package :asdf)'
-
-load-in-cmucl: build/asdf.lisp
-	rlwrap cmucl -eval '(setf *load-verbose* t *compile-verbose* t *gc-verbose* nil)' \
-	`for i in $(driver_lisp) $(defsystem_lisp) ; do echo -load $$i ; done` \
-	-eval '(in-package :asdf)'
-
+load: build/asdf.lisp
+	./test/run-tests.sh -t $l $(all_lisp)
 
 install: archive-copy
 

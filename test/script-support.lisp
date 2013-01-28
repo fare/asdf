@@ -304,6 +304,13 @@ is bound, write a message and exit on an error.  If
   (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
     (funcall thunk)))
 
+(defun interactive-test (&optional files)
+  (verbose t nil)
+  (loop :for file :in files :do
+    (load (string-downcase file)))
+  (setf *package* (some 'find-package '(:asdf :asdf/driver :asdf/utility :asdf/package :asdf-test)))
+  (load "contrib/debug.lisp"))
+
 (defun load-asdf-lisp (&optional tag)
   (quietly (load (asdf-lisp tag) :verbose *load-verbose* :print *load-print*)))
 

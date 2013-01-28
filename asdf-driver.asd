@@ -2,9 +2,9 @@
 (in-package :asdf)
 
 (defun call-without-redefinition-warnings (thunk)
-  (handler-bind ((or #+clozure ccl:compiler-warning
+  (handler-bind (((or #+clozure ccl:compiler-warning
                      #+cmu kernel:simple-style-warning)
-                 #'muffle-warning)
+                   #'muffle-warning))
     (funcall thunk)))
 
 (defsystem :asdf-driver

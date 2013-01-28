@@ -1,12 +1,5 @@
 ;;; -*- Lisp -*-
 
-
-
-(in-package :asdf)
-(use-package :asdf-test)
-
-(progn
-
 (assert
  (every #'directory-pathname-p
   (list
@@ -41,20 +34,20 @@
 (assert
  (version-satisfies (asdf-version) (asdf-version)))
 (assert
- (version-satisfies (asdf-version) "2.000"))
+ (version-satisfies (asdf-version) "2.0"))
 (assert
  (not (version-satisfies (asdf-version) "666")))
-(assert-equal
- (mapcar 'namestring (split-native-pathnames-string "foo:bar"))
+(assert-pathnames-equal
+ (split-native-pathnames-string "foo:bar")
  '("foo" "bar"))
-(assert-equal
- (mapcar 'namestring (split-native-pathnames-string "foo:bar" :ensure-directory t))
+(assert-pathnames-equal
+ (split-native-pathnames-string "foo:bar" :ensure-directory t)
  '("foo/" "bar/"))
-(assert-equal
- (mapcar 'namestring (split-native-pathnames-string "/foo:/bar" :want-absolute t))
+(assert-pathnames-equal
+ (split-native-pathnames-string "/foo:/bar" :want-absolute t)
  '("/foo" "/bar"))
-(assert-equal
- (mapcar 'namestring (split-native-pathnames-string "/foo:/bar" :want-absolute t :ensure-directory t))
+(assert-pathnames-equal
+ (split-native-pathnames-string "/foo:/bar" :want-absolute t :ensure-directory t)
  '("/foo/" "/bar/"))
 (assert-equal
  (mapcar 'location-function-p
@@ -66,4 +59,4 @@
            (:function f too many arguments)
            (:function (:lambda isnt lambda))
            (:function (lambda (too many args) blah))))
- '(t t nil nil nil nil)))
+ '(t t nil nil nil nil))

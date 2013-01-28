@@ -19,11 +19,12 @@ usage () {
     echo "    -u -- upgrade tests."
     echo "    -c -- clean load test"
     echo "    -l -- load systems tests"
+    echo "    -t -- test interactively"
 }
 
-unset DEBUG_ASDF_TEST upgrade clean_load load_systems
+unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively
 
-while getopts "cdhulhu" OPTION
+while getopts "cdthulhu" OPTION
 do
     case $OPTION in
         d)
@@ -37,6 +38,9 @@ do
             ;;
         l)
             load_systems=t
+            ;;
+        t)
+            test_interactively=t
             ;;
         h)
             usage
@@ -367,9 +371,14 @@ test_load_systems () {
       "(or #.(load \"test/script-support.lisp\") #.(asdf-test::with-test () (asdf-test::test-load-systems ${s})))" \
         2>&1 | tee build/results/${lisp}-systems.text
 }
+test_interactively () {
+    rlwrap $cmd $eval "(or #.(load \"test/script-support.lisp\") #.(asdf-test::interactive-test '($*)))"
+}
 
 if [ -z "$cmd" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
+elif [ -n "$test_interactively" ] ; then
+    test_interactively "$@"
 elif [ -n "$clean_load" ] ; then
     test_clean_load
 elif [ -n "$load_systems" ] ; then

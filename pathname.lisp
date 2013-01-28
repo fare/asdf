@@ -180,10 +180,12 @@ by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
   ;; see also "valid physical pathname host" in the CLHS glossary, that suggests
   ;; strings and lists of strings or :unspecific
   ;; But CMUCL decides to die on NIL.
-  (make-pathname* :directory nil :name nil :type nil :version nil :device nil
-                  :host (or #+cmu lisp::*unix-host*)
-                  ;; the default shouldn't matter, but we really want something physical
-                  :defaults defaults))
+  #.`(make-pathname* :directory nil :name nil :type nil :version nil :device nil
+                     :host (or #+cmu lisp::*unix-host*)
+                     #+scl ,@'(:scheme nil :scheme-specific-part nil
+                               :username nil :password nil :parameters nil :query nil :fragment nil)
+                     ;; the default shouldn't matter, but we really want something physical
+                     :defaults defaults))
 
 (defvar *nil-pathname* (nil-pathname (translate-logical-pathname (user-homedir-pathname))))
 

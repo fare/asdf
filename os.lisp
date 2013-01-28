@@ -194,11 +194,11 @@ then returning the non-empty string value of the variable"
 
 
 ;;; Current directory
-#+(or cmu scl)
+#+cmu
 (defun* parse-unix-namestring* (unix-namestring)
   (multiple-value-bind (host device directory name type version)
       (lisp::parse-unix-namestring unix-namestring 0 (length unix-namestring))
-    (make-pathname :host (or host #+cmu lisp::*unix-host*) :device device
+    (make-pathname :host (or host lisp::*unix-host*) :device device
                    :directory directory :name name :type type :version version)))
 
 (defun* getcwd ()
@@ -208,7 +208,7 @@ then returning the non-empty string value of the variable"
       #+allegro (excl::current-directory)
       #+clisp (ext:default-directory)
       #+clozure (ccl:current-directory)
-      #+(or cmu scl) (parse-unix-namestring*
+      #+(or cmu scl) (#+cmu parse-unix-namestring* #+scl lisp::parse-unix-namestring
                       (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
       #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
       #+ecl (ext:getcwd)
