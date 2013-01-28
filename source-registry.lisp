@@ -160,11 +160,11 @@ system names to pathnames of .asd files")
     #+scl (:tree #p"file://modules/")))
 (defun* default-source-registry ()
   `(:source-registry
-    #+sbcl (:directory ,(subpathname (user-homedir) ".sbcl/systems/"))
+    #+sbcl (:directory ,(subpathname (user-homedir-pathname) ".sbcl/systems/"))
     ,@(loop :for dir :in
         `(,@(when (os-unix-p)
               `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
-                     (subpathname (user-homedir) ".local/share/"))
+                     (subpathname (user-homedir-pathname) ".local/share/"))
                 ,@(or (getenv-absolute-directories "XDG_DATA_DIRS")
                       '("/usr/local/share" "/usr/share"))))
           ,@(when (os-windows-p)

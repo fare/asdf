@@ -31,13 +31,12 @@
   ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (let ((pathname (parse-unix-namestring pathname :type :directory))
-        (load-pathname (load-pathname)))
-    (when (or pathname load-pathname)
-      (pathname-directory-pathname
-       (absolutize-pathnames
-        (list pathname load-pathname *default-pathname-defaults* (getcwd))
-        :resolve-symlinks *resolve-symlinks*)))))
+  (resolve-symlinks*
+   (ensure-pathname-absolute
+    (parse-unix-namestring pathname :type :directory)
+    #'(lambda () (ensure-pathname-absolute
+                  (load-pathname) 'get-pathname-defaults nil))
+    nil)))
 
 
 ;;; Component class

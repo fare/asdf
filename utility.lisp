@@ -5,9 +5,9 @@
   (:recycle :asdf/utility :asdf)
   (:use :asdf/common-lisp :asdf/package)
   ;; import and reexport a few things defined in :asdf/common-lisp
-  (:import-from :asdf/common-lisp #:strcat #:compatfmt #:loop*
+  (:import-from :asdf/common-lisp #:compatfmt #:loop* #:remove-substrings
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
-  (:export #:nil #:strcat #:compatfmt #:loop*
+  (:export #:compatfmt #:loop* #:remove-substrings #:compatfmt
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
@@ -16,7 +16,7 @@
    #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:remove-plist-keys #:remove-plist-key ;; lists and plists
    #:emptyp ;; sequences
-   #:first-char #:last-char #:split-string ;; strings
+   #:strcat #:first-char #:last-char #:split-string ;; strings
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
    #:find-class* ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
@@ -163,6 +163,8 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 
 ;;; Strings
+(defun* strcat (&rest strings)
+  (apply 'concatenate 'string strings))
 
 (defun* first-char (s)
   (and (stringp s) (plusp (length s)) (char s 0)))
@@ -403,4 +405,5 @@ or a string describing the format-control of a simple-condition."
 
 (defmacro with-muffled-uninteresting-conditions ((conditions) &body body)
   `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions))
+
 

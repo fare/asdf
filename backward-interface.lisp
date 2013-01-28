@@ -70,7 +70,7 @@ if that's whay you mean." ;;)
     (&key
      (centralize-lisp-binaries nil)
      (default-toplevel-directory
-         (subpathname (user-homedir) ".fasls/")) ;; Use ".cache/common-lisp/" instead ???
+         (subpathname (user-homedir-pathname) ".fasls/")) ;; Use ".cache/common-lisp/" instead ???
      (include-per-user-information nil)
      (map-all-source-files (or #+(or clisp ecl mkcl) t nil))
      (source-to-target-mappings nil)
@@ -89,7 +89,7 @@ if that's whay you mean." ;;)
           (if centralize-lisp-binaries
               `(,default-toplevel-directory
                 ,@(when include-per-user-information
-                        (cdr (pathname-directory (user-homedir))))
+                        (cdr (pathname-directory (user-homedir-pathname))))
                 :implementation ,*wild-inferiors*)
               `(:root ,*wild-inferiors* :implementation))))
     (initialize-output-translations

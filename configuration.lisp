@@ -49,7 +49,7 @@
            ,@(when (os-windows-p)
                `(,(subpathname* (get-folder-path :local-appdata) "common-lisp/config/")
                  ,(subpathname* (get-folder-path :appdata) "common-lisp/config/")))
-           ,(subpathname (user-homedir) ".config/common-lisp/"))))
+           ,(subpathname (user-homedir-pathname) ".config/common-lisp/"))))
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs)
                        :from-end t :test 'equal)))
 
@@ -227,12 +227,13 @@ directive.")
       (return-from resolve-absolute-location
         (let ((p (make-pathname* :directory '(:relative))))
           (if wilden (wilden p) p))))
-     ((eql :home) (user-homedir))
+     ((eql :home) (user-homedir-pathname))
      ((eql :here) (resolve-absolute-location
                    *here-directory* :ensure-directory t :wilden nil))
      ((eql :user-cache) (resolve-absolute-location
                          *user-cache* :ensure-directory t :wilden nil)))
    :wilden (and wilden (not (pathnamep x)))
+   :resolve-symlinks *resolve-symlinks*
    :want-absolute t))
 
 ;; Try to override declaration in previous versions of ASDF.
@@ -241,21 +242,20 @@ directive.")
 
 (defun* (resolve-location) (x &key ensure-directory wilden directory)
   ;; :directory backward compatibility, until 2014-01-16: accept directory as well as ensure-directory
-  (let ((dirp (or directory ensure-directory)))
-    (if (atom x)
-        (resolve-absolute-location x :ensure-directory dirp :wilden wilden)
-        (loop* :with (first . rest) = x
-               :with path = (resolve-absolute-location
-                             first :ensure-directory (and (or dirp rest) t)
-                                   :wilden (and wilden (null rest)))
-               :for (element . morep) :on rest
-               :for dir = (and (or morep dirp) t)
-               :for wild = (and wilden (not morep))
-               :do (setf path (merge-pathnames*
-                               (resolve-relative-location
-                                element :ensure-directory dir :wilden wild)
-                               path))
-               :finally (return path)))))
+  (loop* :with dirp = (or directory ensure-directory)
+         :with (first . rest) = (if (atom x) (list x) x)
+         :with path = (resolve-absolute-location
+                       first :ensure-directory (and (or dirp rest) t)
+                             :wilden (and wilden (null rest)))
+         :for (element . morep) :on rest
+         :for dir = (and (or morep dirp) t)
+         :for wild = (and wilden (not morep))
+         :for sub = (merge-pathnames*
+                     (resolve-relative-location
+                      element :ensure-directory dir :wilden wild)
+                     path)
+         :do (setf path (if (absolute-pathname-p sub) (resolve-symlinks* sub) sub))
+         :finally (return path)))
 
 (defun* location-designator-p (x)
   (flet ((absolute-component-p (c)

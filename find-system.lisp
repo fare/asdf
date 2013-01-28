@@ -156,14 +156,13 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* probe-asd (name defaults &key truename)
   (block nil
     (when (directory-pathname-p defaults)
-      (let* ((file (probe-file*
-                    (absolutize-pathnames
-                     (list (make-pathname :name name :type "asd")
-                           defaults *default-pathname-defaults* (getcwd))
-                     :resolve-symlinks truename)
-                    :truename truename)))
-        (when file
-          (return file)))
+      (if-let (file (probe-file*
+                     (ensure-pathname-absolute
+                      (parse-unix-namestring name :type "asd")
+                      #'(lambda () (ensure-pathname-absolute defaults 'get-pathname-defaults nil))
+                      nil)
+                     :truename truename))
+        (return file))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
       (when (os-windows-p)
         (let ((shortcut
