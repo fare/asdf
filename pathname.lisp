@@ -638,16 +638,16 @@ or the original (parsed) pathname if it is false (the default)."
                             (truename* (subpathname
                                         (ensure-directory-pathname p) ".")))))))
                 #+clisp
-                (let ((fs (find-symbol* '#:file-stat :posix nil))
-                      (pp (find-symbol* '#:probe-pathname :ext nil))
-                      (resolve (if pp
-                                   `(ignore-errors (,pp p))
-                                   '(or (truename* p)
-                                     (truename* (ensure-directory-pathname p))))))
+                (let* ((fs (find-symbol* '#:file-stat :posix nil))
+                       (pp (find-symbol* '#:probe-pathname :ext nil))
+                       (resolve (if pp
+                                    `(ignore-errors (,pp p))
+                                    '(or (truename* p)
+                                      (truename* (ignore-errors (ensure-directory-pathname p)))))))
                   (if fs
                       `(if truename
                            ,resolve
-                           (and (,fs p) p))
+                           (and (ignore-errors (,fs p)) p))
                       (probe resolve)))))
          (file-error () nil))))))
 

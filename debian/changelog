@@ -1,4 +1,9 @@
-cl-asdf (2:3.0-1) unstable; urgency=low
+cl-asdf (2:2.27-1) unstable; urgency=low
+
+  ASDF 2.27 is actually an almost complete rewrite of ASDF, and
+  should be considered a pre-release for a new ASDF 3.
+  It nevertheless maintains backward compatibility with the current practice,
+  and is tested against the software in Quicklisp.
 
   * ASDF-BUNDLE was merged into ASDF.
     This notably means fewer headaches for users of ECL;
@@ -7,16 +12,16 @@ cl-asdf (2:3.0-1) unstable; urgency=low
     After release, I plan to offer a patch so SBCL use that for its contrib's.
     All remnants of asdf-bundle's predecessor asdf-ecl were removed.
 
-  * *decades-old* bugs of notable significance were fixed:
+  * DECADES-OLD bugs of notable significance were fixed:
     (a) changes in dependencies now trigger a rebuild across systems, and
     https://bugs.launchpad.net/asdf/+bug/479522
     (b) timestamps are now correctly propagated (they weren't at all!)
     https://bugs.launchpad.net/asdf/+bug/1087609
+    Fixing them required a complete rewrite of ASDF's dependency tracking.
     In olden days, some have argued for not rebuilding systems that :depend-on
     a modified one as a "feature". It really isn't. On the other hand,
     it is now possible to explicitly prevent a system from being rebuilt, using
     an actual feature, :force-not, which was released in 2.21 in April 2012.
-    Someday I will write about those bugs.
 
   * PREPARE-OP was introduced to fix a conceptual bug in the ASDF object model.
     It corresponds to "loading the dependencies of a component and its parents"
@@ -68,10 +73,10 @@ cl-asdf (2:3.0-1) unstable; urgency=low
     which belied the object model and defeated other features.
     Unhappily, this breaks backwards compatibility for the few who used it,
     namely sb-grovel, nibbles and ironclad.
-    A minimal compatibility layer allows ASDF 2.27 or later to load
+    A minimal compatibility layer allows ASDF 3 or later to load
     the SB-GROVEL of old versions of SBCL, but it won't suffice to load
     an old version of nibbles or ironclad; please upgrade them
-    a recent version that was updated to support ASDF 2.27.
+    a recent version that was updated to support ASDF 3.
 
   * CONCATENATE-SOURCE-OP is a new operation that builds a single Lisp file
     from all the source files in a system,
@@ -171,8 +176,7 @@ cl-asdf (2:3.0-1) unstable; urgency=low
     Many internal accessors were renamed, after checking on Quicklisp
     that no one was using them.
 
-  * Portability updates were done for
-    ABCL, CLISP, Clozure CL, CMUCL, ECL, LispWorks Personal Edition, MKCL, XCL.
+  * Portability updates were done for each and every implementation.
     Working support for GCL 2.6 was restored, with notable limitations
     including lack of support for output-translations or logical-pathnames.
 
@@ -181,6 +185,10 @@ cl-asdf (2:3.0-1) unstable; urgency=low
     This is useful if your operating system makes that operation slow,
     or if your build system uses symlinks to content-addressed storage
     in which case TRUENAME just does the wrong thing.
+
+  * PERFORMANCE of ASDF3 is somewhat slower (about 70%) than ASDF2
+    when *RESOLVE-SYMLINKS* is true, and slightly faster when it is false;
+    but underneath ASDF3 does much more work than ASDF2.
 
   * VERSION strings can now be specified as having to be fetched
     from a file using a (:read-file-form <path>) specification,
@@ -204,12 +212,23 @@ cl-asdf (2:3.0-1) unstable; urgency=low
     hot upgrade of software where some packages have changed.
     It also provides new forms :MIX and :REEXPORT which can be quite practical.
 
-  * ASDF2.27 was added to the *features* so you can detect the presence of
-    this massively updated ASDF and its new features with #+asdf2.27.
+  * ASDF-USER is now the shared package in which all .asd files are loaded.
+    There will be no more temporary packages created
+    around the loading of each .asd file. This shouldn't change much for users:
+    you should probably still define your own private package whenever you
+    define new classes, functions, or variables, to avoid namespace conflict;
+    except now, when you don't, you can still access your defined symbols
+    after the file is loaded.
+    ASDF is not the right place to fix Common Lisp namespace issues, and
+    these temporary packages were never a successful fix anyway.
+
+  * ASDF3 was added to the *features* so you can detect the presence of
+    this massively updated ASDF and its new features with #+asdf3.
     This is *not* ASDF3, for we painfully maintained backwards compatibility,
     though it may have been temporarily broken during development.
 
-  * Documentation received some updates.
+  * Documentation received some updates, though by no means comparable
+    to the complete rewrite of the code base.
 
   * Tests were updated, notably including support for bundles, encodings,
     run-program, and more. They were successfully run on
@@ -228,7 +247,7 @@ cl-asdf (2:3.0-1) unstable; urgency=low
     minus a few misdesigned things from ASDF1 that you ought not
     to have been using, and for which there are non-broken replacements.
     ASDF-UTILS was distributed separately from ASDF; ASDF-DRIVER is available
-    both as part of ASDF 2.27 and later and separately.
+    both as part of ASDF 3 and later and separately.
 
   * POIU was updated. This extension is still distributed separately from ASDF.
     It is now much simplified and made correct by construction by
