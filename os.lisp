@@ -217,10 +217,18 @@ then returning the non-empty string value of the variable"
 
 (defun* chdir (x)
   "Change current directory, as per POSIX chdir(2)"
-  (or #+clisp (ext:cd x)
+  (declare (ignorable x))
+  (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
+      #+allegro (excl:chdir x)
+      #+clisp (ext:cd x)
       #+clozure (setf (ccl:current-directory) x)
+      #+(or cmu scl) (unix:unix-chdir (ext:unix-namestring x))
       #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
                      (error "Could not set current directory to ~A" x))
+      #+ecl (ext:chdir x)
+      #+genera (setf *default-pathname-defaults* (pathname x))
+      #+lispworks (hcl:change-directory x)
+      #+mkcl (mk-ext:chdir x)
       #+sbcl (symbol-call :sb-posix :chdir (sb-ext:native-namestring x))
       (error "chdir not supported on your implementation")))
 
