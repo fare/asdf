@@ -19,7 +19,6 @@
 (defgeneric* (find-system) (system &optional error-p))
 (defgeneric* (system-source-file) (system)
   (:documentation "Return the source file in which system is defined."))
-(defgeneric* builtin-system-p (system))
 (defgeneric* component-build-pathname (component))
 
 (defgeneric* component-entry-point (component))
@@ -36,7 +35,7 @@
   ((name) (source-file) #|(children) (children-by-names)|#))
 
 (defclass system (module proto-system)
-  ;; Backward-compatibility: inherit from module. ASDF3: only inherit from parent-component.
+  ;; Backward-compatibility: inherit from module. ASDF4: only inherit from parent-component.
   (;; {,long-}description is now inherited from component, but we add the legacy accessors
    (description :accessor system-description)
    (long-description :accessor system-long-description)
@@ -44,6 +43,7 @@
    (maintainer :accessor system-maintainer :initarg :maintainer)
    (licence :accessor system-licence :initarg :licence
             :accessor system-license :initarg :license)
+   (builtin-system-p :accessor builtin-system-p :initform nil :initarg :builtin-system-p)
    (build-pathname
     :initform nil :initarg :build-pathname :accessor component-build-pathname)
    (entry-point

@@ -7,9 +7,11 @@
    :asdf/system :asdf/component :asdf/operation
    :asdf/find-system :asdf/action :asdf/lisp-action)
   (:export ;; for internal use
+   #:load-sysdef #:make-temporary-package
    #:%refresh-component-inline-methods
    #:%resolve-if-component-dep-fails
-   #:make-sub-operation))
+   #:make-sub-operation
+   #:load-sysdef #:make-temporary-package))
 (in-package :asdf/backward-internals)
 
 ;;;; Backward compatibility with "inline methods"
@@ -55,7 +57,7 @@
 (defun* %resolve-if-component-dep-fails (if-component-dep-fails component)
   (asdf-message "The system definition for ~S uses deprecated ~
                  ASDF option :IF-COMPONENT-DEP-DAILS. ~
-                 Starting with ASDF 2.27, please use :IF-FEATURE instead"
+                 Starting with ASDF 3, please use :IF-FEATURE instead"
                 (coerce-name (component-system component)))
   ;; This only supports the pattern of use of the "feature" seen in the wild
   (check-type component parent-component)
@@ -67,6 +69,16 @@
                :when (eq feature? 'feature) :do
                  (setf (component-if-feature c) feature)))))
 
-(when-upgrade (:when (fboundp 'make-sub-operation))
+(when-upgrading (:when (fboundp 'make-sub-operation))
   (defun* make-sub-operation (c o dep-c dep-o)
     (declare (ignore c o dep-c dep-o)) (asdf-upgrade-error)))
+
+
+;;;; load-sysdef
+(defun* load-sysdef (name pathname)
+  (load-asd pathname :name name))
+
+(defun* make-temporary-package ()
+  (make-package (fresh-package-name :prefix :asdf :index 0) :use '(:cl :asdf/interface)))
+
+

@@ -21,7 +21,7 @@
 
 (defmacro with-encoding-test ((encoding &key (op 'load-source-op) (path "lambda")) def-test-system &body body)
   (let ((sys (second def-test-system)))
-    `(with-stamp-cache (:override t)
+    `(with-asdf-cache (:override t)
        (format t "~&Test ~A: should be ~A~%" ',sys ',encoding)
        (setf *lambda-string* nil)
        ,def-test-system

@@ -4,7 +4,7 @@
   :components
   ((:file "file1" :perform (load-op :before (o c)
                              (setf *a* t)
-                             (format t "Method run before ~A~%" (operation-description o c))))))
+                             (format t "Method run before ~A~%" (action-description o c))))))
 
 (load-system :foo)
 

@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/operation :asdf/action
+   :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
    :asdf/lisp-build :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*
@@ -70,21 +70,26 @@ if that's whay you mean." ;;)
     (&key
      (centralize-lisp-binaries nil)
      (default-toplevel-directory
-         (subpathname (user-homedir) ".fasls/")) ;; Use ".cache/common-lisp/" instead ???
+         (subpathname (user-homedir-pathname) ".fasls/")) ;; Use ".cache/common-lisp/" instead ???
      (include-per-user-information nil)
      (map-all-source-files (or #+(or clisp ecl mkcl) t nil))
-     (source-to-target-mappings nil))
+     (source-to-target-mappings nil)
+     (file-types (list (compile-file-type)
+                         #+ecl (compile-file-type :type :object)
+                         #+mkcl (compile-file-type :fasl-p nil)
+                         #+clisp "lib" #+sbcl "cfasl"
+                         #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
   #+(or clisp ecl mkcl)
   (when (null map-all-source-files)
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on CLISP, ECL and MKCL"))
-  (let* ((fasl-type (compile-file-type))
-         (mapped-files (if map-all-source-files *wild-file*
-                           (make-pathname :type fasl-type :defaults *wild-file*)))
+  (let* ((patterns (if map-all-source-files (list *wild-file*)
+                       (loop :for type :in file-types
+                             :collect (make-pathname :type type :defaults *wild-file*))))
          (destination-directory
           (if centralize-lisp-binaries
               `(,default-toplevel-directory
                 ,@(when include-per-user-information
-                        (cdr (pathname-directory (user-homedir))))
+                        (cdr (pathname-directory (user-homedir-pathname))))
                 :implementation ,*wild-inferiors*)
               `(:root ,*wild-inferiors* :implementation))))
     (initialize-output-translations
@@ -92,8 +97,9 @@ if that's whay you mean." ;;)
        ,@source-to-target-mappings
        #+abcl (#p"jar:file:/**/*.jar!/**/*.*" (:function translate-jar-pathname))
        #+abcl (#p"/___jar___file___root___/**/*.*" (,@destination-directory))
-       ((:root ,*wild-inferiors* ,mapped-files)
-        (,@destination-directory ,mapped-files))
+       ,@(loop :for pattern :in patterns
+               :collect `((:root ,*wild-inferiors* ,pattern)
+                          (,@destination-directory ,pattern)))
        (t t)
        :ignore-inherited-configuration))))
 
@@ -126,3 +132,4 @@ Please use ASDF-DRIVER:RUN-PROGRAM instead."
   (let ((command (apply 'format nil control-string args)))
     (asdf-message "; $ ~A~%" command)
     (run-program command :force-shell t :ignore-error-status t :output *verbose-out*)))
+

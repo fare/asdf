@@ -157,14 +157,6 @@ for how to load or compile stuff")
 
 ;;;; Some upgrade magic
 
-(defun* reset-asdf-systems ()
-  (let ((asdf (find-system :asdf)))
-    (setf (component-version asdf) (asdf-version))
-    ;; Invalidate all systems but ASDF itself.
-    (setf *defined-systems* (make-defined-systems-table))
-    (register-system asdf)
-    (load-system asdf))) ;; re-load ourselves the right way
-
 (defun* restart-upgraded-asdf ()
   ;; If we're in the middle of something, restart it.
   (when *systems-being-defined*
@@ -172,5 +164,4 @@ for how to load or compile stuff")
       (clrhash *systems-being-defined*)
       (dolist (s l) (find-system s nil)))))
 
-(pushnew 'reset-asdf-systems *post-upgrade-cleanup-hook*)
 (pushnew 'restart-upgraded-asdf *post-upgrade-restart-hook*)

@@ -17,7 +17,6 @@
    #:component-if-feature #:around-compile-hook
    #:component-description #:component-long-description
    #:component-version #:version-satisfies
-   #:component-properties #:component-property ;; backward-compatibility only. DO NOT USE!
    #:component-inline-methods ;; backward-compatibility only. DO NOT USE!
    #:component-operation-times ;; For internal use only.
    ;; portable ASDF encoding and implementation-specific external-format
@@ -26,6 +25,7 @@
    #:component-build-operation
    #:module-default-component-class
    #:module-components ;; backward-compatibility. DO NOT USE.
+   #:sub-components
 
    ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
    #:name #:version #:description #:long-description #:author #:maintainer #:licence
@@ -49,9 +49,6 @@ interpreted relative to the pathname of that component's parent.
 Despite the function's name, the return value may be an absolute
 pathname, because an absolute pathname may be interpreted relative to
 another pathname in a degenerate way."))
-(defgeneric* component-property (component property))
-#-gcl2.6
-(defgeneric* (setf component-property) (new-value component property))
 (defgeneric* component-external-format (component))
 (defgeneric* component-encoding (component))
 (defgeneric* version-satisfies (component version))
@@ -60,7 +57,7 @@ another pathname in a degenerate way."))
 ;;; TODO: find users, have them stop using that.
 (defgeneric* (source-file-type) (component system))
 
-(when-upgrade (:when (find-class 'component nil))
+(when-upgrading (:when (find-class 'component nil))
   (defmethod reinitialize-instance :after ((c component) &rest initargs &key)
     (declare (ignorable c initargs)) (values)))
 
@@ -103,11 +100,9 @@ another pathname in a degenerate way."))
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
+   (properties) ;; Only for backward-compatibility during upgrades from ASDF2. DO NOT USE.
    (%encoding :accessor %component-encoding :initform nil :initarg :encoding)
-   ;; ASDF3: get rid of these "component properties" ?
-   (properties :accessor component-properties :initarg :properties
-               :initform nil)
-   ;; For backward-compatibility, this slot is part of component rather than child-component
+   ;; For backward-compatibility, this slot is part of component rather than child-component. ASDF4: don't.
    (parent :initarg :parent :initform nil :reader component-parent)
    (build-operation
     :initarg :build-operation :initform nil :reader component-build-operation)))
@@ -173,7 +168,7 @@ another pathname in a degenerate way."))
                   (setf (gethash name hash) c))
         hash))))
 
-(when-upgrade (:when (find-class 'module nil))
+(when-upgrading (:when (find-class 'module nil))
   (defmethod reinitialize-instance :after ((m module) &rest initargs &key)
     (declare (ignorable m initargs)) (values))
   (defmethod update-instance-for-redefined-class :after
@@ -230,20 +225,6 @@ another pathname in a degenerate way."))
   (file-type component))
 
 
-;;;; General component-property - ASDF3: remove? Define clean subclasses, not messy "properties".
-
-(defmethod component-property ((c component) property)
-  (cdr (assoc property (slot-value c 'properties) :test #'equal)))
-
-(defmethod (setf component-property) (new-value (c component) property)
-  (let ((a (assoc property (slot-value c 'properties) :test #'equal)))
-    (if a
-        (setf (cdr a) new-value)
-        (setf (slot-value c 'properties)
-              (acons property new-value (slot-value c 'properties)))))
-  new-value)
-
-
 ;;;; Encodings
 
 (defmethod component-encoding ((c component))
@@ -277,3 +258,16 @@ another pathname in a degenerate way."))
 
 (defmethod version-satisfies ((cver string) version)
   (version-compatible-p cver version))
+
+
+;;; all sub-components (of a given type)
+
+(defun* sub-components (component &key (type t))
+  (while-collecting (c)
+    (labels ((recurse (x)
+               (when (if-let (it (component-if-feature x)) (featurep it) t)
+                 (when (typep x type)
+                   (c x))
+                 (when (typep x 'parent-component)
+                   (map () #'recurse (component-children x))))))
+      (recurse component))))

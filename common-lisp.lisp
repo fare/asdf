@@ -12,6 +12,7 @@
   (:reexport :common-lisp)
   (:recycle :asdf/common-lisp :asdf)
   #+allegro (:intern #:*acl-warn-save*)
+  #+cormanlisp (:shadow #:user-homedir-pathname)
   #+cormanlisp
   (:export
    #:logical-pathname #:translate-logical-pathname
@@ -50,6 +51,9 @@
   (deftype logical-pathname () nil)
   (defun make-broadcast-stream () *error-output*)
   (defun translate-logical-pathname (x) x)
+  (defun user-homedir-pathname (&optional host)
+    (declare (ignore host))
+    (parse-namestring (format nil "~A\\" (cl:user-homedir-pathname))))
   (defun file-namestring (p)
     (setf p (pathname p))
     (format nil "~@[~A~]~@[.~A~]" (pathname-name p) (pathname-type p))))
@@ -133,23 +137,40 @@
   (setq clos::*redefine-class-in-place* t)) ;; Make sure we have strict ANSI class redefinition semantics
 
 
-;;;; compatfmt: avoid fancy format directives when unsupported
-
+;;;; Looping
 (defmacro loop* (&rest rest)
   #-genera `(loop ,@rest)
   #+genera `(lisp:loop ,@rest)) ;; In genera, CL:LOOP can't destructure, so we use LOOP*. Sigh.
 
+
+;;;; compatfmt: avoid fancy format directives when unsupported
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun strcat (&rest strings)
-    (apply 'concatenate 'string strings)))
+  (defun remove-substrings (substrings string)
+    (let ((length (length string)) (stream nil))
+      (labels ((emit (start end)
+                 (when (and (zerop start) (= end length))
+                   (return-from remove-substrings string))
+                 (unless stream (setf stream (make-string-output-stream)))
+                 (write-string string stream :start start :end end))
+               (recurse (substrings start end)
+                 (cond
+                   ((= start end))
+                   ((null substrings) (emit start end))
+                   (t (let* ((sub (first substrings))
+                             (found (search sub string))
+                             (more (rest substrings)))
+                        (cond
+                          (found
+                           (recurse more start found)
+                           (recurse more (+ found (length sub)) end))
+                          (t
+                           (recurse more start end))))))))
+        (recurse substrings 0 length))
+      (if stream (get-output-stream-string stream) ""))))
 
 (defmacro compatfmt (format)
   #+(or gcl genera)
-  (loop* :for (unsupported . replacement)
-         :in (append
-              '(("~3i~_" . ""))
-              #+(or genera gcl2.6) '(("~@<" . "") ("; ~@;" . "; ") ("~@:>" . "") ("~:>" . ""))) :do
-      (loop :for found = (search unsupported format) :while found :do
-        (setf format (strcat (subseq format 0 found) replacement
-                             (subseq format (+ found (length unsupported)))))))
-    format)
+  (remove-substrings `("~3i~_" #+(or genera gcl2.6) ,@'("~@<" "~@;" "~@:>" "~:>")) format)
+  #-(or gcl genera) format)
+
+

@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/defsystem
   (:recycle :asdf/defsystem :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/stamp-cache
+   :asdf/component :asdf/system :asdf/cache
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
   (:export
@@ -31,13 +31,12 @@
   ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (let ((pathname (parse-unix-namestring pathname :type :directory))
-        (load-pathname (load-pathname)))
-    (when (or pathname load-pathname)
-      (pathname-directory-pathname
-       (absolutize-pathnames
-        (list pathname load-pathname *default-pathname-defaults* (getcwd))
-        :resolve-symlinks *resolve-symlinks*)))))
+  (resolve-symlinks*
+   (ensure-pathname-absolute
+    (parse-unix-namestring pathname :type :directory)
+    #'(lambda () (ensure-pathname-absolute
+                  (load-pathname) 'get-pathname-defaults nil))
+    nil)))
 
 
 ;;; Component class
@@ -102,6 +101,7 @@
 (defun* parse-component-form (parent options &key previous-serial-component)
   (destructuring-bind
       (type name &rest rest &key
+       (builtin-system-p () bspp)
        ;; the following list of keywords is reproduced below in the
        ;; remove-plist-keys form.  important to keep them in sync
        components pathname perform explain output-files operation-done-p
@@ -109,7 +109,7 @@
        do-first if-component-dep-fails (version nil versionp)
        ;; list ends
        &allow-other-keys) options
-    (declare (ignorable perform explain output-files operation-done-p))
+    (declare (ignorable perform explain output-files operation-done-p builtin-system-p))
     (check-component-input type name weakly-depends-on depends-on components)
     (when (and parent
                (find-component parent name)
@@ -117,7 +117,7 @@
                 (typep (find-component parent name)
                        (class-for-type parent type))))
       (error 'duplicate-names :name name))
-    (when do-first (error "DO-FIRST is not supported anymore as of ASDF 2.27"))
+    (when do-first (error "DO-FIRST is not supported anymore as of ASDF 3"))
     (let* ((args `(:name ,(coerce-name name)
                    :pathname ,pathname
                    ,@(when parent `(:parent ,parent))
@@ -128,7 +128,7 @@
                       rest)))
            (component (find-component parent name)))
       (when weakly-depends-on
-        ;; ASDF3: deprecate this feature and remove it.
+        ;; ASDF4: deprecate this feature and remove it.
         (appendf depends-on
                  (remove-if (complement #'(lambda (x) (find-system x nil))) weakly-depends-on)))
       (when previous-serial-component
@@ -138,6 +138,8 @@
           (setf component (apply 'make-instance (class-for-type parent type) args)))
       (component-pathname component) ; eagerly compute the absolute pathname
       (let ((sysdir (system-source-directory (component-system component)))) ;; requires the previous
+        (when (and (typep component 'system) (not bspp))
+          (setf (builtin-system-p component) (lisp-implementation-pathname-p sysdir)))
         (setf version (normalize-version version sysdir)))
       (when (and versionp version (not (parse-version version nil)))
         (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
@@ -154,7 +156,7 @@
                 :collect c
                 :when serial :do (setf previous-component name)))
         (compute-children-by-name component))
-      ;; Used by POIU. ASDF3: rename to component-depends-on
+      ;; Used by POIU. ASDF4: rename to component-depends-on?
       (setf (component-sibling-dependencies component) depends-on)
       (%refresh-component-inline-methods component rest)
       (when if-component-dep-fails

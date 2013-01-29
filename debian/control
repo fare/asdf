@@ -5,6 +5,7 @@ Maintainer: Debian Common Lisp Team <pkg-common-lisp-devel@lists.alioth.debian.o
 Uploaders: Peter Van Eynde <pvaneynd@debian.org>,
   Milan Zamazal <pdm@zamazal.org>,
   Christoph Egger <christoph@debian.org>,
+  Julien Danjou <acid@debian.org>,
   Francois-Rene Rideau <fare@tunes.org>
 Build-Depends: debhelper (>> 7)
 Build-Depends-Indep: texinfo, texlive-extra-utils, texlive, texlive-generic-recommended

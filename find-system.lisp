@@ -4,18 +4,18 @@
 (asdf/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/stamp-cache)
+   :asdf/component :asdf/system :asdf/cache)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name
-   #:find-system #:locate-system #:load-sysdef #:with-system-definitions
+   #:find-system #:locate-system #:load-asd #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:system-definition-error #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition
    #:*system-definition-search-functions* #:search-for-system-definition
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
-   #:make-temporary-package #:find-system-if-being-defined #:*systems-being-defined*
+   #:find-system-if-being-defined #:*systems-being-defined*
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:system-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
    #:make-defined-systems-table #:*defined-systems*
@@ -56,15 +56,17 @@
   (error 'formatted-system-definition-error :format-control
          format :format-arguments arguments))
 
-(defun* make-defined-systems-table ()
-  (make-hash-table :test 'equal))
-
-(defvar *defined-systems* (make-defined-systems-table)
+(defvar *defined-systems* (make-hash-table :test 'equal)
   "This is a hash table whose keys are strings, being the
 names of the systems, and whose values are pairs, the first
 element of which is a universal-time indicating when the
 system definition was last updated, and the second element
 of which is a system object.")
+
+(defun* clear-defined-systems ()
+  (setf *defined-systems* (make-hash-table :test 'equal)))
+
+(register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
 
 (defun* coerce-name (name)
   (typecase name
@@ -156,14 +158,13 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* probe-asd (name defaults &key truename)
   (block nil
     (when (directory-pathname-p defaults)
-      (let* ((file (probe-file*
-                    (absolutize-pathnames
-                     (list (make-pathname :name name :type "asd")
-                           defaults *default-pathname-defaults* (getcwd))
-                     :resolve-symlinks truename)
-                    :truename truename)))
-        (when file
-          (return file)))
+      (if-let (file (probe-file*
+                     (ensure-pathname-absolute
+                      (parse-unix-namestring name :type "asd")
+                      #'(lambda () (ensure-pathname-absolute defaults 'get-pathname-defaults nil))
+                      nil)
+                     :truename truename))
+        (return file))
       #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
       (when (os-windows-p)
         (let ((shortcut
@@ -223,9 +224,6 @@ Going forward, we recommend new users should be using the source-registry.
                           (list new)
                           (subseq *central-registry* (1+ position))))))))))
 
-(defun* make-temporary-package ()
-  (make-package (fresh-package-name :prefix :asdf :index 0) :use '(:cl :asdf/interface)))
-
 (defmethod find-system ((name null) &optional (error-p t))
   (declare (ignorable name))
   (when error-p
@@ -243,33 +241,29 @@ Going forward, we recommend new users should be using the source-registry.
 
 (defun* call-with-system-definitions (thunk)
   (if *systems-being-defined*
-      (call-with-stamp-cache thunk)
+      (call-with-asdf-cache thunk)
       (let ((*systems-being-defined* (make-hash-table :test 'equal)))
-        (call-with-stamp-cache thunk))))
+        (call-with-asdf-cache thunk))))
 
 (defmacro with-system-definitions ((&optional) &body body)
   `(call-with-system-definitions #'(lambda () ,@body)))
 
-(defun* load-sysdef (name pathname)
+(defun* load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))))
   ;; Tries to load system definition with canonical NAME from PATHNAME.
   (with-system-definitions ()
-    (let ((package (make-temporary-package))) ;; ASDF3: get rid of that.
-      (unwind-protect
-           (handler-bind
-               ((error #'(lambda (condition)
-                           (error 'load-system-definition-error
-                                  :name name :pathname pathname
-                                  :condition condition))))
-             (let ((*package* package)
-                   (*default-pathname-defaults*
-                    ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
-                    (pathname-directory-pathname (translate-logical-pathname pathname)))
-                   (external-format (encoding-external-format (detect-encoding pathname))))
-               (asdf-message (compatfmt "~&~@<; ~@;Loading system definition from ~A into ~A~@:>~%")
-                             pathname package)
-               (with-muffled-loader-conditions ()
-                 (load* pathname :external-format external-format))))
-        (delete-package package)))))
+    (let ((*package* (find-package :asdf-user))
+          (*default-pathname-defaults*
+            ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
+            (pathname-directory-pathname (translate-logical-pathname pathname))))
+      (handler-bind
+          ((error #'(lambda (condition)
+                      (error 'load-system-definition-error
+                             :name name :pathname pathname
+                             :condition condition))))
+        (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
+                      name pathname)
+        (with-muffled-loader-conditions ()
+          (load* pathname :external-format external-format))))))
 
 (defun* locate-system (name)
   "Given a system NAME designator, try to locate where to load the system from.
@@ -318,7 +312,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                                              (translate-logical-pathname previous-pathname))))
                                    (stamp<= (get-file-stamp pathname) previous-time))))
                 ;; only load when it's a pathname that is different or has newer content
-                (load-sysdef name pathname)))
+                (load-asd pathname :name name)))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
               (return
                 (cond
@@ -347,19 +341,3 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 (register-preloaded-system "asdf")
 (register-preloaded-system "asdf-driver")
 
-;;;; Beware of builtin systems
-(defmethod builtin-system-p ((s system))
-  (or
-   ;; For most purposes, asdf itself specially counts as builtin.
-   ;; if you want to link it or do something forbidden to builtins,
-   ;; specify separate dependencies on asdf-driver and asdf-defsystem.
-   (equal "asdf" (coerce-name s))
-   ;; Other builtin systems are those under the implementation directory
-   (let* ((system (find-system s nil))
-          (sysdir (and system (component-pathname system)))
-          (truesysdir (truename* sysdir))
-          (impdir (lisp-implementation-directory))
-          (trueimpdir (truename* impdir)))
-     (and sysdir impdir
-          (or (subpathp sysdir impdir)
-              (subpathp truesysdir trueimpdir))))))

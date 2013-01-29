@@ -1,3 +1,6 @@
+* Resolve performance degradation issue reported by stassats and fe[nl]ix
+** Is it the warnings feature taking too much resources?
+** Is output-files and/or input-files being called too much? Cache it!
 * fix upgrade on (abcl, clisp, cmucl)
 ** Extract minimal test case
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
@@ -16,8 +19,6 @@
   concatenate all files for the system, then load the result (load-concatenated-source-op),
   concatenate all files for the system, then link them and load the result (load-compiled-concatenated-op),
   concatenate all files for the system *and* its dependencies, link and load (monolithic-load-compiled-concatenated-op).
-* Stop the dynamic ASDFn temporary package madness.
-** Just have a single ASDF-USER that :use's ASDF and ASDF-UTILS
 * operation cleanup?
 ** Kill backward-compat functions after all clients have moved on.
 ** Kill original-initargs -- BEWARE, it currently has clients!

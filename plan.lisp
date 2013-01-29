@@ -5,7 +5,7 @@
   (:recycle :asdf/plan :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/operation :asdf/system
-   :asdf/stamp-cache :asdf/find-system :asdf/find-component
+   :asdf/cache :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action)
   (:export
    #:component-operation-time #:mark-operation-done
@@ -230,7 +230,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (when (and just-done (not all-present))
       (warn "~A completed without ~:[~*~;~*its input file~:p~2:*~{ ~S~}~*~]~
              ~:[~; or ~]~:[~*~;~*its output file~:p~2:*~{ ~S~}~*~]"
-            (operation-description o c)
+            (action-description o c)
             missing-in (length missing-in) (and missing-in missing-out)
             missing-out (length missing-out)))
     ;; Note that we use stamp<= instead of stamp< to play nice with generated files.

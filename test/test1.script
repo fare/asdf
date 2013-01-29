@@ -4,15 +4,15 @@
 (defparameter test1.asd (system-source-file 'test1))
 (defparameter file1.lisp (component-pathname (find-component 'test1 "file1")))
 (defparameter file2.lisp (component-pathname (find-component 'test1 "file2")))
-(assert-equal test1.asd (test-source "test1.asd")) ; unhappily, not usually equal.
-(assert-equal file1.lisp (test-source "file1.lisp")) ; unhappily, not usually equal.
-(assert-equal file2.lisp (test-source "file2.lisp")) ; unhappily, not usually equal.
+(assert-pathname-equal test1.asd (test-source "test1.asd")) ; unhappily, not usually equal.
+(assert-pathname-equal file1.lisp (test-source "file1.lisp")) ; unhappily, not usually equal.
+(assert-pathname-equal file2.lisp (test-source "file2.lisp")) ; unhappily, not usually equal.
 (defparameter *file1.out* (output-files 'compile-op '(test1 "file1")))
 (defparameter *file2.out* (output-files 'compile-op '(test1 "file2")))
 (defparameter file1.fasl (first *file1.out*))
 (defparameter file2.fasl (first *file2.out*))
-(assert-equal file1.fasl (test-fasl "file1"))
-(assert-equal file2.fasl (test-fasl "file2"))
+(assert-pathname-equal file1.fasl (test-fasl "file1"))
+(assert-pathname-equal file2.fasl (test-fasl "file2"))
 
 (defparameter *date* (- (file-write-date test1.asd) 3600))
 (touch-file test1.asd :timestamp *date*) ;; touch test1.asd an hour back.

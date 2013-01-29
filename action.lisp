@@ -5,11 +5,11 @@
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation)
+   :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
   (:intern #:stamp #:done-p)
   (:export
    #:action #:define-convenience-action-methods
-   #:explain #:operation-description
+   #:explain #:action-description
    #:downward-operation #:upward-operation #:sibling-operation
    #:component-depends-on #:component-self-dependencies
    #:input-files #:output-files #:output-file #:operation-done-p
@@ -17,8 +17,7 @@
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:feature
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
-   #:action-path #:find-action
-   ))
+   #:action-path #:find-action))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
@@ -52,11 +51,12 @@
                  (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.
                      `(apply 'make-operation ,operation :original-initargs ,rest ,rest)
                      `(make-operation ,operation))
-                 `(find-component () ,component))
+                 `(or (find-component () ,component) ,if-no-component))
                ,if-no-operation))
          (defmethod ,function ((,operation operation) ,component ,@more-args)
            (if (typep ,component 'component)
-               (error "No defined method for ~S on ~S" ',function ,component)
+               (error "No defined method for ~S on ~/asdf-action:format-action/"
+                      ',function (cons ,operation ,component))
                (let ((,found (find-component () ,component)))
                  (if ,found
                      ,(next-method operation found)
@@ -65,27 +65,27 @@
 
 ;;;; self-description
 
-(defgeneric* operation-description (operation component) ;; ASDF3: rename to action-description
+(defgeneric* action-description (operation component)
   (:documentation "returns a phrase that describes performing this operation
 on this component, e.g. \"loading /a/b/c\".
 You can put together sentences using this phrase."))
-(defmethod operation-description (operation component)
+(defmethod action-description (operation component)
   (format nil (compatfmt "~@<~A on ~A~@:>")
           (type-of operation) component))
 (defgeneric* (explain) (operation component))
 (defmethod explain ((o operation) (c component))
-  (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (operation-description o c)))
+  (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c)))
 (define-convenience-action-methods explain (operation component))
 
 (defun* format-action (stream action &optional colon-p at-sign-p)
   (assert (null colon-p)) (assert (null at-sign-p))
   (destructuring-bind (operation . component) action
-    (princ (operation-description operation component) stream)))
+    (princ (action-description operation component) stream)))
 
 
 ;;;; Dependencies
 
-(defgeneric* component-depends-on (operation component) ;; ASDF3: rename to component-dependencies
+(defgeneric* component-depends-on (operation component) ;; ASDF4: rename to component-dependencies
   (:documentation
    "Returns a list of dependencies needed by the component to perform
     the operation.  A dependency has one of the following forms:
@@ -132,7 +132,7 @@ You can put together sentences using this phrase."))
   ((upward-operation
     :initform nil :initarg :downward-operation :reader upward-operation)))
 ;; For backward-compatibility reasons, a system inherits from module and is a child-component
-;; so we must guard against this case. ASDF3: remove that.
+;; so we must guard against this case. ASDF4: remove that.
 (defmethod component-depends-on ((o upward-operation) (c child-component))
   `(,@(if-let (p (component-parent c))
         `((,(or (upward-operation o) o) ,p))) ,@(call-next-method)))
@@ -163,22 +163,23 @@ You can put together sentences using this phrase."))
   t)
 
 (defmethod output-files :around (operation component)
-  "Translate output files, unless asked not to"
+  "Translate output files, unless asked not to. Memoize the result."
   operation component ;; hush genera, not convinced by declare ignorable(!)
-  (values
-   (multiple-value-bind (pathnames fixedp) (call-next-method)
-     ;; 1- Make sure we have absolute pathnames
-     (let* ((directory (pathname-directory-pathname
-                        (component-pathname (find-component () component))))
-            (absolute-pathnames
-              (loop
-                :for pathname :in pathnames
-                :collect (ensure-pathname-absolute pathname directory))))
-       ;; 2- Translate those pathnames as required
-       (if fixedp
-           absolute-pathnames
-           (mapcar *output-translation-function* absolute-pathnames))))
-   t))
+  (do-asdf-cache `(output-files ,operation ,component)
+    (values
+     (multiple-value-bind (pathnames fixedp) (call-next-method)
+       ;; 1- Make sure we have absolute pathnames
+       (let* ((directory (pathname-directory-pathname
+                          (component-pathname (find-component () component))))
+              (absolute-pathnames
+                (loop
+                  :for pathname :in pathnames
+                  :collect (ensure-pathname-absolute pathname directory))))
+         ;; 2- Translate those pathnames as required
+         (if fixedp
+             absolute-pathnames
+             (mapcar *output-translation-function* absolute-pathnames))))
+     t)))
 (defmethod output-files ((o operation) (c component))
   (declare (ignorable o c))
   nil)
@@ -187,6 +188,11 @@ You can put together sentences using this phrase."))
   (let ((files (output-files operation component)))
     (assert (length=n-p files 1))
     (first files)))
+
+(defmethod input-files :around (operation component)
+  "memoize input files."
+  (do-asdf-cache `(input-files ,operation ,component)
+    (call-next-method)))
 
 (defmethod input-files ((o operation) (c parent-component))
   (declare (ignorable o c))
@@ -203,11 +209,10 @@ You can put together sentences using this phrase."))
 
 ;;;; Done performing
 
-(defgeneric* component-operation-time (operation component)) ;; ASDF3: hide it behind plan-action-stamp
+(defgeneric* component-operation-time (operation component)) ;; ASDF4: hide it behind plan-action-stamp
 (define-convenience-action-methods component-operation-time (operation component))
 
-
-(defgeneric* mark-operation-done (operation component)) ;; ASDF3: hide it behind (setf plan-action-stamp)
+(defgeneric* mark-operation-done (operation component)) ;; ASDF4: hide it behind (setf plan-action-stamp)
 (defgeneric* compute-action-stamp (plan operation component &key just-done)
   (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
@@ -277,12 +282,12 @@ in some previous image, or T if it needs to be done.")
         :report
         (lambda (s)
           (format s (compatfmt "~@<Retry ~A.~@:>")
-                  (operation-description operation component))))
+                  (action-description operation component))))
       (accept ()
         :report
         (lambda (s)
           (format s (compatfmt "~@<Continue, treating ~A as having been successful.~@:>")
-                  (operation-description operation component)))
+                  (action-description operation component)))
         (mark-operation-done operation component)
         (return)))))
 

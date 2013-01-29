@@ -10,7 +10,7 @@
    #:split #:make-collector
    #:loaded-systems ; makes for annoying SLIME completion
    #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade :asdf/stamp-cache
+  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade :asdf/cache
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry
@@ -31,7 +31,7 @@
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
    #:input-files #:output-files #:output-file #:perform
-   #:operation-done-p #:explain #:component-sibling-dependencies
+   #:operation-done-p #:explain #:action-description #:component-sibling-dependencies
    #:needed-in-image-p
    ;; #:run-program ; we can't export it, because SB-GROVEL :use's both ASDF and SB-EXT.
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
@@ -61,7 +61,6 @@
    #:component-name
    #:component-version
    #:component-parent
-   #:component-property
    #:component-system
    #:component-encoding
    #:component-external-format
@@ -81,8 +80,6 @@
    #:system-relative-pathname
    #:map-systems
 
-   #:operation-description
-
    #:*system-definition-search-functions*   ; variables
    #:*central-registry*
    #:*compile-file-warnings-behaviour*
@@ -94,7 +91,9 @@
 
    #:asdf-version
 
-   #:operation-error #:compile-failed #:compile-warned #:compile-error
+   #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
+   #:compile-warned-warning #:compile-failed-warning
+   #:operation-error #:compile-failed #:compile-warned #:compile-error ;; backward compatibility
    #:error-name
    #:error-pathname
    #:load-system-definition-error
@@ -127,6 +126,7 @@
    #:apply-output-translations
    #:compile-file*
    #:compile-file-pathname*
+   #:*warnings-file-type*
    #:enable-asdf-binary-locations-compatibility
    #:*default-source-registries*
    #:*source-registry-parameter*

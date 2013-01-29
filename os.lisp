@@ -3,22 +3,17 @@
 
 (asdf/package:define-package :asdf/os
   (:recycle :asdf/os :asdf)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/pathname :asdf/stream)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility)
   (:export
-   #:featurep #:os-unix-p #:os-windows-p ;; features
+   #:featurep #:os-unix-p #:os-windows-p #:os-genera-p #:detect-os ;; features
    #:getenv #:getenvp ;; environment variables
-   #:native-namestring #:parse-native-namestring
-   #:inter-directory-separator #:split-native-pathnames-string
-   #:getenv-pathname #:getenv-pathnames
-   #:getenv-absolute-directory #:getenv-absolute-directories
    #:implementation-identifier ;; implementation identifier
    #:implementation-type #:*implementation-type*
    #:operating-system #:architecture #:lisp-version-string
-   #:hostname #:user-homedir #:lisp-implementation-directory
-   #:getcwd #:chdir #:call-with-current-directory #:with-current-directory
-   #:*temporary-directory* #:temporary-directory #:default-temporary-directory
-   #:setup-temporary-directory
-   #:call-with-temporary-file #:with-temporary-file))
+   #:hostname #:getcwd #:chdir
+   ;; Windows shortcut support
+   #:read-null-terminated-string #:read-little-endian
+   #:parse-file-location-info #:parse-windows-shortcut))
 (in-package :asdf/os)
 
 ;;; Features
@@ -32,21 +27,23 @@
       (t (error "Malformed feature specification ~S" x))))
 
   (defun* os-unix-p ()
-    (featurep '(:or :unix :cygwin :darwin)))
+    (or #+abcl (featurep :unix)
+        #+(and (not abcl) (or unix cygwin darwin)) t))
 
   (defun* os-windows-p ()
-    (and (not (os-unix-p)) (featurep '(:or :win32 :windows :mswindows :mingw32))))
+    (or #+abcl (featurep :windows)
+        #+(and (not (or unix cygwin darwin)) (or win32 windows mswindows mingw32)) t))
 
   (defun* os-genera-p ()
-    (featurep :genera))
+    (or #+genera t))
 
   (defun* detect-os ()
     (flet ((yes (yes) (pushnew yes *features*))
            (no (no) (setf *features* (remove no *features*))))
       (cond
-        ((os-unix-p) (yes :os-unix) (no :os-windows))
-        ((os-windows-p) (yes :os-windows) (no :os-unix))
-        ((os-genera-p) (no :os-unix) (no :os-windows))
+        ((os-unix-p) (yes :os-unix) (no :os-windows) (no :genera))
+        ((os-windows-p) (yes :os-windows) (no :os-unix) (no :genera))
+        ((os-genera-p) (no :os-unix) (no :os-windows) (yes :genera))
         (t (error "Congratulations for trying XCVB on an operating system~%~
 that is neither Unix, nor Windows, nor even Genera.~%Now you port it.")))))
 
@@ -86,62 +83,6 @@ that is neither Unix, nor Windows, nor even Genera.~%Now you port it.")))))
   "Predicate that is true if the named variable is present in the libc environment,
 then returning the non-empty string value of the variable"
   (let ((g (getenv x))) (and (not (emptyp g)) g)))
-
-
-;;; Native vs Lisp syntax
-
-(defun* native-namestring (x)
-  "From a CL pathname, a return namestring suitable for passing to the operating system"
-  (when x
-    (let ((p (pathname x)))
-      #+clozure (with-pathname-defaults ((root-pathname))
-                  (ccl:native-translated-namestring p)) ; see ccl bug 978
-      #+(or cmu scl) (ext:unix-namestring p nil)
-      #+sbcl (sb-ext:native-namestring p)
-      #-(or clozure cmu sbcl scl)
-      (if (os-unix-p) (unix-namestring p)
-          (namestring p)))))
-
-(defun* parse-native-namestring (string &rest constraints &key ensure-directory &allow-other-keys)
-  "From a native namestring suitable for use by the operating system, return
-a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
-  (check-type string (or string null))
-  (let* ((pathname
-           (when string
-             (with-pathname-defaults ((root-pathname))
-               #+clozure (ccl:native-to-pathname string)
-               #+sbcl (sb-ext:parse-native-namestring string)
-               #-(or clozure sbcl)
-               (if (os-unix-p)
-                   (parse-unix-namestring string :ensure-directory ensure-directory)
-                   (parse-namestring string)))))
-         (pathname
-           (if ensure-directory
-               (and pathname (ensure-directory-pathname pathname))
-               pathname)))
-    (apply 'ensure-pathname pathname constraints)))
-
-
-;;; Native pathnames in environment
-(defun* inter-directory-separator ()
-  (if (os-unix-p) #\: #\;))
-(defun* split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
-  (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
-        :collect (apply 'parse-native-namestring namestring constraints)))
-(defun* getenv-pathname (x &rest constraints &key on-error &allow-other-keys)
-  (apply 'parse-native-namestring (getenvp x)
-         :on-error (or on-error
-                       `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathname ,x))
-         constraints))
-(defun* getenv-pathnames (x &rest constraints &key on-error &allow-other-keys)
-  (apply 'split-native-pathnames-string (getenvp x)
-         :on-error (or on-error
-                       `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
-         constraints))
-(defun* getenv-absolute-directory (x)
-  (getenv-pathname x :want-absolute t :ensure-directory t))
-(defun* getenv-absolute-directories (x)
-  (getenv-pathnames x :want-absolute t :ensure-directory t))
 
 
 ;;;; implementation-identifier
@@ -251,142 +192,126 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
   #+clisp (first (split-string (machine-instance) :separator " "))
   #+gcl (system:gethostname))
 
-(defun* user-homedir ()
-  (truenamize
-   (pathname-directory-pathname
-    #+cormanlisp (ensure-directory-pathname (user-homedir-pathname))
-    #+mcl (current-user-homedir-pathname)
-    #-(or cormanlisp mcl) (user-homedir-pathname))))
-
-(defun* lisp-implementation-directory (&key truename)
-  (let ((dir
-          (ignore-errors
-           #+clozure #p"ccl:"
-           #+(or ecl mkcl) #p"SYS:"
-           #+gcl system::*system-directory*
-           #+sbcl (if-let (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
-                     (funcall it)
-                     (getenv-pathname "SBCL_HOME" :ensure-directory t)))))
-    (if (and dir truename)
-        (truename* dir)
-        dir)))
-
 
 ;;; Current directory
+#+cmu
+(defun* parse-unix-namestring* (unix-namestring)
+  (multiple-value-bind (host device directory name type version)
+      (lisp::parse-unix-namestring unix-namestring 0 (length unix-namestring))
+    (make-pathname :host (or host lisp::*unix-host*) :device device
+                   :directory directory :name name :type type :version version)))
 
 (defun* getcwd ()
   "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-  (or #+abcl (parse-native-namestring
+  (or #+abcl (parse-namestring
               (java:jstatic "getProperty" "java.lang.System" "user.dir") :ensure-directory t)
       #+allegro (excl::current-directory)
       #+clisp (ext:default-directory)
       #+clozure (ccl:current-directory)
-      #+(or cmu scl) (parse-native-namestring
-                      (nth-value 1 (unix:unix-current-directory)) :ensure-directory t)
+      #+(or cmu scl) (#+cmu parse-unix-namestring* #+scl lisp::parse-unix-namestring
+                      (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
       #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
       #+ecl (ext:getcwd)
-      #+gcl (parse-native-namestring ;; this is a joke. Isn't there a better way?
+      #+gcl (parse-namestring ;; this is a joke. Isn't there a better way?
              (first (symbol-call :asdf/driver :run-program '("/bin/pwd") :output :lines)))
       #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
       #+lispworks (system:current-directory)
       #+mkcl (mk-ext:getcwd)
-      #+sbcl (parse-native-namestring (sb-unix:posix-getcwd/))
+      #+sbcl (sb-ext:parse-native-namestring (sb-unix:posix-getcwd/))
       #+xcl (extensions:current-directory)
       (error "getcwd not supported on your implementation")))
 
 (defun* chdir (x)
-  "Change current directory, as per POSIX chdir(2)"
-  #-(or clisp clozure) (when (pathnamep x) (setf x (native-namestring x)))
-  (or #+clisp (ext:cd x)
-      #+clozure (setf (ccl:current-directory) x)
-      #+cormanlisp (unless (zerop (win32::_chdir x))
-                     (error "Could not set current directory to ~A" x))
-      #+sbcl (symbol-call :sb-posix :chdir x)
-      (error "chdir not supported on your implementation")))
-
-(defun* call-with-current-directory (dir thunk)
-  (if dir
-      (let* ((dir (truename (merge-pathnames (pathname-directory-pathname dir))))
-             (*default-pathname-defaults* dir)
-             (cwd (getcwd)))
-        (chdir dir)
-        (unwind-protect
-             (funcall thunk)
-          (chdir cwd)))
-      (funcall thunk)))
-
-(defmacro with-current-directory ((dir) &body body)
-  "Call BODY while the POSIX current working directory is set to DIR"
-  `(call-with-current-directory ,dir #'(lambda () ,@body)))
+  "Change current directory, as per POSIX chdir(2), to a given pathname object"
+  (if-let (x (pathname x))
+    (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
+        #+allegro (excl:chdir x)
+        #+clisp (ext:cd x)
+        #+clozure (setf (ccl:current-directory) x)
+        #+(or cmu scl) (unix:unix-chdir (ext:unix-namestring x))
+        #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
+                       (error "Could not set current directory to ~A" x))
+        #+ecl (ext:chdir x)
+        #+genera (setf *default-pathname-defaults* x)
+        #+lispworks (hcl:change-directory x)
+        #+mkcl (mk-ext:chdir x)
+        #+sbcl (symbol-call :sb-posix :chdir (sb-ext:native-namestring x))
+        (error "chdir not supported on your implementation"))))
 
 
-;;; Using temporary files
+;;;; -----------------------------------------------------------------
+;;;; Windows shortcut support.  Based on:
+;;;;
+;;;; Jesse Hager: The Windows Shortcut File Format.
+;;;; http://www.wotsit.org/list.asp?fc=13
 
-(defun* default-temporary-directory ()
-  (or
-   (when (os-unix-p)
-     (or (getenv-pathname "TMPDIR" :ensure-directory t)
-         (parse-native-namestring "/tmp/")))
-   (when (os-windows-p)
-     (getenv-pathname "TEMP" :ensure-directory t))
-   (subpathname (user-homedir) "tmp/")))
+#-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera.
+(progn
+(defparameter *link-initial-dword* 76)
+(defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
 
-(defvar *temporary-directory* nil)
+(defun* read-null-terminated-string (s)
+  (with-output-to-string (out)
+    (loop :for code = (read-byte s)
+      :until (zerop code)
+      :do (write-char (code-char code) out))))
 
-(defun* temporary-directory ()
-  (or *temporary-directory* (default-temporary-directory)))
+(defun* read-little-endian (s &optional (bytes 4))
+  (loop :for i :from 0 :below bytes
+    :sum (ash (read-byte s) (* 8 i))))
 
-(defun setup-temporary-directory ()
-  (setf *temporary-directory* (default-temporary-directory))
-  ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
-  #+(and gcl (not gcl2.6)) (setf system::*tmp-dir* *temporary-directory*))
+(defun* parse-file-location-info (s)
+  (let ((start (file-position s))
+        (total-length (read-little-endian s))
+        (end-of-header (read-little-endian s))
+        (fli-flags (read-little-endian s))
+        (local-volume-offset (read-little-endian s))
+        (local-offset (read-little-endian s))
+        (network-volume-offset (read-little-endian s))
+        (remaining-offset (read-little-endian s)))
+    (declare (ignore total-length end-of-header local-volume-offset))
+    (unless (zerop fli-flags)
+      (cond
+        ((logbitp 0 fli-flags)
+          (file-position s (+ start local-offset)))
+        ((logbitp 1 fli-flags)
+          (file-position s (+ start
+                              network-volume-offset
+                              #x14))))
+      (strcat (read-null-terminated-string s)
+              (progn
+                (file-position s (+ start remaining-offset))
+                (read-null-terminated-string s))))))
 
-(defun* call-with-temporary-file
-    (thunk &key
-     prefix keep (direction :io)
-     (element-type *default-stream-element-type*)
-     (external-format :default))
-  #+gcl2.6 (declare (ignorable external-format))
-  (check-type direction (member :output :io))
-  (loop
-    :with prefix = (or prefix (format nil "~Atmp" (native-namestring (temporary-directory))))
-    :for counter :from (random (ash 1 32))
-    :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
-     ;; TODO: on Unix, do something about umask
-     ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
-     ;; TODO: on Unix, use CFFI and mkstemp -- but the master is precisely meant to not depend on CFFI or on anything! Grrrr.
-    (with-open-file (stream pathname
-                            :direction direction
-                            :element-type element-type
-                            #-gcl2.6 :external-format #-gcl2.6 external-format
-                            :if-exists nil :if-does-not-exist :create)
-      (when stream
-        (return
-          (if keep
-              (funcall thunk stream pathname)
-              (unwind-protect
-                   (funcall thunk stream pathname)
-                (ignore-errors (delete-file pathname)))))))))
+(defun* parse-windows-shortcut (pathname)
+  (with-open-file (s pathname :element-type '(unsigned-byte 8))
+    (handler-case
+        (when (and (= (read-little-endian s) *link-initial-dword*)
+                   (let ((header (make-array (length *link-guid*))))
+                     (read-sequence header s)
+                     (equalp header *link-guid*)))
+          (let ((flags (read-little-endian s)))
+            (file-position s 76)        ;skip rest of header
+            (when (logbitp 0 flags)
+              ;; skip shell item id list
+              (let ((length (read-little-endian s 2)))
+                (file-position s (+ length (file-position s)))))
+            (cond
+              ((logbitp 1 flags)
+                (parse-file-location-info s))
+              (t
+                (when (logbitp 2 flags)
+                  ;; skip description string
+                  (let ((length (read-little-endian s 2)))
+                    (file-position s (+ length (file-position s)))))
+                (when (logbitp 3 flags)
+                  ;; finally, our pathname
+                  (let* ((length (read-little-endian s 2))
+                         (buffer (make-array length)))
+                    (read-sequence buffer s)
+                    (map 'string #'code-char buffer)))))))
+      (end-of-file (c)
+        (declare (ignore c))
+        nil)))))
 
-(defmacro with-temporary-file ((&key (stream (gensym "STREAM") streamp)
-                                (pathname (gensym "PATHNAME") pathnamep)
-                                prefix keep direction element-type external-format)
-                               &body body)
-  "Evaluate BODY where the symbols specified by keyword arguments
-STREAM and PATHNAME are bound corresponding to a newly created temporary file
-ready for I/O. Unless KEEP is specified, delete the file afterwards."
-  (check-type stream symbol)
-  (check-type pathname symbol)
-  `(flet ((think (,stream ,pathname)
-            ,@(unless pathnamep `((declare (ignore ,pathname))))
-            ,@(unless streamp `((when ,stream (close ,stream))))
-            ,@body))
-     #-gcl (declare (dynamic-extent #'think))
-     (call-with-temporary-file
-      #'think
-      ,@(when direction `(:direction ,direction))
-      ,@(when prefix `(:prefix ,prefix))
-      ,@(when keep `(:keep ,keep))
-      ,@(when element-type `(:element-type ,element-type))
-      ,@(when external-format `(:external-format external-format)))))
 

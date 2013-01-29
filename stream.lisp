@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/stream
   (:recycle :asdf/stream)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/pathname)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os :asdf/pathname :asdf/filesystem)
   (:export
    #:*default-stream-element-type* #:*stderr* #:setup-stderr
    #:with-safe-io-syntax #:call-with-safe-io-syntax
@@ -18,7 +18,15 @@
    #:eval-input #:eval-thunk #:standard-eval-thunk
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
-   #:*default-encoding* #:*utf-8-external-format*))
+   #:*default-encoding* #:*utf-8-external-format*
+   #:ensure-all-directories-exist
+   #:rename-file-overwriting-target
+   #:delete-file-if-exists
+   #:*temporary-directory* #:temporary-directory #:default-temporary-directory
+   #:setup-temporary-directory
+   #:call-with-temporary-file #:with-temporary-file
+   #:add-pathname-suffix #:tmpize-pathname
+   #:call-with-staging-pathname #:with-staging-pathname))
 (in-package :asdf/stream)
 
 (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)
@@ -350,4 +358,116 @@ and implementation-defined external-format's")
 
 (defun* encoding-external-format (encoding)
   (funcall *encoding-external-format-hook* encoding))
+
+
+;;; Simple filesystem operations
+(defun* ensure-all-directories-exist (pathnames)
+   (dolist (pathname pathnames)
+     (ensure-directories-exist (translate-logical-pathname pathname))))
+
+(defun* rename-file-overwriting-target (source target)
+  #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
+  (posix:copy-file source target :method :rename)
+  #-clisp
+  (rename-file source target
+               #+clozure :if-exists #+clozure :rename-and-delete))
+
+(defun* delete-file-if-exists (x)
+  (handler-case (delete-file x) (file-error () nil)))
+
+
+;;; Using temporary files
+(defun* default-temporary-directory ()
+  (or
+   (when (os-unix-p)
+     (or (getenv-pathname "TMPDIR" :ensure-directory t)
+         (parse-native-namestring "/tmp/")))
+   (when (os-windows-p)
+     (getenv-pathname "TEMP" :ensure-directory t))
+   (subpathname (user-homedir-pathname) "tmp/")))
+
+(defvar *temporary-directory* nil)
+
+(defun* temporary-directory ()
+  (or *temporary-directory* (default-temporary-directory)))
+
+(defun setup-temporary-directory ()
+  (setf *temporary-directory* (default-temporary-directory))
+  ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
+  #+(and gcl (not gcl2.6)) (setf system::*tmp-dir* *temporary-directory*))
+
+(defun* call-with-temporary-file
+    (thunk &key
+     prefix keep (direction :io)
+     (element-type *default-stream-element-type*)
+     (external-format :default))
+  #+gcl2.6 (declare (ignorable external-format))
+  (check-type direction (member :output :io))
+  (loop
+    :with prefix = (or prefix (format nil "~Atmp" (native-namestring (temporary-directory))))
+    :for counter :from (random (ash 1 32))
+    :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
+     ;; TODO: on Unix, do something about umask
+     ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
+     ;; TODO: on Unix, use CFFI and mkstemp -- but the master is precisely meant to not depend on CFFI or on anything! Grrrr.
+    (with-open-file (stream pathname
+                            :direction direction
+                            :element-type element-type
+                            #-gcl2.6 :external-format #-gcl2.6 external-format
+                            :if-exists nil :if-does-not-exist :create)
+      (when stream
+        (return
+          (if keep
+              (funcall thunk stream pathname)
+              (unwind-protect
+                   (funcall thunk stream pathname)
+                (ignore-errors (delete-file pathname)))))))))
+
+(defmacro with-temporary-file ((&key (stream (gensym "STREAM") streamp)
+                                (pathname (gensym "PATHNAME") pathnamep)
+                                prefix keep direction element-type external-format)
+                               &body body)
+  "Evaluate BODY where the symbols specified by keyword arguments
+STREAM and PATHNAME are bound corresponding to a newly created temporary file
+ready for I/O. Unless KEEP is specified, delete the file afterwards."
+  (check-type stream symbol)
+  (check-type pathname symbol)
+  `(flet ((think (,stream ,pathname)
+            ,@(unless pathnamep `((declare (ignore ,pathname))))
+            ,@(unless streamp `((when ,stream (close ,stream))))
+            ,@body))
+     #-gcl (declare (dynamic-extent #'think))
+     (call-with-temporary-file
+      #'think
+      ,@(when direction `(:direction ,direction))
+      ,@(when prefix `(:prefix ,prefix))
+      ,@(when keep `(:keep ,keep))
+      ,@(when element-type `(:element-type ,element-type))
+      ,@(when external-format `(:external-format external-format)))))
+
+;;; Temporary pathnames
+(defun* add-pathname-suffix (pathname suffix)
+  (make-pathname :name (strcat (pathname-name pathname) suffix)
+                 :defaults pathname))
+
+(defun* tmpize-pathname (x)
+  (add-pathname-suffix x "-ASDF-TMP"))
+
+(defun* call-with-staging-pathname (pathname fun)
+  "Calls fun with a staging pathname, and atomically
+renames the staging pathname to the pathname in the end.
+Note: this protects only against failure of the program,
+not against concurrent attempts.
+For the latter case, we ought pick random suffix and atomically open it."
+  (let* ((pathname (pathname pathname))
+         (staging (tmpize-pathname pathname)))
+    (unwind-protect
+         (multiple-value-prog1
+             (funcall fun staging)
+           (rename-file-overwriting-target staging pathname))
+      (delete-file-if-exists staging))))
+
+(defmacro with-staging-pathname ((pathname-var &optional (pathname-value pathname-var)) &body body)
+  `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body)))
+
 

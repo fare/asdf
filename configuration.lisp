@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/configuration
   (:recycle :asdf/configuration :asdf)
   (:use :asdf/common-lisp :asdf/utility
-   :asdf/pathname :asdf/stream :asdf/os :asdf/image)
+   :asdf/os :asdf/pathname :asdf/filesystem :asdf/stream :asdf/image)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories
@@ -15,7 +15,7 @@
    #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form*
    #:*clear-configuration-hook* #:clear-configuration #:register-clear-configuration-hook
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
-   #:resolve-relative-location #:resolve-absolute-location))
+   #:resolve-relative-location #:resolve-absolute-location #:upgrade-configuration))
 (in-package :asdf/configuration)
 
 (define-condition invalid-configuration ()
@@ -49,7 +49,7 @@
            ,@(when (os-windows-p)
                `(,(subpathname* (get-folder-path :local-appdata) "common-lisp/config/")
                  ,(subpathname* (get-folder-path :appdata) "common-lisp/config/")))
-           ,(subpathname (user-homedir) ".config/common-lisp/"))))
+           ,(subpathname (user-homedir-pathname) ".config/common-lisp/"))))
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs)
                        :from-end t :test 'equal)))
 
@@ -227,12 +227,13 @@ directive.")
       (return-from resolve-absolute-location
         (let ((p (make-pathname* :directory '(:relative))))
           (if wilden (wilden p) p))))
-     ((eql :home) (user-homedir))
+     ((eql :home) (user-homedir-pathname))
      ((eql :here) (resolve-absolute-location
                    *here-directory* :ensure-directory t :wilden nil))
      ((eql :user-cache) (resolve-absolute-location
                          *user-cache* :ensure-directory t :wilden nil)))
    :wilden (and wilden (not (pathnamep x)))
+   :resolve-symlinks *resolve-symlinks*
    :want-absolute t))
 
 ;; Try to override declaration in previous versions of ASDF.
@@ -240,21 +241,21 @@ directive.")
                              (:ensure-directory boolean)) t) resolve-location))
 
 (defun* (resolve-location) (x &key ensure-directory wilden directory)
-  (when directory (setf ensure-directory t)) ;; :directory backward compatibility, until 2014-01-16.
-  (if (atom x)
-      (resolve-absolute-location x :ensure-directory ensure-directory :wilden wilden)
-      (loop* :with (first . rest) = x
-        :with path = (resolve-absolute-location
-                          first :ensure-directory (and (or ensure-directory rest) t)
-                          :wilden (and wilden (null rest)))
-        :for (element . morep) :on rest
-        :for dir = (and (or morep ensure-directory) t)
-        :for wild = (and wilden (not morep))
-        :do (setf path (merge-pathnames*
-                        (resolve-relative-location
-                         element :ensure-directory dir :wilden wild)
-                        path))
-        :finally (return path))))
+  ;; :directory backward compatibility, until 2014-01-16: accept directory as well as ensure-directory
+  (loop* :with dirp = (or directory ensure-directory)
+         :with (first . rest) = (if (atom x) (list x) x)
+         :with path = (resolve-absolute-location
+                       first :ensure-directory (and (or dirp rest) t)
+                             :wilden (and wilden (null rest)))
+         :for (element . morep) :on rest
+         :for dir = (and (or morep dirp) t)
+         :for wild = (and wilden (not morep))
+         :for sub = (merge-pathnames*
+                     (resolve-relative-location
+                      element :ensure-directory dir :wilden wild)
+                     path)
+         :do (setf path (if (absolute-pathname-p sub) (resolve-symlinks* sub) sub))
+         :finally (return path)))
 
 (defun* location-designator-p (x)
   (flet ((absolute-component-p (c)
@@ -285,3 +286,11 @@ directive.")
   (call-functions *clear-configuration-hook*))
 
 (register-image-dump-hook 'clear-configuration)
+
+;; If a previous version of ASDF failed to read some configuration, try again.
+(defun* upgrade-configuration ()
+  (when *ignored-configuration-form*
+    (clear-configuration)
+    (setf *ignored-configuration-form* nil)))
+
+

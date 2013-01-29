@@ -14,7 +14,6 @@
    #:compile-warned-warning #:compile-failed-warning
    #:check-lisp-compile-results #:check-lisp-compile-warnings
    #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
-   #:*deferred-warnings*
    ;; Functions & Macros
    #:get-optimization-settings #:proclaim-optimization-settings
    #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
@@ -22,7 +21,7 @@
    #:reify-simple-sexp #:unreify-simple-sexp
    #:reify-deferred-warnings #:reify-undefined-warning #:unreify-deferred-warnings
    #:reset-deferred-warnings #:save-deferred-warnings #:check-deferred-warnings
-   #:with-saved-deferred-warnings #:warnings-file-p #:warnings-file-type
+   #:with-saved-deferred-warnings #:warnings-file-p #:warnings-file-type #:*warnings-file-type*
    #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
    #:current-lisp-file-pathname #:load-pathname
    #:lispize-pathname #:compile-file-type #:call-around-hook
@@ -85,13 +84,15 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 (defvar *uninteresting-compiler-conditions*
   (append
+   ;;#+clozure '(ccl:compiler-warning)
+   #+cmu '("Deleting unreachable code.")
    #+sbcl
-   `(sb-c::simple-compiler-note
+   '(sb-c::simple-compiler-note
      "&OPTIONAL and &KEY found in the same lambda list: ~S"
      sb-int:package-at-variance
      sb-kernel:uninteresting-redefinition
      sb-kernel:undefined-alien-style-warning
-     ;; sb-ext:implicit-generic-function-warning ; controversial, but let's allow it by default.
+     ;; sb-ext:implicit-generic-function-warning ; Controversial. Let's allow it by default.
      sb-kernel:lexical-environment-too-complex
      sb-grovel-unknown-constant-condition ; defined above.
      ;; BEWARE: the below four are controversial to include here.
@@ -99,7 +100,6 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
      sb-kernel:redefinition-with-defgeneric
      sb-kernel:redefinition-with-defmethod
      sb-kernel::redefinition-with-defmacro) ; not exported by old SBCLs
-   ;;#+clozure '(ccl:compiler-warning)
    '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.")) ;; from closer2mop
   "Conditions that may be skipped while compiling")
 
@@ -109,9 +109,6 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
      #(#:finalizers-off-warning :asdf-finalizers)) ;; from asdf-finalizers
    #+clisp '(clos::simple-gf-replacing-method-warning))
   "Additional conditions that may be skipped while loading")
-
-(defvar *deferred-warnings* ()
-  "Warnings the handling of which is deferred until the end of the compilation unit")
 
 ;;;; ----- Filtering conditions while building -----
 
@@ -181,6 +178,10 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 
 ;;;; Deferred-warnings treatment, originally implemented by Douglas Katzman.
+;;
+;; To support an implementation, three functions must be implemented:
+;; reify-deferred-warnings unreify-deferred-warnings reset-deferred-warnings
+;; See their respective docstrings.
 
 (defun reify-simple-sexp (sexp)
   (etypecase sexp
@@ -245,6 +246,9 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (sb-c::undefined-warning-warnings warning))))
 
 (defun reify-deferred-warnings ()
+  "return a portable S-expression, portably readable and writeable in any Common Lisp implementation
+using READ within a WITH-SAFE-IO-SYNTAX, that represents the warnings currently deferred by
+WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings support in ASDF."
   #+clozure
   (mapcar 'reify-deferred-warning
           (if-let (dw ccl::*outstanding-deferred-warnings*)
@@ -266,6 +270,11 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                 :collect `(,what . ,value)))))
 
 (defun unreify-deferred-warnings (reified-deferred-warnings)
+  "given a S-expression created by REIFY-DEFERRED-WARNINGS, reinstantiate the corresponding
+deferred warnings as to be handled at the end of the current WITH-COMPILATION-UNIT.
+Handle any warning that has been resolved already,
+such as an undefined function that has been defined since.
+One of three functions required for deferred-warnings support in ASDF."
   (declare (ignorable reified-deferred-warnings))
   #+clozure
   (let ((dw (or ccl::*outstanding-deferred-warnings*
@@ -300,6 +309,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
          (set symbol (+ (symbol-value symbol) adjustment)))))))
 
 (defun reset-deferred-warnings ()
+  "Reset the set of deferred warnings to be handled at the end of the current WITH-COMPILATION-UNIT.
+One of three functions required for deferred-warnings support in ASDF."
   #+clozure
   (if-let (dw ccl::*outstanding-deferred-warnings*)
     (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
@@ -327,8 +338,13 @@ possibly in a different process."
     (:sbcl "sbcl-warnings")
     ((:clozure :ccl) "ccl-warnings")))
 
+(defvar *warnings-file-type* (warnings-file-type)
+  "Type for warnings files")
+
 (defun* warnings-file-p (file &optional implementation-type)
-  (if-let (type (warnings-file-type implementation-type))
+  (if-let (type (if implementation-type
+                    (warnings-file-type implementation-type)
+                    *warnings-file-type*))
     (equal (pathname-type file) type)))
 
 (defun* check-deferred-warnings (files &optional context-format context-arguments)
@@ -379,8 +395,7 @@ report-deferred-warnings
 (defun* call-with-saved-deferred-warnings (thunk warnings-file)
   (if warnings-file
       (with-compilation-unit (:override t)
-        (let ((*deferred-warnings* ())
-              #+sbcl (sb-c::*undefined-warnings* nil))
+        (let (#+sbcl (sb-c::*undefined-warnings* nil))
           (multiple-value-prog1
               (with-muffled-compiler-conditions ()
                 (funcall thunk))

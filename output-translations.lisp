@@ -18,10 +18,11 @@
    #:user-output-translations-directory-pathname #:system-output-translations-directory-pathname
    #:environment-output-translations #:process-output-translations
    #:compute-output-translations
+   #+abcl #:translate-jar-pathname
    ))
 (in-package :asdf/output-translations)
 
-(when-upgrade () (undefine-function '(setf output-translations)))
+(when-upgrading () (undefine-function '(setf output-translations)))
 
 (define-condition invalid-output-translation (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
