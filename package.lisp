@@ -120,16 +120,9 @@ or when loading the package is optional."
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *all-package-happiness* '())
   (defvar *all-package-fishiness* (list t))
-  (defvar *package-fishiness* '())
-  (defun flush-fishy ()
-    (when *package-fishiness*
-      (if (null (rest *package-fishiness*))
-          (push (first *package-fishiness*) *all-package-happiness*)
-          (push (nreverse *package-fishiness*) *all-package-fishiness*))
-      (setf *package-fishiness* nil)))
   (defun record-fishy (info)
     ;;(format t "~&FISHY: ~S~%" info)
-    (push info *package-fishiness*))
+    (push info *all-package-fishiness*))
   (defmacro when-package-fishiness (&body body)
     `(when *all-package-fishiness* ,@body))
   (defmacro note-package-fishiness (&rest info)
@@ -207,9 +200,9 @@ or when loading the package is optional."
                   (and overwritten-symbol-status
                        (symbol-shadowing-p overwritten-symbol package))))
             (note-package-fishiness
-             :rehome-symbol name (package-name old-package)
-             (package-name package) old-status (and shadowing t)
-             overwritten-symbol-status overwritten-symbol-shadowing-p)
+             :rehome-symbol name
+             (when old-package (package-name old-package)) old-status (and shadowing t)
+             (package-name package) overwritten-symbol-status overwritten-symbol-shadowing-p)
             (when old-package
               (if shadowing
                   (shadowing-import shadowing old-package))
@@ -337,8 +330,211 @@ or when loading the package is optional."
 
 
 ;;; ensure-package, define-package
-
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  (defun ensure-shadowing-import (name to-package from-package shadowed imported)
+    (check-type name string)
+    (check-type to-package package)
+    (check-type from-package package)
+    (check-type shadowed hash-table)
+    (check-type imported hash-table)
+    (let ((import-me (find-symbol* name from-package)))
+      (multiple-value-bind (existing status) (find-symbol name to-package)
+        (cond
+          ((gethash name shadowed)
+           (unless (eq import-me existing)
+             (error "Conflicting shadowings for ~A" name)))
+          (t
+           (setf (gethash name shadowed) t)
+           (setf (gethash name imported) t)
+           (unless (or (null status)
+                       (and (member status '(:internal :external))
+                            (eq existing import-me)
+                            (symbol-shadowing-p existing to-package)))
+             (note-package-fishiness
+              :shadowing-import name
+              (package-name from-package)
+              (or (home-package-p import-me from-package) (symbol-package-name import-me))
+              (package-name to-package) status
+              (and status (or (home-package-p existing to-package) (symbol-package-name existing))))
+           (shadowing-import import-me to-package)))))))
+  (defun ensure-import (name to-package from-package shadowed imported)
+    (check-type name string)
+    (check-type to-package package)
+    (check-type from-package package)
+    (check-type shadowed hash-table)
+    (check-type imported hash-table)
+    (let* ((import-me (find-symbol* name from-package)))
+      (multiple-value-bind (existing status) (find-symbol name to-package)
+        (cond
+          ((gethash name imported)
+           (unless (eq import-me existing)
+             (error "Can't import ~S from both ~S and ~S"
+                    name (package-name (symbol-package existing)) (package-name from-package))))
+          ((gethash name shadowed)
+           (error "Can't both shadow ~S and import it from ~S" name (package-name from-package)))
+          (t
+           (setf (gethash name imported) t)
+           (unless (and status (eq import-me existing))
+             (when status
+               (note-package-fishiness
+                :import name
+                (package-name from-package)
+                (or (home-package-p import-me from-package) (symbol-package-name import-me))
+                (package-name to-package) status
+                (and status (or (home-package-p existing to-package) (symbol-package-name existing))))
+               (unintern* existing to-package))
+             (import import-me to-package)))))))
+  (defun ensure-inherited (name symbol to-package from-package mixp shadowed imported inherited)
+    (check-type name string)
+    (check-type symbol symbol)
+    (check-type to-package package)
+    (check-type from-package package)
+    (check-type mixp boolean)
+    (check-type shadowed hash-table)
+    (check-type imported hash-table)
+    (check-type inherited hash-table)
+    (multiple-value-bind (existing status) (find-symbol name to-package)
+      (let* ((sp (symbol-package symbol))
+             (in (gethash name inherited))
+             (xp (and status (symbol-package existing))))
+        (when (null sp)
+          (note-package-fishiness
+           :import-uninterned name
+           (package-name from-package) (package-name to-package) mixp)
+          (import symbol from-package)
+          (setf sp (package-name from-package)))
+        (cond
+          ((gethash name shadowed))
+          (in
+           (unless (equal sp (first in))
+             (if mixp
+                 (ensure-shadowing-import name to-package (second in) shadowed imported)
+                 (error "Can't inherit ~S from ~S, it is inherited from ~S"
+                        name (package-name sp) (package-name (first in))))))
+          ((gethash name imported)
+           (unless (eq symbol existing)
+             (error "Can't inherit ~S from ~S, it is imported from ~S"
+                    name (package-name sp) (package-name xp))))
+          (t
+           (setf (gethash name inherited) (list sp from-package))
+           (when (and status (not (eq sp xp)))
+             (let ((shadowing (symbol-shadowing-p existing to-package)))
+               (note-package-fishiness
+                :inherited name
+                (package-name from-package)
+                (or (home-package-p symbol from-package) (symbol-package-name symbol))
+                (package-name to-package)
+                (or (home-package-p existing to-package) (symbol-package-name existing)))
+               (if shadowing (ensure-shadowing-import name to-package from-package shadowed imported)
+                   (unintern* existing to-package)))))))))
+  (defun ensure-mix (name symbol to-package from-package shadowed imported inherited)
+    (check-type name string)
+    (check-type symbol symbol)
+    (check-type to-package package)
+    (check-type from-package package)
+    (check-type shadowed hash-table)
+    (check-type imported hash-table)
+    (check-type inherited hash-table)
+    (unless (gethash name shadowed)
+      (multiple-value-bind (existing status) (find-symbol name to-package)
+        (let* ((sp (symbol-package symbol))
+               (im (gethash name imported))
+               (in (gethash name inherited)))
+          (cond
+            ((or (null status)
+                 (and status (eq symbol existing))
+                 (and in (eq sp (first in))))
+             (ensure-inherited name symbol to-package from-package t shadowed imported inherited))
+            (in
+             (remhash name inherited)
+             (ensure-shadowing-import name to-package (second in) shadowed imported))
+            (im
+             (error "Symbol ~S import from ~S~:[~*~; actually ~:[~*uninterned~;from ~S~]~] conflicts with existing symbol in ~S~:[~*~; actually ~:[~*uninterned~;from ~S~]~]"
+                    name (package-name from-package)
+                    (home-package-p symbol from-package) (symbol-package-name symbol)
+                    (package-name to-package)
+                    (home-package-p existing to-package) (symbol-package-name existing)))
+            (t
+             (ensure-inherited name symbol to-package from-package t shadowed imported inherited)))))))
+  (defun recycle-symbol (name recycle exported)
+    (check-type name string)
+    (check-type recycle list)
+    (check-type exported hash-table)
+    (when (gethash name exported) ;; don't bother recycling private symbols
+      (let (recycled foundp)
+        (dolist (r recycle (values recycled foundp))
+          (multiple-value-bind (symbol status) (find-symbol name r)
+            (when (and status (home-package-p symbol r))
+              (cond
+                (foundp
+                 ;; (nuke-symbol symbol)) -- even simple variable names like O or C will do that.
+                 (note-package-fishiness :recycled-duplicate name (package-name foundp) (package-name r)))
+                (t
+                 (setf recycled symbol foundp r)))))))))
+  (defun symbol-recycled-p (sym recycle)
+    (check-type sym symbol)
+    (check-type recycle list)
+    (member (symbol-package sym) recycle))
+  (defun ensure-symbol (name package intern recycle shadowed imported inherited exported)
+    (check-type name string)
+    (check-type package package)
+    (check-type intern boolean)
+    (check-type shadowed hash-table)
+    (check-type imported hash-table)
+    (check-type inherited hash-table)
+    (unless (or (gethash name shadowed)
+                (gethash name imported)
+                (gethash name inherited))
+      (multiple-value-bind (existing status)
+          (find-symbol name package)
+        (multiple-value-bind (recycled previous) (recycle-symbol name recycle exported)
+          (cond
+            ((and status (eq existing recycled) (eq previous package)))
+            (previous
+             (rehome-symbol recycled package))
+            ((and status (eq package (symbol-package existing))))
+            (t
+             (when status
+               (note-package-fishiness
+                :ensure-symbol name
+                (reify-package (symbol-package existing) package)
+                status intern)
+               (unintern existing))
+             (when intern
+               (intern* name package))))))))
+  (declaim (ftype function ensure-exported))
+  (defun ensure-exported-to-user (name symbol to-package &optional recycle)
+    (check-type name string)
+    (check-type symbol symbol)
+    (check-type to-package package)
+    (check-type recycle list)
+    (multiple-value-bind (existing status) (find-symbol name to-package)
+      (unless (and status (eq symbol existing))
+        (let ((accessible
+                (or (null status)
+                    (let ((shadowing (symbol-shadowing-p existing to-package))
+                          (recycled (symbol-recycled-p existing recycle)))
+                      (unless (and shadowing (not recycled))
+                        (note-package-fishiness
+                         :ensure-export name (symbol-package-name symbol)
+                         (package-name to-package)
+                         (or (home-package-p existing to-package) (symbol-package-name existing))
+                         status shadowing)
+                        (if (or (eq status :inherited) shadowing)
+                            (shadowing-import symbol to-package)
+                            (unintern existing to-package))
+                        t)))))
+          (when (and accessible (eq status :external))
+            (ensure-exported name symbol to-package recycle))))))
+  (defun ensure-exported (name symbol from-package &optional recycle)
+    (dolist (to-package (package-used-by-list from-package))
+      (ensure-exported-to-user name symbol to-package recycle))
+    (import symbol from-package)
+    (export* name from-package))
+  (defun ensure-export (name from-package &optional recycle)
+    (multiple-value-bind (symbol status) (find-symbol* name from-package)
+      (unless (eq status :external)
+        (ensure-exported name symbol from-package recycle))))
   (defun ensure-package (name &key
                                 nicknames documentation use
                                 shadow shadowing-import-from
@@ -346,239 +542,98 @@ or when loading the package is optional."
                                 recycle mix reexport
                                 unintern)
     #+(or gcl2.6 genera) (declare (ignore documentation))
-    (macrolet ((when-fishy (&body body) `(when-package-fishiness ,@body))
-               (fishy (&rest info) `(note-package-fishiness ,@info)))
-      (let* ((package-name (string name))
-             (nicknames (mapcar #'string nicknames))
-             (names (cons package-name nicknames))
-             (previous (packages-from-names names))
-             (discarded (cdr previous))
-             (to-delete ())
-             (package (or (first previous) (make-package package-name :nicknames nicknames)))
-             (recycle (packages-from-names recycle))
-             (use (mapcar 'find-package* use))
-             (mix (mapcar 'find-package* mix))
-             (reexport (mapcar 'find-package* reexport))
-             (shadow (mapcar 'string shadow))
-             (export (mapcar 'string export))
-             (intern (mapcar 'string intern))
-             (unintern (mapcar 'string unintern))
-             (shadowed (make-hash-table :test 'equal)) ; string to bool
-             (imported (make-hash-table :test 'equal)) ; string to bool
-             (exported (make-hash-table :test 'equal)) ; string to bool
-             ;; string to list home package and use package:
-             (inherited (make-hash-table :test 'equal)))
-        (when-fishy (record-fishy package-name))
-        (labels
-            ((ensure-shadowing-import (name p)
-               (let ((import-me (find-symbol* name p)))
-                 (multiple-value-bind (existing status) (find-symbol name package)
-                   (cond
-                     ((gethash name shadowed)
-                      (unless (eq import-me existing)
-                        (error "Conflicting shadowings for ~A" name)))
-                     (t
-                      (setf (gethash name shadowed) t)
-                      (setf (gethash name imported) t)
-                      (unless (or (null status)
-                                  (and (member status '(:internal :external))
-                                       (eq existing import-me)
-                                       (symbol-shadowing-p existing package)))
-                        (fishy :shadowing-import
-                               name (package-name p) (symbol-package-name import-me)
-                               (and status (symbol-package-name existing)) status))
-                      (shadowing-import import-me package))))))
-             (ensure-import (sym p)
-               (let* ((name (string sym))
-                      (import-me (find-symbol* name p)))
-                 (multiple-value-bind (existing status) (find-symbol name package)
-                   (cond
-                     ((gethash name imported)
-                      (unless (eq import-me existing)
-                        (error "Can't import ~S from both ~S and ~S"
-                               name (package-name (symbol-package existing)) (package-name p))))
-                     ((gethash name shadowed)
-                      (error "Can't both shadow ~S and import it from ~S" name (package-name p)))
-                     (t
-                      (setf (gethash name imported) t)
-                      (unless (and status (eq import-me existing))
-                        (when status
-                          (fishy :import name (package-name p) (symbol-package-name import-me)
-                                 (and status (symbol-package-name existing)) status)
-                          (unintern* existing package))
-                        (import import-me package)))))))
-             (ensure-mix (name symbol p)
-               (unless (gethash name shadowed)
-                 (multiple-value-bind (existing status) (find-symbol name package)
-                   (let* ((sp (symbol-package symbol))
-                          (im (gethash name imported))
-                          (in (gethash name inherited)))
-                     (cond
-                       ((or (null status)
-                            (and status (eq symbol existing))
-                            (and in (eq sp (first in))))
-                        (ensure-inherited name symbol p t))
-                       (in
-                        (remhash name inherited)
-                        (ensure-shadowing-import name (second in)))
-                       (im
-                         (error "Imported symbol ~S conflicts with inherited symbol ~S in ~S"
-                                existing symbol (package-name package)))
-                       (t
-                        (ensure-inherited name symbol p t)))))))
-             (ensure-inherited (name symbol p mix)
-               (multiple-value-bind (existing status) (find-symbol name package)
-                 (let* ((sp (symbol-package symbol))
-                        (in (gethash name inherited))
-                        (xp (and status (symbol-package existing))))
-                   (when (null sp)
-                     (fishy :import-uninterned name (package-name p) mix)
-                     (import symbol p)
-                     (setf sp (package-name p)))
-                   (cond
-                     ((gethash name shadowed))
-                     (in
-                      (unless (equal sp (first in))
-                        (if mix
-                            (ensure-shadowing-import name (second in))
-                            (error "Can't inherit ~S from ~S, it is inherited from ~S"
-                                   name (package-name sp) (package-name (first in))))))
-                     ((gethash name imported)
-                      (unless (eq symbol existing)
-                        (error "Can't inherit ~S from ~S, it is imported from ~S"
-                               name (package-name sp) (package-name xp))))
-                     (t
-                      (setf (gethash name inherited) (list sp p))
-                      (when (and status (not (eq sp xp)))
-                        (let ((shadowing (symbol-shadowing-p existing package)))
-                          (fishy :inherited name (package-name p) (package-name sp)
-                                 (package-name xp))
-                          (if shadowing (ensure-shadowing-import name p)
-                              (unintern* existing package)))))))))
-             (recycle-symbol (name)
-               (when (gethash name exported) ;; don't bother recycling private symbols
-                 (let (recycled foundp)
-                   (dolist (r recycle (values recycled foundp))
-                     (multiple-value-bind (symbol status) (find-symbol name r)
-                       (when (and status (home-package-p symbol r))
-                         (cond
-                           (foundp
-                            ;; (nuke-symbol symbol)) -- even simple variable names like O or C will do that.
-                            (fishy :recycled-duplicate name (package-name foundp) (package-name r)))
-                           (t
-                            (setf recycled symbol foundp r)))))))))
-             (symbol-recycled-p (sym)
-               (member (symbol-package sym) recycle))
-             (ensure-symbol (name &optional intern)
-               (unless (or (gethash name shadowed)
-                           (gethash name imported)
-                           (gethash name inherited))
-                 (multiple-value-bind (existing status)
-                     (find-symbol name package)
-                   (multiple-value-bind (recycled previous) (recycle-symbol name)
-                     (cond
-                       ((and status (eq existing recycled) (eq previous package)))
-                       (previous
-                        (rehome-symbol recycled package))
-                       ((and status (eq package (symbol-package existing))))
-                       (t
-                        (when status
-                          (fishy :ensure-symbol name
-                                 (reify-package (symbol-package existing) package)
-                                 status intern)
-                          (unintern existing))
-                        (when intern
-                          (intern* name package))))))))
-             (ensure-export (name p)
-               (multiple-value-bind (symbol status) (find-symbol* name p)
-                 (unless (eq status :external)
-                   (ensure-exported name symbol p))))
-             (ensure-exported (name sym p)
-               (dolist (u (package-used-by-list p))
-                 (ensure-exported-to-user name sym u))
-               (export* sym p))
-             (ensure-exported-to-user (name sym u)
-               (multiple-value-bind (usym ustat) (find-symbol name u)
-                 (unless (and ustat (eq sym usym))
-                   (let ((accessible
-                           (or (null ustat)
-                               (let ((shadowing (symbol-shadowing-p usym u))
-                                     (recycled (symbol-recycled-p usym)))
-                                 (unless (and shadowing (not recycled))
-                                   (fishy :ensure-export name (symbol-package-name sym)
-                                          (package-name u)
-                                          (and ustat (symbol-package-name usym)) ustat shadowing)
-                                   (if (or (eq ustat :inherited) shadowing)
-                                       (shadowing-import sym u)
-                                       (unintern usym u))
-                                   t)))))
-                     (when (and accessible (eq ustat :external))
-                       (ensure-exported name sym u)))))))
-          #-(or gcl2.6 genera)
-          (when documentation (setf (documentation package t) documentation))
-          (loop :for p :in (set-difference (package-use-list package) (append mix use))
-                :do (fishy :use (package-names p)) (unuse-package p package))
-          (loop :for p :in discarded
-                :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
-                                    (package-names p))
-                :do (fishy :nickname (package-names p))
-                    (cond (n (rename-package p (first n) (rest n)))
-                          (t (rename-package-away p)
-                             (push p to-delete))))
-          (rename-package package package-name nicknames)
-          (dolist (name unintern)
-            (multiple-value-bind (existing status) (find-symbol name package)
-              (when status
-                (unless (eq status :inherited)
-                  (fishy :unintern name (symbol-package-name existing) status)
-                  (unintern* name package nil)))))
-          (dolist (name export)
-            (setf (gethash name exported) t))
-          (dolist (p reexport)
-            (do-external-symbols (sym p)
-              (setf (gethash (string sym) exported) t)))
-          (do-external-symbols (sym package)
-            (let ((name (symbol-name sym)))
-              (unless (gethash name exported)
-                (fishy :over-exported name (symbol-package-name sym))
-                (unexport sym package))))
-          (dolist (name shadow)
-            (setf (gethash name shadowed) t)
-            (multiple-value-bind (existing status) (find-symbol name package)
-              (multiple-value-bind (recycled previous) (recycle-symbol name)
-                (let ((shadowing (and status (symbol-shadowing-p existing package))))
-                  (cond
-                    ((eq previous package))
-                    (previous
-                     (rehome-symbol recycled package))
-                    ((or (member status '(nil :inherited))
-                         (home-package-p existing package)))
-                    (t
-                     (let ((dummy (make-symbol name)))
-                       (fishy :shadow-imported name (symbol-package-name existing) status shadowing)
-                       (shadowing-import dummy package)
-                       (import dummy package)))))))
-            (shadow name package))
-          (loop :for (p . syms) :in shadowing-import-from
-                :for pp = (find-package* p) :do
-                  (dolist (sym syms) (ensure-shadowing-import (string sym) pp)))
-          (dolist (p mix)
-            (do-external-symbols (sym p) (ensure-mix (symbol-name sym) sym p)))
-          (loop :for (p . syms) :in import-from :do
-            (dolist (sym syms) (ensure-import sym p)))
-          (dolist (p (append use mix))
-            (do-external-symbols (sym p) (ensure-inherited (string sym) sym p nil))
-            (use-package p package))
-          (loop :for name :being :the :hash-keys :of exported :do
-            (ensure-symbol name t)
-            (ensure-export name package))
-          (dolist (name intern)
-            (ensure-symbol name t))
-          (do-symbols (sym package)
-            (ensure-symbol (symbol-name sym)))
-          (map () 'delete-package* to-delete)
-          (flush-fishy)
-          package)))))
+    (let* ((package-name (string name))
+           (nicknames (mapcar #'string nicknames))
+           (names (cons package-name nicknames))
+           (previous (packages-from-names names))
+           (discarded (cdr previous))
+           (to-delete ())
+           (package (or (first previous) (make-package package-name :nicknames nicknames)))
+           (recycle (packages-from-names recycle))
+           (use (mapcar 'find-package* use))
+           (mix (mapcar 'find-package* mix))
+           (reexport (mapcar 'find-package* reexport))
+           (shadow (mapcar 'string shadow))
+           (export (mapcar 'string export))
+           (intern (mapcar 'string intern))
+           (unintern (mapcar 'string unintern))
+           (shadowed (make-hash-table :test 'equal)) ; string to bool
+           (imported (make-hash-table :test 'equal)) ; string to bool
+           (exported (make-hash-table :test 'equal)) ; string to bool
+           ;; string to list home package and use package:
+           (inherited (make-hash-table :test 'equal)))
+      (when-package-fishiness (record-fishy package-name))
+      #-(or gcl2.6 genera)
+      (when documentation (setf (documentation package t) documentation))
+      (loop :for p :in (set-difference (package-use-list package) (append mix use))
+            :do (note-package-fishiness :over-use name (package-names p))
+                (unuse-package p package))
+      (loop :for p :in discarded
+            :for n = (remove-if #'(lambda (x) (member x names :test 'equal))
+                                (package-names p))
+            :do (note-package-fishiness :nickname name (package-names p))
+                (cond (n (rename-package p (first n) (rest n)))
+                      (t (rename-package-away p)
+                         (push p to-delete))))
+      (rename-package package package-name nicknames)
+      (dolist (name unintern)
+        (multiple-value-bind (existing status) (find-symbol name package)
+          (when status
+            (unless (eq status :inherited)
+              (note-package-fishiness
+               :unintern (package-name package) name (symbol-package-name existing) status)
+              (unintern* name package nil)))))
+      (dolist (name export)
+        (setf (gethash name exported) t))
+      (dolist (p reexport)
+        (do-external-symbols (sym p)
+          (setf (gethash (string sym) exported) t)))
+      (do-external-symbols (sym package)
+        (let ((name (symbol-name sym)))
+          (unless (gethash name exported)
+            (note-package-fishiness
+             :over-export (package-name package) name
+             (or (home-package-p sym package) (symbol-package-name sym)))
+            (unexport sym package))))
+      (dolist (name shadow)
+        (setf (gethash name shadowed) t)
+        (multiple-value-bind (existing status) (find-symbol name package)
+          (multiple-value-bind (recycled previous) (recycle-symbol name recycle exported)
+            (let ((shadowing (and status (symbol-shadowing-p existing package))))
+              (cond
+                ((eq previous package))
+                (previous
+                 (rehome-symbol recycled package))
+                ((or (member status '(nil :inherited))
+                     (home-package-p existing package)))
+                (t
+                 (let ((dummy (make-symbol name)))
+                   (note-package-fishiness
+                    :shadow-imported (package-name package) name
+                    (symbol-package-name existing) status shadowing)
+                   (shadowing-import dummy package)
+                   (import dummy package)))))))
+        (shadow name package))
+      (loop :for (p . syms) :in shadowing-import-from
+            :for pp = (find-package* p) :do
+              (dolist (sym syms) (ensure-shadowing-import (string sym) package pp shadowed imported)))
+      (dolist (p mix)
+        (do-external-symbols (sym p) (ensure-mix (symbol-name sym) sym package p shadowed imported inherited)))
+      (loop :for (p . syms) :in import-from
+            :for pp = (find-package p) :do
+              (dolist (sym syms) (ensure-import (symbol-name sym) package pp shadowed imported)))
+      (dolist (p (append use mix))
+        (do-external-symbols (sym p) (ensure-inherited (string sym) sym package p nil shadowed imported inherited))
+        (use-package p package))
+      (loop :for name :being :the :hash-keys :of exported :do
+        (ensure-symbol name package t recycle shadowed imported inherited exported)
+        (ensure-export name package recycle))
+      (dolist (name intern)
+        (ensure-symbol name package t recycle shadowed imported inherited exported))
+      (do-symbols (sym package)
+        (ensure-symbol (symbol-name sym) package nil recycle shadowed imported inherited exported))
+      (map () 'delete-package* to-delete)
+      package)))
 
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun parse-define-package-form (package clauses)

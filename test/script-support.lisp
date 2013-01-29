@@ -430,30 +430,6 @@ is bound, write a message and exit on an error.  If
             (cons (format nil "~{~D~^.~}" ver))
             (null "1.0"))))))
 
-(defun test-upgrade (old-method new-method tag) ;; called by run-test
-  (with-test ()
-    (verbose t nil)
-    (when old-method
-      (cond
-        ((string-equal tag "REQUIRE")
-         (format t "Requiring some previous ASDF ~A~%" tag)
-         (ignore-errors (funcall 'require "asdf"))
-         (if (member "ASDF" *modules* :test 'equalp)
-             (format t "Your Lisp implementation provided ASDF ~A~%" (get-asdf-version))
-             (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
-        (t
-         (format t "Loading old asdf ~A via ~A~%" tag old-method)
-         (funcall old-method tag))))
-    (when (asym :*asdf-verbose* nil nil) (setf (asymval :*asdf-verbose*) t))
-    (when (asym :*verbose-out* nil nil) (setf (asymval :*verbose-out*) *standard-output*))
-    (format t "Now loading new asdf via method ~A~%" new-method)
-    (funcall new-method)
-    (format t "Testing it~%")
-    (register-directory *test-directory*)
-    (load-test-system :test-module-depend)
-    (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
-    (assert (eval (intern (symbol-name '#:*file3*) :test-package)))))
-
 (defun output-location (&rest sublocation)
   (list* *asdf-directory* "build/fasls" :implementation sublocation))
 (defun resolve-output (&rest sublocation)
@@ -477,27 +453,30 @@ is bound, write a message and exit on an error.  If
   (clean-asdf-system))
 
 (defun configure-asdf ()
-  (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST")))
-  (untrace)
+  (when (asym :getenvp nil nil)
+    (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST"))))
   (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s))))
-  (acall :initialize-source-registry
-         `(:source-registry :ignore-inherited-configuration))
-  (acall :initialize-output-translations
-         `(:output-translations
-           ((,*asdf-directory* :**/ :*.*.*) ,(output-location "asdf"))
-           (t ,(output-location "root"))
-           :ignore-inherited-configuration))
+  (when (asym :initialize-source-registry nil nil)
+    (acall :initialize-source-registry
+           `(:source-registry :ignore-inherited-configuration)))
+  (when (asym :initialize-output-translations nil nil)
+    (acall :initialize-output-translations
+           `(:output-translations
+             ((,*asdf-directory*) ,(output-location "asdf"))
+             (t ,(output-location "root"))
+             :ignore-inherited-configuration)))
   (set (asym :*central-registry*) `(,*test-directory*))
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (let ((x (acall :system-source-directory :hello-world-example)))
-    (assert-pathname-equal *test-directory* x) ;; not always EQUAL (!)
-    (unless (equal *test-directory* x)
-      (format t "Interestingly, while *test-directory* has components~% ~S~%~
+  (when (asym :system-source-directory nil nil)
+    (let ((x (acall :system-source-directory :test-module-depend)))
+      (assert-pathname-equal *test-directory* x) ;; not always EQUAL (!)
+      (unless (equal *test-directory* x)
+        (format t "Interestingly, while *test-directory* has components~% ~S~%~
                  ASDF finds the ASDs in~% ~S~%Using the latter.~%"
-              (pathname-components *test-directory*)
-              (pathname-components x)))
-    (setf *test-directory* x))
+                (pathname-components *test-directory*)
+                (pathname-components x)))
+      (setf *test-directory* x)))
   t)
 
 (defun load-asdf (&optional tag)
@@ -536,6 +515,31 @@ is bound, write a message and exit on an error.  If
     (format t "~&Trying to load ~A~%" sys)
     (acall :load-system sys))
   (format t "~&Done!~%"))
+
+(defun test-upgrade (old-method new-method tag) ;; called by run-test
+  (with-test ()
+    (verbose t nil)
+    (when old-method
+      (cond
+        ((string-equal tag "REQUIRE")
+         (format t "Requiring some previous ASDF ~A~%" tag)
+         (ignore-errors (funcall 'require "asdf"))
+         (if (member "ASDF" *modules* :test 'equalp)
+             (format t "Your Lisp implementation provided ASDF ~A~%" (get-asdf-version))
+             (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
+        (t
+         (format t "Loading old asdf ~A via ~A~%" tag old-method)
+         (funcall old-method tag))))
+    (configure-asdf)
+    (when (asym :*asdf-verbose* nil nil) (setf (asymval :*asdf-verbose*) t))
+    (when (asym :*verbose-out* nil nil) (setf (asymval :*verbose-out*) *standard-output*))
+    (format t "Now loading new asdf via method ~A~%" new-method)
+    (funcall new-method)
+    (format t "Testing it~%")
+    (register-directory *test-directory*)
+    (load-test-system :test-module-depend)
+    (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
+    (assert (eval (intern (symbol-name '#:*file3*) :test-package)))))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

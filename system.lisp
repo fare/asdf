@@ -72,8 +72,11 @@ in which the system specification (.asd file) is located."
   (subpathname (system-source-directory system) name :type type))
 
 (defmethod component-pathname ((system system))
-  (or (call-next-method)
-      (system-source-directory system)))
+  (let ((pathname (or (call-next-method) (system-source-directory system))))
+    (unless (and (slot-boundp system 'relative-pathname) ;; backward-compatibility with ASDF1-age
+                 (slot-value system 'relative-pathname)) ;; systems that directly access this slot.
+      (setf (slot-value system 'relative-pathname) pathname))
+    pathname))
 
 (defmethod component-relative-pathname ((system system))
   (parse-unix-namestring

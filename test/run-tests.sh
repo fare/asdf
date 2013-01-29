@@ -225,10 +225,6 @@ fi
 
 ASDFDIR="$(cd $(dirname $0)/.. ; /bin/pwd)"
 
-## Make sure testing remains within the confines of this filesystem tree
-export CL_SOURCE_REGISTRY="${ASDFDIR}"
-export ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls\" :implementation)) :ignore-inherited-configuration)"
-
 cmd="$command $flags"
 debugp=
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
