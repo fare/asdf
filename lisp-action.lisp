@@ -12,7 +12,7 @@
    #:basic-load-op #:basic-compile-op #:compile-op-flags #:compile-op-proclamations
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
    #:call-with-around-compile-hook
-   #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source))
+   #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source #:flags))
 (in-package :asdf/lisp-action)
 
 

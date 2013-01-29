@@ -20,6 +20,10 @@
   ((:file "header")))
 
 #+asdf3
+(defsystem :asdf/driver
+  :depends-on (:asdf-driver))
+
+#+asdf3
 (defsystem :asdf/defsystem
   :licence "MIT"
   :description "The defsystem part of ASDF"
@@ -28,7 +32,7 @@
   :build-operation monolithic-concatenate-source-op
   :build-pathname "build/asdf" ;; our target
   :around-compile call-without-redefinition-warnings ;; we need be the same as asdf-driver
-  :depends-on (:asdf/header :asdf-driver)
+  :depends-on (:asdf/header :asdf/driver)
   :encoding :utf-8
   :components
   ((:file "upgrade")
@@ -62,7 +66,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.162" ;; to be automatically updated by make bump-version
+  :version "2.26.164" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   ;; For most purposes, asdf itself specially counts as a builtin system.

@@ -282,8 +282,8 @@ extract_tagged_asdf () {
 }
 valid_upgrade_test_p () {
     case "${1}:${2}:${3}" in
-        abcl:2.0[01][1-9]:*|abcl:2.2[1-2]:*)
-            : Skip, because it is so damn slow ;;
+        abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-7]:*)
+            : "Skip, because it is so slow." ;;
         ccl:1.*|ccl:2.0[01]*)
             : Skip, because ccl broke old asdf ;;
         clisp:1.??*|clisp:2.00[0-7]:*)
@@ -291,8 +291,9 @@ valid_upgrade_test_p () {
             # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
             # Note that for the longest time, CLISP has included 2.011 in its distribution.
             : ;;
-        cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-4]:*)
-            : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade ;;
+        cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-7]:*)
+            : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade 
+            : Weird unidentified problems before 2.018 ;;
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*)
             : Skip, because of various ASDF issues ;;
         gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : Skip old versions that do not support GCL 2.6 ;;
@@ -316,7 +317,7 @@ run_upgrade_tests () {
                 "'(#.(load\"$su\")#.(in-package :asdf-test)#.(test-upgrade $method \"$tag\"))" ||
                 { echo "upgrade FAILED for $lisp from $tag using method $method" ;
                   echo "you can retry just that test with:" ;
-                  echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ADSF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
+                  echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ASDF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
                   echo "or more interactively (and maybe with rlwrap or in emacs), start with:"
                   echo "$cmd"
                   echo "then copy/paste:"

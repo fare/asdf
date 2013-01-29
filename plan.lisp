@@ -6,7 +6,7 @@
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/operation :asdf/system
    :asdf/cache :asdf/find-system :asdf/find-component
-   :asdf/operation :asdf/action)
+   :asdf/operation :asdf/action :asdf/lisp-action)
   (:export
    #:component-operation-time #:mark-operation-done
    #:plan-traversal #:sequential-plan #:*default-plan-class*
@@ -421,7 +421,8 @@ processed in order by OPERATE."))
       (traverse-action plan o c t))
     (plan-actions plan)))
 
-(defmethod traverse-sub-actions (operation component &rest keys &key &allow-other-keys)
+(define-convenience-action-methods traverse-sub-actions (o c &key))
+(defmethod traverse-sub-actions ((operation operation) (component component) &rest keys &key &allow-other-keys)
   (apply 'traverse-actions (direct-dependencies operation component)
          :system (component-system component) keys))
 
@@ -434,6 +435,6 @@ processed in order by OPERATE."))
 
 (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
   (remove-duplicates
-   (mapcar 'cdr (apply 'traverse-sub-actions (make-operation goal-operation) system keys))
+   (mapcar 'cdr (apply 'traverse-sub-actions goal-operation system keys))
    :from-end t))
 

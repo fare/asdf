@@ -28,7 +28,8 @@
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
    #:load-string #:load-stream
-   #:parse-version #:unparse-version #:version-compatible-p)) ;; version
+   #:lexicographic< #:lexicographic<=
+   #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
@@ -314,6 +315,7 @@ instead of a list."
 
 
 ;;; Version handling
+(eval-when (:compile-toplevel :load-toplevel :execute)
 (defun* unparse-version (version-list)
   (format nil "~{~D~^.~}" version-list))
 
@@ -344,22 +346,33 @@ in that it doesn't print back to itself, but the list is returned anyway."
        (call-function on-error "~S: ~S contains leading zeros" 'parse-version version-string))
      version-list)))
 
+(defun* lexicographic< (< x y)
+  (cond ((null y) nil)
+        ((null x) t)
+        ((funcall < (car x) (car y)) t)
+        ((funcall < (car y) (car x)) nil)
+        (t (lexicographic< < (cdr x) (cdr y)))))
+
+(defun* lexicographic<= (< x y)
+  (not (lexicographic< < y x)))
+
+(defun* version< (version1 version2)
+  (let ((v1 (parse-version version1 nil))
+        (v2 (parse-version version2 nil)))
+    (lexicographic< '< v1 v2)))
+
+(defun* version<= (version1 version2)
+  (not (version< version2 version1)))
 
 (defun* version-compatible-p (provided-version required-version)
   "Is the provided version a compatible substitution for the required-version?
 If major versions differ, it's not compatible.
 If they are equal, then any later version is compatible,
 with later being determined by a lexicographical comparison of minor numbers."
-  (let ((x (parse-version provided-version 'warn))
-        (y (parse-version required-version 'warn)))
-    (labels ((bigger (x y)
-               (cond ((not y) t)
-                     ((not x) nil)
-                     ((> (car x) (car y)) t)
-                     ((= (car x) (car y))
-                      (bigger (cdr x) (cdr y))))))
-      (and x y (= (car x) (car y))
-           (or (not (cdr y)) (bigger (cdr x) (cdr y)))))))
+  (let ((x (parse-version provided-version nil))
+        (y (parse-version required-version nil)))
+    (and x y (= (car x) (car y)) (lexicographic<= '< (cdr y) (cdr x)))))
+); eval-when for version support
 
 
 ;;; Condition control
