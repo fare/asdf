@@ -57,7 +57,7 @@ another pathname in a degenerate way."))
 ;;; TODO: find users, have them stop using that.
 (defgeneric* (source-file-type) (component system))
 
-(when-upgrade (:when (find-class 'component nil))
+(when-upgrading (:when (find-class 'component nil))
   (defmethod reinitialize-instance :after ((c component) &rest initargs &key)
     (declare (ignorable c initargs)) (values)))
 
@@ -168,7 +168,7 @@ another pathname in a degenerate way."))
                   (setf (gethash name hash) c))
         hash))))
 
-(when-upgrade (:when (find-class 'module nil))
+(when-upgrading (:when (find-class 'module nil))
   (defmethod reinitialize-instance :after ((m module) &rest initargs &key)
     (declare (ignorable m initargs)) (values))
   (defmethod update-instance-for-redefined-class :after

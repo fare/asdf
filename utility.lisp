@@ -308,7 +308,7 @@ instead of a list."
 (defun* call-functions (function-specs)
   (map () 'call-function function-specs))
 
-(defun* register-hook-function (variable hook &optional (call-now-p t))
+(defun* register-hook-function (variable hook &optional call-now-p)
   (pushnew hook (symbol-value variable))
   (when call-now-p (call-function hook)))
 
@@ -372,8 +372,8 @@ with later being determined by a lexicographical comparison of minor numbers."
   #+allegro 'excl::format-control
   #+clisp 'system::$format-control
   #+clozure 'ccl::format-control
-  #+ecl 'si::format-control
   #+(or cmu scl) 'conditions::format-control
+  #+ecl 'si::format-control
   #+(or gcl lispworks) 'conditions::format-string
   #+sbcl 'sb-kernel:format-control
   #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl) nil

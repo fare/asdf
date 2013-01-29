@@ -15,7 +15,7 @@
    #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form*
    #:*clear-configuration-hook* #:clear-configuration #:register-clear-configuration-hook
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
-   #:resolve-relative-location #:resolve-absolute-location))
+   #:resolve-relative-location #:resolve-absolute-location #:upgrade-configuration))
 (in-package :asdf/configuration)
 
 (define-condition invalid-configuration ()
@@ -286,3 +286,11 @@ directive.")
   (call-functions *clear-configuration-hook*))
 
 (register-image-dump-hook 'clear-configuration)
+
+;; If a previous version of ASDF failed to read some configuration, try again.
+(defun* upgrade-configuration ()
+  (when *ignored-configuration-form*
+    (clear-configuration)
+    (setf *ignored-configuration-form* nil)))
+
+

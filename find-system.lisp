@@ -56,15 +56,17 @@
   (error 'formatted-system-definition-error :format-control
          format :format-arguments arguments))
 
-(defun* make-defined-systems-table ()
-  (make-hash-table :test 'equal))
-
-(defvar *defined-systems* (make-defined-systems-table)
+(defvar *defined-systems* (make-hash-table :test 'equal)
   "This is a hash table whose keys are strings, being the
 names of the systems, and whose values are pairs, the first
 element of which is a universal-time indicating when the
 system definition was last updated, and the second element
 of which is a system object.")
+
+(defun* clear-defined-systems ()
+  (setf *defined-systems* (make-hash-table :test 'equal)))
+
+(register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
 
 (defun* coerce-name (name)
   (typecase name

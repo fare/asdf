@@ -22,7 +22,7 @@
    ))
 (in-package :asdf/output-translations)
 
-(when-upgrade () (undefine-function '(setf output-translations)))
+(when-upgrading () (undefine-function '(setf output-translations)))
 
 (define-condition invalid-output-translation (invalid-configuration warning)
   ((format :initform (compatfmt "~@<Invalid asdf output-translation ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))

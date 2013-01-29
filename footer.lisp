@@ -40,15 +40,6 @@
                          (values-list l))))))
 
 
-;;;; Cleanups after hot-upgrade.
-;; Things to do in case we're upgrading from a previous version of ASDF.
-;; See https://bugs.launchpad.net/asdf/+bug/485687
-;;
-;; If a previous version of ASDF failed to read some configuration, try again.
-(when *ignored-configuration-form*
-  (clear-configuration)
-  (setf *ignored-configuration-form* nil))
-
 ;;;; Done!
 
 #+allegro
@@ -59,6 +50,9 @@
 (dolist (f '(:asdf :asdf2 :asdf3)) (pushnew f *features*))
 
 (provide :asdf)
+
+;;;; Cleanups after hot-upgrade.
+(cleanup-upgraded-asdf)
 
 (when *load-verbose*
   (asdf-message ";; ASDF, version ~a~%" (asdf-version)))

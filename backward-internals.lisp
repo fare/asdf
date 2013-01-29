@@ -69,7 +69,7 @@
                :when (eq feature? 'feature) :do
                  (setf (component-if-feature c) feature)))))
 
-(when-upgrade (:when (fboundp 'make-sub-operation))
+(when-upgrading (:when (fboundp 'make-sub-operation))
   (defun* make-sub-operation (c o dep-c dep-o)
     (declare (ignore c o dep-c dep-o)) (asdf-upgrade-error)))
 
