@@ -282,25 +282,27 @@ extract_tagged_asdf () {
 }
 valid_upgrade_test_p () {
     case "${1}:${2}:${3}" in
-        abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-7]:*)
-            : "Skip, because it is so slow." ;;
-        ccl:1.*|ccl:2.0[01]*)
-            : Skip, because ccl broke old asdf ;;
-        clisp:1.??*|clisp:2.00[0-7]:*)
-            # my old ubuntu clisp 2.44.1 is wired in with an antique ASDF 1 from CLC that can't be downgraded.
-            # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
-            # Note that for the longest time, CLISP has included 2.011 in its distribution.
-            : ;;
-        cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-7]:*)
-            : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade 
-            : Weird unidentified problems before 2.018 ;;
-        ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*)
-            : Skip, because of various ASDF issues ;;
-        gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : Skip old versions that do not support GCL 2.6 ;;
-        mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*)
-            : Skip, because MKCL is only supported starting with 2.24 ;;
-        xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*)
-            : XCL support starts with ASDF 2.014.2 - It also hangs badly during upgrade. ;;
+        # It's damn slow. Also, for some reason, we punt on anything earlier than 2.25,
+        # and only need to test it once, below for 2.24.
+        abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-9]:*|abcl:2.2[0-3]:*) : ;;
+        # ccl fasl numbering broke loading of old asdf 2.0
+        ccl:2.0[01]*) : ;;
+        # my old ubuntu clisp 2.44.1 is wired in with an antique ASDF 1.374 from CLC that can't be downgraded.
+        # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
+        # Note that for the longest time, CLISP has included 2.011 in its distribution.
+        clisp:2.00[0-7]:*) : ;;
+        # Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade 
+        # Weird unidentified problems before 2.018, so we punt equally for everything before,
+        # and only need to test it once: above, for 2.017.
+        cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-6]:*) : ;;
+        # Skip many ECL tests, for various ASDF issues
+        ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
+        # GCL 2.6 is only supported with ASDF 2.27, so skip earlier versions
+        gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : ;;
+        # MKCL is only supported starting with 2.24, so skip earlier versions
+        mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) : ;;
+        # XCL support starts with ASDF 2.014.2 - It also dies during upgrade trying to show the backtrace.
+        xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*) : ;;
         *) return 0 ;;
    esac
    return 1

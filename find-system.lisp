@@ -253,6 +253,7 @@ Going forward, we recommend new users should be using the source-registry.
   (with-system-definitions ()
     (with-standard-io-syntax
       (let ((*package* (find-package :asdf-user))
+            (*print-readably* nil)
             (*default-pathname-defaults*
               ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
               (pathname-directory-pathname (translate-logical-pathname pathname))))

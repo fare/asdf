@@ -42,9 +42,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        (when (and ,upgrading-p ,@(when when `(,when)))
          (handler-bind ((style-warning #'muffle-warning))
-           (eval '(progn ,@body)))))))
-
-(eval-when (:load-toplevel :compile-toplevel :execute)
+           (eval '(progn ,@body))))))
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. make bump-version v=3.4.5.67.8
          ;; can help you do these changes in synch (look at the source for documentation).
@@ -54,7 +52,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.26.164")
+         (asdf-version "2.26.165")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -62,14 +60,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
       (when *asdf-verbose*
         (format *trace-output*
                 (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
-                existing-version asdf-version))
-      ;; Punt when upgrading from too old a version of ASDF
-      #+(or abcl clisp cmu)
-      (when (version< existing-version #+abcl "2.25" #+cmu "2.018" #+clisp "2.27")
-        (let ((away (format nil "~A-~A" :asdf existing-version)))
-          (rename-package :asdf away)
-          (when (or *load-verbose* *asdf-verbose*)
-            (format *trace-output* "; Renamed package ~A away to ~A~%" :asdf away)))))))
+                existing-version asdf-version)))))
 
 (when-upgrading ()
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
