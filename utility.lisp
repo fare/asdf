@@ -350,8 +350,8 @@ in that it doesn't print back to itself, but the list is returned anyway."
 If major versions differ, it's not compatible.
 If they are equal, then any later version is compatible,
 with later being determined by a lexicographical comparison of minor numbers."
-  (let ((x (parse-version provided-version 'warn))
-        (y (parse-version required-version 'warn)))
+  (let ((x (parse-version provided-version nil))
+        (y (parse-version required-version nil)))
     (labels ((bigger (x y)
                (cond ((not y) t)
                      ((not x) nil)

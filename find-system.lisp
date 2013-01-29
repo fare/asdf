@@ -18,7 +18,7 @@
    #:find-system-if-being-defined #:*systems-being-defined*
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:system-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
-   #:make-defined-systems-table #:*defined-systems*
+   #:clear-defined-systems #:*defined-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
 (in-package :asdf/find-system)
@@ -251,19 +251,20 @@ Going forward, we recommend new users should be using the source-registry.
 (defun* load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))))
   ;; Tries to load system definition with canonical NAME from PATHNAME.
   (with-system-definitions ()
-    (let ((*package* (find-package :asdf-user))
-          (*default-pathname-defaults*
-            ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
-            (pathname-directory-pathname (translate-logical-pathname pathname))))
-      (handler-bind
-          ((error #'(lambda (condition)
-                      (error 'load-system-definition-error
-                             :name name :pathname pathname
-                             :condition condition))))
-        (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
-                      name pathname)
-        (with-muffled-loader-conditions ()
-          (load* pathname :external-format external-format))))))
+    (with-standard-io-syntax
+      (let ((*package* (find-package :asdf-user))
+            (*default-pathname-defaults*
+              ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
+              (pathname-directory-pathname (translate-logical-pathname pathname))))
+        (handler-bind
+            ((error #'(lambda (condition)
+                        (error 'load-system-definition-error
+                               :name name :pathname pathname
+                               :condition condition))))
+          (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
+                        name pathname)
+          (with-muffled-loader-conditions ()
+            (load* pathname :external-format external-format)))))))
 
 (defun* locate-system (name)
   "Given a system NAME designator, try to locate where to load the system from.
@@ -340,4 +341,5 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
 (register-preloaded-system "asdf")
 (register-preloaded-system "asdf-driver")
+
 

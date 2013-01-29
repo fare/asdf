@@ -2,30 +2,19 @@
 
 ;;; test asdf:try-recompiling restart
 
-
-
 (defvar *caught-error* nil)
-(progn
- (DBG "trlc1 1")
- (asdf::delete-file-if-exists "try-reloading-dependency.asd")
- (setf asdf::*defined-systems* (asdf::make-defined-systems-table))
- (DBG "trlc1 2")
- (handler-bind ((error (lambda (c)
-                         (format t "~&Caught error ~s" c)
-                         (setf *caught-error* t)
-                         (asdf::concatenate-files
-                          '("try-reloading-dependency.hidden")
-                          "try-reloading-dependency.asd")
-                         (DBG "trlc1 5")
-                         (multiple-value-bind (name mode)
-                             (find-symbol (symbol-name 'retry) :asdf)
-                           (DBG "trlc1 6" name mode)
-                           (assert (eq mode :external) nil "Mode of ~s was not external" name)
-                           (let ((restart (find-restart name c)))
-                             (DBG "trlc1 7" name restart)
-                             (assert restart)
-                             (when restart (invoke-restart restart)))))))
-   (DBG "trlc1 3")
-   (asdf:oos 'asdf:load-op 'try-reloading-1))
- (DBG "trlc1 4")
- (assert *caught-error*))
+(delete-file-if-exists "try-reloading-dependency.asd")
+(asdf::clear-defined-systems)
+(handler-bind
+    ((error #'(lambda (c)
+                (format t "~&Caught error ~s" c)
+                (setf *caught-error* t)
+                (concatenate-files '("try-reloading-dependency.hidden") "try-reloading-dependency.asd")
+                (DBG "trlc1 5")
+                (multiple-value-bind (name mode) (find-symbol* :retry :asdf)
+                  (assert (eq mode :external) () "Mode of ~s was not external" name)
+                  (let ((restart (find-restart name c)))
+                    (assert restart)
+                    (when restart (invoke-restart restart)))))))
+  (load-system 'try-reloading-1))
+(assert *caught-error*)
