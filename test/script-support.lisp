@@ -443,9 +443,9 @@ is bound, write a message and exit on an error.  If
              (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)
-         (funcall old-method tag))))
-    (setf (asymval :*asdf-verbose*) t)
-    (setf (asymval :*verbose-out*) *standard-output*)
+         (funcall old-method tag)))
+      (setf (asymval :*asdf-verbose*) t)
+      (setf (asymval :*verbose-out*) *standard-output*))
     (format t "Now loading new asdf via method ~A~%" new-method)
     (funcall new-method)
     (format t "Testing it~%")
