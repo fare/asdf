@@ -290,6 +290,7 @@ valid_upgrade_test_p () {
             # my old ubuntu clisp 2.44.1 is wired in with an antique ASDF 1 from CLC that can't be downgraded.
             # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
             # Note that for the longest time, CLISP has included 2.011 in its distribution.
+            : ;;
         cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-7]:*)
             : Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade 
             : Weird unidentified problems before 2.018 ;;
