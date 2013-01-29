@@ -25,7 +25,7 @@
    #:split-unix-namestring-directory-components
    ;; Absolute and relative pathnames
    #:subpathname #:subpathname*
-   #:ensure-pathname-absolute
+   #:ensure-absolute-pathname
    #:pathname-root #:pathname-host-pathname
    #:subpathp
    ;; Checking constraints
@@ -537,10 +537,10 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
          (let ((enough (enough-namestring maybe-subpath base-pathname)))
            (and (relative-pathname-p enough) (pathname enough))))))
 
-(defun* ensure-pathname-absolute (path &optional defaults (on-error 'error))
+(defun* ensure-absolute-pathname (path &optional defaults (on-error 'error))
   (cond
     ((absolute-pathname-p path))
-    ((stringp path) (ensure-pathname-absolute (pathname path) defaults on-error))
+    ((stringp path) (ensure-absolute-pathname (pathname path) defaults on-error))
     ((not (pathnamep path)) (call-function on-error "not a valid pathname designator ~S" path))
     ((let ((default-pathname (if (pathnamep defaults) defaults (call-function defaults))))
        (or (if (absolute-pathname-p default-pathname)

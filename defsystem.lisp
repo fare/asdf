@@ -32,9 +32,9 @@
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
   (resolve-symlinks*
-   (ensure-pathname-absolute
+   (ensure-absolute-pathname
     (parse-unix-namestring pathname :type :directory)
-    #'(lambda () (ensure-pathname-absolute
+    #'(lambda () (ensure-absolute-pathname
                   (load-pathname) 'get-pathname-defaults nil))
     nil)))
 

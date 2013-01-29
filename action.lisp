@@ -174,7 +174,7 @@ You can put together sentences using this phrase."))
               (absolute-pathnames
                 (loop
                   :for pathname :in pathnames
-                  :collect (ensure-pathname-absolute pathname directory))))
+                  :collect (ensure-absolute-pathname pathname directory))))
          ;; 2- Translate those pathnames as required
          (if fixedp
              absolute-pathnames

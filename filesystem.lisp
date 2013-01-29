@@ -223,7 +223,7 @@ or the original (parsed) pathname if it is false (the default)."
     (when (typep pathname '(or null logical-pathname)) (return pathname))
     (let ((p pathname))
       (unless (absolute-pathname-p p)
-        (setf p (or (absolute-pathname-p (ensure-pathname-absolute p 'get-pathname-defaults nil))
+        (setf p (or (absolute-pathname-p (ensure-absolute-pathname p 'get-pathname-defaults nil))
                     (return p))))
       (when (logical-pathname-p p) (return p))
       (let ((found (probe-file* p :truename t)))

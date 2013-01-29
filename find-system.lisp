@@ -159,9 +159,9 @@ Going forward, we recommend new users should be using the source-registry.
   (block nil
     (when (directory-pathname-p defaults)
       (if-let (file (probe-file*
-                     (ensure-pathname-absolute
+                     (ensure-absolute-pathname
                       (parse-unix-namestring name :type "asd")
-                      #'(lambda () (ensure-pathname-absolute defaults 'get-pathname-defaults nil))
+                      #'(lambda () (ensure-absolute-pathname defaults 'get-pathname-defaults nil))
                       nil)
                      :truename truename))
         (return file))

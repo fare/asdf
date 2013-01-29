@@ -355,8 +355,8 @@ or when loading the package is optional."
               (package-name from-package)
               (or (home-package-p import-me from-package) (symbol-package-name import-me))
               (package-name to-package) status
-              (and status (or (home-package-p existing to-package) (symbol-package-name existing))))
-           (shadowing-import import-me to-package)))))))
+              (and status (or (home-package-p existing to-package) (symbol-package-name existing)))))
+           (shadowing-import import-me to-package))))))
   (defun ensure-import (name to-package from-package shadowed imported)
     (check-type name string)
     (check-type to-package package)
@@ -449,7 +449,7 @@ or when loading the package is optional."
              (remhash name inherited)
              (ensure-shadowing-import name to-package (second in) shadowed imported))
             (im
-             (error "Symbol ~S import from ~S~:[~*~; actually ~:[~*uninterned~;from ~S~]~] conflicts with existing symbol in ~S~:[~*~; actually ~:[~*uninterned~;from ~S~]~]"
+             (error "Symbol ~S import from ~S~:[~; actually ~:[uninterned~;~:*from ~S~]~] conflicts with existing symbol in ~S~:[~; actually ~:[uninterned~;from ~:*~S~]~]"
                     name (package-name from-package)
                     (home-package-p symbol from-package) (symbol-package-name symbol)
                     (package-name to-package)
@@ -617,8 +617,9 @@ or when loading the package is optional."
       (loop :for (p . syms) :in shadowing-import-from
             :for pp = (find-package* p) :do
               (dolist (sym syms) (ensure-shadowing-import (string sym) package pp shadowed imported)))
-      (dolist (p mix)
-        (do-external-symbols (sym p) (ensure-mix (symbol-name sym) sym package p shadowed imported inherited)))
+      (loop :for p :in mix
+            :for pp = (find-package* p) :do
+              (do-external-symbols (sym pp) (ensure-mix (symbol-name sym) sym package pp shadowed imported inherited)))
       (loop :for (p . syms) :in import-from
             :for pp = (find-package p) :do
               (dolist (sym syms) (ensure-import (symbol-name sym) package pp shadowed imported)))
