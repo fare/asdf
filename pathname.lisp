@@ -5,7 +5,7 @@
 
 (asdf/package:define-package :asdf/pathname
   (:recycle :asdf/pathname :asdf)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility)
+  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os)
   (:export
    ;; Making and merging pathnames, portably
    #:normalize-pathname-directory-component #:denormalize-pathname-directory-component

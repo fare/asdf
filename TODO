@@ -1,7 +1,7 @@
 * Resolve performance degradation issue reported by stassats and fe[nl]ix
 ** Is it the warnings feature taking too much resources?
 ** Is output-files and/or input-files being called too much? Cache it!
-* fix upgrade on (abcl, clisp, cmucl)
+* fix upgrade on clisp
 ** Extract minimal test case
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
   are not in strict defsystem-depends-on dependency order. Document the issue.

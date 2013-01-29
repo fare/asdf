@@ -182,7 +182,7 @@ another pathname in a degenerate way."))
       (compute-children-by-name m))))
 
 (defclass module (child-component parent-component)
-  ())
+  (#+clisp (components))) ;; backward compatibility during upgrade only
 
 
 ;;;; component pathnames

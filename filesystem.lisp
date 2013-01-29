@@ -19,7 +19,11 @@
    #:inter-directory-separator #:split-native-pathnames-string
    #:getenv-pathname #:getenv-pathnames
    #:getenv-absolute-directory #:getenv-absolute-directories
-   #:lisp-implementation-directory #:lisp-implementation-pathname-p))
+   #:lisp-implementation-directory #:lisp-implementation-pathname-p
+   ;; Simple filesystem operations
+   #:ensure-all-directories-exist
+   #:rename-file-overwriting-target
+   #:delete-file-if-exists))
 (in-package :asdf/filesystem)
 
 ;;; Native namestrings, as seen by the operating system calls rather than Lisp
@@ -444,5 +448,21 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                    (if-let (trueimpdir (truename* impdir))
                      (subpathp truename trueimpdir)))))))
        t))
+
+
+;;; Simple filesystem operations
+(defun* ensure-all-directories-exist (pathnames)
+   (dolist (pathname pathnames)
+     (ensure-directories-exist (translate-logical-pathname pathname))))
+
+(defun* rename-file-overwriting-target (source target)
+  #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
+  (posix:copy-file source target :method :rename)
+  #-clisp
+  (rename-file source target
+               #+clozure :if-exists #+clozure :rename-and-delete))
+
+(defun* delete-file-if-exists (x)
+  (handler-case (delete-file x) (file-error () nil)))
 
 

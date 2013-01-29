@@ -54,15 +54,22 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.26.163")
+         (asdf-version "2.26.164")
          (existing-version (asdf-version)))
+    (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
       (push existing-version *previous-asdf-versions*)
       (when *asdf-verbose*
         (format *trace-output*
                 (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
-                existing-version asdf-version)))
-    (setf *asdf-version* asdf-version)))
+                existing-version asdf-version))
+      ;; Punt when upgrading from too old a version of ASDF
+      #+(or abcl clisp cmu)
+      (when (version< existing-version #+abcl "2.25" #+cmu "2.018" #+clisp "2.27")
+        (let ((away (format nil "~A-~A" :asdf existing-version)))
+          (rename-package :asdf away)
+          (when (or *load-verbose* *asdf-verbose*)
+            (format *trace-output* "; Renamed package ~A away to ~A~%" :asdf away)))))))
 
 (when-upgrading ()
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
@@ -87,12 +94,12 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
              #:resolve-relative-location-component #:resolve-absolute-location-component
              #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
     (declare (ignorable redefined-functions uninterned-symbols))
-    (loop :for name :in (append #-(or clisp ecl) redefined-functions)
+    (loop :for name :in (append #-(or ecl) redefined-functions)
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
               (fmakunbound sym)))
     (loop :with asdf = (find-package :asdf)
-          :for name :in (append #+(or clisp ecl) redefined-functions uninterned-symbols) ;XXX
+          :for name :in (append #+(or ecl) redefined-functions uninterned-symbols) ;XXX
           :for sym = (find-symbol* name :asdf nil)
           :for base-pkg = (and sym (symbol-package sym)) :do
             (when sym

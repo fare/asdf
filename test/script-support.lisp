@@ -430,9 +430,9 @@ is bound, write a message and exit on an error.  If
             (cons (format nil "~{~D~^.~}" ver))
             (null "1.0"))))))
 
-
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
+    (verbose t nil)
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")
@@ -444,6 +444,8 @@ is bound, write a message and exit on an error.  If
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)
          (funcall old-method tag))))
+    (setf (asymval :*asdf-verbose*) t)
+    (setf (asymval :*verbose-out*) *standard-output*)
     (format t "Now loading new asdf via method ~A~%" new-method)
     (funcall new-method)
     (format t "Testing it~%")

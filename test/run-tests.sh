@@ -282,8 +282,8 @@ extract_tagged_asdf () {
 }
 valid_upgrade_test_p () {
     case "${1}:${2}:${3}" in
-        abcl:2.0[01][1-9]:*|abcl:2.2[1-2]:*)
-            : Skip, because it is so damn slow ;;
+        abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-7]:*)
+            : "Skip, because it is so slow." ;;
         ccl:1.*|ccl:2.0[01]*)
             : Skip, because ccl broke old asdf ;;
         clisp:1.??*|clisp:2.00[0-7]:*)

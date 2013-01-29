@@ -19,9 +19,7 @@
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*
-   #:ensure-all-directories-exist
-   #:rename-file-overwriting-target
-   #:delete-file-if-exists
+   ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
    #:setup-temporary-directory
    #:call-with-temporary-file #:with-temporary-file
@@ -339,7 +337,7 @@ hopefully, if done consistently, that won't affect program behavior too much.")
   "Hook for an extension to define a function to automatically detect a file's encoding")
 
 (defun* detect-encoding (pathname)
-  (if (and pathname (not (directory-pathname-p pathname)) (probe-file pathname))
+  (if (and pathname (not (directory-pathname-p pathname)) (probe-file* pathname))
       (funcall *encoding-detection-hook* pathname)
       *default-encoding*))
 
@@ -358,22 +356,6 @@ and implementation-defined external-format's")
 
 (defun* encoding-external-format (encoding)
   (funcall *encoding-external-format-hook* encoding))
-
-
-;;; Simple filesystem operations
-(defun* ensure-all-directories-exist (pathnames)
-   (dolist (pathname pathnames)
-     (ensure-directories-exist (translate-logical-pathname pathname))))
-
-(defun* rename-file-overwriting-target (source target)
-  #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
-  (posix:copy-file source target :method :rename)
-  #-clisp
-  (rename-file source target
-               #+clozure :if-exists #+clozure :rename-and-delete))
-
-(defun* delete-file-if-exists (x)
-  (handler-case (delete-file x) (file-error () nil)))
 
 
 ;;; Using temporary files
@@ -409,7 +391,7 @@ and implementation-defined external-format's")
     :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
      ;; TODO: on Unix, do something about umask
      ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
-     ;; TODO: on Unix, use CFFI and mkstemp -- but the master is precisely meant to not depend on CFFI or on anything! Grrrr.
+     ;; TODO: on Unix, use CFFI and mkstemp -- but asdf/driver is precisely meant to not depend on CFFI or on anything! Grrrr.
     (with-open-file (stream pathname
                             :direction direction
                             :element-type element-type

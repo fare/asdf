@@ -89,6 +89,8 @@ This is designed to abstract away the implementation specific quit forms."
 (defun* raw-print-backtrace (&key (stream *debug-io*) count)
   "Print a backtrace, directly accessing the implementation"
   (declare (ignorable stream count))
+  #+abcl
+  (let ((*debug-io* stream)) (top-level::backtrace-command count))
   #+allegro
   (let ((*terminal-io* stream)
         (*standard-output* stream)
