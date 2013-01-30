@@ -74,11 +74,12 @@ if that's whay you mean." ;;)
      (include-per-user-information nil)
      (map-all-source-files (or #+(or clisp ecl mkcl) t nil))
      (source-to-target-mappings nil)
-     (file-types (list (compile-file-type)
-                         #+ecl (compile-file-type :type :object)
-                         #+mkcl (compile-file-type :fasl-p nil)
-                         #+clisp "lib" #+sbcl "cfasl"
-                         #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
+     (file-types `(,(compile-file-type)
+                   "build-report"
+                   #+ecl (compile-file-type :type :object)
+                   #+mkcl (compile-file-type :fasl-p nil)
+                   #+clisp "lib" #+sbcl "cfasl"
+                   #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
   #+(or clisp ecl mkcl)
   (when (null map-all-source-files)
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on CLISP, ECL and MKCL"))
@@ -133,3 +134,4 @@ Please use ASDF-DRIVER:RUN-PROGRAM instead."
     (asdf-message "; $ ~A~%" command)
     (run-program command :force-shell t :ignore-error-status t :output *verbose-out*)))
 
+(defvar *asdf-verbose* nil) ;; backward-compatibility with ASDF2 only. Unused.

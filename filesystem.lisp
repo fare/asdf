@@ -92,11 +92,11 @@ or the original (parsed) pathname if it is false (the default)."
             (if truename
                 (probe-file p)
                 (and (ignore-errors
-                      #+(or cmu scl) (unix:unix-stat (ext:unix-namestring (translate-logical-pathname p)))
-                      #+(and lispworks unix) (system:get-file-stat p)
-                      #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring (translate-logical-pathname p)))
-                      #-(or cmu (and lispworks unix) sbcl scl)
-                      (file-write-date p))
+                      (let ((pp (translate-logical-pathname p)))
+                        #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
+                        #+(and lispworks unix) (system:get-file-stat pp)
+                        #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
+                        #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)))
                      p))
             #+(or clisp gcl2.6)
             #.(flet ((probe (probe)

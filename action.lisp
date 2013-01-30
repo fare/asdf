@@ -272,7 +272,7 @@ in some previous image, or T if it needs to be done.")
 (defmethod perform-with-restarts (operation component)
   ;; TOO verbose, especially as the default. Add your own :before method
   ;; to perform-with-restart or perform if you want that:
-  #|(when *asdf-verbose* (explain operation component))|#
+  #|(explain operation component)|#
   (perform operation component))
 (defmethod perform-with-restarts :around (operation component)
   (loop

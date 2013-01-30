@@ -14,7 +14,9 @@ Some constraints:
   (:use :common-lisp)
   (:export
    #:asym #:acall #:asymval
-   #:*test-directory* #:*asdf-directory*
+   #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
+   #:assert-compare #:assert-pathname-equal #:assert-pathnames-equal
+   #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl
    #:compile-load-asdf #:load-asdf-system #:clean-load-asdf-system

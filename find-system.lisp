@@ -306,13 +306,15 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
               (when (and system pathname)
                 (setf (system-source-file system) pathname))
               (when (and pathname
-                         (not (and previous
-                                   (or (pathname-equal pathname previous-pathname)
-                                       (and pathname previous-pathname
-                                            (pathname-equal
-                                             (translate-logical-pathname pathname)
-                                             (translate-logical-pathname previous-pathname))))
-                                   (stamp<= (get-file-stamp pathname) previous-time))))
+                         (let ((stamp (get-file-stamp pathname)))
+                           (and stamp
+                                (not (and previous
+                                          (or (pathname-equal pathname previous-pathname)
+                                              (and pathname previous-pathname
+                                                   (pathname-equal
+                                                    (translate-logical-pathname pathname)
+                                                    (translate-logical-pathname previous-pathname))))
+                                          (stamp<= stamp previous-time))))))
                 ;; only load when it's a pathname that is different or has newer content
                 (load-asd pathname :name name)))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed

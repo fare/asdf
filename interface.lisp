@@ -87,7 +87,7 @@
    #:*compile-file-failure-behaviour*
    #:*resolve-symlinks*
    #:*load-system-operation*
-   #:*asdf-verbose*
+   #:*asdf-verbose* ;; unused. For backward-compatibility only.
    #:*verbose-out*
 
    #:asdf-version

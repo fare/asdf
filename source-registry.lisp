@@ -274,7 +274,7 @@ system names to pathnames of .asd files")
                  ((gethash name registry) ; already shadowed by something else
                   nil)
                  ((gethash name h) ; conflict at current level
-                  (when *asdf-verbose*
+                  (when *verbose-out*
                     (warn (compatfmt "~@<In source-registry entry ~A~@[/~*~] ~
                                 found several entries for ~A - picking ~S over ~S~:>")
                           directory recurse name (gethash name h) asd)))

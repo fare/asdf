@@ -154,7 +154,7 @@
             :nconc (remove-if-not 'warnings-file-p (output-files o sub))))))
 #+sbcl
 (defmethod output-files ((o compile-op) (c system))
-  (unless (builtin-system-p c)
+  (when (and *warnings-file-type* (not (builtin-system-p c)))
     (if-let ((pathname (component-pathname c)))
       (list (subpathname pathname (component-name c) :type "build-report")))))
 

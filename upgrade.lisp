@@ -7,7 +7,7 @@
   (:use :asdf/common-lisp :asdf/driver)
   (:export
    #:asdf-version #:*previous-asdf-versions* #:*asdf-version*
-   #:asdf-message #:*asdf-verbose* #:*verbose-out*
+   #:asdf-message #:*verbose-out*
    #:upgrading-p #:when-upgrading #:upgrade-asdf #:asdf-upgrade-error
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
@@ -30,10 +30,9 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
               (null "1.0"))))))
   (defvar *asdf-version* nil)
   (defvar *previous-asdf-versions* nil)
-  (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
   (defvar *verbose-out* nil)
   (defun* asdf-message (format-string &rest format-args)
-    (apply 'format *verbose-out* format-string format-args))
+    (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
   (defvar *post-upgrade-cleanup-hook* ())
   (defvar *post-upgrade-restart-hook* ())
   (defun* upgrading-p ()
@@ -52,12 +51,12 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.26.167")
+         (asdf-version "2.26.168")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
       (push existing-version *previous-asdf-versions*)
-      (when *asdf-verbose*
+      (when (or *load-verbose* *verbose-out*)
         (format *trace-output*
                 (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
                 existing-version asdf-version)))))
