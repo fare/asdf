@@ -75,7 +75,7 @@ Some constraints:
                                (namestring (make-pathname :name nil :type nil :defaults path))))))
 
 ;;; Survival utilities
-(defun asym (name &optional package (errorp t))
+(defun asym (name &optional package errorp)
   (let* ((pname (or package :asdf))
          (package (find-package pname)))
     (if package
@@ -290,7 +290,7 @@ is bound, write a message and exit on an error.  If
                               (acall :print-condition-backtrace
                                      c :count 69 :stream *error-output*))
                              (leave-test "Script failed" 1))))))
-              (funcall (or (asym :call-with-asdf-cache :asdf nil) 'funcall) thunk)
+              (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
               (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
@@ -453,24 +453,30 @@ is bound, write a message and exit on an error.  If
   (clean-asdf-system))
 
 (defun configure-asdf ()
-  (when (asym :getenvp nil nil)
+  (format t "Configuring ASDF~%")
+  (when (asym :getenvp)
+    (format t "Enabling debugging~%")
     (setf *debug-asdf* (or *debug-asdf* (acall :getenvp "DEBUG_ASDF_TEST"))))
-  (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s))))
-  (when (asym :initialize-source-registry nil nil)
+  (when *trace-symbols*
+    (format t "Tracing~{ ~A~}~%" *trace-symbols*)
+    (eval `(trace ,@(loop :for s :in *trace-symbols* :collect (asym s)))))
+  (when (asym :initialize-source-registry)
     (acall :initialize-source-registry
            `(:source-registry :ignore-inherited-configuration)))
-  (when (asym :initialize-output-translations nil nil)
+  (when (asym :initialize-output-translations)
     (acall :initialize-output-translations
            `(:output-translations
-             ((,*asdf-directory*) ,(output-location "asdf"))
+             ((,(namestring *asdf-directory*)) ,(output-location "asdf"))
              (t ,(output-location "root"))
              :ignore-inherited-configuration)))
-  (when (asym :*central-registry* nil nil)
+  (when (asym :*central-registry*)
     (set (asym :*central-registry*) `(,*test-directory*)))
+  (format t "Being a bit verbose~%")
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (when (asym :system-source-directory nil nil)
-    (let ((x (acall :system-source-directory :test-module-depend)))
+  (when (and (asym :locate-system) (asym :pathname-directory-pathname))
+    (format t "Comparing directories~%")
+    (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
       (assert-pathname-equal *test-directory* x) ;; not always EQUAL (!)
       (unless (equal *test-directory* x)
         (format t "Interestingly, while *test-directory* has components~% ~S~%~
@@ -531,16 +537,15 @@ is bound, write a message and exit on an error.  If
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)
          (funcall old-method tag))))
-    (configure-asdf)
-    (when (asym :*asdf-verbose* nil nil) (setf (asymval :*asdf-verbose*) t))
-    (when (asym :*verbose-out* nil nil) (setf (asymval :*verbose-out*) *standard-output*))
+    (when (find-package :asdf)
+      (configure-asdf))
     (format t "Now loading new asdf via method ~A~%" new-method)
     (funcall new-method)
     (format t "Testing it~%")
     (register-directory *test-directory*)
     (load-test-system :test-module-depend)
-    (assert (eval (intern (symbol-name '#:*file1*) :test-package)))
-    (assert (eval (intern (symbol-name '#:*file3*) :test-package)))))
+    (assert (asymval '#:*file1* :test-package))
+    (assert (asymval '#:*file3* :test-package))))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

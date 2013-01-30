@@ -286,7 +286,8 @@ valid_upgrade_test_p () {
         # my old ubuntu clisp 2.44.1 is wired in with an antique ASDF 1.374 from CLC that can't be downgraded.
         # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
         # Note that for the longest time, CLISP has included 2.011 in its distribution.
-        clisp:2.00[0-7]:*) : ;;
+        # Since we punt on the upgrade, let's only do the test once, for 2.26.
+        clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
         # Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade 
         # Weird unidentified problems before 2.018, so we punt equally for everything before,
         # and only need to test it once: above, for 2.017.
@@ -319,7 +320,7 @@ run_upgrade_tests () {
                   echo "or more interactively (and maybe with rlwrap or in emacs), start with:"
                   echo "$cmd"
                   echo "then copy/paste:"
-                  echo "(load\"$su\") (da) (test-upgrade $method \"$tag\")"
+                  echo "(load\"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
                   exit 1 ;}
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
