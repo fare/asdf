@@ -244,7 +244,7 @@ upgrade_tags () {
     # 1.97 is the last release before Gary King takes over
     # 1.369 is the last release by Gary King
     # 2.000 to 2.019 and 2.20 to 2.27 and beyond are Faré's "stable" releases
-    # 2.26.61 is the last single-package ASDF.
+    # 2.26.61 is the last single-file, single-package ASDF.
     echo REQUIRE 1.85 1.97 1.369
     git tag -l '2.0??'
     git tag -l '2.??'
@@ -387,4 +387,4 @@ elif [ -n "$upgrade" ] ; then
     run_upgrade_tests
 else
     run_tests "$@"
-fi
+fi ; exit # NB: "; exit" makes it robust wrt the script being modified while running.

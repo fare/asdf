@@ -15,7 +15,7 @@ Some constraints:
   (:export
    #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
-   #:assert-compare #:assert-pathname-equal #:assert-pathnames-equal
+   #:assert-compare #:assert-equal #:assert-pathname-equal #:assert-pathnames-equal
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl
@@ -468,7 +468,7 @@ is bound, write a message and exit on an error.  If
   (when (asym :initialize-output-translations)
     (acall :initialize-output-translations
            `(:output-translations
-             ((,(namestring *asdf-directory*)) ,(output-location "asdf"))
+             (,(namestring *asdf-directory*) ,(output-location "asdf"))
              (t ,(output-location "root"))
              :ignore-inherited-configuration)))
   (when (asym :*central-registry*)
@@ -476,7 +476,8 @@ is bound, write a message and exit on an error.  If
   (format t "Being a bit verbose~%")
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (when (and (asym :locate-system) (asym :pathname-directory-pathname))
+  (when (and (asym :locate-system) (asym :pathname-directory-pathname)
+             (asym :pathname-equal))
     (format t "Comparing directories~%")
     (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
       (assert-pathname-equal *test-directory* x) ;; not always EQUAL (!)
