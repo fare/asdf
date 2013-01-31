@@ -363,7 +363,11 @@ or when loading the package is optional."
     (check-type from-package package)
     (check-type shadowed hash-table)
     (check-type imported hash-table)
-    (let* ((import-me (find-symbol* name from-package)))
+    (multiple-value-bind (import-me import-status) (find-symbol name from-package)
+      (when (null import-status)
+        (note-package-fishiness
+         :import-uninterned name (package-name from-package) (package-name to-package))
+        (setf import-me (intern name from-package)))
       (multiple-value-bind (existing status) (find-symbol name to-package)
         (cond
           ((gethash name imported)

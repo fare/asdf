@@ -463,6 +463,6 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                #+clozure :if-exists #+clozure :rename-and-delete))
 
 (defun* delete-file-if-exists (x)
-  (handler-case (delete-file x) (file-error () nil)))
+  (when x (handler-case (delete-file x) (file-error () nil))))
 
 
