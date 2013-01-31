@@ -21,9 +21,9 @@ don't cause full rebuilds all the time...
 (defparameter file2.lisp (component-pathname (find-component 'static-and-serial "file2.lisp")))
 (defparameter run-tests.sh (component-pathname (find-component 'static-and-serial "run-tests.sh")))
 (defparameter file1.fasl (first (output-files 'compile-op '(static-and-serial "file1"))))
-(assert-equal file1.lisp (test-source "file1.lisp"))
-(assert-equal file2.lisp (test-source "file2.lisp"))
-(assert-equal run-tests.sh (test-source "run-tests.sh"))
+(assert-pathname-equal file1.lisp (test-source "file1.lisp")) ;; differ on LispWorks. Sigh.
+(assert-pathname-equal file2.lisp (test-source "file2.lisp"))
+(assert-pathname-equal run-tests.sh (test-source "run-tests.sh"))
 (assert-pathname-equal file1.fasl (test-fasl "file1")) ;; differ on CCL. Sigh.
 (defparameter file1-date (get-file-stamp file1.fasl))
 (defparameter date1 (- file1-date 600))

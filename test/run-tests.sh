@@ -367,8 +367,9 @@ test_load_systems () {
     case $lisp in
         gcl) return 0 ;; # This one is hopeless
     esac
+    echo "Loading all these systems: $*"
     ${cmd} ${eval} \
-      "(or #.(load \"test/script-support.lisp\") #.(asdf-test::with-test () (asdf-test::test-load-systems ${s})))" \
+      "(or #.(load \"test/script-support.lisp\") #.(asdf-test::with-test () (asdf-test::test-load-systems $*)))" \
         2>&1 | tee build/results/${lisp}-systems.text
 }
 test_interactively () {
@@ -382,7 +383,7 @@ elif [ -n "$test_interactively" ] ; then
 elif [ -n "$clean_load" ] ; then
     test_clean_load
 elif [ -n "$load_systems" ] ; then
-    test_load_systems
+    test_load_systems "$@"
 elif [ -n "$upgrade" ] ; then
     run_upgrade_tests
 else
