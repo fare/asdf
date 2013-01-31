@@ -6,7 +6,6 @@
   (:recycle :asdf/action :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
-  (:intern #:stamp #:done-p)
   (:export
    #:action #:define-convenience-action-methods
    #:explain #:action-description
@@ -17,7 +16,7 @@
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:feature
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
-   #:action-path #:find-action))
+   #:action-path #:find-action #:stamp #:done-p))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system

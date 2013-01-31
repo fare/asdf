@@ -393,7 +393,7 @@ or when loading the package is optional."
     (check-type symbol symbol)
     (check-type to-package package)
     (check-type from-package package)
-    (check-type mixp boolean)
+    (check-type mixp (member nil t)) ; no cl:boolean on Genera
     (check-type shadowed hash-table)
     (check-type imported hash-table)
     (check-type inherited hash-table)
@@ -482,7 +482,7 @@ or when loading the package is optional."
   (defun ensure-symbol (name package intern recycle shadowed imported inherited exported)
     (check-type name string)
     (check-type package package)
-    (check-type intern boolean)
+    (check-type intern (member nil t)) ; no cl:boolean on Genera
     (check-type shadowed hash-table)
     (check-type imported hash-table)
     (check-type inherited hash-table)

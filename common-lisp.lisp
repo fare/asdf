@@ -150,19 +150,20 @@
       (labels ((emit (start end)
                  (when (and (zerop start) (= end length))
                    (return-from remove-substrings string))
-                 (unless stream (setf stream (make-string-output-stream)))
-                 (write-string string stream :start start :end end))
+                 (when (< start end)
+                   (unless stream (setf stream (make-string-output-stream)))
+                   (write-string string stream :start start :end end)))
                (recurse (substrings start end)
                  (cond
-                   ((= start end))
+                   ((>= start end))
                    ((null substrings) (emit start end))
                    (t (let* ((sub (first substrings))
-                             (found (search sub string))
+                             (found (search sub string :start2 start :end2 end))
                              (more (rest substrings)))
                         (cond
                           (found
                            (recurse more start found)
-                           (recurse more (+ found (length sub)) end))
+                           (recurse substrings (+ found (length sub)) end))
                           (t
                            (recurse more start end))))))))
         (recurse substrings 0 length))

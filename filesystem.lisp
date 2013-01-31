@@ -91,7 +91,8 @@ or the original (parsed) pathname if it is false (the default)."
             #-(or allegro clisp gcl2.6)
             (if truename
                 (probe-file p)
-                (and (ignore-errors
+                (and (not (wild-pathname-p p))
+                     (ignore-errors
                       (let ((pp (translate-logical-pathname p)))
                         #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
                         #+(and lispworks unix) (system:get-file-stat pp)
