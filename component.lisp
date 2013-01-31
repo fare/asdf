@@ -67,21 +67,22 @@ another pathname in a degenerate way."))
    ;; We might want to constrain version with
    ;; :type (and string (satisfies parse-version))
    ;; but we cannot until we fix all systems that don't use it correctly!
-   (version :accessor component-version :initarg :version)
-   (description :accessor component-description :initarg :description)
-   (long-description :accessor component-long-description :initarg :long-description)
+   (version :accessor component-version :initarg :version :initform nil)
+   (description :accessor component-description :initarg :description :initform nil)
+   (long-description :accessor component-long-description :initarg :long-description :initform nil)
    (sibling-dependencies :accessor component-sibling-dependencies :initform nil)
    (if-feature :accessor component-if-feature :initform nil :initarg :if-feature)
-   ;; In the ASDF object model, dependencies exist between *actions*
-   ;; (an action is a pair of operation and component).
+   ;; In the ASDF object model, dependencies exist between *actions*,
+   ;; where an action is a pair of an operation and a component.
    ;; Dependencies are represented as alists of operations
-   ;; to dependencies (other actions) in each component.
+   ;; to a list where each entry is a pair of an operation and a list of component specifiers.
    ;; Up until ASDF 2.26.9, there used to be two kinds of dependencies:
    ;; in-order-to and do-first, each stored in its own slot. Now there is only in-order-to.
    ;; in-order-to used to represent things that modify the filesystem (such as compiling a fasl)
    ;; and do-first things that modify the current image (such as loading a fasl).
    ;; These are now unified because we now correctly propagate timestamps between dependencies.
-   ;; Happily, no one seems to have used do-first too much, but the name in-order-to remains.
+   ;; Happily, no one seems to have used do-first too much (especially since until ASDF 2.017,
+   ;; anything you specified was overridden by ASDF itself anyway), but the name in-order-to remains.
    ;; The names are bad, but they have been the official API since Dan Barlow's ASDF 1.52!
    ;; LispWorks's defsystem has caused-by and requires for in-order-to and do-first respectively.
    ;; Maybe rename the slots in ASDF? But that's not very backward-compatible.
@@ -90,21 +91,24 @@ another pathname in a degenerate way."))
                 :accessor component-in-order-to)
    ;; methods defined using the "inline" style inside a defsystem form:
    ;; need to store them somewhere so we can delete them when the system
-   ;; is re-evaluated
+   ;; is re-evaluated.
    (inline-methods :accessor component-inline-methods :initform nil) ;; OBSOLETE! DELETE THIS IF NO ONE USES.
-   ;; no direct accessor for pathname, we do this as a method to allow
-   ;; it to default in funky ways if not supplied
+   ;; ASDF4: rename it from relative-pathname to specified-pathname. It need not be relative.
+   ;; There is no initform and no direct accessor for this specified pathname,
+   ;; so we only access the information through appropriate methods, after it has been processed.
+   ;; Unhappily, some braindead systems directly access the slot. Make them stop before ASDF4.
    (relative-pathname :initarg :pathname)
-   ;; the absolute-pathname is computed based on relative-pathname...
+   ;; The absolute-pathname is computed based on relative-pathname and parent pathname.
+   ;; The slot is but a cache used by component-pathname.
    (absolute-pathname)
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
-   ;; Properties are for backward-compatibility with ASDF2 only. DO NOT USE.
+   ;; Properties are for backward-compatibility with ASDF2 only. DO NOT USE!
    (properties :accessor component-properties :initarg :properties
                :initform nil)
    (%encoding :accessor %component-encoding :initform nil :initarg :encoding)
-   ;; For backward-compatibility, this slot is part of component rather than child-component. ASDF4: don't.
+   ;; For backward-compatibility, this slot is part of component rather than of child-component. ASDF4: stop it.
    (parent :initarg :parent :initform nil :reader component-parent)
    (build-operation
     :initarg :build-operation :initform nil :reader component-build-operation)))
@@ -273,3 +277,4 @@ another pathname in a degenerate way."))
                  (when (typep x 'parent-component)
                    (map () #'recurse (component-children x))))))
       (recurse component))))
+

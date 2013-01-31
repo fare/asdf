@@ -27,7 +27,15 @@
 (defsystem :asdf/defsystem
   :licence "MIT"
   :description "The defsystem part of ASDF"
-  :long-description "Another System Definition Facility, the portable defsystem for Common Lisp"
+  :long-name "Another System Definition Facility"
+  :description "The portable defsystem for Common Lisp"
+  :long-description "ASDF/DEFSYSTEM is the standard DEFSYSTEM facility for Common Lisp,
+   a successor to Dan Barlow's ASDF and Francois-Rene Rideau's ASDF2.
+   For bootstrap purposes, it comes bundled with ASDF/DRIVER in a single file asdf.lisp."
+  :website-url "http://common-lisp.net/projects/asdf/"
+  :bug-tracker-url "https://launchpad.net/asdf/"
+  :developers-email "asdf-devel@common-lisp.net"
+  :source-control (:git "git://common-lisp.net/projects/asdf/asdf.git")
   :version (:read-file-form "version.lisp-expr")
   :build-operation monolithic-concatenate-source-op
   :build-pathname "build/asdf" ;; our target
@@ -66,7 +74,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.26.173" ;; to be automatically updated by make bump-version
+  :version "2.26.174" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   ;; For most purposes, asdf itself specially counts as a builtin system.

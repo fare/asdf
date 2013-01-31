@@ -80,6 +80,11 @@
    #:system-source-file
    #:system-source-directory
    #:system-relative-pathname
+   #:system-website-url
+   #:system-bug-tracker-url
+   #:system-developers-email
+   #:system-long-name
+   #:system-source-control
    #:map-systems
 
    #:*system-definition-search-functions*   ; variables
