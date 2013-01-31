@@ -15,6 +15,7 @@
    #:operation-forced
    #:operation-on-failure
    #:operation-on-warnings
+   #:component-property
    #:run-shell-command
    #:system-definition-pathname))
 (in-package :asdf/backward-interface)
@@ -135,3 +136,18 @@ Please use ASDF-DRIVER:RUN-PROGRAM instead."
     (run-program command :force-shell t :ignore-error-status t :output *verbose-out*)))
 
 (defvar *asdf-verbose* nil) ;; backward-compatibility with ASDF2 only. Unused.
+
+;; backward-compatibility methods. Do NOT use in new code. NOT SUPPORTED.
+(defgeneric* component-property (component property))
+#-gcl2.6 (defgeneric* (setf component-property) (new-value component property))
+
+(defmethod component-property ((c component) property)
+  (cdr (assoc property (slot-value c 'properties) :test #'equal)))
+
+(defmethod (setf component-property) (new-value (c component) property)
+  (let ((a (assoc property (slot-value c 'properties) :test #'equal)))
+    (if a
+        (setf (cdr a) new-value)
+        (setf (slot-value c 'properties)
+              (acons property new-value (slot-value c 'properties)))))
+  new-value)

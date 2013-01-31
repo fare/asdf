@@ -69,6 +69,7 @@
    #:component-depends-on ; backward-compatible name rather than action-depends-on
    #:module-components ; backward-compatibility
    #:operation-on-warnings #:operation-on-failure ; backward-compatibility
+   #:component-property ; backward-compatibility
 
    #:system-description
    #:system-long-description

@@ -89,6 +89,10 @@
 (defun* normalize-version (form pathname)
   (etypecase form
     ((or string null) form)
+    (real
+     (asdf-message "Invalid use of real number ~D as :version in ~S. Substituting a string."
+                   form pathname)
+     (format nil "~D" form)) ;; 1.0 is "1.0"
     (cons
      (ecase (first form)
        ((:read-file-form)

@@ -34,7 +34,7 @@
    #:author #:maintainer #:licence #:source-file #:defsystem-depends-on
    #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
    #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
-   #:%encoding #:properties #:parent))
+   #:%encoding #:properties #:component-properties #:parent))
 (in-package :asdf/component)
 
 (defgeneric* component-name (component)
@@ -100,7 +100,9 @@ another pathname in a degenerate way."))
    (operation-times :initform (make-hash-table)
                     :accessor component-operation-times)
    (around-compile :initarg :around-compile)
-   (properties) ;; Only for backward-compatibility during upgrades from ASDF2. DO NOT USE.
+   ;; Properties are for backward-compatibility with ASDF2 only. DO NOT USE.
+   (properties :accessor component-properties :initarg :properties
+               :initform nil)
    (%encoding :accessor %component-encoding :initform nil :initarg :encoding)
    ;; For backward-compatibility, this slot is part of component rather than child-component. ASDF4: don't.
    (parent :initarg :parent :initform nil :reader component-parent)

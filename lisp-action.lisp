@@ -5,7 +5,7 @@
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
+   :asdf/cache :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
   (:export
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
@@ -103,14 +103,18 @@
 (defun* report-file-p (f)
   (equal (pathname-type f) "build-report"))
 (defun* perform-lisp-warnings-check (o c)
-  (check-deferred-warnings
-   (remove-if-not #'warnings-file-p (input-files o c))
-   "~/asdf-action::format-action/" (list (cons o c)))
-  (let* ((output (output-files o c))
-         (report (find-if #'report-file-p output)))
-    (when report
-      (with-open-file (s report :direction :output :if-exists :supersede)
-        (format s ":success~%")))))
+  (let* ((expected-warnings-files (remove-if-not #'warnings-file-p (input-files o c)))
+         (actual-warnings-files (loop :for w :in expected-warnings-files
+                                      :when (get-file-stamp w)
+                                        :collect w
+                                      :else :do (warn "Missing warnings file ~S while ~A"
+                                                      w (action-description o c)))))
+    (check-deferred-warnings actual-warnings-files)
+    (let* ((output (output-files o c))
+           (report (find-if #'report-file-p output)))
+      (when report
+        (with-open-file (s report :direction :output :if-exists :supersede)
+          (format s ":success~%"))))))
 (defmethod perform ((o compile-op) (c cl-source-file))
   (perform-lisp-compilation o c))
 (defmethod output-files ((o compile-op) (c cl-source-file))
