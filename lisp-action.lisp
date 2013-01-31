@@ -156,7 +156,7 @@
       ;; but it's expensive and we don't care too much about file order or ASDF extensions.
       (loop :for sub :in (sub-components c :type 'cl-source-file)
             :nconc (remove-if-not 'warnings-file-p (output-files o sub))))))
-#+sbcl
+#+(or clozure sbcl)
 (defmethod output-files ((o compile-op) (c system))
   (when (and *warnings-file-type* (not (builtin-system-p c)))
     (if-let ((pathname (component-pathname c)))
