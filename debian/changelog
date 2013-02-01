@@ -1,3 +1,11 @@
+cl-asdf (2:2.28-1) unstable; urgency=low
+
+ ASDF 2.28 is a quick patch to ASDF 2.27 to make it work better with
+ systems that specify a relative pathname, then at runtime (e.g. in tests)
+ use merge-pathnames or merge-pathnames* against it expecting a directory.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 01 Feb 2013 17:07:53 -0500
+
 cl-asdf (2:2.27-1) unstable; urgency=low
 
   ASDF 2.27 is actually an almost complete rewrite of ASDF, and
