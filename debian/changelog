@@ -1,7 +1,7 @@
 cl-asdf (2:2.27-1) unstable; urgency=low
 
   ASDF 2.27 is actually an almost complete rewrite of ASDF, and
-  should be considered a pre-release for a new ASDF 3.
+  should be considered a pre-release for an upcoming ASDF 3.
   It nevertheless maintains backward compatibility with the current practice,
   and is tested against the software in Quicklisp.
 
@@ -201,6 +201,15 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     This makes it easier for developers to manage versioning
     of one or multiple systems with a single master version location.
 
+  * COMPONENT-PROPERTY and the :PROPERTIES initarg of defsystem are deprecated;
+    though they are still supported for now, we intend to retire them
+    in a hypothetical future ASDF 4. To replace them, we recommend you instead
+    define a subclass of asdf:system, with new slots and/or initargs, and
+    use them with the :defsystem-depends-on and :class options of defsystem.
+    We looked at usage of in Quicklisp systems, and added to asdf:system
+    these slots corresponding to the general-purpose metadata we saw:
+    :homepage :bug-tracker :mailto :long-name
+
   * Self-Upgrade of ASDF will happen automatically as the first thing
     before any attempt to build anything, as it was determined that
     doing it in the midst of a build breaks everything, and it is not
@@ -268,7 +277,7 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     and that in your ~/.swank.lisp you should include:
     (in-package :swank)
     (pushnew 'try-compile-file-with-asdf *compile-file-for-emacs-hook*)
-    This requires ASDF 2.014.6 or later (as used by older quicklisp releases).
+    This requires ASDF 2.014.6 or later (as used by 2011 quicklisp releases).
 
  -- Francois-Rene Rideau <fare@tunes.org>  Thu, 22 Jan 2013 22:59:44 -0500
 
