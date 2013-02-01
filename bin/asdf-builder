@@ -183,6 +183,9 @@
 
 (defun next-version (v)
   (let ((pv (parse-version v 'error)))
+    (assert (first pv))
+    (assert (second pv))
+    (unless (third pv) (appendf pv '(0)))
     (incf (third pv))
     (unparse-version pv)))
 
