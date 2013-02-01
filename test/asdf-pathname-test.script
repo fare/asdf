@@ -401,6 +401,9 @@
   #-gcl
   (assert-pathname-equal (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :ensure-directory nil :wilden t) #p"/foo/bar/**/baz/*.*")
 
+  (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-1))))
+  (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-2))))
+
   (or (test-component-pathnames :delete-host t :support-string-pathnames nil)
       (leave-test "test failed" 1)))
 
