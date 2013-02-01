@@ -51,7 +51,7 @@ system names to pathnames of .asd files")
 (register-clear-configuration-hook 'clear-source-registry)
 
 (defparameter *wild-asd*
-  (make-pathname* :directory nil :name *wild* :type "asd"))
+  (make-pathname* :directory nil :name *wild* :type "asd" :version :newest))
 
 (defun* directory-asd-files (directory)
   (directory-files directory *wild-asd*))
@@ -64,7 +64,7 @@ system names to pathnames of .asd files")
   (collect-sub*directories
    directory
    (constantly t)
-   #'(lambda (x) (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
+   #'(lambda (x &aux (l (car (last (pathname-directory x))))) (not (member l exclude :test #'equal)))
    #'(lambda (dir) (collect-asds-in-directory dir collect))))
 
 (defun* validate-source-registry-directive (directive)

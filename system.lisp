@@ -13,9 +13,9 @@
    #:system-defsystem-depends-on
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
-   #:website-url #:system-website-url
-   #:bug-tracker-url #:system-bug-tracker-url
-   #:developers-email #:system-developers-email
+   #:homepage #:system-homepage
+   #:bug-tracker #:system-bug-tracker
+   #:mailto #:system-mailto
    #:long-name #:system-long-name
    #:source-control #:system-source-control
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
@@ -48,9 +48,9 @@
    (maintainer :accessor system-maintainer :initarg :maintainer :initform nil)
    (licence :accessor system-licence :initarg :licence
             :accessor system-license :initarg :license :initform nil)
-   (website-url :accessor system-website-url :initarg :website-url :initform nil)
-   (bug-tracker-url :accessor system-bug-tracker-url :initarg :bug-tracker-url :initform nil)
-   (developers-email :accessor system-developers-email :initarg :developers-email :initform nil)
+   (homepage :accessor system-homepage :initarg :homepage :initform nil)
+   (bug-tracker :accessor system-bug-tracker :initarg :bug-tracker :initform nil)
+   (mailto :accessor system-mailto :initarg :mailto :initform nil)
    (long-name :accessor system-long-name :initarg :long-name :initform nil)
    ;; Conventions for this slot aren't clear yet as of ASDF 2.27, but whenever they are, they will be enforced.
    ;; I'm introducing the slot before the conventions are set for maximum compatibility.

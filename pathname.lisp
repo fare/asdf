@@ -273,8 +273,9 @@ and NIL NAME, TYPE and VERSION components"
     (make-pathname :name nil :type nil :version nil :defaults pathname)))
 
 (defun* pathname-parent-directory-pathname (pathname)
-  "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
-and NIL NAME, TYPE and VERSION components"
+  "Returns a new pathname that corresponds to the parent of the current pathname's directory,
+i.e. removing one level of depth in the DIRECTORY component. e.g. if pathname is
+Unix pathname /foo/bar/baz/file.type then return /foo/bar/"
   (when pathname
     (make-pathname* :name nil :type nil :version nil
                     :directory (merge-pathname-directory-components
