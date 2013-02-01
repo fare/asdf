@@ -31,8 +31,8 @@
   ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (resolve-symlinks*
-   (pathname-directory-pathname
+  (pathname-directory-pathname
+   (resolve-symlinks*
     (ensure-absolute-pathname
      (parse-unix-namestring pathname :type :directory)
      #'(lambda () (ensure-absolute-pathname
