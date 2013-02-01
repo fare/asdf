@@ -48,12 +48,15 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     no more special magic for children components vs other dependencies.
 
   * COMPONENT-DO-FIRST is no more. It used to specify some dependencies
-    that were skipped if no re-build was triggered based on local timestamps.
-    Instead, COMPONENT-DEPENDS-ON is used for all dependencies,
+    that were skipped if no re-build was triggered based on local timestamps;
+    except that ASDF 1 didn't let the users control it,
+    and ASDF 2 only let you control it since 2.017 or so.
+    In ASDF 3, COMPONENT-DEPENDS-ON is used for all dependencies,
     and all are consulted to correctly propagate timestamps.
     However actions meant for in-image side-effects are included
     only if needed, and might be visited twice by TRAVERSE,
     first without the needed-in-image-p flag, another time with.
+    You can use :IN-ORDER-TO everywhere you used to use :DO-FIRST, if ever.
 
   * FORCE and FORCE-NOT now correctly distinguish T from :ALL in addition to
     a list of system name specifiers, as per the original specification
@@ -73,9 +76,9 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     which belied the object model and defeated other features.
     Unhappily, this breaks backwards compatibility for the few who used it,
     namely sb-grovel, nibbles and ironclad.
-    A minimal compatibility layer allows ASDF 3 or later to load
-    the SB-GROVEL of old versions of SBCL, but it won't suffice to load
-    an old version of nibbles or ironclad; please upgrade them
+    A minimal compatibility layer is included that allows ASDF 3 or later
+    to load the SB-GROVEL of old versions of SBCL; but it won't suffice
+    to load an old version of nibbles or ironclad; please upgrade them
     a recent version that was updated to support ASDF 3.
 
   * CONCATENATE-SOURCE-OP is a new operation that builds a single Lisp file
@@ -229,22 +232,24 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     except now, when you don't, you can still access your defined symbols
     after the file is loaded.
     ASDF is not the right place to fix Common Lisp namespace issues, and
-    these temporary packages were never a successful fix anyway.
+    these temporary packages were never a successful fix anyway;
+    indeed, users were still required to define their own package as soon
+    as they wanted to define variables, functions and classes
+    in the system file.
 
   * ASDF3 was added to the *features* so you can detect the presence of
     this massively updated ASDF and its new features with #+asdf3.
-    This is *not* ASDF3, for we painfully maintained backwards compatibility,
-    though it may have been temporarily broken during development.
 
   * Documentation received some updates, though by no means comparable
     to the complete rewrite of the code base.
 
   * Tests were updated, notably including support for bundles, encodings,
     run-program, and more. They were successfully run on
-	ccl clisp sbcl ecl ecl_bytecodes
-	cmucl abcl scl allegro lispworks allegromodern xcl
+	abcl allegro allegromodern ccl clisp cmucl
+        ecl ecl_bytecodes lispworks sbcl scl xcl
     Manual tests were run on gcl2.6 genera lispworks-personal-edition.
     Untested remain cormancl mkcl rmcl.
+    The internal test system itself was massively improved.
 
   * ASDF-DEBUG is a simple utility to make your favorite debugging primitives
     available in the package you're debugging. See contrib/debug.lisp
@@ -263,23 +268,23 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     reusing the new TRAVERSE infrastructure of ASDF and now being able to
     assume the ASDF object model is a complete description of dependencies.
     On SBCL it will handle deferred warnings from background compilations.
-    Where forking is not possible or not supported,
+    Where forking is not supported or not possible because of threads,
     it will gracefully fall back to serial compilation.
 
   * INFERIOR-SHELL (distributed separately) was updated to use asdf-driver
-    instead of xcvb-driver, providing a richer interface to
+    instead of xcvb-driver. It notably provides a richer interface to
     the RUN-PROGRAM functionality.
 
   * SLIME support for ASDF was significantly enhanced.
     It is distributed with SLIME, separately from ASDF.
-    See latest slime checkin from 2013-01-20.
+    See latest slime checkin from 2013-01-29.
+    It requires ASDF 2.014.6 or later (as used by 2011 quicklisp releases).
     We recommend that you should include slime-asdf in your slime-setup
     and that in your ~/.swank.lisp you should include:
     (in-package :swank)
     (pushnew 'try-compile-file-with-asdf *compile-file-for-emacs-hook*)
-    This requires ASDF 2.014.6 or later (as used by 2011 quicklisp releases).
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 22 Jan 2013 22:59:44 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 01 Feb 2013 13:27:12 -0500
 
 cl-asdf (2:2.26-1) unstable; urgency=low
 
