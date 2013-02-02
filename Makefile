@@ -19,8 +19,6 @@ endif
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
 ifdef ASDF_TEST_SYSTEMS
 s ?= ${ASDF_TEST_SYSTEMS}
-else
-s ?= fare-all
 endif
 
 l ?= sbcl
