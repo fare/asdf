@@ -15,6 +15,7 @@
    #:operation-forced
    #:operation-on-failure
    #:operation-on-warnings
+   #:component-property
    #:run-shell-command
    #:system-definition-pathname))
 (in-package :asdf/backward-interface)
@@ -74,11 +75,12 @@ if that's whay you mean." ;;)
      (include-per-user-information nil)
      (map-all-source-files (or #+(or clisp ecl mkcl) t nil))
      (source-to-target-mappings nil)
-     (file-types (list (compile-file-type)
-                         #+ecl (compile-file-type :type :object)
-                         #+mkcl (compile-file-type :fasl-p nil)
-                         #+clisp "lib" #+sbcl "cfasl"
-                         #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
+     (file-types `(,(compile-file-type)
+                   "build-report"
+                   #+ecl (compile-file-type :type :object)
+                   #+mkcl (compile-file-type :fasl-p nil)
+                   #+clisp "lib" #+sbcl "cfasl"
+                   #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
   #+(or clisp ecl mkcl)
   (when (null map-all-source-files)
     (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on CLISP, ECL and MKCL"))
@@ -133,3 +135,19 @@ Please use ASDF-DRIVER:RUN-PROGRAM instead."
     (asdf-message "; $ ~A~%" command)
     (run-program command :force-shell t :ignore-error-status t :output *verbose-out*)))
 
+(defvar *asdf-verbose* nil) ;; backward-compatibility with ASDF2 only. Unused.
+
+;; backward-compatibility methods. Do NOT use in new code. NOT SUPPORTED.
+(defgeneric* component-property (component property))
+#-gcl2.6 (defgeneric* (setf component-property) (new-value component property))
+
+(defmethod component-property ((c component) property)
+  (cdr (assoc property (slot-value c 'properties) :test #'equal)))
+
+(defmethod (setf component-property) (new-value (c component) property)
+  (let ((a (assoc property (slot-value c 'properties) :test #'equal)))
+    (if a
+        (setf (cdr a) new-value)
+        (setf (slot-value c 'properties)
+              (acons property new-value (slot-value c 'properties)))))
+  new-value)

@@ -69,6 +69,7 @@
    #:component-depends-on ; backward-compatible name rather than action-depends-on
    #:module-components ; backward-compatibility
    #:operation-on-warnings #:operation-on-failure ; backward-compatibility
+   #:component-property ; backward-compatibility
 
    #:system-description
    #:system-long-description
@@ -79,6 +80,11 @@
    #:system-source-file
    #:system-source-directory
    #:system-relative-pathname
+   #:system-homepage
+   #:system-bug-tracker
+   #:system-developers-email
+   #:system-long-name
+   #:system-source-control
    #:map-systems
 
    #:*system-definition-search-functions*   ; variables
@@ -87,7 +93,7 @@
    #:*compile-file-failure-behaviour*
    #:*resolve-symlinks*
    #:*load-system-operation*
-   #:*asdf-verbose*
+   #:*asdf-verbose* ;; unused. For backward-compatibility only.
    #:*verbose-out*
 
    #:asdf-version

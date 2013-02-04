@@ -22,7 +22,6 @@
    #:reify-deferred-warnings #:reify-undefined-warning #:unreify-deferred-warnings
    #:reset-deferred-warnings #:save-deferred-warnings #:check-deferred-warnings
    #:with-saved-deferred-warnings #:warnings-file-p #:warnings-file-type #:*warnings-file-type*
-   #:call-with-asdf-compilation-unit #:with-asdf-compilation-unit
    #:current-lisp-file-pathname #:load-pathname
    #:lispize-pathname #:compile-file-type #:call-around-hook
    #:compile-file* #:compile-file-pathname*

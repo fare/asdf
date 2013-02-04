@@ -30,24 +30,39 @@
       </ul>
     </div>
     <div class="contents">
-        <a id="ASDF 2"></a>
-        <h3>ASDF 2</h3>
-        <p>ASDF 2, initially released on May 31st 2010,
-          is the current successor to Daniel Barlow's ASDF,
-          made more portable and more robust, with a somewhat improved API.
-          It has since been widely adopted by the CL community,
-          and is actively maintained.
+        <a id="ASDF 3"></a>
+        <h3>ASDF 3</h3>
+        <p>ASDF 3, released on January 31st 2013,
+          is the current successor to Daniel Barlow's ASDF.
+          It was improved for portability, robustness, usability,
+          extensibility, configurability, internal consistency,
+          the ability to create standalone executables.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
-        <p>ASDF is a tool for describing how source files are organized:
-          what depends on which and when.
+        <p>ASDF 3 contains two parts: ASDF/DEFSYSTEM and ASDF/DRIVER.
+        </p>
+        <p>ASDF/DEFSYSTEM,
+          is a tool to describe how source code are organized,
+          and how to build the system with
+          what action depends on what previous actions.
         </p>
         <p>It is roughly what Common Lisp hackers use to build software
-          where C hackers would use say GNU Make.
+          where C hackers might use GNU Make.
         </p>
         <p>ASDF stands for <em>A</em>nother <em>S</em>ystem <em>D</em>efinition <em>F</em>acility,
           in the continuity of the Lisp DEFSYSTEM of yore.
+        </p>
+        <p>ASDF/DRIVER is a Common Lisp portability library and runtime support system
+          that helps you write Common Lisp software in a portable way.
+        </p>
+        <p>In addition to many general-purpose Lisp utilities,
+          it notably provides portable abstractions to
+          gloss over implementation quirks, support hot-upgrade of code,
+          manipulate pathnames, create programs, use command-line arguments,
+          access the environment, use the filesystem,
+          call other programs and parse their output,
+          compile Lisp code, muffle conditions, or configure Lisp software.
         </p>
         <a id="what_it_is_not"></a>
         <h3>What it is not</h3>
@@ -87,7 +102,7 @@
         </p>
         <a id="implementations"></a>
         <h3>Supported Implementations</h3>
-        <p>ASDF 2 now supports all CL implementations
+        <p>ASDF 3 now supports all CL implementations
           that seem to have any current user base.
         </p><p>
           Most implementations provide ASDF 2 as a module,
@@ -95,11 +110,17 @@
           (All of them but CLISP also accept
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
         </p><p>
+          They will hopefully soon all provide ASDF 3,
+          but in the meantime, you can download ASDF 3,
+          and use <tt>(asdf:load-system :asdf)</tt>
+          from a properly configured ASDF 2 to upgrade to the latest,
+          which you should before you use ASDF for anything else.
+        </p><p>
           A few implementations don't provide ASDF yet,
           but have announced they will in their next release.
           As for remaining implementations,
           they are obsolete and/or mostly unmaintained;
-          still ASDF 2 supports them if you load it manually,
+          still ASDF 3 supports them if you load it manually,
           though there might never be a next release
           to provide it through <tt>require</tt>.
         </p>
@@ -167,6 +188,10 @@ Peter Graves <gnooth@gmail.com>
           Please contact our mailing-list (see below)
           for any issue that isn't well-documented enough.
         </p>
+        <p>Until we write more documentation on the further innovations of ASDF 3,
+          the documentation strings, the source code, the changelog and the git log
+          are unfortunately your best chances for discovering the available functionality.
+        </p>
 
         <a id="downloads"></a>
         <h3>Getting it</h3>
@@ -208,16 +233,6 @@ Peter Graves <gnooth@gmail.com>
 	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-encodings.git"
 		 >asdf-encodings</a>,
 	    to compile Lisp source files with character encodings other than UTF-8.</li>
-	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-bundle.git"
-		 >asdf-bundle</a>,
-	    to bundle one or more systems into a single FASL file, for easier delivery</li>
-	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-utils.git"
-		 >asdf-utils</a>,
-	    utilities originally from asdf, now exported from their own library.</li>
-	  <li><a href="http://common-lisp.net/gitweb?p=projects/xcvb/xcvb.git"
-		 >asdf-condition-control</a>
-	    (distributed as part of XCVB),
-	    to control which conditions to warn about or to muffle during compilation.</li>
 	  <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-finalizers.git"
 		 >asdf-finalizers</a>,
 	    to allow macros to include code to be evaluated
@@ -231,6 +246,30 @@ Peter Graves <gnooth@gmail.com>
 	  <li><a href="http://www.lrde.epita.fr/~didier/software/lisp/misc.php#asdf-flv"
 		 >asdf-flv</a>,
 	    to bind file-local variables around the compilation of some files.</li>
+        </ul>
+        <p>Former extensions, now superseded, include:</p>
+        <ul>
+	  <li>ASDF-BINARY-LOCATIONS allowed one to redirect where ASDF creates its output files,
+            so they don't clash between implementations and don't pollute source directories.
+            It is superseded by ASDF/DEFSYSTEM's builtin ASDF-OUTPUT-TRANSLATIONS mechanism;
+            a limited compatibility mode is available to easily convert
+            your former ABL configuration into an AOT configuration.
+            COMMON-LISP-CONTROLLER and CL-LAUNCH used to provide similar mechanisms,
+            and have also been superseded by ASDF-OUTPUT-TRANSLATIONS.
+          </li>
+	  <li>ASDF-BUNDLE, née ASDF-ECL,
+            allowed you to create single-file bundled outputs for your systems,
+            for easier delivery.
+            It is now a builtin part of ASDF/DEFSYSTEM.
+          </li>
+	  <li>ASDF-UTILS was a colletion of utilities that originated with ASDF.
+            It is now superseded by ASDF/DRIVER, which is part of ASDF,
+            and exports its functionality in its own package ASDF/DRIVER.
+          </li>
+	  <li>ASDF-CONDITION-CONTROL, initially part of XCVB's XCVB-DRIVER,
+            allowed you to muffle uninteresting conditions during compilation.
+            Is now superseded by equivalent functionality in ASDF/DRIVER.
+          </li>
 	</ul>
 
         <h3>Contributing</h3>
@@ -269,6 +308,15 @@ Peter Graves <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>In January 2013</dt>
+          <dd>
+            ASDF 3 now includes both the traditional ASDF/DEFSYSTEM
+            and a formalized portability library ASDF/DRIVER.
+            ASDF/DEFSYSTEM is a backward-compatible reimplementation of ASDF
+            with correct timestamp propagation based on a consistent dependency model,
+            and featuring support for bundle output, deferred warnings, and more.
+            ASDF/DRIVER provides many abstractions to write portable Common Lisp programs.
+          </dd>
           <dt>In April 2012</dt>
           <dd>
             ASDF 2.21 now controls the character encoding used by Lisp source files.

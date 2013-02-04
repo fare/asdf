@@ -270,7 +270,7 @@
          (move-here-path (if (and move-here
                                   (typep move-here '(or pathname string)))
                              (pathname move-here)
-                             (merge-pathnames "./asdf-output/")))
+                             (system-relative-pathname system "asdf-output/")))
          (operation (apply #'operate operation-name
                            system
                            (remove-plist-keys '(:monolithic :type :move-here) args)))

@@ -79,6 +79,10 @@
   (load-asd pathname :name name))
 
 (defun* make-temporary-package ()
-  (make-package (fresh-package-name :prefix :asdf :index 0) :use '(:cl :asdf/interface)))
+  ;; For loading a .asd file, we dont't make a temporary package anymore,
+  ;; but use ASDF-USER. I'd like to have this function do this,
+  ;; but since whoever uses it is likely to delete-package the result afterwards,
+  ;; this would be a bad idea, so preserve the old behavior.
+  (make-package (fresh-package-name :prefix :asdf :index 0) :use '(:cl :asdf)))
 
 

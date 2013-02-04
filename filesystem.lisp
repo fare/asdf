@@ -72,7 +72,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
   ;; and we can survive and we will continue the planning
   ;; as if the file were very old.
   ;; (or should we treat the case in a different, special way?)
-  (handler-case (file-write-date pathname) (file-error () nil)))
+  (handler-case (file-write-date (translate-logical-pathname pathname)) (file-error () nil)))
 
 (defun* probe-file* (p &key truename)
   "when given a pathname P (designated by a string as per PARSE-NAMESTRING),
@@ -91,12 +91,13 @@ or the original (parsed) pathname if it is false (the default)."
             #-(or allegro clisp gcl2.6)
             (if truename
                 (probe-file p)
-                (and (ignore-errors
-                      #+(or cmu scl) (unix:unix-stat (ext:unix-namestring (translate-logical-pathname p)))
-                      #+(and lispworks unix) (system:get-file-stat p)
-                      #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring (translate-logical-pathname p)))
-                      #-(or cmu (and lispworks unix) sbcl scl)
-                      (file-write-date p))
+                (and (not (wild-pathname-p p))
+                     (ignore-errors
+                      (let ((pp (translate-logical-pathname p)))
+                        #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
+                        #+(and lispworks unix) (system:get-file-stat pp)
+                        #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
+                        #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)))
                      p))
             #+(or clisp gcl2.6)
             #.(flet ((probe (probe)
@@ -223,7 +224,7 @@ or the original (parsed) pathname if it is false (the default)."
     (when (typep pathname '(or null logical-pathname)) (return pathname))
     (let ((p pathname))
       (unless (absolute-pathname-p p)
-        (setf p (or (absolute-pathname-p (ensure-pathname-absolute p 'get-pathname-defaults nil))
+        (setf p (or (absolute-pathname-p (ensure-absolute-pathname p 'get-pathname-defaults nil))
                     (return p))))
       (when (logical-pathname-p p) (return p))
       (let ((found (probe-file* p :truename t)))
@@ -463,6 +464,6 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                #+clozure :if-exists #+clozure :rename-and-delete))
 
 (defun* delete-file-if-exists (x)
-  (handler-case (delete-file x) (file-error () nil)))
+  (when x (handler-case (delete-file x) (file-error () nil))))
 
 

@@ -13,6 +13,11 @@
    #:system-defsystem-depends-on
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
+   #:homepage #:system-homepage
+   #:bug-tracker #:system-bug-tracker
+   #:mailto #:system-mailto
+   #:long-name #:system-long-name
+   #:source-control #:system-source-control
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
@@ -39,10 +44,17 @@
   (;; {,long-}description is now inherited from component, but we add the legacy accessors
    (description :accessor system-description)
    (long-description :accessor system-long-description)
-   (author :accessor system-author :initarg :author)
-   (maintainer :accessor system-maintainer :initarg :maintainer)
+   (author :accessor system-author :initarg :author :initform nil)
+   (maintainer :accessor system-maintainer :initarg :maintainer :initform nil)
    (licence :accessor system-licence :initarg :licence
-            :accessor system-license :initarg :license)
+            :accessor system-license :initarg :license :initform nil)
+   (homepage :accessor system-homepage :initarg :homepage :initform nil)
+   (bug-tracker :accessor system-bug-tracker :initarg :bug-tracker :initform nil)
+   (mailto :accessor system-mailto :initarg :mailto :initform nil)
+   (long-name :accessor system-long-name :initarg :long-name :initform nil)
+   ;; Conventions for this slot aren't clear yet as of ASDF 2.27, but whenever they are, they will be enforced.
+   ;; I'm introducing the slot before the conventions are set for maximum compatibility.
+   (source-control :accessor system-source-control :initarg :source-control :initform nil)
    (builtin-system-p :accessor builtin-system-p :initform nil :initarg :builtin-system-p)
    (build-pathname
     :initform nil :initarg :build-pathname :accessor component-build-pathname)
@@ -72,8 +84,11 @@ in which the system specification (.asd file) is located."
   (subpathname (system-source-directory system) name :type type))
 
 (defmethod component-pathname ((system system))
-  (or (call-next-method)
-      (system-source-directory system)))
+  (let ((pathname (or (call-next-method) (system-source-directory system))))
+    (unless (and (slot-boundp system 'relative-pathname) ;; backward-compatibility with ASDF1-age
+                 (slot-value system 'relative-pathname)) ;; systems that directly access this slot.
+      (setf (slot-value system 'relative-pathname) pathname))
+    pathname))
 
 (defmethod component-relative-pathname ((system system))
   (parse-unix-namestring

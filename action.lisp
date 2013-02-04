@@ -6,7 +6,6 @@
   (:recycle :asdf/action :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
-  (:intern #:stamp #:done-p)
   (:export
    #:action #:define-convenience-action-methods
    #:explain #:action-description
@@ -17,7 +16,7 @@
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:feature
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
-   #:action-path #:find-action))
+   #:action-path #:find-action #:stamp #:done-p))
 (in-package :asdf/action)
 
 (deftype action () '(cons operation component)) ;; a step to be performed while building the system
@@ -174,7 +173,7 @@ You can put together sentences using this phrase."))
               (absolute-pathnames
                 (loop
                   :for pathname :in pathnames
-                  :collect (ensure-pathname-absolute pathname directory))))
+                  :collect (ensure-absolute-pathname pathname directory))))
          ;; 2- Translate those pathnames as required
          (if fixedp
              absolute-pathnames
@@ -272,7 +271,7 @@ in some previous image, or T if it needs to be done.")
 (defmethod perform-with-restarts (operation component)
   ;; TOO verbose, especially as the default. Add your own :before method
   ;; to perform-with-restart or perform if you want that:
-  #|(when *asdf-verbose* (explain operation component))|#
+  #|(explain operation component)|#
   (perform operation component))
 (defmethod perform-with-restarts :around (operation component)
   (loop

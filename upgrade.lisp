@@ -7,7 +7,7 @@
   (:use :asdf/common-lisp :asdf/driver)
   (:export
    #:asdf-version #:*previous-asdf-versions* #:*asdf-version*
-   #:asdf-message #:*asdf-verbose* #:*verbose-out*
+   #:asdf-message #:*verbose-out*
    #:upgrading-p #:when-upgrading #:upgrade-asdf #:asdf-upgrade-error
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
@@ -30,10 +30,9 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
               (null "1.0"))))))
   (defvar *asdf-version* nil)
   (defvar *previous-asdf-versions* nil)
-  (defvar *asdf-verbose* nil) ; was t from 2.000 to 2.014.12.
   (defvar *verbose-out* nil)
   (defun* asdf-message (format-string &rest format-args)
-    (apply 'format *verbose-out* format-string format-args))
+    (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
   (defvar *post-upgrade-cleanup-hook* ())
   (defvar *post-upgrade-restart-hook* ())
   (defun* upgrading-p ()
@@ -42,9 +41,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        (when (and ,upgrading-p ,@(when when `(,when)))
          (handler-bind ((style-warning #'muffle-warning))
-           (eval '(progn ,@body)))))))
-
-(eval-when (:load-toplevel :compile-toplevel :execute)
+           (eval '(progn ,@body))))))
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. make bump-version v=3.4.5.67.8
          ;; can help you do these changes in synch (look at the source for documentation).
@@ -54,22 +51,15 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.26.164")
+         (asdf-version "2.28")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
       (push existing-version *previous-asdf-versions*)
-      (when *asdf-verbose*
+      (when (or *load-verbose* *verbose-out*)
         (format *trace-output*
                 (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
-                existing-version asdf-version))
-      ;; Punt when upgrading from too old a version of ASDF
-      #+(or abcl clisp cmu)
-      (when (version< existing-version #+abcl "2.25" #+cmu "2.018" #+clisp "2.27")
-        (let ((away (format nil "~A-~A" :asdf existing-version)))
-          (rename-package :asdf away)
-          (when (or *load-verbose* *asdf-verbose*)
-            (format *trace-output* "; Renamed package ~A away to ~A~%" :asdf away)))))))
+                existing-version asdf-version)))))
 
 (when-upgrading ()
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.

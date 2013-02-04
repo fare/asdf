@@ -64,9 +64,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (:documentation "Status of an action in a plan"))
 
 (defmethod print-object ((status planned-action-status) stream)
-  (print-unreadable-object (status stream :type t)
-    (with-slots (stamp done-p planned-p) status
-      (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p :planned-p planned-p))))
+  (print-unreadable-object (status stream :type t :identity nil)
+    (with-slots (stamp done-p planned-p index) status
+      (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p :planned-p planned-p :index index))))
 
 (defmethod action-planned-p (action-status)
   (declare (ignorable action-status)) ; default method for non planned-action-status objects

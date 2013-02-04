@@ -32,8 +32,7 @@
   (declare (ignorable operation component))
   ;; Setup proper bindings around any operate call.
   (with-system-definitions ()
-    (let* ((*asdf-verbose* verbose)
-           (*verbose-out* (if verbose *standard-output* (make-broadcast-stream)))
+    (let* ((*verbose-out* (and verbose *standard-output*))
            (*compile-file-warnings-behaviour* on-warnings)
            (*compile-file-failure-behaviour* on-failure))
       (call-next-method))))

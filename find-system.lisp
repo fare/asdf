@@ -159,9 +159,9 @@ Going forward, we recommend new users should be using the source-registry.
   (block nil
     (when (directory-pathname-p defaults)
       (if-let (file (probe-file*
-                     (ensure-pathname-absolute
+                     (ensure-absolute-pathname
                       (parse-unix-namestring name :type "asd")
-                      #'(lambda () (ensure-pathname-absolute defaults 'get-pathname-defaults nil))
+                      #'(lambda () (ensure-absolute-pathname defaults 'get-pathname-defaults nil))
                       nil)
                      :truename truename))
         (return file))
@@ -253,6 +253,7 @@ Going forward, we recommend new users should be using the source-registry.
   (with-system-definitions ()
     (with-standard-io-syntax
       (let ((*package* (find-package :asdf-user))
+            (*print-readably* nil)
             (*default-pathname-defaults*
               ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
               (pathname-directory-pathname (translate-logical-pathname pathname))))
@@ -305,13 +306,15 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
               (when (and system pathname)
                 (setf (system-source-file system) pathname))
               (when (and pathname
-                         (not (and previous
-                                   (or (pathname-equal pathname previous-pathname)
-                                       (and pathname previous-pathname
-                                            (pathname-equal
-                                             (translate-logical-pathname pathname)
-                                             (translate-logical-pathname previous-pathname))))
-                                   (stamp<= (get-file-stamp pathname) previous-time))))
+                         (let ((stamp (get-file-stamp pathname)))
+                           (and stamp
+                                (not (and previous
+                                          (or (pathname-equal pathname previous-pathname)
+                                              (and pathname previous-pathname
+                                                   (pathname-equal
+                                                    (translate-logical-pathname pathname)
+                                                    (translate-logical-pathname previous-pathname))))
+                                          (stamp<= stamp previous-time))))))
                 ;; only load when it's a pathname that is different or has newer content
                 (load-asd pathname :name name)))
             (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed

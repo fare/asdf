@@ -16,3 +16,9 @@
 
 (defsystem :test-asdf/test9-3
   :depends-on ((:version :test-asdf/test9-2 "1.0")))
+
+(defsystem :test-asdf/test-source-directory-1
+  :pathname "some/relative/pathname/")
+
+(defsystem :test-asdf/test-source-directory-2
+  :pathname "some/relative/pathname/with-file.type")

@@ -31,12 +31,13 @@
   ;;    and may be from within the EVAL-WHEN of a file compilation.
   ;; If no absolute pathname was found, we return NIL.
   (check-type pathname (or null string pathname))
-  (resolve-symlinks*
-   (ensure-pathname-absolute
-    (parse-unix-namestring pathname :type :directory)
-    #'(lambda () (ensure-pathname-absolute
-                  (load-pathname) 'get-pathname-defaults nil))
-    nil)))
+  (pathname-directory-pathname
+   (resolve-symlinks*
+    (ensure-absolute-pathname
+     (parse-unix-namestring pathname :type :directory)
+     #'(lambda () (ensure-absolute-pathname
+                   (load-pathname) 'get-pathname-defaults nil))
+     nil))))
 
 
 ;;; Component class
@@ -89,6 +90,10 @@
 (defun* normalize-version (form pathname)
   (etypecase form
     ((or string null) form)
+    (real
+     (asdf-message "Invalid use of real number ~D as :version in ~S. Substituting a string."
+                   form pathname)
+     (format nil "~D" form)) ;; 1.0 is "1.0"
     (cons
      (ecase (first form)
        ((:read-file-form)

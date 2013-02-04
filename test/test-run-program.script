@@ -172,30 +172,30 @@ Testing run-program
 
     ;; a basic smoke test
     (is (equal '("Single")
-               (run-program `("/bin/grep" "Single" ,tf) :output :lines)))
+               (run-program `("grep" "Single" ,tf) :output :lines)))
 
     ;; Make sure space is handled correctly
     (is (equal '("double entry")
-               (run-program `("/bin/grep" "double entry" ,tf) :output :lines)))
+               (run-program `("grep" "double entry" ,tf) :output :lines)))
 
     ;; Make sure space is handled correctly
     (is (equal '("triple word entry")
-               (run-program `("/bin/grep" "triple word entry" ,tf) :output :lines)))
+               (run-program `("grep" "triple word entry" ,tf) :output :lines)))
 
     ;; Testing special characters
     (loop :for char :across "+-_.,%@:/\\!&*(){}"
       :for str = (string char) :do
       (is (equal (list (format nil "escape ~A" str))
                  (run-program
-                  `("/bin/grep" ,(format nil "[~A]" str) ,tf)
+                  `("grep" ,(format nil "[~A]" str) ,tf)
                   :output :lines))))
 
     ;; Test that run-program signals an error
     ;; with an executable that doesn't return 0
-    (signals subprocess-error (run-program '("/bin/false") :output :lines))
+    (signals subprocess-error (run-program '("false") :output :lines))
 
     ;; Test that we can suppress the error on run-program
-    (is (null (run-program '("/bin/false")
+    (is (null (run-program '("false")
                             :output :lines :ignore-error-status t))))
   t)
 
