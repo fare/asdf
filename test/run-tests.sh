@@ -283,12 +283,13 @@ valid_upgrade_test_p () {
         abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-9]:*|abcl:2.2[0-3]:*) : ;;
         # ccl fasl numbering broke loading of old asdf 2.0
         ccl:2.0[01]*) : ;;
-        # my old ubuntu clisp 2.44.1 is wired in with an antique ASDF 1.374 from CLC that can't be downgraded.
+        # my old ubuntu clisp 2.44.1 is wired in
+        # with an antique ASDF 1.374 from CLC that can't be downgraded.
         # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
         # Note that for the longest time, CLISP has included 2.011 in its distribution.
         # Since we punt on the upgrade, let's only do the test once, for 2.26.
         clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
-        # Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade 
+        # Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade.
         # Weird unidentified problems before 2.018, so we punt equally for everything before,
         # and only need to test it once: above, for 2.017.
         cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-6]:*) : ;;
@@ -298,7 +299,8 @@ valid_upgrade_test_p () {
         gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : ;;
         # MKCL is only supported starting with 2.24, so skip earlier versions
         mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) : ;;
-        # XCL support starts with ASDF 2.014.2 - It also dies during upgrade trying to show the backtrace.
+        # XCL support starts with ASDF 2.014.2
+        # — It also dies during upgrade trying to show the backtrace.
         xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*) : ;;
         *) return 0 ;;
    esac
@@ -355,7 +357,7 @@ test_clean_load () {
       '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::exit-lisp 0))' \
         > $nop 2>&1
     ${cmd} ${eval} \
-      '(or #.(load "build/asdf.lisp" :verbose nil :print nil) #.(asdf/image:quit 0))' \
+      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(load "build/asdf.lisp" :verbose nil) #.(asdf/image:quit 0))' \
         > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
