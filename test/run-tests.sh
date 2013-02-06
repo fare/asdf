@@ -269,6 +269,13 @@ extract_tagged_asdf () {
         case $ver in
             1.*|2.0*|2.2[0-6]|2.26.61)
                 git show ${tag}:asdf.lisp > $file ;;
+            2.2*|3.*)
+                mkdir -p build/old/
+                git archive ${tag} Makefile '*.lisp' | (cd build/old/ ; tar xf -)
+                cd build/old ; make
+                mv build/old/build/asdf.lisp build/asdf-${tag}.lisp
+                rm -rf build/old
+                ;;
             *)
                 echo "Don't know how to extract asdf.lisp for version $tag"
                 exit 55

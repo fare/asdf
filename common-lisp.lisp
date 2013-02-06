@@ -47,7 +47,7 @@
   (setf *print-readably* nil))
 
 #+cormanlisp
-(progn
+(eval-when (:load-toplevel :compile-toplevel :execute)
   (deftype logical-pathname () nil)
   (defun make-broadcast-stream () *error-output*)
   (defun translate-logical-pathname (x) x)
@@ -81,8 +81,8 @@
   (export 'type-of :asdf/common-lisp)
   (export 'system:*load-pathname* :asdf/common-lisp))
 
-#+gcl2.6
-(progn ;; Doesn't support either logical-pathnames or output-translations.
+#+gcl2.6 ;; Doesn't support either logical-pathnames or output-translations.
+(eval-when (:load-toplevel :compile-toplevel :execute)
   (defvar *gcl2.6* t)
   (deftype logical-pathname () nil)
   (defun type-of (x) (class-name (class-of x)))
@@ -108,13 +108,14 @@
                          (namestring (make-pathname :name nil :type nil :version nil :defaults path))))))
 
 #+genera
-(unless (fboundp 'ensure-directories-exist)
-  (defun ensure-directories-exist (path)
-    (fs:create-directories-recursively (pathname path))))
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (fboundp 'ensure-directories-exist)
+    (defun ensure-directories-exist (path)
+      (fs:create-directories-recursively (pathname path)))))
 
-#.(or #+mcl ;; the #$ doesn't work on other lisps, even protected by #+mcl
+#.(or #+mcl ;; the #$ doesn't work on other lisps, even protected by #+mcl, so we use this trick
       (read-from-string
-       "(eval-when (:compile-toplevel :load-toplevel :execute)
+       "(eval-when (:load-toplevel :compile-toplevel :execute)
           (ccl:define-entry-point (_getenv \"getenv\") ((name :string)) :string)
           (ccl:define-entry-point (_system \"system\") ((name :string)) :int)
           ;; Note: ASDF may expect user-homedir-pathname to provide
@@ -138,9 +139,10 @@
 
 
 ;;;; Looping
-(defmacro loop* (&rest rest)
-  #-genera `(loop ,@rest)
-  #+genera `(lisp:loop ,@rest)) ;; In genera, CL:LOOP can't destructure, so we use LOOP*. Sigh.
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (defmacro loop* (&rest rest)
+    #-genera `(loop ,@rest)
+    #+genera `(lisp:loop ,@rest))) ;; In genera, CL:LOOP can't destructure, so we use LOOP*. Sigh.
 
 
 ;;;; compatfmt: avoid fancy format directives when unsupported

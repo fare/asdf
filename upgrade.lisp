@@ -17,25 +17,26 @@
 
 ;;; Special magic to detect if this is an upgrade
 
-(eval-when (:load-toplevel :compile-toplevel :execute)
+(with-upgradability ()
   (defun asdf-version ()
     "Exported interface to the version of ASDF currently installed. A string.
 You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSION) \"3.4.5.67\")."
     (when (find-package :asdf)
       (or (symbol-value (find-symbol (string :*asdf-version*) :asdf))
-          (let ((ver (symbol-value (find-symbol (string :*asdf-revision*) :asdf))))
-            (etypecase ver
-              (string ver)
-              (cons (format nil "~{~D~^.~}" ver))
+          (let* ((revsym (find-symbol (string :*asdf-revision*) :asdf))
+                 (rev (and revsym (boundp revsym) (symbol-value revsym))))
+            (etypecase rev
+              (string rev)
+              (cons (format nil "~{~D~^.~}" rev))
               (null "1.0"))))))
   (defvar *asdf-version* nil)
   (defvar *previous-asdf-versions* nil)
   (defvar *verbose-out* nil)
-  (defun* asdf-message (format-string &rest format-args)
+  (defun asdf-message (format-string &rest format-args)
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
   (defvar *post-upgrade-cleanup-hook* ())
   (defvar *post-upgrade-restart-hook* ())
-  (defun* upgrading-p ()
+  (defun upgrading-p ()
     (and *previous-asdf-versions* (not (equal *asdf-version* (first *previous-asdf-versions*)))))
   (defmacro when-upgrading ((&key (upgrading-p '(upgrading-p)) when) &body body)
     `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -51,7 +52,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.28")
+         (asdf-version "2.28.1")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -105,36 +106,38 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
 
 ;;; Self-upgrade functions
 
-(defun* asdf-upgrade-error ()
-  ;; Important notice for whom it concerns. The crux of the matter is that
-  ;; TRAVERSE can be completely refactored, and so after the find-system returns, it's too late.
-  (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
+(with-upgradability ()
+  (defun asdf-upgrade-error ()
+    ;; Important notice for whom it concerns. The crux of the matter is that
+    ;; TRAVERSE can be completely refactored, and so after the find-system returns, it's too late.
+    (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
           Otherwise, when you upgrade from ASDF 2, you must do it before you operate on any system.~%"))
 
-(defun* cleanup-upgraded-asdf (&optional (old-version (first *previous-asdf-versions*)))
-  (let ((new-version (asdf-version)))
-    (unless (equal old-version new-version)
-      (push new-version *previous-asdf-versions*)
-      (when old-version
-        (cond
-          ((version-compatible-p new-version old-version)
-           (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
-                         old-version new-version))
-          ((version-compatible-p old-version new-version)
-           (warn (compatfmt "~&~@<; ~@;Downgraded ASDF from version ~A to version ~A~@:>~%")
-                 old-version new-version))
-          (t
-           (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
-                         old-version new-version)))
-        (call-functions (reverse *post-upgrade-cleanup-hook*))
-        t))))
+  (defun cleanup-upgraded-asdf (&optional (old-version (first *previous-asdf-versions*)))
+    (let ((new-version (asdf-version)))
+      (unless (equal old-version new-version)
+        (push new-version *previous-asdf-versions*)
+        (when old-version
+          (cond
+            ((version-compatible-p new-version old-version)
+             (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
+                           old-version new-version))
+            ((version-compatible-p old-version new-version)
+             (warn (compatfmt "~&~@<; ~@;Downgraded ASDF from version ~A to version ~A~@:>~%")
+                   old-version new-version))
+            (t
+             (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
+                           old-version new-version)))
+          (call-functions (reverse *post-upgrade-cleanup-hook*))
+          t))))
 
-(defun* upgrade-asdf ()
-  "Try to upgrade of ASDF. If a different version was used, return T.
+  (defun upgrade-asdf ()
+    "Try to upgrade of ASDF. If a different version was used, return T.
    We need do that before we operate on anything that may possibly depend on ASDF."
-  (let ((*load-print* nil)
-        (*compile-print* nil))
-    (handler-bind (((or style-warning warning) #'muffle-warning))
-      (symbol-call :asdf :load-system :asdf :verbose nil))))
+    (let ((*load-print* nil)
+          (*compile-print* nil))
+      (handler-bind (((or style-warning warning) #'muffle-warning))
+        (symbol-call :asdf :load-system :asdf :verbose nil))))
 
-(register-hook-function '*post-upgrade-cleanup-hook* 'upgrade-configuration)
+  (register-hook-function '*post-upgrade-cleanup-hook* 'upgrade-configuration))
+

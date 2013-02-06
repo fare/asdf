@@ -1,3 +1,4 @@
+* implement deferred warnings support on abcl, allegro, clisp, cmucl, lispworks, scl)
 * fix upgrade on clisp
 ** Extract minimal test case
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file

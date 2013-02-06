@@ -17,8 +17,8 @@
 (in-package :asdf/os)
 
 ;;; Features
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defun* featurep (x &optional (*features* *features*))
+(with-upgradability ()
+  (defun featurep (x &optional (*features* *features*))
     (cond
       ((atom x) (and (member x *features*) t))
       ((eq :not (car x)) (assert (null (cddr x))) (not (featurep (cadr x))))
@@ -26,18 +26,18 @@
       ((eq :and (car x)) (every #'featurep (cdr x)))
       (t (error "Malformed feature specification ~S" x))))
 
-  (defun* os-unix-p ()
+  (defun os-unix-p ()
     (or #+abcl (featurep :unix)
         #+(and (not abcl) (or unix cygwin darwin)) t))
 
-  (defun* os-windows-p ()
+  (defun os-windows-p ()
     (or #+abcl (featurep :windows)
         #+(and (not (or unix cygwin darwin)) (or win32 windows mswindows mingw32)) t))
 
-  (defun* os-genera-p ()
+  (defun os-genera-p ()
     (or #+genera t))
 
-  (defun* detect-os ()
+  (defun detect-os ()
     (flet ((yes (yes) (pushnew yes *features*))
            (no (no) (setf *features* (remove no *features*))))
       (cond
@@ -51,38 +51,39 @@ that is neither Unix, nor Windows, nor even Genera.~%Now you port it.")))))
 
 ;;;; Environment variables: getting them, and parsing them.
 
-(defun* getenv (x)
-  (declare (ignorable x))
-  #+(or abcl clisp ecl xcl) (ext:getenv x)
-  #+allegro (sys:getenv x)
-  #+clozure (ccl:getenv x)
-  #+(or cmu scl) (cdr (assoc x ext:*environment-list* :test #'string=))
-  #+cormanlisp
-  (let* ((buffer (ct:malloc 1))
-         (cname (ct:lisp-string-to-c-string x))
-         (needed-size (win:getenvironmentvariable cname buffer 0))
-         (buffer1 (ct:malloc (1+ needed-size))))
-    (prog1 (if (zerop (win:getenvironmentvariable cname buffer1 needed-size))
-               nil
-               (ct:c-string-to-lisp-string buffer1))
-      (ct:free buffer)
-      (ct:free buffer1)))
-  #+gcl (system:getenv x)
-  #+genera nil
-  #+lispworks (lispworks:environment-variable x)
-  #+mcl (ccl:with-cstrs ((name x))
-          (let ((value (_getenv name)))
-            (unless (ccl:%null-ptr-p value)
-              (ccl:%get-cstring value))))
-  #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
-  #+sbcl (sb-ext:posix-getenv x)
-  #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-  (error "~S is not supported on your implementation" 'getenv))
+(with-upgradability ()
+  (defun getenv (x)
+    (declare (ignorable x))
+    #+(or abcl clisp ecl xcl) (ext:getenv x)
+    #+allegro (sys:getenv x)
+    #+clozure (ccl:getenv x)
+    #+(or cmu scl) (cdr (assoc x ext:*environment-list* :test #'string=))
+    #+cormanlisp
+    (let* ((buffer (ct:malloc 1))
+           (cname (ct:lisp-string-to-c-string x))
+           (needed-size (win:getenvironmentvariable cname buffer 0))
+           (buffer1 (ct:malloc (1+ needed-size))))
+      (prog1 (if (zerop (win:getenvironmentvariable cname buffer1 needed-size))
+                 nil
+                 (ct:c-string-to-lisp-string buffer1))
+        (ct:free buffer)
+        (ct:free buffer1)))
+    #+gcl (system:getenv x)
+    #+genera nil
+    #+lispworks (lispworks:environment-variable x)
+    #+mcl (ccl:with-cstrs ((name x))
+            (let ((value (_getenv name)))
+              (unless (ccl:%null-ptr-p value)
+                (ccl:%get-cstring value))))
+    #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
+    #+sbcl (sb-ext:posix-getenv x)
+    #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    (error "~S is not supported on your implementation" 'getenv))
 
-(defun* getenvp (x)
-  "Predicate that is true if the named variable is present in the libc environment,
+  (defun getenvp (x)
+    "Predicate that is true if the named variable is present in the libc environment,
 then returning the non-empty string value of the variable"
-  (let ((g (getenv x))) (and (not (emptyp g)) g)))
+    (let ((g (getenv x))) (and (not (emptyp g)) g))))
 
 
 ;;;; implementation-identifier
@@ -91,152 +92,156 @@ then returning the non-empty string value of the variable"
 ;; Initially stolen from SLIME's SWANK, completely rewritten since.
 ;; We're back to runtime checking, for the sake of e.g. ABCL.
 
-(defun* first-feature (feature-sets)
-  (dolist (x feature-sets)
-    (multiple-value-bind (short long feature-expr)
-        (if (consp x)
-            (values (first x) (second x) (cons :or (rest x)))
-            (values x x x))
-      (when (featurep feature-expr)
-        (return (values short long))))))
+(with-upgradability ()
+  (defun first-feature (feature-sets)
+    (dolist (x feature-sets)
+      (multiple-value-bind (short long feature-expr)
+          (if (consp x)
+              (values (first x) (second x) (cons :or (rest x)))
+              (values x x x))
+        (when (featurep feature-expr)
+          (return (values short long))))))
 
-(defun* implementation-type ()
-  (first-feature
-   '(:abcl (:acl :allegro) (:ccl :clozure) :clisp (:corman :cormanlisp)
-     (:cmu :cmucl :cmu) :ecl :gcl
-     (:lwpe :lispworks-personal-edition) (:lw :lispworks)
-     :mcl :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
+  (defun implementation-type ()
+    (first-feature
+     '(:abcl (:acl :allegro) (:ccl :clozure) :clisp (:corman :cormanlisp)
+       (:cmu :cmucl :cmu) :ecl :gcl
+       (:lwpe :lispworks-personal-edition) (:lw :lispworks)
+       :mcl :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
 
-(defvar *implementation-type* (implementation-type))
+  (defvar *implementation-type* (implementation-type))
 
-(defun* operating-system ()
-  (first-feature
-   '(:cygwin (:win :windows :mswindows :win32 :mingw32) ;; try cygwin first!
-     (:linux :linux :linux-target) ;; for GCL at least, must appear before :bsd
-     (:macosx :macosx :darwin :darwin-target :apple) ; also before :bsd
-     (:solaris :solaris :sunos) (:bsd :bsd :freebsd :netbsd :openbsd) :unix
-     :genera)))
+  (defun operating-system ()
+    (first-feature
+     '(:cygwin (:win :windows :mswindows :win32 :mingw32) ;; try cygwin first!
+       (:linux :linux :linux-target) ;; for GCL at least, must appear before :bsd
+       (:macosx :macosx :darwin :darwin-target :apple) ; also before :bsd
+       (:solaris :solaris :sunos) (:bsd :bsd :freebsd :netbsd :openbsd) :unix
+       :genera)))
 
-(defun* architecture ()
-  (first-feature
-   '((:x64 :x86-64 :x86_64 :x8664-target :amd64 (:and :word-size=64 :pc386))
-     (:x86 :x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
-     (:ppc64 :ppc64 :ppc64-target) (:ppc32 :ppc32 :ppc32-target :ppc :powerpc)
-     :hppa64 :hppa :sparc64 (:sparc32 :sparc32 :sparc)
-     :mipsel :mipseb :mips :alpha (:arm :arm :arm-target) :imach
-     ;; Java comes last: if someone uses C via CFFI or otherwise JNA or JNI,
-     ;; we may have to segregate the code still by architecture.
-     (:java :java :java-1.4 :java-1.5 :java-1.6 :java-1.7))))
+  (defun architecture ()
+    (first-feature
+     '((:x64 :x86-64 :x86_64 :x8664-target :amd64 (:and :word-size=64 :pc386))
+       (:x86 :x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
+       (:ppc64 :ppc64 :ppc64-target) (:ppc32 :ppc32 :ppc32-target :ppc :powerpc)
+       :hppa64 :hppa :sparc64 (:sparc32 :sparc32 :sparc)
+       :mipsel :mipseb :mips :alpha (:arm :arm :arm-target) :imach
+       ;; Java comes last: if someone uses C via CFFI or otherwise JNA or JNI,
+       ;; we may have to segregate the code still by architecture.
+       (:java :java :java-1.4 :java-1.5 :java-1.6 :java-1.7))))
 
-#+clozure
-(defun* ccl-fasl-version ()
-  ;; the fasl version is target-dependent from CCL 1.8 on.
-  (or (let ((s 'ccl::target-fasl-version))
-        (and (fboundp s) (funcall s)))
-      (and (boundp 'ccl::fasl-version)
-           (symbol-value 'ccl::fasl-version))
-      (error "Can't determine fasl version.")))
+  #+clozure
+  (defun ccl-fasl-version ()
+    ;; the fasl version is target-dependent from CCL 1.8 on.
+    (or (let ((s 'ccl::target-fasl-version))
+          (and (fboundp s) (funcall s)))
+        (and (boundp 'ccl::fasl-version)
+             (symbol-value 'ccl::fasl-version))
+        (error "Can't determine fasl version.")))
 
-(defun* lisp-version-string ()
-  (let ((s (lisp-implementation-version)))
-    (car ; as opposed to OR, this idiom prevents some unreachable code warning
-     (list
-      #+allegro
-      (format nil "~A~@[~A~]~@[~A~]~@[~A~]"
-              excl::*common-lisp-version-number*
-              ;; M means "modern", as opposed to ANSI-compatible mode (which I consider default)
-              (and (eq excl:*current-case-mode* :case-sensitive-lower) "M")
-              ;; Note if not using International ACL
-              ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
-              (excl:ics-target-case (:-ics "8"))
-              (and (member :smp *features*) "S"))
-      #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
-      #+clisp
-      (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
-      #+clozure
-      (format nil "~d.~d-f~d" ; shorten for windows
-              ccl::*openmcl-major-version*
-              ccl::*openmcl-minor-version*
-              (logand (ccl-fasl-version) #xFF))
-      #+cmu (substitute #\- #\/ s)
-      #+scl (format nil "~A~A" s
-                    ;; ANSI upper case vs lower case.
-                    (ecase ext:*case-mode* (:upper "") (:lower "l")))
-      #+ecl (format nil "~A~@[-~A~]" s
-                    (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-                      (subseq vcs-id 0 (min (length vcs-id) 8))))
-      #+gcl (subseq s (1+ (position #\space s)))
-      #+genera
-      (multiple-value-bind (major minor) (sct:get-system-version "System")
-        (format nil "~D.~D" major minor))
-      #+mcl (subseq s 8) ; strip the leading "Version "
-      s))))
+  (defun lisp-version-string ()
+    (let ((s (lisp-implementation-version)))
+      (car ; as opposed to OR, this idiom prevents some unreachable code warning
+       (list
+        #+allegro
+        (format nil "~A~@[~A~]~@[~A~]~@[~A~]"
+                excl::*common-lisp-version-number*
+                ;; M means "modern", as opposed to ANSI-compatible mode (which I consider default)
+                (and (eq excl:*current-case-mode* :case-sensitive-lower) "M")
+                ;; Note if not using International ACL
+                ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
+                (excl:ics-target-case (:-ics "8"))
+                (and (member :smp *features*) "S"))
+        #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
+        #+clisp
+        (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
+        #+clozure
+        (format nil "~d.~d-f~d" ; shorten for windows
+                ccl::*openmcl-major-version*
+                ccl::*openmcl-minor-version*
+                (logand (ccl-fasl-version) #xFF))
+        #+cmu (substitute #\- #\/ s)
+        #+scl (format nil "~A~A" s
+                      ;; ANSI upper case vs lower case.
+                      (ecase ext:*case-mode* (:upper "") (:lower "l")))
+        #+ecl (format nil "~A~@[-~A~]" s
+                      (let ((vcs-id (ext:lisp-implementation-vcs-id)))
+                        (subseq vcs-id 0 (min (length vcs-id) 8))))
+        #+gcl (subseq s (1+ (position #\space s)))
+        #+genera
+        (multiple-value-bind (major minor) (sct:get-system-version "System")
+          (format nil "~D.~D" major minor))
+        #+mcl (subseq s 8) ; strip the leading "Version "
+        s))))
 
-(defun* implementation-identifier ()
-  (substitute-if
-   #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
-   (format nil "~(~a~@{~@[-~a~]~}~)"
-           (or (implementation-type) (lisp-implementation-type))
-           (or (lisp-version-string) (lisp-implementation-version))
-           (or (operating-system) (software-type))
-           (or (architecture) (machine-type)))))
+  (defun implementation-identifier ()
+    (substitute-if
+     #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
+     (format nil "~(~a~@{~@[-~a~]~}~)"
+             (or (implementation-type) (lisp-implementation-type))
+             (or (lisp-version-string) (lisp-implementation-version))
+             (or (operating-system) (software-type))
+             (or (architecture) (machine-type))))))
 
 
 ;;;; Other system information
 
-(defun* hostname ()
-  ;; Note: untested on RMCL
-  #+(or abcl clozure cmucl ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
-  #+cormanlisp "localhost" ;; is there a better way? Does it matter?
-  #+allegro (symbol-call :excl.osi :gethostname)
-  #+clisp (first (split-string (machine-instance) :separator " "))
-  #+gcl (system:gethostname))
+(with-upgradability ()
+  (defun hostname ()
+    ;; Note: untested on RMCL
+    #+(or abcl clozure cmucl ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
+    #+cormanlisp "localhost" ;; is there a better way? Does it matter?
+    #+allegro (symbol-call :excl.osi :gethostname)
+    #+clisp (first (split-string (machine-instance) :separator " "))
+    #+gcl (system:gethostname)))
 
 
 ;;; Current directory
-#+cmu
-(defun* parse-unix-namestring* (unix-namestring)
-  (multiple-value-bind (host device directory name type version)
-      (lisp::parse-unix-namestring unix-namestring 0 (length unix-namestring))
-    (make-pathname :host (or host lisp::*unix-host*) :device device
-                   :directory directory :name name :type type :version version)))
+(with-upgradability ()
 
-(defun* getcwd ()
-  "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-  (or #+abcl (parse-namestring
-              (java:jstatic "getProperty" "java.lang.System" "user.dir") :ensure-directory t)
-      #+allegro (excl::current-directory)
-      #+clisp (ext:default-directory)
-      #+clozure (ccl:current-directory)
-      #+(or cmu scl) (#+cmu parse-unix-namestring* #+scl lisp::parse-unix-namestring
-                      (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
-      #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
-      #+ecl (ext:getcwd)
-      #+gcl (parse-namestring ;; this is a joke. Isn't there a better way?
-             (first (symbol-call :asdf/driver :run-program '("/bin/pwd") :output :lines)))
-      #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
-      #+lispworks (system:current-directory)
-      #+mkcl (mk-ext:getcwd)
-      #+sbcl (sb-ext:parse-native-namestring (sb-unix:posix-getcwd/))
-      #+xcl (extensions:current-directory)
-      (error "getcwd not supported on your implementation")))
+  #+cmu
+  (defun parse-unix-namestring* (unix-namestring)
+    (multiple-value-bind (host device directory name type version)
+        (lisp::parse-unix-namestring unix-namestring 0 (length unix-namestring))
+      (make-pathname :host (or host lisp::*unix-host*) :device device
+                     :directory directory :name name :type type :version version)))
 
-(defun* chdir (x)
-  "Change current directory, as per POSIX chdir(2), to a given pathname object"
-  (if-let (x (pathname x))
-    (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
-        #+allegro (excl:chdir x)
-        #+clisp (ext:cd x)
-        #+clozure (setf (ccl:current-directory) x)
-        #+(or cmu scl) (unix:unix-chdir (ext:unix-namestring x))
-        #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
-                       (error "Could not set current directory to ~A" x))
-        #+ecl (ext:chdir x)
-        #+genera (setf *default-pathname-defaults* x)
-        #+lispworks (hcl:change-directory x)
-        #+mkcl (mk-ext:chdir x)
-        #+sbcl (symbol-call :sb-posix :chdir (sb-ext:native-namestring x))
-        (error "chdir not supported on your implementation"))))
+  (defun getcwd ()
+    "Get the current working directory as per POSIX getcwd(3), as a pathname object"
+    (or #+abcl (parse-namestring
+                (java:jstatic "getProperty" "java.lang.System" "user.dir") :ensure-directory t)
+        #+allegro (excl::current-directory)
+        #+clisp (ext:default-directory)
+        #+clozure (ccl:current-directory)
+        #+(or cmu scl) (#+cmu parse-unix-namestring* #+scl lisp::parse-unix-namestring
+                        (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
+        #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
+        #+ecl (ext:getcwd)
+        #+gcl (parse-namestring ;; this is a joke. Isn't there a better way?
+               (first (symbol-call :asdf/driver :run-program '("/bin/pwd") :output :lines)))
+        #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
+        #+lispworks (system:current-directory)
+        #+mkcl (mk-ext:getcwd)
+        #+sbcl (sb-ext:parse-native-namestring (sb-unix:posix-getcwd/))
+        #+xcl (extensions:current-directory)
+        (error "getcwd not supported on your implementation")))
+
+  (defun chdir (x)
+    "Change current directory, as per POSIX chdir(2), to a given pathname object"
+    (if-let (x (pathname x))
+      (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
+          #+allegro (excl:chdir x)
+          #+clisp (ext:cd x)
+          #+clozure (setf (ccl:current-directory) x)
+          #+(or cmu scl) (unix:unix-chdir (ext:unix-namestring x))
+          #+cormanlisp (unless (zerop (win32::_chdir (namestring x)))
+                         (error "Could not set current directory to ~A" x))
+          #+ecl (ext:chdir x)
+          #+genera (setf *default-pathname-defaults* x)
+          #+lispworks (hcl:change-directory x)
+          #+mkcl (mk-ext:chdir x)
+          #+sbcl (symbol-call :sb-posix :chdir (sb-ext:native-namestring x))
+          (error "chdir not supported on your implementation")))))
 
 
 ;;;; -----------------------------------------------------------------
@@ -245,73 +250,74 @@ then returning the non-empty string value of the variable"
 ;;;; Jesse Hager: The Windows Shortcut File Format.
 ;;;; http://www.wotsit.org/list.asp?fc=13
 
-#-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera.
-(progn
-(defparameter *link-initial-dword* 76)
-(defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
+(with-upgradability ()
+  #-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera.
+  (progn
+    (defparameter *link-initial-dword* 76)
+    (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
 
-(defun* read-null-terminated-string (s)
-  (with-output-to-string (out)
-    (loop :for code = (read-byte s)
-      :until (zerop code)
-      :do (write-char (code-char code) out))))
+    (defun read-null-terminated-string (s)
+      (with-output-to-string (out)
+        (loop :for code = (read-byte s)
+              :until (zerop code)
+              :do (write-char (code-char code) out))))
 
-(defun* read-little-endian (s &optional (bytes 4))
-  (loop :for i :from 0 :below bytes
-    :sum (ash (read-byte s) (* 8 i))))
+    (defun read-little-endian (s &optional (bytes 4))
+      (loop :for i :from 0 :below bytes
+            :sum (ash (read-byte s) (* 8 i))))
 
-(defun* parse-file-location-info (s)
-  (let ((start (file-position s))
-        (total-length (read-little-endian s))
-        (end-of-header (read-little-endian s))
-        (fli-flags (read-little-endian s))
-        (local-volume-offset (read-little-endian s))
-        (local-offset (read-little-endian s))
-        (network-volume-offset (read-little-endian s))
-        (remaining-offset (read-little-endian s)))
-    (declare (ignore total-length end-of-header local-volume-offset))
-    (unless (zerop fli-flags)
-      (cond
-        ((logbitp 0 fli-flags)
-          (file-position s (+ start local-offset)))
-        ((logbitp 1 fli-flags)
-          (file-position s (+ start
-                              network-volume-offset
-                              #x14))))
-      (strcat (read-null-terminated-string s)
-              (progn
-                (file-position s (+ start remaining-offset))
-                (read-null-terminated-string s))))))
+    (defun parse-file-location-info (s)
+      (let ((start (file-position s))
+            (total-length (read-little-endian s))
+            (end-of-header (read-little-endian s))
+            (fli-flags (read-little-endian s))
+            (local-volume-offset (read-little-endian s))
+            (local-offset (read-little-endian s))
+            (network-volume-offset (read-little-endian s))
+            (remaining-offset (read-little-endian s)))
+        (declare (ignore total-length end-of-header local-volume-offset))
+        (unless (zerop fli-flags)
+          (cond
+            ((logbitp 0 fli-flags)
+             (file-position s (+ start local-offset)))
+            ((logbitp 1 fli-flags)
+             (file-position s (+ start
+                                 network-volume-offset
+                                 #x14))))
+          (strcat (read-null-terminated-string s)
+                  (progn
+                    (file-position s (+ start remaining-offset))
+                    (read-null-terminated-string s))))))
 
-(defun* parse-windows-shortcut (pathname)
-  (with-open-file (s pathname :element-type '(unsigned-byte 8))
-    (handler-case
-        (when (and (= (read-little-endian s) *link-initial-dword*)
-                   (let ((header (make-array (length *link-guid*))))
-                     (read-sequence header s)
-                     (equalp header *link-guid*)))
-          (let ((flags (read-little-endian s)))
-            (file-position s 76)        ;skip rest of header
-            (when (logbitp 0 flags)
-              ;; skip shell item id list
-              (let ((length (read-little-endian s 2)))
-                (file-position s (+ length (file-position s)))))
-            (cond
-              ((logbitp 1 flags)
-                (parse-file-location-info s))
-              (t
-                (when (logbitp 2 flags)
-                  ;; skip description string
+    (defun parse-windows-shortcut (pathname)
+      (with-open-file (s pathname :element-type '(unsigned-byte 8))
+        (handler-case
+            (when (and (= (read-little-endian s) *link-initial-dword*)
+                       (let ((header (make-array (length *link-guid*))))
+                         (read-sequence header s)
+                         (equalp header *link-guid*)))
+              (let ((flags (read-little-endian s)))
+                (file-position s 76)        ;skip rest of header
+                (when (logbitp 0 flags)
+                  ;; skip shell item id list
                   (let ((length (read-little-endian s 2)))
                     (file-position s (+ length (file-position s)))))
-                (when (logbitp 3 flags)
-                  ;; finally, our pathname
-                  (let* ((length (read-little-endian s 2))
-                         (buffer (make-array length)))
-                    (read-sequence buffer s)
-                    (map 'string #'code-char buffer)))))))
-      (end-of-file (c)
-        (declare (ignore c))
-        nil)))))
+                (cond
+                  ((logbitp 1 flags)
+                   (parse-file-location-info s))
+                  (t
+                   (when (logbitp 2 flags)
+                     ;; skip description string
+                     (let ((length (read-little-endian s 2)))
+                       (file-position s (+ length (file-position s)))))
+                   (when (logbitp 3 flags)
+                     ;; finally, our pathname
+                     (let* ((length (read-little-endian s 2))
+                            (buffer (make-array length)))
+                       (read-sequence buffer s)
+                       (map 'string #'code-char buffer)))))))
+          (end-of-file (c)
+            (declare (ignore c))
+            nil))))))
 
 
