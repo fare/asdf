@@ -12,7 +12,7 @@
   (:export
    ;; magic helper to define debugging functions:
    #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
-   #:undefine-function #:undefine-functions #:defun* #:defgeneric* ;; (un)defining functions
+   #:undefine-function #:undefine-functions #:defun* #:defgeneric* #:with-upgradability ;; (un)defining functions
    #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:remove-plist-keys #:remove-plist-key ;; lists and plists
    #:emptyp ;; sequences
@@ -74,46 +74,60 @@
                      `((declaim (notinline ,name))))
                  (,',def ,name ,formals ,@rest))))))
     (defdef defgeneric* defgeneric)
-    (defdef defun* defun)))
-
+    (defdef defun* defun))
+  (defmacro with-upgradability ((&optional) &body body)
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
+       ,@(loop :for form :in body :collect
+               (if (consp form)
+                   (destructuring-bind (car . cdr) form
+                     (case car
+                       ((defun) `(defun* ,@cdr))
+                       ((defgeneric)
+                        (unless (or #+gcl2.6 (and (consp (car cdr)) (eq 'setf (caar cdr))))
+                          `(defgeneric* ,@cdr)))
+                       (otherwise form)))
+                   form)))))
 
 ;;; Magic debugging help. See contrib/debug.lisp
-(defvar *asdf-debug-utility*
-  '(or (ignore-errors
-        (symbol-call :asdf :system-relative-pathname :asdf-driver "contrib/debug.lisp"))
-    (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
-  "form that evaluates to the pathname to your favorite debugging utilities")
+(with-upgradability ()
+  (defvar *asdf-debug-utility*
+    '(or (ignore-errors
+          (symbol-call :asdf :system-relative-pathname :asdf-driver "contrib/debug.lisp"))
+      (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
+    "form that evaluates to the pathname to your favorite debugging utilities")
 
-(defmacro asdf-debug (&rest keys)
-  `(eval-when (:compile-toplevel :load-toplevel :execute)
-     (load-asdf-debug-utility ,@keys)))
+  (defmacro asdf-debug (&rest keys)
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
+       (load-asdf-debug-utility ,@keys)))
 
-(defun* load-asdf-debug-utility (&key package utility-file)
-  (let* ((*package* (if package (find-package package) *package*))
-         (keyword (read-from-string
-                   (format nil ":DBG-~:@(~A~)" (package-name *package*)))))
-    (unless (member keyword *features*)
-      (let* ((utility-file (or utility-file *asdf-debug-utility*))
-             (file (ignore-errors (probe-file (eval utility-file)))))
-        (if file (load file)
-            (error "Failed to locate debug utility file: ~S" utility-file))))))
+  (defun load-asdf-debug-utility (&key package utility-file)
+    (let* ((*package* (if package (find-package package) *package*))
+           (keyword (read-from-string
+                     (format nil ":DBG-~:@(~A~)" (package-name *package*)))))
+      (unless (member keyword *features*)
+        (let* ((utility-file (or utility-file *asdf-debug-utility*))
+               (file (ignore-errors (probe-file (eval utility-file)))))
+          (if file (load file)
+              (error "Failed to locate debug utility file: ~S" utility-file)))))))
 
 
 ;;; Flow control
-(defmacro if-let (bindings &body (then-form &optional else-form)) ;; from alexandria
-  ;; bindings can be (var form) or ((var1 form1) ...)
-  (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
-                           (list bindings)
-                           bindings))
-         (variables (mapcar #'car binding-list)))
-    `(let ,binding-list
-       (if (and ,@variables)
-           ,then-form
-           ,else-form))))
+(with-upgradability ()
+  (defmacro if-let (bindings &body (then-form &optional else-form)) ;; from alexandria
+    ;; bindings can be (var form) or ((var1 form1) ...)
+    (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
+                             (list bindings)
+                             bindings))
+           (variables (mapcar #'car binding-list)))
+      `(let ,binding-list
+         (if (and ,@variables)
+             ,then-form
+             ,else-form)))))
 
 ;;; List manipulation
-(defmacro while-collecting ((&rest collectors) &body body)
-  "COLLECTORS should be a list of names for collections.  A collector
+(with-upgradability ()
+  (defmacro while-collecting ((&rest collectors) &body body)
+    "COLLECTORS should be a list of names for collections.  A collector
 defines a function that, when applied to an argument inside BODY, will
 add its argument to the corresponding collection.  Returns multiple values,
 a list for each collection, in order.
@@ -123,135 +137,142 @@ a list for each collection, in order.
              \(foo \(first x\)\)
              \(bar \(second x\)\)\)\)
 Returns two values: \(A B C\) and \(1 2 3\)."
-  (let ((vars (mapcar #'(lambda (x) (gensym (symbol-name x))) collectors))
-        (initial-values (mapcar (constantly nil) collectors)))
-    `(let ,(mapcar #'list vars initial-values)
-       (flet ,(mapcar #'(lambda (c v) `(,c (x) (push x ,v) (values))) collectors vars)
-         ,@body
-         (values ,@(mapcar #'(lambda (v) `(reverse ,v)) vars))))))
+    (let ((vars (mapcar #'(lambda (x) (gensym (symbol-name x))) collectors))
+          (initial-values (mapcar (constantly nil) collectors)))
+      `(let ,(mapcar #'list vars initial-values)
+         (flet ,(mapcar #'(lambda (c v) `(,c (x) (push x ,v) (values))) collectors vars)
+           ,@body
+           (values ,@(mapcar #'(lambda (v) `(reverse ,v)) vars))))))
 
-(define-modify-macro appendf (&rest args)
-  append "Append onto list") ;; only to be used on short lists.
+  (define-modify-macro appendf (&rest args)
+    append "Append onto list") ;; only to be used on short lists.
 
-(defun* length=n-p (x n) ;is it that (= (length x) n) ?
-  (check-type n (integer 0 *))
-  (loop
-    :for l = x :then (cdr l)
-    :for i :downfrom n :do
-    (cond
-      ((zerop i) (return (null l)))
-      ((not (consp l)) (return nil)))))
+  (defun length=n-p (x n) ;is it that (= (length x) n) ?
+    (check-type n (integer 0 *))
+    (loop
+      :for l = x :then (cdr l)
+      :for i :downfrom n :do
+        (cond
+          ((zerop i) (return (null l)))
+          ((not (consp l)) (return nil))))))
 
 ;;; remove a key from a plist, i.e. for keyword argument cleanup
-(defun* remove-plist-key (key plist)
-  "Remove a single key from a plist"
-  (loop* :for (k v) :on plist :by #'cddr
-    :unless (eq k key)
-    :append (list k v)))
+(with-upgradability ()
+  (defun remove-plist-key (key plist)
+    "Remove a single key from a plist"
+    (loop* :for (k v) :on plist :by #'cddr
+           :unless (eq k key)
+           :append (list k v)))
 
-(defun* remove-plist-keys (keys plist)
-  "Remove a list of keys from a plist"
-  (loop* :for (k v) :on plist :by #'cddr
-    :unless (member k keys)
-    :append (list k v)))
+  (defun remove-plist-keys (keys plist)
+    "Remove a list of keys from a plist"
+    (loop* :for (k v) :on plist :by #'cddr
+           :unless (member k keys)
+           :append (list k v))))
 
 
 ;;; Sequences
-(defun* emptyp (x)
-  "Predicate that is true for an empty sequence"
-  (or (null x) (and (vectorp x) (zerop (length x)))))
+(with-upgradability ()
+  (defun emptyp (x)
+    "Predicate that is true for an empty sequence"
+    (or (null x) (and (vectorp x) (zerop (length x))))))
 
 
 ;;; Strings
-(defun* strcat (&rest strings)
-  (apply 'concatenate 'string strings))
+(with-upgradability ()
+  (defun strcat (&rest strings)
+    (apply 'concatenate 'string strings))
 
-(defun* first-char (s)
-  (and (stringp s) (plusp (length s)) (char s 0)))
+  (defun first-char (s)
+    (and (stringp s) (plusp (length s)) (char s 0)))
 
-(defun* last-char (s)
-  (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
+  (defun last-char (s)
+    (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
-(defun* split-string (string &key max (separator '(#\Space #\Tab)))
-  "Split STRING into a list of components separated by
+  (defun split-string (string &key max (separator '(#\Space #\Tab)))
+    "Split STRING into a list of components separated by
 any of the characters in the sequence SEPARATOR.
 If MAX is specified, then no more than max(1,MAX) components will be returned,
 starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
-  (block ()
-    (let ((list nil) (words 0) (end (length string)))
-      (flet ((separatorp (char) (find char separator))
-             (done () (return (cons (subseq string 0 end) list))))
-        (loop
-          :for start = (if (and max (>= words (1- max)))
-                           (done)
-                           (position-if #'separatorp string :end end :from-end t)) :do
-          (when (null start)
-            (done))
-          (push (subseq string (1+ start) end) list)
-          (incf words)
-          (setf end start))))))
+    (block ()
+      (let ((list nil) (words 0) (end (length string)))
+        (flet ((separatorp (char) (find char separator))
+               (done () (return (cons (subseq string 0 end) list))))
+          (loop
+            :for start = (if (and max (>= words (1- max)))
+                             (done)
+                             (position-if #'separatorp string :end end :from-end t)) :do
+                               (when (null start)
+                                 (done))
+                               (push (subseq string (1+ start) end) list)
+                               (incf words)
+                               (setf end start))))))
 
-(defun* string-prefix-p (prefix string)
-  "Does STRING begin with PREFIX?"
-  (let* ((x (string prefix))
-         (y (string string))
-         (lx (length x))
-         (ly (length y)))
-    (and (<= lx ly) (string= x y :end2 lx))))
+  (defun string-prefix-p (prefix string)
+    "Does STRING begin with PREFIX?"
+    (let* ((x (string prefix))
+           (y (string string))
+           (lx (length x))
+           (ly (length y)))
+      (and (<= lx ly) (string= x y :end2 lx))))
 
-(defun* string-suffix-p (string suffix)
-  "Does STRING end with SUFFIX?"
-  (let* ((x (string string))
-         (y (string suffix))
-         (lx (length x))
-         (ly (length y)))
-    (and (<= ly lx) (string= x y :start1 (- lx ly)))))
+  (defun string-suffix-p (string suffix)
+    "Does STRING end with SUFFIX?"
+    (let* ((x (string string))
+           (y (string suffix))
+           (lx (length x))
+           (ly (length y)))
+      (and (<= ly lx) (string= x y :start1 (- lx ly)))))
 
-(defun* string-enclosed-p (prefix string suffix)
-  "Does STRING begin with PREFIX and end with SUFFIX?"
-  (and (string-prefix-p prefix string)
-       (string-suffix-p string suffix)))
+  (defun string-enclosed-p (prefix string suffix)
+    "Does STRING begin with PREFIX and end with SUFFIX?"
+    (and (string-prefix-p prefix string)
+         (string-suffix-p string suffix))))
 
 
 ;;; CLOS
-(defun* find-class* (x &optional (errorp t) environment)
-  (etypecase x
-    ((or standard-class built-in-class) x)
-    #+gcl2.6 (keyword nil)
-    (symbol (find-class x errorp environment))))
+(with-upgradability ()
+  (defun find-class* (x &optional (errorp t) environment)
+    (etypecase x
+      ((or standard-class built-in-class) x)
+      #+gcl2.6 (keyword nil)
+      (symbol (find-class x errorp environment)))))
 
 
 ;;; stamps: a REAL or boolean where NIL=-infinity, T=+infinity
-(deftype stamp () '(or real boolean))
-(defun* stamp< (x y)
-  (etypecase x
-    (null (and y t))
-    ((eql t) nil)
-    (real (etypecase y
-            (null nil)
-            ((eql t) t)
-            (real (< x y))))))
-(defun* stamps< (list) (loop :for y :in list :for x = nil :then y :always (stamp< x y)))
-(defun* stamp*< (&rest list) (stamps< list))
-(defun* stamp<= (x y) (not (stamp< y x)))
-(defun* earlier-stamp (x y) (if (stamp< x y) x y))
-(defun* stamps-earliest (list) (reduce 'earlier-stamp list :initial-value t))
-(defun* earliest-stamp (&rest list) (stamps-earliest list))
-(defun* later-stamp (x y) (if (stamp< x y) y x))
-(defun* stamps-latest (list) (reduce 'later-stamp list :initial-value nil))
-(defun* latest-stamp (&rest list) (stamps-latest list))
-(define-modify-macro latest-stamp-f (&rest stamps) latest-stamp)
+(with-upgradability ()
+  (deftype stamp () '(or real boolean))
+  (defun stamp< (x y)
+    (etypecase x
+      (null (and y t))
+      ((eql t) nil)
+      (real (etypecase y
+              (null nil)
+              ((eql t) t)
+              (real (< x y))))))
+  (defun stamps< (list) (loop :for y :in list :for x = nil :then y :always (stamp< x y)))
+  (defun stamp*< (&rest list) (stamps< list))
+  (defun stamp<= (x y) (not (stamp< y x)))
+  (defun earlier-stamp (x y) (if (stamp< x y) x y))
+  (defun stamps-earliest (list) (reduce 'earlier-stamp list :initial-value t))
+  (defun earliest-stamp (&rest list) (stamps-earliest list))
+  (defun later-stamp (x y) (if (stamp< x y) y x))
+  (defun stamps-latest (list) (reduce 'later-stamp list :initial-value nil))
+  (defun latest-stamp (&rest list) (stamps-latest list))
+  (define-modify-macro latest-stamp-f (&rest stamps) latest-stamp))
 
 
 ;;; Hash-tables
-(defun* list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
-  (dolist (x list h) (setf (gethash x h) t)))
+(with-upgradability ()
+  (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
+    (dolist (x list h) (setf (gethash x h) t))))
 
 
 ;;; Function designators
-(defun* ensure-function (fun &key (package :cl))
-  "Coerce the object FUN into a function.
+(with-upgradability ()
+  (defun ensure-function (fun &key (package :cl))
+    "Coerce the object FUN into a function.
 
 If FUN is a FUNCTION, return it.
 If the FUN is a non-sequence literal constant, return constantly that,
@@ -261,17 +282,17 @@ If FUN is a CONS, return the function that applies its CAR
 to the appended list of the rest of its CDR and the arguments.
 If FUN is a string, READ a form from it in the specified PACKAGE (default: CL)
 and EVAL that in a (FUNCTION ...) context."
-  (etypecase fun
-    (function fun)
-    ((or boolean keyword character number pathname) (constantly fun))
-    ((or function symbol) fun)
-    (cons #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args))))
-    (string (eval `(function ,(with-standard-io-syntax
-                                (let ((*package* (find-package package)))
-                                  (read-from-string fun))))))))
+    (etypecase fun
+      (function fun)
+      ((or boolean keyword character number pathname) (constantly fun))
+      ((or function symbol) fun)
+      (cons #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args))))
+      (string (eval `(function ,(with-standard-io-syntax
+                                  (let ((*package* (find-package package)))
+                                    (read-from-string fun))))))))
 
-(defun* access-at (object at)
-  "Given an OBJECT and an AT specifier, list of successive accessors,
+  (defun access-at (object at)
+    "Given an OBJECT and an AT specifier, list of successive accessors,
 call each accessor on the result of the previous calls.
 An accessor may be an integer, meaning a call to ELT,
 a keyword, meaning a call to GETF,
@@ -280,46 +301,46 @@ a function or other symbol, meaning itself,
 or a list of a function designator and arguments, interpreted as per ENSURE-FUNCTION.
 As a degenerate case, the AT specifier may be an atom of a single such accessor
 instead of a list."
-  (flet ((access (object accessor)
-           (etypecase accessor
-             (function (funcall accessor object))
-             (integer (elt object accessor))
-             (keyword (getf object accessor))
-             (null object)
-             (symbol (funcall accessor object))
-             (cons (funcall (ensure-function accessor) object)))))
-    (if (listp at)
-        (dolist (accessor at object)
-          (setf object (access object accessor)))
-        (access object at))))
+    (flet ((access (object accessor)
+             (etypecase accessor
+               (function (funcall accessor object))
+               (integer (elt object accessor))
+               (keyword (getf object accessor))
+               (null object)
+               (symbol (funcall accessor object))
+               (cons (funcall (ensure-function accessor) object)))))
+      (if (listp at)
+          (dolist (accessor at object)
+            (setf object (access object accessor)))
+          (access object at))))
 
-(defun* access-at-count (at)
-  "From an AT specification, extract a COUNT of maximum number
+  (defun access-at-count (at)
+    "From an AT specification, extract a COUNT of maximum number
    of sub-objects to read as per ACCESS-AT"
-  (cond
-    ((integerp at)
-     (1+ at))
-    ((and (consp at) (integerp (first at)))
-     (1+ (first at)))))
+    (cond
+      ((integerp at)
+       (1+ at))
+      ((and (consp at) (integerp (first at)))
+       (1+ (first at)))))
 
-(defun* call-function (function-spec &rest arguments)
-  (apply (ensure-function function-spec) arguments))
+  (defun call-function (function-spec &rest arguments)
+    (apply (ensure-function function-spec) arguments))
 
-(defun* call-functions (function-specs)
-  (map () 'call-function function-specs))
+  (defun call-functions (function-specs)
+    (map () 'call-function function-specs))
 
-(defun* register-hook-function (variable hook &optional call-now-p)
-  (pushnew hook (symbol-value variable))
-  (when call-now-p (call-function hook)))
+  (defun register-hook-function (variable hook &optional call-now-p)
+    (pushnew hook (symbol-value variable))
+    (when call-now-p (call-function hook))))
 
 
 ;;; Version handling
-(eval-when (:compile-toplevel :load-toplevel :execute)
-(defun* unparse-version (version-list)
-  (format nil "~{~D~^.~}" version-list))
+(with-upgradability ()
+  (defun unparse-version (version-list)
+    (format nil "~{~D~^.~}" version-list))
 
-(defun* parse-version (version-string &optional on-error)
-  "Parse a VERSION-STRING as a series of natural integers separated by dots.
+  (defun parse-version (version-string &optional on-error)
+    "Parse a VERSION-STRING as a series of natural integers separated by dots.
 Return a (non-null) list of integers if the string is valid;
 otherwise return NIL.
 
@@ -327,95 +348,95 @@ When invalid, ON-ERROR is called as per CALL-FUNCTION before to return NIL,
 with format arguments explaining why the version is invalid.
 ON-ERROR is also called if the version is not canonical
 in that it doesn't print back to itself, but the list is returned anyway."
-  (block nil
-   (unless (stringp version-string)
-     (call-function on-error "~S: ~S is not a string" 'parse-version version-string)
-     (return))
-   (unless (loop :for prev = nil :then c :for c :across version-string
-                 :always (or (digit-char-p c)
-                             (and (eql c #\.) prev (not (eql prev #\.))))
-                 :finally (return (and c (digit-char-p c))))
-     (call-function on-error "~S: ~S doesn't follow asdf version numbering convention"
-                    'parse-version version-string)
-     (return))
-   (let* ((version-list
-            (mapcar #'parse-integer (split-string version-string :separator ".")))
-          (normalized-version (unparse-version version-list)))
-     (unless (equal version-string normalized-version)
-       (call-function on-error "~S: ~S contains leading zeros" 'parse-version version-string))
-     version-list)))
+    (block nil
+      (unless (stringp version-string)
+        (call-function on-error "~S: ~S is not a string" 'parse-version version-string)
+        (return))
+      (unless (loop :for prev = nil :then c :for c :across version-string
+                    :always (or (digit-char-p c)
+                                (and (eql c #\.) prev (not (eql prev #\.))))
+                    :finally (return (and c (digit-char-p c))))
+        (call-function on-error "~S: ~S doesn't follow asdf version numbering convention"
+                       'parse-version version-string)
+        (return))
+      (let* ((version-list
+               (mapcar #'parse-integer (split-string version-string :separator ".")))
+             (normalized-version (unparse-version version-list)))
+        (unless (equal version-string normalized-version)
+          (call-function on-error "~S: ~S contains leading zeros" 'parse-version version-string))
+        version-list)))
 
-(defun* lexicographic< (< x y)
-  (cond ((null y) nil)
-        ((null x) t)
-        ((funcall < (car x) (car y)) t)
-        ((funcall < (car y) (car x)) nil)
-        (t (lexicographic< < (cdr x) (cdr y)))))
+  (defun lexicographic< (< x y)
+    (cond ((null y) nil)
+          ((null x) t)
+          ((funcall < (car x) (car y)) t)
+          ((funcall < (car y) (car x)) nil)
+          (t (lexicographic< < (cdr x) (cdr y)))))
 
-(defun* lexicographic<= (< x y)
-  (not (lexicographic< < y x)))
+  (defun lexicographic<= (< x y)
+    (not (lexicographic< < y x)))
 
-(defun* version< (version1 version2)
-  (let ((v1 (parse-version version1 nil))
-        (v2 (parse-version version2 nil)))
-    (lexicographic< '< v1 v2)))
+  (defun version< (version1 version2)
+    (let ((v1 (parse-version version1 nil))
+          (v2 (parse-version version2 nil)))
+      (lexicographic< '< v1 v2)))
 
-(defun* version<= (version1 version2)
-  (not (version< version2 version1)))
+  (defun version<= (version1 version2)
+    (not (version< version2 version1)))
 
-(defun* version-compatible-p (provided-version required-version)
-  "Is the provided version a compatible substitution for the required-version?
+  (defun version-compatible-p (provided-version required-version)
+    "Is the provided version a compatible substitution for the required-version?
 If major versions differ, it's not compatible.
 If they are equal, then any later version is compatible,
 with later being determined by a lexicographical comparison of minor numbers."
-  (let ((x (parse-version provided-version nil))
-        (y (parse-version required-version nil)))
-    (and x y (= (car x) (car y)) (lexicographic<= '< (cdr y) (cdr x)))))
-); eval-when for version support
+    (let ((x (parse-version provided-version nil))
+          (y (parse-version required-version nil)))
+      (and x y (= (car x) (car y)) (lexicographic<= '< (cdr y) (cdr x))))))
 
 
 ;;; Condition control
 
-(defvar *uninteresting-conditions* nil
-  "Uninteresting conditions, as per MATCH-CONDITION-P")
+(with-upgradability ()
+  (defvar *uninteresting-conditions* nil
+    "Uninteresting conditions, as per MATCH-CONDITION-P")
 
-(defparameter +simple-condition-format-control-slot+
-  #+abcl 'system::format-control
-  #+allegro 'excl::format-control
-  #+clisp 'system::$format-control
-  #+clozure 'ccl::format-control
-  #+(or cmu scl) 'conditions::format-control
-  #+ecl 'si::format-control
-  #+(or gcl lispworks) 'conditions::format-string
-  #+sbcl 'sb-kernel:format-control
-  #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl) nil
-  "Name of the slot for FORMAT-CONTROL in simple-condition")
+  (defparameter +simple-condition-format-control-slot+
+    #+abcl 'system::format-control
+    #+allegro 'excl::format-control
+    #+clisp 'system::$format-control
+    #+clozure 'ccl::format-control
+    #+(or cmu scl) 'conditions::format-control
+    #+ecl 'si::format-control
+    #+(or gcl lispworks) 'conditions::format-string
+    #+sbcl 'sb-kernel:format-control
+    #-(or abcl allegro clisp clozure cmu ecl gcl lispworks sbcl scl) nil
+    "Name of the slot for FORMAT-CONTROL in simple-condition")
 
-(defun* match-condition-p (x condition)
-  "Compare received CONDITION to some pattern X:
+  (defun match-condition-p (x condition)
+    "Compare received CONDITION to some pattern X:
 a symbol naming a condition class,
 a simple vector of length 2, arguments to find-symbol* with result as above,
 or a string describing the format-control of a simple-condition."
-  (etypecase x
-    (symbol (typep condition x))
-    ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
-    (function (funcall x condition))
-    (string (and (typep condition 'simple-condition)
-                 ;; On SBCL, it's always set and the check triggers a warning
-                 #+(or allegro clozure cmu lispworks scl)
-		 (slot-boundp condition +simple-condition-format-control-slot+)
-                 (ignore-errors (equal (simple-condition-format-control condition) x))))))
+    (etypecase x
+      (symbol (typep condition x))
+      ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
+      (function (funcall x condition))
+      (string (and (typep condition 'simple-condition)
+                   ;; On SBCL, it's always set and the check triggers a warning
+                   #+(or allegro clozure cmu lispworks scl)
+                   (slot-boundp condition +simple-condition-format-control-slot+)
+                   (ignore-errors (equal (simple-condition-format-control condition) x))))))
 
-(defun* match-any-condition-p (condition conditions)
-  "match CONDITION against any of the patterns of CONDITIONS supplied"
-  (loop :for x :in conditions :thereis (match-condition-p x condition)))
+  (defun match-any-condition-p (condition conditions)
+    "match CONDITION against any of the patterns of CONDITIONS supplied"
+    (loop :for x :in conditions :thereis (match-condition-p x condition)))
 
-(defun* call-with-muffled-conditions (thunk conditions)
-  (handler-bind ((t #'(lambda (c) (when (match-any-condition-p c conditions)
-                                    (muffle-warning c)))))
-    (funcall thunk)))
+  (defun call-with-muffled-conditions (thunk conditions)
+    (handler-bind ((t #'(lambda (c) (when (match-any-condition-p c conditions)
+                                      (muffle-warning c)))))
+      (funcall thunk)))
 
-(defmacro with-muffled-uninteresting-conditions ((conditions) &body body)
-  `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions))
+  (defmacro with-muffled-uninteresting-conditions ((conditions) &body body)
+    `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions)))
 
 

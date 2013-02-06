@@ -29,9 +29,9 @@
   :description "The defsystem part of ASDF"
   :long-name "Another System Definition Facility"
   :description "The portable defsystem for Common Lisp"
-  :long-description "ASDF/DEFSYSTEM is the standard DEFSYSTEM facility for Common Lisp,
+  :long-description "ASDF/DEFSYSTEM is the de facto standard DEFSYSTEM facility for Common Lisp,
    a successor to Dan Barlow's ASDF and Francois-Rene Rideau's ASDF2.
-   For bootstrap purposes, it comes bundled with ASDF/DRIVER in a single file asdf.lisp."
+   For bootstrap purposes, it comes bundled with ASDF/DRIVER in a single file, asdf.lisp."
   :homepage "http://common-lisp.net/projects/asdf/"
   :bug-tracker "https://launchpad.net/asdf/"
   :mailto "asdf-devel@common-lisp.net"
@@ -74,25 +74,13 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.28" ;; to be automatically updated by make bump-version
+  :version "2.28.1" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   ;; For most purposes, asdf itself specially counts as a builtin system.
   ;; If you want to link it or do something forbidden to builtin systems,
   ;; specify separate dependencies on asdf-driver and asdf-defsystem.
   #+asdf3 :builtin-system-p #+asdf3 t
-  :components
-  ((:module "build"
-    :components
-    (#-gcl2.6
-     (:file "asdf"
-      #+asdf3 :in-order-to #+asdf3 ((compile-op (load-source-op "asdf")))))))
-  :in-order-to (#+asdf3 (prepare-source-op (monolithic-concatenate-source-op :asdf/defsystem))))
+  :components ((:module "build" :components ((:file "asdf"))))
+  :in-order-to (#+asdf3 (prepare-op (monolithic-concatenate-source-op :asdf/defsystem))))
 
-;; Using :do-first instead of :in-order-to works above from ASDF 2.017 to 2.26,
-;; but only this (or an equivalent defmethod component-do-first) works for ASDF1
-#-asdf3
-(setf (slot-value
-       (find-component (find-component (find-system "asdf") "build") "asdf")
-       'asdf::do-first)
-      '((compile-op (load-source-op "asdf"))))

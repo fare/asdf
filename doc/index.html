@@ -32,20 +32,19 @@
     <div class="contents">
         <a id="ASDF 3"></a>
         <h3>ASDF 3</h3>
-        <p>ASDF 3, released on January 31st 2013,
+        <p>ASDF 3, pre-released as 2.28 on February 1st 2013,
           is the current successor to Daniel Barlow's ASDF.
-          It was improved for portability, robustness, usability,
+          It was rewritten for improved portability, robustness, usability,
           extensibility, configurability, internal consistency,
-          the ability to create standalone executables.
+          and the ability to create standalone executables.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
         <p>ASDF 3 contains two parts: ASDF/DEFSYSTEM and ASDF/DRIVER.
         </p>
         <p>ASDF/DEFSYSTEM,
-          is a tool to describe how source code are organized,
-          and how to build the system with
-          what action depends on what previous actions.
+          is a tool to describe how Lisp source code is organized in systems,
+          and how to build a system in term of actions that depend on previous actions.
         </p>
         <p>It is roughly what Common Lisp hackers use to build software
           where C hackers might use GNU Make.
@@ -85,25 +84,26 @@
           Drew McDermott's
           <a href="http://cs-www.cs.yale.edu/homes/dvm/">YTools</a>
           (trying to maintain coherence of the current Lisp image at a fine grain),
-          or the newcomer
+          the newcomer
           <a href="http://lisp.ystok.ru/asdlite/">ASDlite</a>
-          (a somewhat improved incompatible variant of ASDF 1).
+          (a somewhat improved incompatible variant of ASDF 1, less featureful than ASDF 3),
+          or Alastair Bridgewater's interesting quick-build (unreleased, similar to faslpath below).
           Older systems that are not maintained anymore include
           Mark Kantrowitz's <a href="http://www.cliki.net/mk-defsystem">mk-defsystem</a>
-          (free software successor of the old proprietary DEFSYSTEM's and predecessor of ASDF),
+          (free software successor of the old proprietary DEFSYSTEM's and predecessor of ASDF, obsolete),
           Sean Ross's <a href="http://sean-ross.blogspot.com/search/label/mudballs">mudballs</a>
-          (aborted attempt at making things cleaner than in ASDF),
+          (an attempt at making things cleaner than in ASDF, aborted),
           Peter Etter's <a href="http://www.cliki.net/faslpath">faslpath</a>
-          (a much simpler system establishing a mapping between packages and files),
+          (a much simpler system establishing a mapping between packages and files)
           Alexander Kahl's <a href="http://www.cliki.net/evol">evol</a>
-          (a reimplementation of the GNU autotools stack in Lisp),
+          (a reimplementation of the GNU autotools stack in Lisp, abandoned),
           and probably more.
           However, none of these systems seems to ever have had the traction of ASDF.
         </p>
         <a id="implementations"></a>
         <h3>Supported Implementations</h3>
         <p>ASDF 3 now supports all CL implementations
-          that seem to have any current user base.
+          that seem to have any current user base, and then some.
         </p><p>
           Most implementations provide ASDF 2 as a module,
           and you can simply <tt>(require "asdf")</tt>.
@@ -258,11 +258,13 @@ Peter Graves <gnooth@gmail.com>
             and have also been superseded by ASDF-OUTPUT-TRANSLATIONS.
           </li>
 	  <li>ASDF-BUNDLE, née ASDF-ECL,
-            allowed you to create single-file bundled outputs for your systems,
+            allowed you to create a single-file bundle out of a system,
             for easier delivery.
-            It is now a builtin part of ASDF/DEFSYSTEM.
+            It is now a builtin part of ASDF/DEFSYSTEM,
+            and allows to deliver a single FASL for a system,
+            or (on supported implementations), a standalone executable program.
           </li>
-	  <li>ASDF-UTILS was a colletion of utilities that originated with ASDF.
+	  <li>ASDF-UTILS was a collection of utilities that originated with ASDF.
             It is now superseded by ASDF/DRIVER, which is part of ASDF,
             and exports its functionality in its own package ASDF/DRIVER.
           </li>
@@ -308,7 +310,7 @@ Peter Graves <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
-          <dt>In January 2013</dt>
+          <dt>In February 2013</dt>
           <dd>
             ASDF 3 now includes both the traditional ASDF/DEFSYSTEM
             and a formalized portability library ASDF/DRIVER.
@@ -367,9 +369,9 @@ Peter Graves <gnooth@gmail.com>
         <a class="nav" href="http://www.catb.org/hacker-emblem/" title="hacker"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/hacker.png" width="80" height="15" title="hacker emblem" alt="hacker button" /></a>
         <a class="nav" href="http://www.lisp.org/" title="Association of Lisp Users"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lambda-lisp.png" width="80" height="15" title="ALU emblem" alt="ALU button" /></a>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
-        <p><span class="copyright"Copyright &copy; 2001-2012 Daniel Barlow and contributors</span></p>
+        <p><span class="copyright"Copyright &copy; 2001-2013 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2012-07-28</div>
+        <div id="timestamp">Last updated 2013-02-05</div>
     </div>
   </body>
 </html>

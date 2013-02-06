@@ -16,30 +16,31 @@
    #:upgrade-asdf #:cleanup-upgraded-asdf #:*post-upgrade-hook*))
 (in-package :asdf/operate)
 
-(defgeneric* (operate) (operation component &key &allow-other-keys))
-(define-convenience-action-methods
-    operate (operation component &key)
-    :operation-initargs t ;; backward-compatibility with ASDF1. Yuck.
-    :if-no-component (error 'missing-component :requires component))
+(with-upgradability ()
+  (defgeneric* (operate) (operation component &key &allow-other-keys))
+  (define-convenience-action-methods
+      operate (operation component &key)
+      :operation-initargs t ;; backward-compatibility with ASDF1. Yuck.
+      :if-no-component (error 'missing-component :requires component))
 
-(defvar *systems-being-operated* nil
-  "A boolean indicating that some systems are being operated on")
+  (defvar *systems-being-operated* nil
+    "A boolean indicating that some systems are being operated on")
 
-(defmethod operate :around (operation component
-                            &key verbose
-                              (on-warnings *compile-file-warnings-behaviour*)
-                              (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
-  (declare (ignorable operation component))
-  ;; Setup proper bindings around any operate call.
-  (with-system-definitions ()
-    (let* ((*verbose-out* (and verbose *standard-output*))
-           (*compile-file-warnings-behaviour* on-warnings)
-           (*compile-file-failure-behaviour* on-failure))
-      (call-next-method))))
+  (defmethod operate :around (operation component
+                              &key verbose
+                                (on-warnings *compile-file-warnings-behaviour*)
+                                (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
+    (declare (ignorable operation component))
+    ;; Setup proper bindings around any operate call.
+    (with-system-definitions ()
+      (let* ((*verbose-out* (and verbose *standard-output*))
+             (*compile-file-warnings-behaviour* on-warnings)
+             (*compile-file-failure-behaviour* on-failure))
+        (call-next-method))))
 
-(defmethod operate ((operation operation) (component component)
-                    &rest args &key version &allow-other-keys)
-  "Operate does three things:
+  (defmethod operate ((operation operation) (component component)
+                      &rest args &key version &allow-other-keys)
+    "Operate does three things:
 
 1. It creates an instance of OPERATION-CLASS using any keyword parameters as initargs.
 2. It finds the  asdf-system specified by SYSTEM (possibly loading it from disk).
@@ -58,109 +59,111 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
   :ALL to force all systems including other systems we depend on to be rebuilt (resp. not).
   (SYSTEM1 SYSTEM2 ... SYSTEMN) to force systems named in a given list
 :FORCE has precedence over :FORCE-NOT; builtin systems cannot be forced."
-  (let* (;; I'd like to remove-plist-keys :force :force-not :verbose,
-         ;; but swank.asd relies on :force (!).
-         (systems-being-operated *systems-being-operated*)
-         (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
-         (system (component-system component)))
-    (setf (gethash (coerce-name system) *systems-being-operated*) system)
-    (unless (version-satisfies component version)
-      (error 'missing-component-of-version :requires component :version version))
-    ;; Before we operate on any system, make sure ASDF is up-to-date,
-    ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
-    (unless systems-being-operated
-      (let ((operation-name (reify-symbol (type-of operation)))
-            (component-path (component-find-path component)))
-        (when (upgrade-asdf)
-          ;; If we were upgraded, restart OPERATE the hardest of ways, for
-          ;; its function may have been redefined, its symbol uninterned, its package deleted.
-          (return-from operate
-            (apply (find-symbol* 'operate :asdf)
-                   (unreify-symbol operation-name)
-                   component-path args)))))
-    (let ((plan (apply 'traverse operation system args)))
-      (perform-plan plan)
-      (values operation plan))))
+    (let* (;; I'd like to remove-plist-keys :force :force-not :verbose,
+           ;; but swank.asd relies on :force (!).
+           (systems-being-operated *systems-being-operated*)
+           (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
+           (system (component-system component)))
+      (setf (gethash (coerce-name system) *systems-being-operated*) system)
+      (unless (version-satisfies component version)
+        (error 'missing-component-of-version :requires component :version version))
+      ;; Before we operate on any system, make sure ASDF is up-to-date,
+      ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
+      (unless systems-being-operated
+        (let ((operation-name (reify-symbol (type-of operation)))
+              (component-path (component-find-path component)))
+          (when (upgrade-asdf)
+            ;; If we were upgraded, restart OPERATE the hardest of ways, for
+            ;; its function may have been redefined, its symbol uninterned, its package deleted.
+            (return-from operate
+              (apply (find-symbol* 'operate :asdf)
+                     (unreify-symbol operation-name)
+                     component-path args)))))
+      (let ((plan (apply 'traverse operation system args)))
+        (perform-plan plan)
+        (values operation plan))))
 
-(defun* oos (operation component &rest args &key &allow-other-keys)
-  (apply 'operate operation component args))
+  (defun oos (operation component &rest args &key &allow-other-keys)
+    (apply 'operate operation component args))
 
-(setf (documentation 'oos 'function)
-      (format nil "Short for _operate on system_ and an alias for the OPERATE function.~%~%~a"
-              (documentation 'operate 'function)))
+  (setf (documentation 'oos 'function)
+        (format nil "Short for _operate on system_ and an alias for the OPERATE function.~%~%~a"
+                (documentation 'operate 'function))))
 
 
 ;;;; Common operations
-
-(defvar *load-system-operation* 'load-op
-  "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
+(with-upgradability ()
+  (defvar *load-system-operation* 'load-op
+    "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
 You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle,
 or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 
 This may change in the future as we will implement component-based strategy
 for how to load or compile stuff")
 
-(defun* build-system (system &rest keys)
-  "Shorthand for `(operate 'asdf:build-op system)`."
-  (apply 'operate 'build-op system keys)
-  t)
+  (defun build-system (system &rest keys)
+    "Shorthand for `(operate 'asdf:build-op system)`."
+    (apply 'operate 'build-op system keys)
+    t)
 
-(defun* load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
-  "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
-  (declare (ignore force force-not verbose version))
-  (apply 'operate *load-system-operation* system keys)
-  t)
+  (defun load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
+    "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
+    (declare (ignore force force-not verbose version))
+    (apply 'operate *load-system-operation* system keys)
+    t)
 
-(defun* load-systems (&rest systems)
-  "Loading multiple systems at once."
-  (map () 'load-system systems))
+  (defun load-systems (&rest systems)
+    "Loading multiple systems at once."
+    (map () 'load-system systems))
 
-(defun* compile-system (system &rest args &key force force-not verbose version &allow-other-keys)
-  "Shorthand for `(asdf:operate 'asdf:compile-op system)`. See OPERATE for details."
-  (declare (ignore force force-not verbose version))
-  (apply 'operate 'compile-op system args)
-  t)
+  (defun compile-system (system &rest args &key force force-not verbose version &allow-other-keys)
+    "Shorthand for `(asdf:operate 'asdf:compile-op system)`. See OPERATE for details."
+    (declare (ignore force force-not verbose version))
+    (apply 'operate 'compile-op system args)
+    t)
 
-(defun* test-system (system &rest args &key force force-not verbose version &allow-other-keys)
-  "Shorthand for `(asdf:operate 'asdf:test-op system)`. See OPERATE for details."
-  (declare (ignore force force-not verbose version))
-  (apply 'operate 'test-op system args)
-  t)
+  (defun test-system (system &rest args &key force force-not verbose version &allow-other-keys)
+    "Shorthand for `(asdf:operate 'asdf:test-op system)`. See OPERATE for details."
+    (declare (ignore force force-not verbose version))
+    (apply 'operate 'test-op system args)
+    t))
 
 
 ;;;; Define require-system, to be hooked into CL:REQUIRE when possible,
 ;; i.e. for ABCL, CLISP, ClozureCL, CMUCL, ECL, MKCL and SBCL
+(with-upgradability ()
+  (defun component-loaded-p (c)
+    (action-already-done-p nil (make-instance 'load-op) (find-component c ())))
 
-(defun* component-loaded-p (c)
-  (action-already-done-p nil (make-instance 'load-op) (find-component c ())))
+  (defun already-loaded-systems ()
+    (remove-if-not 'component-loaded-p (registered-systems)))
 
-(defun* already-loaded-systems ()
-  (remove-if-not 'component-loaded-p (registered-systems)))
+  (defun require-system (s &rest keys &key &allow-other-keys)
+    (apply 'load-system s :force-not (already-loaded-systems) keys))
 
-(defun* require-system (s &rest keys &key &allow-other-keys)
-  (apply 'load-system s :force-not (already-loaded-systems) keys))
-
-(defun* module-provide-asdf (name)
-  (handler-bind
-      ((style-warning #'muffle-warning)
-       (missing-component (constantly nil))
-       (error #'(lambda (e)
-                  (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
-                          name e))))
-    (let ((*verbose-out* (make-broadcast-stream))
-          (system (find-system (string-downcase name) nil)))
-      (when system
-        (require-system system :verbose nil)
-        t))))
+  (defun module-provide-asdf (name)
+    (handler-bind
+        ((style-warning #'muffle-warning)
+         (missing-component (constantly nil))
+         (error #'(lambda (e)
+                    (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
+                            name e))))
+      (let ((*verbose-out* (make-broadcast-stream))
+            (system (find-system (string-downcase name) nil)))
+        (when system
+          (require-system system :verbose nil)
+          t)))))
 
 
 ;;;; Some upgrade magic
+(with-upgradability ()
+  (defun restart-upgraded-asdf ()
+    ;; If we're in the middle of something, restart it.
+    (when *systems-being-defined*
+      (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
+        (clrhash *systems-being-defined*)
+        (dolist (s l) (find-system s nil)))))
 
-(defun* restart-upgraded-asdf ()
-  ;; If we're in the middle of something, restart it.
-  (when *systems-being-defined*
-    (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
-      (clrhash *systems-being-defined*)
-      (dolist (s l) (find-system s nil)))))
+  (pushnew 'restart-upgraded-asdf *post-upgrade-restart-hook*))
 
-(pushnew 'restart-upgraded-asdf *post-upgrade-restart-hook*)
+
