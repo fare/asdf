@@ -28,7 +28,6 @@
            #'(lambda (m)
                (remove-method (symbol-function name) m))
            (component-inline-methods component)))
-    ;; clear methods, then add the new ones
     (component-inline-methods component) nil)
 
   (defun %define-component-inline-methods (ret rest)
@@ -39,13 +38,19 @@
               :for value = (second data)
               :while data
               :when (eq key keyword) :do
-                (destructuring-bind (op qual (o c) &body body) value
-                  (pushnew
-                   (eval `(defmethod ,name ,qual ((,o ,op) (,c (eql ,ret)))
-                            ,@body))
-                   (component-inline-methods ret)))))))
+                (destructuring-bind (op qual? &rest rest) value
+                  (multiple-value-bind (qual args-and-body)
+                      (if (symbolp qual?)
+                          (values (list qual?) rest)
+                          (values nil (cons qual? rest)))
+                    (destructuring-bind ((o c) &body body) args-and-body
+                      (pushnew
+                       (eval `(defmethod ,name ,@qual ((,o ,op) (,c (eql ,ret)))
+                                ,@body))
+                       (component-inline-methods ret)))))))))
 
   (defun %refresh-component-inline-methods (component rest)
+    ;; clear methods, then add the new ones
     (%remove-component-inline-methods component)
     (%define-component-inline-methods component rest)))
 
