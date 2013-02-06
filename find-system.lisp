@@ -57,18 +57,6 @@
     (error 'formatted-system-definition-error :format-control
            format :format-arguments arguments))
 
-  (defvar *defined-systems* (make-hash-table :test 'equal)
-    "This is a hash table whose keys are strings, being the
-names of the systems, and whose values are pairs, the first
-element of which is a universal-time indicating when the
-system definition was last updated, and the second element
-of which is a system object.")
-
-  (defun clear-defined-systems ()
-    (setf *defined-systems* (make-hash-table :test 'equal)))
-
-  (register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
-
   (defun coerce-name (name)
     (typecase name
       (component (component-name name))
@@ -80,6 +68,13 @@ of which is a system object.")
     ;; When a system name has slashes, the file with defsystem is named by
     ;; the first of the slash-separated components.
     (first (split-string (coerce-name name) :separator "/")))
+
+  (defvar *defined-systems* (make-hash-table :test 'equal)
+    "This is a hash table whose keys are strings, being the
+names of the systems, and whose values are pairs, the first
+element of which is a universal-time indicating when the
+system definition was last updated, and the second element
+of which is a system object.")
 
   (defun system-registered-p (name)
     (gethash (coerce-name name) *defined-systems*))
@@ -98,6 +93,17 @@ of which is a system object.")
               (cons (if-let (file (ignore-errors (system-source-file system)))
                       (get-file-stamp file))
                     system)))))
+
+  (defun clear-defined-systems ()
+    ;; Invalidate all systems but ASDF itself, if registered.
+    (let ((asdf (cdr (system-registered-p :asdf))))
+      (setf *defined-systems* (make-hash-table :test 'equal))
+      (when asdf
+        (setf (component-version asdf) *asdf-version*)
+        (register-system asdf)))
+    (values))
+
+  (register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
 
   (defun clear-system (name)
     "Clear the entry for a system in the database of systems previously loaded.
