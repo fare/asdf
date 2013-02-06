@@ -86,6 +86,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (append
      ;;#+clozure '(ccl:compiler-warning)
      #+cmu '("Deleting unreachable code.")
+     #+lispworks '("~S being redefined in ~A (previously in ~A)."
+                   "~S defined more than once in ~A.") ;; lispworks gets confused by eval-when.
      #+sbcl
      '(sb-c::simple-compiler-note
        "&OPTIONAL and &KEY found in the same lambda list: ~S"
@@ -393,8 +395,7 @@ possibly in a different process."
           (unwind-protect
                (let (#+sbcl (sb-c::*undefined-warnings* nil))
                  (multiple-value-prog1
-                     (with-muffled-compiler-conditions ()
-                       (funcall thunk))
+                     (funcall thunk)
                    (save-deferred-warnings warnings-file)))
             (reset-deferred-warnings)))
         (funcall thunk)))
@@ -486,13 +487,14 @@ it will filter them appropriately."
            (tmp-lib (make-pathname :type "lib" :defaults tmp-file)))
       (multiple-value-bind (output-truename warnings-p failure-p)
           (with-saved-deferred-warnings (warnings-file)
-            (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
-                #+ecl (apply 'compile-file input-file :output-file
-                             (if object-file
-                                 (list* object-file :system-p t keywords)
-                                 (list* tmp-file keywords)))
-                #+mkcl (apply 'compile-file input-file
-                              :output-file object-file :fasl-p nil keywords)))
+            (with-muffled-compiler-conditions ()
+              (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
+                  #+ecl (apply 'compile-file input-file :output-file
+                               (if object-file
+                                   (list* object-file :system-p t keywords)
+                                   (list* tmp-file keywords)))
+                  #+mkcl (apply 'compile-file input-file
+                                :output-file object-file :fasl-p nil keywords))))
         (cond
           ((and output-truename
                 (flet ((check-flag (flag behaviour)
