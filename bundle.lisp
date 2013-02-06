@@ -178,8 +178,9 @@
   (defun user-system-p (s)
     (and (typep s 'system)
          (not (builtin-system-p s))
-         (not (trivial-system-p s))))
+         (not (trivial-system-p s)))))
 
+(eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
   (deftype user-system () '(and system (satisfies user-system-p))))
 
 ;;;

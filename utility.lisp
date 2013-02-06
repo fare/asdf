@@ -241,8 +241,9 @@ starting the separation from the end, e.g. when called with arguments
 
 
 ;;; stamps: a REAL or boolean where NIL=-infinity, T=+infinity
+(eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
+  (deftype stamp () '(or real boolean)))
 (with-upgradability ()
-  (deftype stamp () '(or real boolean))
   (defun stamp< (x y)
     (etypecase x
       (null (and y t))

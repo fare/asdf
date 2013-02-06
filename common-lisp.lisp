@@ -169,11 +169,11 @@
                           (t
                            (recurse more start end))))))))
         (recurse substrings 0 length))
-      (if stream (get-output-stream-string stream) ""))))
+      (if stream (get-output-stream-string stream) "")))
 
-(defmacro compatfmt (format)
-  #+(or gcl genera)
-  (remove-substrings `("~3i~_" #+(or genera gcl2.6) ,@'("~@<" "~@;" "~@:>" "~:>")) format)
-  #-(or gcl genera) format)
+  (defmacro compatfmt (format)
+    #+(or gcl genera)
+    (remove-substrings `("~3i~_" #+(or genera gcl2.6) ,@'("~@<" "~@;" "~@:>" "~:>")) format)
+    #-(or gcl genera) format))
 
 

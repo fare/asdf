@@ -387,7 +387,6 @@ is bound, write a message and exit on an error.  If
             (ignore-errors (load-asdf-fasl tag)))
        :previously-compiled)
       (t
-       (load-asdf-lisp tag)
        (compile-asdf tag)))))
 
 (defun compile-asdf-script ()

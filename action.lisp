@@ -19,9 +19,10 @@
    #:action-path #:find-action #:stamp #:done-p))
 (in-package :asdf/action)
 
-(with-upgradability ()
-  (deftype action () '(cons operation component)) ;; a step to be performed while building the system
+(eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
+  (deftype action () '(cons operation component))) ;; a step to be performed while building
 
+(with-upgradability ()
   (defgeneric traverse-actions (actions &key &allow-other-keys))
   (defgeneric traverse-sub-actions (operation component &key &allow-other-keys))
   (defgeneric required-components (component &key &allow-other-keys)))
