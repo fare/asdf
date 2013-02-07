@@ -53,6 +53,8 @@ another pathname in a degenerate way."))
   (defgeneric component-external-format (component))
   (defgeneric component-encoding (component))
   (defgeneric version-satisfies (component version))
+  (defgeneric component-version (component))
+  (defgeneric (setf component-version) (new-version component))
 
   ;; Backward compatible way of computing the FILE-TYPE of a component.
   ;; TODO: find users, have them stop using that, remove it for ASDF4.
