@@ -270,9 +270,9 @@ extract_tagged_asdf () {
             1.*|2.0*|2.2[0-6]|2.26.61)
                 git show ${tag}:asdf.lisp > $file ;;
             2.2*|3.*)
-                mkdir -p build/old/
+                mkdir -p build/old/build
                 git archive ${tag} Makefile '*.lisp' | (cd build/old/ ; tar xf -)
-                cd build/old ; make
+                make -C build/old
                 mv build/old/build/asdf.lisp build/asdf-${tag}.lisp
                 rm -rf build/old
                 ;;

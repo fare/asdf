@@ -103,7 +103,7 @@
 
 ;;; Main parsing function
 (with-upgradability ()
-  (defun parse-component-form (parent options &key previous-serial-component)
+  (defun* (parse-component-form) (parent options &key previous-serial-component)
     (destructuring-bind
         (type name &rest rest &key
                                 (builtin-system-p () bspp)
@@ -149,7 +149,9 @@
         (when (and versionp version (not (parse-version version nil)))
           (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
                 version name parent))
-        (setf (component-version component) version)
+        ;; Don't use the accessor: kluge to avoid upgrade issue on CCL 1.8.
+        ;; A better fix is required.
+        (setf (slot-value component 'version) version)
         (when (typep component 'parent-component)
           (setf (component-children component)
                 (loop

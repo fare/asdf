@@ -39,7 +39,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defun upgrading-p ()
     (and *previous-asdf-versions* (not (equal *asdf-version* (first *previous-asdf-versions*)))))
   (defmacro when-upgrading ((&key (upgrading-p '(upgrading-p)) when) &body body)
-    `(eval-when (:compile-toplevel :load-toplevel :execute)
+    `(with-upgradability ()
        (when (and ,upgrading-p ,@(when when `(,when)))
          (handler-bind ((style-warning #'muffle-warning))
            (eval '(progn ,@body))))))
@@ -52,7 +52,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.28.4")
+         (asdf-version "2.28.6")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -72,6 +72,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
              #:component-depends-on #:component-self-dependencies #:operation-done-p
              #:traverse ;; plan
              #:operate  ;; operate
+             #:parse-component-form ;; defsystem
              #:apply-output-translations ;; output-translations
              #:process-output-translations-directive
              #:inherit-source-registry #:process-source-registry ;; source-registry

@@ -6,6 +6,9 @@
   (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os :asdf/pathname :asdf/filesystem)
   (:export
    #:*default-stream-element-type* #:*stderr* #:setup-stderr
+   #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
+   #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
+   #:*default-encoding* #:*utf-8-external-format*
    #:with-safe-io-syntax #:call-with-safe-io-syntax
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file
@@ -16,9 +19,6 @@
    #:slurp-stream-forms #:slurp-stream-form
    #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
-   #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
-   #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
-   #:*default-encoding* #:*utf-8-external-format*
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
    #:setup-temporary-directory
@@ -40,6 +40,55 @@
           #+clozure ccl::*stderr*
           #-(or allegro clozure) *error-output*))
   (setup-stderr))
+
+
+;;; Encodings (mostly hooks only; full support requires asdf-encodings)
+(with-upgradability ()
+  (defvar *default-encoding* :default
+    "Default encoding for source files.
+The default value :default preserves the legacy behavior.
+A future default might be :utf-8 or :autodetect
+reading emacs-style -*- coding: utf-8 -*- specifications,
+and falling back to utf-8 or latin1 if nothing is specified.")
+
+  (defparameter *utf-8-external-format*
+    #+(and asdf-unicode (not clisp)) :utf-8
+    #+(and asdf-unicode clisp) charset:utf-8
+    #-asdf-unicode :default
+    "Default :external-format argument to pass to CL:OPEN and also
+CL:LOAD or CL:COMPILE-FILE to best process a UTF-8 encoded file.
+On modern implementations, this will decode UTF-8 code points as CL characters.
+On legacy implementations, it may fall back on some 8-bit encoding,
+with non-ASCII code points being read as several CL characters;
+hopefully, if done consistently, that won't affect program behavior too much.")
+
+  (defun always-default-encoding (pathname)
+    (declare (ignore pathname))
+    *default-encoding*)
+
+  (defvar *encoding-detection-hook* #'always-default-encoding
+    "Hook for an extension to define a function to automatically detect a file's encoding")
+
+  (defun detect-encoding (pathname)
+    (if (and pathname (not (directory-pathname-p pathname)) (probe-file* pathname))
+        (funcall *encoding-detection-hook* pathname)
+        *default-encoding*))
+
+  (defun default-encoding-external-format (encoding)
+    (case encoding
+      (:default :default) ;; for backward-compatibility only. Explicit usage discouraged.
+      (:utf-8 *utf-8-external-format*)
+      (otherwise
+       (cerror "Continue using :external-format :default" (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings).~:>") encoding)
+       :default)))
+
+  (defvar *encoding-external-format-hook*
+    #'default-encoding-external-format
+    "Hook for an extension to define a mapping between non-default encodings
+and implementation-defined external-format's")
+
+  (defun encoding-external-format (encoding)
+    (funcall *encoding-external-format-hook* encoding)))
 
 
 ;;; Safe syntax
@@ -116,7 +165,7 @@ as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
   (defun call-with-input-file (pathname thunk
                                &key
                                  (element-type *default-stream-element-type*)
-                                 (external-format :default)
+                                 (external-format *utf-8-external-format*)
                                  (if-does-not-exist :error))
     "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
 Other keys are accepted but discarded."
@@ -306,55 +355,6 @@ If a string, repeatedly read and evaluate from it, returning the last values."
       (with-safe-io-syntax (:package package)
         (let ((*read-eval* t))
           (eval-thunk thunk))))))
-
-
-;;; Encodings (mostly hooks only; full support requires asdf-encodings)
-(with-upgradability ()
-  (defvar *default-encoding* :default
-    "Default encoding for source files.
-The default value :default preserves the legacy behavior.
-A future default might be :utf-8 or :autodetect
-reading emacs-style -*- coding: utf-8 -*- specifications,
-and falling back to utf-8 or latin1 if nothing is specified.")
-
-  (defparameter *utf-8-external-format*
-    #+(and asdf-unicode (not clisp)) :utf-8
-    #+(and asdf-unicode clisp) charset:utf-8
-    #-asdf-unicode :default
-    "Default :external-format argument to pass to CL:OPEN and also
-CL:LOAD or CL:COMPILE-FILE to best process a UTF-8 encoded file.
-On modern implementations, this will decode UTF-8 code points as CL characters.
-On legacy implementations, it may fall back on some 8-bit encoding,
-with non-ASCII code points being read as several CL characters;
-hopefully, if done consistently, that won't affect program behavior too much.")
-
-  (defun always-default-encoding (pathname)
-    (declare (ignore pathname))
-    *default-encoding*)
-
-  (defvar *encoding-detection-hook* #'always-default-encoding
-    "Hook for an extension to define a function to automatically detect a file's encoding")
-
-  (defun detect-encoding (pathname)
-    (if (and pathname (not (directory-pathname-p pathname)) (probe-file* pathname))
-        (funcall *encoding-detection-hook* pathname)
-        *default-encoding*))
-
-  (defun default-encoding-external-format (encoding)
-    (case encoding
-      (:default :default) ;; for backward-compatibility only. Explicit usage discouraged.
-      (:utf-8 *utf-8-external-format*)
-      (otherwise
-       (cerror "Continue using :external-format :default" (compatfmt "~@<Your ASDF component is using encoding ~S but it isn't recognized. Your system should :defsystem-depends-on (:asdf-encodings).~:>") encoding)
-       :default)))
-
-  (defvar *encoding-external-format-hook*
-    #'default-encoding-external-format
-    "Hook for an extension to define a mapping between non-default encodings
-and implementation-defined external-format's")
-
-  (defun encoding-external-format (encoding)
-    (funcall *encoding-external-format-hook* encoding)))
 
 
 ;;; Using temporary files

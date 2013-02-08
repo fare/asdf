@@ -545,7 +545,7 @@ is bound, write a message and exit on an error.  If
     (funcall new-method)
     (format t "Testing it~%")
     (register-directory *test-directory*)
-    (load-test-system :test-module-depend)
+    (load-test-system :test-asdf/all)
     (assert (asymval '#:*file1* :test-package))
     (assert (asymval '#:*file3* :test-package))))
 

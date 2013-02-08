@@ -330,7 +330,9 @@ One of three functions required for deferred-warnings support in ASDF."
   (defun save-deferred-warnings (warnings-file)
     "Save forward reference conditions so they may be issued at a latter time,
 possibly in a different process."
-    (with-open-file (s warnings-file :direction :output :if-exists :supersede)
+    (with-open-file (s warnings-file :direction :output :if-exists :supersede
+                       :element-type *default-stream-element-type*
+                       :external-format *utf-8-external-format*)
       (with-safe-io-syntax ()
         (write (reify-deferred-warnings) :stream s :pretty t :readably t)
         (terpri s))))
