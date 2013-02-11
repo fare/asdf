@@ -189,8 +189,10 @@
                                (make-instance 'system :name name :source-file source-file))))
              (system (reset-system (cdr registered!)
                                    :name name :source-file source-file))
-             (component-options (remove-plist-key :class options)))
-        (apply 'load-systems defsystem-depends-on)
+             (component-options (remove-plist-key :class options))
+             (defsystem-dependencies (loop :for spec :in defsystem-depends-on :collect
+                                           (resolve-dependency-spec nil spec))))
+        (apply 'load-systems defsystem-dependencies)
         ;; We change-class AFTER we loaded the defsystem-depends-on
         ;; since the class might be defined as part of those.
         (let ((class (class-for-type nil class)))
