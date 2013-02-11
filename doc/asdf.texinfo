@@ -124,6 +124,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 @c * Operations::
 @c * Components::
+@c * Functions::
 
 @c Operations
 
