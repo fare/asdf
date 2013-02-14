@@ -211,19 +211,30 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
         (destructuring-bind (&key filename start-pos end-pos source) source-note
           (ccl::make-source-note :filename filename :start-pos start-pos :end-pos end-pos
                                  :source (unreify-source-note source)))))
+    (defun reify-function-name (function-name)
+      (reify-simple-sexp
+       (if-let (setfed (gethash function-name ccl::%setf-function-name-inverses%))
+         `(setf ,setfed)
+         function-name)))
+    (defun unreify-function-name (function-name)
+      (let ((name (unreify-simple-sexp function-name)))
+        (if (and (consp name) (eq (first name) 'setf))
+            (let ((setfed (second name)))
+              (gethash setfed ccl::%setf-function-names%)
+              name))))
     (defun reify-deferred-warning (deferred-warning)
       (with-accessors ((warning-type ccl::compiler-warning-warning-type)
                        (args ccl::compiler-warning-args)
                        (source-note ccl:compiler-warning-source-note)
                        (function-name ccl:compiler-warning-function-name)) deferred-warning
-        (list :warning-type warning-type :function-name (reify-simple-sexp function-name)
+        (list :warning-type warning-type :function-name (reify-function-name function-name)
               :source-note (reify-source-note source-note) :args (reify-simple-sexp args))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)
           reified-deferred-warning
         (make-condition (or (cdr (ccl::assq warning-type ccl::*compiler-whining-conditions*))
                             'ccl::compiler-warning)
-                        :function-name (unreify-simple-sexp function-name)
+                        :function-name (unreify-function-name function-name)
                         :source-note (unreify-source-note source-note)
                         :warning-type warning-type
                         :args (unreify-simple-sexp args)))))
