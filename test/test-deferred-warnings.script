@@ -5,14 +5,27 @@
   :serial t
   :components ((:file "undefined-function")
                (:file "file1")))
+(DBG :tdw0 *compile-file-warnings-behaviour*)
 (assert
  (handler-case
      (let ((*compile-file-warnings-behaviour* :ignore))
        (load-system :test-deferred-warnings :force t)
        t)
-   (compile-file-error () nil)))
+   (error (c)
+     (DBG :cfwbi c)
+     nil)))
 
-#+(or clozure sbcl)
+(DBG :tdw1 *warnings-file-type*)
+(assert
+ (handler-case
+     (let ((*warnings-file-type* nil))
+       (load-system :test-deferred-warnings :force t)
+       t)
+   (error ()
+     (DBG :wftn c)
+     nil)))
+
+#+(or clozure cmu sbcl scl)
 (assert
  (handler-case
      (let ((*compile-file-warnings-behaviour* :error))
@@ -20,7 +33,7 @@
        nil)
    (compile-warned-error () t)))
 
-#+(or clozure sbcl)
+#+(or clozure cmu sbcl scl)
 (assert
  (handler-case
      (let ((*compile-file-warnings-behaviour* :error))

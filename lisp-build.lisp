@@ -228,6 +228,26 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                         :warning-type warning-type
                         :args (unreify-simple-sexp args)))))
 
+  #+(or cmu scl)
+  (defun reify-undefined-warning (warning)
+    ;; Extracting undefined-warnings from the compilation-unit
+    ;; To be passed through the above reify/unreify link, it must be a "simple-sexp"
+    (list*
+     (c::undefined-warning-kind warning)
+     (c::undefined-warning-name warning)
+     (c::undefined-warning-count warning)
+     (mapcar
+      #'(lambda (frob)
+          ;; the lexenv slot can be ignored for reporting purposes
+          `(:enclosing-source ,(c::compiler-error-context-enclosing-source frob)
+            :source ,(c::compiler-error-context-source frob)
+            :original-source ,(c::compiler-error-context-original-source frob)
+            :context ,(c::compiler-error-context-context frob)
+            :file-name ,(c::compiler-error-context-file-name frob) ; a pathname
+            :file-position ,(c::compiler-error-context-file-position frob) ; an integer
+            :original-source-path ,(c::compiler-error-context-original-source-path frob)))
+      (c::undefined-warning-warnings warning))))
+
   #+sbcl
   (defun reify-undefined-warning (warning)
     ;; Extracting undefined-warnings from the compilation-unit
@@ -257,6 +277,18 @@ WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings sup
             (if-let (dw ccl::*outstanding-deferred-warnings*)
               (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
                 (ccl::deferred-warnings.warnings mdw))))
+    #+(or cmu scl)
+    (when lisp::*in-compilation-unit*
+      ;; Try to send nothing through the pipe if nothing needs to be accumulated
+      `(,@(when c::*undefined-warnings*
+            `((c::*undefined-warnings*
+               ,@(mapcar #'reify-undefined-warning c::*undefined-warnings*))))
+        ,@(loop :for what :in '(c::*compiler-error-count*
+                                c::*compiler-warning-count*
+                                c::*compiler-note-count*)
+                :for value = (symbol-value what)
+                :when (plusp value)
+                  :collect `(,what . ,value))))
     #+sbcl
     (when sb-c::*in-compilation-unit*
       ;; Try to send nothing through the pipe if nothing needs to be accumulated
@@ -284,6 +316,32 @@ One of three functions required for deferred-warnings support in ASDF."
                   (setf ccl::*outstanding-deferred-warnings* (ccl::%defer-warnings t)))))
       (appendf (ccl::deferred-warnings.warnings dw)
                (mapcar 'unreify-deferred-warning reified-deferred-warnings)))
+    #+(or cmu scl)
+    (dolist (item reified-deferred-warnings)
+      ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
+      ;; For *undefined-warnings*, the adjustment is a list of initargs.
+      ;; For everything else, it's an integer.
+      (destructuring-bind (symbol . adjustment) item
+        (case symbol
+          ((c::*undefined-warnings*)
+           (setf c::*undefined-warnings*
+                 (nconc (mapcan
+                         #'(lambda (stuff)
+                             (destructuring-bind (kind name count . rest) stuff
+                               (unless (case kind (:function (fboundp name)))
+                                 (list
+                                  (c::make-undefined-warning
+                                   :name name
+                                   :kind kind
+                                   :count count
+                                   :warnings
+                                   (mapcar #'(lambda (x)
+                                               (apply #'c::make-compiler-error-context x))
+                                           rest))))))
+                         adjustment)
+                        c::*undefined-warnings*)))
+          (otherwise
+           (set symbol (+ (symbol-value symbol) adjustment))))))
     #+sbcl
     (dolist (item reified-deferred-warnings)
       ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
@@ -318,6 +376,12 @@ One of three functions required for deferred-warnings support in ASDF."
     (if-let (dw ccl::*outstanding-deferred-warnings*)
       (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
         (setf (ccl::deferred-warnings.warnings mdw) nil)))
+    #+(or cmu scl)
+    (when lisp::*in-compilation-unit*
+      (setf c::*undefined-warnings* nil
+            c::*compiler-error-count* 0
+            c::*compiler-warning-count* 0
+            c::*compiler-note-count* 0))
     #+sbcl
     (when sb-c::*in-compilation-unit*
       (setf sb-c::*undefined-warnings* nil
@@ -339,8 +403,10 @@ possibly in a different process."
 
   (defun warnings-file-type (&optional implementation-type)
     (case (or implementation-type *implementation-type*)
-      (:sbcl "sbcl-warnings")
-      ((:clozure :ccl) "ccl-warnings")))
+      ((:cmu :cmucl) "cmucl-warnings")
+      ((:sbcl) "sbcl-warnings")
+      ((:clozure :ccl) "ccl-warnings")
+      ((:scl) "scl-warnings")))
 
   (defvar *warnings-file-type* (warnings-file-type)
     "Type for warnings files")

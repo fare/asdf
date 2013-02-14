@@ -90,7 +90,7 @@
                &optional
                  #+clisp lib-file
                  #+(or ecl mkcl) object-file
-                 #+(or clozure sbcl) warnings-file) outputs
+                 #+(or cmu clozure sbcl scl) warnings-file) outputs
             (call-with-around-compile-hook
              c #'(lambda (&rest flags)
                    (with-muffled-compiler-conditions ()
@@ -100,7 +100,7 @@
                             (append
                              #+clisp (list :lib-file lib-file)
                              #+(or ecl mkcl) (list :object-file object-file)
-                             #+(or clozure sbcl) (list :warnings-file warnings-file)
+                             #+(or cmu clozure sbcl scl) (list :warnings-file warnings-file)
                              flags (compile-op-flags o)))))))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
