@@ -159,8 +159,15 @@
   (values))
 
 (defun link-archive ()
-  (run `(ln -sf ,(tarname (driver-name))
-            (,*clnet-asdf-public* "archives/asdf-driver.tar.gz"))
+  (run (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
+               (tarname (driver-name))
+               (strcat *clnet-asdf-public* "archives/asdf-driver.tar.gz")
+               (tarname (asdf-defsystem-name))
+               (strcat *clnet-asdf-public* "archives/asdf-defsystem.tar.gz")
+               (tarname (asdf-git-name))
+               (strcat *clnet-asdf-public* "archives/asdf.tar.gz")
+               (asdf-lisp-name)
+               (strcat *clnet-asdf-public* "archives/asdf.lisp"))
        :show t :host *clnet*)
   (values))
 
