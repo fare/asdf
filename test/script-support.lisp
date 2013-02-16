@@ -488,8 +488,8 @@ is bound, write a message and exit on an error.  If
       (setf *test-directory* x)))
   (format t "Frob packages~%")
   (use-package :asdf :asdf-test)
-  (use-package :asdf/driver :asdf-test)
-  (use-package :asdf/cache :asdf-test)
+  (when (find-package :asdf/driver) (use-package :asdf/driver :asdf-test))
+  (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
   (setf *package* (find-package :asdf-test))
   t)
 

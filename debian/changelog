@@ -1,3 +1,27 @@
+cl-asdf (2:2.29-1) unstable; urgency=low
+
+  ASDF 2.29 is a bug fix release in preparation of an upcoming ASDF 3.
+  Since previous release 2.28, it includes:
+
+  * deferred-warnings support for Allegro, CMUCL, SCL;
+    fixes to the CCL support.
+
+  * Upgrade fixes regarding fallback system versions;
+    making it possible (via massive use of eval-when)
+    to compile ASDF without loading it first.
+
+  * Compatibility with private use of :D package nickname
+    by not claiming it for package ASDF/DRIVER anymore.
+    Also explicitly handle NIL in safe-file-write-date,
+    in case the implementation doesn't issue a file-error in that case;
+    make UTF-8 the default encoding for with-input-file.
+    Be portable to #+(and sbcl (not sb-eval)).
+
+  * Bugfixes to old bugs: inline-methods can now be unqualified (lp#485393),
+    defsystem-depends-on accepts arbitrary specs, not just names (lp#1027521).
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 16 Feb 2013 15:07:24 +0100
+
 cl-asdf (2:2.28-1) unstable; urgency=low
 
  ASDF 2.28 is a quick patch to ASDF 2.27 to make it work better with
