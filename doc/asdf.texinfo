@@ -1090,6 +1090,14 @@ Programmers are cautioned not
 to use this component option except at the @code{defsystem} level, as
 this anomalous behavior may be removed without warning.
 
+Finally, you might look into the @code{asdf-system-connections} extension,
+that will let you define additional code to be loaded
+when two systems are simultaneously loaded.
+It may or may not be considered good style, but at least it can be used
+in a way that has deterministic behavior independent of load order,
+unlike @code{weakly-depends-on}.
+
+
 @subsection Pathname specifiers
 @cindex pathname specifiers
 
