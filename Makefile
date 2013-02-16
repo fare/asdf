@@ -142,7 +142,7 @@ test-all-lisps:
 	done
 
 # test upgrade is a very long run... This does just the regression tests
-test-all-noupgrade:
+test-all-no-upgrade:
 	@for lisp in ${lisps} ; do \
 		${MAKE} test-lisp test-clean-load l=$$lisp || exit 1 ; \
 	done
@@ -196,7 +196,7 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 
 .PHONY: install archive archive-copy push doc website clean mrproper \
 	test-forward-references test test-lisp test-upgrade test-forward-references \
-	test-all test-all-lisps test-all-noupgrade \
+	test-all test-all-lisps test-all-no-upgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf

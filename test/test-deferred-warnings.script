@@ -56,7 +56,7 @@
      nil)))
 
 (unless *warnings-file-type*
-  (leave-test 0 "Your Lisp does not support deferred-warnings"))
+  (leave-test "Your Lisp does not support deferred-warnings" 0))
 
 (assert
  (handler-case
