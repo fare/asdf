@@ -220,15 +220,17 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
       (let ((name (unreify-simple-sexp function-name)))
         (if (and (consp name) (eq (first name) 'setf))
             (let ((setfed (second name)))
-              (gethash setfed ccl::%setf-function-names%)
-              name))))
+              (gethash setfed ccl::%setf-function-names%))
+            name)))
     (defun reify-deferred-warning (deferred-warning)
       (with-accessors ((warning-type ccl::compiler-warning-warning-type)
                        (args ccl::compiler-warning-args)
                        (source-note ccl:compiler-warning-source-note)
                        (function-name ccl:compiler-warning-function-name)) deferred-warning
         (list :warning-type warning-type :function-name (reify-function-name function-name)
-              :source-note (reify-source-note source-note) :args (reify-simple-sexp args))))
+              :source-note (reify-source-note source-note)
+              :args (destructuring-bind (fun . formals) args
+                      (cons (reify-function-name fun) (reify-simple-sexp formals))))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)
           reified-deferred-warning
@@ -237,8 +239,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                         :function-name (unreify-function-name function-name)
                         :source-note (unreify-source-note source-note)
                         :warning-type warning-type
-                        :args (unreify-simple-sexp args)))))
-
+                        :args (destructuring-bind (fun . formals) args
+                                (cons (unreify-function-name fun) (unreify-simple-sexp formals)))))))
   #+(or cmu scl)
   (defun reify-undefined-warning (warning)
     ;; Extracting undefined-warnings from the compilation-unit
@@ -283,6 +285,10 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     "return a portable S-expression, portably readable and writeable in any Common Lisp implementation
 using READ within a WITH-SAFE-IO-SYNTAX, that represents the warnings currently deferred by
 WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings support in ASDF."
+    #+allegro
+    (reify-simple-sexp
+     (list :functions-defined excl::.functions-defined.
+           :functions-called excl::.functions-called.))
     #+clozure
     (mapcar 'reify-deferred-warning
             (if-let (dw ccl::*outstanding-deferred-warnings*)
@@ -322,6 +328,13 @@ Handle any warning that has been resolved already,
 such as an undefined function that has been defined since.
 One of three functions required for deferred-warnings support in ASDF."
     (declare (ignorable reified-deferred-warnings))
+    #+allegro
+    (destructuring-bind (&key functions-defined functions-called)
+        (unreify-simple-sexp reified-deferred-warnings)
+      (setf excl::.functions-defined.
+            (append functions-defined excl::.functions-defined.)
+            excl::.functions-called.
+            (append functions-called excl::.functions-called.)))
     #+clozure
     (let ((dw (or ccl::*outstanding-deferred-warnings*
                   (setf ccl::*outstanding-deferred-warnings* (ccl::%defer-warnings t)))))
@@ -383,6 +396,9 @@ One of three functions required for deferred-warnings support in ASDF."
   (defun reset-deferred-warnings ()
     "Reset the set of deferred warnings to be handled at the end of the current WITH-COMPILATION-UNIT.
 One of three functions required for deferred-warnings support in ASDF."
+    #+allegro
+    (setf excl::.functions-defined. nil
+          excl::.functions-called. nil)
     #+clozure
     (if-let (dw ccl::*outstanding-deferred-warnings*)
       (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
@@ -414,6 +430,8 @@ possibly in a different process."
 
   (defun warnings-file-type (&optional implementation-type)
     (case (or implementation-type *implementation-type*)
+      ((:acl :allegro) "allegro-warnings")
+      ;;((:clisp) "clisp-warnings")
       ((:cmu :cmucl) "cmucl-warnings")
       ((:sbcl) "sbcl-warnings")
       ((:clozure :ccl) "ccl-warnings")

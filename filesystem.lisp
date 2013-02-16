@@ -74,7 +74,9 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
     ;; and we can survive and we will continue the planning
     ;; as if the file were very old.
     ;; (or should we treat the case in a different, special way?)
-    (handler-case (file-write-date (translate-logical-pathname pathname)) (file-error () nil)))
+    (and pathname
+         (handler-case (file-write-date (translate-logical-pathname pathname))
+           (file-error () nil))))
 
   (defun probe-file* (p &key truename)
     "when given a pathname P (designated by a string as per PARSE-NAMESTRING),

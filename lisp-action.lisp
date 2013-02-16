@@ -90,17 +90,17 @@
                &optional
                  #+clisp lib-file
                  #+(or ecl mkcl) object-file
-                 #+(or cmu clozure sbcl scl) warnings-file) outputs
+                 warnings-file) outputs
             (call-with-around-compile-hook
              c #'(lambda (&rest flags)
                    (with-muffled-compiler-conditions ()
                      (apply 'compile-file* input-file
                             :output-file output-file
                             :external-format (component-external-format c)
+                            :warnings-file warnings-file
                             (append
                              #+clisp (list :lib-file lib-file)
                              #+(or ecl mkcl) (list :object-file object-file)
-                             #+(or cmu clozure sbcl scl) (list :warnings-file warnings-file)
                              flags (compile-op-flags o)))))))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
@@ -130,13 +130,13 @@
       `(,f ;; the fasl is the primary output, in first position
         #+clisp
         ,@`(,(make-pathname :type "lib" :defaults f))
-        ,@(when (and *warnings-file-type* (not (builtin-system-p (component-system c))))
-            `(,(make-pathname :type *warnings-file-type* :defaults f)))
         #+ecl
         ,@(unless (use-ecl-byte-compiler-p)
             `(,(compile-file-pathname i :type :object)))
         #+mkcl
-        ,(compile-file-pathname i :fasl-p nil)))) ;; object file
+        ,(compile-file-pathname i :fasl-p nil) ;; object file
+        ,@(when (and *warnings-file-type* (not (builtin-system-p (component-system c))))
+            `(,(make-pathname :type *warnings-file-type* :defaults f))))))
   (defmethod component-depends-on ((o compile-op) (c component))
     (declare (ignorable o))
     `((prepare-op ,c) ,@(call-next-method)))

@@ -486,16 +486,17 @@ is bound, write a message and exit on an error.  If
                 (pathname-components *test-directory*)
                 (pathname-components x)))
       (setf *test-directory* x)))
+  (format t "Frob packages~%")
+  (use-package :asdf :asdf-test)
+  (use-package :asdf/driver :asdf-test)
+  (use-package :asdf/cache :asdf-test)
+  (setf *package* (find-package :asdf-test))
   t)
 
 (defun load-asdf (&optional tag)
   #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
-  (use-package :asdf :asdf-test)
-  (use-package :asdf/driver :asdf-test)
-  (use-package :asdf/cache :asdf-test)
-  (configure-asdf)
-  (setf *package* (find-package :asdf-test)))
+  (configure-asdf))
 
 (defun debug-asdf ()
   (setf *debug-asdf* t)
