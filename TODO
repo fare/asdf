@@ -1,3 +1,4 @@
+* have with-input-file use the encodings mechanism?
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
 * implement deferred warnings support on abcl, allegro, clisp, cmucl, lispworks, scl)
 * fix upgrade on clisp

@@ -190,12 +190,15 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (etypecase sexp
       (symbol (reify-symbol sexp))
       ((or number character simple-string pathname) sexp)
-      (cons (cons (reify-simple-sexp (car sexp)) (reify-simple-sexp (cdr sexp))))))
+      (cons (cons (reify-simple-sexp (car sexp)) (reify-simple-sexp (cdr sexp))))
+      (simple-vector (vector (mapcar 'reify-simple-sexp (coerce sexp 'list))))))
+    
   (defun unreify-simple-sexp (sexp)
     (etypecase sexp
       ((or symbol number character simple-string pathname) sexp)
       (cons (cons (unreify-simple-sexp (car sexp)) (unreify-simple-sexp (cdr sexp))))
-      ((simple-vector 2) (unreify-symbol sexp))))
+      ((simple-vector 2) (unreify-symbol sexp))
+      ((simple-vector 1) (coerce (mapcar 'unreify-simple-sexp (aref sexp 0)) 'vector))))
 
   #+clozure
   (progn

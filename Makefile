@@ -66,8 +66,6 @@ defsystem-files:
 	@echo $(defsystem_lisp)
 
 archive: build/asdf.lisp
-	#${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-	#	--eval "(rewrite-license)" --eval "(quit)"
 	./bin/asdf-builder make-and-publish-archive
 
 ### Count lines separately for asdf-driver and asdf itself:
