@@ -6,9 +6,9 @@
   (:recycle :asdf/source-registry :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade :asdf/find-system)
   (:export
-   #:*source-registry* #:*source-registry-parameter* #:*default-source-registries*
+   #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry
-   #:source-registry #:source-registry-initialized-p
+   #:source-registry-initialized-p
    #:initialize-source-registry #:clear-source-registry #:*source-registry*
    #:ensure-source-registry #:*source-registry-parameter*
    #:*default-source-registry-exclusions* #:*source-registry-exclusions*

@@ -215,14 +215,15 @@ Some constraints:
 (defmacro assert-equal (x y)
   `(assert-compare (equal ,x ,y)))
 
-(defun touch-file (file &key offset timestamp)
+(defun touch-file (file &key offset timestamp in-filesystem)
   (let* ((base (or timestamp (get-universal-time)))
          (stamp (if offset (+ base offset) base)))
-    (if (asymval :*asdf-cache*)
+    (if (and (asymval :*asdf-cache*) (not in-filesystem))
         (acall :register-file-stamp file stamp)
         (multiple-value-bind (sec min hr day month year)
             (decode-universal-time stamp #+gcl2.6 -5) ;; -5 is for *my* localtime
-          (error "Y U NO use stamp cache?")
+          (unless in-filesystem
+            (error "Y U NO use stamp cache?"))
           (acall :run-program
                  `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                          year month day hr min sec)

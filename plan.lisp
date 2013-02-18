@@ -14,7 +14,7 @@
    #:circular-dependency #:circular-dependency-actions
    #:node-for #:needed-in-image-p
    #:action-index #:action-planned-p #:action-valid-p
-   #:plan-record-dependency #:visiting-action-p
+   #:plan-record-dependency
    #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
    #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies
    #:visit-dependencies #:compute-action-stamp #:traverse-action

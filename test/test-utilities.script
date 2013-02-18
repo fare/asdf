@@ -60,3 +60,113 @@
            (:function (:lambda isnt lambda))
            (:function (lambda (too many args) blah))))
  '(t t nil nil nil nil))
+
+(initialize-source-registry '())
+
+#|
+(unless (find-system :swank nil)
+  (leave-test "Cannot find SWANK" 0))
+
+(load-system :swank)
+;;(setq swank-loader::*fasl-directory* (resolve-output "slime/"))
+;;(ensure-directories-exist swank-loader::*fasl-directory*)
+;;(DBG :foo swank-loader::*fasl-directory*)
+(swank-loader:init)
+|#
+
+(defparameter *ok-symbols*
+  '(;; slots names
+    ASDF/ACTION:ACCEPT
+    ASDF/ACTION:ACTION
+    ASDF/ACTION:DONE-P
+    ASDF/ACTION:FEATURE
+    ASDF/ACTION:STAMP
+    ASDF/BUNDLE:PROLOGUE-CODE
+    ASDF/BUNDLE:BUILD-ARGS
+    ASDF/BUNDLE:EPILOGUE-CODE
+    ASDF/BUNDLE:NAME-SUFFIX
+    ASDF/COMPONENT:ABSOLUTE-PATHNAME
+    ASDF/COMPONENT:AROUND-COMPILE
+    ASDF/COMPONENT:AUTHOR
+    ASDF/COMPONENT:CHILDREN
+    ASDF/COMPONENT:CHILDREN-BY-NAME
+    ASDF/COMPONENT:COMPONENTS
+    ASDF/COMPONENT:COMPONENTS-BY-NAME
+    ASDF/COMPONENT:DEFAULT-COMPONENT-CLASS
+    ASDF/COMPONENT:DEFSYSTEM-DEPENDS-ON
+    ASDF/COMPONENT:DESCRIPTION
+    ASDF/COMPONENT:%ENCODING
+    ASDF/COMPONENT:IF-FEATURE
+    ASDF/COMPONENT:INLINE-METHODS
+    ASDF/COMPONENT:IN-ORDER-TO
+    ASDF/COMPONENT:LICENCE
+    ASDF/COMPONENT:LONG-DESCRIPTION
+    ASDF/COMPONENT:MAINTAINER
+    ASDF/COMPONENT:NAME
+    ASDF/COMPONENT:OPERATION-TIMES
+    ASDF/COMPONENT:PARENT
+    ASDF/COMPONENT:PROPERTIES
+    ASDF/COMPONENT:RELATIVE-PATHNAME
+    ASDF/COMPONENT:SIBLING-DEPENDENCIES
+    ASDF/COMPONENT:VERSION
+    ASDF/LISP-ACTION:FLAGS
+    ASDF/PLAN:INDEX
+    ASDF/PLAN:FORCED
+    ASDF/PLAN:FORCED-NOT
+    ASDF/PLAN:PLANNED-ACTION-COUNT
+    ASDF/PLAN:PLANNED-OUTPUT-ACTION-COUNT
+    ASDF/PLAN:PLANNED-P
+    ASDF/PLAN:TOTAL-ACTION-COUNT
+    ASDF/PLAN:VISITED-ACTIONS
+    ASDF/PLAN:VISITING-ACTION-SET
+    ASDF/PLAN:VISITING-ACTION-LIST
+    ASDF/SYSTEM:BUG-TRACKER
+    ASDF/SYSTEM:BUILD-PATHNAME
+    ASDF/SYSTEM:ENTRY-POINT
+    ASDF/SYSTEM:HOMEPAGE
+    ASDF/SYSTEM:LONG-NAME
+    ASDF/SYSTEM:MAILTO
+    ASDF/SYSTEM:SOURCE-CONTROL
+    ;; restarts
+    ASDF/ACTION:ACCEPT
+    ASDF/FIND-COMPONENT:RETRY
+    ASDF/FIND-SYSTEM:COERCE-ENTRY-TO-DIRECTORY
+    ASDF/FIND-SYSTEM:REMOVE-ENTRY-FROM-REGISTRY
+    ASDF/LISP-ACTION:TRY-RECOMPILING
+    ;; types
+    ASDF/BUNDLE:USER-SYSTEM
+    ;; on some implementations only
+    ASDF/BUNDLE:BUNDLE-SYSTEM
+    ASDF/BUNDLE:REGISTER-PRE-BUILT-SYSTEM 
+    ASDF/BUNDLE:STATIC-LIBRARY
+    ASDF/IMAGE:CREATE-IMAGE
+    ASDF/LISP-BUILD:REIFY-UNDEFINED-WARNING
+    ;; backward compatibility upgrade only
+    ASDF/BACKWARD-INTERNALS:MAKE-SUB-OPERATION
+    ASDF/FIND-SYSTEM:CONTRIB-SYSDEF-SEARCH
+    ASDF/FIND-SYSTEM:SYSDEF-FIND-ASDF
+    ))
+
+(defun defined-symbol-p (symbol)
+  (or (boundp symbol)
+      (fboundp symbol)
+      (macro-function symbol)
+      (find-class symbol nil)))
+
+(defun fishy-exported-symbols (package &optional (ok-symbols *ok-symbols*))
+  (loop :for symbol :being :the external-symbols :of package
+        :unless (or
+                 (defined-symbol-p symbol)
+                 ;;(symbol-call :swank :classify-symbol symbol)
+                 (member symbol ok-symbols))
+          :collect symbol))
+
+(defun fishy-asdf-exported-symbols ()
+  (remove-duplicates
+   (loop :for package :in (list-all-packages)
+         :when (and (string-prefix-p "ASDF/" (package-name package))
+                    (not (equal (package-name package) "ASDF/COMMON-LISP")))
+           :nconc (fishy-exported-symbols package))
+   :from-end t))
+
+(assert-equal nil (fishy-asdf-exported-symbols))

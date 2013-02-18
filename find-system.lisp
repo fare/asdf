@@ -17,7 +17,7 @@
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
    #:find-system-if-being-defined #:*systems-being-defined*
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
-   #:sysdef-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
+   #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
    #:clear-defined-systems #:*defined-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
@@ -139,7 +139,7 @@ called with an object of type asdf:system."
            (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
                       '(sysdef-central-registry-search
                         sysdef-source-registry-search
-                        sysdef-find-preloaded-systems)))))
+                        sysdef-preloaded-system-search)))))
   (cleanup-system-definition-search-functions)
 
   (defun search-for-system-definition (system)
@@ -344,7 +344,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
   (defvar *preloaded-systems* (make-hash-table :test 'equal))
 
-  (defun sysdef-find-preloaded-systems (requested)
+  (defun sysdef-preloaded-system-search (requested)
     (let ((name (coerce-name requested)))
       (multiple-value-bind (keys foundp) (gethash name *preloaded-systems*)
         (when foundp
