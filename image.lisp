@@ -109,7 +109,7 @@ This is designed to abstract away the implementation specific quit forms."
     (let ((*debug-io* stream))
       (ccl:print-call-history :count count :start-frame-number 1)
       (finish-output stream))
-    #+(or cmucl scl)
+    #+(or cmu scl)
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
       (debug:backtrace most-positive-fixnum stream))
