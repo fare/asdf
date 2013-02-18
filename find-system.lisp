@@ -17,7 +17,7 @@
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
    #:find-system-if-being-defined #:*systems-being-defined*
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
-   #:system-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
+   #:sysdef-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
    #:clear-defined-systems #:*defined-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))

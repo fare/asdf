@@ -52,7 +52,7 @@
    #:component #:parent-component #:child-component #:system #:module
    #:file-component #:source-file #:c-source-file #:java-source-file
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
-   #:static-file #:doc-file #:html-file :text-file
+   #:static-file #:doc-file #:html-file
    #:source-file-type
 
    #:component-children          ; component accessors
@@ -81,8 +81,8 @@
    #:system-source-directory
    #:system-relative-pathname
    #:system-homepage
+   #:system-mailto
    #:system-bug-tracker
-   #:system-developers-email
    #:system-long-name
    #:system-source-control
    #:map-systems

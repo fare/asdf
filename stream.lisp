@@ -14,7 +14,6 @@
    #:with-input-file #:call-with-input-file
    #:finish-outputs #:format! #:safe-format!
    #:copy-stream-to-stream #:concatenate-files
-   #:copy-stream-to-stream-line-by-line
    #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
    #:slurp-stream-forms #:slurp-stream-form
    #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form

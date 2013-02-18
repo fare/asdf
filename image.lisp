@@ -8,7 +8,7 @@
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments
    #:*lisp-interaction*
-   #:fatal-conditions #:fatal-condition-p #:handle-fatal-condition
+   #:*fatal-conditions* #:fatal-condition-p #:handle-fatal-condition
    #:call-with-fatal-condition-handler #:with-fatal-condition-handler
    #:*image-restore-hook* #:*image-prelude* #:*image-entry-point*
    #:*image-postlude* #:*image-dump-hook*
@@ -16,7 +16,7 @@
    #:shell-boolean-exit
    #:register-image-restore-hook #:register-image-dump-hook
    #:call-image-restore-hook #:call-image-dump-hook
-   #:initialize-asdf-utilities #:restore-image #:dump-image #:create-image
+   #:restore-image #:dump-image #:create-image
 ))
 (in-package :asdf/image)
 

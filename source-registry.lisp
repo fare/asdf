@@ -10,7 +10,7 @@
    #:invalid-source-registry
    #:source-registry #:source-registry-initialized-p
    #:initialize-source-registry #:clear-source-registry #:*source-registry*
-   #:disable-source-registry #:ensure-source-registry #:*source-registry-parameter*
+   #:ensure-source-registry #:*source-registry-parameter*
    #:*default-source-registry-exclusions* #:*source-registry-exclusions*
    #:*wild-asd* #:directory-asd-files #:register-asd-directory
    #:collect-asds-in-directory #:collect-sub*directories-asd-files
