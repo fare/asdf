@@ -215,16 +215,14 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
           (ccl::make-source-note :filename filename :start-pos start-pos :end-pos end-pos
                                  :source (unreify-source-note source)))))
     (defun reify-function-name (function-name)
-      (reify-simple-sexp
-       (if-let (setfed (gethash function-name ccl::%setf-function-name-inverses%))
-         `(setf ,setfed)
-         function-name)))
+      (if-let (setfed (gethash function-name ccl::%setf-function-name-inverses%))
+	      `(setf ,setfed)
+	      function-name))
     (defun unreify-function-name (function-name)
-      (let ((name (unreify-simple-sexp function-name)))
-        (if (and (consp name) (eq (first name) 'setf))
-            (let ((setfed (second name)))
-              (gethash setfed ccl::%setf-function-names%))
-            name)))
+      (if (and (consp function-name) (eq (first function-name) 'setf))
+	  (let ((setfed (second function-name)))
+	    (gethash setfed ccl::%setf-function-names%))
+	function-name))
     (defun reify-deferred-warning (deferred-warning)
       (with-accessors ((warning-type ccl::compiler-warning-warning-type)
                        (args ccl::compiler-warning-args)
@@ -233,7 +231,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
         (list :warning-type warning-type :function-name (reify-function-name function-name)
               :source-note (reify-source-note source-note)
               :args (destructuring-bind (fun . formals) args
-                      (cons (reify-function-name fun) (reify-simple-sexp formals))))))
+                      (cons (reify-function-name fun) formals)))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)
           reified-deferred-warning
@@ -243,7 +241,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                         :source-note (unreify-source-note source-note)
                         :warning-type warning-type
                         :args (destructuring-bind (fun . formals) args
-                                (cons (unreify-function-name fun) (unreify-simple-sexp formals)))))))
+                                (cons (unreify-function-name fun) formals))))))
   #+(or cmu scl)
   (defun reify-undefined-warning (warning)
     ;; Extracting undefined-warnings from the compilation-unit
@@ -289,9 +287,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 using READ within a WITH-SAFE-IO-SYNTAX, that represents the warnings currently deferred by
 WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings support in ASDF."
     #+allegro
-    (reify-simple-sexp
-     (list :functions-defined excl::.functions-defined.
-           :functions-called excl::.functions-called.))
+    (list :functions-defined excl::.functions-defined.
+	  :functions-called excl::.functions-called.)
     #+clozure
     (mapcar 'reify-deferred-warning
             (if-let (dw ccl::*outstanding-deferred-warnings*)
@@ -333,7 +330,7 @@ One of three functions required for deferred-warnings support in ASDF."
     (declare (ignorable reified-deferred-warnings))
     #+allegro
     (destructuring-bind (&key functions-defined functions-called)
-        (unreify-simple-sexp reified-deferred-warnings)
+			reified-deferred-warnings
       (setf excl::.functions-defined.
             (append functions-defined excl::.functions-defined.)
             excl::.functions-called.
