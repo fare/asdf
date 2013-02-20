@@ -256,15 +256,17 @@ Going forward, we recommend new users should be using the source-registry.
   (defmacro with-system-definitions ((&optional) &body body)
     `(call-with-system-definitions #'(lambda () ,@body)))
 
-  (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))) &aux (readtable *readtable*))
+  (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))) &aux (readtable *readtable*) (print-pprint-dispatch *print-pprint-dispatch*))
     ;; Tries to load system definition with canonical NAME from PATHNAME.
     (with-system-definitions ()
       (with-standard-io-syntax
         (let ((*package* (find-package :asdf-user))
-              ;; Note that our backward-compatible readtable is
+              ;; Note that our backward-compatible *readtable* is
               ;; a global readtable that gets globally side-effected. Ouch.
+              ;; Same for the *print-pprint-dispatch* table.
               ;; We should do something about that for ASDF3 if possible, or else ASDF4.
               (*readtable* readtable)
+              (*print-pprint-dispatch* print-pprint-dispatch)
               (*print-readably* nil)
               (*default-pathname-defaults*
                 ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
