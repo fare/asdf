@@ -31,9 +31,9 @@ Some constraints:
 
 (in-package :asdf-test)
 
-(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)
+(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
 		   #+(or cmu scl) (c::brevity 2)))
-(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)
+(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
 		     #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*
@@ -154,7 +154,8 @@ Some constraints:
 (defparameter *test-directory*
   (truename
    (make-pathname :name nil :type nil :version nil
-                  :defaults (or *load-pathname* *compile-file-pathname*))))
+                  :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))
+(format t "bye, world~%")
 (defun make-sub-pathname (&rest keys &key defaults &allow-other-keys)
   (merge-pathnames (apply 'make-pathname keys) defaults))
 (defun relative-dir (&rest dir) #-gcl (cons ':relative dir) #+gcl dir)

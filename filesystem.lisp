@@ -88,47 +88,48 @@ or the original (parsed) pathname if it is false (the default)."
         (null nil)
         (string (probe-file* (parse-namestring p) :truename truename))
         (pathname
-         (handler-case
-             (or
-              #+allegro
-              (probe-file p :follow-symlinks truename)
-              #-(or allegro clisp gcl2.6)
-              (if truename
-                  (probe-file p)
-                  (and (not (wild-pathname-p p))
+         (and (not (wild-pathname-p p))
+              (handler-case
+                  (or
+                   #+allegro
+                   (probe-file p :follow-symlinks truename)
+                   #-(or allegro clisp gcl2.6)
+                   (if truename
+                       (probe-file p)
                        (ignore-errors
                         (let ((pp (translate-logical-pathname p)))
-                          #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
-                          #+(and lispworks unix) (system:get-file-stat pp)
-                          #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
-                          #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)))
-                       p))
-              #+(or clisp gcl2.6)
-              #.(flet ((probe (probe)
-                         `(let ((foundtrue ,probe))
-                            (cond
-                              (truename foundtrue)
-                              (foundtrue p)))))
-                  #+gcl2.6
-                  (probe '(or (probe-file p)
-                           (and (directory-pathname-p p)
-                            (ignore-errors
-                             (ensure-directory-pathname
-                              (truename* (subpathname
-                                          (ensure-directory-pathname p) ".")))))))
-                  #+clisp
-                  (let* ((fs (find-symbol* '#:file-stat :posix nil))
-                         (pp (find-symbol* '#:probe-pathname :ext nil))
-                         (resolve (if pp
-                                      `(ignore-errors (,pp p))
-                                      '(or (truename* p)
-                                        (truename* (ignore-errors (ensure-directory-pathname p)))))))
-                    (if fs
-                        `(if truename
-                             ,resolve
-                             (and (ignore-errors (,fs p)) p))
-                        (probe resolve)))))
-           (file-error () nil))))))
+                          (and
+                           #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
+                           #+(and lispworks unix) (system:get-file-stat pp)
+                           #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
+                           #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
+                           p))))
+                   #+(or clisp gcl2.6)
+                   #.(flet ((probe (probe)
+                              `(let ((foundtrue ,probe))
+                                 (cond
+                                   (truename foundtrue)
+                                   (foundtrue p)))))
+                       #+gcl2.6
+                       (probe '(or (probe-file p)
+                                (and (directory-pathname-p p)
+                                 (ignore-errors
+                                  (ensure-directory-pathname
+                                   (truename* (subpathname
+                                               (ensure-directory-pathname p) ".")))))))
+                       #+clisp
+                       (let* ((fs (find-symbol* '#:file-stat :posix nil))
+                              (pp (find-symbol* '#:probe-pathname :ext nil))
+                              (resolve (if pp
+                                           `(ignore-errors (,pp p))
+                                           '(or (truename* p)
+                                             (truename* (ignore-errors (ensure-directory-pathname p)))))))
+                         (if fs
+                             `(if truename
+                                  ,resolve
+                                  (and (ignore-errors (,fs p)) p))
+                             (probe resolve)))))
+                (file-error () nil)))))))
 
   (defun directory* (pathname-spec &rest keys &key &allow-other-keys)
     (apply 'directory pathname-spec
