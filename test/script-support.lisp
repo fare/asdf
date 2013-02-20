@@ -155,7 +155,6 @@ Some constraints:
   (truename
    (make-pathname :name nil :type nil :version nil
                   :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))
-(format t "bye, world~%")
 (defun make-sub-pathname (&rest keys &key defaults &allow-other-keys)
   (merge-pathnames (apply 'make-pathname keys) defaults))
 (defun relative-dir (&rest dir) #-gcl (cons ':relative dir) #+gcl dir)
