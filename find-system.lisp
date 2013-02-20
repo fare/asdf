@@ -100,6 +100,7 @@ of which is a system object.")
       (setf *defined-systems* (make-hash-table :test 'equal))
       (when asdf
         (setf (component-version asdf) *asdf-version*)
+        (setf (builtin-system-p asdf) t)
         (register-system asdf)))
     (values))
 

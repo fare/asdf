@@ -250,74 +250,73 @@ then returning the non-empty string value of the variable"
 ;;;; Jesse Hager: The Windows Shortcut File Format.
 ;;;; http://www.wotsit.org/list.asp?fc=13
 
+#-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera.
 (with-upgradability ()
-  #-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera.
-  (progn
-    (defparameter *link-initial-dword* 76)
-    (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
+  (defparameter *link-initial-dword* 76)
+  (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
 
-    (defun read-null-terminated-string (s)
-      (with-output-to-string (out)
-        (loop :for code = (read-byte s)
-              :until (zerop code)
-              :do (write-char (code-char code) out))))
+  (defun read-null-terminated-string (s)
+    (with-output-to-string (out)
+      (loop :for code = (read-byte s)
+            :until (zerop code)
+            :do (write-char (code-char code) out))))
 
-    (defun read-little-endian (s &optional (bytes 4))
-      (loop :for i :from 0 :below bytes
-            :sum (ash (read-byte s) (* 8 i))))
+  (defun read-little-endian (s &optional (bytes 4))
+    (loop :for i :from 0 :below bytes
+          :sum (ash (read-byte s) (* 8 i))))
 
-    (defun parse-file-location-info (s)
-      (let ((start (file-position s))
-            (total-length (read-little-endian s))
-            (end-of-header (read-little-endian s))
-            (fli-flags (read-little-endian s))
-            (local-volume-offset (read-little-endian s))
-            (local-offset (read-little-endian s))
-            (network-volume-offset (read-little-endian s))
-            (remaining-offset (read-little-endian s)))
-        (declare (ignore total-length end-of-header local-volume-offset))
-        (unless (zerop fli-flags)
-          (cond
-            ((logbitp 0 fli-flags)
-             (file-position s (+ start local-offset)))
-            ((logbitp 1 fli-flags)
-             (file-position s (+ start
-                                 network-volume-offset
-                                 #x14))))
-          (strcat (read-null-terminated-string s)
-                  (progn
-                    (file-position s (+ start remaining-offset))
-                    (read-null-terminated-string s))))))
+  (defun parse-file-location-info (s)
+    (let ((start (file-position s))
+          (total-length (read-little-endian s))
+          (end-of-header (read-little-endian s))
+          (fli-flags (read-little-endian s))
+          (local-volume-offset (read-little-endian s))
+          (local-offset (read-little-endian s))
+          (network-volume-offset (read-little-endian s))
+          (remaining-offset (read-little-endian s)))
+      (declare (ignore total-length end-of-header local-volume-offset))
+      (unless (zerop fli-flags)
+        (cond
+          ((logbitp 0 fli-flags)
+           (file-position s (+ start local-offset)))
+          ((logbitp 1 fli-flags)
+           (file-position s (+ start
+                               network-volume-offset
+                               #x14))))
+        (strcat (read-null-terminated-string s)
+                (progn
+                  (file-position s (+ start remaining-offset))
+                  (read-null-terminated-string s))))))
 
-    (defun parse-windows-shortcut (pathname)
-      (with-open-file (s pathname :element-type '(unsigned-byte 8))
-        (handler-case
-            (when (and (= (read-little-endian s) *link-initial-dword*)
-                       (let ((header (make-array (length *link-guid*))))
-                         (read-sequence header s)
-                         (equalp header *link-guid*)))
-              (let ((flags (read-little-endian s)))
-                (file-position s 76)        ;skip rest of header
-                (when (logbitp 0 flags)
-                  ;; skip shell item id list
-                  (let ((length (read-little-endian s 2)))
-                    (file-position s (+ length (file-position s)))))
-                (cond
-                  ((logbitp 1 flags)
-                   (parse-file-location-info s))
-                  (t
-                   (when (logbitp 2 flags)
-                     ;; skip description string
-                     (let ((length (read-little-endian s 2)))
-                       (file-position s (+ length (file-position s)))))
-                   (when (logbitp 3 flags)
-                     ;; finally, our pathname
-                     (let* ((length (read-little-endian s 2))
-                            (buffer (make-array length)))
-                       (read-sequence buffer s)
-                       (map 'string #'code-char buffer)))))))
-          (end-of-file (c)
-            (declare (ignore c))
-            nil))))))
+  (defun parse-windows-shortcut (pathname)
+    (with-open-file (s pathname :element-type '(unsigned-byte 8))
+      (handler-case
+          (when (and (= (read-little-endian s) *link-initial-dword*)
+                     (let ((header (make-array (length *link-guid*))))
+                       (read-sequence header s)
+                       (equalp header *link-guid*)))
+            (let ((flags (read-little-endian s)))
+              (file-position s 76)        ;skip rest of header
+              (when (logbitp 0 flags)
+                ;; skip shell item id list
+                (let ((length (read-little-endian s 2)))
+                  (file-position s (+ length (file-position s)))))
+              (cond
+                ((logbitp 1 flags)
+                 (parse-file-location-info s))
+                (t
+                 (when (logbitp 2 flags)
+                   ;; skip description string
+                   (let ((length (read-little-endian s 2)))
+                     (file-position s (+ length (file-position s)))))
+                 (when (logbitp 3 flags)
+                   ;; finally, our pathname
+                   (let* ((length (read-little-endian s 2))
+                          (buffer (make-array length)))
+                     (read-sequence buffer s)
+                     (map 'string #'code-char buffer)))))))
+        (end-of-file (c)
+          (declare (ignore c))
+          nil)))))
 
 

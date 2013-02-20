@@ -463,7 +463,8 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
 (with-upgradability ()
   (defun ensure-all-directories-exist (pathnames)
     (dolist (pathname pathnames)
-      (ensure-directories-exist (translate-logical-pathname pathname))))
+      (when pathname
+        (ensure-directories-exist (translate-logical-pathname pathname)))))
 
   (defun rename-file-overwriting-target (source target)
     #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
