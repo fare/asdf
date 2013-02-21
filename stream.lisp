@@ -43,10 +43,12 @@
 
 ;;; Encodings (mostly hooks only; full support requires asdf-encodings)
 (with-upgradability ()
-  (defvar *default-encoding* :default
+  (defvar *default-encoding* :utf-8
     "Default encoding for source files.
-The default value :default preserves the legacy behavior.
-A future default might be :utf-8 or :autodetect
+The default value :utf-8 is the portable thing.
+The legacy behavior was :default.
+If you (load-system :asdf-encodings) then
+you will have autodetection via *encoding-detection-hook*,
 reading emacs-style -*- coding: utf-8 -*- specifications,
 and falling back to utf-8 or latin1 if nothing is specified.")
 
