@@ -1,3 +1,60 @@
+cl-asdf (2:2.30-1) unstable; urgency=low
+
+  ASDF 2.29 is another bug fix release in preparation of an upcoming ASDF 3.
+  Since previous release 2.29, it includes:
+
+  * syntax around loading .asd files made more backward-compatible,
+    by *not* (for now) binding *readtable* and *print-pprint-dispatch*
+    to standard values, because it breaks some indelicate libraries.
+    We intend to reinstate these bindings at some point in the future,
+    but only after more implementations enforce the immutability
+    of these standard values like SBCL does,
+    and after fixed libraries have been released.
+    This notably unbreaks iolib 0.7.3 (for readtable) and
+    defdoc (for the pprint-dispatch table).
+
+  * portability fixes for CCL and CMUCL.
+    On CCL, punt on package upgrade, and on reify-simple-sexp.
+    On CMUCL, fix raw-print-backtrace and hostname.
+
+  * exported symbols cleaned up somewhat.
+
+  * Compatibility with private use of :D package nickname
+    by not claiming it for package ASDF/DRIVER anymore.
+    Also explicitly handle NIL in safe-file-write-date,
+    in case the implementation doesn't issue a file-error in that case;
+    make UTF-8 the default encoding for with-input-file.
+    Be portable to #+(and sbcl (not sb-eval)).
+
+  * Bugfixes to old bugs: inline-methods can now be unqualified (lp#485393),
+    defsystem-depends-on accepts arbitrary specs, not just names (lp#1027521).
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 20 Feb 2013 17:53:32 -0500
+
+cl-asdf (2:2.29-1) unstable; urgency=low
+
+  ASDF 2.29 is a bug fix release in preparation of an upcoming ASDF 3.
+  Since previous release 2.28, it includes:
+
+  * deferred-warnings support for Allegro, CMUCL, SCL;
+    fixes to the CCL support.
+
+  * Upgrade fixes regarding fallback system versions;
+    making it possible (via massive use of eval-when)
+    to compile ASDF without loading it first.
+
+  * Compatibility with private use of :D package nickname
+    by not claiming it for package ASDF/DRIVER anymore.
+    Also explicitly handle NIL in safe-file-write-date,
+    in case the implementation doesn't issue a file-error in that case;
+    make UTF-8 the default encoding for with-input-file.
+    Be portable to #+(and sbcl (not sb-eval)).
+
+  * Bugfixes to old bugs: inline-methods can now be unqualified (lp#485393),
+    defsystem-depends-on accepts arbitrary specs, not just names (lp#1027521).
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Fri, 16 Feb 2013 15:07:24 +0100
+
 cl-asdf (2:2.28-1) unstable; urgency=low
 
  ASDF 2.28 is a quick patch to ASDF 2.27 to make it work better with

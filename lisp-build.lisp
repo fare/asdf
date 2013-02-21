@@ -190,12 +190,15 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (etypecase sexp
       (symbol (reify-symbol sexp))
       ((or number character simple-string pathname) sexp)
-      (cons (cons (reify-simple-sexp (car sexp)) (reify-simple-sexp (cdr sexp))))))
+      (cons (cons (reify-simple-sexp (car sexp)) (reify-simple-sexp (cdr sexp))))
+      (simple-vector (vector (mapcar 'reify-simple-sexp (coerce sexp 'list))))))
+    
   (defun unreify-simple-sexp (sexp)
     (etypecase sexp
       ((or symbol number character simple-string pathname) sexp)
       (cons (cons (unreify-simple-sexp (car sexp)) (unreify-simple-sexp (cdr sexp))))
-      ((simple-vector 2) (unreify-symbol sexp))))
+      ((simple-vector 2) (unreify-symbol sexp))
+      ((simple-vector 1) (coerce (mapcar 'unreify-simple-sexp (aref sexp 0)) 'vector))))
 
   #+clozure
   (progn
@@ -211,22 +214,53 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
         (destructuring-bind (&key filename start-pos end-pos source) source-note
           (ccl::make-source-note :filename filename :start-pos start-pos :end-pos end-pos
                                  :source (unreify-source-note source)))))
+    (defun reify-function-name (function-name)
+      (if-let (setfed (gethash function-name ccl::%setf-function-name-inverses%))
+	      `(setf ,setfed)
+	      function-name))
+    (defun unreify-function-name (function-name)
+      (if (and (consp function-name) (eq (first function-name) 'setf))
+	  (let ((setfed (second function-name)))
+	    (gethash setfed ccl::%setf-function-names%))
+	function-name))
     (defun reify-deferred-warning (deferred-warning)
       (with-accessors ((warning-type ccl::compiler-warning-warning-type)
                        (args ccl::compiler-warning-args)
                        (source-note ccl:compiler-warning-source-note)
                        (function-name ccl:compiler-warning-function-name)) deferred-warning
-        (list :warning-type warning-type :function-name (reify-simple-sexp function-name)
-              :source-note (reify-source-note source-note) :args (reify-simple-sexp args))))
+        (list :warning-type warning-type :function-name (reify-function-name function-name)
+              :source-note (reify-source-note source-note)
+              :args (destructuring-bind (fun . formals) args
+                      (cons (reify-function-name fun) formals)))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)
           reified-deferred-warning
         (make-condition (or (cdr (ccl::assq warning-type ccl::*compiler-whining-conditions*))
                             'ccl::compiler-warning)
-                        :function-name (unreify-simple-sexp function-name)
+                        :function-name (unreify-function-name function-name)
                         :source-note (unreify-source-note source-note)
                         :warning-type warning-type
-                        :args (unreify-simple-sexp args)))))
+                        :args (destructuring-bind (fun . formals) args
+                                (cons (unreify-function-name fun) formals))))))
+  #+(or cmu scl)
+  (defun reify-undefined-warning (warning)
+    ;; Extracting undefined-warnings from the compilation-unit
+    ;; To be passed through the above reify/unreify link, it must be a "simple-sexp"
+    (list*
+     (c::undefined-warning-kind warning)
+     (c::undefined-warning-name warning)
+     (c::undefined-warning-count warning)
+     (mapcar
+      #'(lambda (frob)
+          ;; the lexenv slot can be ignored for reporting purposes
+          `(:enclosing-source ,(c::compiler-error-context-enclosing-source frob)
+            :source ,(c::compiler-error-context-source frob)
+            :original-source ,(c::compiler-error-context-original-source frob)
+            :context ,(c::compiler-error-context-context frob)
+            :file-name ,(c::compiler-error-context-file-name frob) ; a pathname
+            :file-position ,(c::compiler-error-context-file-position frob) ; an integer
+            :original-source-path ,(c::compiler-error-context-original-source-path frob)))
+      (c::undefined-warning-warnings warning))))
 
   #+sbcl
   (defun reify-undefined-warning (warning)
@@ -252,11 +286,26 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     "return a portable S-expression, portably readable and writeable in any Common Lisp implementation
 using READ within a WITH-SAFE-IO-SYNTAX, that represents the warnings currently deferred by
 WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings support in ASDF."
+    #+allegro
+    (list :functions-defined excl::.functions-defined.
+	  :functions-called excl::.functions-called.)
     #+clozure
     (mapcar 'reify-deferred-warning
             (if-let (dw ccl::*outstanding-deferred-warnings*)
               (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
                 (ccl::deferred-warnings.warnings mdw))))
+    #+(or cmu scl)
+    (when lisp::*in-compilation-unit*
+      ;; Try to send nothing through the pipe if nothing needs to be accumulated
+      `(,@(when c::*undefined-warnings*
+            `((c::*undefined-warnings*
+               ,@(mapcar #'reify-undefined-warning c::*undefined-warnings*))))
+        ,@(loop :for what :in '(c::*compiler-error-count*
+                                c::*compiler-warning-count*
+                                c::*compiler-note-count*)
+                :for value = (symbol-value what)
+                :when (plusp value)
+                  :collect `(,what . ,value))))
     #+sbcl
     (when sb-c::*in-compilation-unit*
       ;; Try to send nothing through the pipe if nothing needs to be accumulated
@@ -279,11 +328,44 @@ Handle any warning that has been resolved already,
 such as an undefined function that has been defined since.
 One of three functions required for deferred-warnings support in ASDF."
     (declare (ignorable reified-deferred-warnings))
+    #+allegro
+    (destructuring-bind (&key functions-defined functions-called)
+			reified-deferred-warnings
+      (setf excl::.functions-defined.
+            (append functions-defined excl::.functions-defined.)
+            excl::.functions-called.
+            (append functions-called excl::.functions-called.)))
     #+clozure
     (let ((dw (or ccl::*outstanding-deferred-warnings*
                   (setf ccl::*outstanding-deferred-warnings* (ccl::%defer-warnings t)))))
       (appendf (ccl::deferred-warnings.warnings dw)
                (mapcar 'unreify-deferred-warning reified-deferred-warnings)))
+    #+(or cmu scl)
+    (dolist (item reified-deferred-warnings)
+      ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
+      ;; For *undefined-warnings*, the adjustment is a list of initargs.
+      ;; For everything else, it's an integer.
+      (destructuring-bind (symbol . adjustment) item
+        (case symbol
+          ((c::*undefined-warnings*)
+           (setf c::*undefined-warnings*
+                 (nconc (mapcan
+                         #'(lambda (stuff)
+                             (destructuring-bind (kind name count . rest) stuff
+                               (unless (case kind (:function (fboundp name)))
+                                 (list
+                                  (c::make-undefined-warning
+                                   :name name
+                                   :kind kind
+                                   :count count
+                                   :warnings
+                                   (mapcar #'(lambda (x)
+                                               (apply #'c::make-compiler-error-context x))
+                                           rest))))))
+                         adjustment)
+                        c::*undefined-warnings*)))
+          (otherwise
+           (set symbol (+ (symbol-value symbol) adjustment))))))
     #+sbcl
     (dolist (item reified-deferred-warnings)
       ;; Each item is (symbol . adjustment) where the adjustment depends on the symbol.
@@ -314,10 +396,19 @@ One of three functions required for deferred-warnings support in ASDF."
   (defun reset-deferred-warnings ()
     "Reset the set of deferred warnings to be handled at the end of the current WITH-COMPILATION-UNIT.
 One of three functions required for deferred-warnings support in ASDF."
+    #+allegro
+    (setf excl::.functions-defined. nil
+          excl::.functions-called. nil)
     #+clozure
     (if-let (dw ccl::*outstanding-deferred-warnings*)
       (let ((mdw (ccl::ensure-merged-deferred-warnings dw)))
         (setf (ccl::deferred-warnings.warnings mdw) nil)))
+    #+(or cmu scl)
+    (when lisp::*in-compilation-unit*
+      (setf c::*undefined-warnings* nil
+            c::*compiler-error-count* 0
+            c::*compiler-warning-count* 0
+            c::*compiler-note-count* 0))
     #+sbcl
     (when sb-c::*in-compilation-unit*
       (setf sb-c::*undefined-warnings* nil
@@ -339,8 +430,12 @@ possibly in a different process."
 
   (defun warnings-file-type (&optional implementation-type)
     (case (or implementation-type *implementation-type*)
-      (:sbcl "sbcl-warnings")
-      ((:clozure :ccl) "ccl-warnings")))
+      ((:acl :allegro) "allegro-warnings")
+      ;;((:clisp) "clisp-warnings")
+      ((:cmu :cmucl) "cmucl-warnings")
+      ((:sbcl) "sbcl-warnings")
+      ((:clozure :ccl) "ccl-warnings")
+      ((:scl) "scl-warnings")))
 
   (defvar *warnings-file-type* (warnings-file-type)
     "Type for warnings files")

@@ -8,7 +8,7 @@
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments
    #:*lisp-interaction*
-   #:fatal-conditions #:fatal-condition-p #:handle-fatal-condition
+   #:*fatal-conditions* #:fatal-condition-p #:handle-fatal-condition
    #:call-with-fatal-condition-handler #:with-fatal-condition-handler
    #:*image-restore-hook* #:*image-prelude* #:*image-entry-point*
    #:*image-postlude* #:*image-dump-hook*
@@ -16,7 +16,7 @@
    #:shell-boolean-exit
    #:register-image-restore-hook #:register-image-dump-hook
    #:call-image-restore-hook #:call-image-dump-hook
-   #:initialize-asdf-utilities #:restore-image #:dump-image #:create-image
+   #:restore-image #:dump-image #:create-image
 ))
 (in-package :asdf/image)
 
@@ -109,7 +109,7 @@ This is designed to abstract away the implementation specific quit forms."
     (let ((*debug-io* stream))
       (ccl:print-call-history :count count :start-frame-number 1)
       (finish-output stream))
-    #+(or cmucl scl)
+    #+(or cmu scl)
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
       (debug:backtrace most-positive-fixnum stream))

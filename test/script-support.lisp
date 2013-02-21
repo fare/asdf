@@ -31,9 +31,9 @@ Some constraints:
 
 (in-package :asdf-test)
 
-(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)
+(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
 		   #+(or cmu scl) (c::brevity 2)))
-(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl) (debug 3)
+(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
 		     #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*
@@ -154,7 +154,7 @@ Some constraints:
 (defparameter *test-directory*
   (truename
    (make-pathname :name nil :type nil :version nil
-                  :defaults (or *load-pathname* *compile-file-pathname*))))
+                  :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))
 (defun make-sub-pathname (&rest keys &key defaults &allow-other-keys)
   (merge-pathnames (apply 'make-pathname keys) defaults))
 (defun relative-dir (&rest dir) #-gcl (cons ':relative dir) #+gcl dir)
@@ -215,14 +215,15 @@ Some constraints:
 (defmacro assert-equal (x y)
   `(assert-compare (equal ,x ,y)))
 
-(defun touch-file (file &key offset timestamp)
+(defun touch-file (file &key offset timestamp in-filesystem)
   (let* ((base (or timestamp (get-universal-time)))
          (stamp (if offset (+ base offset) base)))
-    (if (asymval :*asdf-cache*)
+    (if (and (asymval :*asdf-cache*) (not in-filesystem))
         (acall :register-file-stamp file stamp)
         (multiple-value-bind (sec min hr day month year)
             (decode-universal-time stamp #+gcl2.6 -5) ;; -5 is for *my* localtime
-          (error "Y U NO use stamp cache?")
+          (unless in-filesystem
+            (error "Y U NO use stamp cache?"))
           (acall :run-program
                  `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                          year month day hr min sec)
@@ -486,16 +487,17 @@ is bound, write a message and exit on an error.  If
                 (pathname-components *test-directory*)
                 (pathname-components x)))
       (setf *test-directory* x)))
+  (format t "Frob packages~%")
+  (use-package :asdf :asdf-test)
+  (when (find-package :asdf/driver) (use-package :asdf/driver :asdf-test))
+  (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
+  (setf *package* (find-package :asdf-test))
   t)
 
 (defun load-asdf (&optional tag)
   #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
-  (use-package :asdf :asdf-test)
-  (use-package :asdf/driver :asdf-test)
-  (use-package :asdf/cache :asdf-test)
-  (configure-asdf)
-  (setf *package* (find-package :asdf-test)))
+  (configure-asdf))
 
 (defun debug-asdf ()
   (setf *debug-asdf* t)

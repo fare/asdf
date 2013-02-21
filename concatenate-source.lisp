@@ -15,9 +15,7 @@
    #:monolithic-concatenate-source-op
    #:monolithic-load-concatenated-source-op
    #:monolithic-compile-concatenated-source-op
-   #:monolithic-load-compiled-concatenated-source-op
-   #:component-concatenated-source-file
-   #:concatenated-source-file))
+   #:monolithic-load-compiled-concatenated-source-op))
 (in-package :asdf/concatenate-source)
 
 ;;;

@@ -53,7 +53,7 @@ build/asdf.lisp: $(all_lisp)
 load: build/asdf.lisp
 	./test/run-tests.sh -t $l $(all_lisp)
 
-install: archive-copy
+install: archive
 
 bump: bump-version
 bump-version: build/asdf.lisp
@@ -66,17 +66,7 @@ defsystem-files:
 	@echo $(defsystem_lisp)
 
 archive: build/asdf.lisp
-	#${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-	#	--eval "(rewrite-license)" --eval "(quit)"
 	./bin/asdf-builder make-and-publish-archive
-
-archive-copy: archive build/asdf.lisp
-	git checkout release
-	bin/rsync-cp build/asdf*.tar.gz $(webhome_private)/archives
-	bin/link-tarball $(clnet_home)
-	bin/rsync-cp build/asdf.lisp $(webhome_private)
-	${MAKE} push
-	git checkout master
 
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
@@ -142,7 +132,7 @@ test-all-lisps:
 	done
 
 # test upgrade is a very long run... This does just the regression tests
-test-all-noupgrade:
+test-all-no-upgrade:
 	@for lisp in ${lisps} ; do \
 		${MAKE} test-lisp test-clean-load l=$$lisp || exit 1 ; \
 	done
@@ -194,18 +184,19 @@ TODO:
 
 release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
-.PHONY: install archive archive-copy push doc website clean mrproper \
+.PHONY: install archive push doc website clean mrproper \
 	test-forward-references test test-lisp test-upgrade test-forward-references \
-	test-all test-all-lisps test-all-noupgrade \
+	test-all test-all-lisps test-all-no-upgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
 
 # RELEASE checklist:
 # make test-all
-# ./bin/bump-version 3.0
+# make test-load-systems s=fare-all
+# make bump v=3.0
 # edit debian/changelog
-# make release-push archive-copy website debian-package
+# make release-push archive website debian-package
 # dput mentors ../*.changes
 # send debian mentors request
 # send announcement to asdf-announce, asdf-devel, etc.

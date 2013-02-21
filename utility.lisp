@@ -27,7 +27,6 @@
    #:call-function #:call-functions #:register-hook-function
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
-   #:load-string #:load-stream
    #:lexicographic< #:lexicographic<=
    #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p)) ;; version
 (in-package :asdf/utility)
@@ -398,9 +397,6 @@ with later being determined by a lexicographical comparison of minor numbers."
 ;;; Condition control
 
 (with-upgradability ()
-  (defvar *uninteresting-conditions* nil
-    "Uninteresting conditions, as per MATCH-CONDITION-P")
-
   (defparameter +simple-condition-format-control-slot+
     #+abcl 'system::format-control
     #+allegro 'excl::format-control
@@ -437,7 +433,7 @@ or a string describing the format-control of a simple-condition."
                                       (muffle-warning c)))))
       (funcall thunk)))
 
-  (defmacro with-muffled-uninteresting-conditions ((conditions) &body body)
-    `(call-with-muffled-uninteresting-conditions #'(lambda () ,@body) ,conditions)))
+  (defmacro with-muffled-conditions ((conditions) &body body)
+    `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
 
 

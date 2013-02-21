@@ -8,12 +8,11 @@
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export
    #:operate #:oos
-   #:*systems-being-operated* #:*asdf-upgrade-already-attempted*
+   #:*systems-being-operated*
    #:build-system
    #:load-system #:load-systems #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
-   #:component-loaded-p #:already-loaded-systems
-   #:upgrade-asdf #:cleanup-upgraded-asdf #:*post-upgrade-hook*))
+   #:component-loaded-p #:already-loaded-systems))
 (in-package :asdf/operate)
 
 (with-upgradability ()
@@ -164,6 +163,6 @@ for how to load or compile stuff")
         (clrhash *systems-being-defined*)
         (dolist (s l) (find-system s nil)))))
 
-  (pushnew 'restart-upgraded-asdf *post-upgrade-restart-hook*))
+  (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf))
 
 

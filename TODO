@@ -1,3 +1,8 @@
+* have a better defsystem form verifier - see lp#1007335
+* have a function verify-strict-asd that can verify a asd is pure lp#541562
+  Then if it passes, use load-strict-asd.
+  If not, optionally issue a warning. Start migrating people toward that.
+* have with-input-file use the encodings mechanism?
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
 * implement deferred warnings support on abcl, allegro, clisp, cmucl, lispworks, scl)
 * fix upgrade on clisp

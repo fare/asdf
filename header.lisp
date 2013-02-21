@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 2.28.6: Another System Definition Facility.
+;;; This is ASDF 2.30: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -54,7 +54,7 @@
   (declaim (optimize (speed 1) (safety 3) (debug 3)))
   (setf ext:*gc-verbose* nil))
 
-#+(or abcl clisp cmu ecl xcl)
+#+(or abcl clisp clozure cmu ecl xcl)
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :asdf3 *features*)
     (let* ((existing-version
@@ -71,7 +71,8 @@
            (existing-version-number (and existing-version (read-from-string existing-major-minor)))
            (away (format nil "~A-~A" :asdf existing-version)))
       (when (and existing-version (< existing-version-number
-                                     #+abcl 2.25 #+clisp 2.27 #+cmu 2.018 #+ecl 2.21 #+xcl 2.27))
+                                     #+abcl 2.25 #+clisp 2.27 #+clozure 2.27
+                                     #+cmu 2.018 #+ecl 2.21 #+xcl 2.27))
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "; Renamed old ~A package away to ~A~%" :asdf away))))))

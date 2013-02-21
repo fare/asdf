@@ -90,17 +90,17 @@
                &optional
                  #+clisp lib-file
                  #+(or ecl mkcl) object-file
-                 #+(or clozure sbcl) warnings-file) outputs
+                 warnings-file) outputs
             (call-with-around-compile-hook
              c #'(lambda (&rest flags)
                    (with-muffled-compiler-conditions ()
                      (apply 'compile-file* input-file
                             :output-file output-file
                             :external-format (component-external-format c)
+                            :warnings-file warnings-file
                             (append
                              #+clisp (list :lib-file lib-file)
                              #+(or ecl mkcl) (list :object-file object-file)
-                             #+(or clozure sbcl) (list :warnings-file warnings-file)
                              flags (compile-op-flags o)))))))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
@@ -130,15 +130,13 @@
       `(,f ;; the fasl is the primary output, in first position
         #+clisp
         ,@`(,(make-pathname :type "lib" :defaults f))
-        #+(or clozure sbcl)
-        ,@(let ((s (component-system c)))
-            (unless (builtin-system-p s) ; includes ASDF itself
-              `(,(make-pathname :type (warnings-file-type) :defaults f))))
         #+ecl
         ,@(unless (use-ecl-byte-compiler-p)
             `(,(compile-file-pathname i :type :object)))
         #+mkcl
-        ,(compile-file-pathname i :fasl-p nil)))) ;; object file
+        ,(compile-file-pathname i :fasl-p nil) ;; object file
+        ,@(when (and *warnings-file-type* (not (builtin-system-p (component-system c))))
+            `(,(make-pathname :type *warnings-file-type* :defaults f))))))
   (defmethod component-depends-on ((o compile-op) (c component))
     (declare (ignorable o))
     `((prepare-op ,c) ,@(call-next-method)))
@@ -149,16 +147,15 @@
     (declare (ignorable o c))
     nil)
   (defmethod perform ((o compile-op) (c system))
-    (when *warnings-file-type*
+    (when (and *warnings-file-type* (not (builtin-system-p c)))
       (perform-lisp-warnings-check o c)))
   (defmethod input-files ((o compile-op) (c system))
-    (when *warnings-file-type*
-      (unless (builtin-system-p c)
-        ;; The most correct way to do it would be to use:
-        ;; (traverse-sub-actions o c :other-systems nil :keep-operation 'compile-op :keep-component 'cl-source-file)
-        ;; but it's expensive and we don't care too much about file order or ASDF extensions.
-        (loop :for sub :in (sub-components c :type 'cl-source-file)
-              :nconc (remove-if-not 'warnings-file-p (output-files o sub))))))
+    (when (and *warnings-file-type* (not (builtin-system-p c)))
+      ;; The most correct way to do it would be to use:
+      ;; (traverse-sub-actions o c :other-systems nil :keep-operation 'compile-op :keep-component 'cl-source-file)
+      ;; but it's expensive and we don't care too much about file order or ASDF extensions.
+      (loop :for sub :in (sub-components c :type 'cl-source-file)
+            :nconc (remove-if-not 'warnings-file-p (output-files o sub)))))
   (defmethod output-files ((o compile-op) (c system))
     (when (and *warnings-file-type* (not (builtin-system-p c)))
       (if-let ((pathname (component-pathname c)))

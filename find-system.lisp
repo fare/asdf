@@ -17,7 +17,7 @@
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
    #:find-system-if-being-defined #:*systems-being-defined*
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
-   #:system-find-preloaded-system #:register-preloaded-system #:*preloaded-systems*
+   #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
    #:clear-defined-systems #:*defined-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
@@ -100,6 +100,7 @@ of which is a system object.")
       (setf *defined-systems* (make-hash-table :test 'equal))
       (when asdf
         (setf (component-version asdf) *asdf-version*)
+        (setf (builtin-system-p asdf) t)
         (register-system asdf)))
     (values))
 
@@ -139,7 +140,7 @@ called with an object of type asdf:system."
            (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
                       '(sysdef-central-registry-search
                         sysdef-source-registry-search
-                        sysdef-find-preloaded-systems)))))
+                        sysdef-preloaded-system-search)))))
   (cleanup-system-definition-search-functions)
 
   (defun search-for-system-definition (system)
@@ -255,11 +256,17 @@ Going forward, we recommend new users should be using the source-registry.
   (defmacro with-system-definitions ((&optional) &body body)
     `(call-with-system-definitions #'(lambda () ,@body)))
 
-  (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))))
+  (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))) &aux (readtable *readtable*) (print-pprint-dispatch *print-pprint-dispatch*))
     ;; Tries to load system definition with canonical NAME from PATHNAME.
     (with-system-definitions ()
       (with-standard-io-syntax
         (let ((*package* (find-package :asdf-user))
+              ;; Note that our backward-compatible *readtable* is
+              ;; a global readtable that gets globally side-effected. Ouch.
+              ;; Same for the *print-pprint-dispatch* table.
+              ;; We should do something about that for ASDF3 if possible, or else ASDF4.
+              (*readtable* readtable)
+              (*print-pprint-dispatch* print-pprint-dispatch)
               (*print-readably* nil)
               (*default-pathname-defaults*
                 ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
@@ -340,7 +347,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
   (defvar *preloaded-systems* (make-hash-table :test 'equal))
 
-  (defun sysdef-find-preloaded-systems (requested)
+  (defun sysdef-preloaded-system-search (requested)
     (let ((name (coerce-name requested)))
       (multiple-value-bind (keys foundp) (gethash name *preloaded-systems*)
         (when foundp
