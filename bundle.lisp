@@ -339,7 +339,7 @@
     (perform (find-operation o 'load-op) c))
   (defmethod perform ((o load-fasl-op) (c compiled-file))
     (perform (find-operation o 'load-op) c))
-  (defmethod perform (o (c compiled-file))
+  (defmethod perform ((o operation) (c compiled-file))
     (declare (ignorable o c))
     nil))
 
