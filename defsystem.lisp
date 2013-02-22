@@ -67,7 +67,7 @@
   (define-condition duplicate-names (system-definition-error)
     ((name :initarg :name :reader duplicate-names-name))
     (:report (lambda (c s)
-               (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~A~@:>")
+               (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~S~@:>")
                        (duplicate-names-name c)))))
 
   (defun sysdef-error-component (msg type name value)
