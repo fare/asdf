@@ -192,6 +192,7 @@
              (component-options (remove-plist-key :class options))
              (defsystem-dependencies (loop :for spec :in defsystem-depends-on :collect
                                            (resolve-dependency-spec nil spec))))
+        (setf (gethash name *systems-being-defined*) system)
         (apply 'load-systems defsystem-dependencies)
         ;; We change-class AFTER we loaded the defsystem-depends-on
         ;; since the class might be defined as part of those.

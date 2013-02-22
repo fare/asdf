@@ -52,7 +52,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.30.3")
+         (asdf-version "2.30.4")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -119,16 +119,11 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
       (unless (equal old-version new-version)
         (push new-version *previous-asdf-versions*)
         (when old-version
-          (cond
-            ((version-compatible-p new-version old-version)
-             (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
-                           old-version new-version))
-            ((version-compatible-p old-version new-version)
-             (warn (compatfmt "~&~@<; ~@;Downgraded ASDF from version ~A to version ~A~@:>~%")
-                   old-version new-version))
-            (t
-             (asdf-message (compatfmt "~&~@<; ~@;Changed ASDF from version ~A to incompatible version ~A~@:>~%")
-                           old-version new-version)))
+          (if (version<= new-version old-version)
+              (error (compatfmt "~&~@<; ~@;Downgraded ASDF from version ~A to version ~A~@:>~%")
+                     old-version new-version)
+              (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
+                            old-version new-version))
           (call-functions (reverse *post-upgrade-cleanup-hook*))
           t))))
 
@@ -137,7 +132,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
    We need do that before we operate on anything that may possibly depend on ASDF."
     (let ((*load-print* nil)
           (*compile-print* nil))
-      (handler-bind (((or style-warning warning) #'muffle-warning))
+      (handler-bind (((or style-warning) #'muffle-warning))
         (symbol-call :asdf :load-system :asdf :verbose nil))))
 
   (register-hook-function '*post-upgrade-cleanup-hook* 'upgrade-configuration))

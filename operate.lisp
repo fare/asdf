@@ -63,9 +63,6 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
            (systems-being-operated *systems-being-operated*)
            (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
            (system (component-system component)))
-      (setf (gethash (coerce-name system) *systems-being-operated*) system)
-      (unless (version-satisfies component version)
-        (error 'missing-component-of-version :requires component :version version))
       ;; Before we operate on any system, make sure ASDF is up-to-date,
       ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
       (unless systems-being-operated
@@ -78,6 +75,9 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
               (apply (find-symbol* 'operate :asdf)
                      (unreify-symbol operation-name)
                      component-path args)))))
+      (setf (gethash (coerce-name system) *systems-being-operated*) system)
+      (unless (version-satisfies component version)
+        (error 'missing-component-of-version :requires component :version version))
       (let ((plan (apply 'traverse operation system args)))
         (perform-plan plan)
         (values operation plan))))

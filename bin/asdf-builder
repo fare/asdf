@@ -192,8 +192,8 @@
   (let ((pv (parse-version v 'error)))
     (assert (first pv))
     (assert (second pv))
-    (unless (third pv) (appendf pv '(0)))
-    (incf (third pv))
+    (unless (third pv) (appendf pv (list 0)))
+    (incf (car (last pv)))
     (unparse-version pv)))
 
 (defun version-from-file ()
