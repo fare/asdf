@@ -309,7 +309,6 @@ Going forward, we recommend new users should be using the source-registry.
                       (if-let (pair (system-registered-p "asdf"))
                         (system-source-file (cdr pair))))
                     (key (list pathname old-version)))
-                (format t "~S~%" (list :cnoas name pathname version-pathname version old-pathname old-version key (gethash key *old-asdf-systems*)))
                 (unless (gethash key *old-asdf-systems*)
                   (setf (gethash key *old-asdf-systems*) t)
                   (warn "~@<~
