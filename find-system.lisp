@@ -238,7 +238,9 @@ Going forward, we recommend new users should be using the source-registry.
     (let ((name (coerce-name requested)))
       (multiple-value-bind (keys foundp) (gethash name *preloaded-systems*)
         (when foundp
-          (apply 'make-instance 'system :name name :source-file (getf keys :source-file) keys)))))
+          (apply 'make-instance (getf keys :class 'system)
+                 :name name :source-file (getf keys :source-file)
+                 (remove-plist-keys '(:class :name :source-file) keys))))))
 
   (defun register-preloaded-system (system-name &rest keys)
     (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))

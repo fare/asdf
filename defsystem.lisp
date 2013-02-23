@@ -127,7 +127,7 @@
                                 ;; remove-plist-keys form.  important to keep them in sync
                                 components pathname perform explain output-files operation-done-p
                                 weakly-depends-on depends-on serial
-                                do-first if-component-dep-fails (version nil versionp)
+                                do-first if-component-dep-fails version
                                 ;; list ends
          &allow-other-keys) options
       (declare (ignorable perform explain output-files operation-done-p builtin-system-p))

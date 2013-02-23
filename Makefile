@@ -200,3 +200,7 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 # dput mentors ../*.changes
 # send debian mentors request
 # send announcement to asdf-announce, asdf-devel, etc.
+#
+## Users don't release as above, only maintainers do.
+## Users, all you need to do is: make
+## Vendors, you may want to test your implementation with: make test l=sbcl

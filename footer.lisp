@@ -57,6 +57,3 @@
   (asdf-message ";; ASDF, version ~a~%" (asdf-version)))
 
 
-;;; Local Variables:
-;;; mode: lisp
-;;; End:

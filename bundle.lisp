@@ -143,7 +143,7 @@
     (unless name-suffix-p
       (setf (slot-value instance 'name-suffix)
             (unless (typep instance 'program-op)
-              (if (operation-monolithic-p instance) ".all-systems" #-ecl ".system"))))
+              (if (operation-monolithic-p instance) "--all-systems" #-ecl "--system")))) ; . no good for Logical Pathnames
     (when (typep instance 'monolithic-bundle-op)
       (destructuring-bind (&rest original-initargs
                            &key lisp-files prologue-code epilogue-code
