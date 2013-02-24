@@ -67,7 +67,7 @@
   (define-condition duplicate-names (system-definition-error)
     ((name :initarg :name :reader duplicate-names-name))
     (:report (lambda (c s)
-               (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~A~@:>")
+               (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~S~@:>")
                        (duplicate-names-name c)))))
 
   (defun sysdef-error-component (msg type name value)
@@ -87,18 +87,34 @@
       (sysdef-error-component ":components must be NIL or a list of components."
                               type name components)))
 
-  (defun normalize-version (form pathname)
-    (etypecase form
-      ((or string null) form)
-      (real
-       (asdf-message "Invalid use of real number ~D as :version in ~S. Substituting a string."
-                     form pathname)
-       (format nil "~D" form)) ;; 1.0 is "1.0"
-      (cons
-       (ecase (first form)
-         ((:read-file-form)
-          (destructuring-bind (subpath &key (at 0)) (rest form)
-            (safe-read-file-form (subpathname pathname subpath) :at at))))))))
+  (defun* (normalize-version) (form &key pathname component parent)
+    (labels ((invalid (&optional (continuation "using NIL instead"))
+               (warn (compatfmt "~@<Invalid :version specifier ~S~@[ for component ~S~]~@[ in ~S~]~@[ from file ~S~]~@[, ~A~]~@:>")
+                     form component parent pathname continuation))
+             (invalid-parse (control &rest args)
+               (unless (builtin-system-p (find-component parent component))
+                 (apply 'warn control args)
+                 (invalid))))
+      (if-let (v (typecase form
+                   ((or string null) form)
+                   (real
+                    (invalid "Substituting a string")
+                    (format nil "~D" form)) ;; 1.0 becomes "1.0"
+                   (cons
+                    (case (first form)
+                      ((:read-file-form)
+                       (destructuring-bind (subpath &key (at 0)) (rest form)
+                         (safe-read-file-form (subpathname pathname subpath) :at at)))
+                      ((:read-file-line)
+                       (destructuring-bind (subpath &key (at 0)) (rest form)
+                         (read-file-lines (subpathname pathname subpath) :at at)))
+                      (otherwise
+                       (invalid))))
+                   (t
+                    (invalid))))
+        (if-let (pv (parse-version v #'invalid-parse))
+          (unparse-version pv)
+          (invalid))))))
 
 
 ;;; Main parsing function
@@ -111,7 +127,7 @@
                                 ;; remove-plist-keys form.  important to keep them in sync
                                 components pathname perform explain output-files operation-done-p
                                 weakly-depends-on depends-on serial
-                                do-first if-component-dep-fails (version nil versionp)
+                                do-first if-component-dep-fails version
                                 ;; list ends
          &allow-other-keys) options
       (declare (ignorable perform explain output-files operation-done-p builtin-system-p))
@@ -142,13 +158,10 @@
             (apply 'reinitialize-instance component args)
             (setf component (apply 'make-instance (class-for-type parent type) args)))
         (component-pathname component) ; eagerly compute the absolute pathname
-        (let ((sysdir (system-source-directory (component-system component)))) ;; requires the previous
+        (let ((sysfile (system-source-file (component-system component)))) ;; requires the previous
           (when (and (typep component 'system) (not bspp))
-            (setf (builtin-system-p component) (lisp-implementation-pathname-p sysdir)))
-          (setf version (normalize-version version sysdir)))
-        (when (and versionp version (not (parse-version version nil)))
-          (warn (compatfmt "~@<Invalid version ~S for component ~S~@[ of ~S~]~@:>")
-                version name parent))
+            (setf (builtin-system-p component) (lisp-implementation-pathname-p sysfile)))
+          (setf version (normalize-version version :component name :parent parent :pathname sysfile)))
         ;; Don't use the accessor: kluge to avoid upgrade issue on CCL 1.8.
         ;; A better fix is required.
         (setf (slot-value component 'version) version)
@@ -192,6 +205,7 @@
              (component-options (remove-plist-key :class options))
              (defsystem-dependencies (loop :for spec :in defsystem-depends-on :collect
                                            (resolve-dependency-spec nil spec))))
+        (setf (gethash name *systems-being-defined*) system)
         (apply 'load-systems defsystem-dependencies)
         ;; We change-class AFTER we loaded the defsystem-depends-on
         ;; since the class might be defined as part of those.

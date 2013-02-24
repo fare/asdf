@@ -9,7 +9,7 @@
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
    #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
-   #:monolithic-op #:monolithic-bundle-op #:direct-dependency-files
+   #:monolithic-op #:monolithic-bundle-op #:bundlable-file-p #:direct-dependency-files
    #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
    #:program-op
    #:compiled-file #:precompiled-system #:prebuilt-system
@@ -143,7 +143,7 @@
     (unless name-suffix-p
       (setf (slot-value instance 'name-suffix)
             (unless (typep instance 'program-op)
-              (if (operation-monolithic-p instance) ".all-systems" #-ecl ".system"))))
+              (if (operation-monolithic-p instance) "--all-systems" #-ecl "--system")))) ; . no good for Logical Pathnames
     (when (typep instance 'monolithic-bundle-op)
       (destructuring-bind (&rest original-initargs
                            &key lisp-files prologue-code epilogue-code
@@ -168,10 +168,10 @@
   (defun bundlable-file-p (pathname)
     (let ((type (pathname-type pathname)))
       (declare (ignorable type))
-      (or #+ecl (or (equal type (compile-file-type :type :object))
-                    (equal type (compile-file-type :type :static-library)))
-          #+mkcl (equal type (compile-file-type :fasl-p nil))
-          #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equal type (compile-file-type)))))
+      (or #+ecl (or (equalp type (compile-file-type :type :object))
+                    (equalp type (compile-file-type :type :static-library)))
+          #+mkcl (equalp type (compile-file-type :fasl-p nil))
+          #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equalp type (compile-file-type)))))
 
   (defgeneric* (trivial-system-p) (component))
 
@@ -339,7 +339,7 @@
     (perform (find-operation o 'load-op) c))
   (defmethod perform ((o load-fasl-op) (c compiled-file))
     (perform (find-operation o 'load-op) c))
-  (defmethod perform (o (c compiled-file))
+  (defmethod perform ((o operation) (c compiled-file))
     (declare (ignorable o c))
     nil))
 
@@ -398,8 +398,8 @@
   #-(or ecl mkcl)
   (defmethod perform ((o fasl-op) (c system))
     (let* ((input-files (input-files o c))
-           (fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test-not #'string=))
-           (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'string=))
+           (fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test-not #'equalp))
+           (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'equalp))
            (output-files (output-files o c))
            (output-file (first output-files)))
       (unless input-files (format t "WTF no input-files for ~S on ~S !???" o c))
@@ -418,6 +418,9 @@
   (defmethod input-files ((o load-op) (s precompiled-system))
     (declare (ignorable o))
     (bundle-output-files (find-operation o 'fasl-op) s))
+
+  (defmethod perform ((o load-op) (s precompiled-system))
+    (perform-lisp-load-fasl o s))
 
   (defmethod component-depends-on ((o load-fasl-op) (s precompiled-system))
     (declare (ignorable o))

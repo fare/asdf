@@ -8,6 +8,7 @@
     (or (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
                           (find-symbol (string :*asdf-revision*) :asdf)))
         (string :1.x))))
+#-asdf2 (load (merge-pathnames "../build/asdf.lisp" *load-pathname*))
 #-asdf2 (error "Not ASDF2, you lose!")
 
 (in-package :asdf)

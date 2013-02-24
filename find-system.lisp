@@ -232,6 +232,25 @@ Going forward, we recommend new users should be using the source-registry.
                             (list new)
                             (subseq *central-registry* (1+ position))))))))))
 
+  (defvar *preloaded-systems* (make-hash-table :test 'equal))
+
+  (defun make-preloaded-system (name keys)
+    (apply 'make-instance (getf keys :class 'system)
+           :name name :source-file (getf keys :source-file)
+           (remove-plist-keys '(:class :name :source-file) keys)))
+
+  (defun sysdef-preloaded-system-search (requested)
+    (let ((name (coerce-name requested)))
+      (multiple-value-bind (keys foundp) (gethash name *preloaded-systems*)
+        (when foundp
+          (make-preloaded-system name keys)))))
+
+  (defun register-preloaded-system (system-name &rest keys)
+    (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
+
+  (register-preloaded-system "asdf" :version *asdf-version*)
+  (register-preloaded-system "asdf-driver" :version *asdf-version*)
+
   (defmethod find-system ((name null) &optional (error-p t))
     (declare (ignorable name))
     (when error-p
@@ -281,6 +300,46 @@ Going forward, we recommend new users should be using the source-registry.
             (with-muffled-loader-conditions ()
               (load* pathname :external-format external-format)))))))
 
+  (defvar *old-asdf-systems* (make-hash-table :test 'equal))
+
+  (defun check-not-old-asdf-system (name pathname)
+    (or (not (equal name "asdf"))
+        (null pathname)
+        (let* ((version-pathname (subpathname pathname "version.lisp-expr"))
+               (version (and (probe-file* version-pathname :truename nil)
+                             (read-file-form version-pathname)))
+               (old-version (asdf-version)))
+          (or (version<= old-version version)
+              (let ((old-pathname
+                      (if-let (pair (system-registered-p "asdf"))
+                        (system-source-file (cdr pair))))
+                    (key (list pathname old-version)))
+                (unless (gethash key *old-asdf-systems*)
+                  (setf (gethash key *old-asdf-systems*) t)
+                  (warn "~@<~
+        You are using ASDF version ~A ~:[(probably from (require \"asdf\") ~
+        or loaded by quicklisp)~;from ~:*~S~] and have an older version of ASDF ~
+        ~:[(and older than 2.27 at that)~;~:*~A~] registered at ~S. ~
+        Having an ASDF installed and registered is the normal way of configuring ASDF to upgrade itself, ~
+        and having an old version registered is a configuration error. ~
+        ASDF will ignore this configured system rather than downgrade itself. ~
+        In the future, you may want to either: ~
+        (a) upgrade this configured ASDF to a newer version, ~
+        (b) install a newer ASDF and register it in front of the former in your configuration, or ~
+        (c) uninstall or unregister this and any other old version of ASDF from your configuration. ~
+        Note that the older ASDF might be registered implicitly through configuration inherited ~
+        from your system installation, in which case you might have to specify ~
+        :ignore-inherited-configuration in your in your ~~/.config/common-lisp/source-registry.conf ~
+        or other source-registry configuration file, environment variable or lisp parameter. ~
+        Indeed, a likely offender is an obsolete version of the cl-asdf debian or ubuntu package, ~
+        that you might want to upgrade (if a recent enough version is available) ~
+        or else remove altogether (since most implementations ship with a recent asdf); ~
+        if you lack the system administration rights to upgrade or remove this package, ~
+        then you might indeed want to either install and register a more recent version, ~
+        or use :ignore-inherited-configuration to avoid registering the old one. ~
+        Please consult ASDF documentation and/or experts.~@:>~%"
+                    old-version old-pathname version pathname)))))))
+
   (defun locate-system (name)
     "Given a system NAME designator, try to locate where to load the system from.
 Returns five values: FOUNDP FOUND-SYSTEM PATHNAME PREVIOUS PREVIOUS-TIME
@@ -298,12 +357,20 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
            (previous-time (car in-memory))
            (found (search-for-system-definition name))
            (found-system (and (typep found 'system) found))
-           (pathname (or (and (typep found '(or pathname string)) (pathname found))
-                         (and found-system (system-source-file found-system))
-                         (and previous (system-source-file previous))))
-           (pathname (ensure-pathname (resolve-symlinks* pathname) :want-absolute t))
+           (pathname (ensure-pathname
+                      (or (and (typep found '(or pathname string)) (pathname found))
+                          (and found-system (system-source-file found-system))
+                          (and previous (system-source-file previous)))
+                     :want-absolute t :resolve-symlinks *resolve-symlinks*))
            (foundp (and (or found-system pathname previous) t)))
       (check-type found (or null pathname system))
+      (unless (check-not-old-asdf-system name pathname)
+        (cond
+          (previous (setf found nil pathname nil))
+          (t
+           (setf found (sysdef-preloaded-system-search "asdf"))
+           (assert (typep found 'system))
+           (setf found-system found pathname nil))))
       (values foundp found-system pathname previous previous-time)))
 
   (defmethod find-system ((name string) &optional (error-p t))
@@ -329,7 +396,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                                                       (translate-logical-pathname pathname)
                                                       (translate-logical-pathname previous-pathname))))
                                             (stamp<= stamp previous-time))))))
-                  ;; only load when it's a pathname that is different or has newer content
+                  ;; only load when it's a pathname that is different or has newer content, and not an old asdf
                   (load-asd pathname :name name)))
               (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
                 (return
@@ -343,19 +410,5 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (reinitialize-source-registry-and-retry ()
             :report (lambda (s)
                       (format s (compatfmt "~@<Retry finding system ~A after reinitializing the source-registry.~@:>") name))
-            (initialize-source-registry))))))
-
-  (defvar *preloaded-systems* (make-hash-table :test 'equal))
-
-  (defun sysdef-preloaded-system-search (requested)
-    (let ((name (coerce-name requested)))
-      (multiple-value-bind (keys foundp) (gethash name *preloaded-systems*)
-        (when foundp
-          (apply 'make-instance 'system :name name :source-file (getf keys :source-file) keys)))))
-
-  (defun register-preloaded-system (system-name &rest keys)
-    (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
-
-  (register-preloaded-system "asdf" :version *asdf-version*)
-  (register-preloaded-system "asdf-driver" :version *asdf-version*))
+            (initialize-source-registry)))))))
 

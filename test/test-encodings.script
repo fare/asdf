@@ -54,7 +54,7 @@
   (with-encoding-test (:default)
     (def-test-system :test-encoding-explicit-default
       :components ((:file "lambda" :encoding :default))))
-  (with-encoding-test (:default)
+  (with-encoding-test (:utf-8)
     (def-test-system :test-encoding-implicit-default
       :components ((:file "lambda")))))
 

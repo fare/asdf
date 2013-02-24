@@ -93,17 +93,19 @@ You can put together sentences using this phrase."))
      "Returns a list of dependencies needed by the component to perform
     the operation.  A dependency has one of the following forms:
 
-      (<operation> <component>*), where <operation> is a class
-        designator and each <component> is a component
-        designator, which means that the component depends on
+      (<operation> <component>*), where <operation> is an operation designator
+        with respect to FIND-OPERATION in the context of the OPERATION argument,
+        and each <component> is a component designator with respect to
+        FIND-COMPONENT in the context of the COMPONENT argument,
+        and means that the component depends on
         <operation> having been performed on each <component>; or
 
       (FEATURE <feature>), which means that the component depends
-        on <feature>'s presence in *FEATURES*.
+        on the <feature> expression satisfying FEATUREP.
+        (This is DEPRECATED -- use :IF-FEATURE instead.)
 
     Methods specialized on subclasses of existing component types
-    should usually append the results of CALL-NEXT-METHOD to the
-    list."))
+    should usually append the results of CALL-NEXT-METHOD to the list."))
   (defgeneric component-self-dependencies (operation component))
   (define-convenience-action-methods component-depends-on (operation component))
   (define-convenience-action-methods component-self-dependencies (operation component))

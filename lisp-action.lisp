@@ -106,7 +106,7 @@
                                     "~/asdf-action::format-action/" (list (cons o c))))))
 
   (defun report-file-p (f)
-    (equal (pathname-type f) "build-report"))
+    (equalp (pathname-type f) "build-report"))
   (defun perform-lisp-warnings-check (o c)
     (let* ((expected-warnings-files (remove-if-not #'warnings-file-p (input-files o c)))
            (actual-warnings-files (loop :for w :in expected-warnings-files
@@ -255,4 +255,5 @@
   (defmethod component-depends-on ((o test-op) (c system))
     (declare (ignorable o))
     `((load-op ,c) ,@(call-next-method))))
+
 

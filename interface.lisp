@@ -48,6 +48,7 @@
    #:monolithic-load-compiled-concatenated-source-op
    #:operation-monolithic-p
    #:required-components
+   #:component-loaded-p
 
    #:component #:parent-component #:child-component #:system #:module
    #:file-component #:source-file #:c-source-file #:java-source-file
