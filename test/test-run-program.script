@@ -1,5 +1,3 @@
-#+xcvb
-
 (declaim (optimize (debug 3) (safety 3)))
 
 (assert-equal '("ok 1") (run-program "echo ok 1" :output :lines))

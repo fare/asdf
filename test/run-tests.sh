@@ -23,6 +23,8 @@ usage () {
 }
 
 unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively
+SHELL=/bin/sh
+export SHELL
 
 while getopts "cdthulhu" OPTION
 do
