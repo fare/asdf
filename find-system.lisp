@@ -234,13 +234,16 @@ Going forward, we recommend new users should be using the source-registry.
 
   (defvar *preloaded-systems* (make-hash-table :test 'equal))
 
+  (defun make-preloaded-system (name keys)
+    (apply 'make-instance (getf keys :class 'system)
+           :name name :source-file (getf keys :source-file)
+           (remove-plist-keys '(:class :name :source-file) keys)))
+
   (defun sysdef-preloaded-system-search (requested)
     (let ((name (coerce-name requested)))
       (multiple-value-bind (keys foundp) (gethash name *preloaded-systems*)
         (when foundp
-          (apply 'make-instance (getf keys :class 'system)
-                 :name name :source-file (getf keys :source-file)
-                 (remove-plist-keys '(:class :name :source-file) keys))))))
+          (make-preloaded-system name keys)))))
 
   (defun register-preloaded-system (system-name &rest keys)
     (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
