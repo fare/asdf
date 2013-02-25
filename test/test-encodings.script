@@ -31,7 +31,7 @@
          (loop :for o :in (output-files 'compile-op c)
                :do (delete-file-if-exists o)))
        ,@(when op
-           `((operate ',op ',(second def-test-system))))
+           `((operate ',op ',(second def-test-system) :force t)))
        ,@body
        (eval `(assert-equal (string-char-codes ,*lambda-string*)
                             (expected-char-codes ',',encoding))))))
