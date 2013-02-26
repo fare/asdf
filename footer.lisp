@@ -34,11 +34,12 @@
     (setf #+ecl ext:*module-provider-functions* #+mkcl mk-ext::*module-provider-functions*
           (loop :for f :in #+ecl ext:*module-provider-functions*
                 #+mkcl mk-ext::*module-provider-functions*
-                :unless (eq f 'module-provide-asdf)
-                  :collect #'(lambda (name)
-                               (let ((l (multiple-value-list (funcall f name))))
-                                 (and (first l) (register-pre-built-system (coerce-name name)))
-                                 (values-list l)))))))
+                :collect
+                (if (eq f 'module-provide-asdf) f
+                    #'(lambda (name)
+                        (let ((l (multiple-value-list (funcall f name))))
+                          (and (first l) (register-pre-built-system (coerce-name name)))
+                          (values-list l))))))))
 
 
 ;;;; Done!
