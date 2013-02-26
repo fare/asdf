@@ -360,13 +360,14 @@ test_clean_load () {
     case $lisp in
         gcl|cmucl) return 0 ;; # These are hopeless
     esac
+    mkdir -p build/results
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
     ${cmd} ${eval} \
       '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::exit-lisp 0))' \
         > $nop 2>&1
     ${cmd} ${eval} \
-      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(load "build/asdf.lisp" :verbose nil) #.(asdf/image:quit 0))' \
+      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::verbose nil) #.(load "build/asdf.lisp" :verbose nil) #.(asdf/image:quit 0))' \
         > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
