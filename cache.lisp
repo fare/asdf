@@ -22,13 +22,13 @@
                (setf (gethash key *asdf-cache*) value-list)
                value-list)))
 
-  (defun consult-asdf-cache (key thunk)
+  (defun consult-asdf-cache (key &optional thunk)
     (if *asdf-cache*
         (multiple-value-bind (results foundp) (gethash key *asdf-cache*)
           (if foundp
               (apply 'values results)
-              (set-asdf-cache-entry key (multiple-value-list (funcall thunk)))))
-        (funcall thunk)))
+              (set-asdf-cache-entry key (multiple-value-list (call-function thunk)))))
+        (call-function thunk)))
 
   (defmacro do-asdf-cache (key &body body)
     `(consult-asdf-cache ,key #'(lambda () ,@body)))

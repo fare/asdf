@@ -176,7 +176,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
            :do (loop :with dep-o = (find-operation operation dep-o-spec)
                      :for dep-c-spec :in dep-c-specs
                      :for dep-c = (resolve-dependency-spec component dep-c-spec)
-                     :do (funcall fun dep-o dep-c))))
+                     :when (and dep-o dep-c)
+                       :do (funcall fun dep-o dep-c))))
 
   (defun reduce-direct-dependencies (operation component combinator seed)
     (map-direct-dependencies

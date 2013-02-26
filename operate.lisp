@@ -140,18 +140,48 @@ for how to load or compile stuff")
   (defun require-system (s &rest keys &key &allow-other-keys)
     (apply 'load-system s :force-not (already-loaded-systems) keys))
 
+  (defvar *modules-being-required* nil)
+
+  (defclass require-system (system)
+    ((module :initarg :module :initform nil :accessor required-module)))
+
+  (defmethod perform ((o compile-op) (c require-system))
+    (declare (ignorable o c))
+    nil)
+
+  (defmethod perform ((o load-op) (s require-system))
+    (declare (ignorable o))
+    (let* ((module (or (required-module s) (coerce-name s)))
+           (*modules-being-required* (cons module *modules-being-required*)))
+      (assert (null (component-children s)))
+      (require module)))
+
+  (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
+    (declare (ignorable component combinator))
+    (unless (length=n-p arguments 1)
+      (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes only one argument~@:>")
+             (cons combinator arguments) component combinator))
+    (let* ((module (car arguments))
+           (name (string-downcase module)))
+      (assert module)
+      (make-instance 'require-system :name name)))
+
   (defun module-provide-asdf (name)
-    (handler-bind
-        ((style-warning #'muffle-warning)
-         (missing-component (constantly nil))
-         (error #'(lambda (e)
-                    (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
-                            name e))))
-      (let ((*verbose-out* (make-broadcast-stream))
-            (system (find-system (string-downcase name) nil)))
-        (when system
-          (require-system system :verbose nil)
-          t)))))
+    (let ((module (string-downcase name)))
+      (unless (member module *modules-being-required* :test 'equal)
+        (let ((*modules-being-required* (cons module *modules-being-required*))
+              #+sbcl (sb-impl::*requiring* (remove module sb-impl::*requiring* :test 'equal)))
+          (handler-bind
+              ((style-warning #'muffle-warning)
+               (missing-component (constantly nil))
+               (error #'(lambda (e)
+                          (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
+                                  name e))))
+            (let ((*verbose-out* (make-broadcast-stream)))
+              (let ((system (find-system module nil)))
+                (when system
+                  (require-system system :verbose nil)
+                  t)))))))))
 
 
 ;;;; Some upgrade magic

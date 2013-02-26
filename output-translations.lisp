@@ -263,27 +263,27 @@ effectively disabling the output translation facility."
         (initialize-output-translations)))
 
   (defun* (apply-output-translations) (path)
-    #+cormanlisp (resolve-symlinks* path) #-cormanlisp
-                                          (etypecase path
-                                            (logical-pathname
-                                             path)
-                                            ((or pathname string)
-                                             (ensure-output-translations)
-                                             (loop* :with p = (resolve-symlinks* path)
-                                                    :for (source destination) :in (car *output-translations*)
-                                                    :for root = (when (or (eq source t)
-                                                                          (and (pathnamep source)
-                                                                               (not (absolute-pathname-p source))))
-                                                                  (pathname-root p))
-                                                    :for absolute-source = (cond
-                                                                             ((eq source t) (wilden root))
-                                                                             (root (merge-pathnames* source root))
-                                                                             (t source))
-                                                    :when (or (eq source t) (pathname-match-p p absolute-source))
-                                                    :return (translate-pathname* p absolute-source destination root source)
-                                                    :finally (return p)))))
+    (etypecase path
+      (logical-pathname
+       path)
+      ((or pathname string)
+       (ensure-output-translations)
+       (loop* :with p = (resolve-symlinks* path)
+              :for (source destination) :in (car *output-translations*)
+              :for root = (when (or (eq source t)
+                                    (and (pathnamep source)
+                                         (not (absolute-pathname-p source))))
+                            (pathname-root p))
+              :for absolute-source = (cond
+                                       ((eq source t) (wilden root))
+                                       (root (merge-pathnames* source root))
+                                       (t source))
+              :when (or (eq source t) (pathname-match-p p absolute-source))
+              :return (translate-pathname* p absolute-source destination root source)
+              :finally (return p)))))
 
   ;; Hook into asdf/driver's output-translation mechanism
+  #-cormanlisp
   (setf *output-translation-function* 'apply-output-translations)
 
   #+abcl

@@ -1,3 +1,4 @@
+* have a mode to explain WHY a module needs to be recompiled.
 * have a better defsystem form verifier - see lp#1007335
 * have a function verify-strict-asd that can verify a asd is pure lp#541562
   Then if it passes, use load-strict-asd.
