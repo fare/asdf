@@ -52,7 +52,10 @@
     (declare (ignorable context))
     spec)
   (defmethod find-operation (context (spec symbol))
-    (apply 'make-operation spec (operation-original-initargs context)))
+    (unless (member spec '(nil feature))
+      ;; specially avoid the "FEATURE" misfeature from ASDF1.
+      ;; Also, NIL designates itself.
+      (apply 'make-operation spec (operation-original-initargs context))))
   (defmethod operation-original-initargs ((context symbol))
     (declare (ignorable context))
     nil)

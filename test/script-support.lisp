@@ -447,8 +447,10 @@ is bound, write a message and exit on an error.  If
   (acall :compile-file-pathname* (test-source file)))
 
 (defun clean-asdf-system ()
-  (let ((fasl (resolve-output "asdf" "build" "asdf.fasl")))
-    (when (DBG :clean fasl (probe-file fasl)) (delete-file fasl))))
+  ;; If compiled by an antique ASDFs without output translations:
+  (acall :delete-file-if-exists (compile-file-pathname (acall :subpathname *asdf-directory* "build/asdf.fasl")))
+  ;; If compiled by a ASDF2 or later with output translations:
+  (acall :delete-file-if-exists (resolve-output "asdf" "build" "asdf.fasl")))
 
 (defun load-asdf-lisp-clean ()
   (load-asdf-lisp)

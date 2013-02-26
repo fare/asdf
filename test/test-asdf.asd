@@ -30,6 +30,9 @@
   :depends-on ((:version :test-asdf/test9-2 "2.0")))
 
 (defsystem :test-asdf/test-module-depend
+  :depends-on
+  ((:feature :sbcl (:require :sb-posix))
+   (:feature :allegro (:require "osi")))
   :components
   ((:file "file1")
    (:module "quux"

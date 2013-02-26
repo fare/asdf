@@ -172,11 +172,12 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (with-upgradability ()
   (defun map-direct-dependencies (operation component fun)
     (loop* :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
-           :unless (eq dep-o-spec 'feature) ;; avoid the "FEATURE" misfeature
-           :do (loop :with dep-o = (find-operation operation dep-o-spec)
-                     :for dep-c-spec :in dep-c-specs
-                     :for dep-c = (resolve-dependency-spec component dep-c-spec)
-                     :do (funcall fun dep-o dep-c))))
+           :for dep-o = (find-operation operation dep-o-spec)
+           :when dep-o
+           :do (loop :for dep-c-spec :in dep-c-specs
+                     :for dep-c = (and dep-c-spec (resolve-dependency-spec component dep-c-spec))
+                     :when dep-c
+                       :do (funcall fun dep-o dep-c))))
 
   (defun reduce-direct-dependencies (operation component combinator seed)
     (map-direct-dependencies
