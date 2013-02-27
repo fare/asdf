@@ -5,9 +5,9 @@
   (:recycle :asdf/utility :asdf)
   (:use :asdf/common-lisp :asdf/package)
   ;; import and reexport a few things defined in :asdf/common-lisp
-  (:import-from :asdf/common-lisp #:compatfmt #:loop* #:remove-substrings
+  (:import-from :asdf/common-lisp #:compatfmt #:loop* #:frob-substrings
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
-  (:export #:compatfmt #:loop* #:remove-substrings #:compatfmt
+  (:export #:compatfmt #:loop* #:frob-substrings #:compatfmt
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:

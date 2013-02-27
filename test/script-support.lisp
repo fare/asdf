@@ -448,9 +448,11 @@ is bound, write a message and exit on an error.  If
 
 (defun clean-asdf-system ()
   ;; If compiled by an antique ASDFs without output translations:
-  (acall :delete-file-if-exists (compile-file-pathname (acall :subpathname *asdf-directory* "build/asdf.fasl")))
-  ;; If compiled by a ASDF2 or later with output translations:
-  (acall :delete-file-if-exists (resolve-output "asdf" "build" "asdf.fasl")))
+  (flet ((d (x) (acall :delete-file-if-exists x)))
+    (let ((asdf-fasl (compile-file-pathname (asdf-lisp))))
+      (d asdf-fasl)
+      (d (acall :apply-output-translations asdf-fasl))
+      (d (asdf-fasl)))))
 
 (defun load-asdf-lisp-clean ()
   (load-asdf-lisp)
@@ -470,8 +472,8 @@ is bound, write a message and exit on an error.  If
   (when (asym :initialize-output-translations)
     (acall :initialize-output-translations
            `(:output-translations
-             (,(namestring *asdf-directory*) ,(output-location "asdf"))
-             (t ,(output-location "root"))
+             (,(acall :wilden *asdf-directory*) ,(acall :wilden (resolve-output "asdf/")))
+             (t ,(acall :wilden (resolve-output "root")))
              :ignore-inherited-configuration)))
   (when (asym :*central-registry*)
     (set (asym :*central-registry*) `(,*test-directory*)))

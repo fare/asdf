@@ -48,8 +48,9 @@
     (or (loop :for symbol :in (list
                                type
                                (find-symbol* type *package* nil)
-                               (find-symbol* type :asdf/interface nil))
-              :for class = (and symbol (find-class* symbol nil))
+                               (find-symbol* type :asdf/interface nil)
+                               (and (stringp type) (safe-read-from-string type :package :asdf/interface)))
+              :for class = (and symbol (symbolp symbol) (find-class* symbol nil))
               :when (and class
                          (#-cormanlisp subtypep #+cormanlisp cl::subclassp
                           class (find-class* 'component)))

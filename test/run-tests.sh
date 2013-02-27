@@ -317,6 +317,8 @@ valid_upgrade_test_p () {
 }
 run_upgrade_tests () {
     cd ${ASDFDIR}
+    ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
+    export ASDF_OUTPUT_TRANSLATIONS
     su=test/script-support.lisp
     for tag in `upgrade_tags` ; do
         for method in `upgrade_methods` ; do

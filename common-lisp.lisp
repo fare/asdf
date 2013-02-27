@@ -147,24 +147,33 @@
 
 ;;;; compatfmt: avoid fancy format directives when unsupported
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun remove-substrings (substrings string)
+  (defun frob-substrings (string substrings &optional frob)
+    (declare (optimize (speed 0) (safety 3) (debug 3)))
     (let ((length (length string)) (stream nil))
-      (labels ((emit (start end)
-                 (when (and (zerop start) (= end length))
-                   (return-from remove-substrings string))
+      (labels ((emit-string (x &optional (start 0) (end (length x)))
                  (when (< start end)
                    (unless stream (setf stream (make-string-output-stream)))
-                   (write-string string stream :start start :end end)))
+                   (write-string x stream :start start :end end)))
+               (emit-substring (start end)
+                 (when (and (zerop start) (= end length))
+                   (return-from frob-substrings string))
+                 (emit-string string start end))
                (recurse (substrings start end)
                  (cond
                    ((>= start end))
-                   ((null substrings) (emit start end))
-                   (t (let* ((sub (first substrings))
+                   ((null substrings) (emit-substring start end))
+                   (t (let* ((sub-spec (first substrings))
+                             (sub (if (consp sub-spec) (car sub-spec) sub-spec))
+                             (fun (if (consp sub-spec) (cdr sub-spec) frob))
                              (found (search sub string :start2 start :end2 end))
                              (more (rest substrings)))
                         (cond
                           (found
                            (recurse more start found)
+                           (etypecase fun
+                             (null)
+                             (string (emit-string fun))
+                             (function (funcall fun sub #'emit-string)))
                            (recurse substrings (+ found (length sub)) end))
                           (t
                            (recurse more start end))))))))
@@ -173,7 +182,7 @@
 
   (defmacro compatfmt (format)
     #+(or gcl genera)
-    (remove-substrings `("~3i~_" #+(or genera gcl2.6) ,@'("~@<" "~@;" "~@:>" "~:>")) format)
+    (frob-substrings format `("~3i~_" #+(or genera gcl2.6) ,@'("~@<" "~@;" "~@:>" "~:>")))
     #-(or gcl genera) format))
 
 
