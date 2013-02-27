@@ -9,7 +9,7 @@
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*
-   #:with-safe-io-syntax #:call-with-safe-io-syntax
+   #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file
    #:finish-outputs #:format! #:safe-format!
@@ -110,7 +110,11 @@ and implementation-defined external-format's")
             (*read-default-float-format* 'double-float)
             (*print-readably* nil)
             (*read-eval* nil))
-        (funcall thunk)))))
+        (funcall thunk))))
+
+  (defun safe-read-from-string (string &key (package :cl) (eof-error-p t) eof-value (start 0) end preserve-whitespace)
+    (with-safe-io-syntax (:package package)
+      (read-from-string string eof-error-p eof-value :start start :end end :preserve-whitespace preserve-whitespace))))
 
 
 ;;; Output to a stream or string, FORMAT-style
