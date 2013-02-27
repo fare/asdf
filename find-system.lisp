@@ -7,7 +7,7 @@
    :asdf/component :asdf/system :asdf/cache)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
-   #:coerce-name #:primary-system-name
+   #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:locate-system #:load-asd #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:system-definition-error #:missing-component #:missing-requires #:missing-parent
@@ -68,6 +68,9 @@
     ;; When a system name has slashes, the file with defsystem is named by
     ;; the first of the slash-separated components.
     (first (split-string (coerce-name name) :separator "/")))
+
+  (defun coerce-filename (name)
+    (frob-substrings (coerce-name name) '("/" ":" "\\") "--"))
 
   (defvar *defined-systems* (make-hash-table :test 'equal)
     "This is a hash table whose keys are strings, being the
@@ -271,6 +274,12 @@ Going forward, we recommend new users should be using the source-registry.
         (call-with-asdf-cache thunk)
         (let ((*systems-being-defined* (make-hash-table :test 'equal)))
           (call-with-asdf-cache thunk))))
+
+  (defun clear-systems-being-defined ()
+    (when *systems-being-defined*
+      (clrhash *systems-being-defined*)))
+
+  (register-hook-function '*post-upgrade-cleanup-hook* 'clear-systems-being-defined)
 
   (defmacro with-system-definitions ((&optional) &body body)
     `(call-with-system-definitions #'(lambda () ,@body)))

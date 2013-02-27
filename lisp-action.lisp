@@ -5,7 +5,8 @@
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/cache :asdf/component :asdf/system :asdf/find-component :asdf/operation :asdf/action)
+   :asdf/cache :asdf/component :asdf/system :asdf/find-component :asdf/find-system
+   :asdf/operation :asdf/action)
   (:export
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
@@ -159,7 +160,7 @@
   (defmethod output-files ((o compile-op) (c system))
     (when (and *warnings-file-type* (not (builtin-system-p c)))
       (if-let ((pathname (component-pathname c)))
-        (list (subpathname pathname (component-name c) :type "build-report"))))))
+        (list (subpathname pathname (coerce-filename c) :type "build-report"))))))
 
 ;;; load-op
 (with-upgradability ()
