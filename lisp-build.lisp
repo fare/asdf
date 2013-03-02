@@ -192,7 +192,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
       ((or number character simple-string pathname) sexp)
       (cons (cons (reify-simple-sexp (car sexp)) (reify-simple-sexp (cdr sexp))))
       (simple-vector (vector (mapcar 'reify-simple-sexp (coerce sexp 'list))))))
-    
+
   (defun unreify-simple-sexp (sexp)
     (etypecase sexp
       ((or symbol number character simple-string pathname) sexp)
@@ -214,15 +214,21 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
         (destructuring-bind (&key filename start-pos end-pos source) source-note
           (ccl::make-source-note :filename filename :start-pos start-pos :end-pos end-pos
                                  :source (unreify-source-note source)))))
+    (defun unsymbolify-function-name (name)
+      (if-let (setfed (gethash name ccl::%setf-function-name-inverses%))
+        `(setf ,setfed)
+        name))
+    (defun symbolify-function-name (name)
+      (if (and (consp name) (eq (first name) 'setf))
+          (let ((setfed (second name)))
+            (gethash setfed ccl::%setf-function-names%))
+          name))
     (defun reify-function-name (function-name)
-      (if-let (setfed (gethash function-name ccl::%setf-function-name-inverses%))
-	      `(setf ,setfed)
-	      function-name))
+      (let ((name (or (first function-name) ;; defun: extract the name
+                      (first (second function-name))))) ;; defmethod: keep gf name, drop method specializers
+        (list name)))
     (defun unreify-function-name (function-name)
-      (if (and (consp function-name) (eq (first function-name) 'setf))
-	  (let ((setfed (second function-name)))
-	    (gethash setfed ccl::%setf-function-names%))
-	function-name))
+      function-name)
     (defun reify-deferred-warning (deferred-warning)
       (with-accessors ((warning-type ccl::compiler-warning-warning-type)
                        (args ccl::compiler-warning-args)
@@ -230,8 +236,11 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                        (function-name ccl:compiler-warning-function-name)) deferred-warning
         (list :warning-type warning-type :function-name (reify-function-name function-name)
               :source-note (reify-source-note source-note)
-              :args (destructuring-bind (fun . formals) args
-                      (cons (reify-function-name fun) formals)))))
+              :args (destructuring-bind (fun formals env) args
+                      (declare (ignorable env))
+                      (list (unsymbolify-function-name fun)
+                            (mapcar (constantly nil) formals)
+                            nil)))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)
           reified-deferred-warning
@@ -241,7 +250,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                         :source-note (unreify-source-note source-note)
                         :warning-type warning-type
                         :args (destructuring-bind (fun . formals) args
-                                (cons (unreify-function-name fun) formals))))))
+                                (cons (symbolify-function-name fun) formals))))))
   #+(or cmu scl)
   (defun reify-undefined-warning (warning)
     ;; Extracting undefined-warnings from the compilation-unit
@@ -461,7 +470,7 @@ possibly in a different process."
             (unreify-deferred-warnings
              (handler-case (safe-read-file-form file)
                (error (c)
-                 (delete-file-if-exists file)
+                 ;;(delete-file-if-exists file) ;; deleting forces rebuild but prevents debugging
                  (push c file-errors)
                  nil))))))
       (dolist (error file-errors) (error error))
