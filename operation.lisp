@@ -2,7 +2,7 @@
 ;;;; Operations
 
 (asdf/package:define-package :asdf/operation
-  (:recycle :asdf/operation :asdf)
+  (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:operation

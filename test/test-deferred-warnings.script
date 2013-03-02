@@ -2,6 +2,8 @@
 
 (in-package :asdf-test)
 
+(enable-deferred-warnings-check)
+
 (def-test-system :unintern-foo
   :components ((:file "unintern-foo")))
 (def-test-system :use-foo-only

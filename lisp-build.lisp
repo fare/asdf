@@ -22,6 +22,7 @@
    #:reify-deferred-warnings #:reify-undefined-warning #:unreify-deferred-warnings
    #:reset-deferred-warnings #:save-deferred-warnings #:check-deferred-warnings
    #:with-saved-deferred-warnings #:warnings-file-p #:warnings-file-type #:*warnings-file-type*
+   #:enable-deferred-warnings-check #:disable-deferred-warnings-check
    #:current-lisp-file-pathname #:load-pathname
    #:lispize-pathname #:compile-file-type #:call-around-hook
    #:compile-file* #:compile-file-pathname*
@@ -446,8 +447,14 @@ possibly in a different process."
       ((:clozure :ccl) "ccl-warnings")
       ((:scl) "scl-warnings")))
 
-  (defvar *warnings-file-type* (warnings-file-type)
+  (defvar *warnings-file-type* nil
     "Type for warnings files")
+
+  (defun enable-deferred-warnings-check ()
+    (setf *warnings-file-type* (warnings-file-type)))
+
+  (defun disable-deferred-warnings-check ()
+    (setf *warnings-file-type* nil))
 
   (defun warnings-file-p (file &optional implementation-type)
     (if-let (type (if implementation-type
