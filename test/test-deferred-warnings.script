@@ -2,6 +2,8 @@
 
 (in-package :asdf-test)
 
+(enable-deferred-warnings-check)
+
 (def-test-system :unintern-foo
   :components ((:file "unintern-foo")))
 (def-test-system :use-foo-only
@@ -28,22 +30,15 @@
   :components ((:file "use-setf-foo") (:file "defsetf-foo")))
 
 (DBG :tdw0 *compile-file-warnings-behaviour*)
-(assert
- (handler-case
-     (let ((*compile-file-warnings-behaviour* :ignore))
-       (load-system :use-foo-only :force t))
-   (error (c)
-     (DBG :cfwbi c)
-     nil)))
+(handler-bind
+    ((error (lambda (c) (DBG :cfwbi-ufo c))))
+  (let ((*compile-file-warnings-behaviour* :ignore))
+    (load-system :use-foo-only :force t)))
 
-(assert
- (handler-case
-     (let ((*compile-file-warnings-behaviour* :ignore))
-       (load-system :use-setf-foo-only :force t)
-       t)
-   (error (c)
-     (DBG :cfwbi c)
-     nil)))
+(handler-bind
+    ((error (lambda (c) (DBG :cfwbi-usfo c))))
+  (let ((*compile-file-warnings-behaviour* :ignore))
+    (load-system :use-setf-foo-only :force t)))
 
 (DBG :tdw1 *warnings-file-type*)
 (assert
@@ -79,6 +74,7 @@
 
 (load-system :use-setf-then-defun-foo)
 
+;;#+clozure (format t "~S~%" asdf/lisp-build::*warnings*)
 ;;#+clozure (trace load compile-file check-deferred-warnings check-lisp-compile-warnings)
 
 ;; FIXME: on CCL, the defmacro warning is found while loading the defmacro fasl.

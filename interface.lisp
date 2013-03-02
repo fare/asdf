@@ -134,7 +134,7 @@
    #:apply-output-translations
    #:compile-file*
    #:compile-file-pathname*
-   #:*warnings-file-type*
+   #:*warnings-file-type* #:enable-deferred-warnings-check #:disable-deferred-warnings-check
    #:enable-asdf-binary-locations-compatibility
    #:*default-source-registries*
    #:*source-registry-parameter*

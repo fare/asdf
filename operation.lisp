@@ -2,15 +2,13 @@
 ;;;; Operations
 
 (asdf/package:define-package :asdf/operation
-  (:recycle :asdf/operation :asdf)
+  (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:operation
    #:operation-original-initargs ;; backward-compatibility only. DO NOT USE.
    #:build-op ;; THE generic operation
-   #:*operations*
-   #:make-operation
-   #:find-operation))
+   #:*operations* #:make-operation #:find-operation #:feature))
 (in-package :asdf/operation)
 
 ;;; Operation Classes
@@ -53,8 +51,8 @@
     spec)
   (defmethod find-operation (context (spec symbol))
     (unless (member spec '(nil feature))
-      ;; specially avoid the "FEATURE" misfeature from ASDF1.
-      ;; Also, NIL designates itself.
+      ;; NIL designates itself, i.e. absence of operation
+      ;; FEATURE is the ASDF1 misfeature that comes with IF-COMPONENT-DEP-FAILS
       (apply 'make-operation spec (operation-original-initargs context))))
   (defmethod operation-original-initargs ((context symbol))
     (declare (ignorable context))
