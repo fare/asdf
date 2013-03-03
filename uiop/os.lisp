@@ -1,9 +1,10 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Access to the Operating System
 
-(asdf/package:define-package :asdf/os
-  (:recycle :asdf/os :asdf)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility)
+(uiop/package:define-package :uiop/os
+  (:nicknames :asdf/os)
+  (:recycle :uiop/os :asdf/os :asdf)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility)
   (:export
    #:featurep #:os-unix-p #:os-windows-p #:os-genera-p #:detect-os ;; features
    #:getenv #:getenvp ;; environment variables
@@ -14,7 +15,7 @@
    ;; Windows shortcut support
    #:read-null-terminated-string #:read-little-endian
    #:parse-file-location-info #:parse-windows-shortcut))
-(in-package :asdf/os)
+(in-package :uiop/os)
 
 ;;; Features
 (with-upgradability ()
@@ -218,7 +219,7 @@ then returning the non-empty string value of the variable"
         #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
         #+ecl (ext:getcwd)
         #+gcl (parse-namestring ;; this is a joke. Isn't there a better way?
-               (first (symbol-call :asdf/driver :run-program '("/bin/pwd") :output :lines)))
+               (first (symbol-call :uiop :run-program '("/bin/pwd") :output :lines)))
         #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
         #+lispworks (system:current-directory)
         #+mkcl (mk-ext:getcwd)

@@ -1,10 +1,11 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Support to build (compile and load) Lisp files
 
-(asdf/package:define-package :asdf/lisp-build
-  (:recycle :asdf/interface :asdf :asdf/lisp-build)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility
-   :asdf/os :asdf/pathname :asdf/filesystem :asdf/stream :asdf/image)
+(uiop/package:define-package :uiop/lisp-build
+  (:nicknames :asdf/lisp-build)
+  (:recycle :uiop/lisp-build :asdf/lisp-build :asdf)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility
+   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image)
   (:export
    ;; Variables
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
@@ -28,7 +29,7 @@
    #:compile-file* #:compile-file-pathname*
    #:load* #:load-from-string #:combine-fasls)
   (:intern #:defaults #:failure-p #:warnings-p #:s #:y #:body))
-(in-package :asdf/lisp-build)
+(in-package :uiop/lisp-build)
 
 (with-upgradability ()
   (defvar *compile-file-warnings-behaviour*

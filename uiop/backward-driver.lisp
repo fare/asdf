@@ -1,17 +1,18 @@
 ;;;; -------------------------------------------------------------------------
 ;;; Hacks for backward-compatibility of the driver
 
-(asdf/package:define-package :asdf/backward-driver
-  (:recycle :asdf/backward-driver :asdf)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility
-   :asdf/pathname :asdf/stream :asdf/os :asdf/image
-   :asdf/run-program :asdf/lisp-build
-   :asdf/configuration)
+(uiop/package:define-package :uiop/backward-driver
+  (:nicknames :asdf/backward-driver)
+  (:recycle :uiop/backward-driver :asdf/backward-driver :asdf)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility
+   :uiop/pathname :uiop/stream :uiop/os :uiop/image
+   :uiop/run-program :uiop/lisp-build
+   :uiop/configuration)
   (:export
    #:coerce-pathname #:component-name-to-pathname-components
    #+(or ecl mkcl) #:compile-file-keeping-object
    ))
-(in-package :asdf/backward-driver)
+(in-package :uiop/backward-driver)
 
 ;;;; Backward compatibility with various pathname functions.
 

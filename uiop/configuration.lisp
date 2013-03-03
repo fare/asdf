@@ -1,10 +1,11 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Generic support for configuration files
 
-(asdf/package:define-package :asdf/configuration
-  (:recycle :asdf/configuration :asdf)
-  (:use :asdf/common-lisp :asdf/utility
-   :asdf/os :asdf/pathname :asdf/filesystem :asdf/stream :asdf/image)
+(uiop/package:define-package :uiop/configuration
+  (:nicknames :asdf/configuration)
+  (:recycle :uiop/configuration :asdf/configuration :asdf)
+  (:use :uiop/common-lisp :uiop/utility
+   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories
@@ -16,7 +17,7 @@
    #:*clear-configuration-hook* #:clear-configuration #:register-clear-configuration-hook
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
    #:resolve-relative-location #:resolve-absolute-location #:upgrade-configuration))
-(in-package :asdf/configuration)
+(in-package :uiop/configuration)
 
 (with-upgradability ()
   (define-condition invalid-configuration ()

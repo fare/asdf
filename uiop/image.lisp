@@ -1,9 +1,10 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Starting, Stopping, Dumping a Lisp image
 
-(asdf/package:define-package :asdf/image
-  (:recycle :asdf/image :xcvb-driver)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/pathname :asdf/stream :asdf/os)
+(uiop/package:define-package :uiop/image
+  (:nicknames :asdf/image)
+  (:recycle :uiop/image :asdf/image :xcvb-driver)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/pathname :uiop/stream :uiop/os)
   (:export
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments
@@ -18,7 +19,7 @@
    #:call-image-restore-hook #:call-image-dump-hook
    #:restore-image #:dump-image #:create-image
 ))
-(in-package :asdf/image)
+(in-package :uiop/image)
 
 (with-upgradability ()
   (defvar *lisp-interaction* t

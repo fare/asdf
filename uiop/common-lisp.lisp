@@ -6,11 +6,11 @@
 ;;; A few functions are defined here, but actually exported from utility;
 ;;; from this package only common-lisp symbols are exported.
 
-(asdf/package:define-package :asdf/common-lisp
-  (:nicknames :asdf/cl)
-  (:use #-genera :common-lisp #+genera :future-common-lisp :asdf/package)
+(uiop/package:define-package :uiop/common-lisp
+  (:nicknames :uoip/cl :asdf/common-lisp :asdf/cl)
+  (:use #-genera :common-lisp #+genera :future-common-lisp :uiop/package)
   (:reexport :common-lisp)
-  (:recycle :asdf/common-lisp :asdf)
+  (:recycle :uiop/common-lisp :uoip/cl :asdf/common-lisp :asdf/cl :asdf)
   #+allegro (:intern #:*acl-warn-save*)
   #+cormanlisp (:shadow #:user-homedir-pathname)
   #+cormanlisp
@@ -22,7 +22,7 @@
   #+genera (:shadowing-import-from :scl #:boolean)
   #+genera (:export #:boolean #:ensure-directories-exist)
   #+mcl (:shadow #:user-homedir-pathname))
-(in-package :asdf/common-lisp)
+(in-package :uiop/common-lisp)
 
 #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
 (error "ASDF is not supported on your implementation. Please help us port it.")
@@ -73,13 +73,13 @@
 
 #+gcl2.6
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (shadow 'type-of :asdf/common-lisp)
-  (shadowing-import 'system:*load-pathname* :asdf/common-lisp))
+  (shadow 'type-of :uiop/common-lisp)
+  (shadowing-import 'system:*load-pathname* :uiop/common-lisp))
 
 #+gcl2.6
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (export 'type-of :asdf/common-lisp)
-  (export 'system:*load-pathname* :asdf/common-lisp))
+  (export 'type-of :uiop/common-lisp)
+  (export 'system:*load-pathname* :uiop/common-lisp))
 
 #+gcl2.6 ;; Doesn't support either logical-pathnames or output-translations.
 (eval-when (:load-toplevel :compile-toplevel :execute)

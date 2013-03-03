@@ -24,6 +24,11 @@
   (native-namestring *asdf-dir*))
 (defun apath (x &rest keys) (apply 'subpathname *asdf-dir* x keys))
 
+;;; UIOP directory
+(defvar *uiop-dir* (subpathname *asdf-dir* "uiop/"))
+(defparameter /uiop-dir/ (native-namestring *uiop-dir*))
+(defun upath (x &rest keys) (apply 'subpathname *uiop-dir* x keys))
+
 
 ;;; build directory
 (defparameter *build-dir*
@@ -99,7 +104,7 @@
       (error "Destination ~S already exists, not taking chances - you can delete it yourself."
              destination))
     (ensure-directories-exist destination)
-    (run (format nil "cd ~S && cp -lax --parents ~{~S ~} ~S"
+    (run (format nil "cd ~S && cp -pHux ~{~S ~} ~S"
                  /base/ /files/ /destination/) :show t)
     (run (format nil "tar zcfC ~S ~S ~S/"
                  /tarball/ /build-dir/ name) :show t)
@@ -107,12 +112,13 @@
     (values)))
 
 (defun driver-files ()
-  (list* "asdf-driver.asd" "version.lisp-expr"
-         (system-source-files :asdf-driver)))
+  (DBG :df
+  (list* "uiop.asd" "../asdf-driver.asd" "version.lisp-expr"
+         (system-source-files :asdf-driver))))
 (defun driver-name ()
-  (format nil "asdf-driver-~A" *version*))
+  (format nil "uiop-~A" *version*))
 (defun make-driver-tarball ()
-  (make-tarball-under-build (driver-name) *asdf-dir* (driver-files)))
+  (make-tarball-under-build (driver-name) *uiop-dir* (driver-files)))
 
 (defun asdf-defsystem-files ()
   (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
@@ -161,7 +167,7 @@
 (defun link-archive ()
   (run (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
                (tarname (driver-name))
-               (strcat *clnet-asdf-public* "archives/asdf-driver.tar.gz")
+               (strcat *clnet-asdf-public* "archives/uiop.tar.gz")
                (tarname (asdf-defsystem-name))
                (strcat *clnet-asdf-public* "archives/asdf-defsystem.tar.gz")
                (tarname (asdf-git-name))

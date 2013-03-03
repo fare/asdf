@@ -1,9 +1,10 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Portability layer around Common Lisp filesystem access
 
-(asdf/package:define-package :asdf/filesystem
-  (:recycle :asdf/pathname :asdf)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os :asdf/pathname)
+(uiop/package:define-package :uiop/filesystem
+  (:nicknames :asdf/filesystem)
+  (:recycle :uiop/filesystem :asdf/pathname :asdf)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os :uiop/pathname)
   (:export
    ;; Native namestrings
    #:native-namestring #:parse-native-namestring
@@ -24,7 +25,7 @@
    #:ensure-all-directories-exist
    #:rename-file-overwriting-target
    #:delete-file-if-exists))
-(in-package :asdf/filesystem)
+(in-package :uiop/filesystem)
 
 ;;; Native namestrings, as seen by the operating system calls rather than Lisp
 (with-upgradability ()
