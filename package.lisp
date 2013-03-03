@@ -3,14 +3,14 @@
 ;;
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;
-;; CAUTION: we must handle the first few packages specially for hot-upgrade.
-;; asdf/package will be frozen as of ASDF 3
-;; to forever export the same exact symbols.
-;; Any other symbol must be import-from'ed
-;; and reexported in a different package
-;; (alternatively the package may be dropped & replaced by one with a new name).
 
 (defpackage :asdf/package
+  ;; CAUTION: we must handle the first few packages specially for hot-upgrade.
+  ;; This package definition MUST NOT change unless its name too changes;
+  ;; if/when it changes, don't forget to add new functions missing from below.
+  ;; Until then, asdf/package is frozen to forever
+  ;; import and export the same exact symbols as for ASDF 2.27.
+  ;; Any other symbol must be import-from'ed and re-export'ed in a different package.
   (:use :common-lisp)
   (:export
    #:find-package* #:find-symbol* #:symbol-call
@@ -61,6 +61,12 @@ or when loading the package is optional."
     (let* ((package (find-package* package-designator))
            (symbol (intern* name package)))
       (export (or symbol (list symbol)) package)))
+  (defun import* (symbol package-designator)
+    (import (or symbol (list symbol)) (find-package* package-designator)))
+  (defun shadowing-import* (symbol package-designator)
+    (shadowing-import (or symbol (list symbol)) (find-package* package-designator)))
+  (defun shadow* (name package-designator)
+    (shadow (string name) (find-package* package-designator)))
   (defun make-symbol* (name)
     (etypecase name
       (string (make-symbol name))
@@ -179,8 +185,8 @@ or when loading the package is optional."
       (multiple-value-bind (sym stat) (find-symbol name package)
         (when (and (member stat '(:internal :external)) (eq symbol sym))
           (if (symbol-shadowing-p symbol package)
-              (shadowing-import (get-dummy-symbol symbol) package)
-              (unintern symbol package))))))
+              (shadowing-import* (get-dummy-symbol symbol) package)
+              (unintern* symbol package))))))
   (defun nuke-symbol (symbol &optional (packages (list-all-packages)))
     #+(or clisp clozure)
     (multiple-value-bind (setf-symbol kind)
@@ -205,18 +211,18 @@ or when loading the package is optional."
              (package-name package) overwritten-symbol-status overwritten-symbol-shadowing-p)
             (when old-package
               (if shadowing
-                  (shadowing-import shadowing old-package))
-              (unintern symbol old-package))
+                  (shadowing-import* shadowing old-package))
+              (unintern* symbol old-package))
             (cond
               (overwritten-symbol-shadowing-p
-               (shadowing-import symbol package))
+               (shadowing-import* symbol package))
               (t
                (when overwritten-symbol-status
-                 (unintern overwritten-symbol package))
-               (import symbol package)))
+                 (unintern* overwritten-symbol package))
+               (import* symbol package)))
             (if shadowing
-                (shadowing-import symbol old-package)
-                (import symbol old-package))
+                (shadowing-import* symbol old-package)
+                (import* symbol old-package))
             #+(or clisp clozure)
             (multiple-value-bind (setf-symbol kind)
                 (get-setf-function-symbol symbol)
@@ -229,7 +235,7 @@ or when loading the package is optional."
                    (symbol-name setf-symbol) (symbol-package-name setf-symbol)
                    (symbol-name new-setf-symbol) (symbol-package-name new-setf-symbol))
                   (when (symbol-package setf-symbol)
-                    (unintern setf-symbol (symbol-package setf-symbol)))
+                    (unintern* setf-symbol (symbol-package setf-symbol)))
                   (setf (fdefinition new-setf-symbol) setf-function)
                   (set-setf-function-symbol new-setf-symbol symbol kind))))
             #+(or clisp clozure)
@@ -356,7 +362,34 @@ or when loading the package is optional."
               (or (home-package-p import-me from-package) (symbol-package-name import-me))
               (package-name to-package) status
               (and status (or (home-package-p existing to-package) (symbol-package-name existing)))))
-           (shadowing-import import-me to-package))))))
+           (shadowing-import* import-me to-package))))))
+  (defun ensure-imported (import-me into-package &optional from-package)
+    (check-type import-me symbol)
+    (check-type into-package package)
+    (check-type from-package (or null package))
+    (let ((name (symbol-name import-me)))
+      (multiple-value-bind (existing status) (find-symbol name into-package)
+        (cond
+          ((not status)
+           (import* import-me into-package))
+          ((eq import-me existing))
+          (t
+           (let ((shadowing-p (symbol-shadowing-p existing into-package)))
+             (note-package-fishiness
+              :ensure-imported name
+              (and from-package (package-name from-package))
+              (or (home-package-p import-me from-package) (symbol-package-name import-me))
+              (package-name into-package)
+              status
+              (and status (or (home-package-p existing into-package) (symbol-package-name existing)))
+              shadowing-p)
+             (cond
+               ((or shadowing-p (eq status :inherited))
+                (shadowing-import* import-me into-package))
+               (t
+                (unintern* existing into-package)
+                (import* import-me into-package))))))))
+    (values))
   (defun ensure-import (name to-package from-package shadowed imported)
     (check-type name string)
     (check-type to-package package)
@@ -367,27 +400,18 @@ or when loading the package is optional."
       (when (null import-status)
         (note-package-fishiness
          :import-uninterned name (package-name from-package) (package-name to-package))
-        (setf import-me (intern name from-package)))
+        (setf import-me (intern* name from-package)))
       (multiple-value-bind (existing status) (find-symbol name to-package)
         (cond
-          ((gethash name imported)
-           (unless (eq import-me existing)
+          ((and imported (gethash name imported))
+           (unless (and status (eq import-me existing))
              (error "Can't import ~S from both ~S and ~S"
                     name (package-name (symbol-package existing)) (package-name from-package))))
           ((gethash name shadowed)
            (error "Can't both shadow ~S and import it from ~S" name (package-name from-package)))
           (t
-           (setf (gethash name imported) t)
-           (unless (and status (eq import-me existing))
-             (when status
-               (note-package-fishiness
-                :import name
-                (package-name from-package)
-                (or (home-package-p import-me from-package) (symbol-package-name import-me))
-                (package-name to-package) status
-                (and status (or (home-package-p existing to-package) (symbol-package-name existing))))
-               (unintern* existing to-package))
-             (import import-me to-package)))))))
+           (setf (gethash name imported) t))))
+      (ensure-imported import-me to-package from-package)))
   (defun ensure-inherited (name symbol to-package from-package mixp shadowed imported inherited)
     (check-type name string)
     (check-type symbol symbol)
@@ -405,7 +429,7 @@ or when loading the package is optional."
           (note-package-fishiness
            :import-uninterned name
            (package-name from-package) (package-name to-package) mixp)
-          (import symbol from-package)
+          (import* symbol from-package)
           (setf sp (package-name from-package)))
         (cond
           ((gethash name shadowed))
@@ -478,7 +502,7 @@ or when loading the package is optional."
   (defun symbol-recycled-p (sym recycle)
     (check-type sym symbol)
     (check-type recycle list)
-    (member (symbol-package sym) recycle))
+    (and (member (symbol-package sym) recycle) t))
   (defun ensure-symbol (name package intern recycle shadowed imported inherited exported)
     (check-type name string)
     (check-type package package)
@@ -512,6 +536,7 @@ or when loading the package is optional."
     (check-type symbol symbol)
     (check-type to-package package)
     (check-type recycle list)
+    (assert (equal name (symbol-name symbol)))
     (multiple-value-bind (existing status) (find-symbol name to-package)
       (unless (and status (eq symbol existing))
         (let ((accessible
@@ -525,7 +550,7 @@ or when loading the package is optional."
                          (or (home-package-p existing to-package) (symbol-package-name existing))
                          status shadowing)
                         (if (or (eq status :inherited) shadowing)
-                            (shadowing-import symbol to-package)
+                            (shadowing-import* symbol to-package)
                             (unintern existing to-package))
                         t)))))
           (when (and accessible (eq status :external))
@@ -533,7 +558,8 @@ or when loading the package is optional."
   (defun ensure-exported (name symbol from-package &optional recycle)
     (dolist (to-package (package-used-by-list from-package))
       (ensure-exported-to-user name symbol to-package recycle))
-    (import symbol from-package)
+    (unless (eq from-package (symbol-package symbol))
+      (ensure-imported symbol from-package))
     (export* name from-package))
   (defun ensure-export (name from-package &optional recycle)
     (multiple-value-bind (symbol status) (find-symbol* name from-package)
@@ -615,9 +641,9 @@ or when loading the package is optional."
                    (note-package-fishiness
                     :shadow-imported (package-name package) name
                     (symbol-package-name existing) status shadowing)
-                   (shadowing-import dummy package)
-                   (import dummy package)))))))
-        (shadow name package))
+                   (shadowing-import* dummy package)
+                   (import* dummy package)))))))
+        (shadow* name package))
       (loop :for (p . syms) :in shadowing-import-from
             :for pp = (find-package* p) :do
               (dolist (sym syms) (ensure-shadowing-import (string sym) package pp shadowed imported)))

@@ -79,7 +79,6 @@
     asdf/action:accept
     asdf/action:action
     asdf/action:done-p
-    asdf/action:feature
     asdf/action:stamp
     asdf/bundle:prologue-code
     asdf/bundle:build-args
@@ -110,6 +109,7 @@
     asdf/component:sibling-dependencies
     asdf/component:version
     asdf/lisp-action:flags
+    asdf/operation:feature
     asdf/plan:index
     asdf/plan:forced
     asdf/plan:forced-not
