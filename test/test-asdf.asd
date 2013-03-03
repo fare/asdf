@@ -35,7 +35,8 @@
   ((:feature :sbcl (:require :sb-posix))
    (:feature :allegro (:require "osi")))
   :components
-  ((:file "file1")
+  ((:file "file1" :if-feature :common-lisp)
+   (:file "doesnt-exist" :if-feature (:not :common-lisp))
    (:module "quux"
     :pathname ""
     :depends-on ("file1")
