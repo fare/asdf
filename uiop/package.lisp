@@ -14,7 +14,7 @@
   (:use :common-lisp)
   (:export
    #:find-package* #:find-symbol* #:symbol-call
-   #:intern* #:export* #:import* #:shadowing-export* #:shadow* #:make-symbol* #:unintern*
+   #:intern* #:export* #:import* #:shadowing-import* #:shadow* #:make-symbol* #:unintern*
    #:symbol-shadowing-p #:home-package-p
    #:symbol-package-name #:standard-common-lisp-symbol-p
    #:reify-package #:unreify-package #:reify-symbol #:unreify-symbol

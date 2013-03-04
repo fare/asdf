@@ -16,6 +16,7 @@
 ;; Try to load lisp-invocation from xcvb
 (setf *central-registry*
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
+            (subpathname *asdf-directory* "uiop/")
             ;; try finding xcvb's lisp-invocation right next to asdf.
             (subpathname *asdf-directory* "../xcvb/")))
 (unless (find-system :lisp-invocation nil)

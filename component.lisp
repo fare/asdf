@@ -12,7 +12,8 @@
    #:file-component
    #:source-file #:c-source-file #:java-source-file
    #:static-file #:doc-file #:html-file
-   #:source-file-type ;; backward-compatibility
+   #:file-type
+   #:source-file-type #:source-file-explicit-type ;; backward-compatibility
    #:component-in-order-to #:component-sibling-dependencies
    #:component-if-feature #:around-compile-hook
    #:component-description #:component-long-description
@@ -143,7 +144,8 @@ another pathname in a degenerate way."))
   (defclass file-component (child-component)
     ((type :accessor file-type :initarg :type))) ; no default
   (defclass source-file (file-component)
-    ((type :initform nil))) ;; NB: many systems have come to rely on this default.
+    ((type :accessor source-file-explicit-type ;; backward-compatibility
+           :initform nil))) ;; NB: many systems have come to rely on this default.
   (defclass c-source-file (source-file)
     ((type :initform "c")))
   (defclass java-source-file (source-file)

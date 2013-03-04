@@ -64,6 +64,7 @@
 ;; Try to load asdf-encodings
 (setf *central-registry*
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
+            (subpathname *asdf-directory* "uiop/") ;; be sure that *OUR* asdf is first of any possible ASDF
             ;; try finding asdf-encodings it right next to asdf.
             (subpathname *asdf-directory* "../asdf-encodings/")))
 (unless (find-system :asdf-encodings nil)
