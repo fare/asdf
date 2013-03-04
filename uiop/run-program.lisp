@@ -1,9 +1,10 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; run-program initially from xcvb-driver.
 
-(asdf/package:define-package :asdf/run-program
-  (:recycle :asdf/run-program :xcvb-driver)
-  (:use :asdf/common-lisp :asdf/utility :asdf/pathname :asdf/os :asdf/filesystem :asdf/stream)
+(uiop/package:define-package :uiop/run-program
+  (:nicknames :asdf/run-program)
+  (:recycle :uiop/run-program :asdf/run-program :xcvb-driver)
+  (:use :uiop/common-lisp :uiop/utility :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream)
   (:export
    ;;; Escaping the command invocation madness
    #:easy-sh-character-p #:escape-sh-token #:escape-sh-command
@@ -16,7 +17,7 @@
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
    ))
-(in-package :asdf/run-program)
+(in-package :uiop/run-program)
 
 ;;;; ----- Escaping strings for the shell -----
 

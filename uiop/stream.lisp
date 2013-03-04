@@ -1,9 +1,10 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Utilities related to streams
 
-(asdf/package:define-package :asdf/stream
-  (:recycle :asdf/stream)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os :asdf/pathname :asdf/filesystem)
+(uiop/package:define-package :uiop/stream
+  (:nicknames :asdf/stream)
+  (:recycle :uiop/stream :asdf/stream :asdf)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os :uiop/pathname :uiop/filesystem)
   (:export
    #:*default-stream-element-type* #:*stderr* #:setup-stderr
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
@@ -24,7 +25,7 @@
    #:call-with-temporary-file #:with-temporary-file
    #:add-pathname-suffix #:tmpize-pathname
    #:call-with-staging-pathname #:with-staging-pathname))
-(in-package :asdf/stream)
+(in-package :uiop/stream)
 
 (with-upgradability ()
   (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)

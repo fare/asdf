@@ -4,7 +4,7 @@
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 ;;
 
-(defpackage :asdf/package
+(defpackage :uiop/package
   ;; CAUTION: we must handle the first few packages specially for hot-upgrade.
   ;; This package definition MUST NOT change unless its name too changes;
   ;; if/when it changes, don't forget to add new functions missing from below.
@@ -14,17 +14,17 @@
   (:use :common-lisp)
   (:export
    #:find-package* #:find-symbol* #:symbol-call
-   #:intern* #:unintern* #:export* #:make-symbol*
-   #:symbol-shadowing-p #:home-package-p #:rehome-symbol
+   #:intern* #:export* #:import* #:shadowing-export* #:shadow* #:make-symbol* #:unintern*
+   #:symbol-shadowing-p #:home-package-p
    #:symbol-package-name #:standard-common-lisp-symbol-p
    #:reify-package #:unreify-package #:reify-symbol #:unreify-symbol
-   #:nuke-symbol-in-package #:nuke-symbol
+   #:nuke-symbol-in-package #:nuke-symbol #:rehome-symbol
    #:ensure-package-unused #:delete-package*
-   #:fresh-package-name #:rename-package-away #:package-names #:packages-from-names
+   #:package-names #:packages-from-names #:fresh-package-name #:rename-package-away
    #:package-definition-form #:parse-define-package-form
    #:ensure-package #:define-package))
 
-(in-package :asdf/package)
+(in-package :uiop/package)
 
 ;;;; General purpose package utilities
 
@@ -731,3 +731,6 @@ or when loading the package is optional."
      (pushnew :gcl2.6 *features*))
     (t
      (pushnew :gcl2.7 *features*))))
+
+;; Compatibility with whoever calls asdf/package
+(define-package :asdf/package (:use :cl :uiop/package) (:reexport :uiop/package))

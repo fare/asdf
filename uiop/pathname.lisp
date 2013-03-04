@@ -3,9 +3,10 @@
 ;; This layer allows for portable manipulation of pathname objects themselves,
 ;; which all is necessary prior to any access the filesystem or environment.
 
-(asdf/package:define-package :asdf/pathname
-  (:recycle :asdf/pathname :asdf)
-  (:use :asdf/common-lisp :asdf/package :asdf/utility :asdf/os)
+(uiop/package:define-package :uiop/pathname
+  (:nicknames :asdf/pathname)
+  (:recycle :uiop/pathname :asdf/pathname :asdf)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os)
   (:export
    ;; Making and merging pathnames, portably
    #:normalize-pathname-directory-component #:denormalize-pathname-directory-component
@@ -37,7 +38,7 @@
    #:directory-separator-for-host #:directorize-pathname-host-device
    #:translate-pathname*
    #:*output-translation-function*))
-(in-package :asdf/pathname)
+(in-package :uiop/pathname)
 
 ;;; Normalizing pathnames across implementations
 

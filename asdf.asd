@@ -14,14 +14,14 @@
   ;; Note that it's polite to sort the defsystem forms in dependency order,
   ;; and compulsory to sort them in defsystem-depends-on order.
   :version (:read-file-form "version.lisp-expr")
-  :around-compile call-without-redefinition-warnings ;; we need be the same as asdf-driver
+  :around-compile call-without-redefinition-warnings ;; we need be the same as uiop
   :encoding :utf-8
   :components
   ((:file "header")))
 
 #+asdf3
 (defsystem :asdf/driver
-  :depends-on (:asdf-driver))
+  :depends-on (:uiop))
 
 #+asdf3
 (defsystem :asdf/defsystem
@@ -31,7 +31,7 @@
   :description "The portable defsystem for Common Lisp"
   :long-description "ASDF/DEFSYSTEM is the de facto standard DEFSYSTEM facility for Common Lisp,
    a successor to Dan Barlow's ASDF and Francois-Rene Rideau's ASDF2.
-   For bootstrap purposes, it comes bundled with ASDF/DRIVER in a single file, asdf.lisp."
+   For bootstrap purposes, it comes bundled with UIOP in a single file, asdf.lisp."
   :homepage "http://common-lisp.net/projects/asdf/"
   :bug-tracker "https://launchpad.net/asdf/"
   :mailto "asdf-devel@common-lisp.net"
@@ -74,12 +74,12 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.31.8" ;; to be automatically updated by make bump-version
+  :version "2.31.9" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   ;; For most purposes, asdf itself specially counts as a builtin system.
   ;; If you want to link it or do something forbidden to builtin systems,
-  ;; specify separate dependencies on asdf-driver and asdf-defsystem.
+  ;; specify separate dependencies on UIOP (aka asdf-driver) and asdf/defsystem.
   #+asdf3 :builtin-system-p #+asdf3 t
   :components ((:module "build" :components ((:file "asdf"))))
   :in-order-to (#+asdf3 (prepare-op (monolithic-concatenate-source-op :asdf/defsystem))))

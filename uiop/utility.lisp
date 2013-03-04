@@ -1,11 +1,12 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; General Purpose Utilities for ASDF
 
-(asdf/package:define-package :asdf/utility
-  (:recycle :asdf/utility :asdf)
-  (:use :asdf/common-lisp :asdf/package)
+(uiop/package:define-package :uiop/utility
+  (:nicknames :asdf/utility)
+  (:recycle :uiop/utility :asdf/utility :asdf)
+  (:use :uiop/common-lisp :uiop/package)
   ;; import and reexport a few things defined in :asdf/common-lisp
-  (:import-from :asdf/common-lisp #:compatfmt #:loop* #:frob-substrings
+  (:import-from :uiop/common-lisp #:compatfmt #:loop* #:frob-substrings
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export #:compatfmt #:loop* #:frob-substrings #:compatfmt
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
@@ -29,7 +30,7 @@
    #:call-with-muffled-conditions #:with-muffled-conditions
    #:lexicographic< #:lexicographic<=
    #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p)) ;; version
-(in-package :asdf/utility)
+(in-package :uiop/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
 ;; DEFUN* and DEFGENERIC* use FMAKUNBOUND to delete any previous fdefinition,
@@ -91,7 +92,7 @@
 (with-upgradability ()
   (defvar *asdf-debug-utility*
     '(or (ignore-errors
-          (symbol-call :asdf :system-relative-pathname :asdf-driver "contrib/debug.lisp"))
+          (symbol-call :asdf :system-relative-pathname :asdf "contrib/debug.lisp"))
       (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
     "form that evaluates to the pathname to your favorite debugging utilities")
 
