@@ -6,6 +6,6 @@
 
 (with-test ()
   (register-directory *asdf-directory*) ;; we need asdf-driver, and ECL can dump.
-  (register-directory (subpathname *asdf-directory* "uiop/"))
+  (register-directory *uiop-directory*)
   (operate 'load-fasl-op :hello-world-example)
   (operate 'program-op :hello-world-example))

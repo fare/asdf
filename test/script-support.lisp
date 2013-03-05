@@ -161,6 +161,8 @@ Some constraints:
 (defun back-dir () #-gcl :back #+gcl :parent)
 (defparameter *asdf-directory*
   (truename (make-sub-pathname :directory (relative-dir (back-dir)) :defaults *test-directory*)))
+(defparameter *uiop-directory*
+  (truename (make-sub-pathname :directory (relative-dir "uiop") :defaults *asdf-directory*)))
 (defparameter *build-directory*
   (make-sub-pathname :directory (relative-dir "build") :defaults *asdf-directory*))
 (defparameter *implementation*
@@ -326,6 +328,7 @@ is bound, write a message and exit on an error.  If
 (defun load-asdf-system (&rest keys)
   (quietly
    (register-directory *asdf-directory*)
+   (register-directory *uiop-directory*)
    (apply (asym :oos) (asym :load-op) :asdf keys)))
 
 (defun call-with-asdf-conditions (thunk &optional verbose)

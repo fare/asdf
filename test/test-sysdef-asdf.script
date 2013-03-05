@@ -7,6 +7,6 @@
 (initialize-source-registry
  `(:source-registry
    (:directory ,*asdf-directory*)
-   (:directory ,(subpathname *asdf-directory* "uiop/"))
+   (:directory ,*uiop-directory*)
    :ignore-inherited-configuration))
 (load-system :asdf)
