@@ -52,7 +52,10 @@
         <p>ASDF stands for <em>A</em>nother <em>S</em>ystem <em>D</em>efinition <em>F</em>acility,
           in the continuity of the Lisp <tt>DEFSYSTEM</tt> of yore.
         </p>
-        <p><tt>asdf/driver</tt> is a Common Lisp portability library and runtime support system
+        <p><tt>asdf/driver</tt>,
+          also known as <tt>uiop</tt>,
+          the Utilities for Implementation- and OS- Portability,
+          is a Common Lisp portability library and runtime support system
           that helps you write Common Lisp software in a portable way.
         </p>
         <p>In addition to many general-purpose Lisp utilities,
@@ -260,7 +263,7 @@ Peter Graves <gnooth@gmail.com>
             <tt>common-lisp-controller</tt> and <tt>cl-launch</tt> used to provide similar mechanisms,
             and have also been superseded by <tt>asdf-output-translations</tt>.
           </li>
-	  <li><tt>asdf-bundle</tt>, née <tt>asdf-ecl</tt>,
+	  <li><tt>asdf-bundle</tt>, n&eacute;e <tt>asdf-ecl</tt>,
             allowed you to create a single-file bundle out of a system,
             for easier delivery.
             It is now a builtin part of <tt>asdf/defsystem</tt>,
@@ -268,12 +271,14 @@ Peter Graves <gnooth@gmail.com>
             or (on supported implementations), a standalone executable program.
           </li>
 	  <li><tt>asdf-utils</tt> was a collection of utilities that originated with ASDF.
-            It is now superseded by <tt>asdf/driver</tt>, which is part of ASDF,
-            and exports its functionality in its own package <tt>asdf/driver</tt>.
+            It is now superseded by <tt>asdf/driver</tt>, aka <tt>uiop</tt>,
+            which is part of ASDF,
+            and exports its functionality
+            in its own package <tt>uiop</tt>.
           </li>
 	  <li><tt>asdf-condition-control</tt>, initially part of XCVB's <tt>xcvb-driver</tt>,
             allowed you to muffle uninteresting conditions during compilation.
-            Is now superseded by equivalent functionality in <tt>asdf/driver</tt>.
+            Is now superseded by equivalent functionality in <tt>uiop</tt>.
           </li>
 	</ul>
 
@@ -374,7 +379,7 @@ Peter Graves <gnooth@gmail.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2013 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2013-03-02</div>
+        <div id="timestamp">Last updated 2013-03-03</div>
     </div>
   </body>
 </html>

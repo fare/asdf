@@ -54,6 +54,7 @@
    #:file-component #:source-file #:c-source-file #:java-source-file
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:static-file #:doc-file #:html-file
+   #:file-type
    #:source-file-type
 
    #:component-children          ; component accessors
