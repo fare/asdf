@@ -1,3 +1,6 @@
+* use cl-test-grid to see if asdf-user can :use most of UIOP.
+  Unhappily, on SBCL, sb-grovel uses asdf and sb-ext,
+  which causes a clash with run-program.
 * have some automated test to make sure asdf-driver works with asdf 2.26
 * have a mode to explain WHY a componnet needs to be recompiled.
 * have a better defsystem form verifier - see lp#1007335
