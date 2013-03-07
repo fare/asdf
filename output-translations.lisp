@@ -48,7 +48,10 @@ and the order is by decreasing length of namestring of the source pathname.")
                                     (let ((directory (pathname-directory (car x))))
                                       (if (listp directory) (length directory) 0))))))))
     new-value)
-  (defsetf output-translations set-output-translations) ; works with gcl 2.6
+  #-gcl2.6
+  (defun* ((setf output-translations)) (new-value) (set-output-translations new-value))
+  #+gcl2.6
+  (defsetf output-translations set-output-translations)
 
   (defun output-translations-initialized-p ()
     (and *output-translations* t))
