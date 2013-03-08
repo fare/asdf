@@ -20,13 +20,14 @@ usage () {
     echo "    -c -- clean load test"
     echo "    -l -- load systems tests"
     echo "    -t -- test interactively"
+    echo "    -H -- extract all asdf versions to upgrade from"
 }
 
-unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively
+unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively extract_all
 SHELL=/bin/sh
 export SHELL
 
-while getopts "cdthulhu" OPTION
+while getopts "cdtHulhu" OPTION
 do
     case $OPTION in
         d)
@@ -43,6 +44,9 @@ do
             ;;
         t)
             test_interactively=t
+            ;;
+        H)
+            extract_all=t
             ;;
         h)
             usage
@@ -264,14 +268,14 @@ upgrade_methods () {
 EOF
 }
 extract_tagged_asdf () {
-    ver=$1
-    if [ REQUIRE = "$ver" ] ; then return 0 ; fi
+    tag=$1
+    if [ REQUIRE = "$tag" ] ; then return 0 ; fi
     file=build/asdf-${tag}.lisp ;
     if [ ! -f $file ] ; then
-        case $ver in
+        case $tag in
             1.*|2.0*|2.2[0-6]|2.26.61)
                 git show ${tag}:asdf.lisp > $file ;;
-            2.2*|3.*)
+            2.[2-9]*|3.*)
                 mkdir -p build/old/build
                 git archive ${tag} Makefile '*.lisp' | (cd build/old/ ; tar xf -)
                 make -C build/old
@@ -284,6 +288,11 @@ extract_tagged_asdf () {
                 ;;
         esac
     fi
+}
+extract_all_tagged_asdf () {
+    for i in `upgrade_tags` ; do
+      extract_tagged_asdf $i
+    done
 }
 valid_upgrade_test_p () {
     case "${1}:${2}:${3}" in
@@ -400,6 +409,8 @@ elif [ -n "$load_systems" ] ; then
     test_load_systems "$@"
 elif [ -n "$upgrade" ] ; then
     run_upgrade_tests
+elif [ -n "$extract_all" ] ; then
+    extract_all_tagged_asdf
 else
     run_tests "$@"
 fi ; exit # NB: "; exit" makes it robust wrt the script being modified while running.

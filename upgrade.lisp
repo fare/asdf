@@ -52,7 +52,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.32")
+         (asdf-version "2.32.2")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -86,12 +86,12 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
              #:resolve-relative-location-component #:resolve-absolute-location-component
              #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
     (declare (ignorable redefined-functions uninterned-symbols))
-    (loop :for name :in (append #-(or ecl) redefined-functions)
+    (loop :for name :in (append redefined-functions)
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
               (fmakunbound sym)))
     (loop :with asdf = (find-package :asdf)
-          :for name :in (append #+(or ecl) redefined-functions uninterned-symbols) ;XXX
+          :for name :in uninterned-symbols
           :for sym = (find-symbol* name :asdf nil)
           :for base-pkg = (and sym (symbol-package sym)) :do
             (when sym
