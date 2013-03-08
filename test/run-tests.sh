@@ -264,6 +264,7 @@ upgrade_methods () {
 'load-asdf-lisp'load-asdf-system
 'load-asdf-lisp'compile-load-asdf
 'load-asdf-lisp'load-asdf-fasl
+'load-asdf-lisp-and-test-uiop'load-asdf-fasl
 ()'load-asdf-fasl
 EOF
 }

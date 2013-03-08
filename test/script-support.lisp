@@ -501,6 +501,16 @@ is bound, write a message and exit on an error.  If
   (setf *package* (find-package :asdf-test))
   t)
 
+(defun load-asdf-lisp-and-test-uiop (&optional tag)
+  (load-asdf-lisp tag)
+  (configure-asdf)
+  (register-directory *asdf-directory*)
+  (register-directory *uiop-directory*)
+  (register-directory *test-directory*)
+  (DBG :lalatu (asymval :*central-registry*))
+  (acall :oos (asym :load-op) :uiop)
+  (acall :oos (asym :load-op) :test-module-depend))
+
 (defun load-asdf (&optional tag)
   #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
