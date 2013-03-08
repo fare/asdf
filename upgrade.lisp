@@ -52,7 +52,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.32.3")
+         (asdf-version "2.32.4")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -89,7 +89,8 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
     (loop :for name :in (append redefined-functions)
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
-              (fmakunbound sym)))
+              ;; On CLISP we seem to be unable to fmakunbound and define a function in the same fasl. Sigh.
+              #-clisp (fmakunbound sym)))
     (loop :with asdf = (find-package :asdf)
           :for name :in uninterned-symbols
           :for sym = (find-symbol* name :asdf nil)
