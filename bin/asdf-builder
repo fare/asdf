@@ -114,7 +114,7 @@
 (defun driver-files ()
   (DBG :df
   (list* "uiop.asd" "../asdf-driver.asd" "version.lisp-expr"
-         (system-source-files :asdf-driver))))
+         (system-source-files :uiop))))
 (defun driver-name ()
   (format nil "uiop-~A" *version*))
 (defun make-driver-tarball ()
