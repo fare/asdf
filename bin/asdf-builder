@@ -4,10 +4,10 @@
 (load (make-pathname :name "prelude" :type "lisp" :defaults *load-pathname*)
   :verbose nil :print nil)
 
-(defpackage :asdf-builder (:use :cl :asdf/driver :asdf/operate :asdf :fare-utils :inferior-shell))
+(defpackage :asdf-builder (:use :cl :uiop :asdf/operate :asdf :fare-utils :inferior-shell))
 (in-package :asdf-builder)
 
-(asdf-debug)
+(uiop-debug)
 
 (defun build-asdf ()
   "Make sure asdf.lisp is built"
@@ -104,7 +104,7 @@
       (error "Destination ~S already exists, not taking chances - you can delete it yourself."
              destination))
     (ensure-directories-exist destination)
-    (run (format nil "cd ~S && cp -pHux ~{~S ~} ~S"
+    (run (format nil "cd ~S && cp -pHux --parents ~{~S ~} ~S"
                  /base/ /files/ /destination/) :show t)
     (run (format nil "tar zcfC ~S ~S ~S/"
                  /tarball/ /build-dir/ name) :show t)
@@ -113,8 +113,7 @@
 
 (defun driver-files ()
   (DBG :df
-  (list* "uiop.asd" "../asdf-driver.asd" "version.lisp-expr"
-         (system-source-files :uiop))))
+  (list* "uiop.asd" "asdf-driver.asd" (system-source-files :uiop))))
 (defun driver-name ()
   (format nil "uiop-~A" *version*))
 (defun make-driver-tarball ()

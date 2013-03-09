@@ -12,7 +12,7 @@
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
-   #:asdf-debug #:load-asdf-debug-utility #:*asdf-debug-utility*
+   #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
    #:undefine-function #:undefine-functions #:defun* #:defgeneric* #:with-upgradability ;; (un)defining functions
    #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:remove-plist-keys #:remove-plist-key ;; lists and plists
@@ -90,22 +90,22 @@
 
 ;;; Magic debugging help. See contrib/debug.lisp
 (with-upgradability ()
-  (defvar *asdf-debug-utility*
+  (defvar *uiop-debug-utility*
     '(or (ignore-errors
-          (symbol-call :asdf :system-relative-pathname :asdf "contrib/debug.lisp"))
-      (merge-pathnames "cl/asdf/contrib/debug.lisp" (user-homedir-pathname)))
+          (symbol-call :asdf :system-relative-pathname :uiop "contrib/debug.lisp"))
+      (symbol-call :uiop/pathname :subpathname (user-homedir-pathname) "cl/asdf/uiop/contrib/debug.lisp"))
     "form that evaluates to the pathname to your favorite debugging utilities")
 
-  (defmacro asdf-debug (&rest keys)
+  (defmacro uiop-debug (&rest keys)
     `(eval-when (:compile-toplevel :load-toplevel :execute)
-       (load-asdf-debug-utility ,@keys)))
+       (load-uiop-debug-utility ,@keys)))
 
-  (defun load-asdf-debug-utility (&key package utility-file)
+  (defun load-uiop-debug-utility (&key package utility-file)
     (let* ((*package* (if package (find-package package) *package*))
            (keyword (read-from-string
                      (format nil ":DBG-~:@(~A~)" (package-name *package*)))))
       (unless (member keyword *features*)
-        (let* ((utility-file (or utility-file *asdf-debug-utility*))
+        (let* ((utility-file (or utility-file *uiop-debug-utility*))
                (file (ignore-errors (probe-file (eval utility-file)))))
           (if file (load file)
               (error "Failed to locate debug utility file: ~S" utility-file)))))))

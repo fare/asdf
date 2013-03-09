@@ -600,7 +600,7 @@ is bound, write a message and exit on an error.  If
 #| For the record, the following form is sometimes useful to insert in
  asdf/plan:compute-action-stamp to find out what's happening.
  It depends on the DBG macro in contrib/debug.lisp,
- that you should load in your asdf/plan by inserting an (asdf-debug) form in it.
+ that you should load in your asdf/plan by inserting an (uiop-debug) form in it.
 
  (let ((action-path (action-path (cons o c)))) (DBG :cas action-path just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c)
 ;;; blah
