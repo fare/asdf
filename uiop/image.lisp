@@ -34,6 +34,9 @@
   (defvar *image-restore-hook* nil
     "Functions to call (in reverse order) when the image is restored")
 
+  (defvar *image-restored-p* nil
+    "Has the image been restored? A boolean, or :in-progress while restoring, :in-regress while dumping")
+
   (defvar *image-prelude* nil
     "a form to evaluate, or string containing forms to read and evaluate
 when the image is restarted, but before the entry point is called.")
@@ -226,10 +229,17 @@ if we are not called from a directly executable image."
                           ((:lisp-interaction *lisp-interaction*) *lisp-interaction*)
                           ((:restore-hook *image-restore-hook*) *image-restore-hook*)
                           ((:prelude *image-prelude*) *image-prelude*)
-                          ((:entry-point *image-entry-point*) *image-entry-point*))
+                          ((:entry-point *image-entry-point*) *image-entry-point*)
+                          (if-already-restored '(cerror "RUN RESTORE-IMAGE ANYWAY")))
+    (when *image-restored-p*
+      (if if-already-restored
+          (call-function if-already-restored "Image already ~:[being ~;~]restored" (eq *image-restored-p* t))
+          (return-from restore-image)))
     (with-fatal-condition-handler ()
+      (setf *image-restored-p* :in-progress)
       (call-image-restore-hook)
       (standard-eval-thunk *image-prelude*)
+      (setf *image-restored-p* t)
       (let ((results (multiple-value-list
                       (if *image-entry-point*
                           (call-function *image-entry-point*)
@@ -248,8 +258,10 @@ if we are not called from a directly executable image."
                                 ((:dump-hook *image-dump-hook*) *image-dump-hook*))
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
+    (setf *image-restored-p* :in-regress)
     (standard-eval-thunk *image-postlude*)
     (call-image-dump-hook)
+    (setf *image-restored-p* nil)
     #-(or clisp clozure cmu lispworks sbcl scl)
     (when executable
       (error "Dumping an executable is not supported on this implementation! Aborting."))
