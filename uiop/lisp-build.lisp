@@ -20,7 +20,7 @@
    #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
    #:call-with-muffled-loader-conditions #:with-muffled-loader-conditions
    #:reify-simple-sexp #:unreify-simple-sexp
-   #:reify-deferred-warnings #:reify-undefined-warning #:unreify-deferred-warnings
+   #:reify-deferred-warnings #:unreify-deferred-warnings
    #:reset-deferred-warnings #:save-deferred-warnings #:check-deferred-warnings
    #:with-saved-deferred-warnings #:warnings-file-p #:warnings-file-type #:*warnings-file-type*
    #:enable-deferred-warnings-check #:disable-deferred-warnings-check
@@ -241,7 +241,9 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
               :args (destructuring-bind (fun formals env) args
                       (declare (ignorable env))
                       (list (unsymbolify-function-name fun)
-                            (mapcar (constantly nil) formals)
+                            (loop :for arg :in formals :collect
+                                  (typecase arg ;; notably preserve constant keyword arguments
+                                    ((or symbol number character string pathname) arg)))
                             nil)))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)

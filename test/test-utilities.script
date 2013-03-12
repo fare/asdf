@@ -139,8 +139,6 @@
     asdf/bundle:bundle-system
     asdf/bundle:register-pre-built-system 
     asdf/bundle:static-library
-    asdf/image:create-image
-    asdf/image:dump-image
     asdf/lisp-build:reify-undefined-warning
     asdf/os:parse-file-location-info
     asdf/os:parse-windows-shortcut
