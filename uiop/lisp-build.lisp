@@ -53,7 +53,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     "Get current compiler optimization settings, ready to PROCLAIM again"
     (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
       #-(or clisp clozure cmu ecl sbcl scl)
-      (warn "xcvb-driver::get-optimization-settings does not support your implementation. Please help me fix that.")
+      (warn "~S does not support your implementation. Please help me fix that." 'get-optimization-settings)
       #.`(loop :for x :in settings
                ,@(or #+clozure '(:for v :in '(ccl::*nx-speed* ccl::*nx-space* ccl::*nx-safety* ccl::*nx-debug* ccl::*nx-cspeed*))
                      #+ecl '(:for v :in '(c::*speed* c::*space* c::*safety* c::*debug*))

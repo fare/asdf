@@ -418,8 +418,10 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
     (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
           :collect (apply 'parse-native-namestring namestring constraints)))
 
-  (defun getenv-pathname (x &rest constraints &key on-error &allow-other-keys)
+  (defun getenv-pathname (x &rest constraints &key ensure-directory want-directory on-error &allow-other-keys)
+    ;; For backward compatibility with ASDF 2, want-directory implies ensure-directory
     (apply 'parse-native-namestring (getenvp x)
+           :ensure-directory (or ensure-directory want-directory)
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathname ,x))
            constraints))

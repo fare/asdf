@@ -356,12 +356,14 @@ is bound, write a message and exit on an error.  If
 (defmacro with-asdf-conditions ((&optional verbose) &body body)
   `(call-with-asdf-conditions #'(lambda () ,@body) ,verbose))
 
+#+clisp (trace compile-file)
+
 (defun compile-asdf (&optional tag verbose)
   (let* ((alisp (asdf-lisp tag))
          (afasl (asdf-fasl tag))
          (tmp (make-pathname :name "asdf-tmp" :defaults afasl)))
     (ensure-directories-exist afasl)
-    (multiple-value-bind (result warnings-p errors-p)
+    (multiple-value-bind (result warnings-p failure-p)
         (compile-file alisp :output-file tmp #-gcl :verbose #-gcl verbose :print verbose)
       (flet ((bad (key)
                (when result (ignore-errors (delete-file result)))
@@ -371,13 +373,20 @@ is bound, write a message and exit on an error.  If
                (rename-file tmp afasl)
                key))
         (cond
-          (errors-p (bad :errors))
+          ((null result)
+           (bad :no-output))
+          (failure-p
+           (or
+            #+clisp (good :expected-full-warnings)
+            (bad :unexpected-full-warnings)))
           (warnings-p
            (or
+            ;; CLISP has full warnings for method redefinition in eval-when.
+            ;; CMUCL: ?
             ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
             ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
-            #+(or cmu ecl scl xcl) (good :expected-warnings)
-          (bad :unexpected-warnings)))
+            #+(or clisp cmu ecl scl xcl) (good :expected-style-warnings)
+            (bad :unexpected-style-warnings)))
           (t (good :success)))))))
 
 (defun maybe-compile-asdf (&optional tag)
@@ -401,22 +410,29 @@ is bound, write a message and exit on an error.  If
        (leave-test "Testsuite failed: unable to find ASDF source" 3))
       (:previously-compiled
        (leave-test "Reusing previously-compiled ASDF" 0))
-      (:errors
-       (leave-test "Testsuite failed: ASDF compiled with ERRORS" 2))
-      (:unexpected-warnings
+      (:no-output
+       (leave-test "Testsuite failed: ASDF compilation failed without output" 1))
+      (:unexpected-full-warnings
+       (leave-test "Testsuite failed: ASDF compiled with unexpected full warnings" 1))
+      (:expected-full-warnings
+       (leave-test "ASDF compiled with full warnings, ignored for your implementation" 0))
+      (:unexpected-style-warnings
        (leave-test "Testsuite failed: ASDF compiled with unexpected warnings" 1))
-      (:expected-warnings
-       (leave-test "ASDF compiled with warnings, ignored for your implementation" 0))
+      (:expected-style-warnings
+       (leave-test "ASDF compiled with style-warnings, ignored for your implementation" 0))
       (:success
        (leave-test "ASDF compiled cleanly" 0)))))
 
 (defun compile-load-asdf (&optional tag)
   ;; emulate the way asdf upgrades itself: load source, compile, load fasl.
   (load-asdf-lisp tag)
-  (ecase (compile-asdf tag)
-    ((:errors :unexpected-warnings) (leave-test "failed to compile ASDF" 1))
-    ((:expected-warnings :success)
-     (load-asdf-fasl tag))))
+  (let ((results (compile-asdf tag)))
+    (ecase results
+      ((:no-output :unexpected-full-warnings :unexpected-style-warnings)
+       (warn "ASDF compiled with ~S" results)
+       (leave-test "failed to compile ASDF" 1))
+      ((:expected-full-warnings :expected-style-warnings :success)
+       (load-asdf-fasl tag)))))
 
 ;;; Now, functions to compile and load ASDF.
 
@@ -501,6 +517,17 @@ is bound, write a message and exit on an error.  If
   (setf *package* (find-package :asdf-test))
   t)
 
+(defun load-asdf-lisp-and-test-uiop (&optional tag)
+  (load-asdf-lisp tag)
+  (configure-asdf)
+  (register-directory *asdf-directory*)
+  (register-directory *uiop-directory*)
+  (register-directory *test-directory*)
+  (DBG :lalatu (asymval :*central-registry*))
+  (quietly
+   (acall :oos (asym :load-op) :uiop))
+  (acall :oos (asym :load-op) :test-module-depend))
+
 (defun load-asdf (&optional tag)
   #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
@@ -550,6 +577,10 @@ is bound, write a message and exit on an error.  If
          (funcall old-method tag))))
     (when (find-package :asdf)
       (configure-asdf))
+    (when (and (null old-method) (eq 'load-asdf-fasl new-method) (not (probe-file (asdf-fasl))))
+      (if (ignore-errors (funcall 'require "asdf") t)
+          (leave-test "Your failed to compile ASDF before your run (test-upgrade ()'load-asdf-fasl ...)"  1)
+          (leave-test "Your Lisp doesn't provide ASDF. Skipping (test-upgrade ()'load-asdf-fasl ...)"  0)))
     (format t "Now loading new asdf via method ~A~%" new-method)
     (funcall new-method)
     (format t "Testing it~%")
@@ -569,7 +600,7 @@ is bound, write a message and exit on an error.  If
 #| For the record, the following form is sometimes useful to insert in
  asdf/plan:compute-action-stamp to find out what's happening.
  It depends on the DBG macro in contrib/debug.lisp,
- that you should load in your asdf/plan by inserting an (asdf-debug) form in it.
+ that you should load in your asdf/plan by inserting an (uiop-debug) form in it.
 
  (let ((action-path (action-path (cons o c)))) (DBG :cas action-path just-done plan stamp-lookup out-files in-files out-op op-time dep-stamp out-stamps in-stamps missing-in missing-out all-present earliest-out latest-in up-to-date-p done-stamp (operation-done-p o c)
 ;;; blah
