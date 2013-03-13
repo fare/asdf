@@ -396,7 +396,7 @@ If a string, repeatedly read and evaluate from it, returning the last values."
     #+gcl2.6 (declare (ignorable external-format))
     (check-type direction (member :output :io))
     (loop
-      :with prefix = (or prefix (format nil "~Atmp" (native-namestring (temporary-directory))))
+      :with prefix = (namestring (ensure-absolute-pathname (or prefix "tmp") #'temporary-directory))
       :for counter :from (random (ash 1 32))
       :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
         ;; TODO: on Unix, do something about umask

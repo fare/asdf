@@ -202,12 +202,11 @@ starting the separation from the end, e.g. when called with arguments
           (loop
             :for start = (if (and max (>= words (1- max)))
                              (done)
-                             (position-if #'separatorp string :end end :from-end t)) :do
-                               (when (null start)
-                                 (done))
-                               (push (subseq string (1+ start) end) list)
-                               (incf words)
-                               (setf end start))))))
+                             (position-if #'separatorp string :end end :from-end t))
+            :do (when (null start) (done))
+                (push (subseq string (1+ start) end) list)
+                (incf words)
+                (setf end start))))))
 
   (defun string-prefix-p (prefix string)
     "Does STRING begin with PREFIX?"

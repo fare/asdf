@@ -2,6 +2,7 @@
 #+lispworks (lispworks:load-all-patches)
 (load (make-pathname :name "script-support" :defaults *load-pathname*))
 (load-asdf)
+(asdf-test::frob-packages)
 #+ecl (require :cmp)
 
 (with-test ()

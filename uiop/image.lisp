@@ -252,10 +252,10 @@ if we are not called from a directly executable image."
 ;;; Dumping an image
 
 (with-upgradability ()
-  #-(or ecl mkcl)
   (defun dump-image (filename &key output-name executable
                                 ((:postlude *image-postlude*) *image-postlude*)
-                                ((:dump-hook *image-dump-hook*) *image-dump-hook*))
+                                ((:dump-hook *image-dump-hook*) *image-dump-hook*)
+                                #+clozure (prepend-kernel t))
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
@@ -280,7 +280,7 @@ if we are not called from a directly executable image."
               ;; :parse-options nil ;--- requires a non-standard patch to clisp.
               :norc t :script nil :init-function #'restore-image)))
     #+clozure
-    (ccl:save-application filename :prepend-kernel t
+    (ccl:save-application filename :prepend-kernel prepend-kernel
                                    :toplevel-function (when executable #'restore-image))
     #+(or cmu scl)
     (progn
@@ -305,33 +305,36 @@ if we are not called from a directly executable image."
              :executable t ;--- always include the runtime that goes with the core
              (when executable (list :toplevel #'restore-image :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
     #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
-    (die 98 "Can't dump ~S: asdf doesn't support image dumping with ~A.~%"
-         filename (nth-value 1 (implementation-type))))
+    (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
+           'dump-image filename (nth-value 1 (implementation-type))))
 
-
-  #+ecl
   (defun create-image (destination object-files
                        &key kind output-name prologue-code epilogue-code 
-                         (prelude () preludep) (entry-point () entry-point-p) build-args)
+                         (prelude () preludep) (postlude () postludep)
+                         (entry-point () entry-point-p) build-args)
+    (declare (ignorable destination object-files kind output-name prologue-code epilogue-code 
+                        prelude preludep postlude postludep entry-point entry-point-p build-args))
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,
     ;; and otherwise simulate dump-image, including quitting at the end.
-    ;; (standard-eval-thunk *image-postlude*) (call-image-dump-hook)
-    (check-type kind (member :binary :dll :lib :static-library :program :object :fasl :program))
-    (apply 'c::builder
-           kind (pathname destination)
-           :lisp-files object-files
-           :init-name (c::compute-init-name (or output-name destination) :kind kind)
-           :prologue-code prologue-code
-           :epilogue-code
-           `(progn
-              ,epilogue-code
-              ,@(when (eq kind :program)
-                  `((setf *image-dumped-p* :executable)
-                    (restore-image ;; default behavior would be (si::top-level)
-                     ,@(when preludep `(:prelude ',prelude))
-                     ,@(when entry-point-p `(:entry-point ',entry-point))))))
-           build-args)))
+    #-ecl (error "~S not implemented for your implementation (yet)" 'create-image)
+    #+ecl
+    (progn
+      (check-type kind (member :binary :dll :lib :static-library :program :object :fasl :program))
+      (apply 'c::builder
+             kind (pathname destination)
+             :lisp-files object-files
+             :init-name (c::compute-init-name (or output-name destination) :kind kind)
+             :prologue-code prologue-code
+             :epilogue-code
+             `(progn
+                ,epilogue-code
+                ,@(when (eq kind :program)
+                    `((setf *image-dumped-p* :executable)
+                      (restore-image ;; default behavior would be (si::top-level)
+                       ,@(when preludep `(:prelude ',prelude))
+                       ,@(when entry-point-p `(:entry-point ',entry-point))))))
+             build-args))))
 
 
 ;;; Some universal image restore hooks

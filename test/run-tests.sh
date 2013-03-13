@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# do_tests {lisp invocation} {scripts-regex}
+# run-tests {lisp invocation} {scripts-regex}
 # - read lisp forms one at a time from standard input
 # - quit with exit status 0 on getting eof
 # - quit with exit status >0 if an unhandled error occurs
@@ -77,7 +77,7 @@ kwote () { ( set +x
 ) }
 DO () { kwote "$@" ; "$@" ; }
 
-do_tests() {
+do_tests () {
   if [ -z "$*" ]; then
        scripts="*.script"
   else
@@ -105,7 +105,7 @@ do_tests() {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if DO $cmd $debugp $eval "(load \"script-support.lisp\")" $eval "(asdf-test::load-asdf)" $eval "(asdf-test::with-test () (load \"$i\"))" ; then
+      if DO $cmd $debugp $eval "(load \"script-support.lisp\")" $eval "(progn (asdf-test::load-asdf) (asdf-test::frob-packages) (asdf-test::with-test () (load \"$i\")))" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
