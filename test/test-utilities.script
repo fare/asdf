@@ -172,3 +172,5 @@
    :from-end t))
 
 (assert-equal nil (fishy-asdf-exported-symbols))
+
+(delete-package* :asdf-test-package-1)

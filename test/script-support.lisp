@@ -510,12 +510,16 @@ is bound, write a message and exit on an error.  If
                 (pathname-components *test-directory*)
                 (pathname-components x)))
       (setf *test-directory* x)))
+  t)
+
+(defun frob-packages ()
   (format t "Frob packages~%")
   (use-package :asdf :asdf-test)
   (when (find-package :asdf/driver) (use-package :asdf/driver :asdf-test))
   (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
   (setf *package* (find-package :asdf-test))
   t)
+
 
 (defun load-asdf-lisp-and-test-uiop (&optional tag)
   (load-asdf-lisp tag)
