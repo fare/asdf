@@ -9,6 +9,7 @@
 build: build-stamp
 build-stamp:
 	dh_testdir
+	make
 	make -C doc all
 	touch build-stamp
 
