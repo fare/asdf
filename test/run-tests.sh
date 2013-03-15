@@ -327,6 +327,7 @@ valid_upgrade_test_p () {
 run_upgrade_tests () {
     cd ${ASDFDIR}
     mkdir -p  build/results
+    rm -f build/*.*f* ## Remove stale FASLs from ASDF 1.x, especially when different implementations have same name
     ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
     export ASDF_OUTPUT_TRANSLATIONS
     su=test/script-support.lisp
