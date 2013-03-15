@@ -386,9 +386,10 @@ processed in order by OPERATE."))
       (with-compilation-unit () ;; backward-compatibility.
         (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
 
-  (defmethod perform-plan ((steps list) &key)
-    (loop* :for (op . component) :in steps :do
-           (perform-with-restarts op component)))
+  (defmethod perform-plan ((steps list) &key force &allow-other-keys)
+    (loop* :for (o . c) :in steps
+           :when (or force (not (nth-value 1 (compute-action-stamp nil o c))))
+           :do (perform-with-restarts o c)))
 
   (defmethod plan-operates-on-p ((plan list) (component-path list))
     (find component-path (mapcar 'cdr plan)

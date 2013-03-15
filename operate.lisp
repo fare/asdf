@@ -88,7 +88,7 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
   (defmethod operate ((operation operation) (component component)
                       &rest keys &key &allow-other-keys)
     (let ((plan (apply 'traverse operation component keys)))
-      (perform-plan plan)
+      (apply 'perform-plan plan keys)
       (values operation plan)))
 
   (defun oos (operation component &rest args &key &allow-other-keys)
