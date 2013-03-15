@@ -1,3 +1,20 @@
+cl-asdf (2:2.32.8-1) unstable; urgency=low
+
+  ASDF 2.32.8 is a set of cleanups since 2.32.
+  Since previous release 2.32, it includes the following changes:
+
+  * deferred-warning receives yet more improvements for CCL.
+
+  * upgrade is made more robust in many cases, notably for ECL, SBCL,
+    or when using UIOP with an old ASDF<=2.26.
+
+  * Packages have been tweaked to pass more tests,
+    notably wrt what symbols are exported.
+
+  * Image lifecycle support is improved, thanks to our application 
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 05 Mar 2013 14:35:43 -0500
+
 cl-asdf (2:2.32-1) unstable; urgency=low
 
   ASDF 2.31 is yet another bug fix release in preparation of an upcoming ASDF 3.
@@ -11,7 +28,7 @@ cl-asdf (2:2.32-1) unstable; urgency=low
   * UIOP is the new official name for ASDF-DRIVER.
     "Utilities for Implementation- and OS- Portability".
     Old names remain as package and system nicknames:
-	ASDF/DRIVER ASDF-DRIVER ASDF-UTILS
+    . ASDF/DRIVER ASDF-DRIVER ASDF-UTILS
 
   * require-system so systems may depend on implementation-provided modules.
 
@@ -20,14 +37,14 @@ cl-asdf (2:2.32-1) unstable; urgency=low
   * class specification for components can now be a string to be read as a symbol.
 
   * feature conditional dependencies are now debugged and tested:
-	:depends-on ("some-system" (:feature :foo "other-system))
+    . :depends-on ("some-system" (:feature :foo "other-system))
     we only recommend them for dependencies between systems;
     within systems, we recommend you use feature-conditional components with
-	:if-feature :foo
+    . :if-feature :foo
     and we only provide limited support for the deprecated legacy way of using
     feature-conditionals with a module having :if-component-dep-fails :ignore
     while its components specify things like:
-	:in-order-to ((compile-op (feature :foo)))
+    . :in-order-to ((compile-op (feature :foo)))
 
   * read-from-file for :version specification is made more useful by using
     the ASDF-USER package rather than CL (into which interning is forbidden)

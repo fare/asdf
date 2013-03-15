@@ -1,1 +1,1 @@
-asdf.lisp asdf-ecl.lisp wild-modules.lisp asdf.asd build.xcvb usr/share/common-lisp/source/cl-asdf/
+uiop/ *.lisp build/asdf.lisp contrib/ asdf.asd build.xcvb usr/share/common-lisp/source/cl-asdf/

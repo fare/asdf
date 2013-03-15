@@ -278,7 +278,7 @@ extract_tagged_asdf () {
                 git show ${tag}:asdf.lisp > $file ;;
             2.[2-9]*|3.*)
                 mkdir -p build/old/build
-                git archive ${tag} Makefile '*.lisp' | (cd build/old/ ; tar xf -)
+                git archive ${tag} Makefile '*.lisp' 'uiop/*.lisp' | (cd build/old/ ; tar xf -)
                 make -C build/old
                 mv build/old/build/asdf.lisp build/asdf-${tag}.lisp
                 rm -rf build/old
@@ -327,6 +327,7 @@ valid_upgrade_test_p () {
 }
 run_upgrade_tests () {
     cd ${ASDFDIR}
+    mkdir -p  build/results
     ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
     export ASDF_OUTPUT_TRANSLATIONS
     su=test/script-support.lisp
