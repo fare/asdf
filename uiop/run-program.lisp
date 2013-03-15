@@ -264,7 +264,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                           #+os-unix (coerce (cons (first command) command) 'vector)
                           #+os-windows command
                           :input interactive :output (or (and pipe :stream) interactive) :wait wait
-                          #+os-windows :show-window #+os-windows (and pipe :hide))
+                          #+os-windows :show-window #+os-windows (and (or (null output) pipe) :hide))
                          #+clisp
                          (flet ((run (f &rest args)
                                   (apply f `(,@args :input ,(when interactive :terminal) :wait ,wait :output
