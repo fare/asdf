@@ -2,8 +2,11 @@
 (in-package :asdf)
 
 (defun call-without-redefinition-warnings (thunk)
-  (handler-bind (((or #+clozure ccl:compiler-warning
-                     #+cmu kernel:simple-style-warning)
+  (handler-bind (((or
+                   #+allegro simple-warning
+                   #+clozure ccl:compiler-warning
+                   #+cmu kernel:simple-style-warning
+                   #-(or allegro clozure cmu) warning)
                    #'muffle-warning))
     (funcall thunk)))
 

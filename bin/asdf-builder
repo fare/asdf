@@ -108,7 +108,7 @@
                  /base/ /files/ /destination/) :show t)
     (run (format nil "tar zcfC ~S ~S ~S/"
                  /tarball/ /build-dir/ name) :show t)
-    (run `("rm" "-rf" ,/destination/) :show t)
+    (delete-directory-tree destination :validate (lambda (x) (equal (native-namestring x) /destination/)))
     (values)))
 
 (defun driver-files ()

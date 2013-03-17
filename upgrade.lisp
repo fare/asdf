@@ -52,7 +52,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "2.32.11")
+         (asdf-version "2.32.13")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -69,7 +69,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
             #:find-system #:system-source-file #:system-relative-pathname ;; system
              #:find-component ;; find-component
              #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
-             #:component-depends-on #:component-self-dependencies #:operation-done-p
+             #:component-depends-on #:operation-done-p #:component-depends-on
              #:traverse ;; plan
              #:operate  ;; operate
              #:parse-component-form ;; defsystem
@@ -83,6 +83,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          (uninterned-symbols
            '(#:*asdf-revision* #:around #:asdf-method-combination
              #:split #:make-collector #:do-dep #:do-one-dep
+             #:component-self-dependencies
              #:resolve-relative-location-component #:resolve-absolute-location-component
              #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
     (declare (ignorable redefined-functions uninterned-symbols))

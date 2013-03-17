@@ -24,20 +24,23 @@
    #:search-for-system-definition #:find-component #:component-find-path
    #:compile-system #:load-system #:load-systems
    #:require-system #:test-system #:clear-system
-   #:operation #:upward-operation #:downward-operation #:make-operation
+   #:operation #:make-operation #:find-operation
+   #:upward-operation #:downward-operation #:sideway-operation #:selfward-operation
    #:build-system #:build-op
    #:load-op #:prepare-op #:compile-op
    #:prepare-source-op #:load-source-op #:test-op
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
    #:input-files #:output-files #:output-file #:perform
-   #:operation-done-p #:explain #:action-description #:component-sibling-dependencies
+   #:operation-done-p #:explain #:action-description #:component-sideway-dependencies
    #:needed-in-image-p
    ;; #:run-program ; we can't export it, because SB-GROVEL :use's both ASDF and SB-EXT.
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
-   #:bundle-op  #:precompiled-system #:compiled-file #:bundle-system
+   #:bundle-op #:monolithic-bundle-op #:precompiled-system #:compiled-file #:bundle-system
    #+ecl #:make-build
-   #:program-op #:load-fasl-op #:fasl-op #:lib-op #:binary-op
+   #:basic-fasl-op #:prepare-fasl-op #:fasl-op #:load-fasl-op #:monolithic-fasl-op
+   #:lib-op #:dll-op #:binary-op #:program-op
+   #:monolithic-lib-op #:monolithic-dll-op #:monolithic-binary-op
    #:concatenate-source-op
    #:load-concatenated-source-op
    #:compile-concatenated-source-op

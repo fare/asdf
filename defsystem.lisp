@@ -178,7 +178,7 @@
                   :when serial :do (setf previous-component name)))
           (compute-children-by-name component))
         ;; Used by POIU. ASDF4: rename to component-depends-on?
-        (setf (component-sibling-dependencies component) depends-on)
+        (setf (component-sideway-dependencies component) depends-on)
         (%refresh-component-inline-methods component rest)
         (when if-component-dep-fails
           (%resolve-if-component-dep-fails if-component-dep-fails component))

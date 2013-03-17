@@ -39,16 +39,16 @@
  (not (version-satisfies (asdf-version) "666")))
 (assert-pathnames-equal
  (split-native-pathnames-string "foo:bar")
- '("foo" "bar"))
+ '(#p"foo" #p"bar"))
 (assert-pathnames-equal
  (split-native-pathnames-string "foo:bar" :ensure-directory t)
- '("foo/" "bar/"))
+ '(#p"foo/" #p"bar/"))
 (assert-pathnames-equal
  (split-native-pathnames-string "/foo:/bar" :want-absolute t)
- '("/foo" "/bar"))
+ '(#p"/foo" #p"/bar"))
 (assert-pathnames-equal
  (split-native-pathnames-string "/foo:/bar" :want-absolute t :ensure-directory t)
- '("/foo/" "/bar/"))
+ '(#p"/foo/" #p"/bar/"))
 (assert-equal
  (mapcar 'location-function-p
          '((:function f)
@@ -106,7 +106,7 @@
     asdf/component:parent
     asdf/component:properties
     asdf/component:relative-pathname
-    asdf/component:sibling-dependencies
+    asdf/component:sideway-dependencies
     asdf/component:version
     asdf/lisp-action:flags
     asdf/operation:feature
@@ -174,3 +174,25 @@
 (assert-equal nil (fishy-asdf-exported-symbols))
 
 (delete-package* :asdf-test-package-1)
+
+(ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/c/"))
+(ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/d/"))
+(ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/e/"))
+(register-directory *asdf-directory*)
+(register-directory *uiop-directory*)
+(copy-file (system-source-file :uiop) (subpathname *build-directory* "deleteme/a/1.x"))
+(copy-file (system-source-file :uiop) (subpathname *build-directory* "deleteme/a/b/2"))
+(assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/")))
+(assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/")))
+(assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/")))
+(assert (probe-file* (subpathname *build-directory* "deleteme/a/1.x")))
+(assert (probe-file* (subpathname *build-directory* "deleteme/a/b/2")))
+(delete-empty-directory (subpathname *build-directory* "deleteme/a/b/e/"))
+(assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/"))))
+(delete-directory-tree (subpathname *build-directory* "deleteme/")
+                       :validate (lambda (x) (and (<= 5 (length (pathname-directory x)))
+                                                  (subpathp x *build-directory*))))
+(assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/"))))
+(assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/"))))
+(assert (not (probe-file* (subpathname *build-directory* "deleteme/a/1.x"))))
+(assert (not (probe-file* (subpathname *build-directory* "deleteme/a/b/2"))))
