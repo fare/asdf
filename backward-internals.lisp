@@ -31,23 +31,18 @@
     (component-inline-methods component) nil)
 
   (defun %define-component-inline-methods (ret rest)
-    (dolist (name +asdf-methods+)
-      (let ((keyword (intern (symbol-name name) :keyword)))
-        (loop :for data = rest :then (cddr data)
-              :for key = (first data)
-              :for value = (second data)
-              :while data
-              :when (eq key keyword) :do
-                (destructuring-bind (op qual? &rest rest) value
-                  (multiple-value-bind (qual args-and-body)
-                      (if (symbolp qual?)
-                          (values (list qual?) rest)
-                          (values nil (cons qual? rest)))
-                    (destructuring-bind ((o c) &body body) args-and-body
-                      (pushnew
-                       (eval `(defmethod ,name ,@qual ((,o ,op) (,c (eql ,ret)))
-                                ,@body))
-                       (component-inline-methods ret)))))))))
+    (loop* :for (key value) :on rest :by #'cddr
+           :for name = (and (keywordp key) (find key +asdf-methods+ :test 'string=))
+           :when name :do
+           (destructuring-bind (op &rest body) value
+             (loop :for arg = (pop body)
+                   :while (atom arg)
+                   :collect arg :into qualifiers
+                   :finally
+                      (destructuring-bind (o c) arg
+                        (pushnew
+                         (eval `(defmethod ,name ,@qualifiers ((,o ,op) (,c (eql ,ret))) ,@body))
+                         (component-inline-methods ret)))))))
 
   (defun %refresh-component-inline-methods (component rest)
     ;; clear methods, then add the new ones

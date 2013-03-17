@@ -17,7 +17,7 @@ UIOP is also known as ASDF/DRIVER or ASDF-UTILS,
 being transcluded into asdf.lisp together with ASDF/DEFSYSTEM."
   #+asdf3 :version #+asdf3 (:read-file-form "version.lisp-expr")
   #+asdf-encoding :encoding #+asdf-encoding :utf-8
-  :around-compile call-without-redefinition-warnings
+  #+asdf3 :around-compile #+asdf3 call-without-redefinition-warnings
   :components
   ((:static-file "version.lisp-expr")
    (:static-file "contrib/debug.lisp")

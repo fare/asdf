@@ -264,7 +264,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                           #+os-unix (coerce (cons (first command) command) 'vector)
                           #+os-windows command
                           :input interactive :output (or (and pipe :stream) interactive) :wait wait
-                          #+os-windows :show-window #+os-windows (and pipe :hide))
+                          #+os-windows :show-window #+os-windows (and (or (null output) pipe) :hide))
                          #+clisp
                          (flet ((run (f &rest args)
                                   (apply f `(,@args :input ,(when interactive :terminal) :wait ,wait :output
@@ -354,7 +354,9 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                (declare (ignorable interactive))
                #+(or abcl xcl) (ext:run-shell-command command)
                #+allegro
-               (excl:run-shell-command command :input interactive :output interactive :wait t)
+               (excl:run-shell-command
+                command :input interactive :output interactive :wait t
+                        #+os-windows :show-window #+os-windows (unless (or interactive (eq output t)) :hide))
                #+(or clisp clozure cmu (and lispworks os-unix) sbcl scl)
                (process-result (run-program command :pipe nil :interactive interactive) nil)
                #+ecl (ext:system command)
@@ -362,7 +364,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                #+gcl (lisp:system command)
                #+(and lispworks os-windows)
                (system:call-system-showing-output
-                command :show-cmd interactive :prefix "" :output-stream nil)
+                command :show-cmd (or interactive (eq output t)) :prefix "" :output-stream nil)
                #+mcl (ccl::with-cstrs ((%command command)) (_system %command))
                #+mkcl (nth-value 2
                                  (mkcl:run-program #+windows command #+windows ()

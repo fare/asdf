@@ -243,7 +243,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                       (list (unsymbolify-function-name fun)
                             (loop :for arg :in formals :collect
                                   (typecase arg ;; notably preserve constant keyword arguments
-                                    ((or symbol number character string pathname) arg)))
+                                    ((or symbol number character simple-string pathname) arg)))
                             nil)))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)
@@ -673,9 +673,9 @@ it will filter them appropriately."
                    :for n :from 1
                    :for f = (add-pathname-suffix
                              output (format nil "-FASL~D" n))
-                   :do #-lispworks-personal-edition (lispworks:copy-file i f)
-                   #+lispworks-personal-edition (concatenate-files (list i) f)
-                                                (push f fasls))
+                   :do ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
+                   (concatenate-files (list i) f)
+                   (push f fasls))
              (ignore-errors (lispworks:delete-system :fasls-to-concatenate))
              (eval `(scm:defsystem :fasls-to-concatenate
                       (:default-pathname ,(pathname-directory-pathname output))

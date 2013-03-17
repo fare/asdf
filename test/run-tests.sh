@@ -276,14 +276,13 @@ extract_tagged_asdf () {
         case $tag in
             1.*|2.0*|2.2[0-6]|2.26.61)
                 git show ${tag}:asdf.lisp > $file ;;
-            2.[2-9]*|3.*)
+            2.2[7-9]*|2.[3-9]*|3.*)
                 mkdir -p build/old/build
-                git archive ${tag} Makefile '*.lisp' 'uiop/*.lisp' | (cd build/old/ ; tar xf -)
+                git archive ${tag} | (cd build/old/ ; tar xf -)
                 make -C build/old
                 mv build/old/build/asdf.lisp build/asdf-${tag}.lisp
-                rm -rf build/old
-                ;;
-            *)
+                rm -rf build/old ;;
+             *)
                 echo "Don't know how to extract asdf.lisp for version $tag"
                 exit 55
                 ;;
@@ -328,6 +327,7 @@ valid_upgrade_test_p () {
 run_upgrade_tests () {
     cd ${ASDFDIR}
     mkdir -p  build/results
+    rm -f build/*.*f* ## Remove stale FASLs from ASDF 1.x, especially when different implementations have same name
     ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
     export ASDF_OUTPUT_TRANSLATIONS
     su=test/script-support.lisp
