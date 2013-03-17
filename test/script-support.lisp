@@ -122,20 +122,25 @@ Some constraints:
     ((equal x y)
      (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
     ((acall :pathname-equal x y)
-     (format t "These two expressions yield pathname-equal yet not equal path~%  ~S~%" x)
-     (format t "the first expression ~S yields this:~%  ~S~%" qx (pathname-components x))
-     (format t "the other expression ~S yields that:~%  ~S~%" qy (pathname-components y)))
+     (warn "These two expressions yield pathname-equal yet not equal path~%~
+	the first expression ~S yields this:~%  ~S~%  ~S~%
+	the other expression ~S yields that:~%  ~S~%  ~S~%"
+	qx x (pathname-components x)
+	qy y (pathname-components y)))
     (t
-     (format t "These two expressions yield paths that are not pathname-equal~%")
-     (format t "the first expression ~S yields this:~%  ~S~%  ~S~%" qx x (pathname-components x))
-     (format t "the other expression ~S yields that:~%  ~S~%  ~S~%" qy y (pathname-components y)))))
+     (error "These two expressions yield paths that are not pathname-equal~%~
+	the first expression ~S yields this:~%  ~S~%  ~S~%
+	the other expression ~S yields that:~%  ~S~%  ~S~%"
+	qx x (pathname-components x)
+	qy y (pathname-components y)))))
 (defmacro assert-pathname-equal (x y)
   `(assert-pathname-equal-helper ',x ,x ',y ,y))
-(defun assert-length-equal-helper (qx qy x y)
+(defun assert-length-equal-helper (qx x qy y)
   (unless (= (length x) (length y))
-    (format t "These two expressions yield sequences of unequal length~%")
-    (format t "The first, ~S, has value ~S of length ~S~%" qx x (length x))
-    (format t "The other, ~S, has value ~S of length ~S~%" qy y (length y))))
+    (error "These two expressions yield sequences of unequal length~%
+	The first, ~S, has value ~S of length ~S~%
+	The other, ~S, has value ~S of length ~S~%"
+           qx x (length x) qy y (length y))))
 (defun assert-pathnames-equal-helper (qx x qy y)
   (assert-length-equal-helper qx x qy y)
   (loop :for n :from 0
@@ -355,8 +360,6 @@ is bound, write a message and exit on an error.  If
 
 (defmacro with-asdf-conditions ((&optional verbose) &body body)
   `(call-with-asdf-conditions #'(lambda () ,@body) ,verbose))
-
-#+clisp (trace compile-file)
 
 (defun compile-asdf (&optional tag verbose)
   (let* ((alisp (asdf-lisp tag))

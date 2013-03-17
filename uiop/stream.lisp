@@ -14,7 +14,7 @@
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file
    #:finish-outputs #:format! #:safe-format!
-   #:copy-stream-to-stream #:concatenate-files
+   #:copy-stream-to-stream #:concatenate-files #:copy-file
    #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
    #:slurp-stream-forms #:slurp-stream-form
    #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form
@@ -245,6 +245,10 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
         (with-open-file (i input :element-type '(unsigned-byte 8)
                                  :direction :input :if-does-not-exist :error)
           (copy-stream-to-stream i o :element-type '(unsigned-byte 8))))))
+
+  (defun copy-file (input output)
+    ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
+    (concatenate-files (list input) output))
 
   (defun slurp-stream-string (input &key (element-type 'character))
     "Read the contents of the INPUT stream as a string"

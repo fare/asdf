@@ -244,6 +244,8 @@
       (call-next-method)))
 
   (defun direct-dependency-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
+    ;; This file selects output files from direct dependencies;
+    ;; your component-depends-on method better gathered the correct dependencies in the correct order.
     (while-collecting (collect)
       (map-direct-dependencies
        o c #'(lambda (sub-o sub-c)

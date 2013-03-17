@@ -21,15 +21,15 @@
 (assert-pathname-equal
  (output-file mcso sys)
  (apply-output-translations
-  (resolve-output "asdf/test/test-concatenate-source.all-systems.lisp")))
-(assert-pathname-equal
+  (resolve-output "asdf/test/test-concatenate-source--all-systems.lisp")))
+(assert-pathnames-equal
  (output-files mcso sys)
  (input-files mccso sys))
 ;; on ECL, we get un-equal pathnames.
 (assert-pathname-equal
  (output-file mccso sys)
- (test-fasl "test-concatenate-source.all-systems.lisp"))
-(assert-pathname-equal
+ (test-fasl "test-concatenate-source--all-systems.lisp"))
+(assert-pathnames-equal
  (output-files mccso sys)
  (input-files mlccso sys))
 (operate 'monolithic-load-compiled-concatenated-source-op sys)
