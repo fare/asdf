@@ -26,9 +26,9 @@
  (output-files mcso sys)
  (input-files mccso sys))
 ;; on ECL, we get un-equal pathnames.
-(assert-pathname-equal
- (output-file mccso sys)
- (test-fasl "test-concatenate-source--all-systems.lisp"))
+(assert-pathnames-equal
+ (output-files mccso sys)
+ (list (test-fasl "test-concatenate-source--all-systems.lisp")))
 (assert-pathnames-equal
  (output-files mccso sys)
  (input-files mlccso sys))

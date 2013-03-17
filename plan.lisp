@@ -438,6 +438,7 @@ processed in order by OPERATE."))
 
   (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
     (remove-duplicates
-     (mapcar 'cdr (apply 'traverse-sub-actions goal-operation system keys))
+     (mapcar 'cdr (apply 'traverse-sub-actions goal-operation system
+                         (remove-plist-key :goal-operation keys)))
      :from-end t)))
 

@@ -106,7 +106,7 @@
     asdf/component:parent
     asdf/component:properties
     asdf/component:relative-pathname
-    asdf/component:sibling-dependencies
+    asdf/component:sideway-dependencies
     asdf/component:version
     asdf/lisp-action:flags
     asdf/operation:feature

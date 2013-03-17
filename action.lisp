@@ -9,8 +9,8 @@
   (:export
    #:action #:define-convenience-action-methods
    #:explain #:action-description
-   #:downward-operation #:upward-operation #:sibling-operation
-   #:component-depends-on #:component-self-dependencies
+   #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation
+   #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
@@ -88,7 +88,7 @@ You can put together sentences using this phrase."))
 
 ;;;; Dependencies
 (with-upgradability ()
-  (defgeneric component-depends-on (operation component) ;; ASDF4: rename to component-dependencies
+  (defgeneric* (component-depends-on) (operation component) ;; ASDF4: rename to component-dependencies
     (:documentation
      "Returns a list of dependencies needed by the component to perform
     the operation.  A dependency has one of the following forms:
@@ -106,19 +106,15 @@ You can put together sentences using this phrase."))
 
     Methods specialized on subclasses of existing component types
     should usually append the results of CALL-NEXT-METHOD to the list."))
-  (defgeneric component-self-dependencies (operation component))
   (define-convenience-action-methods component-depends-on (operation component))
-  (define-convenience-action-methods component-self-dependencies (operation component))
+
+  (defmethod component-depends-on :around ((o operation) (c component))
+    (do-asdf-cache `(component-depends-on ,o ,c)
+      (call-next-method)))
 
   (defmethod component-depends-on ((o operation) (c component))
-    (cdr (assoc (type-of o) (component-in-order-to c)))) ; User-specified in-order dependencies
+    (cdr (assoc (type-of o) (component-in-order-to c))))) ; User-specified in-order dependencies
 
-  (defmethod component-self-dependencies ((o operation) (c component))
-    ;; NB: result in the same format as component-depends-on
-    (loop* :for (o-spec . c-spec) :in (component-depends-on o c)
-           :unless (eq o-spec 'feature) ;; avoid the FEATURE "feature"
-           :when (find c c-spec :key #'(lambda (dep) (resolve-dependency-spec c dep)))
-           :collect (list o-spec c))))
 
 ;;;; upward-operation, downward-operation
 ;; These together handle actions that propagate along the component hierarchy.
@@ -128,7 +124,7 @@ You can put together sentences using this phrase."))
 (with-upgradability ()
   (defclass downward-operation (operation)
     ((downward-operation
-      :initform nil :initarg :downward-operation :reader downward-operation)))
+      :initform nil :initarg :downward-operation :reader downward-operation :allocation :class)))
   (defmethod component-depends-on ((o downward-operation) (c parent-component))
     `((,(or (downward-operation o) o) ,@(component-children c)) ,@(call-next-method)))
   ;; Upward operations like prepare-op propagate up the component hierarchy:
@@ -136,7 +132,7 @@ You can put together sentences using this phrase."))
   ;; By default, an operation propagates itself, but it may propagate another one instead.
   (defclass upward-operation (operation)
     ((upward-operation
-      :initform nil :initarg :downward-operation :reader upward-operation)))
+      :initform nil :initarg :downward-operation :reader upward-operation :allocation :class)))
   ;; For backward-compatibility reasons, a system inherits from module and is a child-component
   ;; so we must guard against this case. ASDF4: remove that.
   (defmethod component-depends-on ((o upward-operation) (c child-component))
@@ -145,13 +141,22 @@ You can put together sentences using this phrase."))
   ;; Sibling operations propagate to siblings in the component hierarchy:
   ;; operation on a child depends-on operation on its parent.
   ;; By default, an operation propagates itself, but it may propagate another one instead.
-  (defclass sibling-operation (operation)
-    ((sibling-operation
-      :initform nil :initarg :sibling-operation :reader sibling-operation)))
-  (defmethod component-depends-on ((o sibling-operation) (c component))
-    `((,(or (sibling-operation o) o)
-       ,@(loop :for dep :in (component-sibling-dependencies c)
+  (defclass sideway-operation (operation)
+    ((sideway-operation
+      :initform nil :initarg :sideway-operation :reader sideway-operation :allocation :class)))
+  (defmethod component-depends-on ((o sideway-operation) (c component))
+    `((,(or (sideway-operation o) o)
+       ,@(loop :for dep :in (component-sideway-dependencies c)
                :collect (resolve-dependency-spec c dep)))
+      ,@(call-next-method)))
+  ;; Selfward operations propagate to themselves a sub-operation:
+  ;; they depend on some other operation being acted on the same component.
+  (defclass selfward-operation (operation)
+    ((selfward-operation
+      :initform nil :initarg :selfward-operation :reader selfward-operation :allocation :class)))
+  (defmethod component-depends-on ((o selfward-operation) (c component))
+    `(,@(loop :for op :in (ensure-list (selfward-operation o))
+              :collect `(,op ,c))
       ,@(call-next-method))))
 
 
@@ -201,17 +206,16 @@ You can put together sentences using this phrase."))
     (do-asdf-cache `(input-files ,operation ,component)
       (call-next-method)))
 
-  (defmethod input-files ((o operation) (c parent-component))
+  (defmethod input-files ((o operation) (c component))
     (declare (ignorable o c))
     nil)
 
-  (defmethod input-files ((o operation) (c component))
-    (or (loop* :for (dep-o) :in (component-self-dependencies o c)
-               :append (or (output-files dep-o c) (input-files dep-o c)))
-        ;; no non-trivial previous operations needed?
-        ;; I guess we work with the original source file, then
-        (if-let ((pathname (component-pathname c)))
-          (and (file-pathname-p pathname) (list pathname))))))
+  (defmethod input-files ((o selfward-operation) (c component))
+    `(,@(or (loop :for dep-o :in (ensure-list (selfward-operation o))
+                  :append (or (output-files dep-o c) (input-files dep-o c)))
+            (if-let ((pathname (component-pathname c)))
+              (and (file-pathname-p pathname) (list pathname))))
+      ,@(call-next-method))))
 
 
 ;;;; Done performing

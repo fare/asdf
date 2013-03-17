@@ -13,7 +13,8 @@
    #:basic-load-op #:basic-compile-op #:compile-op-flags #:compile-op-proclamations
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
    #:call-with-around-compile-hook
-   #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source #:flags))
+   #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source
+   #:lisp-compilation-output-files #:flags))
 (in-package :asdf/lisp-action)
 
 
@@ -37,17 +38,23 @@
 
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
-  (defclass load-op (basic-load-op downward-operation sibling-operation) ())
-  (defclass prepare-op (upward-operation sibling-operation)
-    ((sibling-operation :initform 'load-op :allocation :class)))
-  (defclass compile-op (basic-compile-op downward-operation)
-    ((downward-operation :initform 'load-op :allocation :class)))
+  (defclass prepare-op (upward-operation sideway-operation)
+    ((sideway-operation :initform 'load-op)))
+  (defclass load-op (basic-load-op downward-operation sideway-operation selfward-operation)
+    ;; NB: even though compile-op depends-on on prepare-op it is not needed-in-image-p,
+    ;; so we need to directly depend on prepare-op for its side-effects in the current image.
+    ((selfward-operation :initform '(prepare-op compile-op))))
+  (defclass compile-op (basic-compile-op downward-operation selfward-operation)
+    ((selfward-operation :initform 'prepare-op)
+     (downward-operation :initform 'load-op)))
 
-  (defclass load-source-op (basic-load-op downward-operation) ())
-  (defclass prepare-source-op (upward-operation sibling-operation)
-    ((sibling-operation :initform 'load-source-op :allocation :class)))
+  (defclass prepare-source-op (upward-operation sideway-operation)
+    ((sideway-operation :initform 'load-source-op)))
+  (defclass load-source-op (basic-load-op downward-operation selfward-operation)
+    ((selfward-operation :initform 'prepare-source-op)))
 
-  (defclass test-op (operation) ()))
+  (defclass test-op (selfward-operation)
+    ((selfward-operation :initform 'load-op))))
 
 
 ;;;; prepare-op, compile-op and load-op
@@ -123,8 +130,7 @@
             (format s ":success~%"))))))
   (defmethod perform ((o compile-op) (c cl-source-file))
     (perform-lisp-compilation o c))
-  (defmethod output-files ((o compile-op) (c cl-source-file))
-    (declare (ignorable o))
+  (defun lisp-compilation-output-files (o c)
     (let* ((i (first (input-files o c)))
            (f (compile-file-pathname
                i #+mkcl :fasl-p #+mkcl t #+ecl :type #+ecl :fasl)))
@@ -138,9 +144,8 @@
         ,(compile-file-pathname i :fasl-p nil) ;; object file
         ,@(when (and *warnings-file-type* (not (builtin-system-p (component-system c))))
             `(,(make-pathname :type *warnings-file-type* :defaults f))))))
-  (defmethod component-depends-on ((o compile-op) (c component))
-    (declare (ignorable o))
-    `((prepare-op ,c) ,@(call-next-method)))
+  (defmethod output-files ((o compile-op) (c cl-source-file))
+    (lisp-compilation-output-files o c))
   (defmethod perform ((o compile-op) (c static-file))
     (declare (ignorable o c))
     nil)
@@ -190,13 +195,7 @@
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-op) (c static-file))
     (declare (ignorable o c))
-    nil)
-  (defmethod component-depends-on ((o load-op) (c component))
-    (declare (ignorable o))
-    ;; NB: even though compile-op depends-on on prepare-op,
-    ;; it is not needed-in-image-p, whereas prepare-op is,
-    ;; so better not omit prepare-op and think it will happen.
-    `((prepare-op ,c) (compile-op ,c) ,@(call-next-method))))
+    nil))
 
 
 ;;;; prepare-source-op, load-source-op
@@ -224,9 +223,6 @@
   (defmethod action-description ((o load-source-op) (c parent-component))
     (declare (ignorable o))
     (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") c))
-  (defmethod component-depends-on ((o load-source-op) (c component))
-    (declare (ignorable o))
-    `((prepare-source-op ,c) ,@(call-next-method)))
   (defun perform-lisp-load-source (o c)
     (call-with-around-compile-hook
      c #'(lambda ()
@@ -252,9 +248,5 @@
   (defmethod operation-done-p ((o test-op) (c system))
     "Testing a system is _never_ done."
     (declare (ignorable o c))
-    nil)
-  (defmethod component-depends-on ((o test-op) (c system))
-    (declare (ignorable o))
-    `((load-op ,c) ,@(call-next-method))))
-
+    nil))
 

@@ -34,7 +34,7 @@
 
   (defun component-load-dependencies (component)
     ;; Old deprecated name for the same thing. Please update your software.
-    (component-sibling-dependencies component))
+    (component-sideway-dependencies component))
 
   (defgeneric operation-forced (operation)) ;; Used by swank.asd for swank-loader.
   (defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))

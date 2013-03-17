@@ -7,13 +7,14 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)
   (:export
-   #:bundle-op #:bundle-op-build-args #:bundle-type #:bundle-system #:bundle-pathname-type
-   #:fasl-op #:load-fasl-op #:lib-op #:dll-op #:binary-op
-   #:monolithic-op #:monolithic-bundle-op #:bundlable-file-p #:direct-dependency-files
-   #:monolithic-binary-op #:monolithic-fasl-op #:monolithic-lib-op #:monolithic-dll-op
-   #:program-op
-   #:compiled-file #:precompiled-system #:prebuilt-system
-   #:operation-monolithic-p
+   #:bundle-op #:bundle-op-build-args #:bundle-type
+   #:bundle-system #:bundle-pathname-type #:bundlable-file-p #:direct-dependency-files
+   #:monolithic-op #:monolithic-bundle-op #:operation-monolithic-p
+   #:basic-fasl-op #:prepare-fasl-op #:fasl-op #:load-fasl-op #:monolithic-fasl-op
+   #:lib-op #:monolithic-lib-op
+   #:dll-op #:monolithic-dll-op
+   #:binary-op #:monolithic-binary-op
+   #:program-op #:compiled-file #:precompiled-system #:prebuilt-system
    #:user-system-p #:user-system #:trivial-system-p
    #+ecl #:make-build
    #:register-pre-built-system
@@ -29,27 +30,34 @@
      #+mkcl (do-fasb :initarg :do-fasb :initform t :reader bundle-op-do-fasb-p)
      #+mkcl (do-static-library :initarg :do-static-library :initform t :reader bundle-op-do-static-library-p)))
 
-  (defclass fasl-op (bundle-op)
-    ;; create a single fasl for the entire library
+  ;; create a single fasl for the entire library
+  (defclass basic-fasl-op (bundle-op basic-compile-op)
     ((bundle-type :initform :fasl)))
+  (defclass prepare-fasl-op (sideway-operation)
+    ((sideway-operation :initform 'load-fasl-op)))
+  (defclass fasl-op (basic-fasl-op selfward-operation)
+    ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op))))
+  (defclass load-fasl-op (basic-load-op selfward-operation)
+    ((selfward-operation :initform '(prepare-op fasl-op))))
 
-  (defclass load-fasl-op (basic-load-op)
-    ;; load a single fasl for the entire library
-    ())
+  ;; NB: since the monolithic-op's can't be sideway-operation's,
+  ;; if we wanted lib-op, dll-op, binary-op to be sideway-operation's,
+  ;; we'd have to have the monolithic-op not inherit from the main op,
+  ;; but instead inherit from a basic-FOO-op as with basic-fasl-op above.
 
-  (defclass lib-op (bundle-op)
-    ;; On ECL: compile the system and produce linkable .a library for it.
-    ;; On others: just compile the system.
+  ;; On ECL: compile the system and produce linkable ".a" library for it.
+  ;; On others: just compile the system.
+  (defclass lib-op (bundle-op basic-compile-op)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file)))
 
-  (defclass dll-op (bundle-op)
+  (defclass dll-op (bundle-op basic-compile-op)
     ;; Link together all the dynamic library used by this system into a single one.
     ((bundle-type :initform :dll)))
 
-  (defclass binary-op (bundle-op)
+  (defclass binary-op (bundle-op basic-compile-op selfward-operation)
     ;; On ECL: produce lib and fasl for the system.
     ;; On "normal" Lisps: produce just the fasl.
-    ())
+    ((selfward-operation :initform '(lib-op fasl-op))))
 
   (defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
 
@@ -57,25 +65,30 @@
     ((prologue-code :accessor monolithic-op-prologue-code)
      (epilogue-code :accessor monolithic-op-epilogue-code)))
 
-  (defclass monolithic-binary-op (binary-op monolithic-bundle-op)
+  (defclass monolithic-binary-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
     ;; On ECL: produce lib and fasl for combined system and dependencies.
     ;; On "normal" Lisps: produce an image file from system and dependencies.
-    ())
+    ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op))))
 
-  (defclass monolithic-fasl-op (monolithic-bundle-op fasl-op)
+  (defclass monolithic-fasl-op (monolithic-bundle-op basic-fasl-op selfward-operation)
     ;; Create a single fasl for the system and its dependencies.
-    ())
+    ((selfward-operation :initform 'load-fasl-op)))
 
-  (defclass monolithic-lib-op (monolithic-bundle-op lib-op)
+  (defclass monolithic-lib-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
     ;; ECL: Create a single linkable library for the system and its dependencies.
-    ((bundle-type :initform :lib)))
+    ((bundle-type :initform :lib)
+     (selfward-operation :initform 'lib-op)
+     (sideway-operation :initform 'lib-op)))
 
-  (defclass monolithic-dll-op (monolithic-bundle-op dll-op)
-    ((bundle-type :initform :dll)))
+  (defclass monolithic-dll-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
+    ((bundle-type :initform :dll)
+     (selfward-operation :initform 'dll-op)
+     (sideway-operation :initform 'dll-op)))
 
-  (defclass program-op (monolithic-bundle-op)
+  (defclass program-op (monolithic-bundle-op selfward-operation)
     ;; All: create an executable file from the system and its dependencies
-    ((bundle-type :initform :program)))
+    ((bundle-type :initform :program)
+     (selfward-operation :initform #+(or mkcl ecl) 'monolithic-lib-op #-(or mkcl ecl) 'load-op)))
 
   (defun bundle-pathname-type (bundle-type)
     (etypecase bundle-type
@@ -195,47 +208,33 @@
   (defmethod component-depends-on ((o monolithic-lib-op) (c system))
     (declare (ignorable o))
     `((lib-op ,@(required-components c :other-systems t :component-type 'system
-                                       :goal-operation 'load-op
-                                       :keep-operation 'compile-op))))
+                                       :goal-operation (find-operation o 'load-op)
+                                       :keep-operation 'compile-op))
+      ,@(call-next-method)))
+    
 
   (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
     (declare (ignorable o))
     `((fasl-op ,@(required-components c :other-systems t :component-type 'system
-                                        :goal-operation 'load-fasl-op
-                                        :keep-operation 'fasl-op))))
-
-  (defmethod component-depends-on ((o program-op) (c system))
-    (declare (ignorable o))
-    #+(or ecl mkcl) (component-depends-on (make-operation 'monolithic-lib-op) c)
-    #-(or ecl mkcl) `((load-op ,c)))
-
-  (defmethod component-depends-on ((o binary-op) (c system))
-    (declare (ignorable o))
-    `((fasl-op ,c)
-      (lib-op ,c)))
-
-  (defmethod component-depends-on ((o monolithic-binary-op) (c system))
-    `((,(find-operation o 'monolithic-fasl-op) ,c)
-      (,(find-operation o 'monolithic-lib-op) ,c)))
+                                        :goal-operation (find-operation o 'load-fasl-op)
+                                        :keep-operation 'fasl-op))
+      ,@(call-next-method)))
 
   (defmethod component-depends-on ((o lib-op) (c system))
     (declare (ignorable o))
     `((compile-op ,@(required-components c :other-systems nil :component-type '(not system)
-                                           :goal-operation 'load-op
-                                           :keep-operation 'compile-op))))
+                                           :goal-operation (find-operation o 'load-op)
+                                           :keep-operation 'compile-op))
+      ,@(call-next-method)))
 
+  #-ecl
   (defmethod component-depends-on ((o fasl-op) (c system))
-    (declare (ignorable o))
-    #+ecl `((lib-op ,c))
-    #-ecl
-    (component-depends-on (find-operation o 'lib-op) c))
+    `(,@(component-depends-on (find-operation o 'lib-op) c)
+      ,@(call-next-method)))
 
   (defmethod component-depends-on ((o dll-op) c)
-    (component-depends-on (find-operation o 'lib-op) c))
-
-  (defmethod component-depends-on ((o bundle-op) c)
-    (declare (ignorable o c))
-    nil)
+    `(,@(component-depends-on (find-operation o 'lib-op) c)
+      ,@(call-next-method)))
 
   (defmethod component-depends-on :around ((o bundle-op) (c component))
     (declare (ignorable o c))
@@ -300,7 +299,7 @@
 (with-upgradability ()
   (defmethod component-depends-on ((o load-fasl-op) (c system))
     (declare (ignorable o))
-    `((,o ,@(loop :for dep :in (component-sibling-dependencies c)
+    `((,o ,@(loop :for dep :in (component-sideway-dependencies c)
                   :collect (resolve-dependency-spec c dep)))
       (,(if (user-system-p c) 'fasl-op 'load-op) ,c)
       ,@(call-next-method)))

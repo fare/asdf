@@ -14,7 +14,7 @@
    #:static-file #:doc-file #:html-file
    #:file-type
    #:source-file-type #:source-file-explicit-type ;; backward-compatibility
-   #:component-in-order-to #:component-sibling-dependencies
+   #:component-in-order-to #:component-sideway-dependencies
    #:component-if-feature #:around-compile-hook
    #:component-description #:component-long-description
    #:component-version #:version-satisfies
@@ -33,7 +33,7 @@
    #:components-by-name #:components
    #:children #:children-by-name #:default-component-class
    #:author #:maintainer #:licence #:source-file #:defsystem-depends-on
-   #:sibling-dependencies #:if-feature #:in-order-to #:inline-methods
+   #:sideway-dependencies #:if-feature #:in-order-to #:inline-methods
    #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
    #:%encoding #:properties #:component-properties #:parent))
 (in-package :asdf/component)
@@ -77,7 +77,7 @@ another pathname in a degenerate way."))
      (version :accessor component-version :initarg :version :initform nil)
      (description :accessor component-description :initarg :description :initform nil)
      (long-description :accessor component-long-description :initarg :long-description :initform nil)
-     (sibling-dependencies :accessor component-sibling-dependencies :initform nil)
+     (sideway-dependencies :accessor component-sideway-dependencies :initform nil)
      (if-feature :accessor component-if-feature :initform nil :initarg :if-feature)
      ;; In the ASDF object model, dependencies exist between *actions*,
      ;; where an action is a pair of an operation and a component.

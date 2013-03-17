@@ -15,7 +15,8 @@
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
    #:undefine-function #:undefine-functions #:defun* #:defgeneric* #:with-upgradability ;; (un)defining functions
    #:if-let ;; basic flow control
-   #:while-collecting #:appendf #:length=n-p #:remove-plist-keys #:remove-plist-key ;; lists and plists
+   #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
+   #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
    #:strcat #:first-char #:last-char #:split-string ;; strings
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
@@ -154,7 +155,11 @@ Returns two values: \(A B C\) and \(1 2 3\)."
       :for i :downfrom n :do
         (cond
           ((zerop i) (return (null l)))
-          ((not (consp l)) (return nil))))))
+          ((not (consp l)) (return nil)))))
+
+  (defun ensure-list (x)
+    (if (listp x) x (list x))))
+
 
 ;;; remove a key from a plist, i.e. for keyword argument cleanup
 (with-upgradability ()
