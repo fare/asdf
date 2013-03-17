@@ -14,7 +14,7 @@
    #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
    #:compile-warned-warning #:compile-failed-warning
    #:check-lisp-compile-results #:check-lisp-compile-warnings
-   #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
+   #:*uninteresting-conditions* #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
    ;; Functions & Macros
    #:get-optimization-settings #:proclaim-optimization-settings
    #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
@@ -51,15 +51,16 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   (defvar *previous-optimization-settings* nil)
   (defun get-optimization-settings ()
     "Get current compiler optimization settings, ready to PROCLAIM again"
+    #-(or clisp clozure cmu ecl sbcl scl)
+    (warn "~S does not support ~S. Please help me fix that." 'get-optimization-settings (lisp-implementation))
+    #+clozure (ccl:declaration-information 'optimize nil)
+    #+(or clisp cmu ecl sbcl scl)
     (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
-      #-(or clisp clozure cmu ecl sbcl scl)
-      (warn "~S does not support your implementation. Please help me fix that." 'get-optimization-settings)
       #.`(loop :for x :in settings
-               ,@(or #+clozure '(:for v :in '(ccl::*nx-speed* ccl::*nx-space* ccl::*nx-safety* ccl::*nx-debug* ccl::*nx-cspeed*))
-                     #+ecl '(:for v :in '(c::*speed* c::*space* c::*safety* c::*debug*))
+               ,@(or #+ecl '(:for v :in '(c::*speed* c::*space* c::*safety* c::*debug*))
                      #+(or cmu scl) '(:for f :in '(c::cookie-speed c::cookie-space c::cookie-safety c::cookie-debug c::cookie-cspeed c::cookie-brevity)))
                :for y = (or #+clisp (gethash x system::*optimize*)
-                            #+(or clozure ecl) (symbol-value v)
+                            #+(or ecl) (symbol-value v)
                             #+(or cmu scl) (funcall f c::*default-cookie*)
                             #+sbcl (cdr (assoc x sb-c::*policy*)))
                :when y :collect (list x y))))
@@ -84,7 +85,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (deftype sb-grovel-unknown-constant-condition ()
       '(and style-warning (satisfies sb-grovel-unknown-constant-condition-p))))
 
-  (defvar *uninteresting-compiler-conditions*
+  (defvar *uninteresting-conditions*
     (append
      ;;#+clozure '(ccl:compiler-warning)
      #+cmu '("Deleting unreachable code.")
@@ -93,38 +94,39 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
      #+sbcl
      '(sb-c::simple-compiler-note
        "&OPTIONAL and &KEY found in the same lambda list: ~S"
+       #+sb-eval sb-kernel:lexical-environment-too-complex
+       sb-kernel:undefined-alien-style-warning
+       sb-grovel-unknown-constant-condition ; defined above.
+       ;; sb-ext:implicit-generic-function-warning ; Controversial. Let's allow it by default.
        sb-int:package-at-variance
        sb-kernel:uninteresting-redefinition
-       sb-kernel:undefined-alien-style-warning
-       ;; sb-ext:implicit-generic-function-warning ; Controversial. Let's allow it by default.
-       #+sb-eval sb-kernel:lexical-environment-too-complex
-       sb-grovel-unknown-constant-condition ; defined above.
        ;; BEWARE: the below four are controversial to include here.
        sb-kernel:redefinition-with-defun
        sb-kernel:redefinition-with-defgeneric
        sb-kernel:redefinition-with-defmethod
        sb-kernel::redefinition-with-defmacro) ; not exported by old SBCLs
      '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.")) ;; from closer2mop
-    "Conditions that may be skipped while compiling")
-
+    "Conditions that may be skipped while compiling or loading Lisp code.")
+  (defvar *uninteresting-compiler-conditions* '()
+    "Additional conditions that may be skipped while compiling Lisp code.")
   (defvar *uninteresting-loader-conditions*
     (append
      '("Overwriting already existing readtable ~S." ;; from named-readtables
        #(#:finalizers-off-warning :asdf-finalizers)) ;; from asdf-finalizers
      #+clisp '(clos::simple-gf-replacing-method-warning))
-    "Additional conditions that may be skipped while loading"))
+    "Additional conditions that may be skipped while loading Lisp code."))
 
 ;;;; ----- Filtering conditions while building -----
 (with-upgradability ()
   (defun call-with-muffled-compiler-conditions (thunk)
     (call-with-muffled-conditions
-     thunk *uninteresting-compiler-conditions*))
+     thunk (append *uninteresting-conditions* *uninteresting-compiler-conditions*)))
   (defmacro with-muffled-compiler-conditions ((&optional) &body body)
     "Run BODY where uninteresting compiler conditions are muffled"
     `(call-with-muffled-compiler-conditions #'(lambda () ,@body)))
   (defun call-with-muffled-loader-conditions (thunk)
     (call-with-muffled-conditions
-     thunk (append *uninteresting-compiler-conditions* *uninteresting-loader-conditions*)))
+     thunk (append *uninteresting-conditions* *uninteresting-loader-conditions*)))
   (defmacro with-muffled-loader-conditions ((&optional) &body body)
     "Run BODY where uninteresting compiler and additional loader conditions are muffled"
     `(call-with-muffled-loader-conditions #'(lambda () ,@body))))
