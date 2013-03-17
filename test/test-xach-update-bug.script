@@ -1,7 +1,5 @@
 ;;; -*- Lisp -*-
 
-(trace load compile-file perform-plan asdf/plan:traverse-action) ;; perform asdf/plan:compute-action-stamp
-
 (setf asdf/cache:*asdf-cache* nil) ;; disable cache between those two very different compilations.
 
 (defparameter foo :test-asdf-location-change)
