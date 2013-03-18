@@ -70,15 +70,12 @@
     ;; On "normal" Lisps: produce an image file from system and dependencies.
     ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op))))
 
-  (defclass monolithic-fasl-op (monolithic-bundle-op basic-fasl-op selfward-operation)
-    ;; Create a single fasl for the system and its dependencies.
-    ((selfward-operation :initform 'load-fasl-op)))
+  ;; Create a single fasl for the system and its dependencies.
+  (defclass monolithic-fasl-op (monolithic-bundle-op basic-fasl-op) ())
 
-  (defclass monolithic-lib-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
+  (defclass monolithic-lib-op (monolithic-bundle-op basic-compile-op)
     ;; ECL: Create a single linkable library for the system and its dependencies.
-    ((bundle-type :initform :lib)
-     (selfward-operation :initform 'lib-op)
-     (sideway-operation :initform 'lib-op)))
+    ((bundle-type :initform :lib)))
 
   (defclass monolithic-dll-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
     ((bundle-type :initform :dll)
@@ -215,9 +212,10 @@
 
   (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
     (declare (ignorable o))
-    `((fasl-op ,@(required-components c :other-systems t :component-type 'system
-                                        :goal-operation (find-operation o 'load-fasl-op)
-                                        :keep-operation 'fasl-op))
+    `((#-(or ecl mkcl) fasl-op #+(or ecl mkcl) lib-op
+         ,@(required-components c :other-systems t :component-type 'system
+                                  :goal-operation (find-operation o 'load-fasl-op)
+                                  :keep-operation 'fasl-op))
       ,@(call-next-method)))
 
   (defmethod component-depends-on ((o lib-op) (c system))
@@ -460,7 +458,7 @@
   (defmethod perform ((o basic-fasl-op) (s system))
     (apply #'compiler::build-bundle (output-file o c) ;; second???
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
-}
+
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'binary-op system args)))

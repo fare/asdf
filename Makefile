@@ -122,7 +122,7 @@ t: test-lisp
 
 test: test-lisp test-clean-load test-load-systems doc
 
-test-load-systems:
+test-load-systems: build/asdf.lisp
 	./test/run-tests.sh -l ${l} ${s}
 
 test-all-lisps:
@@ -147,7 +147,7 @@ test-all: doc test-all-lisps
 test-all-no-stop:
 	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
 
-extract-all-tagged-asdf:
+extract-all-tagged-asdf: build/asdf.lisp
 	./test/run-tests.sh -H
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
