@@ -37,7 +37,7 @@
   :mailto "asdf-devel@common-lisp.net"
   :source-control (:git "git://common-lisp.net/projects/asdf/asdf.git")
   :version (:read-file-form "version.lisp-expr")
-  :build-operation monolithic-load-compiled-concatenated-source-op
+  :build-operation monolithic-concatenate-source-op
   :build-pathname "build/asdf" ;; our target
   :around-compile call-without-redefinition-warnings ;; we need be the same as asdf-driver
   :depends-on (:asdf/header :asdf/driver)
@@ -74,7 +74,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.32.14" ;; to be automatically updated by make bump-version
+  :version "2.32.15" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   ;; For most purposes, asdf itself specially counts as a builtin system.
