@@ -239,7 +239,8 @@ fi
 
 
 create_config () {
-    mkdir -p ../build/test-source-registry-conf.d ../build/test-asdf-output-translations-conf.d
+    cd ${ASDFDIR}
+    mkdir -p build/results/ build/test-source-registry-conf.d build/test-asdf-output-translations-conf.d
 }
 upgrade_tags () {
     if [ -n "$ASDF_UPGRADE_TEST_TAGS" ] ; then
@@ -269,6 +270,8 @@ upgrade_methods () {
 EOF
 }
 extract_tagged_asdf () {
+    cd ${ASDFDIR}
+    mkdir -p build/
     tag=$1
     if [ REQUIRE = "$tag" ] ; then return 0 ; fi
     file=build/asdf-${tag}.lisp ;
@@ -326,7 +329,7 @@ valid_upgrade_test_p () {
 }
 run_upgrade_tests () {
     cd ${ASDFDIR}
-    mkdir -p  build/results
+    mkdir -p build/results/
     rm -f build/*.*f* uiop/*.*f* test/*.*f* ## Remove stale FASLs from ASDF 1.x, especially when different implementations have same name
     ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
     export ASDF_OUTPUT_TRANSLATIONS
@@ -349,9 +352,8 @@ run_upgrade_tests () {
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {
-  cd ${ASDFDIR}/test
   create_config
-  mkdir -p ../build/results
+  cd ./test/
   echo failure > ../build/results/status
     thedate=`date "+%Y-%m-%d"`
     do_tests "$@" 2>&1 | \
@@ -373,7 +375,8 @@ test_clean_load () {
     case $lisp in
         gcl|cmucl) return 0 ;; # These are hopeless
     esac
-    mkdir -p build/results
+    cd ${ASDFDIR}
+    mkdir -p build/results/
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
     ${cmd} ${eval} \
@@ -392,12 +395,16 @@ test_load_systems () {
     case $lisp in
         gcl) return 0 ;; # This one is hopeless
     esac
+    cd ${ASDFDIR}
+    mkdir -p build/results/
     echo "Loading all these systems: $*"
     ${cmd} ${eval} \
       "(or #.(load \"test/script-support.lisp\") #.(asdf-test::with-test () (asdf-test::test-load-systems $*)))" \
         2>&1 | tee build/results/${lisp}-systems.text
 }
 test_interactively () {
+    cd ${ASDFDIR}
+    mkdir -p build/results/
     rlwrap $cmd $eval "(or #.(load \"test/script-support.lisp\") #.(asdf-test::interactive-test '($*)))"
 }
 
