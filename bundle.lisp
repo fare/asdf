@@ -30,8 +30,12 @@
      #+mkcl (do-fasb :initarg :do-fasb :initform t :reader bundle-op-do-fasb-p)
      #+mkcl (do-static-library :initarg :do-static-library :initform t :reader bundle-op-do-static-library-p)))
 
+  (defclass bundle-compile-op (bundle-op basic-compile-op)
+    ()
+    (:documentation "Abstract operation for ways to bundle the outputs of compiling *Lisp* files"))
+
   ;; create a single fasl for the entire library
-  (defclass basic-fasl-op (bundle-op basic-compile-op)
+  (defclass basic-fasl-op (bundle-compile-op)
     ((bundle-type :initform :fasl)))
   (defclass prepare-fasl-op (sideway-operation)
     ((sideway-operation :initform 'load-fasl-op)))
@@ -45,19 +49,19 @@
   ;; we'd have to have the monolithic-op not inherit from the main op,
   ;; but instead inherit from a basic-FOO-op as with basic-fasl-op above.
 
-  ;; On ECL: compile the system and produce linkable ".a" library for it.
-  ;; On others: just compile the system.
-  (defclass lib-op (bundle-op basic-compile-op)
-    ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file)))
+  (defclass lib-op (bundle-compile-op)
+    ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
+    (:documentation #+(or ecl mkcl) "compile the system and produce linkable (.a) library for it."
+     #-(or ecl mkcl) "just compile the system"))
 
   (defclass dll-op (bundle-op basic-compile-op)
-    ;; Link together all the dynamic library used by this system into a single one.
-    ((bundle-type :initform :dll)))
+    ((bundle-type :initform :dll))
+    (:documentation "Link together all the dynamic library used by this system into a single one."))
 
   (defclass binary-op (bundle-op basic-compile-op selfward-operation)
-    ;; On ECL: produce lib and fasl for the system.
-    ;; On "normal" Lisps: produce just the fasl.
-    ((selfward-operation :initform '(lib-op fasl-op))))
+    ((selfward-operation :initform '(lib-op fasl-op)))
+    (:documentation #+(or ecl mkcl) "produce lib and fasl for the system."
+     #-(or ecl mkcl) "produce a fasl for the system"))
 
   (defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
 
@@ -65,27 +69,34 @@
     ((prologue-code :accessor monolithic-op-prologue-code)
      (epilogue-code :accessor monolithic-op-epilogue-code)))
 
-  (defclass monolithic-binary-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
-    ;; On ECL: produce lib and fasl for combined system and dependencies.
-    ;; On "normal" Lisps: produce an image file from system and dependencies.
-    ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op))))
+  (defclass monolithic-bundle-compile-op (monolithic-bundle-op bundle-compile-op)
+    ()
+    (:documentation "Abstract operation for ways to bundle the outputs of compiling *Lisp* files over all systems"))
 
-  ;; Create a single fasl for the system and its dependencies.
-  (defclass monolithic-fasl-op (monolithic-bundle-op basic-fasl-op) ())
+  (defclass monolithic-binary-op (monolithic-bundle-compile-op sideway-operation selfward-operation)
+    ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op)))
+    (:documentation
+     #+ecl "produce lib and fasl for combined system and dependencies."
+     #-ecl "produce an image file from system and dependencies (not implemented)."))
+     
+  (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op) ()
+    (:documentation "Create a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-op basic-compile-op)
-    ;; ECL: Create a single linkable library for the system and its dependencies.
-    ((bundle-type :initform :lib)))
+  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op)
+    ((bundle-type :initform :lib))
+    (:documentation #+(or ecl mkcl) "Create a single linkable library for the system and its dependencies."
+     #-(or ecl mkcl) "Compile a system and its dependencies."))
 
   (defclass monolithic-dll-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
     ((bundle-type :initform :dll)
      (selfward-operation :initform 'dll-op)
      (sideway-operation :initform 'dll-op)))
 
-  (defclass program-op (monolithic-bundle-op selfward-operation)
-    ;; All: create an executable file from the system and its dependencies
+  (defclass program-op #+(or mkcl ecl) (monolithic-bundle-compile-op)
+            #-(or mkcl ecl) (monolithic-bundle-op selfward-operation)
     ((bundle-type :initform :program)
-     (selfward-operation :initform #+(or mkcl ecl) 'monolithic-lib-op #-(or mkcl ecl) 'load-op)))
+     #-(or mkcl ecl) (selfward-operation :initform #-(or mkcl ecl) 'load-op))
+    (:documentation "create an executable file from the system and its dependencies"))
 
   (defun bundle-pathname-type (bundle-type)
     (etypecase bundle-type
@@ -101,13 +112,14 @@
       ((eql :program) (cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
 
   (defun bundle-output-files (o c)
-    (let ((bundle-type (bundle-type o)))
-      (unless (eq bundle-type :no-output-file) ;; NIL already means something regarding type.
-        (let ((name (or (component-build-pathname c)
-                        (format nil "~A~@[~A~]" (component-name c) (slot-value o 'name-suffix))))
-              (type (bundle-pathname-type bundle-type)))
-          (values (list (subpathname (component-pathname c) name :type type))
-                  (eq (type-of o) (component-build-operation c)))))))
+    (when (input-files o c)
+      (let ((bundle-type (bundle-type o)))
+        (unless (eq bundle-type :no-output-file) ;; NIL already means something regarding type.
+          (let ((name (or (component-build-pathname c)
+                          (format nil "~A~@[~A~]" (component-name c) (slot-value o 'name-suffix))))
+                (type (bundle-pathname-type bundle-type)))
+            (values (list (subpathname (component-pathname c) name :type type))
+                    (eq (type-of o) (component-build-operation c))))))))
 
   (defmethod output-files ((o bundle-op) (c system))
     (bundle-output-files o c))
@@ -202,36 +214,16 @@
 ;;; MONOLITHIC SHARED LIBRARIES, PROGRAMS, FASL
 ;;;
 (with-upgradability ()
-  (defmethod component-depends-on ((o monolithic-lib-op) (c system))
-    (declare (ignorable o))
-    `((lib-op ,@(required-components c :other-systems t :component-type 'system
-                                       :goal-operation (find-operation o 'load-op)
-                                       :keep-operation 'compile-op))
-      ,@(call-next-method)))
-    
-
-  (defmethod component-depends-on ((o monolithic-fasl-op) (c system))
-    (declare (ignorable o))
-    `((#-(or ecl mkcl) fasl-op #+(or ecl mkcl) lib-op
-         ,@(required-components c :other-systems t :component-type 'system
-                                  :goal-operation (find-operation o 'load-fasl-op)
-                                  :keep-operation 'fasl-op))
-      ,@(call-next-method)))
-
-  (defmethod component-depends-on ((o lib-op) (c system))
-    (declare (ignorable o))
-    `((compile-op ,@(required-components c :other-systems nil :component-type '(not system)
-                                           :goal-operation (find-operation o 'load-op)
-                                           :keep-operation 'compile-op))
-      ,@(call-next-method)))
-
-  #-ecl
-  (defmethod component-depends-on ((o fasl-op) (c system))
-    `(,@(component-depends-on (find-operation o 'lib-op) c)
-      ,@(call-next-method)))
-
-  (defmethod component-depends-on ((o dll-op) c)
-    `(,@(component-depends-on (find-operation o 'lib-op) c)
+  (defmethod component-depends-on ((o bundle-compile-op) (c system))
+    `(,(if (operation-monolithic-p o)
+           `(#-(or ecl mkcl) fasl-op #+(or ecl mkcl) lib-op
+               ,@(required-components c :other-systems t :component-type 'system
+                                        :goal-operation (find-operation o 'load-op)
+                                        :keep-operation 'compile-op))
+           `(compile-op
+             ,@(required-components c :other-systems nil :component-type '(not system)
+                                      :goal-operation (find-operation o 'load-op)
+                                      :keep-operation 'compile-op)))
       ,@(call-next-method)))
 
   (defmethod component-depends-on :around ((o bundle-op) (c component))
@@ -249,7 +241,7 @@
                (loop :for f :in (funcall key sub-o sub-c)
                      :when (funcall test f) :do (collect f))))))
 
-  (defmethod input-files ((o bundle-op) (c system))
+  (defmethod input-files ((o bundle-compile-op) (c system))
     (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files))
 
   (defun select-bundle-operation (type &optional monolithic)
@@ -311,7 +303,8 @@
     nil)
 
   (defmethod perform ((o load-fasl-op) (c system))
-    (perform-lisp-load-fasl o c))
+    (when (input-files o c)
+      (perform-lisp-load-fasl o c)))
 
   (defmethod mark-operation-done :after ((o load-fasl-op) (c system))
     (mark-operation-done (find-operation o 'load-op) c)))
@@ -395,13 +388,13 @@
                   s)))))
 
   #-(or ecl mkcl)
-  (defmethod perform ((o basic-fasl-op) (c system))
+  (defmethod perform ((o bundle-compile-op) (c system))
     (let* ((input-files (input-files o c))
            (fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test-not #'equalp))
            (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'equalp))
            (output-files (output-files o c))
            (output-file (first output-files)))
-      (unless input-files (format t "WTF no input-files for ~S on ~S !???" o c))
+      ;;(unless input-files (format t "WTF no input-files for ~S on ~S !???" o c))
       (when input-files
         (assert output-files)
         (when non-fasl-files
@@ -432,22 +425,23 @@
 
 #+ecl
 (with-upgradability ()
-  (defmethod perform ((o bundle-op) (c system))
+  (defmethod perform ((o bundle-compile-op) (c system))
     (let* ((object-files (input-files o c))
            (output (output-files o c))
            (bundle (first output))
            (kind (bundle-type o)))
-      (create-image
-       bundle (append object-files (bundle-op-lisp-files o))
-       :kind kind
-       :entry-point (component-entry-point c)
-       :prologue-code
-       (when (typep o 'monolithic-bundle-op)
-         (monolithic-op-prologue-code o))
-       :epilogue-code
-       (when (typep o 'monolithic-bundle-op)
-         (monolithic-op-epilogue-code o))
-       :build-args (bundle-op-build-args o)))))
+      (when output
+        (create-image
+         bundle (append object-files (bundle-op-lisp-files o))
+         :kind kind
+         :entry-point (component-entry-point c)
+         :prologue-code
+         (when (typep o 'monolithic-bundle-op)
+           (monolithic-op-prologue-code o))
+         :epilogue-code
+         (when (typep o 'monolithic-bundle-op)
+           (monolithic-op-epilogue-code o))
+         :build-args (bundle-op-build-args o))))))
 
 #+mkcl
 (with-upgradability ()
