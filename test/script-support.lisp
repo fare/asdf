@@ -523,9 +523,12 @@ is bound, write a message and exit on an error.  If
   (setf *package* (find-package :asdf-test))
   t)
 
-
 (defun load-asdf-lisp-and-test-uiop (&optional tag)
   (load-asdf-lisp tag)
+  (unless (and (member :asdf *features*)
+               (or (member :asdf3 *features*)
+                   (and (member :asdf2 *features*) (acall :version-satisfies (acall :asdf-version) "2.11.4"))))
+    (leave-test "UIOP will break ASDF < 2.011.4 - skipping test." 0))
   (configure-asdf)
   (register-directory *asdf-directory*)
   (register-directory *uiop-directory*)

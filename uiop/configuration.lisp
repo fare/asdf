@@ -13,7 +13,7 @@
    #:in-user-configuration-directory #:in-system-configuration-directory
    #:validate-configuration-form #:validate-configuration-file #:validate-configuration-directory
    #:configuration-inheritance-directive-p
-   #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form*
+   #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form* #:*user-cache*
    #:*clear-configuration-hook* #:clear-configuration #:register-clear-configuration-hook
    #:resolve-location #:location-designator-p #:location-function-p #:*here-directory*
    #:resolve-relative-location #:resolve-absolute-location #:upgrade-configuration))

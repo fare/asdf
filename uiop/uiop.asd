@@ -1,6 +1,10 @@
 ;;; -*- mode: lisp -*-
 (in-package :asdf)
 
+(unless (or (member :asdf3 *features*)
+            (and (member :asdf2 *features*) (version-satisfies (asdf:asdf-version) "2.11.4")))
+  (error "UIOP requires ASDF 2.011.4 or later."))
+
 (defun call-without-redefinition-warnings (thunk)
   (handler-bind (((or
                    #+allegro simple-warning
