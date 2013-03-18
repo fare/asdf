@@ -150,6 +150,7 @@
    #:system-registered-p #:registered-systems #:already-loaded-systems
    #:resolve-location
    #:asdf-message
+   #:*user-cache*
    #:user-output-translations-pathname
    #:system-output-translations-pathname
    #:user-output-translations-directory-pathname
