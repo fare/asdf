@@ -397,7 +397,7 @@
                   s)))))
 
   #-(or ecl mkcl)
-  (defmethod perform ((o fasl-op) (c system))
+  (defmethod perform ((o basic-fasl-op) (c system))
     (let* ((input-files (input-files o c))
            (fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test-not #'equalp))
            (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'equalp))
@@ -454,13 +454,13 @@
 #+mkcl
 (with-upgradability ()
   (defmethod perform ((o lib-op) (s system))
-    (apply #'compiler::build-static-library (first output)
+    (apply #'compiler::build-static-library (output-file o c)
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
 
-  (defmethod perform ((o fasl-op) (s system))
-    (apply #'compiler::build-bundle (second output)
+  (defmethod perform ((o basic-fasl-op) (s system))
+    (apply #'compiler::build-bundle (output-file o c) ;; second???
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
-
+}
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'binary-op system args)))
