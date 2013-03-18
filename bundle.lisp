@@ -460,7 +460,7 @@
   (defmethod perform ((o basic-fasl-op) (s system))
     (apply #'compiler::build-bundle (output-file o c) ;; second???
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
-}
+
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'binary-op system args)))
