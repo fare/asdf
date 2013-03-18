@@ -52,7 +52,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   (defun get-optimization-settings ()
     "Get current compiler optimization settings, ready to PROCLAIM again"
     #-(or clisp clozure cmu ecl sbcl scl)
-    (warn "~S does not support ~S. Please help me fix that." 'get-optimization-settings (lisp-implementation))
+    (warn "~S does not support ~S. Please help me fix that." 'get-optimization-settings (implementation-type))
     #+clozure (ccl:declaration-information 'optimize nil)
     #+(or clisp cmu ecl sbcl scl)
     (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
