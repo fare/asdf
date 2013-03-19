@@ -18,7 +18,9 @@
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
    #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
-   #:strcat #:first-char #:last-char #:split-string ;; strings
+   #:+non-base-chars-exist-p+ ;; characters
+   #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
+   #:first-char #:last-char #:split-string
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
    #:find-class* ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
@@ -183,10 +185,37 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     (or (null x) (and (vectorp x) (zerop (length x))))))
 
 
+;;; Characters
+(with-upgradability ()
+  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char))))
+
+
 ;;; Strings
 (with-upgradability ()
+  (defun base-string-p (string)
+    (declare (ignorable string))
+    #.(or +non-base-chars-exist-p+ '(eq 'base-char (array-element-type string))))
+
+  (defun strings-common-element-type (strings)
+    #.(if +non-base-chars-exist-p+
+          '(if (loop :for s :in strings :always (or (null s) (base-string-p s)))
+            'base-char 'character)
+          ''character))
+
+  (defun reduce/strcat (strings &key key start end)
+    "Reduce a list as if by STRCAT, accepting KEY START and END keywords like REDUCE"
+    (when (or start end) (setf strings (subseq strings start end)))
+    (when key (setf strings (mapcar key strings)))
+    (loop :with output = (make-string (loop :for s :in strings :sum (length s))
+                                      :element-type (strings-common-element-type strings))
+          :for input :in strings
+          :for pos = 0 :then (+ pos l)
+          :for l = (length input)
+          :do (replace output input :start1 pos)
+          :finally (return output)))
+
   (defun strcat (&rest strings)
-    (apply 'concatenate 'string strings))
+    (reduce/strcat strings))
 
   (defun first-char (s)
     (and (stringp s) (plusp (length s)) (char s 0)))
