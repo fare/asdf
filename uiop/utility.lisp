@@ -197,6 +197,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     #.(or +non-base-chars-exist-p+ '(eq 'base-char (array-element-type string))))
 
   (defun strings-common-element-type (strings)
+    (declare (ignorable strings))
     #.(if +non-base-chars-exist-p+
           '(if (loop :for s :in strings :always (or (null s) (base-string-p s)))
             'base-char 'character)
