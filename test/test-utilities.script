@@ -197,3 +197,26 @@
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/"))))
 (assert (not (probe-file* (subpathname *build-directory* "deleteme/a/1.x"))))
 (assert (not (probe-file* (subpathname *build-directory* "deleteme/a/b/2"))))
+
+#+(and sbcl sb-unicode) (assert +non-base-chars-exist-p+)
+#+(or clozure (and sbcl (not sb-unicode))) (assert (not +non-base-chars-exist-p+))
+
+(assert (base-string-p (make-string 10 :element-type 'base-char)))
+(assert-equal "abcd" (strcat "a" NIL "bc" "d"))
+(assert-equal "abcd" (reduce/strcat '("a" NIL "bc" "d")))
+
+#-non-base-chars-exist-p
+(progn
+  (assert (base-string-p (make-string 10 :element-type 'character))))
+
+(defun basify (s) (coerce s 'base-string))
+
+#+non-base-chars-exist-p
+(progn
+  (assert (not (base-string-p (make-string 10 :element-type 'character))))
+  (assert (not (base-string-p "abc")))
+  (assert (base-string-p (basify "abc")))
+  (assert (not (base-string-p (strcat "a" NIL "b" "cd"))))
+  (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" NIL "cd")))))
+  (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
+  (assert (not (base-string-p (strcat (basify "ab") "cd")))))

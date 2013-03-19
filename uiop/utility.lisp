@@ -187,21 +187,22 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 ;;; Characters
 (with-upgradability ()
-  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char))))
+  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char)))
+  (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
 
 
 ;;; Strings
 (with-upgradability ()
   (defun base-string-p (string)
     (declare (ignorable string))
-    #.(or +non-base-chars-exist-p+ '(eq 'base-char (array-element-type string))))
+    (and #+non-base-chars-exist-p (eq 'base-char (array-element-type string))))
 
   (defun strings-common-element-type (strings)
     (declare (ignorable strings))
-    #.(if +non-base-chars-exist-p+
-          '(if (loop :for s :in strings :always (or (null s) (base-string-p s)))
-            'base-char 'character)
-          ''character))
+    #-non-base-chars-exist-p 'character
+    #+non-base-chars-exist-p
+    (if (loop :for s :in strings :always (or (null s) (base-string-p s)))
+        'base-char 'character))
 
   (defun reduce/strcat (strings &key key start end)
     "Reduce a list as if by STRCAT, accepting KEY START and END keywords like REDUCE"
