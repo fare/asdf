@@ -135,14 +135,15 @@
     asdf/lisp-action:try-recompiling
     ;; types
     asdf/bundle:user-system
+    #+sbcl uiop/lisp-build:sb-grovel-unknown-constant-condition
     ;; on some implementations only
     asdf/bundle:bundle-system
     asdf/bundle:register-pre-built-system 
     asdf/bundle:static-library
-    asdf/os:parse-file-location-info
-    asdf/os:parse-windows-shortcut
-    asdf/os:read-little-endian
-    asdf/os:read-null-terminated-string
+    uiop/os:parse-file-location-info
+    uiop/os:parse-windows-shortcut
+    uiop/os:read-little-endian
+    uiop/os:read-null-terminated-string
     ;; backward compatibility upgrade only
     asdf/backward-internals:make-sub-operation
     asdf/find-system:contrib-sysdef-search
@@ -196,3 +197,27 @@
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/"))))
 (assert (not (probe-file* (subpathname *build-directory* "deleteme/a/1.x"))))
 (assert (not (probe-file* (subpathname *build-directory* "deleteme/a/b/2"))))
+
+#+(and sbcl sb-unicode) (assert +non-base-chars-exist-p+)
+#+(or clozure (and sbcl (not sb-unicode))) (assert (not +non-base-chars-exist-p+))
+
+(assert (base-string-p (make-string 10 :element-type 'base-char)))
+(assert-equal "abcd" (strcat "a" NIL "bc" "d"))
+(assert-equal "abcd" (reduce/strcat '("a" NIL "bc" "d")))
+
+#-non-base-chars-exist-p
+(progn
+  (assert (base-string-p (make-string 10 :element-type 'character))))
+
+(defun basify (s) (coerce s 'base-string))
+
+#+non-base-chars-exist-p
+(progn
+  (assert (not (base-string-p (make-string 10 :element-type 'character))))
+  (assert (not (base-string-p "abc")))
+  (assert (base-string-p (basify "abc")))
+  (assert (not (base-string-p (strcat "a" NIL #\b "cd"))))
+  (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" NIL "cd")))))
+  (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
+  (assert (not (base-string-p (strcat (basify "ab") #\c "d"))))
+  (assert (base-string-p (strcat (basify "ab") #\c #\d))))

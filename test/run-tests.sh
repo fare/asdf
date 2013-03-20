@@ -25,13 +25,13 @@ usage () {
 
 unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively extract_all
 SHELL=/bin/sh
-export SHELL
+export SHELL DEBUG_ASDF_TEST GCL_ANSI ASDF_OUTPUT_TRANSLATIONS
 
 while getopts "cdtHulhu" OPTION
 do
     case $OPTION in
         d)
-            export DEBUG_ASDF_TEST=t
+            DEBUG_ASDF_TEST=t
             ;;
         u)
             upgrade=t
@@ -183,12 +183,12 @@ case "$lisp" in
     flags="-norc -eval (ext::install-bytecodes-compiler)"
     eval="-eval" ;;
   gcl)
-    export GCL_ANSI=t
+    GCL_ANSI=t
     command="${GCL:-gcl}"
     flags="-batch"
     eval="-eval" ;;
   gclcvs)
-    export GCL_ANSI=t
+    GCL_ANSI=t
     command="${GCLCVS:-gclcvs}"
     flags="-batch"
     eval="-eval" ;;
@@ -332,7 +332,6 @@ run_upgrade_tests () {
     mkdir -p build/results/
     rm -f build/*.*f* uiop/*.*f* test/*.*f* ## Remove stale FASLs from ASDF 1.x, especially when different implementations have same name
     ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
-    export ASDF_OUTPUT_TRANSLATIONS
     su=test/script-support.lisp
     for tag in `upgrade_tags` ; do
         for method in `upgrade_methods` ; do

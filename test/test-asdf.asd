@@ -64,3 +64,9 @@
 
 (defsystem :test-asdf/test-source-directory-2
   :pathname "some/relative/pathname/with-file.type")
+
+(defsystem :test-asdf/bundle-1
+  :components ((:file "file1") (:file "file3")))
+
+(defsystem :test-asdf/bundle-2
+  :depends-on (:test-asdf/bundle-1) :components ((:file "file2")))

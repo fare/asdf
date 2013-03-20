@@ -15,6 +15,8 @@
    #:compile-warned-warning #:compile-failed-warning
    #:check-lisp-compile-results #:check-lisp-compile-warnings
    #:*uninteresting-conditions* #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
+   ;; Types
+   #+sbcl #:sb-grovel-unknown-constant-condition
    ;; Functions & Macros
    #:get-optimization-settings #:proclaim-optimization-settings
    #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
