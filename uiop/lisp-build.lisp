@@ -231,10 +231,18 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
           name))
     (defun reify-function-name (function-name)
       (let ((name (or (first function-name) ;; defun: extract the name
-                      (first (second function-name))))) ;; defmethod: keep gf name, drop method specializers
+                      (let ((sec (second function-name)))
+                        (or (and (atom sec) sec) ; scoped method: drop scope
+                            (first sec)))))) ; method: keep gf name, drop method specializers
         (list name)))
     (defun unreify-function-name (function-name)
       function-name)
+    (defun nullify-non-literals (sexp)
+      (typecase sexp
+        ((or number character simple-string symbol pathname) sexp)
+        (cons (cons (nullify-non-literals (car sexp))
+                    (nullify-non-literals (cdr sexp))))
+        (t nil)))
     (defun reify-deferred-warning (deferred-warning)
       (with-accessors ((warning-type ccl::compiler-warning-warning-type)
                        (args ccl::compiler-warning-args)
@@ -242,13 +250,10 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                        (function-name ccl:compiler-warning-function-name)) deferred-warning
         (list :warning-type warning-type :function-name (reify-function-name function-name)
               :source-note (reify-source-note source-note)
-              :args (destructuring-bind (fun formals env) args
-                      (declare (ignorable env))
-                      (list (unsymbolify-function-name fun)
-                            (loop :for arg :in formals :collect
-                                  (typecase arg ;; notably preserve constant keyword arguments
-                                    ((or symbol number character simple-string pathname) arg)))
-                            nil)))))
+              :args (destructuring-bind (fun &rest more)
+                        args
+                      (cons (unsymbolify-function-name fun)
+                            (nullify-non-literals more))))))
     (defun unreify-deferred-warning (reified-deferred-warning)
       (destructuring-bind (&key warning-type function-name source-note args)
           reified-deferred-warning
@@ -257,8 +262,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
                         :function-name (unreify-function-name function-name)
                         :source-note (unreify-source-note source-note)
                         :warning-type warning-type
-                        :args (destructuring-bind (fun . formals) args
-                                (cons (symbolify-function-name fun) formals))))))
+                        :args (destructuring-bind (fun . more) args
+                                (cons (symbolify-function-name fun) more))))))
   #+(or cmu scl)
   (defun reify-undefined-warning (warning)
     ;; Extracting undefined-warnings from the compilation-unit

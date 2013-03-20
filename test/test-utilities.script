@@ -210,14 +210,15 @@
   (assert (base-string-p (make-string 10 :element-type 'character))))
 
 (defun basify (s) (coerce s 'base-string))
+(defun unbasify (s) (coerce s '(array character (*)))) ; on ECL, literals are base strings (!)
 
 #+non-base-chars-exist-p
 (progn
   (assert (not (base-string-p (make-string 10 :element-type 'character))))
-  (assert (not (base-string-p "abc")))
+  (assert (not (base-string-p (unbasify "abc"))))
   (assert (base-string-p (basify "abc")))
-  (assert (not (base-string-p (strcat "a" NIL #\b "cd"))))
+  (assert (not (base-string-p (strcat "a" NIL #\b (unbasify "cd")))))
   (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" NIL "cd")))))
   (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
-  (assert (not (base-string-p (strcat (basify "ab") #\c "d"))))
+  (assert (not (base-string-p (strcat (basify "ab") #\c (unbasify "d")))))
   (assert (base-string-p (strcat (basify "ab") #\c #\d))))
