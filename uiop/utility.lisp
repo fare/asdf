@@ -201,19 +201,22 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     (declare (ignorable strings))
     #-non-base-chars-exist-p 'character
     #+non-base-chars-exist-p
-    (if (loop :for s :in strings :always (or (null s) (base-string-p s)))
+    (if (loop :for s :in strings :always (or (null s) (typep s 'base-char) (base-string-p s)))
         'base-char 'character))
 
   (defun reduce/strcat (strings &key key start end)
-    "Reduce a list as if by STRCAT, accepting KEY START and END keywords like REDUCE"
+    "Reduce a list as if by STRCAT, accepting KEY START and END keywords like REDUCE.
+NIL is interpreted as an empty string. A character is interpreted as a string of length one."
     (when (or start end) (setf strings (subseq strings start end)))
     (when key (setf strings (mapcar key strings)))
-    (loop :with output = (make-string (loop :for s :in strings :sum (length s))
+    (loop :with output = (make-string (loop :for s :in strings :sum (if (characterp s) 1 (length s)))
                                       :element-type (strings-common-element-type strings))
+          :with pos = 0
           :for input :in strings
-          :for pos = 0 :then (+ pos l)
-          :for l = (length input)
-          :do (replace output input :start1 pos)
+          :do (etypecase input
+                (null)
+                (character (setf (char output pos) input) (incf pos))
+                (string (replace output input :start1 pos) (incf pos (length input))))
           :finally (return output)))
 
   (defun strcat (&rest strings)
