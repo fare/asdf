@@ -394,9 +394,8 @@
            (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'equalp))
            (output-files (output-files o c))
            (output-file (first output-files)))
-      ;;(unless input-files (format t "WTF no input-files for ~S on ~S !???" o c))
+      (assert (eq (not input-files) (not output-files)))
       (when input-files
-        (assert output-files)
         (when non-fasl-files
           (error "On ~A, asdf-bundle can only bundle FASL files, but these were also produced: ~S"
                  (implementation-type) non-fasl-files))
