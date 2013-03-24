@@ -4,49 +4,76 @@ webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
 sourceDirectory := $(shell pwd)
 
+#### Common Lisp implementations available for testing.
+## export ASDF_TEST_LISPS to override the default list of such implementations,
+## or specify a lisps= argument at the make command-line
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl cmucl abcl scl allegro
+lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl gcl
+endif
+## NOT SUPPORTED BY OUR AUTOMATED TESTS:
+##	cormancl genera lispworks-personal-edition mkcl rmcl
+## Some are manually tested once in a while.
+## MAJOR FAIL: gclcvs -- Compiler bug fixed upstream, but gcl fails to compile on modern Linuxen.
+## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
+ifdef ASDF_TEST_SYSTEMS
+s ?= ${ASDF_TEST_SYSTEMS}
 endif
 
-## MINOR FAIL: ecl-bytecodes (failure in test-compile-file-failure.script)
-## MINOR FAIL: xcl (logical pathname issue in asdf-pathname-test.script)
-## OCCASIONALLY TESTED BY NOT ME: allegromodern (not in my free demo version)
-## OCCASIONALLY TESTED BY NOT ME: lispworks (testing requires Pro version)
-## MAJOR FAIL: gclcvs -- COMPILER BUG! Upstream fixed it, but it won't compile for me.
-## NOT SUPPORTED BY OUR TESTS: cormancl genera rmcl. Manually tested once in a while.
+l ?= sbcl
 
-lisp ?= sbcl
-
-CCL ?= ccl
-CLISP ?= clisp
-SBCL ?= sbcl
-ECL ?= ecl
-CMUCL ?= cmucl
 ABCL ?= abcl
-SCL ?= scl
 ALLEGRO ?= alisp
 ALLEGROMODERN ?= mlisp
+CCL ?= ccl
+CLISP ?= clisp
+CMUCL ?= cmucl
+ECL ?= ecl
+GCL ?= gcl
+LISPWORKS ?= lispworks
+MKCL ?= mkcl
+SBCL ?= sbcl
+SCL ?= scl
+XCL ?= xcl
 
 # website, tag, install
 
-default: test
+header_lisp := header.lisp
+driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
+defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
+all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 
-install: archive-copy
+# Making ASDF itself should be our first, default, target:
+build/asdf.lisp: $(all_lisp)
+	mkdir -p build
+	cat $(all_lisp) > $@
 
-archive:
-	${SBCL} --userinit /dev/null --sysinit /dev/null --load bin/make-helper.lisp \
-		--eval "(rewrite-license)" --eval "(quit)"
-	bin/make-tarball
+# This quickly locates such mistakes as unbalanced parentheses:
+load: build/asdf.lisp
+	./test/run-tests.sh -t $l $(all_lisp)
 
-archive-copy: archive
-	git checkout release
-	bin/rsync-cp tmp/asdf*.tar.gz $(webhome_private)/archives
-	bin/link-tarball $(clnet_home)
-	bin/rsync-cp tmp/asdf.lisp $(webhome_private)
-	${MAKE} push
-	git checkout master
+install: archive
+
+bump: bump-version
+bump-version: build/asdf.lisp
+	./bin/asdf-builder bump-version ${v}
+
+driver-files:
+	@echo $(driver_lisp)
+
+defsystem-files:
+	@echo $(defsystem_lisp)
+
+archive: build/asdf.lisp
+	./bin/asdf-builder make-and-publish-archive
+
+### Count lines separately for asdf-driver and asdf itself:
+wc:
+	@wc $(driver_lisp) | sort -n ; echo ; \
+	wc $(header_lisp) $(defsystem_lisp) | sort -n ; \
+	echo ; \
+	wc $(header_lisp) $(driver_lisp) $(defsystem_lisp) | tail -n 1
 
 push:
 	git status
@@ -75,82 +102,71 @@ clean:
 		done; \
 	     fi; \
 	done
-	rm -rf tmp/ LICENSE test/try-reloading-dependency.asd
+	rm -rf build/ LICENSE test/try-reloading-dependency.asd
 	${MAKE} -C doc clean
 
 mrproper: clean
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 
-test-upgrade:
-	mkdir -p tmp/fasls/${lisp} ; \
-	fa=tmp/fasls/sbcl/upasdf.fasl ; \
-	ll="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"ll~%\") (load \"asdf.lisp\"))" ; \
-	cf="(handler-bind ((warning #'muffle-warning)) (format t \"cf~%\") (compile-file \"asdf.lisp\" :output-file \"$$fa\" :verbose t :print t))" ; \
-	lf="(handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning)) (format t \"lf\") (load \"$$fa\" :verbose t :print t))" ; \
-	te="(quit-on-error $$l (push #p\"${sourceDirectory}/test/\" asdf:*central-registry*) (princ \"te\") (asdf:oos 'asdf:load-op :test-module-depend :verbose t))" ; \
-	use_ccl () { li="${CCL} --no-init --quiet --load" ; ev="--eval" ; } ; \
-	use_clisp () { li="${CLISP} -norc -ansi --quiet --quiet -i" ; ev="-x" ; } ; \
-	use_sbcl () { li="${SBCL} --noinform --no-userinit --load" ; ev="--eval" ; } ; \
-	use_ecl () { li="${ECL} -norc -load" ; ev="-eval" ; } ; \
-	use_cmucl () { li="${CMUCL} -noinit -load" ; ev="-eval" ; } ; \
-	use_abcl () { li="${ABCL} --noinit --nosystem --noinform --load" ; ev="--eval" ; } ; \
-	use_scl () { li="${SCL} -noinit -load" ; ev="-eval" ; } ; \
-	use_allegro () { li="${ALLEGRO} -q -L" ; ev="-e" ; } ; \
-	use_allegromodern () { li="${ALLEGROMODERN} -q -L" ; ev="-e" ; } ; \
-	su=test/script-support ; \
-	for tag in 1.37 1.97 1.369 `git tag -l '2.0??'` `git tag -l '2.??'` ; do \
-	  use_${lisp} ; \
-	  lo="(handler-bind ((warning #'muffle-warning)) (load \"tmp/asdf-$${tag}.lisp\"))" ; \
-	  echo "Testing upgrade from ASDF $${tag}" ; \
-	  git show $${tag}:asdf.lisp > tmp/asdf-$${tag}.lisp ; \
-	  rm -f $$fa ; lv="$$li $$su $$ev" ; \
-	  case ${lisp}:$$tag in \
-	    ecl:2.00[0-9]|ecl:2.01[0-6]) : Skip, because of get-uid ugliness ;; *) \
-	  ( set -x ; $$lv "$$lo" $$ev "$$ll" $$ev "$$te" && \
-	    $$lv "$$lo" $$ev "$$ll" $$ev "$$cf" $$ev "$$lf" $$ev "$$te" && \
-	    $$lv "$$lo" $$ev "$$lf" $$ev "$$te" && \
-	    $$lv "$$lf" $$ev "$$te" ) || { echo "upgrade FAILED" ; exit 1 ;} \
-	  ;; esac ; \
-	done
+test-upgrade: build/asdf.lisp
+	./test/run-tests.sh -u ${l}
+u: test-upgrade
 
-test-forward-references:
-	${SBCL} --noinform --no-userinit --no-sysinit --load asdf.lisp --eval '(sb-ext:quit)' 2>&1 | cmp - /dev/null
+test-clean-load: build/asdf.lisp
+	./test/run-tests.sh -c ${l}
 
-test-lisp:
-	@cd test; ${MAKE} clean;./run-tests.sh ${lisp} ${test-glob}
+# test-glob has been replaced by t, and lisp by l, easier to type
+test-lisp: build/asdf.lisp
+	@cd test; ${MAKE} clean;./run-tests.sh ${l} ${t}
+t: test-lisp
 
-test: test-lisp test-forward-references doc
+test: test-lisp test-clean-load test-load-systems doc
+
+test-load-systems: build/asdf.lisp
+	./test/run-tests.sh -l ${l} ${s}
 
 test-all-lisps:
+	${MAKE} test-load-systems
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp test-upgrade lisp=$$lisp || exit 1 ; \
+		${MAKE} test-lisp test-upgrade test-clean-load l=$$lisp || exit 1 ; \
 	done
 
 # test upgrade is a very long run... This does just the regression tests
-test-all-noupgrade:
+test-all-no-upgrade:
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp lisp=$$lisp || exit 1 ; \
+		${MAKE} test-lisp test-clean-load l=$$lisp || exit 1 ; \
 	done
 
-test-all: test-forward-references doc test-all-lisps
+test-all-upgrade:
+	@for lisp in ${lisps} ; do \
+		${MAKE} test-upgrade l=$$lisp || exit 1 ; \
+	done
+
+test-all: doc test-all-lisps
+
+test-all-no-stop:
+	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
+
+extract-all-tagged-asdf: build/asdf.lisp
+	./test/run-tests.sh -H
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
 debian-package: mrproper
-	: $${RELEASE:="$$(git tag -l '2.[0-9][0-9]' | tail -n 1)"} ; \
-	git-buildpackage --git-debian-branch=release --git-upstream-branch=$$RELEASE --git-tag --git-retag --git-ignore-branch
+	: $${RELEASE:="$$(git tag -l '2.[0-9][0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
+	git-buildpackage --git-debian-branch=release --git-upstream-branch=release --git-upstream-tag=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
-# Replace SBCL's ASDF with the current one. -- Not recommended now that SBCL has ASDF2.
+# Replace SBCL's ASDF with the current one. -- NOT recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
-replace-sbcl-asdf:
-	${SBCL} --eval '(compile-file "asdf.lisp" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
+replace-sbcl-asdf: build/asdf.lisp
+	${SBCL} --eval '(compile-file "$<" :output-file (format nil "~Aasdf/asdf.fasl" (sb-int:sbcl-homedir-pathname)))' --eval '(quit)'
 
-# Replace CCL's ASDF with the current one. -- Not recommended now that CCL has ASDF2.
+# Replace CCL's ASDF with the current one. -- NOT recommended now that CCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
-replace-ccl-asdf:
-	${CCL} --eval '(progn(compile-file "asdf.lisp" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
+replace-ccl-asdf: build/asdf.lisp
+	${CCL} --eval '(progn(compile-file "$<" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
 
-WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE
+WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE # It's not 1.37, it's 1.85! 1.37 is for the README.
 # Delete wrongful tags from local repository
 fix-local-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git tag -d $$i ; done
@@ -171,9 +187,23 @@ TODO:
 
 release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
-.PHONY: install archive archive-copy push doc website clean mrproper \
-	upgrade-test test-forward-references test test-lisp test-upgrade test-forward-references \
-	test-all test-all-lisps test-all-noupgrade \
+.PHONY: install archive push doc website clean mrproper \
+	test-forward-references test test-lisp test-upgrade test-forward-references \
+	test-all test-all-lisps test-all-no-upgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
-	fix-local-git-tags fix-remote-git-tags
+	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
+
+# RELEASE checklist:
+# make test-all
+# make test-load-systems s=fare-all
+# make bump v=3.0
+# edit debian/changelog
+# make release-push archive website debian-package
+# dput mentors ../*.changes
+# send debian mentors request
+# send announcement to asdf-announce, asdf-devel, etc.
+#
+## Users don't release as above, only maintainers do.
+## Users, all you need to do is: make
+## Vendors, you may want to test your implementation with: make test l=sbcl

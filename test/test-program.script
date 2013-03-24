@@ -1,0 +1,45 @@
+;;; -*- Lisp -*-
+
+(DBG :foo (current-lisp-file-pathname))
+
+(unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks sbcl) t
+            #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
+            #+clisp (version-satisfies
+                     (first (split-string (lisp-implementation-version) :separator " "))
+                     "2.48"))
+  (DBG "Creating standalone programs is not supported on your CL implementation")
+  (leave-test "Skipping test" 0))
+
+(defparameter exe (output-file (make-operation 'program-op) (find-system :hello-world-example)))
+(assert (absolute-pathname-p exe))
+
+;; Try to load lisp-invocation from xcvb
+(setf *central-registry*
+      (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
+            *uiop-directory*
+            ;; try finding xcvb's lisp-invocation right next to asdf.
+            (subpathname *asdf-directory* "../xcvb/")))
+(unless (find-system :lisp-invocation nil)
+  ;; try harder by enabling the user's source-registry
+  (initialize-source-registry ""))
+(unless (find-system :lisp-invocation nil)
+  (leave-test "Couldn't find lisp-invocation. Skipping the rest the test." 0))
+(load-system :lisp-invocation)
+;; Disable any user source registry.
+(initialize-source-registry `(:source-registry :ignore-inherited-configuration))
+
+(delete-file-if-exists exe)
+(run-program
+ (symbol-call :lisp-invocation :lisp-invocation-arglist
+              :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))))
+(assert (probe-file* exe))
+
+(assert-equal (run-program `(,(native-namestring exe)) :output :lines)
+              '("hello, world"))
+
+(assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines)
+              '("hello, world"
+                "You passed 3 arguments:"
+                "  \"a\""
+                "  \"b c\""
+                "  \"d\""))

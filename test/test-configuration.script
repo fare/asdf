@@ -1,19 +1,22 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
+
+
+
 (in-package :asdf)
+(use-package :asdf-test)
+#+gcl2.6 (defmacro with-standard-io-syntax (&body body) `(progn ,@body))
 
-(defparameter *test-directory*
-  (merge-pathnames* (coerce-pathname "tmp/") cl-user::*asdf-directory*))
+(defparameter *tmp-directory* (subpathname *asdf-directory* "build/"))
+(setf *central-registry* nil)
 
-(defun under-test-directory (designator &optional (defaults *test-directory*))
-  (namestring (merge-pathnames* (coerce-pathname designator) defaults)))
+(defun under-tmp-directory (designator &optional (defaults *tmp-directory*))
+  (namestring (subpathname defaults designator)))
 
-(defun create-conf-files (&optional (path *test-directory*))
+(defun create-conf-files (&optional (path *tmp-directory*))
   (let ((v `(("conf.d/conf1.conf"
-              ((:directory ,(under-test-directory "dir1/"))))
+              ((:directory ,(under-tmp-directory "dir1/"))))
              ("conf.d/conf2.conf"
-              ((:tree ,(under-test-directory "dir2/"))))
+              ((:tree ,(under-tmp-directory "dir2/"))))
              ;; this is for testing the :here directive
              ("dir5/conf.conf"
               ((:directory (:here "dir6"))))
@@ -23,7 +26,7 @@
               ((:tree (:here)))))))
     (loop
       :for (file contents) :in v
-      :for name = (under-test-directory file path)
+      :for name = (under-tmp-directory file path)
       :do
       (ensure-directories-exist name)
       (with-open-file (out name
@@ -32,7 +35,7 @@
         (with-standard-io-syntax
           (format out "~{~S~%~}" contents))))))
 
-(defparameter *test-asd-directories*
+(defparameter *tmp-asd-directories*
   (loop
     :for dir
     :in '("dir1/"                       ; foo0
@@ -47,76 +50,65 @@
           "dir9/dira/"                  ; foo7 should be found because of :here :tree
           "dir9/dira/dirc/"              ; foo8 ditto
           "dir9/dirb/")                 ; foo9 should /not/ be found -- not under :here :tree
-    :collect (under-test-directory dir)))
+    :collect (under-tmp-directory dir)))
 
 (defun create-asd-files ()
   (loop
-    :for d :in *test-asd-directories*
+    :for d :in *tmp-asd-directories*
     :for i :from 0 :do
     (ensure-directories-exist d)
     (with-open-file (s (merge-pathnames* (format nil "foo~D.asd" i) d)
                        :direction :output
                        :if-exists :rename-and-delete
                        :if-does-not-exist :create)
-      (format s "(asdf:defsystem :foo~D)~%" i))))
+      (format s "(defsystem :foo~D)~%" i))))
 
-(cl-user::quit-on-error
+(progn
+ (assert-equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")
+               '(:output-translations ("/foo" "/bar") :inherit-configuration
+                 ("/baz" "/quux")))
+ (assert-equal (asdf::parse-output-translations-string "/:")
+               '(:output-translations ("/" nil) :ignore-inherited-configuration))
+ (assert-equal (asdf::parse-output-translations-string "/::")
+               '(:output-translations ("/" nil) :inherit-configuration))
+ (assert-equal (asdf::parse-output-translations-string "/:/")
+               '(:output-translations ("/" "/") :ignore-inherited-configuration))
 
-(assert
- (equal (parse-output-translations-string "/foo:/bar::/baz:/quux")
-        '(:output-translations
-          ("/foo" "/bar")
-          :inherit-configuration
-          ("/baz" "/quux"))))
-(assert
- (equal (parse-output-translations-string "/:")
-        '(:output-translations ("/" nil) :ignore-inherited-configuration)))
-(assert
- (equal (parse-output-translations-string "/::")
-        '(:output-translations ("/" nil) :inherit-configuration)))
-(assert
- (equal (parse-output-translations-string "/:/")
-        '(:output-translations ("/" "/") :ignore-inherited-configuration)))
+ (assert-equal (asdf::parse-output-translations-string
+                "(:output-translations (\"/\" \"/\") :ignore-inherited-configuration)")
+               '(:output-translations ("/" "/") :ignore-inherited-configuration))
 
-(assert
- (equal (parse-output-translations-string
-         "(:output-translations (\"/\" \"/\") :ignore-inherited-configuration)")
-        '(:output-translations ("/" "/") :ignore-inherited-configuration)))
+ (create-asd-files)
+ (create-conf-files)
 
-(create-asd-files)
-(create-conf-files)
+ (format t "~&subdirectories of dir2/: ~S~%" (subdirectories (under-tmp-directory "dir2/")))
+ (assert-equal 2 (length (subdirectories (under-tmp-directory "dir2/"))))
 
-(format t "~&subdirectories of dir2/: ~S~%" (subdirectories (under-test-directory "dir2/")))
-(assert (= 2 (length (subdirectories (under-test-directory "dir2/")))))
+ (format t "~&subdirectories of dir5/: ~S~%" (subdirectories (under-tmp-directory "dir5/")))
+ (assert-equal 2 (length (subdirectories (under-tmp-directory "dir5/"))))
 
-(format t "~&subdirectories of dir5/: ~S~%" (subdirectories (under-test-directory "dir5/")))
-(assert (= 2 (length (subdirectories (under-test-directory "dir5/")))))
+ (initialize-source-registry
+  `(:source-registry (:include ,(under-tmp-directory "conf.d/"))
+                     (:include ,(under-tmp-directory "dir5/"))
+                     (:include ,(under-tmp-directory "dir8/"))
+                     (:include ,(under-tmp-directory "dir9/dira/"))
+                     :ignore-inherited-configuration))
 
-;; (trace asdf::process-source-registry)
-(initialize-source-registry
- `(:source-registry (:include ,(under-test-directory "conf.d/"))
-                    (:include ,(under-test-directory "dir5/"))
-                    (:include ,(under-test-directory "dir8/"))
-                    (:include ,(under-test-directory "dir9/dira/"))
-                    :ignore-inherited-configuration))
+ (format t "~&Source Registry: ~S~%"
+         asdf::*source-registry*)
+ (assert (find-system :foo0 nil))
+ (assert (find-system :foo1 nil))
+ (assert (find-system :foo2 nil))
+ (assert (find-system :foo3 nil))
+ (assert (find-system :foo4 nil))
+ (assert (not (find-system :foo5 nil)))
+ (assert (find-system :foo6 nil))
+ (assert (find-system :foo7 nil))
+ (assert (find-system :foo8 nil))
+ (assert (not (find-system :foo9 nil)))
 
-(format t "~&Source Registry: ~S~%"
-        asdf::*source-registry*)
-(assert (find-system :foo0 nil))
-(assert (find-system :foo1 nil))
-(assert (find-system :foo2 nil))
-(assert (find-system :foo3 nil))
-(assert (find-system :foo4 nil))
-(assert (not (find-system :foo5 nil)))
-(assert (find-system :foo6 nil))
-(assert (find-system :foo7 nil))
-(assert (find-system :foo8 nil))
-(assert (not (find-system :foo9 nil)))
-
-(format t "~&A: ~S~%B: ~S~%"
-        (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
-        (under-test-directory "dir2/bar/baz.lisp"))
-(assert
- (equal (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
-        (under-test-directory "dir2/bar/baz.lisp")))
-)
+ (format t "~&A: ~S~%B: ~S~%"
+         (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
+         (under-tmp-directory "dir2/bar/baz.lisp"))
+ (assert-equal (namestring (system-relative-pathname :foo3 "bar/baz.lisp"))
+               (under-tmp-directory "dir2/bar/baz.lisp")))

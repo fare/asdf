@@ -1,23 +1,22 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
 
-(quit-on-error
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
- (asdf:operate 'asdf:load-op 'test-force)
+(load-system 'test-force)
 
-  (let* ((file1 (asdf:compile-file-pathname* "file1"))
-         (file1-date (file-write-date file1)))
+(defparameter file1 (test-fasl "file1"))
+(defparameter file1-date (file-write-date file1))
+(defparameter date1 (- file1-date 600))
+(defparameter date2 (- file1-date 300))
 
-    (assert file1)
-    (assert file1-date)
+(assert file1)
+(assert file1-date)
 
-    ;; unforced, date should stay same
-    (sleep 1)
-    (asdf:operate 'asdf:load-op 'test-force)
-    (assert (equal (file-write-date file1) file1-date))
+;; unforced, date should stay same
+(touch-file "test-force.asd" :timestamp date1)
+(touch-file "file1.lisp" :timestamp date1)
+(touch-file file1 :timestamp date2)
+(load-system 'test-force)
+(assert (equal (get-file-stamp file1) date2))
 
-    ;; forced, it should be later
-    (sleep 1)
-    (asdf:operate 'asdf:load-op 'test-force :force t)
-    (assert (> (file-write-date file1) file1-date))))
+;; forced, it should be later
+(load-system 'test-force :force t)
+(assert (>= (get-file-stamp file1) file1-date))

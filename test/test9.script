@@ -2,21 +2,15 @@
 
 ;;; make sure we get a missing-component-of-version error
 
-(load "script-support.lisp")
-(load-asdf)
-(in-package #:common-lisp-user)
-
-(quit-on-error
- (setf asdf:*central-registry* nil)
- (load (merge-pathnames "test9-1.asd"))
- (load (merge-pathnames "test9-2.asd"))
- (handler-case
-     (asdf:oos 'asdf:load-op 'test9-1)
-   (asdf:missing-component-of-version (c)
-     (format t "got missing-component-of-version as expected: - ~%~A~%" c))
-   (:no-error (c)
-    (declare (ignore c))
-    (error "should have failed, oops"))))
 
 
 
+(progn
+  (handler-case
+      (load-test-system :test-asdf/test9-1)
+    (asdf:missing-component-of-version (c)
+      (format t "got missing-component-of-version as expected: - ~%~A~%" c))
+    (:no-error (c)
+      (declare (ignore c))
+      (error "should have failed, oops")))
+  (load-test-system :test-asdf/test9-3)) ; positive case, to make sure.

@@ -1,31 +1,34 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
-(setf asdf:*central-registry* '(*default-pathname-defaults*))
 
-(defpackage :test-version-system
-  (:use :cl :asdf))
+(DBG "Check that there is an ASDF version that correctly parses to a non-empty list")
+(assert (consp (parse-version (asdf-version) 'error)))
+(DBG "Check that ASDF is newer than 1.234")
+(assert-compare (version<= "1.234" (asdf-version)))
+(DBG "Check that ASDF is not a compatible replacement for 1.234")
+(assert (not (version-compatible-p (asdf-version) "1.234")))
 
-(in-package :test-version-system)
+(DBG "Check that asdf.asd is not registered and we're using a fallback system")
+(defparameter *asdf* (find-system :asdf))
+(assert-equal nil (system-source-directory *asdf*))
+(DBG "Check that the fallback system bears the current asdf version")
+(assert-equal (asdf-version) (component-version *asdf*))
 
-(cl-user::quit-on-error
- (defsystem :versioned-system-1
-   :pathname #.*default-pathname-defaults*
-   :version "1.0")
+(def-test-system :versioned-system-1
+  :pathname #.*test-directory*
+  :version "1.0")
 
- (defsystem :versioned-system-2
-   :pathname #.*default-pathname-defaults*
-   :version "1.1")
+(def-test-system :versioned-system-2
+  :pathname #.*test-directory*
+  :version "1.1")
 
- (defsystem :versioned-system-3
-   :pathname #.*default-pathname-defaults*
-   :version "1.2")
+(def-test-system :versioned-system-3
+  :defsystem-depends-on ((:version :test-asdf/file2 "2.1"))
+  :pathname #.*test-directory*
+  :version "1.2")
 
- (flet ((test (name v &optional (true t))
-          (or (eq true (asdf::version-satisfies (find-system name) v))
-              (error "no satisfaction: ~S version ~A not ~A" name v true))))
-   (test :versioned-system-1 "1.0")
-   (test :versioned-system-2 "1.0")
-   (test :versioned-system-3 "2.0" nil))
-
- )
+(defun vtest (name v &optional (true t))
+  (or (eq true (version-satisfies (find-system name) v))
+      (error "no satisfaction: ~S version ~A not ~A" name v true)))
+(vtest :versioned-system-1 "1.0")
+(vtest :versioned-system-2 "1.0")
+(vtest :versioned-system-3 "2.0" nil)

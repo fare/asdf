@@ -1,9 +1,10 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
 
-(quit-on-error
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
+
+
+;;(trace asdf::source-file-type asdf::source-file-explicit-type)
+
+(progn
  (asdf:load-system 'test-source-file-type-1 :verbose t)
  (assert (symbol-value (read-from-string "test-package::*test-tmp-cl*")))
  (assert

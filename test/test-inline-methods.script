@@ -1,0 +1,19 @@
+;;; -*- Lisp -*-
+
+(defparameter *a* 0)
+
+(def-test-system :foo
+  :components
+  ((:file "file1"
+    :perform (load-op :before (o c)
+                      (incf *a*)
+                      (format t "Method run before ~A~%" (action-description o c))))
+   (:file "file2" :depends-on ("file1")
+    :perform (load-op (o c)
+                      (incf *a*)
+                      (format t "Method run for ~A~%" (action-description o c))
+                      (call-next-method)))))
+
+(load-system :foo)
+
+(assert-equal *a* 2)

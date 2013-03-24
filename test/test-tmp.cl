@@ -1,6 +1,6 @@
 ;; part of the test-module-pathnames test
 
-(in-package #:test-package)
+(in-package :test-package)
 
 (defparameter *test-tmp-cl* t)
 

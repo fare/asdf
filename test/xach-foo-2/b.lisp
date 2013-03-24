@@ -1,6 +1,6 @@
 ;;;; b.lisp
 
-(in-package #:second-version)
+(in-package :second-version)
 
 (defun wtf ()
   42)

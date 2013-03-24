@@ -2,12 +2,13 @@
 (defclass cl-source-file-1 (cl-source-file)
   ())
 
-(defmethod source-file-type ((f cl-source-file-1) (m module))
-  (declare (ignorable f m))
+(defmethod asdf::source-file-type ((f cl-source-file-1) (s system))
+  (declare (ignorable f s))
+  (format t "Hello, world!~%")
   "cl")
 
 (defsystem test-source-file-type-1
-    :default-component-class cl-source-file-1
-    :serial t
-    :components ((:cl-source-file "file1") ; for the package
-                 (:file "test-tmp")))
+  :default-component-class cl-source-file-1
+  :serial t
+  :components ((:cl-source-file "file1") ; for the package
+               (:file "test-tmp")))

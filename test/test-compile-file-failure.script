@@ -1,17 +1,17 @@
 ;;; -*- Lisp -*-
 
-(load "script-support.lisp")
-(load-asdf)
+(in-package :asdf)
 
-(quit-on-error
- (setf asdf:*central-registry* '(*default-pathname-defaults*))
- (assert (handler-case
-             (let ((asdf:*compile-file-failure-behaviour* :warn))
-               (asdf:load-system 'test-compile-file-failure :force t)
-               t)
-           (asdf:compile-error () nil)))
- (assert (handler-case
-             (let ((asdf:*compile-file-failure-behaviour* :error))
-               (asdf:load-system 'test-compile-file-failure :force t)
-               nil)
-           (asdf:compile-error () t))))
+#+gcl2.6 (leave-test "GCL 2.6 sucks. Skipping test." 0)
+
+(assert (handler-case
+            (let ((*compile-file-failure-behaviour* :warn))
+              (load-system 'test-compile-file-failure :force t)
+              t)
+          (compile-file-error () nil)))
+
+(assert (handler-case
+            (let ((*compile-file-failure-behaviour* :error))
+              (load-system 'test-compile-file-failure :force t)
+              nil)
+          (compile-file-error () t)))

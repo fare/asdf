@@ -1,0 +1,35 @@
+;;; -*- Lisp -*-
+
+
+(in-package :asdf-test)
+
+;;;---------------------------------------------------------------------------
+;;; Check to see if the bundle functionality is doing something.
+;;;---------------------------------------------------------------------------
+
+(asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
+(asdf:clear-system :test-asdf/bundle-1)
+(asdf:clear-system :test-asdf/bundle-2)
+(when (find-package :test-package) (delete-package :test-package))
+#+(or abcl (and ecl ecl-bytecmp) gcl)
+(leave-test "bundles not on this implementation" 0)
+
+(defparameter *bundle-1* (output-file 'fasl-op :test-asdf/bundle-1))
+(defparameter *bundle-2* (output-file 'fasl-op :test-asdf/bundle-2))
+(defparameter *mono-bundle-2* (output-file 'monolithic-fasl-op :test-asdf/bundle-2))
+(DBG :test-bundle *bundle-1* *bundle-2*)
+(assert-equal (list *bundle-2*)
+              (input-files 'load-fasl-op :test-asdf/bundle-2))
+(delete-file-if-exists *bundle-1*)
+(delete-file-if-exists *bundle-2*)
+(delete-file-if-exists *mono-bundle-2*)
+(operate 'load-fasl-op :test-asdf/bundle-2)
+(DBG "Check that the bundles were indeed created.")
+(assert (probe-file *bundle-2*))
+(assert (probe-file *bundle-1*))
+(DBG "Check that the files were indeed loaded.")
+(assert (symbol-value (find-symbol* :*file1* :test-package)))
+(assert (symbol-value (find-symbol* :*file3* :test-package)))
+(DBG "Now for the mono-fasl")
+(operate 'monolithic-fasl-op :test-asdf/bundle-2)
+(assert (probe-file *mono-bundle-2*))

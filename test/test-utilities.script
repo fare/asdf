@@ -1,57 +1,224 @@
 ;;; -*- Lisp -*-
-(load "script-support.lisp")
-(load-asdf)
-(in-package :asdf)
-(cl-user::quit-on-error
 
 (assert
  (every #'directory-pathname-p
   (list
-   (make-pathname :name nil :type "" :directory '(:absolute "tmp"))
-   (make-pathname :name "" :directory '(:absolute "tmp"))
-   (make-pathname :type "" :directory '(:absolute "tmp"))
+   (make-pathname* :name nil :type "" :directory '(:absolute "tmp"))
+   (make-pathname* :name "" :directory '(:absolute "tmp"))
+   (make-pathname* :type "" :directory '(:absolute "tmp"))
 ;; CLHS 19.2.2.2.3 says we can't portably specify :unspecific here,
 ;; and some implementations will enforce it.
-;;   (make-pathname :type :unspecific :directory '(:absolute "tmp"))
-;;   (make-pathname :name :unspecific :directory '(:absolute "tmp"))
-;;   (make-pathname :name :unspecific :directory '(:absolute "tmp"))
-   )))
+   (make-pathname* :type *unspecific-pathname-type* :directory '(:absolute "tmp"))
+   (make-pathname* :name *unspecific-pathname-type* :directory '(:absolute "tmp"))
+   (make-pathname* :name *unspecific-pathname-type* :directory '(:absolute "tmp")))))
 (assert
  (every (complement #'directory-pathname-p)
   (list
-   (make-pathname :name "foo" :type nil :directory '(:absolute "tmp"))
-   (make-pathname :name nil :type "bar" :directory '(:absolute "tmp")))))
-;; These are funky and non portable. Omit from tests.
-;; (make-pathname :name "." :type nil :directory '(:absolute "tmp"))
-;; (make-pathname :name "." :type "" :directory '(:absolute "tmp"))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "" :force-directory t))
-               '(:relative nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components ""  :force-directory nil))
-               '(:relative nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/" :force-directory t))
-               '(:absolute nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/" :force-directory nil))
-               '(:absolute nil nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" :force-directory t))
-               '(:absolute ("aa" "ba") nil)))
-(assert (equal (multiple-value-list (component-name-to-pathname-components "/aa/ba" :force-directory nil))
-               '(:absolute ("aa") "ba")))
+   (make-pathname* :name "foo" :type nil :directory '(:absolute "tmp"))
+   (make-pathname* :name nil :type "bar" :directory '(:absolute "tmp")))))
+;; These are funky and non portable, omit from tests:
+;; (make-pathname* :name "." :type nil :directory '(:absolute "tmp"))
+;; (make-pathname* :name "." :type "" :directory '(:absolute "tmp"))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "" :ensure-directory t))
+               '(:relative nil nil nil)))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components ""  :ensure-directory nil))
+               '(:relative nil nil nil)))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :ensure-directory t))
+               '(:absolute nil nil nil)))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :ensure-directory nil))
+               '(:absolute nil nil nil)))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :ensure-directory t))
+               '(:absolute ("aa" "ba") nil nil)))
+(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :ensure-directory nil))
+               '(:absolute ("aa") "ba" nil)))
 (assert
- (asdf::version-satisfies (asdf:asdf-version) (asdf:asdf-version)))
+ (version-satisfies (asdf-version) (asdf-version)))
 (assert
- (asdf::version-satisfies (asdf:asdf-version) "2.000"))
+ (version-satisfies (asdf-version) "2.0"))
 (assert
- (not (asdf::version-satisfies (asdf:asdf-version) "666")))
-(assert
-  (equal (asdf::split-absolute-pathnames "/foo:/bar" "baz") '("/foo" "/bar")))
-(assert (equal (mapcar 'location-function-p
-                       '((:function f)
-                         (:function (lambda (path absolute-source)
-                                      (declare (ignore absolute-source))
-                                      path))
-                         (function previous-isnt-keyword)
-                         (:function f too many arguments)
-                         (:function (:lambda isnt lambda))
-                         (:function (lambda (too many args) blah))))
-               '(t t nil nil nil nil)))
-)
+ (not (version-satisfies (asdf-version) "666")))
+(assert-pathnames-equal
+ (split-native-pathnames-string "foo:bar")
+ '(#p"foo" #p"bar"))
+(assert-pathnames-equal
+ (split-native-pathnames-string "foo:bar" :ensure-directory t)
+ '(#p"foo/" #p"bar/"))
+(assert-pathnames-equal
+ (split-native-pathnames-string "/foo:/bar" :want-absolute t)
+ '(#p"/foo" #p"/bar"))
+(assert-pathnames-equal
+ (split-native-pathnames-string "/foo:/bar" :want-absolute t :ensure-directory t)
+ '(#p"/foo/" #p"/bar/"))
+(assert-equal
+ (mapcar 'location-function-p
+         '((:function f)
+           (:function (lambda (path absolute-source)
+                        (declare (ignore absolute-source))
+                        path))
+           (function previous-isnt-keyword)
+           (:function f too many arguments)
+           (:function (:lambda isnt lambda))
+           (:function (lambda (too many args) blah))))
+ '(t t nil nil nil nil))
+
+(initialize-source-registry '())
+
+#|
+(unless (find-system :swank nil)
+  (leave-test "Cannot find SWANK" 0))
+
+(load-system :swank)
+;;(setq swank-loader::*fasl-directory* (resolve-output "slime/"))
+;;(ensure-directories-exist swank-loader::*fasl-directory*)
+;;(DBG :foo swank-loader::*fasl-directory*)
+(swank-loader:init)
+|#
+
+(defparameter *ok-symbols*
+  '(;; slots names
+    asdf/action:accept
+    asdf/action:action
+    asdf/action:done-p
+    asdf/action:stamp
+    asdf/bundle:prologue-code
+    asdf/bundle:build-args
+    asdf/bundle:epilogue-code
+    asdf/bundle:name-suffix
+    asdf/component:absolute-pathname
+    asdf/component:around-compile
+    asdf/component:author
+    asdf/component:children
+    asdf/component:children-by-name
+    asdf/component:components
+    asdf/component:components-by-name
+    asdf/component:default-component-class
+    asdf/component:defsystem-depends-on
+    asdf/component:description
+    asdf/component:%encoding
+    asdf/component:if-feature
+    asdf/component:inline-methods
+    asdf/component:in-order-to
+    asdf/component:licence
+    asdf/component:long-description
+    asdf/component:maintainer
+    asdf/component:name
+    asdf/component:operation-times
+    asdf/component:parent
+    asdf/component:properties
+    asdf/component:relative-pathname
+    asdf/component:sideway-dependencies
+    asdf/component:version
+    asdf/lisp-action:flags
+    asdf/operation:feature
+    asdf/plan:index
+    asdf/plan:forced
+    asdf/plan:forced-not
+    asdf/plan:planned-action-count
+    asdf/plan:planned-output-action-count
+    asdf/plan:planned-p
+    asdf/plan:total-action-count
+    asdf/plan:visited-actions
+    asdf/plan:visiting-action-set
+    asdf/plan:visiting-action-list
+    asdf/system:bug-tracker
+    asdf/system:build-pathname
+    asdf/system:entry-point
+    asdf/system:homepage
+    asdf/system:long-name
+    asdf/system:mailto
+    asdf/system:source-control
+    ;; restarts
+    asdf/action:accept
+    asdf/find-component:retry
+    asdf/find-system:coerce-entry-to-directory
+    asdf/find-system:remove-entry-from-registry
+    asdf/lisp-action:try-recompiling
+    ;; types
+    asdf/bundle:user-system
+    #+sbcl uiop/lisp-build:sb-grovel-unknown-constant-condition
+    ;; on some implementations only
+    asdf/bundle:bundle-system
+    asdf/bundle:register-pre-built-system 
+    asdf/bundle:static-library
+    uiop/os:parse-file-location-info
+    uiop/os:parse-windows-shortcut
+    uiop/os:read-little-endian
+    uiop/os:read-null-terminated-string
+    ;; backward compatibility upgrade only
+    asdf/backward-internals:make-sub-operation
+    asdf/find-system:contrib-sysdef-search
+    asdf/find-system:sysdef-find-asdf
+    ))
+
+(defun defined-symbol-p (symbol)
+  (or (boundp symbol)
+      (fboundp symbol)
+      (macro-function symbol)
+      (find-class symbol nil)))
+
+(defun fishy-exported-symbols (package &optional (ok-symbols *ok-symbols*))
+  (loop :for symbol :being :the external-symbols :of package
+        :unless (or
+                 (defined-symbol-p symbol)
+                 ;;(symbol-call :swank :classify-symbol symbol)
+                 (member symbol ok-symbols))
+          :collect symbol))
+
+(defun fishy-asdf-exported-symbols ()
+  (remove-duplicates
+   (loop :for package :in (list-all-packages)
+         :when (and (string-prefix-p "ASDF/" (package-name package))
+                    (not (equal (package-name package) "ASDF/COMMON-LISP")))
+           :nconc (fishy-exported-symbols package))
+   :from-end t))
+
+(assert-equal nil (fishy-asdf-exported-symbols))
+
+(delete-package* :asdf-test-package-1)
+
+(ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/c/"))
+(ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/d/"))
+(ensure-directories-exist (subpathname *build-directory* "deleteme/a/b/e/"))
+(register-directory *asdf-directory*)
+(register-directory *uiop-directory*)
+(copy-file (system-source-file :uiop) (subpathname *build-directory* "deleteme/a/1.x"))
+(copy-file (system-source-file :uiop) (subpathname *build-directory* "deleteme/a/b/2"))
+(assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/")))
+(assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/")))
+(assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/")))
+(assert (probe-file* (subpathname *build-directory* "deleteme/a/1.x")))
+(assert (probe-file* (subpathname *build-directory* "deleteme/a/b/2")))
+(delete-empty-directory (subpathname *build-directory* "deleteme/a/b/e/"))
+(assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/"))))
+(delete-directory-tree (subpathname *build-directory* "deleteme/")
+                       :validate (lambda (x) (and (<= 5 (length (pathname-directory x)))
+                                                  (subpathp x *build-directory*))))
+(assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/"))))
+(assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/"))))
+(assert (not (probe-file* (subpathname *build-directory* "deleteme/a/1.x"))))
+(assert (not (probe-file* (subpathname *build-directory* "deleteme/a/b/2"))))
+
+#+(and sbcl sb-unicode) (assert +non-base-chars-exist-p+)
+#+(or clozure (and sbcl (not sb-unicode))) (assert (not +non-base-chars-exist-p+))
+
+(assert (base-string-p (make-string 10 :element-type 'base-char)))
+(assert-equal "abcd" (strcat "a" nil "bc" "d"))
+(assert-equal "abcd" (reduce/strcat '("a" nil "bc" "d")))
+
+#-non-base-chars-exist-p
+(progn
+  (assert (base-string-p (make-string 10 :element-type 'character))))
+
+(defun basify (s) (coerce s 'base-string))
+(defun unbasify (s) (coerce s '(array character (*)))) ; on ECL, literals are base strings (!)
+
+#+non-base-chars-exist-p
+(progn
+  (assert (not (base-string-p (make-string 10 :element-type 'character))))
+  (assert (not (base-string-p (unbasify "abc"))))
+  (assert (base-string-p (basify "abc")))
+  (assert (not (base-string-p (strcat "a" nil #\b (unbasify "cd")))))
+  (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" nil "cd")))))
+  (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
+  (assert (not (base-string-p (strcat (basify "ab") #\c (unbasify "d")))))
+  (assert (base-string-p (strcat (basify "ab") #\c #\d))))

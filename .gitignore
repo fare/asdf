@@ -1,11 +1,7 @@
-# really this is private to my build process
-push
-resbcl
-reccl
-reecl
-regcl
+?
+??
+build
 
-# Temporary files from documentation build
 doc/asdf/
 doc/asdf.aux
 doc/asdf.cp
@@ -24,13 +20,10 @@ doc/asdf.vr
 doc/asdf.vrs
 doc/asdf.t2d/
 
-# We build these at various stages in the build and test process
 LICENSE
 tmp/
 *.dribble
-*.fasl
-*.dfsl
-*.cfsl
+*.fas[bcl]
 *.fas
 *.lib
 *.[oahcisS]
@@ -41,10 +34,11 @@ tmp/
 *.ufasl
 *.vbin
 *.~*~
+*.sse2f
 test/try-reloading-dependency.asd
 test/fileMissing.lisp
+test/hello-world-example
 
-# debian stuff
 build-stamp
 debian/cl-asdf.debhelper.log
 debian/cl-asdf.postinst.debhelper
