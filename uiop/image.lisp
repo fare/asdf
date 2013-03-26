@@ -255,7 +255,7 @@ if we are not called from a directly executable image."
   (defun dump-image (filename &key output-name executable
                                 ((:postlude *image-postlude*) *image-postlude*)
                                 ((:dump-hook *image-dump-hook*) *image-dump-hook*)
-                                #+clozure (prepend-symbols t))
+                                #+clozure prepend-symbols)
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
