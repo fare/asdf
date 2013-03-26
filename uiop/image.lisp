@@ -255,7 +255,7 @@ if we are not called from a directly executable image."
   (defun dump-image (filename &key output-name executable
                                 ((:postlude *image-postlude*) *image-postlude*)
                                 ((:dump-hook *image-dump-hook*) *image-dump-hook*)
-                                #+clozure (prepend-kernel t))
+                                #+clozure (prepend-symbols t))
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
@@ -280,8 +280,16 @@ if we are not called from a directly executable image."
               ;; :parse-options nil ;--- requires a non-standard patch to clisp.
               :norc t :script nil :init-function #'restore-image)))
     #+clozure
-    (ccl:save-application filename :prepend-kernel prepend-kernel
-                                   :toplevel-function (when executable #'restore-image))
+    (flet ((dump (prepend-kernel)
+             (ccl:save-application filename :prepend-kernel prepend-kernel
+                                            :toplevel-function (when executable #'restore-image))))
+      ;;(setf ccl::*application* (make-instance 'ccl::lisp-development-system))
+      (if prepend-symbols
+          (with-temporary-file (:prefix "ccl-symbols-" :direction :output :pathname path)
+            (require 'elf)
+            (funcall 'ccl::write-elf-symbols-to-file path)
+            (dump path))
+          (dump t)))
     #+(or cmu scl)
     (progn
       (ext:gc :full t)
@@ -309,10 +317,10 @@ if we are not called from a directly executable image."
            'dump-image filename (nth-value 1 (implementation-type))))
 
   (defun create-image (destination object-files
-                       &key kind output-name prologue-code epilogue-code 
+                       &key kind output-name prologue-code epilogue-code
                          (prelude () preludep) (postlude () postludep)
                          (entry-point () entry-point-p) build-args)
-    (declare (ignorable destination object-files kind output-name prologue-code epilogue-code 
+    (declare (ignorable destination object-files kind output-name prologue-code epilogue-code
                         prelude preludep postlude postludep entry-point entry-point-p build-args))
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,
