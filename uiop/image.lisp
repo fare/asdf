@@ -287,7 +287,7 @@ if we are not called from a directly executable image."
       (if prepend-symbols
           (with-temporary-file (:prefix "ccl-symbols-" :direction :output :pathname path)
             (require 'elf)
-            (funcall 'ccl::write-elf-symbols-to-file path)
+            (funcall (fdefinition 'ccl::write-elf-symbols-to-file) path)
             (dump path))
           (dump t)))
     #+(or cmu scl)
