@@ -1,6 +1,6 @@
-cl-asdf (2:2.32.8-1) unstable; urgency=low
+cl-asdf (2:2.33-1) unstable; urgency=low
 
-  ASDF 2.32.8 is a set of cleanups since 2.32.
+  ASDF 2.33 is a set of cleanups since 2.32.
   Since previous release 2.32, it includes the following changes:
 
   * deferred-warning receives yet more improvements for CCL.
@@ -11,9 +11,23 @@ cl-asdf (2:2.32.8-1) unstable; urgency=low
   * Packages have been tweaked to pass more tests,
     notably wrt what symbols are exported.
 
-  * Image lifecycle support is improved, thanks to our application 
+  * Image lifecycle support is improved, thanks to deploying ASDF3 for QRes.
+    More options for dump-image on CCL; handle reentrance in restore-image.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 05 Mar 2013 14:35:43 -0500
+  * delete-directory-tree, delete-empty-directory, copy-file,
+    directory-exists-p, file-exists-p were added to UIOP,
+    also better strcat, with reduce/strcat, base-string-p, etc.
+
+  * Portability tweaks for Allegro, Clozure, CLISP, ECL, LispWorks, SBCL.
+
+  * Recompilation avoided for things already done by defsystem-depends-on.
+
+  * monolithic-fasl-op was fixed in cases when the main system has components.
+
+  * *uninteresting-conditions* was added as a common list of conditions
+    shared between the compile-time and load-time muffled conditions.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 27 Mar 2013 13:30:26 -0500
 
 cl-asdf (2:2.32-1) unstable; urgency=low
 
