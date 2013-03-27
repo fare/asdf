@@ -557,7 +557,9 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
                               directory-pathname :if-does-not-exist if-does-not-exist)
        #+clozure (ccl:delete-directory directory-pathname)
        #+genera (error "~S not implemented on ~S" 'delete-directory-tree (implementation-type))
-       #+sbcl (sb-ext:delete-directory directory-pathname :recursive t)
+       #+sbcl #.(if-let (dd (find-symbol* :delete-directory :sb-ext nil))
+                  `(,dd directory-pathname :recursive t) ;; requires SBCL 1.0.44 or later
+                  '(error "~S requires SBCL 1.0.44 or later" 'delete-directory-tree))
        ;; Outside Unix or on CMUCL and SCL that can avoid following symlinks,
        ;; do things the hard way.
        #-(or allegro clozure genera sbcl)
