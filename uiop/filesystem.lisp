@@ -509,7 +509,9 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
     #+ecl (si:rmdir directory-pathname)
     #+lispworks (lw:delete-directory directory-pathname)
     #+mkcl (mkcl:rmdir directory-pathname)
-    #+sbcl (sb-ext:delete-directory directory-pathname)
+    #+sbcl #.(if-let (dd (find-symbol* :delete-directory :sb-ext nil))
+               `(,dd directory-pathname) ;; requires SBCL 1.0.44 or later
+               `(progn (require :sb-posix) (symbol-call :sb-posix :rmdir directory-pathname)))
     #-(or abcl allegro clisp clozure cmu cormanlisp digitool ecl gcl lispworks sbcl scl)
     (error "~S not implemented on ~S" 'delete-empty-directory (implementation-type))) ; genera xcl
 

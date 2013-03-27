@@ -255,7 +255,7 @@ if we are not called from a directly executable image."
   (defun dump-image (filename &key output-name executable
                                 ((:postlude *image-postlude*) *image-postlude*)
                                 ((:dump-hook *image-dump-hook*) *image-dump-hook*)
-                                #+clozure prepend-symbols)
+                                #+clozure prepend-symbols #+clozure (purify t))
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
@@ -281,7 +281,7 @@ if we are not called from a directly executable image."
               :norc t :script nil :init-function #'restore-image)))
     #+clozure
     (flet ((dump (prepend-kernel)
-             (ccl:save-application filename :prepend-kernel prepend-kernel
+             (ccl:save-application filename :prepend-kernel prepend-kernel :purify purify
                                             :toplevel-function (when executable #'restore-image))))
       ;;(setf ccl::*application* (make-instance 'ccl::lisp-development-system))
       (if prepend-symbols

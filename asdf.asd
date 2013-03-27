@@ -74,7 +74,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "2.32.30" ;; to be automatically updated by make bump-version
+  :version "2.32.31" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   ;; For most purposes, asdf itself specially counts as a builtin system.
