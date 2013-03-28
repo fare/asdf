@@ -290,9 +290,9 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                                  ;; note: :external-format requires a recent SBCL
                                  #+sbcl '(:search t :external-format external-format)))))
                       (process
-                        #+(or allegro lispworks) (if pipe (third process*) (first process*))
+                        #+allegro (if pipe (third process*) (first process*))
                         #+ecl (third process*)
-                        #-(or allegro lispworks ecl) (first process*))
+                        #-(or allegro ecl) (first process*))
                       (stream
                         (when pipe
                           #+(or allegro lispworks ecl) (first process*)
@@ -315,7 +315,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                #+clozure (nth-value 1 (ccl:external-process-status process))
                #+(or cmu scl) (ext:process-exit-code process)
                #+ecl (nth-value 1 (ext:external-process-status process))
-               #+lispworks (if pipe (system:pid-exit-status process :wait t) process)
+               #+lispworks (if pipe (system:pipe-exit-status process :wait t) process)
                #+sbcl (sb-ext:process-exit-code process))
              (check-result (exit-code process)
                #+clisp
