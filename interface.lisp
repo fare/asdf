@@ -116,7 +116,7 @@
    #:missing-dependency
    #:missing-dependency-of-version
    #:circular-dependency        ; errors
-   #:duplicate-names
+   #:duplicate-names #:non-toplevel-system
 
    #:try-recompiling
    #:retry
