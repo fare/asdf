@@ -58,10 +58,9 @@
     ((bundle-type :initform :dll))
     (:documentation "Link together all the dynamic library used by this system into a single one."))
 
-  (defclass binary-op (bundle-op basic-compile-op selfward-operation)
-    ((selfward-operation :initform '(lib-op fasl-op)))
-    (:documentation #+(or ecl mkcl) "produce lib and fasl for the system."
-     #-(or ecl mkcl) "produce a fasl for the system"))
+  (defclass binary-op (basic-compile-op selfward-operation)
+    ((selfward-operation :initform '(fasl-op lib-op)))
+    (:documentation "produce fasl and asd files for the system"))
 
   (defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
 
@@ -73,17 +72,15 @@
     ()
     (:documentation "Abstract operation for ways to bundle the outputs of compiling *Lisp* files over all systems"))
 
-  (defclass monolithic-binary-op (monolithic-bundle-compile-op sideway-operation selfward-operation)
+  (defclass monolithic-binary-op (monolithic-op binary-op)
     ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op)))
-    (:documentation
-     #+ecl "produce lib and fasl for combined system and dependencies."
-     #-ecl "produce an image file from system and dependencies (not implemented)."))
-     
+    (:documentation "produce fasl and asd files for combined system and dependencies."))
+
   (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op) ()
     (:documentation "Create a single fasl for the system and its dependencies."))
 
   (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op)
-    ((bundle-type :initform :lib))
+    ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "Create a single linkable library for the system and its dependencies."
      #-(or ecl mkcl) "Compile a system and its dependencies."))
 
@@ -100,7 +97,7 @@
 
   (defun bundle-pathname-type (bundle-type)
     (etypecase bundle-type
-      ((eql :no-output-file) nil) ;; should we error out instead?    
+      ((eql :no-output-file) nil) ;; should we error out instead?
       ((or null string) bundle-type)
       ((eql :fasl) #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")
       #+ecl
@@ -125,15 +122,10 @@
     (bundle-output-files o c))
 
   #-(or ecl mkcl)
-  (progn
-    (defmethod perform ((o program-op) (c system))
-      (let ((output-file (output-file o c)))
-        (setf *image-entry-point* (ensure-function (component-entry-point c)))
-        (dump-image output-file :executable t)))
-
-    (defmethod perform ((o monolithic-binary-op) (c system))
-      (let ((output-file (output-file o c)))
-        (dump-image output-file))))
+  (defmethod perform ((o program-op) (c system))
+    (let ((output-file (output-file o c)))
+      (setf *image-entry-point* (ensure-function (component-entry-point c)))
+      (dump-image output-file :executable t)))
 
   (defclass compiled-file (file-component)
     ((type :initform #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")))
@@ -242,7 +234,8 @@
                      :when (funcall test f) :do (collect f))))))
 
   (defmethod input-files ((o bundle-compile-op) (c system))
-    (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files))
+    (unless (eq (bundle-type o) :no-output-file)
+      (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files)))
 
   (defun select-bundle-operation (type &optional monolithic)
     (ecase type
@@ -365,27 +358,45 @@
                          :defaults (component-pathname s))))
 
   (defmethod perform ((o binary-op) (s system))
-    (let* ((dependencies (component-depends-on o s))
-           (fasl (first (apply #'output-files (first dependencies))))
-           (library (first (apply #'output-files (second dependencies))))
+    (let* ((inputs (input-files o s))
+           (fasl (first inputs))
+           (library (second inputs))
            (asd (first (output-files o s)))
            (name (pathname-name asd))
-           (name-keyword (intern (string name) (find-package :keyword))))
+           (dependencies
+             (if (operation-monolithic-p o)
+                 (remove-if-not 'builtin-system-p
+                                (required-components s :component-type 'system
+                                                       :keep-operation 'load-op))
+                 (while-collecting (x) ;; resolve the sideway-dependencies of s
+                   (map-direct-dependencies
+                    'load-op s
+                    #'(lambda (o c)
+                        (when (and (typep o 'load-op) (typep c 'system))
+                          (x c)))))))
+           (depends-on (mapcar 'coerce-name dependencies)))
+      (when (pathname-equal asd (system-source-file s))
+        (cerror "overwrite the asd file"
+                "~/asdf-action:format-action/ is going to overwrite the system definition file ~S which is probably not what you want; you probably need to tweak your output translations."
+                (cons o s) asd))
       (with-open-file (s asd :direction :output :if-exists :supersede
                              :if-does-not-exist :create)
-        (format s ";;; Prebuilt ASDF definition for system ~A" name)
-        (format s ";;; Built for ~A ~A on a ~A/~A ~A"
+        (format s ";;; Prebuilt~:[~; monolithic~] ASDF definition for system ~A~%"
+                (operation-monolithic-p o) name)
+        (format s ";;; Built for ~A ~A on a ~A/~A ~A~%"
                 (lisp-implementation-type)
                 (lisp-implementation-version)
                 (software-type)
                 (machine-type)
                 (software-version))
-        (let ((*package* (find-package :keyword)))
-          (pprint `(defsystem ,name-keyword
+        (let ((*package* (find-package :asdf-user)))
+          (pprint `(defsystem ,name
                      :class prebuilt-system
+                     :depends-on ,depends-on
                      :components ((:compiled-file ,(pathname-name fasl)))
-                     :lib ,(and library (file-namestring library)))
-                  s)))))
+                     ,@(when library `(:lib ,(file-namestring library))))
+                  s)
+          (terpri s)))))
 
   #-(or ecl mkcl)
   (defmethod perform ((o bundle-compile-op) (c system))
