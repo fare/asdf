@@ -185,7 +185,7 @@
       (or #+ecl (or (equalp type (compile-file-type :type :object))
                     (equalp type (compile-file-type :type :static-library)))
           #+mkcl (equalp type (compile-file-type :fasl-p nil))
-          #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equalp type (compile-file-type)))))
+          #+(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl) (equalp type (compile-file-type)))))
 
   (defgeneric* (trivial-system-p) (component))
 

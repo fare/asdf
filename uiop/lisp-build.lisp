@@ -669,11 +669,12 @@ it will filter them appropriately."
 ;;; Links FASLs together
 (with-upgradability ()
   (defun combine-fasls (inputs output)
-    #-(or allegro clisp clozure cmu lispworks sbcl scl xcl)
+    #-(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl)
     (error "~A does not support ~S~%inputs ~S~%output  ~S"
            (implementation-type) 'combine-fasls inputs output)
-    #+clozure (ccl:fasl-concatenate output inputs :if-exists :supersede)
+    #+abcl (funcall 'sys::concatenate-fasls inputs output) ; requires ABCL 1.2.0
     #+(or allegro clisp cmu sbcl scl xcl) (concatenate-files inputs output)
+    #+clozure (ccl:fasl-concatenate output inputs :if-exists :supersede)
     #+lispworks
     (let (fasls)
       (unwind-protect
