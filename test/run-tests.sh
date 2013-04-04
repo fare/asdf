@@ -246,15 +246,33 @@ upgrade_tags () {
     if [ -n "$ASDF_UPGRADE_TEST_TAGS" ] ; then
         echo $ASDF_UPGRADE_TEST_TAGS ; return
     fi
-    # REQUIRE is a magic tag meaning whatever your implementation provides
-    # 1.85 is the last release by Daniel Barlow (not 1.37, which is the README revision!)
-    # 1.97 is the last release before Gary King takes over
-    # 1.369 is the last release by Gary King
-    # 2.000 to 2.019 and 2.20 to 2.27 and beyond are Faré's "stable" releases
+    # REQUIRE is a magic tag meaning whatever your implementation provides, if anything
+    #
+    # 1.85 (2004-05-16) is the last release by Daniel Barlow (not 1.37, which is the README revision!)
+    # 1.97 (2006-05-14) is the last release before Gary King takes over
+    # 1.369 (2009-10-27) is the last release by Gary King
+    #
+    # 2.000 to 2.019 and 2.20 to 2.26 and beyond are Faré's "stable" ASDF 2 releases
     # 2.26.61 is the last single-file, single-package ASDF.
+    # 2.27 and beyond are Faré's "stable" ASDF 3 pre-releases
+    #
+    # 2.000 (2010-05-31) was the first ASDF 2 release
+    # 2.008 (2010-09-10) was a somewhat stable ASDF 2 release
+    # 2.011 (2010-11-28) was used by CLISP 2.49, Debian squeeze, Ubuntu 10.04 LTS
+    # 2.014.6 (2011-04-06) was used by Quicklisp in 2011
+    # 2.019 (2011-11-27) was stable
+    # 2.20 (2012-01-18) was in CCL 1.8, Ubuntu 12.04 LTS
+    # 2.22 (2012-06-12) was used by debian wheezy
+    # 2.26 (2012-10-30) was used by Quicklisp
+    # 2.27 (2013-02-01) is the first ASDF 3 pre-release
+    # 2.32 (2013-03-05) is the first really stable ASDF 3 pre-release
+    #
     echo REQUIRE 1.85 1.97 1.369
-    git tag -l '2.0??'
-    git tag -l '2.??'
+    # git tag -l '2.0??'
+    # git tag -l '2.??'
+    echo 2.000 2.008 2.011 2.014.6 2.019 2.20 2.22 2.26
+    echo 2.27
+    git tag -l '2.3[2-9]'
 }
 upgrade_methods () {
     if [ -n "$ASDF_UPGRADE_TEST_METHODS" ] ; then

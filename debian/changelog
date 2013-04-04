@@ -3,7 +3,9 @@ cl-asdf (2:2.33-1) unstable; urgency=low
   ASDF 2.33 is a set of cleanups since 2.32.
   Since previous release 2.32, it includes the following changes:
 
-  * deferred-warning receives yet more improvements for CCL.
+  * Portability tweaks for ABCL, Allegro, CCL, CLISP, ECL, LispWorks, SBCL.
+
+  * deferred-warning received yet more improvements for CCL.
 
   * upgrade is made more robust in many cases, notably for ECL, SBCL,
     or when using UIOP with an old ASDF<=2.26.
@@ -18,16 +20,17 @@ cl-asdf (2:2.33-1) unstable; urgency=low
     directory-exists-p, file-exists-p were added to UIOP,
     also better strcat, with reduce/strcat, base-string-p, etc.
 
-  * Portability tweaks for Allegro, Clozure, CLISP, ECL, LispWorks, SBCL.
-
   * Recompilation avoided for things already done by defsystem-depends-on.
 
   * monolithic-fasl-op was fixed in cases when the main system has components.
 
+  * fasl-op and monolithic-fasl-op now work on ABCL trunk and upcoming 1.2.0,
+    and will eventually replace the ABCL-JAR contrib.
+
   * *uninteresting-conditions* was added as a common list of conditions
     shared between the compile-time and load-time muffled conditions.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 27 Mar 2013 13:30:26 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 04 Apr 2013 01:54:26 -0400
 
 cl-asdf (2:2.32-1) unstable; urgency=low
 
@@ -141,9 +144,9 @@ cl-asdf (2:2.29-1) unstable; urgency=low
 
 cl-asdf (2:2.28-1) unstable; urgency=low
 
- ASDF 2.28 is a quick patch to ASDF 2.27 to make it work better with
- systems that specify a relative pathname, then at runtime (e.g. in tests)
- use merge-pathnames or merge-pathnames* against it expecting a directory.
+  ASDF 2.28 is a quick patch to ASDF 2.27 to make it work better with
+  systems that specify a relative pathname, then at runtime (e.g. in tests)
+  use merge-pathnames or merge-pathnames* against it expecting a directory.
 
  -- Francois-Rene Rideau <fare@tunes.org>  Fri, 01 Feb 2013 17:07:53 -0500
 
@@ -349,7 +352,7 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     as per the utility asdf-driver:access-at. For instance,
     if your file specials.lisp is a defpackage, an in-package
     and a defparameter of the version, then you could use:
-	(:read-file-form "specials.lisp" :at (2 2))
+      (:read-file-form "specials.lisp" :at (2 2))
     This makes it easier for developers to manage versioning
     of one or multiple systems with a single master version location.
 
@@ -394,8 +397,8 @@ cl-asdf (2:2.27-1) unstable; urgency=low
 
   * Tests were updated, notably including support for bundles, encodings,
     run-program, and more. They were successfully run on
-	abcl allegro allegromodern ccl clisp cmucl
-        ecl ecl_bytecodes lispworks sbcl scl xcl
+      abcl allegro allegromodern ccl clisp cmucl
+      ecl ecl_bytecodes lispworks sbcl scl xcl
     Manual tests were run on gcl2.6 genera lispworks-personal-edition.
     Untested remain cormancl mkcl rmcl.
     The internal test system itself was massively improved.

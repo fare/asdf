@@ -1,3 +1,4 @@
+* fix directory-files to not return directories on CCL, etc. Add tests.
 * use cl-test-grid to see if asdf-user can :use most of UIOP.
   Unhappily, on SBCL, sb-grovel uses asdf and sb-ext,
   which causes a clash with run-program.
