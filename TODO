@@ -8,7 +8,7 @@
   If not, optionally issue a warning. Start migrating people toward that.
 * have with-input-file use the encodings mechanism?
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
-* implement deferred warnings support on abcl, allegro, clisp, cmucl, lispworks, scl
+* implement deferred warnings support on lispworks
 * fix upgrade on clisp, cmucl, abcl (if still broken)
 ** Extract minimal test case, build a battery of automated tests
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file

@@ -662,6 +662,12 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
       (t
        (translate-pathname path absolute-source destination))))
 
-  (defvar *output-translation-function* 'identity)) ; Hook for output translations
+  (defvar *output-translation-function* 'identity
+    "Hook for output translations.
 
+This function needs to be idempotent, so that actions can work
+whether their inputs were translated or not,
+which they will be if we are composing operations. e.g. if some
+create-lisp-op creates a lisp file from some higher-level input,
+you need to still be able to use compile-op on that lisp file."))
 

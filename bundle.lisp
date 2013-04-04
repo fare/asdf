@@ -362,7 +362,7 @@
            (fasl (first inputs))
            (library (second inputs))
            (asd (first (output-files o s)))
-           (name (pathname-name asd))
+           (name (if (and fasl asd) (pathname-name asd) (return-from perform)))
            (dependencies
              (if (operation-monolithic-p o)
                  (remove-if-not 'builtin-system-p
