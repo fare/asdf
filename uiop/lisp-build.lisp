@@ -87,7 +87,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (deftype sb-grovel-unknown-constant-condition ()
       '(and style-warning (satisfies sb-grovel-unknown-constant-condition-p))))
 
-  (defvar *uninteresting-conditions*
+  (defvar *usual-uninteresting-conditions*
     (append
      ;;#+clozure '(ccl:compiler-warning)
      #+cmu '("Deleting unreachable code.")
@@ -99,7 +99,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
        #+sb-eval sb-kernel:lexical-environment-too-complex
        sb-kernel:undefined-alien-style-warning
        sb-grovel-unknown-constant-condition ; defined above.
-       ;; sb-ext:implicit-generic-function-warning ; Controversial. Let's allow it by default.
+       sb-ext:implicit-generic-function-warning ;; Controversial.
        sb-int:package-at-variance
        sb-kernel:uninteresting-redefinition
        ;; BEWARE: the below four are controversial to include here.
@@ -108,6 +108,9 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
        sb-kernel:redefinition-with-defmethod
        sb-kernel::redefinition-with-defmacro) ; not exported by old SBCLs
      '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.")) ;; from closer2mop
+    "A suggested value to which to set or bind *uninteresting-conditions*.")
+
+  (defvar *uninteresting-conditions* '()
     "Conditions that may be skipped while compiling or loading Lisp code.")
   (defvar *uninteresting-compiler-conditions* '()
     "Additional conditions that may be skipped while compiling Lisp code.")

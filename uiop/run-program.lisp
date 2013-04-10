@@ -213,15 +213,22 @@ by /bin/sh in POSIX"
                        &allow-other-keys)
     "Run program specified by COMMAND,
 either a list of strings specifying a program and list of arguments,
-or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows);
-have its output processed by the OUTPUT processor function
-as per SLURP-INPUT-STREAM,
-or merely output to the inherited standard output if it's NIL.
+or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows).
+
 Always call a shell (rather than directly execute the command)
 if FORCE-SHELL is specified.
-Issue an error if the process wasn't successful unless IGNORE-ERROR-STATUS
-is specified.
-Return the exit status code of the process that was called.
+
+Signal a SUBPROCESS-ERROR if the process wasn't successful (exit-code 0),
+unless IGNORE-ERROR-STATUS is specified.
+
+If OUTPUT is either NIL or :INTERACTIVE, then
+return the exit status code of the process that was called.
+if it was NIL, the output is discarded;
+if it was :INTERACTIVE, the output and the input are inherited from the current process.
+
+Otherwise, the output will be processed by SLURP-INPUT-STREAM,
+using OUTPUT as the first argument, and return whatever it returns,
+e.g. using :OUTPUT :STRING will have it return the entire output stream as a string.
 Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
     (declare (ignorable ignore-error-status element-type external-format))
     #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl sbcl scl xcl)
