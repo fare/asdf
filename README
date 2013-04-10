@@ -13,13 +13,13 @@ If you want to define your own systems, further read the section
 Defining systems with defsystem.
 
 
-ASDF 3 now includes an extensive runtime support library, asdf-driver.
-Its documentation unhappily mainly lies in the source code and docstrings.
+ASDF 3 now includes an extensive runtime support library:
+UIOP, the Utilities for Implementation- and OS- Portability.
+Its documentation unhappily lies mainly in the source code and docstrings.
 
 
-More information and additional links can be found on ASDF's
-home page at:
+More information and additional links can be found on ASDF's home page at:
     http://common-lisp.net/project/asdf/
 
 
-Last updated Thursday, January 31st, 2013.
+Last updated Thursday, April 10th, 2013.
