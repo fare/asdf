@@ -78,6 +78,7 @@ wc:
 push:
 	git status
 	git push --tags cl.net release master
+	git push --tags github release master
 	git fetch
 	git status
 
