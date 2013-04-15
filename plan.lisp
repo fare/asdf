@@ -370,7 +370,7 @@ processed in order by OPERATE."))
   (defgeneric perform-plan (plan &key))
   (defgeneric plan-operates-on-p (plan component))
 
-  (defparameter *default-plan-class* 'sequential-plan)
+  (defvar *default-plan-class* 'sequential-plan)
 
   (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
     (let ((plan (apply 'make-instance
