@@ -241,9 +241,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
               (and all-present up-to-date-p (operation-done-p o c) (not (action-forced-p plan o c))))
           (values done-stamp ;; return the hard-earned timestamp
                   (or just-done
-                      (or out-op ;; a file-creating op is done when all files are up to date
-                          ;; a image-effecting a placeholder op is done when it was actually run,
-                          (and op-time (eql op-time done-stamp))))) ;; with the matching stamp
+                      out-op ;; a file-creating op is done when all files are up to date
+                      ;; a image-effecting a placeholder op is done when it was actually run,
+                      (and op-time (eql op-time done-stamp)))) ;; with the matching stamp
           ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
           (values t nil)))))
 

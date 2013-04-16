@@ -19,7 +19,7 @@
   ;; TODO: automatically generate interface with reexport?
   (:export
    #:defsystem #:find-system #:locate-system #:coerce-name
-   #:oos #:operate #:traverse #:perform-plan
+   #:oos #:operate #:traverse #:perform-plan #:sequential-plan
    #:system-definition-pathname #:with-system-definitions
    #:search-for-system-definition #:find-component #:component-find-path
    #:compile-system #:load-system #:load-systems

@@ -455,7 +455,8 @@ a simple vector of length 2, arguments to find-symbol* with result as above,
 or a string describing the format-control of a simple-condition."
     (etypecase x
       (symbol (typep condition x))
-      ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
+      ((simple-vector 2)
+       (ignore-errors (typep condition (find-symbol* (svref x 0) (svref x 1) nil))))
       (function (funcall x condition))
       (string (and (typep condition 'simple-condition)
                    ;; On SBCL, it's always set and the check triggers a warning

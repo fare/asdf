@@ -110,6 +110,7 @@
     asdf/component:version
     asdf/lisp-action:flags
     asdf/operation:feature
+    asdf/operation:original-initargs
     asdf/plan:index
     asdf/plan:forced
     asdf/plan:forced-not
