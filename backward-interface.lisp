@@ -131,7 +131,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code.
 
 PLEASE DO NOT USE.
 Deprecated function, for backward-compatibility only.
-Please use ASDF-DRIVER:RUN-PROGRAM instead."
+Please use UIOP:RUN-PROGRAM instead."
     (let ((command (apply 'format nil control-string args)))
       (asdf-message "; $ ~A~%" command)
       (run-program command :force-shell t :ignore-error-status t :output *verbose-out*))))

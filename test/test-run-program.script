@@ -1,3 +1,4 @@
+;; -*- Lisp -*-
 (declaim (optimize (debug 3) (safety 3)))
 
 (assert-equal '("ok 1") (run-program "echo ok 1" :output :lines))
@@ -13,6 +14,18 @@
   (error "Failed to capture exit status indicating shell command failure."))
 (unless (equal 0 (run-shell-command "./good-shell-command"))
   (error "Failed to capture exit status indicating shell command failure."))
+(let ((ok1 (format nil "; $ echo ok 1~%ok 1~%")))
+  (assert-equal
+   (with-output-to-string (s)
+     (let ((*verbose-out* s))
+       (run-shell-command "echo ~A 1" "ok")))
+   ok1)
+  (assert-equal
+   (with-output-to-string (s)
+     (let ((*verbose-out* t)
+           (*standard-output* s))
+       (run-shell-command "echo ok ~D" 1)))
+   ok1))
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.

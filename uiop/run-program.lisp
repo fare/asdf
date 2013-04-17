@@ -176,6 +176,10 @@ by /bin/sh in POSIX"
     (declare (ignorable x))
     (slurp-stream-form stream :at at))
 
+  (defmethod slurp-input-stream ((x (eql t)) stream &rest keys &key &allow-other-keys)
+    (declare (ignorable x))
+    (apply 'slurp-input-stream *standard-output* stream keys))
+
   (defmethod slurp-input-stream (x stream
                                  &key linewise prefix (element-type 'character) buffer-size
                                  &allow-other-keys)
