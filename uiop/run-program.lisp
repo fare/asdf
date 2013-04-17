@@ -180,6 +180,23 @@ by /bin/sh in POSIX"
     (declare (ignorable x))
     (apply 'slurp-input-stream *standard-output* stream keys))
 
+  (defmethod slurp-input-stream ((pathname pathname) input
+                                 &key
+                                   (element-type *default-stream-element-type*)
+                                   (external-format *utf-8-external-format*)
+                                   (if-exists :rename-and-delete)
+                                   (if-does-not-exist :create)
+                                   buffer-size
+                                   linewise)
+    (with-output-file (output pathname
+                              :element-type element-type
+                              :external-format external-format
+                              :if-exists if-exists
+                              :if-does-not-exist if-does-not-exist)
+      (copy-stream-to-stream
+       input output
+       :element-type element-type :buffer-size buffer-size :linewise linewise)))
+
   (defmethod slurp-input-stream (x stream
                                  &key linewise prefix (element-type 'character) buffer-size
                                  &allow-other-keys)
@@ -234,6 +251,7 @@ Otherwise, the output will be processed by SLURP-INPUT-STREAM,
 using OUTPUT as the first argument, and return whatever it returns,
 e.g. using :OUTPUT :STRING will have it return the entire output stream as a string.
 Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
+    ;; TODO: specially recognize :output pathname ?
     (declare (ignorable ignore-error-status element-type external-format))
     #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl sbcl scl xcl)
     (error "RUN-PROGRAM not implemented for this Lisp")

@@ -12,7 +12,7 @@
    #:*default-encoding* #:*utf-8-external-format*
    #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
    #:with-output #:output-string #:with-input
-   #:with-input-file #:call-with-input-file
+   #:with-input-file #:call-with-input-file #:with-output-file #:call-with-output-file
    #:finish-outputs #:format! #:safe-format!
    #:copy-stream-to-stream #:concatenate-files #:copy-file
    #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
@@ -186,10 +186,33 @@ Other keys are accepted but discarded."
                                 :if-does-not-exist if-does-not-exist)
       (funcall thunk s)))
 
-  (defmacro with-input-file ((var pathname &rest keys &key element-type external-format) &body body)
-    (declare (ignore element-type external-format))
-    `(call-with-input-file ,pathname #'(lambda (,var) ,@body) ,@keys)))
+  (defmacro with-input-file ((var pathname &rest keys
+                              &key element-type external-format if-does-not-exist)
+                             &body body)
+    (declare (ignore element-type external-format if-does-not-exist))
+    `(call-with-input-file ,pathname #'(lambda (,var) ,@body) ,@keys))
 
+  (defun call-with-output-file (pathname thunk
+                                &key
+                                  (element-type *default-stream-element-type*)
+                                  (external-format *utf-8-external-format*)
+                                  (if-exists :rename-and-delete)
+                                  (if-does-not-exist :create))
+    "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
+Other keys are accepted but discarded."
+    #+gcl2.6 (declare (ignore external-format))
+    (with-open-file (s pathname :direction :output
+                                :element-type element-type
+                                #-gcl2.6 :external-format #-gcl2.6 external-format
+                                :if-exists if-exists
+                                :if-does-not-exist if-does-not-exist)
+      (funcall thunk s)))
+
+  (defmacro with-output-file ((var pathname &rest keys
+                               &key element-type external-format if-exists if-does-not-exist)
+                              &body body)
+    (declare (ignore element-type external-format if-exists if-does-not-exist))
+    `(call-with-output-file ,pathname #'(lambda (,var) ,@body) ,@keys)))
 
 ;;; Ensure output buffers are flushed
 (with-upgradability ()
