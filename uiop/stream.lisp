@@ -196,7 +196,7 @@ Other keys are accepted but discarded."
                                 &key
                                   (element-type *default-stream-element-type*)
                                   (external-format *utf-8-external-format*)
-                                  (if-exists :rename-and-delete)
+                                  (if-exists :error)
                                   (if-does-not-exist :create))
     "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
 Other keys are accepted but discarded."
