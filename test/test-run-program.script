@@ -20,6 +20,7 @@
      (let ((*verbose-out* s))
        (run-shell-command "echo ~A 1" "ok")))
    ok1)
+  #-ecl
   (assert-equal
    (with-output-to-string (s)
      (let ((*verbose-out* t)
