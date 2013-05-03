@@ -5,7 +5,7 @@
   (:nicknames :asdf/configuration)
   (:recycle :uiop/configuration :asdf/configuration :asdf)
   (:use :uiop/common-lisp :uiop/utility
-   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image)
+   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image :uiop/lisp-build)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories
@@ -231,7 +231,8 @@ directive.")
             (if wilden (wilden p) p))))
        ((eql :home) (user-homedir-pathname))
        ((eql :here) (resolve-absolute-location
-                     *here-directory* :ensure-directory t :wilden nil))
+                     (or *here-directory* (pathname-directory-pathname (load-pathname)))
+                     :ensure-directory t :wilden nil))
        ((eql :user-cache) (resolve-absolute-location
                            *user-cache* :ensure-directory t :wilden nil)))
      :wilden (and wilden (not (pathnamep x)))
