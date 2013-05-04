@@ -3,9 +3,9 @@
 
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
-   :asdf/lisp-build :asdf/operate :asdf/output-translations)
+   :asdf/lisp-action :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
@@ -13,8 +13,7 @@
    #:component-load-dependencies
    #:enable-asdf-binary-locations-compatibility
    #:operation-forced
-   #:operation-on-failure
-   #:operation-on-warnings
+   #:operation-on-failure #:operation-on-warnings #:on-failure #:on-warnings
    #:component-property
    #:run-shell-command
    #:system-definition-pathname))
