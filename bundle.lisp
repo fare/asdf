@@ -433,6 +433,29 @@
 (asdf:load-system :precompiled-asdf-utils)
 |#
 
+#+(or ecl mkcl)
+(with-upgradability ()
+  (defun uiop-library-file ()
+    (or (and (find-system :uiop nil)
+             (system-source-directory :uiop)
+             (progn
+               (operate 'lib-op :uiop)
+               (output-file 'lib-op :uiop)))
+        (resolve-symlinks* (c::compile-file-pathname "sys:asdf" :type :lib))))
+  (defmethod input-files :around ((o program-op) (c system))
+    (let ((files (call-next-method))
+          (plan (traverse-sub-actions o c :plan-class 'sequential-plan)))
+      (unless (or (and (find-system :uiop nil)
+                       (system-source-directory :uiop)
+                       (plan-operates-on-p plan '("uiop")))
+                  (and (system-source-directory :asdf)
+                       (plan-operates-on-p plan '("asdf"))))
+        (pushnew (uiop-library-file) files :test 'pathname-equal))
+      files))
+
+  (defun register-pre-built-system (name)
+    (register-system (make-instance 'system :name (coerce-name name) :source-file nil))))
+
 #+ecl
 (with-upgradability ()
   (defmethod perform ((o bundle-compile-op) (c system))
@@ -466,9 +489,3 @@
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'binary-op system args)))
-
-#+(or ecl mkcl)
-(with-upgradability ()
-  (defun register-pre-built-system (name)
-    (register-system (make-instance 'system :name (coerce-name name) :source-file nil))))
-

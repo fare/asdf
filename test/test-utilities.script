@@ -147,6 +147,8 @@
     uiop/os:read-null-terminated-string
     ;; backward compatibility upgrade only
     asdf/backward-internals:make-sub-operation
+    asdf/backward-interface:on-failure
+    asdf/backward-interface:on-warnings
     asdf/find-system:contrib-sysdef-search
     asdf/find-system:sysdef-find-asdf
     ))

@@ -117,7 +117,7 @@ do_tests () {
         echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
         echo "(cd test ; $cmd )" >&2
         echo "then copy/paste:" >&2
-        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(load \"$i\"))" >&2
+        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(frob-packages) #.(load \"$i\"))" >&2
       fi
       echo >&2
       echo >&2

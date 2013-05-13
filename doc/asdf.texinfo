@@ -1952,7 +1952,7 @@ before performing @code{load-op}, we have to load @var{foo}
 The syntax is approximately
 
 @verbatim
-(this-op {(other-op required-components)}+)
+(this-op @{(other-op required-components)@}+)
 
 simple-component-name := string
                       |  symbol
