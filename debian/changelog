@@ -7,17 +7,18 @@ cl-asdf (2:3.0.0-1) unstable; urgency=low
   * Portability: have *uninteresting-conditions* be empty by default.
     Move stuff to *usual-uninteresting-conditions*, unused by default.
     Will make the SBCL team happy. Also, fix tests on ABCL.
+    Fix regression of program-op on ECL, by implicitly linking in UIOP or ASDF.
 
   * UIOP: improvements to slurp-input-stream and thus run-program,
     notably accepting T as alias for *standard-output*,
     for better backward-compatibility of the deprecated run-shell-command.
     New macro with-output-file.
 
-  * POIU support enhanced various tweaks.
+  * POIU support enhanced with various tweaks.
 
   * Build cleanup so make and concatenate-source-op create the same asdf.lisp
 
- -- Francois-Rene Rideau <fare@tunes.org>  Mon, 29 Apr 2013 11:34:45 -0400
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 05 May 2013 23:57:22 -0400
 
 cl-asdf (2:2.33-1) unstable; urgency=low
 
