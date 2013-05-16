@@ -198,6 +198,7 @@
     (assert (first pv))
     (assert (second pv))
     (unless (third pv) (appendf pv (list 0)))
+    (unless (fourth pv) (appendf pv (list 0)))
     (incf (car (last pv)))
     (unparse-version pv)))
 

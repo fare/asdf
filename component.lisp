@@ -272,7 +272,7 @@ another pathname in a degenerate way."))
     (version-satisfies (component-version c) version))
 
   (defmethod version-satisfies ((cver string) version)
-    (version-compatible-p cver version)))
+    (version<= version cver)))
 
 
 ;;; all sub-components (of a given type)

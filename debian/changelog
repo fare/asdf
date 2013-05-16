@@ -1,3 +1,14 @@
+cl-asdf (2:3.0.1-1) unstable; urgency=low
+
+  ASDF 3.0.1 is an emergency release for better compatibility with Quicklisp.
+
+  * version-satisfies now uses uiop:version<= for comparison,
+    and does not check for a same major version number,
+    like version-compatible-p does, which was the
+    undocumented behavior since ASDF 1.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 16 May 2013 19:20:28 -0400
+
 cl-asdf (2:3.0.0-1) unstable; urgency=low
 
   ASDF 3.0.0 is the first official release of ASDF 3;
@@ -18,7 +29,7 @@ cl-asdf (2:3.0.0-1) unstable; urgency=low
 
   * Build cleanup so make and concatenate-source-op create the same asdf.lisp
 
- -- Francois-Rene Rideau <fare@tunes.org>  Mon, 05 May 2013 23:57:22 -0400
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 15 May 2013 23:57:22 -0400
 
 cl-asdf (2:2.33-1) unstable; urgency=low
 
