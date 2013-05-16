@@ -6,26 +6,20 @@
 
 @c We use @&key, etc to escape & from TeX in lambda lists --
 @c so we need to define them for info as well.
-@macro &allow-other-keys
+@macro allow-other-keys
 &allow-other-keys
 @end macro
-@macro &optional
+@macro optional
 &optional
 @end macro
-@macro &rest
+@macro rest
 &rest
 @end macro
-@macro &key
+@macro key
 &key
 @end macro
-@macro &body
+@macro body
 &body
-@end macro
-@macro &curly
-{
-@end macro
-@macro &ylruc
-}
 @end macro
 
 @c for install-info
@@ -1012,7 +1006,7 @@ simple-component-name := string
 
 pathname-specifier := pathname | string | symbol
 
-method-form := (operation-name qual lambda-list @&rest body)
+method-form := (operation-name qual lambda-list @rest body)
 qual := method qualifier
 
 component-dep-fail-option := :fail | :try-next | :ignore
@@ -1484,8 +1478,8 @@ and easier than having them all be @code{EQL} methods.
 
 Operations are invoked on systems via @code{operate}.
 @anchor{operate}
-@deffn {Generic function} @code{operate} @var{operation} @var{system} @&rest @var{initargs} @&key @code{force} @code{force-not} @code{verbose} @&allow-other-keys
-@deffnx {Generic function} @code{oos} @var{operation} @var{system} @&rest @var{initargs} @&key @&allow-other-keys
+@deffn {Generic function} @code{operate} @var{operation} @var{system} @rest @var{initargs} @key @code{force} @code{force-not} @code{verbose} @allow-other-keys
+@deffnx {Generic function} @code{oos} @var{operation} @var{system} @rest @var{initargs} @key @allow-other-keys
 @code{operate} invokes @var{operation} on @var{system}.
 @code{oos} is a synonym for @code{operate}.
 
@@ -1540,7 +1534,7 @@ They are invoked via the @code{operate} generic function.
 (asdf:operate 'asdf:@var{operation-name} :@var{system-name} @{@var{operation-options ...}@})
 @end lisp
 
-@deffn Operation @code{compile-op} @&key @code{proclamations}
+@deffn Operation @code{compile-op} @key @code{proclamations}
 
 This operation compiles the specified component.
 If proclamations are supplied, they will be proclaimed.
@@ -1557,7 +1551,7 @@ does not necessarily load all the parts of the system, though;
 use @code{load-op} to load a system.
 @end deffn
 
-@deffn Operation @code{load-op} @&key @code{proclamations}
+@deffn Operation @code{load-op} @key @code{proclamations}
 
 This operation loads a system.
 
@@ -1565,7 +1559,7 @@ The default methods for @code{load-op} compile files before loading them.
 For parity, your own methods on new component types should probably do so too.
 @end deffn
 
-@deffn Operation @code{parent-load-op} @&key @code{proclamations}
+@deffn Operation @code{parent-load-op} @key @code{proclamations}
 
 This operation ensures that the dependencies
 of a module, and its parent, and so on, are loaded (as per @code{load-op})
@@ -1652,7 +1646,7 @@ itself descended from @code{asdf-ecl}.
 @end deffn
 
 
-@c @deffn Operation test-system-version @&key minimum
+@c @deffn Operation test-system-version @key minimum
 
 @c Asks the system whether it satisfies a version requirement.
 
@@ -2583,7 +2577,7 @@ The specified functions are exported from your build system's package.
 Thus for ASDF the corresponding functions are in package ASDF,
 and for XCVB the corresponding functions are in package XCVB.
 
-@defun initialize-source-registry @&optional PARAMETER
+@defun initialize-source-registry @optional PARAMETER
    will read the configuration and initialize all internal variables.
    You may extend or override configuration
    from the environment and configuration files
@@ -2608,7 +2602,7 @@ and for XCVB the corresponding functions are in package XCVB.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-source-registry @&optional PARAMETER
+@defun ensure-source-registry @optional PARAMETER
    checks whether a source registry has been initialized.
    If not, initialize it with the given @var{PARAMETER}.
 @end defun
@@ -2828,7 +2822,7 @@ as configured by the system distributor, or by default.
 Nevertheless, if you are a fan of @code{ASDF-Binary-Locations},
 we provide a limited emulation mode:
 
-@defun enable-asdf-binary-locations-compatibility @&key centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
+@defun enable-asdf-binary-locations-compatibility @key centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
 This function will initialize the new @code{asdf-output-translations} facility in a way
 that emulates the behavior of the old @code{ASDF-Binary-Locations} facility.
 Where you would previously set global variables
@@ -3071,7 +3065,7 @@ To explicitly flush any information cached by the system, use the API below.
 
 The specified functions are exported from package ASDF.
 
-@defun initialize-output-translations @&optional PARAMETER
+@defun initialize-output-translations @optional PARAMETER
    will read the configuration and initialize all internal variables.
    You may extend or override configuration
    from the environment and configuration files
@@ -3102,7 +3096,7 @@ The specified functions are exported from package ASDF.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-output-translations @&optional PARAMETER
+@defun ensure-output-translations @optional PARAMETER
    checks whether output translations have been initialized.
    If not, initialize them with the given @var{PARAMETER}.
    This function will be called before any attempt to operate on a system.
@@ -3401,7 +3395,7 @@ Most of these functions are not exported by ASDF anymore,
 but only used for private purposes of ASDF.
 Please use ASDF-UTILS for the same functions exported from a stable library.
 
-@defun coerce-pathname name @&key type defaults
+@defun coerce-pathname name @key type defaults
 
 This function (available starting with ASDF 2.012.11)
 takes an argument, and portably interprets it as a pathname.
@@ -3421,7 +3415,7 @@ The host, device and version components come from @var{defaults}, which defaults
 
 @end defun
 
-@defun merge-pathnames* @&key specified defaults
+@defun merge-pathnames* @key specified defaults
 
 This function is a replacement for @code{merge-pathnames} that uses the host and device
 from the @var{defaults} rather than the @var{specified} pathname when the latter
@@ -3431,7 +3425,7 @@ of the absolute pathnames they are relative to.
 
 @end defun
 
-@defun system-relative-pathname system name @&key type
+@defun system-relative-pathname system name @key type
 
 It's often handy to locate a file relative to some system.
 The @code{system-relative-pathname} function meets this need.
