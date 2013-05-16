@@ -155,7 +155,7 @@ extract-all-tagged-asdf: build/asdf.lisp
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
 debian-package: mrproper
-	: $${RELEASE:="$$(git tag -l '2.[0-9][0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
+	: $${RELEASE:="$$(git tag -l '3.[0-9].[0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=release --git-upstream-tag=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
 # Replace SBCL's ASDF with the current one. -- NOT recommended now that SBCL has ASDF2.
