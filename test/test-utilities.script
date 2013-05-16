@@ -34,7 +34,11 @@
 (assert
  (version-satisfies (asdf-version) (asdf-version)))
 (assert
- (version-satisfies (asdf-version) "2.0"))
+ (version-satisfies (asdf-version) "3.0"))
+(assert
+ (not (version-satisfies (asdf-version) "2.0")))
+(assert
+ (version<= "2.0" (asdf-version)))
 (assert
  (not (version-satisfies (asdf-version) "666")))
 (assert-pathnames-equal
