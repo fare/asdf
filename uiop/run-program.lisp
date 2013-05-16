@@ -137,7 +137,7 @@ by /bin/sh in POSIX"
 ;;;; Slurping a stream, typically the output of another program
 (with-upgradability ()
   (defgeneric slurp-input-stream (processor input-stream &key &allow-other-keys))
-  
+
   #-(or gcl2.6 genera)
   (defmethod slurp-input-stream ((function function) input-stream &key &allow-other-keys)
     (funcall function input-stream))
