@@ -34,6 +34,12 @@
 (assert-equal "ok  1" (run-program '("echo" "ok  1") :output :line))
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
 (assert-equal (format nil "ok  1~%") (run-program '("echo" "ok  1") :output :string))
+;; this test checks for a problem there was in allegro -- :output :interactive
+;; would try to open T as a stream for INPUT.
+(assert-equal 0 (run-program "true" :force-shell t :output :interactive))
+(assert-equal 0 (run-program "true" :force-shell nil :output :interactive))
+(assert-equal 1 (run-program "false" :force-shell t :output :interactive :ignore-error-status t))
+(assert-equal 1 (run-program "false" :force-shell nil :output :interactive :ignore-error-status t))
 
 
 ;;#+allegro (trace excl:run-shell-command sys:reap-os-subprocess)

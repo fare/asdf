@@ -247,10 +247,22 @@ return the exit status code of the process that was called.
 if it was NIL, the output is discarded;
 if it was :INTERACTIVE, the output and the input are inherited from the current process.
 
-Otherwise, the output will be processed by SLURP-INPUT-STREAM,
-using OUTPUT as the first argument, and return whatever it returns,
-e.g. using :OUTPUT :STRING will have it return the entire output stream as a string.
-Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
+Otherwise, OUTPUT should be a value that is a suitable first argument to
+SLURP-INPUT-STREAM.  In this case, RUN-PROGRAM will create a temporary stream
+for the program output.  The program output, in that stream, will be processed
+by SLURP-INPUT-STREAM, according to the using OUTPUT as the first argument.
+RUN-PROGRAM will return whatever SLURP-INPUT-STREAM returns.  E.g., using
+:OUTPUT :STRING will have it return the entire output stream as a string.  Use
+ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
+
+    ;; TODO: The current version does not honor :OUTPUT NIL on Allegro.  Setting
+    ;; the :INPUT and :OUTPUT arguments to RUN-SHELL-COMMAND on ACL actually do
+    ;; what :OUTPUT :INTERACTIVE is advertised to do here.  To get the behavior
+    ;; specified for :OUTPUT NIL, one would have to grab up the process output
+    ;; into a stream and then throw it on the floor.  The consequences of
+    ;; getting this wrong seemed so much worse than having excess output that it
+    ;; is not currently implemented.
+
     ;; TODO: specially recognize :output pathname ?
     (declare (ignorable ignore-error-status element-type external-format))
     #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl sbcl scl xcl)
@@ -292,7 +304,8 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                          (excl:run-shell-command
                           #+os-unix (coerce (cons (first command) command) 'vector)
                           #+os-windows command
-                          :input interactive :output (or (and pipe :stream) interactive) :wait wait
+                          :input nil
+                          :output (and pipe :stream) :wait wait
                           #+os-windows :show-window #+os-windows (and (or (null output) pipe) :hide))
                          #+clisp
                          (flet ((run (f &rest args)
@@ -379,13 +392,18 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
              (redirected-system-command (command out)
                (format nil (if (os-unix-p) "exec > ~*~A ; ~2:*~A" "~A > ~A")
                        (system-command command) (native-namestring out)))
+             ;; this is only called if :OUTPUT is NIL or :INTERACTIVE
              (system (command &key interactive)
                (declare (ignorable interactive))
                #+(or abcl xcl) (ext:run-shell-command command)
                #+allegro
                (excl:run-shell-command
-                command :input interactive :output interactive :wait t
-                        #+os-windows :show-window #+os-windows (unless (or interactive (eq output t)) :hide))
+                command
+                :input nil 
+                :output nil
+                :error-output :output ; write STDERR to output, too
+                :wait t
+                #+os-windows :show-window #+os-windows (unless (or interactive (eq output t)) :hide))
                #+(or clisp clozure cmu (and lispworks os-unix) sbcl scl)
                (process-result (run-program command :pipe nil :interactive interactive) nil)
                #+ecl (ext:system command)
@@ -412,6 +430,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                                                :element-type element-type
                                                #-gcl2.6 :external-format #-gcl2.6 external-format)
                          (slurp-input-stream output stream)))
+                     ;; OUTPUT is either NIL (discard) or :INTERACTIVE
                      (call-system (system-command command) :interactive interactive)))))
       (if (and (not force-shell)
                #+(or clisp ecl) ignore-error-status
