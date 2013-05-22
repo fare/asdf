@@ -392,7 +392,6 @@ ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
              (redirected-system-command (command out)
                (format nil (if (os-unix-p) "exec > ~*~A ; ~2:*~A" "~A > ~A")
                        (system-command command) (native-namestring out)))
-             ;; this is only called if :OUTPUT is NIL or :INTERACTIVE
              (system (command &key interactive)
                (declare (ignorable interactive))
                #+(or abcl xcl) (ext:run-shell-command command)
@@ -430,7 +429,6 @@ ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
                                                :element-type element-type
                                                #-gcl2.6 :external-format #-gcl2.6 external-format)
                          (slurp-input-stream output stream)))
-                     ;; OUTPUT is either NIL (discard) or :INTERACTIVE
                      (call-system (system-command command) :interactive interactive)))))
       (if (and (not force-shell)
                #+(or clisp ecl) ignore-error-status
