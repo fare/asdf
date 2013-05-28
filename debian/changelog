@@ -1,3 +1,10 @@
+cl-asdf (2:3.0.1.2-1) unstable; urgency=low
+
+  ASDF 3.0.1.2 fixes issues with the debian package itself.
+  It also includes fixes to run-program and run-shell-command.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 27 May 2013 22:44:50 -0400
+
 cl-asdf (2:3.0.1-1) unstable; urgency=low
 
   ASDF 3.0.1 is an emergency release for better compatibility with Quicklisp.

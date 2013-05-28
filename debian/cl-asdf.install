@@ -1,1 +1,1 @@
-uiop/ *.lisp build/asdf.lisp contrib/ asdf.asd build.xcvb usr/share/common-lisp/source/cl-asdf/
+uiop/ *.lisp build/ contrib/ asdf.asd build.xcvb version.lisp-expr usr/share/common-lisp/source/cl-asdf/
