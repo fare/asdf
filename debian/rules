@@ -8,6 +8,7 @@ build-stamp:
 	dh_testdir
 	make
 	make -C doc all
+	ln -sf build/asdf.lisp .
 	touch build-stamp
 
 build-arch:
