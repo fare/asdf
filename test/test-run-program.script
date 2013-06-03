@@ -25,7 +25,9 @@
    (with-output-to-string (s)
      (let ((*verbose-out* t)
            (*standard-output* s))
-       (run-shell-command "echo ok ~D" 1)))
+       (let ((status (run-shell-command "echo ok ~D" 1)))
+         (unless (zerop status)
+           (error "Didn't get good exit status.")))))
    ok1))
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
