@@ -1,6 +1,7 @@
 ?
 ??
 build
+asdf.lisp
 
 doc/asdf/
 doc/asdf.aux
@@ -49,3 +50,4 @@ debian/files
 .pc
 
 /.DS_Store
+

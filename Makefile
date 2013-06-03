@@ -107,7 +107,7 @@ clean:
 		done; \
 	     fi; \
 	done
-	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example
+	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example asdf.lisp
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 	${MAKE} -C doc clean
 
