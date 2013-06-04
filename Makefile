@@ -149,6 +149,7 @@ test-all: doc test-all-lisps
 test-all-no-stop:
 	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
 
+extract: extract-all-tagged-asdf
 extract-all-tagged-asdf: build/asdf.lisp
 	./test/run-tests.sh -H
 
