@@ -38,17 +38,22 @@
 ;;;; Convenience methods
 (with-upgradability ()
   (defmacro define-convenience-action-methods
-      (function (operation component &optional keyp)
-       &key if-no-operation if-no-component operation-initargs)
+      (function formals &key if-no-operation if-no-component operation-initargs)
     (let* ((rest (gensym "REST"))
            (found (gensym "FOUND"))
+           (keyp (equal (last formals) '(&key)))
+           (formals-no-key (if keyp (butlast formals) formals))
+           (len (length formals-no-key))
+           (prefix (subseq formals 0 (- len 2)))
+           (operation (nth (- len 2) formals))
+           (component (nth (- len 1) formals))
            (more-args (when keyp `(&rest ,rest &key &allow-other-keys))))
       (flet ((next-method (o c)
                (if keyp
-                   `(apply ',function ,o ,c ,rest)
-                   `(,function ,o ,c))))
+                   `(apply ',function ,@prefix ,o ,c ,rest)
+                   `(,function ,@prefix ,o ,c))))
         `(progn
-           (defmethod ,function ((,operation symbol) ,component ,@more-args)
+           (defmethod ,function (,@prefix (,operation symbol) ,component ,@more-args)
              (if ,operation
                  ,(next-method
                    (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.
@@ -56,7 +61,7 @@
                        `(make-operation ,operation))
                    `(or (find-component () ,component) ,if-no-component))
                  ,if-no-operation))
-           (defmethod ,function ((,operation operation) ,component ,@more-args)
+           (defmethod ,function (,@prefix (,operation operation) ,component ,@more-args)
              (if (typep ,component 'component)
                  (error "No defined method for ~S on ~/asdf-action:format-action/"
                         ',function (cons ,operation ,component))
