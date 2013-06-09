@@ -94,7 +94,7 @@ hopefully, if done consistently, that won't affect program behavior too much.")
 and implementation-defined external-format's")
 
   (defun encoding-external-format (encoding)
-    (funcall *encoding-external-format-hook* encoding)))
+    (funcall *encoding-external-format-hook* (or encoding *default-encoding*))))
 
 
 ;;; Safe syntax
