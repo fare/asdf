@@ -89,7 +89,7 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
                       &rest keys &key plan-class &allow-other-keys)
     (let ((plan (apply 'make-plan plan-class operation component keys)))
       (apply 'perform-plan plan keys)
-      (values operation (plan-actions plan) plan)))
+      (values operation plan)))
 
   (defun oos (operation component &rest args &key &allow-other-keys)
     (apply 'operate operation component args))

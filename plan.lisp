@@ -20,7 +20,7 @@
    #:visit-dependencies #:compute-action-stamp #:traverse-action
    #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
-   #:make-plan #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p
+   #:make-plan #:plan-actions #:perform-plan #:plan-operates-on-p
    #:planned-p #:index #:forced #:forced-not #:total-action-count
    #:planned-action-count #:planned-output-action-count #:visited-actions
    #:visiting-action-set #:visiting-action-list #:plan-actions-r
@@ -365,15 +365,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
      "Generate and return a plan for performing OPERATION on COMPONENT."))
   (define-convenience-action-methods make-plan (plan-class operation component &key))
 
-  (defgeneric* (traverse) (operation component &key &allow-other-keys)
-    (:documentation
-     "Generate and return a plan for performing OPERATION on COMPONENT.
-
-The plan returned is a list of dotted-pairs. Each pair is the CONS
-of ASDF operation object and a COMPONENT object. The pairs will be
-processed in order by OPERATE."))
-  (define-convenience-action-methods traverse (operation component &key))
-
   (defgeneric perform-plan (plan &key))
   (defgeneric plan-operates-on-p (plan component))
 
@@ -385,9 +376,6 @@ processed in order by OPERATE."))
                        :system (component-system c) keys)))
       (traverse-action plan o c t)
       plan))
-
-  (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
-    (plan-actions (apply 'make-plan plan-class o c keys)))
 
   (defmethod perform-plan :around ((plan t) &key)
     (let ((*package* *package*)
@@ -436,7 +424,7 @@ processed in order by OPERATE."))
              (traverse-action plan o c t))
       (plan-actions plan)))
 
-  (define-convenience-action-methods traverse-sub-actions (o c &key))
+  (define-convenience-action-methods traverse-sub-actions (operation component &key))
   (defmethod traverse-sub-actions ((operation operation) (component component) &rest keys &key &allow-other-keys)
     (apply 'traverse-actions (direct-dependencies operation component)
            :system (component-system component) keys))

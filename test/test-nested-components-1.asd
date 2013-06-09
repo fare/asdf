@@ -1,12 +1,5 @@
 ;;; -*- Mode: common-lisp; Syntax: Common-Lisp; -*-
 
-(in-package :common-lisp-user)
-
-(defpackage #:test-nested-components.system
-            (:use #:common-lisp #:asdf))
-
-(in-package :test-nested-components.system)
-
 (defsystem test-nested-components-a
   :components
   ((:module "nested-components"
@@ -27,9 +20,3 @@
   :pathname "preflight-checks"
   :components
   ((:file "preflight")))
-
-#|
-newer traverse always fails
-older traverse fails when db-agraph-preflight is evaluated, ok
-  when loaded or compiled
-|#
