@@ -391,6 +391,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
            :when (or force (not (nth-value 1 (compute-action-stamp nil o c))))
            :do (perform-with-restarts o c)))
 
+  (defmethod plan-operates-on-p ((plan plan-traversal) (component-path list))
+    (plan-operates-on-p (plan-actions plan) component-path))
+
   (defmethod plan-operates-on-p ((plan list) (component-path list))
     (find component-path (mapcar 'cdr plan)
           :test 'equal :key 'component-find-path)))
@@ -422,7 +425,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
       (loop* :for (o . c) :in actions :do
              (traverse-action plan o c t))
-      (plan-actions plan)))
+      plan))
 
   (define-convenience-action-methods traverse-sub-actions (operation component &key))
   (defmethod traverse-sub-actions ((operation operation) (component component) &rest keys &key &allow-other-keys)
@@ -438,7 +441,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
   (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
     (remove-duplicates
-     (mapcar 'cdr (apply 'traverse-sub-actions goal-operation system
-                         (remove-plist-key :goal-operation keys)))
+     (mapcar 'cdr (plan-actions
+                   (apply 'traverse-sub-actions goal-operation system
+                          (remove-plist-key :goal-operation keys))))
      :from-end t)))
 
