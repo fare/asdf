@@ -50,8 +50,8 @@
     e))
 
 (defun enough-namestrings (base pathnames)
-  (loop :with b = (ensure-pathname base :want-absolute t :want-directory t)
-        :for p :in pathnames
+  (ensure-pathname base :want-absolute t :want-directory t)
+  (loop :for p :in pathnames
         :collect (enough-namestring! p base)))
 
 (defun system-source-files (system)
