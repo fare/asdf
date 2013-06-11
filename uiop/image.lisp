@@ -87,9 +87,7 @@ This is designed to abstract away the implementation specific quit forms."
     "Die in error with some error message"
     (with-safe-io-syntax ()
       (ignore-errors
-       (fresh-line *stderr*)
-       (apply #'format *stderr* format arguments)
-       (format! *stderr* "~&")))
+       (format! *stderr* "~&~?~&" format arguments)))
     (quit code))
 
   (defun raw-print-backtrace (&key (stream *debug-io*) count)
