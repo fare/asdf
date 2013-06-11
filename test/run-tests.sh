@@ -266,13 +266,13 @@ upgrade_tags () {
     # 2.26 (2012-10-30) was used by Quicklisp
     # 2.27 (2013-02-01) is the first ASDF 3 pre-release
     # 2.32 (2013-03-05) is the first really stable ASDF 3 pre-release
-    #
+    # 3.0.1 (2013-05-16) is the first stable ASDF 3 release
     echo REQUIRE 1.85 1.97 1.369
     # git tag -l '2.0??'
     # git tag -l '2.??'
     echo 2.000 2.008 2.011 2.014.6 2.019 2.20 2.22 2.26
-    echo 2.27
-    git tag -l '2.3[2-9]'
+    echo 2.27 2.32
+    git tag -l '3.0.[1-9]'
 }
 upgrade_methods () {
     if [ -n "$ASDF_UPGRADE_TEST_METHODS" ] ; then

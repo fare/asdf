@@ -559,7 +559,7 @@ is bound, write a message and exit on an error.  If
   `(apply (asym :register-system-definition) ',name :pathname ,*test-directory*
           :source-file nil ',rest))
 
-(defun in-plan-p (plan x) (member x plan :key (asym :action-path) :test 'equal))
+(defun in-plan-p (plan x) (member x (acall :plan-actions plan) :key (asym :action-path) :test 'equal))
 
 (defmacro test-load-systems (&rest x)
   `(do-test-load-systems ',x))

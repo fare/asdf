@@ -5,11 +5,11 @@
   (:recycle :asdf/backward-interface :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
-   :asdf/lisp-action :asdf/operate :asdf/output-translations)
+   :asdf/lisp-action :asdf/plan :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
-   #:error-component #:error-operation
+   #:error-component #:error-operation #:traverse
    #:component-load-dependencies
    #:enable-asdf-binary-locations-compatibility
    #:operation-forced
@@ -62,7 +62,19 @@ We recommend you use ASDF:SYSTEM-SOURCE-FILE instead
 for a mostly compatible replacement that we're supporting,
 or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
 if that's whay you mean." ;;)
-    (system-source-file x)))
+    (system-source-file x))
+
+  (defgeneric* (traverse) (operation component &key &allow-other-keys)
+    (:documentation
+     "Generate and return a plan for performing OPERATION on COMPONENT.
+
+The plan returned is a list of dotted-pairs. Each pair is the CONS
+of ASDF operation object and a COMPONENT object. The pairs will be
+processed in order by OPERATE."))
+  (define-convenience-action-methods traverse (operation component &key))
+
+  (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
+    (plan-actions (apply 'make-plan plan-class o c keys))))
 
 
 ;;;; ASDF-Binary-Locations compatibility

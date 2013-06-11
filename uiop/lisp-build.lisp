@@ -570,7 +570,7 @@ possibly in a different process. Otherwise just run the BODY."
 
   (defun* (compile-file*) (input-file &rest keys
                                       &key compile-check output-file warnings-file
-                                      #+clisp lib-file #+(or ecl mkcl) object-file
+                                      #+clisp lib-file #+(or ecl mkcl) object-file #+sbcl emit-cfasl
                                       &allow-other-keys)
     "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
@@ -611,12 +611,23 @@ it will filter them appropriately."
              (or object-file
                  (compile-file-pathname output-file :fasl-p nil)))
            (tmp-file (tmpize-pathname output-file))
+           #+sbcl
+           (cfasl-file (etypecase emit-cfasl
+                         (null nil)
+                         ((eql t) (make-pathname :type "cfasl" :defaults output-file))
+                         (string (parse-namestring emit-cfasl))
+                         (pathname emit-cfasl)))
+           #+sbcl
+           (tmp-cfasl (when cfasl-file (make-pathname :type "cfasl" :defaults tmp-file)))
            #+clisp
            (tmp-lib (make-pathname :type "lib" :defaults tmp-file)))
       (multiple-value-bind (output-truename warnings-p failure-p)
           (with-saved-deferred-warnings (warnings-file)
             (with-muffled-compiler-conditions ()
-              (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
+              (or #-(or ecl mkcl)
+                  (apply 'compile-file input-file :output-file tmp-file
+                         #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
+                         #-sbcl keywords)
                   #+ecl (apply 'compile-file input-file :output-file
                                (if object-file
                                    (list* object-file :system-p t keywords)
@@ -641,11 +652,14 @@ it will filter them appropriately."
            (delete-file-if-exists output-file)
            (when output-truename
              #+clisp (when lib-file (rename-file-overwriting-target tmp-lib lib-file))
+             #+sbcl (when cfasl-file (rename-file-overwriting-target tmp-cfasl cfasl-file))
              (rename-file-overwriting-target output-truename output-file)
              (setf output-truename (truename output-file)))
            #+clisp (delete-file-if-exists tmp-lib))
           (t ;; error or failed check
            (delete-file-if-exists output-truename)
+           #+clisp (delete-file-if-exists tmp-lib)
+           #+sbcl (delete-file-if-exists tmp-cfasl)
            (setf output-truename nil)))
         (values output-truename warnings-p failure-p))))
 
