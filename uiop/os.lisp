@@ -33,20 +33,23 @@
 
   (defun os-windows-p ()
     (or #+abcl (featurep :windows)
-        #+(and (not (or unix cygwin darwin)) (or win32 windows mswindows mingw32)) t))
+        #+(and (not (or abcl unix cygwin darwin)) (or win32 windows mswindows mingw32)) t))
 
   (defun os-genera-p ()
     (or #+genera t))
 
+  (defun os-oldmac-p ()
+    (or #+mcl t))
+
   (defun detect-os ()
-    (flet ((yes (yes) (pushnew yes *features*))
-           (no (no) (setf *features* (remove no *features*))))
-      (cond
-        ((os-unix-p) (yes :os-unix) (no :os-windows) (no :genera))
-        ((os-windows-p) (yes :os-windows) (no :os-unix) (no :genera))
-        ((os-genera-p) (no :os-unix) (no :os-windows) (yes :genera))
-        (t (error "Congratulations for trying XCVB on an operating system~%~
-that is neither Unix, nor Windows, nor even Genera.~%Now you port it.")))))
+    (loop* :with o
+           :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-windows . os-windows-p)
+                                         (:genera . os-genera-p) (:os-oldmac . os-oldmac-p))
+           :when (and (not o) (funcall detect)) :do (setf o feature) (pushnew o *features*)
+           :else :do (setf *features* (remove feature *features*))
+           :finally
+           (return (or o (error "Congratulations for trying ASDF on an operating system~%~
+that is neither Unix, nor Windows, nor Genera, nor even old MacOS.~%Now you port it.")))))
 
   (detect-os))
 

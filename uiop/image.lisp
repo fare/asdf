@@ -73,7 +73,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+gcl (lisp:quit code)
     #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
-    #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?
+    #+mcl (progn code (ccl:quit)) ;; or should we use FFI to call libc's exit(3) ?
     #+mkcl (mk-ext:quit :exit-code code)
     #+sbcl #.(let ((exit (find-symbol* :exit :sb-ext nil))
                    (quit (find-symbol* :quit :sb-ext nil)))
@@ -109,7 +109,8 @@ This is designed to abstract away the implementation specific quit forms."
     (system::print-backtrace :out stream :limit count)
     #+(or clozure mcl)
     (let ((*debug-io* stream))
-      (ccl:print-call-history :count count :start-frame-number 1)
+      #+clozure (ccl:print-call-history :count count :start-frame-number 1)
+      #+mcl (ccl:print-call-history :detailed-p nil)
       (finish-output stream))
     #+(or cmu scl)
     (let ((debug:*debug-print-level* *print-level*)
@@ -200,11 +201,11 @@ This is designed to abstract away the implementation specific quit forms."
     #+(or cmu scl) extensions:*command-line-strings*
     #+ecl (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
     #+gcl si:*command-args*
-    #+genera nil
+    #+(or genera mcl) nil
     #+lispworks sys:*line-arguments-list*
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
-    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks sbcl scl xcl)
+    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl sbcl scl xcl)
     (error "raw-command-line-arguments not implemented yet"))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
