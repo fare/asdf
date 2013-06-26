@@ -399,7 +399,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
           :test 'equal :key 'component-find-path)))
 
 
-;;;; Incidental traversals 
+;;;; Incidental traversals
 (with-upgradability ()
   (defclass filtered-sequential-plan (sequential-plan)
     ((action-filter :initform t :initarg :action-filter :reader plan-action-filter)

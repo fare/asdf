@@ -288,7 +288,7 @@ system names to pathnames of .asd files")
   (defvar *source-registry-parameter* nil)
 
   (defun initialize-source-registry (&optional (parameter *source-registry-parameter*))
-    ;; Record the parameter used to configure the registry 
+    ;; Record the parameter used to configure the registry
     (setf *source-registry-parameter* parameter)
     ;; Clear the previous registry database:
     (setf *source-registry* (make-hash-table :test 'equal))

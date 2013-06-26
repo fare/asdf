@@ -398,7 +398,7 @@ ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
                #+allegro
                (excl:run-shell-command
                 command
-                :input nil 
+                :input nil
                 :output nil
                 :error-output :output ; write STDERR to output, too
                 :wait t

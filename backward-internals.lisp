@@ -1,5 +1,5 @@
 ;;;; -------------------------------------------------------------------------
-;;; Internal hacks for backward-compatibility 
+;;; Internal hacks for backward-compatibility
 
 (asdf/package:define-package :asdf/backward-internals
   (:recycle :asdf/backward-internals :asdf)
