@@ -206,8 +206,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
            (in-files (input-files o c))
            ;; Three kinds of actions:
            (out-op (and out-files t)) ; those that create files on the filesystem
-                                        ;(image-op (and in-files (null out-files))) ; those that load stuff into the image
-                                        ;(null-op (and (null out-files) (null in-files))) ; dependency placeholders that do nothing
+           ;;(image-op (and in-files (null out-files))) ; those that load stuff into the image
+           ;;(null-op (and (null out-files) (null in-files))) ; placeholders that do nothing
            ;; When was the thing last actually done? (Now, or ask.)
            (op-time (or just-done (component-operation-time o c)))
            ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
@@ -326,7 +326,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
                                  :stamp stamp
                                  :done-p (and done-p (not add-to-plan-p))
                                  :planned-p add-to-plan-p
-                                 :index (if status (action-index status) (incf (plan-total-action-count plan)))))
+                                 :index (if status
+                                            (action-index status)
+                                            (incf (plan-total-action-count plan)))))
                           (when add-to-plan-p
                             (incf (plan-planned-action-count plan))
                             (unless aniip
@@ -423,8 +425,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
   (defmethod traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
     (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
-      (loop* :for (o . c) :in actions :do
-             (traverse-action plan o c t))
+      (loop* :for (o . c) :in actions :do (traverse-action plan o c t))
       plan))
 
   (define-convenience-action-methods traverse-sub-actions (operation component &key))
@@ -435,8 +436,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defmethod plan-actions ((plan filtered-sequential-plan))
     (with-slots (keep-operation keep-component) plan
       (loop* :for (o . c) :in (call-next-method)
-             :when (and (typep o keep-operation)
-                        (typep c keep-component))
+             :when (and (typep o keep-operation) (typep c keep-component))
              :collect (cons o c))))
 
   (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
