@@ -70,3 +70,7 @@
 
 (defsystem :test-asdf/bundle-2
   :depends-on (:test-asdf/bundle-1) :components ((:file "file2")))
+
+(defsystem :test-asdf/dll-test :components ((:file "dll-test")))
+
+(defsystem :test-asdf/dll-user :components ((:file "dll-user")))

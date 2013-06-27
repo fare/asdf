@@ -1,6 +1,4 @@
 ;;; -*- Lisp -*-
-
-
 (in-package :asdf-test)
 
 ;;;---------------------------------------------------------------------------
@@ -11,8 +9,16 @@
 (asdf:clear-system :test-asdf/bundle-1)
 (asdf:clear-system :test-asdf/bundle-2)
 (when (find-package :test-package) (delete-package :test-package))
-#+(or abcl (and ecl ecl-bytecmp) gcl)
+
+#+(or (and ecl ecl-bytecmp) gcl) ;; actually available on ABCL 1.2.0 and later.
 (leave-test "bundles not on this implementation" 0)
+
+#+abcl
+(let* ((version (lisp-implementation-version))
+       (version-nums (subseq version 0 (position-if-not (lambda (x) (find x "0123456789.")) version))))
+  (when (version< version-nums "1.2.0")
+    (leave-test "Your old ABCL is known to fail this test script, so skipping it." 0)))
+
 
 (defparameter *bundle-1* (output-file 'fasl-op :test-asdf/bundle-1))
 (defparameter *bundle-2* (output-file 'fasl-op :test-asdf/bundle-2))
@@ -33,3 +39,11 @@
 (DBG "Now for the mono-fasl")
 (operate 'monolithic-fasl-op :test-asdf/bundle-2)
 (assert (probe-file *mono-bundle-2*))
+
+;;; Test DLL-op on ECL.
+#+ecl
+(progn
+  (operate 'dll-op :test-asdf/dll-test)
+  (si:load-foreign-module (first (output-files 'dll-op :test-asdf/dll-test)))
+  (operate 'load-op :test-asdf/dll-user)
+  (assert (= (test-package::sample-function) 42)))
