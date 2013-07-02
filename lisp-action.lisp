@@ -33,15 +33,14 @@
   (defclass basic-load-op (operation) ())
   (defclass basic-compile-op (operation)
     ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
-     (flags :initarg :flags :accessor compile-op-flags
-            :initform nil))))
+     (flags :initarg :flags :accessor compile-op-flags :initform nil))))
 
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
   (defclass prepare-op (upward-operation sideway-operation)
     ((sideway-operation :initform 'load-op)))
   (defclass load-op (basic-load-op downward-operation sideway-operation selfward-operation)
-    ;; NB: even though compile-op depends-on on prepare-op it is not needed-in-image-p,
+    ;; NB: even though compile-op depends on prepare-op it is not needed-in-image-p,
     ;; so we need to directly depend on prepare-op for its side-effects in the current image.
     ((selfward-operation :initform '(prepare-op compile-op))))
   (defclass compile-op (basic-compile-op downward-operation selfward-operation)
