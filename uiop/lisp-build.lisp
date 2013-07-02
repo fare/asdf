@@ -313,7 +313,7 @@ using READ within a WITH-SAFE-IO-SYNTAX, that represents the warnings currently 
 WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings support in ASDF."
     #+allegro
     (list :functions-defined excl::.functions-defined.
-	  :functions-called excl::.functions-called.)
+          :functions-called excl::.functions-called.)
     #+clozure
     (mapcar 'reify-deferred-warning
             (if-let (dw ccl::*outstanding-deferred-warnings*)
@@ -355,7 +355,7 @@ One of three functions required for deferred-warnings support in ASDF."
     (declare (ignorable reified-deferred-warnings))
     #+allegro
     (destructuring-bind (&key functions-defined functions-called)
-			reified-deferred-warnings
+        reified-deferred-warnings
       (setf excl::.functions-defined.
             (append functions-defined excl::.functions-defined.)
             excl::.functions-called.

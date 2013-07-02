@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 3.0.1.9: Another System Definition Facility.
+;;; This is ASDF 3.0.1.13: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -70,8 +70,8 @@
            (existing-major-minor (subseq existing-version 0 second-dot))
            (existing-version-number (and existing-version (read-from-string existing-major-minor)))
            (away (format nil "~A-~A" :asdf existing-version)))
-      (when (and existing-version (< existing-version-number
-                                     (or #+abcl 2.25 #+cmu 2.018 #-(or abcl cmu) 2.27)))
+      (when (and existing-version
+                 (< existing-version-number #+abcl 2.25 #+cmu 2.018 #-(or abcl cmu) 2.27))
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))))

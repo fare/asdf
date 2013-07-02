@@ -49,14 +49,16 @@
   ;; we'd have to have the monolithic-op not inherit from the main op,
   ;; but instead inherit from a basic-FOO-op as with basic-fasl-op above.
 
-  (defclass lib-op (bundle-compile-op)
+  (defclass no-ld-flags-op (operation) ())
+
+  (defclass lib-op (bundle-compile-op no-ld-flags-op)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "compile the system and produce linkable (.a) library for it."
      #-(or ecl mkcl) "just compile the system"))
 
-  (defclass dll-op (bundle-op basic-compile-op)
+  (defclass dll-op (bundle-compile-op selfward-operation no-ld-flags-op)
     ((bundle-type :initform :dll))
-    (:documentation "Link together all the dynamic library used by this system into a single one."))
+    (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
 
   (defclass binary-op (basic-compile-op selfward-operation)
     ((selfward-operation :initform '(fasl-op lib-op)))
@@ -79,15 +81,14 @@
   (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op) ()
     (:documentation "Create a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op)
+  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op  no-ld-flags-op)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "Create a single linkable library for the system and its dependencies."
      #-(or ecl mkcl) "Compile a system and its dependencies."))
 
-  (defclass monolithic-dll-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
-    ((bundle-type :initform :dll)
-     (selfward-operation :initform 'dll-op)
-     (sideway-operation :initform 'dll-op)))
+  (defclass monolithic-dll-op (monolithic-bundle-compile-op sideway-operation selfward-operation no-ld-flags-op)
+    ((bundle-type :initform :dll))
+    (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
 
   (defclass program-op #+(or mkcl ecl) (monolithic-bundle-compile-op)
             #-(or mkcl ecl) (monolithic-bundle-op selfward-operation)
@@ -101,7 +102,7 @@
       ((or null string) bundle-type)
       ((eql :fasl) #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")
       #+ecl
-      ((member :binary :dll :lib :static-library :program :object :program)
+      ((member :binary :dll :lib :shared-library :static-library :program :object :program)
        (compile-file-type :type bundle-type))
       ((eql :binary) "image")
       ((eql :dll) (cond ((os-unix-p) "so") ((os-windows-p) "dll")))
@@ -173,7 +174,7 @@
           (remove-plist-keys '(:type :monolithic :name-suffix)
                              (operation-original-initargs instance))))
 
-  (defmethod bundle-op-build-args :around ((o lib-op))
+  (defmethod bundle-op-build-args :around ((o no-ld-flags-op))
     (declare (ignorable o))
     (let ((args (call-next-method)))
       (remf args :ld-flags)
