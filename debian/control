@@ -6,7 +6,7 @@ Uploaders: Peter Van Eynde <pvaneynd@debian.org>,
   Milan Zamazal <pdm@zamazal.org>,
   Christoph Egger <christoph@debian.org>,
   Julien Danjou <acid@debian.org>,
-  Francois-Rene Rideau <fare@tunes.org>
+  Robert P. Goldman <rpgoldman@sift.info>
 Build-Depends: debhelper (>> 7)
 Build-Depends-Indep: texinfo, texlive-extra-utils, texlive, texlive-generic-recommended
 Standards-Version: 3.9.3

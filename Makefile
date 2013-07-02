@@ -206,6 +206,9 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 # make test-load-systems s=fare-all
 # make bump v=3.0
 # edit debian/changelog
+# git commit
+# git tag 3.0 # for example ...
+# make debian-package
 # make release-push archive website debian-package
 # dput mentors ../*.changes
 # send debian mentors request

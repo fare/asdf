@@ -1,3 +1,12 @@
+cl-asdf (2:3.0.2-1) unstable; urgency=low
+
+  Improve support for CMUCL, ABCL, restore MCL support.
+  TRAVERSE is deprecated (moved to BACKWARD-INTERFACE), use
+  MAKE-PLAN instead.
+  Added DLL-OP and MONOLITHIC-DLL-OP for ECL.
+
+ -- Robert P. Goldman <rpgoldman@sift.info>  Tue, 02 Jul 2013 12:05:57 -0500
+
 cl-asdf (2:3.0.1.3-1) unstable; urgency=low
 
   Add some backward-compatibility to the debian package,
