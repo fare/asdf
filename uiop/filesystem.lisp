@@ -146,6 +146,7 @@ or the original (parsed) pathname if it is false (the default)."
                                #+(or clozure digitool) '(:follow-links nil)
                                #+clisp '(:circle t :if-does-not-exist :ignore)
                                #+(or cmu scl) '(:follow-links nil :truenamep nil)
+                               #+lispworks '(:link-transparency nil)
                                #+sbcl (when (find-symbol* :resolve-symlinks '#:sb-impl nil)
                                         '(:resolve-symlinks nil))))))
 
