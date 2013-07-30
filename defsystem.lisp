@@ -11,7 +11,7 @@
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
    #:determine-system-directory #:parse-component-form
-   #:duplicate-names #:non-toplevel-system #:non-system-system
+   #:non-toplevel-system #:non-system-system
    #:sysdef-error-component #:check-component-input))
 (in-package :asdf/defsystem)
 
@@ -66,12 +66,6 @@
 
 ;;; Check inputs
 (with-upgradability ()
-  (define-condition duplicate-names (system-definition-error)
-    ((name :initarg :name :reader duplicate-names-name))
-    (:report (lambda (c s)
-               (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~S~@:>")
-                       (duplicate-names-name c)))))
-
   (define-condition non-system-system (system-definition-error)
     ((name :initarg :name :reader non-system-system-name)
      (class-name :initarg :class-name :reader non-system-system-class-name))
