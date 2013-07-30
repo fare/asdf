@@ -993,15 +993,19 @@ component-type := :module | :file | :static-file | other-component-type
 
 other-component-type := symbol-by-name (@pxref{The defsystem grammar,,Component types})
 
+# This is used in :depends-on, as opposed to ``dependency,''
+# which is used in :in-order-to
 dependency-def := simple-component-name
-               | ( :feature name )
+               | (feature @var{feature-name})
                | ( :version simple-component-name version-specifier)
 
+# ``dependency'' is used in :in-order-to, as opposed to 
+# ``dependency-def''
 dependency := (dependent-op @var{requirement}+)
 requirement := (required-op @var{required-component}+)
-             | (feature feature-name)
+             | (:feature @var{feature-name})
 dependent-op := operation-name
-required-op := operation-name | feature
+required-op := operation-name
 
 simple-component-name := string
                       |  symbol
