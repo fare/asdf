@@ -2,7 +2,7 @@
 ;;;; Components
 
 (asdf/package:define-package :asdf/component
-  (:recycle :asdf/component :asdf/defsystem :asdf :asdf/find-system)
+  (:recycle :asdf/component :asdf/defsystem :asdf/find-system :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:component #:component-find-path
