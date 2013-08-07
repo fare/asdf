@@ -705,7 +705,9 @@ or when loading the package is optional."
                          :mix ,mix :reexport ,reexport :unintern ,unintern)))))
 
 (defmacro define-package (package &rest clauses)
-  "Supports the following keyword arguments:
+  "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form 
+\(KEYWORD . ARGS\).
+DEFINE-PACKAGE supports the following keywords:
 USE, SHADOW, SHADOWING-IMPORT-FROM, IMPORT-FROM, EXPORT, INTERN -- as per CL:DEFPACKAGE.
 RECYCLE -- Recycle the package's exported symbols from the specified packages,
 in order.  For every symbol scheduled to be exported by the DEFINE-PACKAGE,
@@ -717,9 +719,13 @@ should appear in first position if it already exists, and even if it doesn't,
 ahead of any package that is not going to be deleted afterwards and never
 created again. In short, except for special cases, always make it the first
 package on the list if the list is not empty.
-MIX -- ?
-REEXPORT -- A list of packages.  For each package in the list, export the 
-symbols from this package.
+MIX -- Takes a list of package designators.  MIX behaves like 
+\(:USE PKG1 PKG2 ... PKGn\) but additionally uses :SHADOWING-IMPORT-FROM to
+resolve conflicts in favor of the first found symbol.  It may still yield
+an error if there is a conflict with an explicitly :SHADOWING-IMPORT-FROM symbol.
+REEXPORT -- Takes a list of package designators.  For each package, p, in the list,
+export symbols with the same name as those exported from p.  Note that in the case
+of shadowing, etc. the symbols with the same name may not be the same symbols.
 UNINTERN -- Remove symbols here from PACKAGE."
   (let ((ensure-form
           `(apply 'ensure-package ',(parse-define-package-form package clauses))))
