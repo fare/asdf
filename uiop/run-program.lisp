@@ -136,7 +136,28 @@ by /bin/sh in POSIX"
 
 ;;;; Slurping a stream, typically the output of another program
 (with-upgradability ()
-  (defgeneric slurp-input-stream (processor input-stream &key &allow-other-keys))
+  (defgeneric slurp-input-stream (processor input-stream &key &allow-other-keys)
+    (:documentation
+     "SLURP-INPUT-STREAM is a generic function with two positional arguments
+PROCESSOR and INPUT-STREAM and additional keyword arguments, that consumes (slurps)
+the contents of the INPUT-STREAM and processes them according to a method
+specified by PROCESSOR.
+
+Built-in methods include the following:
+* if PROCESSOR is a function, it is called with the INPUT-STREAM as its argument
+* if PROCESSOR is a list, its first element should be a function.  It will be applied to a cons of the 
+  INPUT-STREAM and the rest of the list.  That is (x . y) will be treated as
+    \(APPLY x <stream> y\)
+* if PROCESSOR is an output-stream, the contents of INPUT-STREAM is copied to the output-stream, 
+  per copy-stream-to-stream, with appropriate keyword arguments.
+* if PROCESSOR is the symbol CL:STRING or the keyword :STRING, then the contents of INPUT-STREAM
+  are returned as a string, as per SLURP-STREAM-STRING.
+* if PROCESSOR is the keyword :LINES then the INPUT-STREAM will be handled by SLURP-STREAM-LINES.
+* if PROCESSOR is the keyword :LINE then the INPUT-STREAM will be handled by SLURP-STREAM-LINE.
+* if PROCESSOR is the keyword :FORMS then the INPUT-STREAM will be handled by SLURP-STREAM-FORMS.
+* if PROCESSOR is the keyword :FORM then the INPUT-STREAM will be handled by SLURP-STREAM-FORM.
+
+Programmers are encouraged to define their own methods for this generic function."))
 
   #-(or gcl2.6 genera)
   (defmethod slurp-input-stream ((function function) input-stream &key &allow-other-keys)
@@ -248,12 +269,12 @@ if it was NIL, the output is discarded;
 if it was :INTERACTIVE, the output and the input are inherited from the current process.
 
 Otherwise, OUTPUT should be a value that is a suitable first argument to
-SLURP-INPUT-STREAM.  In this case, RUN-PROGRAM will create a temporary stream
+SLURP-INPUT-STREAM (qv.).  In this case, RUN-PROGRAM will create a temporary stream
 for the program output.  The program output, in that stream, will be processed
-by SLURP-INPUT-STREAM, according to the using OUTPUT as the first argument.
-RUN-PROGRAM will return whatever SLURP-INPUT-STREAM returns.  E.g., using
-:OUTPUT :STRING will have it return the entire output stream as a string.  Use
-ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
+by SLURP-INPUT-STREAM, using OUTPUT as the first argument.  RUN-PROGRAM will
+return whatever SLURP-INPUT-STREAM returns.  E.g., using :OUTPUT :STRING will
+have it return the entire output stream as a string.  Use ELEMENT-TYPE and
+EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
 
     ;; TODO: The current version does not honor :OUTPUT NIL on Allegro.  Setting
     ;; the :INPUT and :OUTPUT arguments to RUN-SHELL-COMMAND on ACL actually do
