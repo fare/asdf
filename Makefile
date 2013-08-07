@@ -123,7 +123,7 @@ test-clean-load: build/asdf.lisp
 
 # test-glob has been replaced by t, and lisp by l, easier to type
 test-lisp: build/asdf.lisp
-	@cd test; ${MAKE} clean;./run-tests.sh ${l} ${t}
+	@cd test; ./run-tests.sh ${l} ${t}
 t: test-lisp
 
 test: test-lisp test-clean-load test-load-systems doc
