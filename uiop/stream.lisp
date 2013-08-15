@@ -17,7 +17,8 @@
    #:copy-stream-to-stream #:concatenate-files #:copy-file
    #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
    #:slurp-stream-forms #:slurp-stream-form
-   #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form
+   #:read-file-string #:read-file-line #:read-file-lines #:safe-read-file-line
+   #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
@@ -341,6 +342,14 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
     (apply 'call-with-input-file file 'slurp-stream-lines keys))
 
+  (defun read-file-line (file &rest keys &key (at 0) &allow-other-keys)
+    "Open input FILE with option KEYS (except AT),
+and read its contents as per SLURP-STREAM-LINE with given AT specifier.
+BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
+    (apply 'call-with-input-file file
+           #'(lambda (input) (slurp-stream-line input :at at))
+           (remove-plist-key :at keys)))
+
   (defun read-file-forms (file &rest keys &key count &allow-other-keys)
     "Open input FILE with option KEYS (except COUNT),
 and read its contents as per SLURP-STREAM-FORMS with given COUNT.
@@ -356,6 +365,13 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
     (apply 'call-with-input-file file
            #'(lambda (input) (slurp-stream-form input :at at))
            (remove-plist-key :at keys)))
+
+  (defun safe-read-file-line (pathname &rest keys &key (package :cl) &allow-other-keys)
+    "Reads the specified line from the top of a file using a safe standardized syntax.
+Extracts the line using READ-FILE-LINE,
+within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
+    (with-safe-io-syntax (:package package)
+      (apply 'read-file-line pathname (remove-plist-key :package keys))))
 
   (defun safe-read-file-form (pathname &rest keys &key (package :cl) &allow-other-keys)
     "Reads the specified form from the top of a file using a safe standardized syntax.

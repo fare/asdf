@@ -114,10 +114,12 @@
                     (case (first form)
                       ((:read-file-form)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-form (subpathname pathname subpath) :at at :package :asdf-user)))
+                         (safe-read-file-form (subpathname pathname subpath)
+                                              :at at :package :asdf-user)))
                       ((:read-file-line)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (read-file-lines (subpathname pathname subpath) :at at)))
+                         (safe-read-file-line (subpathname pathname subpath)
+                                              :at at)))
                       (otherwise
                        (invalid))))
                    (t
