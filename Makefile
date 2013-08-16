@@ -201,13 +201,16 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
 
-# RELEASE checklist:
+# RELEASE or PUSH checklist:
 # make test-all
 # make test-load-systems s=fare-all
 # make bump v=3.0
-# edit debian/changelog
+# edit debian/changelog # RELEASE only...
 # git commit
 # git tag 3.0 # for example ...
+# git push
+# git push origin 3.0 # for example...
+# everything from here for RELEASE only
 # make debian-package
 # make release-push archive website debian-package
 # dput mentors ../*.changes
