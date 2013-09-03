@@ -163,6 +163,11 @@ debian-package: mrproper
 	: $${RELEASE:="$$(git tag -l '3.[0-9].[0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=release --git-upstream-tag=$$RELEASE --git-tag --git-retag --git-ignore-branch
 
+debian-package-from-master: mrproper
+	: $${RELEASE:="$$(git tag -l '3.[0-9].[0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
+	git-buildpackage --git-debian-branch=master --git-upstream-branch=master --git-upstream-tag=$$RELEASE --git-tag --git-retag --git-ignore-branch
+
+
 # Replace SBCL's ASDF with the current one. -- NOT recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
 replace-sbcl-asdf: build/asdf.lisp

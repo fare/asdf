@@ -1,3 +1,12 @@
+cl-asdf (2:3.0.2.4-1) unstable; urgency=low
+
+  UIOP:DIRECTORY* fixed to NOT follow symbolic links on LispWorks.
+  Fix handling of :at key in :read-file-form.
+  Fix package issue for system-definition-error (lp #1206173).
+  Some docstring updates. Also documentation updates.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 03 Sep 2013 12:17:21 -0500
+
 cl-asdf (2:3.0.2-1) unstable; urgency=low
 
   Improve support for CMUCL, ABCL, restore MCL support.
