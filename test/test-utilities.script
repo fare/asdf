@@ -48,10 +48,11 @@
  (split-native-pathnames-string "foo:bar" :ensure-directory t)
  '(#p"foo/" #p"bar/"))
 (assert-pathnames-equal
- (split-native-pathnames-string "/foo:/bar" :want-absolute t)
+ (split-native-pathnames-string (strcat "/foo" (inter-directory-separator) "/bar") :want-absolute t)
  '(#p"/foo" #p"/bar"))
 (assert-pathnames-equal
- (split-native-pathnames-string "/foo:/bar" :want-absolute t :ensure-directory t)
+ (split-native-pathnames-string (strcat "/foo" (inter-directory-separator) "/bar")
+                                :want-absolute t :ensure-directory t)
  '(#p"/foo/" #p"/bar/"))
 (assert-equal
  (mapcar 'location-function-p

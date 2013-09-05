@@ -1,7 +1,5 @@
 ;;; -*- Lisp -*-
 
-
-
 (in-package :asdf)
 (use-package :asdf-test)
 #+gcl2.6 (defmacro with-standard-io-syntax (&body body) `(progn ,@body))
@@ -52,6 +50,12 @@
           "dir9/dirb/")                 ; foo9 should /not/ be found -- not under :here :tree
     :collect (under-tmp-directory dir)))
 
+(defparameter *separator* (inter-directory-separator))
+(defun join-namestrings (namestrings)
+  (with-output-to-string (s)
+    (loop :for (n . morep) :on namestrings
+          :do (format s "~A~@[~C~]" n (and morep *separator*)))))
+
 (defun create-asd-files ()
   (loop
     :for d :in *tmp-asd-directories*
@@ -64,16 +68,19 @@
       (format s "(defsystem :foo~D)~%" i))))
 
 (progn
- (assert-equal (asdf::parse-output-translations-string "/foo:/bar::/baz:/quux")
+ (assert-equal (asdf::parse-output-translations-string
+                (join-namestrings '("/foo" "/bar" "" "/baz" "/quux")))
                '(:output-translations ("/foo" "/bar") :inherit-configuration
                  ("/baz" "/quux")))
- (assert-equal (asdf::parse-output-translations-string "/:")
+ (assert-equal (asdf::parse-output-translations-string
+                (join-namestrings '("/" "")))
                '(:output-translations ("/" nil) :ignore-inherited-configuration))
- (assert-equal (asdf::parse-output-translations-string "/::")
+ (assert-equal (asdf::parse-output-translations-string
+                (join-namestrings '("/" "" "")))
                '(:output-translations ("/" nil) :inherit-configuration))
- (assert-equal (asdf::parse-output-translations-string "/:/")
+ (assert-equal (asdf::parse-output-translations-string
+                (join-namestrings '("/" "/")))
                '(:output-translations ("/" "/") :ignore-inherited-configuration))
-
  (assert-equal (asdf::parse-output-translations-string
                 "(:output-translations (\"/\" \"/\") :ignore-inherited-configuration)")
                '(:output-translations ("/" "/") :ignore-inherited-configuration))
