@@ -1,19 +1,27 @@
 ;; -*- Lisp -*-
 (declaim (optimize (debug 3) (safety 3)))
 
+(DBG "Testing echo ok 1 via run-program as a list")
+(assert-equal '("ok 1") (run-program '("echo" "ok" "1") :output :lines))
+
+(DBG "Testing echo ok 1 via run-program as a string")
 (assert-equal '("ok 1") (run-program "echo ok 1" :output :lines))
 
-(unless (os-unix-p)
-  (leave-test "The rest of this test is only supposed to work on Unix"))
+;; (unless (os-unix-p) (leave-test "The rest of this test is only supposed to work on Unix"))
 
 ;;; test asdf run-shell-command function
 (setf *verbose-out* nil)
-(assert-equal 1 (run-shell-command "false"))
+(DBG "Testing true via run-shell-command")
 (assert-equal 0 (run-shell-command "true"))
+(DBG "Testing false via run-shell-command")
+(assert-equal 1 (run-shell-command "false"))
+(DBG "Testing bad shell command via run-shell-command")
 (unless (< 0 (run-shell-command "./bad-shell-command"))
   (error "Failed to capture exit status indicating shell command failure."))
+(DBG "Testing good shell command in current directory via run-shell-command")
 (unless (equal 0 (run-shell-command "./good-shell-command"))
   (error "Failed to capture exit status indicating shell command failure."))
+(DBG "Testing awkward legacy output capture via run-shell-command")
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1~%")))
   (assert-equal
    (with-output-to-string (s)
