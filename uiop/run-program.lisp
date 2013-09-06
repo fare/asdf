@@ -316,9 +316,8 @@ EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
                            #-(or allegro clozure) (list "cmd" "/c" command))
                           #+os-windows
                           (list
-                           #+(or allegro clozure) (escape-windows-command command)
-                           #-(or allegro clozure) command)))
-                      #+(and clozure os-windows) (command (list command))
+                           #+allegro (escape-windows-command command)
+                           #-allegro command)))
                       (process*
                         (multiple-value-list
                          #+allegro
