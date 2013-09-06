@@ -18,9 +18,13 @@
 (DBG "Testing bad shell command via run-shell-command")
 (unless (< 0 (run-shell-command "./bad-shell-command"))
   (error "Failed to capture exit status indicating shell command failure."))
-(DBG "Testing good shell command in current directory via run-shell-command")
-(unless (equal 0 (run-shell-command "./good-shell-command"))
-  (error "Failed to capture exit status indicating shell command failure."))
+
+#+asdf-unix
+(progn
+  (DBG "Testing good shell command in current directory via run-shell-command")
+  (unless (equal 0 (run-shell-command "./good-shell-command"))
+    (error "Failed to capture exit status indicating shell command success.")))
+
 (DBG "Testing awkward legacy output capture via run-shell-command")
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1~%")))
   (assert-equal
@@ -37,6 +41,7 @@
          (unless (zerop status)
            (error "Didn't get good exit status.")))))
    ok1))
+
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
