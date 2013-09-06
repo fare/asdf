@@ -7,13 +7,15 @@
 (setf *central-registry* `(,*test-directory* ,tmp))
 
 ;; Don't rely on ln -s on Windows
-(unless (os-windows-p)
-  (run-program
-   (format nil "ln -sf ~A ~A"
-           (native-namestring asd)
-           (native-namestring asd2)))
-  (oos 'load-source-op 'test-multiple-too)
-  (assert (asymval :*file3* :test-package)))
-
+(cond
+  ((os-unix-p)
+   (run-program
+    (format nil "ln -sf ~A ~A"
+            (native-namestring asd)
+            (native-namestring asd2)))
+   (oos 'load-source-op 'test-multiple-too))
+  (t
+   (oos 'load-source-op 'test-multiple)))
+(assert (asymval :*file3* :test-package))
 (load-system 'test-multiple-free)
 (assert (probe-file* file4))

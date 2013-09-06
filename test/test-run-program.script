@@ -25,21 +25,26 @@
   (unless (equal 0 (run-shell-command "./good-shell-command"))
     (error "Failed to capture exit status indicating shell command success.")))
 
+;; On Windows, normalize away CRLF into jut the unixy LF.
+(defun remove-cr (x) (remove (code-char 13) x))
+
 (DBG "Testing awkward legacy output capture via run-shell-command")
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1~%")))
   (assert-equal
-   (with-output-to-string (s)
-     (let ((*verbose-out* s))
-       (run-shell-command "echo ~A 1" "ok")))
+   (remove-cr
+    (with-output-to-string (s)
+      (let ((*verbose-out* s))
+        (run-shell-command "echo ~A 1" "ok"))))
    ok1)
   #-ecl
   (assert-equal
-   (with-output-to-string (s)
-     (let ((*verbose-out* t)
-           (*standard-output* s))
-       (let ((status (run-shell-command "echo ok ~D" 1)))
-         (unless (zerop status)
-           (error "Didn't get good exit status.")))))
+   (remove-cr
+    (with-output-to-string (s)
+      (let ((*verbose-out* t)
+            (*standard-output* s))
+        (let ((status (run-shell-command "echo ok ~D" 1)))
+          (unless (zerop status)
+            (error "Didn't get good exit status."))))))
    ok1))
 
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
@@ -48,7 +53,7 @@
 (assert-equal '("ok 1") (run-program "echo ok  1" :output :lines))
 (assert-equal "ok  1" (run-program '("echo" "ok  1") :output :line))
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
-(assert-equal (format nil "ok  1~%") (run-program '("echo" "ok  1") :output :string))
+(assert-equal (format nil "ok  1~%") (remove-cr (run-program '("echo" "ok  1") :output :string)))
 ;; this test checks for a problem there was in allegro -- :output :interactive
 ;; would try to open T as a stream for INPUT.
 (assert-equal 0 (run-program "true" :force-shell t :output :interactive))
