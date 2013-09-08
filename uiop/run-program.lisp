@@ -336,10 +336,15 @@ EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
                              (list (run 'ext:run-program (car command)
                                         :arguments (cdr command)))))
                          #+lispworks
-                         (system:run-shell-command
-                          (cons "/usr/bin/env" command) ; lispworks wants a full path.
-                          :input interactive :output (or (and pipe :stream) interactive)
-                          :wait wait :save-exit-status (and pipe t))
+                         (if interactive
+                             (system:call-system-showing-output
+                              (cons "/usr/bin/env" command) ; lispworks wants a full path.
+                              :show-cmd nil
+                              :wait wait)
+                           (system:run-shell-command
+                            (cons "/usr/bin/env" command) ; lispworks wants a full path.
+                            :input nil :output (and pipe :stream)
+                            :wait wait :save-exit-status (and pipe t)))
                          #+(or clozure cmu ecl sbcl scl)
                          (#+(or cmu ecl scl) ext:run-program
                             #+clozure ccl:run-program
