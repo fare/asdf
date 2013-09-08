@@ -338,7 +338,10 @@ EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
                          #+lispworks
                          (if interactive
                              (system:call-system-showing-output
+                              #+os-unix
                               (cons "/usr/bin/env" command) ; lispworks wants a full path.
+                              #-os-unix
+                              command
                               :show-cmd nil
                               :wait wait)
                            (system:run-shell-command
