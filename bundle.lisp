@@ -105,7 +105,7 @@
       ((member :binary :dll :lib :shared-library :static-library :program :object :program)
        (compile-file-type :type bundle-type))
       ((eql :binary) "image")
-      ((eql :dll) (cond ((os-unix-p) "so") ((os-windows-p) "dll")))
+      ((eql :dll) (cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
       ((member :lib :static-library) (cond ((os-unix-p) "a") ((os-windows-p) "lib")))
       ((eql :program) (cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
 

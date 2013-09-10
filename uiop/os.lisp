@@ -6,7 +6,7 @@
   (:recycle :uiop/os :asdf/os :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility)
   (:export
-   #:featurep #:os-unix-p #:os-windows-p #:os-genera-p #:detect-os ;; features
+   #:featurep #:os-unix-p #:os-macosx-p #:os-windows-p #:os-genera-p #:detect-os ;; features
    #:getenv #:getenvp ;; environment variables
    #:implementation-identifier ;; implementation identifier
    #:implementation-type #:*implementation-type*
@@ -31,6 +31,14 @@
     (or #+abcl (featurep :unix)
         #+(and (not abcl) (or unix cygwin darwin)) t))
 
+  (defun os-macosx-p ()
+    ;; OS-MACOSX is not mutually exclusive with OS-UNIX, in fact the
+    ;;former implies the latter.
+    (or
+     #+allegro (featurep :macosx)
+     #+clisp (featurep :macos)
+     (featurep :darwin)))
+
   (defun os-windows-p ()
     (or #+abcl (featurep :windows)
         #+(and (not (or abcl unix cygwin darwin)) (or win32 windows mswindows mingw32)) t))
@@ -44,6 +52,7 @@
   (defun detect-os ()
     (loop* :with o
            :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-windows . os-windows-p)
+                                         (:os-macosx . os-macosx-p)
                                          (:genera . os-genera-p) (:os-oldmac . os-oldmac-p))
            :when (and (not o) (funcall detect)) :do (setf o feature) (pushnew o *features*)
            :else :do (setf *features* (remove feature *features*))
