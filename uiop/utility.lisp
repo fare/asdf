@@ -318,14 +318,17 @@ If the FUN is a non-sequence literal constant, return constantly that,
 i.e. for a boolean keyword character number or pathname.
 Otherwise if FUN is a non-literally constant symbol, return its FDEFINITION.
 If FUN is a CONS, return the function that applies its CAR
-to the appended list of the rest of its CDR and the arguments.
+to the appended list of the rest of its CDR and the arguments,
+unless the CAR is LAMBDA, in which case the expression is evaluated.
 If FUN is a string, READ a form from it in the specified PACKAGE (default: CL)
 and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
       ((or function symbol) fun)
-      (cons #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args))))
+      (cons (if (eq 'lambda (car fun))
+                (eval fun)
+                #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args)))))
       (string (eval `(function ,(with-standard-io-syntax
                                   (let ((*package* (find-package package)))
                                     (read-from-string fun))))))))

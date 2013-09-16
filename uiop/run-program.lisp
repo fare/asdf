@@ -414,7 +414,7 @@ EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
                              process))))))
              (system-command (command)
                (etypecase command
-                 (string (if (os-windows-p) (format nil "cmd /c ~A" command) command))
+                 (string command)
                  (list (escape-shell-command
                         (if (os-unix-p) (cons "exec" command) command)))))
              (redirected-system-command (command out)

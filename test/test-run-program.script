@@ -19,7 +19,7 @@
 (unless (< 0 (run-shell-command "./bad-shell-command"))
   (error "Failed to capture exit status indicating shell command failure."))
 
-#+asdf-unix
+#+os-unix
 (progn
   (DBG "Testing good shell command in current directory via run-shell-command")
   (unless (equal 0 (run-shell-command "./good-shell-command"))
