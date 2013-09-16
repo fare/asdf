@@ -3183,6 +3183,11 @@ ASDF includes several additional features that are generally
 useful for system definition and development.
 
 @section Controlling file compilation
+@cindex :around-compile
+@cindex around-compile keyword
+@cindex compile-check keyword
+@cindex :compile-check
+@findex compile-file*
 
 When declaring a component (system, module, file),
 you can specify a keyword argument @code{:around-compile function}.
