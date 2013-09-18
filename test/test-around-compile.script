@@ -17,8 +17,8 @@
 (DBG "Testing around-compile with a lambda")
 (def-test-system test-around-compile-lambda
   :around-compile (lambda (thunk)
-                    (let ((*read-base* 2))
+                    (let ((*read-base* 9))
                       (funcall thunk)))
   :components ((:file "test")))
 (load-system 'test-around-compile-lambda :force t)
-(assert (= 3 (funcall 'add10 1))) ;; add10 must have been compiled in base 2
+(assert (= 10 (funcall 'add10 1))) ;; add10 must have been compiled in base 16
