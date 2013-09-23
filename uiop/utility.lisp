@@ -236,6 +236,7 @@ starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
     (block ()
       (let ((list nil) (words 0) (end (length string)))
+        (when (zerop end) (return nil))
         (flet ((separatorp (char) (find char separator))
                (done () (return (cons (subseq string 0 end) list))))
           (loop
