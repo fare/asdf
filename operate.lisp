@@ -10,7 +10,8 @@
    #:operate #:oos
    #:*systems-being-operated*
    #:build-system
-   #:load-system #:load-systems #:compile-system #:test-system #:require-system
+   #:load-system #:load-systems #:load-systems*
+   #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
    #:component-loaded-p #:already-loaded-systems))
 (in-package :asdf/operate)
@@ -120,9 +121,13 @@ for how to load or compile stuff")
     (apply 'operate *load-system-operation* system keys)
     t)
 
+  (defun load-systems* (systems &rest keys)
+    "Loading multiple systems at once."
+    (dolist (s systems) (apply 'load-system s keys)))
+
   (defun load-systems (&rest systems)
     "Loading multiple systems at once."
-    (map () 'load-system systems))
+    (load-systems* systems))
 
   (defun compile-system (system &rest args &key force force-not verbose version &allow-other-keys)
     "Shorthand for `(asdf:operate 'asdf:compile-op system)`. See OPERATE for details."

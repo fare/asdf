@@ -22,7 +22,7 @@
    #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
    #:system-definition-pathname #:with-system-definitions
    #:search-for-system-definition #:find-component #:component-find-path
-   #:compile-system #:load-system #:load-systems
+   #:compile-system #:load-system #:load-systems #:load-systems*
    #:require-system #:test-system #:clear-system
    #:operation #:make-operation #:find-operation
    #:upward-operation #:downward-operation #:sideway-operation #:selfward-operation
