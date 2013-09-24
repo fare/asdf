@@ -20,7 +20,7 @@
    #:visit-dependencies #:compute-action-stamp #:traverse-action
    #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
-   #:traverse #:plan-actions #:perform-plan #:plan-operates-on-p
+   #:make-plan #:plan-actions #:perform-plan #:plan-operates-on-p
    #:planned-p #:index #:forced #:forced-not #:total-action-count
    #:planned-action-count #:planned-output-action-count #:visited-actions
    #:visiting-action-set #:visiting-action-list #:plan-actions-r
@@ -206,8 +206,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
            (in-files (input-files o c))
            ;; Three kinds of actions:
            (out-op (and out-files t)) ; those that create files on the filesystem
-                                        ;(image-op (and in-files (null out-files))) ; those that load stuff into the image
-                                        ;(null-op (and (null out-files) (null in-files))) ; dependency placeholders that do nothing
+           ;;(image-op (and in-files (null out-files))) ; those that load stuff into the image
+           ;;(null-op (and (null out-files) (null in-files))) ; placeholders that do nothing
            ;; When was the thing last actually done? (Now, or ask.)
            (op-time (or just-done (component-operation-time o c)))
            ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
@@ -241,9 +241,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
               (and all-present up-to-date-p (operation-done-p o c) (not (action-forced-p plan o c))))
           (values done-stamp ;; return the hard-earned timestamp
                   (or just-done
-                      (or out-op ;; a file-creating op is done when all files are up to date
-                          ;; a image-effecting a placeholder op is done when it was actually run,
-                          (and op-time (eql op-time done-stamp))))) ;; with the matching stamp
+                      out-op ;; a file-creating op is done when all files are up to date
+                      ;; a image-effecting a placeholder op is done when it was actually run,
+                      (and op-time (eql op-time done-stamp)))) ;; with the matching stamp
           ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
           (values t nil)))))
 
@@ -326,7 +326,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
                                  :stamp stamp
                                  :done-p (and done-p (not add-to-plan-p))
                                  :planned-p add-to-plan-p
-                                 :index (if status (action-index status) (incf (plan-total-action-count plan)))))
+                                 :index (if status
+                                            (action-index status)
+                                            (incf (plan-total-action-count plan)))))
                           (when add-to-plan-p
                             (incf (plan-planned-action-count plan))
                             (unless aniip
@@ -342,6 +344,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
     ((actions-r :initform nil :accessor plan-actions-r)))
 
   (defgeneric plan-actions (plan))
+  (defmethod plan-actions ((plan list))
+    plan)
   (defmethod plan-actions ((plan sequential-plan))
     (reverse (plan-actions-r plan)))
 
@@ -358,45 +362,46 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
 ;;;; high-level interface: traverse, perform-plan, plan-operates-on-p
 (with-upgradability ()
-  (defgeneric* (traverse) (operation component &key &allow-other-keys)
+  (defgeneric make-plan (plan-class operation component &key &allow-other-keys)
     (:documentation
-     "Generate and return a plan for performing OPERATION on COMPONENT.
-
-The plan returned is a list of dotted-pairs. Each pair is the CONS
-of ASDF operation object and a COMPONENT object. The pairs will be
-processed in order by OPERATE."))
-  (define-convenience-action-methods traverse (operation component &key))
+     "Generate and return a plan for performing OPERATION on COMPONENT."))
+  (define-convenience-action-methods make-plan (plan-class operation component &key))
 
   (defgeneric perform-plan (plan &key))
   (defgeneric plan-operates-on-p (plan component))
 
-  (defparameter *default-plan-class* 'sequential-plan)
+  (defvar *default-plan-class* 'sequential-plan)
 
-  (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
+  (defmethod make-plan (plan-class (o operation) (c component) &rest keys &key &allow-other-keys)
     (let ((plan (apply 'make-instance
                        (or plan-class *default-plan-class*)
-                       :system (component-system c) (remove-plist-key :plan-class keys))))
+                       :system (component-system c) keys)))
       (traverse-action plan o c t)
-      (plan-actions plan)))
+      plan))
 
-  (defmethod perform-plan :around (plan &key)
-    (declare (ignorable plan))
+  (defmethod perform-plan :around ((plan t) &key)
     (let ((*package* *package*)
           (*readtable* *readtable*))
       (with-compilation-unit () ;; backward-compatibility.
         (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
+
+  (defmethod perform-plan ((plan t) &rest keys &key &allow-other-keys)
+    (apply 'perform-plan (plan-actions plan) keys))
 
   (defmethod perform-plan ((steps list) &key force &allow-other-keys)
     (loop* :for (o . c) :in steps
            :when (or force (not (nth-value 1 (compute-action-stamp nil o c))))
            :do (perform-with-restarts o c)))
 
+  (defmethod plan-operates-on-p ((plan plan-traversal) (component-path list))
+    (plan-operates-on-p (plan-actions plan) component-path))
+
   (defmethod plan-operates-on-p ((plan list) (component-path list))
     (find component-path (mapcar 'cdr plan)
           :test 'equal :key 'component-find-path)))
 
 
-;;;; Incidental traversals 
+;;;; Incidental traversals
 (with-upgradability ()
   (defclass filtered-sequential-plan (sequential-plan)
     ((action-filter :initform t :initarg :action-filter :reader plan-action-filter)
@@ -420,11 +425,10 @@ processed in order by OPERATE."))
 
   (defmethod traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
     (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
-      (loop* :for (o . c) :in actions :do
-             (traverse-action plan o c t))
-      (plan-actions plan)))
+      (loop* :for (o . c) :in actions :do (traverse-action plan o c t))
+      plan))
 
-  (define-convenience-action-methods traverse-sub-actions (o c &key))
+  (define-convenience-action-methods traverse-sub-actions (operation component &key))
   (defmethod traverse-sub-actions ((operation operation) (component component) &rest keys &key &allow-other-keys)
     (apply 'traverse-actions (direct-dependencies operation component)
            :system (component-system component) keys))
@@ -432,13 +436,13 @@ processed in order by OPERATE."))
   (defmethod plan-actions ((plan filtered-sequential-plan))
     (with-slots (keep-operation keep-component) plan
       (loop* :for (o . c) :in (call-next-method)
-             :when (and (typep o keep-operation)
-                        (typep c keep-component))
+             :when (and (typep o keep-operation) (typep c keep-component))
              :collect (cons o c))))
 
   (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
     (remove-duplicates
-     (mapcar 'cdr (apply 'traverse-sub-actions goal-operation system
-                         (remove-plist-key :goal-operation keys)))
+     (mapcar 'cdr (plan-actions
+                   (apply 'traverse-sub-actions goal-operation system
+                          (remove-plist-key :goal-operation keys))))
      :from-end t)))
 

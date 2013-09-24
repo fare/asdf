@@ -146,6 +146,7 @@ or the original (parsed) pathname if it is false (the default)."
                                #+(or clozure digitool) '(:follow-links nil)
                                #+clisp '(:circle t :if-does-not-exist :ignore)
                                #+(or cmu scl) '(:follow-links nil :truenamep nil)
+                               #+lispworks '(:link-transparency nil)
                                #+sbcl (when (find-symbol* :resolve-symlinks '#:sb-impl nil)
                                         '(:resolve-symlinks nil))))))
 
@@ -509,7 +510,9 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
     #+ecl (si:rmdir directory-pathname)
     #+lispworks (lw:delete-directory directory-pathname)
     #+mkcl (mkcl:rmdir directory-pathname)
-    #+sbcl (sb-ext:delete-directory directory-pathname)
+    #+sbcl #.(if-let (dd (find-symbol* :delete-directory :sb-ext nil))
+               `(,dd directory-pathname) ;; requires SBCL 1.0.44 or later
+               `(progn (require :sb-posix) (symbol-call :sb-posix :rmdir directory-pathname)))
     #-(or abcl allegro clisp clozure cmu cormanlisp digitool ecl gcl lispworks sbcl scl)
     (error "~S not implemented on ~S" 'delete-empty-directory (implementation-type))) ; genera xcl
 
@@ -555,7 +558,9 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
                               directory-pathname :if-does-not-exist if-does-not-exist)
        #+clozure (ccl:delete-directory directory-pathname)
        #+genera (error "~S not implemented on ~S" 'delete-directory-tree (implementation-type))
-       #+sbcl (sb-ext:delete-directory directory-pathname :recursive t)
+       #+sbcl #.(if-let (dd (find-symbol* :delete-directory :sb-ext nil))
+                  `(,dd directory-pathname :recursive t) ;; requires SBCL 1.0.44 or later
+                  '(error "~S requires SBCL 1.0.44 or later" 'delete-directory-tree))
        ;; Outside Unix or on CMUCL and SCL that can avoid following symlinks,
        ;; do things the hard way.
        #-(or allegro clozure genera sbcl)

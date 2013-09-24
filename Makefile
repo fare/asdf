@@ -21,6 +21,10 @@ ifdef ASDF_TEST_SYSTEMS
 s ?= ${ASDF_TEST_SYSTEMS}
 endif
 
+ifdef ASDF_DEVEL_SOURCE_REGISTRY
+export CL_SOURCE_REGISTRY = ${ASDF_DEVEL_SOURCE_REGISTRY}
+endif
+
 l ?= sbcl
 
 ABCL ?= abcl
@@ -41,7 +45,7 @@ XCL ?= xcl
 
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
-defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
+defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp output-translations.lisp backward-interface.lisp source-registry.lisp interface.lisp user.lisp footer.lisp
 all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 
 # Making ASDF itself should be our first, default, target:
@@ -78,6 +82,7 @@ wc:
 push:
 	git status
 	git push --tags cl.net release master
+	git push --tags github release master
 	git fetch
 	git status
 
@@ -102,11 +107,12 @@ clean:
 		done; \
 	     fi; \
 	done
-	rm -rf build/ LICENSE test/try-reloading-dependency.asd
+	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example asdf.lisp
+	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 	${MAKE} -C doc clean
 
-mrproper: clean
-	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
+mrproper:
+	git clean -xfd
 
 test-upgrade: build/asdf.lisp
 	./test/run-tests.sh -u ${l}
@@ -117,7 +123,7 @@ test-clean-load: build/asdf.lisp
 
 # test-glob has been replaced by t, and lisp by l, easier to type
 test-lisp: build/asdf.lisp
-	@cd test; ${MAKE} clean;./run-tests.sh ${l} ${t}
+	@cd test; ./run-tests.sh ${l} ${t}
 t: test-lisp
 
 test: test-lisp test-clean-load test-load-systems doc
@@ -147,14 +153,20 @@ test-all: doc test-all-lisps
 test-all-no-stop:
 	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
 
+extract: extract-all-tagged-asdf
 extract-all-tagged-asdf: build/asdf.lisp
 	./test/run-tests.sh -H
 
 # Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 # as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
 debian-package: mrproper
-	: $${RELEASE:="$$(git tag -l '2.[0-9][0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
+	: $${RELEASE:="$$(git tag -l '3.[0-9].[0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
 	git-buildpackage --git-debian-branch=release --git-upstream-branch=release --git-upstream-tag=$$RELEASE --git-tag --git-retag --git-ignore-branch
+
+debian-package-from-master: mrproper
+	: $${RELEASE:="$$(git tag -l '3.[0-9].[0-9]' | tail -n 1)"} ; echo building package version $$RELEASE ; \
+	git-buildpackage --git-debian-branch=master --git-upstream-branch=master --git-upstream-tag=$$RELEASE --git-tag --git-retag --git-ignore-branch
+
 
 # Replace SBCL's ASDF with the current one. -- NOT recommended now that SBCL has ASDF2.
 # for casual users, just use (asdf:load-system :asdf)
@@ -194,11 +206,17 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
 
-# RELEASE checklist:
+# RELEASE or PUSH checklist:
 # make test-all
 # make test-load-systems s=fare-all
 # make bump v=3.0
-# edit debian/changelog
+# edit debian/changelog # RELEASE only...
+# git commit
+# git tag 3.0 # for example ...
+# git push
+# git push origin 3.0 # for example...
+# everything from here for RELEASE only
+# make debian-package
 # make release-push archive website debian-package
 # dput mentors ../*.changes
 # send debian mentors request

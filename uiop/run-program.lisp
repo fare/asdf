@@ -136,8 +136,29 @@ by /bin/sh in POSIX"
 
 ;;;; Slurping a stream, typically the output of another program
 (with-upgradability ()
-  (defgeneric slurp-input-stream (processor input-stream &key &allow-other-keys))
-  
+  (defgeneric slurp-input-stream (processor input-stream &key &allow-other-keys)
+    (:documentation
+     "SLURP-INPUT-STREAM is a generic function with two positional arguments
+PROCESSOR and INPUT-STREAM and additional keyword arguments, that consumes (slurps)
+the contents of the INPUT-STREAM and processes them according to a method
+specified by PROCESSOR.
+
+Built-in methods include the following:
+* if PROCESSOR is a function, it is called with the INPUT-STREAM as its argument
+* if PROCESSOR is a list, its first element should be a function.  It will be applied to a cons of the 
+  INPUT-STREAM and the rest of the list.  That is (x . y) will be treated as
+    \(APPLY x <stream> y\)
+* if PROCESSOR is an output-stream, the contents of INPUT-STREAM is copied to the output-stream, 
+  per copy-stream-to-stream, with appropriate keyword arguments.
+* if PROCESSOR is the symbol CL:STRING or the keyword :STRING, then the contents of INPUT-STREAM
+  are returned as a string, as per SLURP-STREAM-STRING.
+* if PROCESSOR is the keyword :LINES then the INPUT-STREAM will be handled by SLURP-STREAM-LINES.
+* if PROCESSOR is the keyword :LINE then the INPUT-STREAM will be handled by SLURP-STREAM-LINE.
+* if PROCESSOR is the keyword :FORMS then the INPUT-STREAM will be handled by SLURP-STREAM-FORMS.
+* if PROCESSOR is the keyword :FORM then the INPUT-STREAM will be handled by SLURP-STREAM-FORM.
+
+Programmers are encouraged to define their own methods for this generic function."))
+
   #-(or gcl2.6 genera)
   (defmethod slurp-input-stream ((function function) input-stream &key &allow-other-keys)
     (funcall function input-stream))
@@ -176,6 +197,27 @@ by /bin/sh in POSIX"
     (declare (ignorable x))
     (slurp-stream-form stream :at at))
 
+  (defmethod slurp-input-stream ((x (eql t)) stream &rest keys &key &allow-other-keys)
+    (declare (ignorable x))
+    (apply 'slurp-input-stream *standard-output* stream keys))
+
+  (defmethod slurp-input-stream ((pathname pathname) input
+                                 &key
+                                   (element-type *default-stream-element-type*)
+                                   (external-format *utf-8-external-format*)
+                                   (if-exists :rename-and-delete)
+                                   (if-does-not-exist :create)
+                                   buffer-size
+                                   linewise)
+    (with-output-file (output pathname
+                              :element-type element-type
+                              :external-format external-format
+                              :if-exists if-exists
+                              :if-does-not-exist if-does-not-exist)
+      (copy-stream-to-stream
+       input output
+       :element-type element-type :buffer-size buffer-size :linewise linewise)))
+
   (defmethod slurp-input-stream (x stream
                                  &key linewise prefix (element-type 'character) buffer-size
                                  &allow-other-keys)
@@ -213,16 +255,36 @@ by /bin/sh in POSIX"
                        &allow-other-keys)
     "Run program specified by COMMAND,
 either a list of strings specifying a program and list of arguments,
-or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows);
-have its output processed by the OUTPUT processor function
-as per SLURP-INPUT-STREAM,
-or merely output to the inherited standard output if it's NIL.
+or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows).
+
 Always call a shell (rather than directly execute the command)
 if FORCE-SHELL is specified.
-Issue an error if the process wasn't successful unless IGNORE-ERROR-STATUS
-is specified.
-Return the exit status code of the process that was called.
-Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
+
+Signal a SUBPROCESS-ERROR if the process wasn't successful (exit-code 0),
+unless IGNORE-ERROR-STATUS is specified.
+
+If OUTPUT is either NIL or :INTERACTIVE, then
+return the exit status code of the process that was called.
+if it was NIL, the output is discarded;
+if it was :INTERACTIVE, the output and the input are inherited from the current process.
+
+Otherwise, OUTPUT should be a value that is a suitable first argument to
+SLURP-INPUT-STREAM (qv.).  In this case, RUN-PROGRAM will create a temporary stream
+for the program output.  The program output, in that stream, will be processed
+by SLURP-INPUT-STREAM, using OUTPUT as the first argument.  RUN-PROGRAM will
+return whatever SLURP-INPUT-STREAM returns.  E.g., using :OUTPUT :STRING will
+have it return the entire output stream as a string.  Use ELEMENT-TYPE and
+EXTERNAL-FORMAT for the stream passed to the OUTPUT processor."
+
+    ;; TODO: The current version does not honor :OUTPUT NIL on Allegro.  Setting
+    ;; the :INPUT and :OUTPUT arguments to RUN-SHELL-COMMAND on ACL actually do
+    ;; what :OUTPUT :INTERACTIVE is advertised to do here.  To get the behavior
+    ;; specified for :OUTPUT NIL, one would have to grab up the process output
+    ;; into a stream and then throw it on the floor.  The consequences of
+    ;; getting this wrong seemed so much worse than having excess output that it
+    ;; is not currently implemented.
+
+    ;; TODO: specially recognize :output pathname ?
     (declare (ignorable ignore-error-status element-type external-format))
     #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl sbcl scl xcl)
     (error "RUN-PROGRAM not implemented for this Lisp")
@@ -254,16 +316,16 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                            #-(or allegro clozure) (list "cmd" "/c" command))
                           #+os-windows
                           (list
-                           #+(or allegro clozure) (escape-windows-command command)
-                           #-(or allegro clozure) command)))
-                      #+(and clozure os-windows) (command (list command))
+                           #+allegro (escape-windows-command command)
+                           #-allegro command)))
                       (process*
                         (multiple-value-list
                          #+allegro
                          (excl:run-shell-command
                           #+os-unix (coerce (cons (first command) command) 'vector)
                           #+os-windows command
-                          :input interactive :output (or (and pipe :stream) interactive) :wait wait
+                          :input nil
+                          :output (and pipe :stream) :wait wait
                           #+os-windows :show-window #+os-windows (and (or (null output) pipe) :hide))
                          #+clisp
                          (flet ((run (f &rest args)
@@ -274,10 +336,18 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                              (list (run 'ext:run-program (car command)
                                         :arguments (cdr command)))))
                          #+lispworks
-                         (system:run-shell-command
-                          (cons "/usr/bin/env" command) ; lispworks wants a full path.
-                          :input interactive :output (or (and pipe :stream) interactive)
-                          :wait wait :save-exit-status (and pipe t))
+                         (if interactive
+                             (system:call-system-showing-output
+                              #+os-unix
+                              (cons "/usr/bin/env" command) ; lispworks wants a full path.
+                              #-os-unix
+                              command
+                              :show-cmd nil
+                              :wait wait)
+                           (system:run-shell-command
+                            (cons "/usr/bin/env" command) ; lispworks wants a full path.
+                            :input nil :output (and pipe :stream)
+                            :wait wait :save-exit-status (and pipe t)))
                          #+(or clozure cmu ecl sbcl scl)
                          (#+(or cmu ecl scl) ext:run-program
                             #+clozure ccl:run-program
@@ -290,9 +360,9 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                                  ;; note: :external-format requires a recent SBCL
                                  #+sbcl '(:search t :external-format external-format)))))
                       (process
-                        #+(or allegro lispworks) (if pipe (third process*) (first process*))
+                        #+allegro (if pipe (third process*) (first process*))
                         #+ecl (third process*)
-                        #-(or allegro lispworks ecl) (first process*))
+                        #-(or allegro ecl) (first process*))
                       (stream
                         (when pipe
                           #+(or allegro lispworks ecl) (first process*)
@@ -315,7 +385,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                #+clozure (nth-value 1 (ccl:external-process-status process))
                #+(or cmu scl) (ext:process-exit-code process)
                #+ecl (nth-value 1 (ext:external-process-status process))
-               #+lispworks (if pipe (system:pid-exit-status process :wait t) process)
+               #+lispworks (if pipe (system:pipe-exit-status process :wait t) process)
                #+sbcl (sb-ext:process-exit-code process))
              (check-result (exit-code process)
                #+clisp
@@ -344,7 +414,7 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                              process))))))
              (system-command (command)
                (etypecase command
-                 (string (if (os-windows-p) (format nil "cmd /c ~A" command) command))
+                 (string command)
                  (list (escape-shell-command
                         (if (os-unix-p) (cons "exec" command) command)))))
              (redirected-system-command (command out)
@@ -355,8 +425,12 @@ Use ELEMENT-TYPE and EXTERNAL-FORMAT for the stream passed to the OUTPUT process
                #+(or abcl xcl) (ext:run-shell-command command)
                #+allegro
                (excl:run-shell-command
-                command :input interactive :output interactive :wait t
-                        #+os-windows :show-window #+os-windows (unless (or interactive (eq output t)) :hide))
+                command
+                :input nil
+                :output nil
+                :error-output :output ; write STDERR to output, too
+                :wait t
+                #+os-windows :show-window #+os-windows (unless (or interactive (eq output t)) :hide))
                #+(or clisp clozure cmu (and lispworks os-unix) sbcl scl)
                (process-result (run-program command :pipe nil :interactive interactive) nil)
                #+ecl (ext:system command)

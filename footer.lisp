@@ -41,6 +41,12 @@
                           (and (first l) (register-pre-built-system (coerce-name name)))
                           (values-list l))))))))
 
+#+cmu
+(with-upgradability ()
+  (defun herald-asdf (stream)
+    (format stream "    ASDF ~A" (asdf-version)))
+  (setf (getf ext:*herald-items* :asdf) `(herald-asdf)))
+
 
 ;;;; Done!
 (with-upgradability ()

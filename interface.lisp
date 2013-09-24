@@ -19,10 +19,10 @@
   ;; TODO: automatically generate interface with reexport?
   (:export
    #:defsystem #:find-system #:locate-system #:coerce-name
-   #:oos #:operate #:traverse #:perform-plan
+   #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
    #:system-definition-pathname #:with-system-definitions
    #:search-for-system-definition #:find-component #:component-find-path
-   #:compile-system #:load-system #:load-systems
+   #:compile-system #:load-system #:load-systems #:load-systems*
    #:require-system #:test-system #:clear-system
    #:operation #:make-operation #:find-operation
    #:upward-operation #:downward-operation #:sideway-operation #:selfward-operation
@@ -75,6 +75,7 @@
    #:module-components ; backward-compatibility
    #:operation-on-warnings #:operation-on-failure ; backward-compatibility
    #:component-property ; backward-compatibility
+   #:traverse ; backward-compatibility
 
    #:system-description
    #:system-long-description
@@ -116,7 +117,7 @@
    #:missing-dependency
    #:missing-dependency-of-version
    #:circular-dependency        ; errors
-   #:duplicate-names
+   #:duplicate-names #:non-toplevel-system #:non-system-system
 
    #:try-recompiling
    #:retry

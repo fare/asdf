@@ -6,30 +6,30 @@ body {
 
 /* @group anchors */
 
-a.none { 
+a.none {
 	text-decoration: none;
 	color:black }
-	
+
 a.none:visited { text-decoration: none; color:black }
 
 a.none:active { text-decoration: none; color:black }
 
 a.none:hover { text-decoration: none; color:black }
 
-a { 
-	text-decoration: none; 
+a {
+	text-decoration: none;
 	}
-	
-a:visited { 
-	text-decoration: none; 
+
+a:visited {
+	text-decoration: none;
 }
 
-a:active { 
-	text-decoration: underline; 
+a:active {
+	text-decoration: underline;
 }
 
-a:hover { 
-	text-decoration: underline; 
+a:hover {
+	text-decoration: underline;
 }
 
 /* @end */
@@ -76,7 +76,7 @@ a:hover {
 	position: relative;
 	left: 8px;
 }
-	
+
 /* @end */
 
 /* @group header-footer */
@@ -126,9 +126,9 @@ a:hover {
 	text-decoration:underline;
 }
 
-#footer a:hover { 
-	font-weight:bold; 
-	color:#002244; 
+#footer a:hover {
+	font-weight:bold;
+	color:#002244;
 	text-decoration:underline;
 }
 
@@ -167,7 +167,7 @@ a:hover {
 }
 
 .function {
-	
+
 }
 
 .documentation pre {
@@ -183,7 +183,7 @@ a:hover {
 	border-top-style: solid;
 	border-top-width: 1pt;
 	padding-top: 4px;
-	margin-top: 2em; 
+	margin-top: 2em;
 	font-size: inherit;
 	background-color: transparent;
 	color: black;

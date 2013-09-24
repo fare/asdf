@@ -27,14 +27,14 @@ Some constraints:
    #:leave-test #:def-test-system
    #:action-name #:in-plan-p
    #:test-source #:test-fasl #:resolve-output #:output-location
-   #:quietly))
+   #:quietly #:join-namestrings))
 
 (in-package :asdf-test)
 
 (declaim (optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
-		   #+(or cmu scl) (c::brevity 2)))
+                   #+(or cmu scl) (c::brevity 2)))
 (proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
-		     #+(or cmu scl) (c::brevity 2)))
+                     #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,
@@ -123,23 +123,23 @@ Some constraints:
      (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
     ((acall :pathname-equal x y)
      (warn "These two expressions yield pathname-equal yet not equal path~%~
-	the first expression ~S yields this:~%  ~S~%  ~S~%
-	the other expression ~S yields that:~%  ~S~%  ~S~%"
-	qx x (pathname-components x)
-	qy y (pathname-components y)))
+        the first expression ~S yields this:~%  ~S~%  ~S~%
+        the other expression ~S yields that:~%  ~S~%  ~S~%"
+        qx x (pathname-components x)
+        qy y (pathname-components y)))
     (t
      (error "These two expressions yield paths that are not pathname-equal~%~
-	the first expression ~S yields this:~%  ~S~%  ~S~%
-	the other expression ~S yields that:~%  ~S~%  ~S~%"
-	qx x (pathname-components x)
-	qy y (pathname-components y)))))
+        the first expression ~S yields this:~%  ~S~%  ~S~%
+        the other expression ~S yields that:~%  ~S~%  ~S~%"
+        qx x (pathname-components x)
+        qy y (pathname-components y)))))
 (defmacro assert-pathname-equal (x y)
   `(assert-pathname-equal-helper ',x ,x ',y ,y))
 (defun assert-length-equal-helper (qx x qy y)
   (unless (= (length x) (length y))
     (error "These two expressions yield sequences of unequal length~%
-	The first, ~S, has value ~S of length ~S~%
-	The other, ~S, has value ~S of length ~S~%"
+        The first, ~S, has value ~S of length ~S~%
+        The other, ~S, has value ~S of length ~S~%"
            qx x (length x) qy y (length y))))
 (defun assert-pathnames-equal-helper (qx x qy y)
   (assert-length-equal-helper qx x qy y)
@@ -259,15 +259,17 @@ Some constraints:
   #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?
   #+mkcl (mk-ext:quit :exit-code code)
   #+sbcl #.(let ((exit (find-symbol "EXIT" :sb-ext))
-		 (quit* (find-symbol "QUIT" :sb-ext)))
-	     (cond
-	       (exit `(,exit :code code :abort t))
-	       (quit* `(,quit* :unix-status code :recklessly-p t))))
+                 (quit* (find-symbol "QUIT" :sb-ext)))
+             (cond
+               (exit `(,exit :code code :abort t))
+               (quit* `(,quit* :unix-status code :recklessly-p t))))
   #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
 
 (defun leave-test (message return)
+  "Print MESSAGE and throw RETURN, which should be a POSIX error
+code (an integer, 0 for success), up as exit code."
   (finish-outputs*)
   (fresh-line *error-output*)
   (when message
@@ -559,7 +561,7 @@ is bound, write a message and exit on an error.  If
   `(apply (asym :register-system-definition) ',name :pathname ,*test-directory*
           :source-file nil ',rest))
 
-(defun in-plan-p (plan x) (member x plan :key (asym :action-path) :test 'equal))
+(defun in-plan-p (plan x) (member x (acall :plan-actions plan) :key (asym :action-path) :test 'equal))
 
 (defmacro test-load-systems (&rest x)
   `(do-test-load-systems ',x))
@@ -598,6 +600,12 @@ is bound, write a message and exit on an error.  If
     (load-test-system :test-asdf/all)
     (assert (asymval '#:*file1* :test-package))
     (assert (asymval '#:*file3* :test-package))))
+
+(defun join-namestrings (namestrings)
+  (with-output-to-string (s)
+    (loop :with separator = (acall :inter-directory-separator)
+          :for (n . morep) :on namestrings
+          :do (format s "~A~@[~C~]" n (and morep separator)))))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

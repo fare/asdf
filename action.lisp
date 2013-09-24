@@ -38,17 +38,26 @@
 ;;;; Convenience methods
 (with-upgradability ()
   (defmacro define-convenience-action-methods
-      (function (operation component &optional keyp)
-       &key if-no-operation if-no-component operation-initargs)
+      (function formals &key if-no-operation if-no-component operation-initargs)
     (let* ((rest (gensym "REST"))
            (found (gensym "FOUND"))
+           (keyp (equal (last formals) '(&key)))
+           (formals-no-key (if keyp (butlast formals) formals))
+           (len (length formals-no-key))
+           (operation 'operation)
+           (component 'component)
+           (opix (position operation formals))
+           (coix (position component formals))
+           (prefix (subseq formals 0 opix))
+           (suffix (subseq formals (1+ coix) len))
            (more-args (when keyp `(&rest ,rest &key &allow-other-keys))))
+      (assert (and (integerp opix) (integerp coix) (= coix (1+ opix))))
       (flet ((next-method (o c)
                (if keyp
-                   `(apply ',function ,o ,c ,rest)
-                   `(,function ,o ,c))))
+                   `(apply ',function ,@prefix ,o ,c ,@suffix ,rest)
+                   `(,function ,@prefix ,o ,c ,@suffix))))
         `(progn
-           (defmethod ,function ((,operation symbol) ,component ,@more-args)
+           (defmethod ,function (,@prefix (,operation symbol) component ,@suffix ,@more-args)
              (if ,operation
                  ,(next-method
                    (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.
@@ -56,14 +65,13 @@
                        `(make-operation ,operation))
                    `(or (find-component () ,component) ,if-no-component))
                  ,if-no-operation))
-           (defmethod ,function ((,operation operation) ,component ,@more-args)
+           (defmethod ,function (,@prefix (,operation operation) ,component ,@suffix ,@more-args)
              (if (typep ,component 'component)
                  (error "No defined method for ~S on ~/asdf-action:format-action/"
                         ',function (cons ,operation ,component))
-                 (let ((,found (find-component () ,component)))
-                   (if ,found
-                       ,(next-method operation found)
-                       ,if-no-component)))))))))
+                 (if-let (,found (find-component () ,component))
+                    ,(next-method operation found)
+                    ,if-no-component))))))))
 
 
 ;;;; self-description

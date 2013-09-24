@@ -34,20 +34,25 @@
 (assert
  (version-satisfies (asdf-version) (asdf-version)))
 (assert
+ (version-satisfies (asdf-version) "3.0"))
+(assert
  (version-satisfies (asdf-version) "2.0"))
+(assert
+ (version<= "2.0" (asdf-version)))
 (assert
  (not (version-satisfies (asdf-version) "666")))
 (assert-pathnames-equal
- (split-native-pathnames-string "foo:bar")
+ (split-native-pathnames-string (join-namestrings '("foo" "bar")))
  '(#p"foo" #p"bar"))
 (assert-pathnames-equal
- (split-native-pathnames-string "foo:bar" :ensure-directory t)
+ (split-native-pathnames-string (join-namestrings '("foo" "bar")) :ensure-directory t)
  '(#p"foo/" #p"bar/"))
 (assert-pathnames-equal
- (split-native-pathnames-string "/foo:/bar" :want-absolute t)
+ (split-native-pathnames-string (join-namestrings '("/foo" "/bar")) :want-absolute t)
  '(#p"/foo" #p"/bar"))
 (assert-pathnames-equal
- (split-native-pathnames-string "/foo:/bar" :want-absolute t :ensure-directory t)
+ (split-native-pathnames-string (join-namestrings '("/foo" "/bar"))
+                                :want-absolute t :ensure-directory t)
  '(#p"/foo/" #p"/bar/"))
 (assert-equal
  (mapcar 'location-function-p
@@ -56,10 +61,8 @@
                         (declare (ignore absolute-source))
                         path))
            (function previous-isnt-keyword)
-           (:function f too many arguments)
-           (:function (:lambda isnt lambda))
-           (:function (lambda (too many args) blah))))
- '(t t nil nil nil nil))
+           (:function f too many arguments)))
+ '(t t nil nil))
 
 (initialize-source-registry '())
 
@@ -110,6 +113,7 @@
     asdf/component:version
     asdf/lisp-action:flags
     asdf/operation:feature
+    asdf/operation:original-initargs
     asdf/plan:index
     asdf/plan:forced
     asdf/plan:forced-not
@@ -146,6 +150,8 @@
     uiop/os:read-null-terminated-string
     ;; backward compatibility upgrade only
     asdf/backward-internals:make-sub-operation
+    asdf/backward-interface:on-failure
+    asdf/backward-interface:on-warnings
     asdf/find-system:contrib-sysdef-search
     asdf/find-system:sysdef-find-asdf
     ))

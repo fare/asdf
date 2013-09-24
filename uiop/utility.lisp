@@ -236,6 +236,7 @@ starting the separation from the end, e.g. when called with arguments
  \"a.b.c.d.e\" :max 3 :separator \".\" it will return (\"a.b.c\" \"d\" \"e\")."
     (block ()
       (let ((list nil) (words 0) (end (length string)))
+        (when (zerop end) (return nil))
         (flet ((separatorp (char) (find char separator))
                (done () (return (cons (subseq string 0 end) list))))
           (loop
@@ -318,14 +319,17 @@ If the FUN is a non-sequence literal constant, return constantly that,
 i.e. for a boolean keyword character number or pathname.
 Otherwise if FUN is a non-literally constant symbol, return its FDEFINITION.
 If FUN is a CONS, return the function that applies its CAR
-to the appended list of the rest of its CDR and the arguments.
+to the appended list of the rest of its CDR and the arguments,
+unless the CAR is LAMBDA, in which case the expression is evaluated.
 If FUN is a string, READ a form from it in the specified PACKAGE (default: CL)
 and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
       ((or function symbol) fun)
-      (cons #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args))))
+      (cons (if (eq 'lambda (car fun))
+                (eval fun)
+                #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args)))))
       (string (eval `(function ,(with-standard-io-syntax
                                   (let ((*package* (find-package package)))
                                     (read-from-string fun))))))))
@@ -455,7 +459,8 @@ a simple vector of length 2, arguments to find-symbol* with result as above,
 or a string describing the format-control of a simple-condition."
     (etypecase x
       (symbol (typep condition x))
-      ((simple-vector 2) (typep condition (find-symbol* (svref x 0) (svref x 1) nil)))
+      ((simple-vector 2)
+       (ignore-errors (typep condition (find-symbol* (svref x 0) (svref x 1) nil))))
       (function (funcall x condition))
       (string (and (typep condition 'simple-condition)
                    ;; On SBCL, it's always set and the check triggers a warning

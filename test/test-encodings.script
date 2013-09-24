@@ -40,8 +40,8 @@
 (leave-test "No Unicode support to test on this lisp implementation" 0)
 
 #+abcl
-(let ((version (lisp-implementation-version))
-      (version-nums (subseq version 0 (position-if-not (lambda (x) (find x "0123456789.")) version))))
+(let* ((version (lisp-implementation-version))
+       (version-nums (subseq version 0 (position-if-not (lambda (x) (find x "0123456789.")) version))))
   (when (version< version-nums "1.1.2")
     (leave-test "Your old ABCL is known to fail this test script, so skipping it." 0)))
 

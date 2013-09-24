@@ -107,6 +107,7 @@
     "Takes arguments like CL:MAKE-PATHNAME in the CLHS, and
    tries hard to make a pathname that will actually behave as documented,
    despite the peculiarities of each implementation"
+    ;; TODO: reimplement defaulting for MCL, whereby an explicit NIL should override the defaults.
     (declare (ignorable host device directory name type version defaults))
     (apply 'make-pathname
            (append
@@ -182,12 +183,14 @@ by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
     ;; see also "valid physical pathname host" in the CLHS glossary, that suggests
     ;; strings and lists of strings or :unspecific
     ;; But CMUCL decides to die on NIL.
+    ;; MCL has issues with make-pathname, nil and defaulting
+    (declare (ignorable defaults))
     #.`(make-pathname* :directory nil :name nil :type nil :version nil :device nil
                        :host (or #+cmu lisp::*unix-host*)
                        #+scl ,@'(:scheme nil :scheme-specific-part nil
                                  :username nil :password nil :parameters nil :query nil :fragment nil)
                        ;; the default shouldn't matter, but we really want something physical
-                       :defaults defaults))
+                       #-mcl ,@'(:defaults defaults)))
 
   (defvar *nil-pathname* (nil-pathname (translate-logical-pathname (user-homedir-pathname))))
 
@@ -455,7 +458,7 @@ to throw an error if the pathname is absolute"
                  (make-pathname*
                   :directory (unless file-only (cons relative path))
                   :name name :type type
-                  :defaults (or defaults *nil-pathname*))
+                  :defaults (or #-mcl defaults *nil-pathname*))
                  (remove-plist-keys '(:type :dot-dot :defaults) keys))))))
 
   (defun unix-namestring (pathname)
@@ -662,6 +665,12 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
       (t
        (translate-pathname path absolute-source destination))))
 
-  (defvar *output-translation-function* 'identity)) ; Hook for output translations
+  (defvar *output-translation-function* 'identity
+    "Hook for output translations.
 
+This function needs to be idempotent, so that actions can work
+whether their inputs were translated or not,
+which they will be if we are composing operations. e.g. if some
+create-lisp-op creates a lisp file from some higher-level input,
+you need to still be able to use compile-op on that lisp file."))
 

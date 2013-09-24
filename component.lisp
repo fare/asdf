@@ -2,7 +2,7 @@
 ;;;; Components
 
 (asdf/package:define-package :asdf/component
-  (:recycle :asdf/component :asdf)
+  (:recycle :asdf/component :asdf/defsystem :asdf/find-system :asdf)
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:component #:component-find-path
@@ -27,6 +27,10 @@
    #:module-default-component-class
    #:module-components ;; backward-compatibility. DO NOT USE.
    #:sub-components
+
+   ;; conditions
+   #:system-definition-error ;; top level, moved here because this is the earliest place for it.
+   #:duplicate-names
 
    ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
    #:name #:version #:description #:long-description #:author #:maintainer #:licence
@@ -61,7 +65,24 @@ another pathname in a degenerate way."))
 
   ;; Backward compatible way of computing the FILE-TYPE of a component.
   ;; TODO: find users, have them stop using that, remove it for ASDF4.
-  (defgeneric (source-file-type) (component system)))
+  (defgeneric (source-file-type) (component system))
+
+  (define-condition system-definition-error (error) ()
+    ;; [this use of :report should be redundant, but unfortunately it's not.
+    ;; cmucl's lisp::output-instance prefers the kernel:slot-class-print-function
+    ;; over print-object; this is always conditions::%print-condition for
+    ;; condition objects, which in turn does inheritance of :report options at
+    ;; run-time.  fortunately, inheritance means we only need this kludge here in
+    ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
+    #+cmu (:report print-object))
+
+  (define-condition duplicate-names (system-definition-error)
+    ((name :initarg :name :reader duplicate-names-name))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~S~@:>")
+                       (duplicate-names-name c))))))
+
+
 
 (when-upgrading (:when (find-class 'component nil))
   (defmethod reinitialize-instance :after ((c component) &rest initargs &key)
@@ -272,7 +293,7 @@ another pathname in a degenerate way."))
     (version-satisfies (component-version c) version))
 
   (defmethod version-satisfies ((cver string) version)
-    (version-compatible-p cver version)))
+    (version<= version cver)))
 
 
 ;;; all sub-components (of a given type)

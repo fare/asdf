@@ -73,7 +73,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+gcl (lisp:quit code)
     #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
-    #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?
+    #+mcl (progn code (ccl:quit)) ;; or should we use FFI to call libc's exit(3) ?
     #+mkcl (mk-ext:quit :exit-code code)
     #+sbcl #.(let ((exit (find-symbol* :exit :sb-ext nil))
                    (quit (find-symbol* :quit :sb-ext nil)))
@@ -87,9 +87,7 @@ This is designed to abstract away the implementation specific quit forms."
     "Die in error with some error message"
     (with-safe-io-syntax ()
       (ignore-errors
-       (fresh-line *stderr*)
-       (apply #'format *stderr* format arguments)
-       (format! *stderr* "~&")))
+       (format! *stderr* "~&~?~&" format arguments)))
     (quit code))
 
   (defun raw-print-backtrace (&key (stream *debug-io*) count)
@@ -111,7 +109,8 @@ This is designed to abstract away the implementation specific quit forms."
     (system::print-backtrace :out stream :limit count)
     #+(or clozure mcl)
     (let ((*debug-io* stream))
-      (ccl:print-call-history :count count :start-frame-number 1)
+      #+clozure (ccl:print-call-history :count count :start-frame-number 1)
+      #+mcl (ccl:print-call-history :detailed-p nil)
       (finish-output stream))
     #+(or cmu scl)
     (let ((debug:*debug-print-level* *print-level*)
@@ -202,11 +201,11 @@ This is designed to abstract away the implementation specific quit forms."
     #+(or cmu scl) extensions:*command-line-strings*
     #+ecl (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
     #+gcl si:*command-args*
-    #+genera nil
+    #+(or genera mcl) nil
     #+lispworks sys:*line-arguments-list*
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
-    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks sbcl scl xcl)
+    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl sbcl scl xcl)
     (error "raw-command-line-arguments not implemented yet"))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
@@ -255,7 +254,7 @@ if we are not called from a directly executable image."
   (defun dump-image (filename &key output-name executable
                                 ((:postlude *image-postlude*) *image-postlude*)
                                 ((:dump-hook *image-dump-hook*) *image-dump-hook*)
-                                #+clozure (prepend-kernel t))
+                                #+clozure prepend-symbols #+clozure (purify t))
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
@@ -280,8 +279,16 @@ if we are not called from a directly executable image."
               ;; :parse-options nil ;--- requires a non-standard patch to clisp.
               :norc t :script nil :init-function #'restore-image)))
     #+clozure
-    (ccl:save-application filename :prepend-kernel prepend-kernel
-                                   :toplevel-function (when executable #'restore-image))
+    (flet ((dump (prepend-kernel)
+             (ccl:save-application filename :prepend-kernel prepend-kernel :purify purify
+                                            :toplevel-function (when executable #'restore-image))))
+      ;;(setf ccl::*application* (make-instance 'ccl::lisp-development-system))
+      (if prepend-symbols
+          (with-temporary-file (:prefix "ccl-symbols-" :direction :output :pathname path)
+            (require 'elf)
+            (funcall (fdefinition 'ccl::write-elf-symbols-to-file) path)
+            (dump path))
+          (dump t)))
     #+(or cmu scl)
     (progn
       (ext:gc :full t)
@@ -309,10 +316,10 @@ if we are not called from a directly executable image."
            'dump-image filename (nth-value 1 (implementation-type))))
 
   (defun create-image (destination object-files
-                       &key kind output-name prologue-code epilogue-code 
+                       &key kind output-name prologue-code epilogue-code
                          (prelude () preludep) (postlude () postludep)
                          (entry-point () entry-point-p) build-args)
-    (declare (ignorable destination object-files kind output-name prologue-code epilogue-code 
+    (declare (ignorable destination object-files kind output-name prologue-code epilogue-code
                         prelude preludep postlude postludep entry-point entry-point-p build-args))
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,

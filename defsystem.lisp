@@ -11,7 +11,8 @@
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
    #:determine-system-directory #:parse-component-form
-   #:duplicate-names #:sysdef-error-component #:check-component-input))
+   #:non-toplevel-system #:non-system-system
+   #:sysdef-error-component #:check-component-input))
 (in-package :asdf/defsystem)
 
 ;;; Pathname
@@ -65,11 +66,19 @@
 
 ;;; Check inputs
 (with-upgradability ()
-  (define-condition duplicate-names (system-definition-error)
-    ((name :initarg :name :reader duplicate-names-name))
+  (define-condition non-system-system (system-definition-error)
+    ((name :initarg :name :reader non-system-system-name)
+     (class-name :initarg :class-name :reader non-system-system-class-name))
     (:report (lambda (c s)
-               (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~S~@:>")
-                       (duplicate-names-name c)))))
+               (format s (compatfmt "~@<Error while defining system ~S: class ~S isn't a subclass of ~S~@:>")
+                       (non-system-system-name c) (non-system-system-class-name c) 'system))))
+
+  (define-condition non-toplevel-system (system-definition-error)
+    ((parent :initarg :parent :reader non-toplevel-system-parent)
+     (name :initarg :name :reader non-toplevel-system-name))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Error while defining system: component ~S claims to have a system ~S as a child~@:>")
+                       (non-toplevel-system-parent c) (non-toplevel-system-name c)))))
 
   (defun sysdef-error-component (msg type name value)
     (sysdef-error (strcat msg (compatfmt "~&~@<The value specified for ~(~A~) ~A is ~S~@:>"))
@@ -105,10 +114,12 @@
                     (case (first form)
                       ((:read-file-form)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (safe-read-file-form (subpathname pathname subpath) :at at :package :asdf-user)))
+                         (safe-read-file-form (subpathname pathname subpath)
+                                              :at at :package :asdf-user)))
                       ((:read-file-line)
                        (destructuring-bind (subpath &key (at 0)) (rest form)
-                         (read-file-lines (subpathname pathname subpath) :at at)))
+                         (safe-read-file-line (subpathname pathname subpath)
+                                              :at at)))
                       (otherwise
                        (invalid))))
                    (t
@@ -140,7 +151,8 @@
                          (class-for-type parent type))))
         (error 'duplicate-names :name name))
       (when do-first (error "DO-FIRST is not supported anymore as of ASDF 3"))
-      (let* ((args `(:name ,(coerce-name name)
+      (let* ((name (coerce-name name))
+             (args `(:name ,name
                      :pathname ,pathname
                      ,@(when parent `(:parent ,parent))
                      ,@(remove-plist-keys
@@ -148,16 +160,13 @@
                           :perform :explain :output-files :operation-done-p
                           :weakly-depends-on :depends-on :serial)
                         rest)))
-             (component (find-component parent name)))
-        (when weakly-depends-on
-          ;; ASDF4: deprecate this feature and remove it.
-          (appendf depends-on
-                   (remove-if (complement #'(lambda (x) (find-system x nil))) weakly-depends-on)))
-        (when previous-serial-component
-          (push previous-serial-component depends-on))
+             (component (find-component parent name))
+             (class (class-for-type parent type)))
+        (when (and parent (subtypep class 'system))
+          (error 'non-toplevel-system :parent parent :name name))
         (if component ; preserve identity
             (apply 'reinitialize-instance component args)
-            (setf component (apply 'make-instance (class-for-type parent type) args)))
+            (setf component (apply 'make-instance class args)))
         (component-pathname component) ; eagerly compute the absolute pathname
         (let ((sysfile (system-source-file (component-system component)))) ;; requires the previous
           (when (and (typep component 'system) (not bspp))
@@ -177,6 +186,12 @@
                   :collect c
                   :when serial :do (setf previous-component name)))
           (compute-children-by-name component))
+        (when previous-serial-component
+          (push previous-serial-component depends-on))
+        (when weakly-depends-on
+          ;; ASDF4: deprecate this feature and remove it.
+          (appendf depends-on
+                   (remove-if (complement #'(lambda (x) (find-system x nil))) weakly-depends-on)))
         ;; Used by POIU. ASDF4: rename to component-depends-on?
         (setf (component-sideway-dependencies component) depends-on)
         (%refresh-component-inline-methods component rest)
@@ -207,10 +222,12 @@
              (defsystem-dependencies (loop :for spec :in defsystem-depends-on :collect
                                            (resolve-dependency-spec nil spec))))
         (setf (gethash name *systems-being-defined*) system)
-        (apply 'load-systems defsystem-dependencies)
+        (load-systems* defsystem-dependencies)
         ;; We change-class AFTER we loaded the defsystem-depends-on
         ;; since the class might be defined as part of those.
         (let ((class (class-for-type nil class)))
+          (unless (subtypep class 'system)
+            (error 'non-system-system :name name :class-name (class-name class)))
           (unless (eq (type-of system) class)
             (change-class system class)))
         (parse-component-form

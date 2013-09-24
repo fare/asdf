@@ -12,12 +12,13 @@
    #:*default-encoding* #:*utf-8-external-format*
    #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
    #:with-output #:output-string #:with-input
-   #:with-input-file #:call-with-input-file
+   #:with-input-file #:call-with-input-file #:with-output-file #:call-with-output-file
    #:finish-outputs #:format! #:safe-format!
    #:copy-stream-to-stream #:concatenate-files #:copy-file
    #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
    #:slurp-stream-forms #:slurp-stream-form
-   #:read-file-string #:read-file-lines #:read-file-forms #:read-file-form #:safe-read-file-form
+   #:read-file-string #:read-file-line #:read-file-lines #:safe-read-file-line
+   #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
@@ -94,7 +95,7 @@ hopefully, if done consistently, that won't affect program behavior too much.")
 and implementation-defined external-format's")
 
   (defun encoding-external-format (encoding)
-    (funcall *encoding-external-format-hook* encoding)))
+    (funcall *encoding-external-format-hook* (or encoding *default-encoding*))))
 
 
 ;;; Safe syntax
@@ -186,10 +187,33 @@ Other keys are accepted but discarded."
                                 :if-does-not-exist if-does-not-exist)
       (funcall thunk s)))
 
-  (defmacro with-input-file ((var pathname &rest keys &key element-type external-format) &body body)
-    (declare (ignore element-type external-format))
-    `(call-with-input-file ,pathname #'(lambda (,var) ,@body) ,@keys)))
+  (defmacro with-input-file ((var pathname &rest keys
+                              &key element-type external-format if-does-not-exist)
+                             &body body)
+    (declare (ignore element-type external-format if-does-not-exist))
+    `(call-with-input-file ,pathname #'(lambda (,var) ,@body) ,@keys))
 
+  (defun call-with-output-file (pathname thunk
+                                &key
+                                  (element-type *default-stream-element-type*)
+                                  (external-format *utf-8-external-format*)
+                                  (if-exists :error)
+                                  (if-does-not-exist :create))
+    "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
+Other keys are accepted but discarded."
+    #+gcl2.6 (declare (ignore external-format))
+    (with-open-file (s pathname :direction :output
+                                :element-type element-type
+                                #-gcl2.6 :external-format #-gcl2.6 external-format
+                                :if-exists if-exists
+                                :if-does-not-exist if-does-not-exist)
+      (funcall thunk s)))
+
+  (defmacro with-output-file ((var pathname &rest keys
+                               &key element-type external-format if-exists if-does-not-exist)
+                              &body body)
+    (declare (ignore element-type external-format if-exists if-does-not-exist))
+    `(call-with-output-file ,pathname #'(lambda (,var) ,@body) ,@keys)))
 
 ;;; Ensure output buffers are flushed
 (with-upgradability ()
@@ -318,6 +342,14 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
 BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
     (apply 'call-with-input-file file 'slurp-stream-lines keys))
 
+  (defun read-file-line (file &rest keys &key (at 0) &allow-other-keys)
+    "Open input FILE with option KEYS (except AT),
+and read its contents as per SLURP-STREAM-LINE with given AT specifier.
+BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
+    (apply 'call-with-input-file file
+           #'(lambda (input) (slurp-stream-line input :at at))
+           (remove-plist-key :at keys)))
+
   (defun read-file-forms (file &rest keys &key count &allow-other-keys)
     "Open input FILE with option KEYS (except COUNT),
 and read its contents as per SLURP-STREAM-FORMS with given COUNT.
@@ -333,6 +365,13 @@ BEWARE: be sure to use WITH-SAFE-IO-SYNTAX, or some variant thereof"
     (apply 'call-with-input-file file
            #'(lambda (input) (slurp-stream-form input :at at))
            (remove-plist-key :at keys)))
+
+  (defun safe-read-file-line (pathname &rest keys &key (package :cl) &allow-other-keys)
+    "Reads the specified line from the top of a file using a safe standardized syntax.
+Extracts the line using READ-FILE-LINE,
+within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
+    (with-safe-io-syntax (:package package)
+      (apply 'read-file-line pathname (remove-plist-key :package keys))))
 
   (defun safe-read-file-form (pathname &rest keys &key (package :cl) &allow-other-keys)
     "Reads the specified form from the top of a file using a safe standardized syntax.

@@ -1,7 +1,4 @@
 #!/usr/bin/make -f
-# MAde with the aid of dh_make, by Craig Small
-# Sample debian/rules that uses debhelper. GNU copyright 1997 by Joey Hess.
-# Some lines taken from debmake, by Cristoph Lameter.
 
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
@@ -11,6 +8,7 @@ build-stamp:
 	dh_testdir
 	make
 	make -C doc all
+	ln -sf build/asdf.lisp .
 	touch build-stamp
 
 build-arch:

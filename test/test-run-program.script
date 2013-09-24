@@ -1,25 +1,65 @@
+;; -*- Lisp -*-
 (declaim (optimize (debug 3) (safety 3)))
 
+(DBG "Testing echo ok 1 via run-program as a list")
+(assert-equal '("ok 1") (run-program '("echo" "ok" "1") :output :lines))
+
+(DBG "Testing echo ok 1 via run-program as a string")
 (assert-equal '("ok 1") (run-program "echo ok 1" :output :lines))
 
-(unless (os-unix-p)
-  (leave-test "The rest of this test is only supposed to work on Unix"))
+;; (unless (os-unix-p) (leave-test "The rest of this test is only supposed to work on Unix"))
 
 ;;; test asdf run-shell-command function
 (setf *verbose-out* nil)
-(assert-equal 1 (run-shell-command "false"))
+(DBG "Testing true via run-shell-command")
 (assert-equal 0 (run-shell-command "true"))
+(DBG "Testing false via run-shell-command")
+(assert-equal 1 (run-shell-command "false"))
+(DBG "Testing bad shell command via run-shell-command")
 (unless (< 0 (run-shell-command "./bad-shell-command"))
   (error "Failed to capture exit status indicating shell command failure."))
-(unless (equal 0 (run-shell-command "./good-shell-command"))
-  (error "Failed to capture exit status indicating shell command failure."))
+
+#+os-unix
+(progn
+  (DBG "Testing good shell command in current directory via run-shell-command")
+  (unless (equal 0 (run-shell-command "./good-shell-command"))
+    (error "Failed to capture exit status indicating shell command success.")))
+
+;; On Windows, normalize away CRLF into jut the unixy LF.
+(defun remove-cr (x) (remove (code-char 13) x))
+
+(DBG "Testing awkward legacy output capture via run-shell-command")
+(let ((ok1 (format nil "; $ echo ok 1~%ok 1~%")))
+  (assert-equal
+   (remove-cr
+    (with-output-to-string (s)
+      (let ((*verbose-out* s))
+        (run-shell-command "echo ~A 1" "ok"))))
+   ok1)
+  #-ecl
+  (assert-equal
+   (remove-cr
+    (with-output-to-string (s)
+      (let ((*verbose-out* t)
+            (*standard-output* s))
+        (let ((status (run-shell-command "echo ok ~D" 1)))
+          (unless (zerop status)
+            (error "Didn't get good exit status."))))))
+   ok1))
+
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
 (assert-equal '("ok 1") (run-program "echo ok  1" :output :lines))
 (assert-equal "ok  1" (run-program '("echo" "ok  1") :output :line))
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
-(assert-equal (format nil "ok  1~%") (run-program '("echo" "ok  1") :output :string))
+(assert-equal (format nil "ok  1~%") (remove-cr (run-program '("echo" "ok  1") :output :string)))
+;; this test checks for a problem there was in allegro -- :output :interactive
+;; would try to open T as a stream for INPUT.
+(assert-equal 0 (run-program "true" :force-shell t :output :interactive))
+(assert-equal 0 (run-program "true" :force-shell nil :output :interactive))
+(assert-equal 1 (run-program "false" :force-shell t :output :interactive :ignore-error-status t))
+(assert-equal 1 (run-program "false" :force-shell nil :output :interactive :ignore-error-status t))
 
 
 ;;#+allegro (trace excl:run-shell-command sys:reap-os-subprocess)

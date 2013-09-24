@@ -1,17 +1,17 @@
+* fix directory-files to not return directories on CCL, etc. Add tests.
 * use cl-test-grid to see if asdf-user can :use most of UIOP.
   Unhappily, on SBCL, sb-grovel uses asdf and sb-ext,
   which causes a clash with run-program.
-* have some automated test to make sure asdf-driver works with asdf 2.26
-* have a mode to explain WHY a componnet needs to be recompiled.
+* have a mode to explain WHY a component needs to be recompiled.
 * have a better defsystem form verifier - see lp#1007335
 * have a function verify-strict-asd that can verify a asd is pure lp#541562
   Then if it passes, use load-strict-asd.
   If not, optionally issue a warning. Start migrating people toward that.
 * have with-input-file use the encodings mechanism?
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
-* implement deferred warnings support on abcl, allegro, clisp, cmucl, lispworks, scl)
-* fix upgrade on clisp
-** Extract minimal test case
+* implement deferred warnings support on lispworks
+* fix upgrade on clisp, cmucl, abcl (if still broken)
+** Extract minimal test case, build a battery of automated tests
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
   are not in strict defsystem-depends-on dependency order.
 ** At least document the issue.

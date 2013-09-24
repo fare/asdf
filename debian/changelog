@@ -1,9 +1,76 @@
-cl-asdf (2:2.32.8-1) unstable; urgency=low
+cl-asdf (2:3.0.2.4-1) unstable; urgency=low
 
-  ASDF 2.32.8 is a set of cleanups since 2.32.
+  UIOP:DIRECTORY* fixed to NOT follow symbolic links on LispWorks.
+  Fix handling of :at key in :read-file-form.
+  Fix package issue for system-definition-error (lp #1206173).
+  Some docstring updates. Also documentation updates.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 03 Sep 2013 12:17:21 -0500
+
+cl-asdf (2:3.0.2-1) unstable; urgency=low
+
+  Improve support for CMUCL, ABCL, restore MCL support.
+  TRAVERSE is deprecated (moved to BACKWARD-INTERFACE), use
+  MAKE-PLAN instead.
+  Added DLL-OP and MONOLITHIC-DLL-OP for ECL.
+
+ -- Robert P. Goldman <rpgoldman@sift.info>  Tue, 02 Jul 2013 12:05:57 -0500
+
+cl-asdf (2:3.0.1.3-1) unstable; urgency=low
+
+  Add some backward-compatibility to the debian package,
+  with a symlink from asdf.lisp to build/asdf.lisp.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 02 Jun 2013 00:56:50 +0200
+
+cl-asdf (2:3.0.1.2-1) unstable; urgency=low
+
+  ASDF 3.0.1.2 fixes issues with the debian package itself.
+  It also includes fixes to run-program and run-shell-command.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 27 May 2013 22:44:50 -0400
+
+cl-asdf (2:3.0.1-1) unstable; urgency=low
+
+  ASDF 3.0.1 is an emergency release for better compatibility with Quicklisp.
+
+  * version-satisfies now uses uiop:version<= for comparison,
+    and does not check for a same major version number,
+    like version-compatible-p does, which was the
+    undocumented behavior since ASDF 1.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 16 May 2013 19:20:28 -0400
+
+cl-asdf (2:3.0.0-1) unstable; urgency=low
+
+  ASDF 3.0.0 is the first official release of ASDF 3;
+  ASDF 2.27 to 2.33 were pre-releases.
+  Since 2.33, the following changes were done:
+
+  * Portability: have *uninteresting-conditions* be empty by default.
+    Move stuff to *usual-uninteresting-conditions*, unused by default.
+    Will make the SBCL team happy. Also, fix tests on ABCL.
+    Fix regression of program-op on ECL, by implicitly linking in UIOP or ASDF.
+
+  * UIOP: improvements to slurp-input-stream and thus run-program,
+    notably accepting T as alias for *standard-output*,
+    for better backward-compatibility of the deprecated run-shell-command.
+    New macro with-output-file.
+
+  * POIU support enhanced with various tweaks.
+
+  * Build cleanup so make and concatenate-source-op create the same asdf.lisp
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 15 May 2013 23:57:22 -0400
+
+cl-asdf (2:2.33-1) unstable; urgency=low
+
+  ASDF 2.33 is a set of cleanups since 2.32.
   Since previous release 2.32, it includes the following changes:
 
-  * deferred-warning receives yet more improvements for CCL.
+  * Portability tweaks for ABCL, Allegro, CCL, CLISP, ECL, LispWorks, SBCL.
+
+  * deferred-warning received yet more improvements for CCL.
 
   * upgrade is made more robust in many cases, notably for ECL, SBCL,
     or when using UIOP with an old ASDF<=2.26.
@@ -11,9 +78,24 @@ cl-asdf (2:2.32.8-1) unstable; urgency=low
   * Packages have been tweaked to pass more tests,
     notably wrt what symbols are exported.
 
-  * Image lifecycle support is improved, thanks to our application 
+  * Image lifecycle support is improved, thanks to deploying ASDF3 for QRes.
+    More options for dump-image on CCL; handle reentrance in restore-image.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 05 Mar 2013 14:35:43 -0500
+  * delete-directory-tree, delete-empty-directory, copy-file,
+    directory-exists-p, file-exists-p were added to UIOP,
+    also better strcat, with reduce/strcat, base-string-p, etc.
+
+  * Recompilation avoided for things already done by defsystem-depends-on.
+
+  * monolithic-fasl-op was fixed in cases when the main system has components.
+
+  * fasl-op and monolithic-fasl-op now work on ABCL trunk and upcoming 1.2.0,
+    and will eventually replace the ABCL-JAR contrib.
+
+  * *uninteresting-conditions* was added as a common list of conditions
+    shared between the compile-time and load-time muffled conditions.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Thu, 04 Apr 2013 01:54:26 -0400
 
 cl-asdf (2:2.32-1) unstable; urgency=low
 
@@ -127,9 +209,9 @@ cl-asdf (2:2.29-1) unstable; urgency=low
 
 cl-asdf (2:2.28-1) unstable; urgency=low
 
- ASDF 2.28 is a quick patch to ASDF 2.27 to make it work better with
- systems that specify a relative pathname, then at runtime (e.g. in tests)
- use merge-pathnames or merge-pathnames* against it expecting a directory.
+  ASDF 2.28 is a quick patch to ASDF 2.27 to make it work better with
+  systems that specify a relative pathname, then at runtime (e.g. in tests)
+  use merge-pathnames or merge-pathnames* against it expecting a directory.
 
  -- Francois-Rene Rideau <fare@tunes.org>  Fri, 01 Feb 2013 17:07:53 -0500
 
@@ -335,7 +417,7 @@ cl-asdf (2:2.27-1) unstable; urgency=low
     as per the utility asdf-driver:access-at. For instance,
     if your file specials.lisp is a defpackage, an in-package
     and a defparameter of the version, then you could use:
-	(:read-file-form "specials.lisp" :at (2 2))
+      (:read-file-form "specials.lisp" :at (2 2))
     This makes it easier for developers to manage versioning
     of one or multiple systems with a single master version location.
 
@@ -380,8 +462,8 @@ cl-asdf (2:2.27-1) unstable; urgency=low
 
   * Tests were updated, notably including support for bundles, encodings,
     run-program, and more. They were successfully run on
-	abcl allegro allegromodern ccl clisp cmucl
-        ecl ecl_bytecodes lispworks sbcl scl xcl
+      abcl allegro allegromodern ccl clisp cmucl
+      ecl ecl_bytecodes lispworks sbcl scl xcl
     Manual tests were run on gcl2.6 genera lispworks-personal-edition.
     Untested remain cormancl mkcl rmcl.
     The internal test system itself was massively improved.

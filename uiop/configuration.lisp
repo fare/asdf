@@ -5,7 +5,7 @@
   (:nicknames :asdf/configuration)
   (:recycle :uiop/configuration :asdf/configuration :asdf)
   (:use :uiop/common-lisp :uiop/utility
-   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image)
+   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image :uiop/lisp-build)
   (:export
    #:get-folder-path
    #:user-configuration-directories #:system-configuration-directories
@@ -231,7 +231,8 @@ directive.")
             (if wilden (wilden p) p))))
        ((eql :home) (user-homedir-pathname))
        ((eql :here) (resolve-absolute-location
-                     *here-directory* :ensure-directory t :wilden nil))
+                     (or *here-directory* (pathname-directory-pathname (load-pathname)))
+                     :ensure-directory t :wilden nil))
        ((eql :user-cache) (resolve-absolute-location
                            *user-cache* :ensure-directory t :wilden nil)))
      :wilden (and wilden (not (pathnamep x)))
@@ -273,11 +274,7 @@ directive.")
   (defun location-function-p (x)
     (and
      (length=n-p x 2)
-     (eq (car x) :function)
-     (or (symbolp (cadr x))
-         (and (consp (cadr x))
-              (eq (caadr x) 'lambda)
-              (length=n-p (cadadr x) 2)))))
+     (eq (car x) :function)))
 
   (defvar *clear-configuration-hook* '())
 

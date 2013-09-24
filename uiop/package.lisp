@@ -484,7 +484,14 @@ or when loading the package is optional."
                     (home-package-p existing to-package) (symbol-package-name existing)))
             (t
              (ensure-inherited name symbol to-package from-package t shadowed imported inherited)))))))
+  
   (defun recycle-symbol (name recycle exported)
+    ;; Takes a symbol NAME (a string), a list of package designators for RECYCLE
+    ;; packages, and a hash-table of names (strings) of symbols scheduled to be
+    ;; EXPORTED from the package being defined. It returns two values, the
+    ;; symbol found (if any, or else NIL), and a boolean flag indicating whether
+    ;; a symbol was found. The caller (DEFINE-PACKAGE) will then do the
+    ;; re-homing of the symbol, etc.
     (check-type name string)
     (check-type recycle list)
     (check-type exported hash-table)
@@ -698,6 +705,28 @@ or when loading the package is optional."
                          :mix ,mix :reexport ,reexport :unintern ,unintern)))))
 
 (defmacro define-package (package &rest clauses)
+  "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form 
+\(KEYWORD . ARGS\).
+DEFINE-PACKAGE supports the following keywords:
+USE, SHADOW, SHADOWING-IMPORT-FROM, IMPORT-FROM, EXPORT, INTERN -- as per CL:DEFPACKAGE.
+RECYCLE -- Recycle the package's exported symbols from the specified packages,
+in order.  For every symbol scheduled to be exported by the DEFINE-PACKAGE,
+either through an :EXPORT option or a :REEXPORT option, if the symbol exists in
+one of the :RECYCLE packages, the first such symbol is re-homed to the package
+being defined.
+For the sake of idempotence, it is important that the package being defined
+should appear in first position if it already exists, and even if it doesn't,
+ahead of any package that is not going to be deleted afterwards and never
+created again. In short, except for special cases, always make it the first
+package on the list if the list is not empty.
+MIX -- Takes a list of package designators.  MIX behaves like 
+\(:USE PKG1 PKG2 ... PKGn\) but additionally uses :SHADOWING-IMPORT-FROM to
+resolve conflicts in favor of the first found symbol.  It may still yield
+an error if there is a conflict with an explicitly :SHADOWING-IMPORT-FROM symbol.
+REEXPORT -- Takes a list of package designators.  For each package, p, in the list,
+export symbols with the same name as those exported from p.  Note that in the case
+of shadowing, etc. the symbols with the same name may not be the same symbols.
+UNINTERN -- Remove symbols here from PACKAGE."
   (let ((ensure-form
           `(apply 'ensure-package ',(parse-define-package-form package clauses))))
     `(progn

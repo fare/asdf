@@ -87,7 +87,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
     (deftype sb-grovel-unknown-constant-condition ()
       '(and style-warning (satisfies sb-grovel-unknown-constant-condition-p))))
 
-  (defvar *uninteresting-conditions*
+  (defvar *usual-uninteresting-conditions*
     (append
      ;;#+clozure '(ccl:compiler-warning)
      #+cmu '("Deleting unreachable code.")
@@ -99,7 +99,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
        #+sb-eval sb-kernel:lexical-environment-too-complex
        sb-kernel:undefined-alien-style-warning
        sb-grovel-unknown-constant-condition ; defined above.
-       ;; sb-ext:implicit-generic-function-warning ; Controversial. Let's allow it by default.
+       sb-ext:implicit-generic-function-warning ;; Controversial.
        sb-int:package-at-variance
        sb-kernel:uninteresting-redefinition
        ;; BEWARE: the below four are controversial to include here.
@@ -108,6 +108,9 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
        sb-kernel:redefinition-with-defmethod
        sb-kernel::redefinition-with-defmacro) ; not exported by old SBCLs
      '("No generic function ~S present when encountering macroexpansion of defmethod. Assuming it will be an instance of standard-generic-function.")) ;; from closer2mop
+    "A suggested value to which to set or bind *uninteresting-conditions*.")
+
+  (defvar *uninteresting-conditions* '()
     "Conditions that may be skipped while compiling or loading Lisp code.")
   (defvar *uninteresting-compiler-conditions* '()
     "Additional conditions that may be skipped while compiling Lisp code.")
@@ -310,7 +313,7 @@ using READ within a WITH-SAFE-IO-SYNTAX, that represents the warnings currently 
 WITH-COMPILATION-UNIT. One of three functions required for deferred-warnings support in ASDF."
     #+allegro
     (list :functions-defined excl::.functions-defined.
-	  :functions-called excl::.functions-called.)
+          :functions-called excl::.functions-called.)
     #+clozure
     (mapcar 'reify-deferred-warning
             (if-let (dw ccl::*outstanding-deferred-warnings*)
@@ -352,7 +355,7 @@ One of three functions required for deferred-warnings support in ASDF."
     (declare (ignorable reified-deferred-warnings))
     #+allegro
     (destructuring-bind (&key functions-defined functions-called)
-			reified-deferred-warnings
+        reified-deferred-warnings
       (setf excl::.functions-defined.
             (append functions-defined excl::.functions-defined.)
             excl::.functions-called.
@@ -567,7 +570,7 @@ possibly in a different process. Otherwise just run the BODY."
 
   (defun* (compile-file*) (input-file &rest keys
                                       &key compile-check output-file warnings-file
-                                      #+clisp lib-file #+(or ecl mkcl) object-file
+                                      #+clisp lib-file #+(or ecl mkcl) object-file #+sbcl emit-cfasl
                                       &allow-other-keys)
     "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
@@ -608,12 +611,23 @@ it will filter them appropriately."
              (or object-file
                  (compile-file-pathname output-file :fasl-p nil)))
            (tmp-file (tmpize-pathname output-file))
+           #+sbcl
+           (cfasl-file (etypecase emit-cfasl
+                         (null nil)
+                         ((eql t) (make-pathname :type "cfasl" :defaults output-file))
+                         (string (parse-namestring emit-cfasl))
+                         (pathname emit-cfasl)))
+           #+sbcl
+           (tmp-cfasl (when cfasl-file (make-pathname :type "cfasl" :defaults tmp-file)))
            #+clisp
            (tmp-lib (make-pathname :type "lib" :defaults tmp-file)))
       (multiple-value-bind (output-truename warnings-p failure-p)
           (with-saved-deferred-warnings (warnings-file)
             (with-muffled-compiler-conditions ()
-              (or #-(or ecl mkcl) (apply 'compile-file input-file :output-file tmp-file keywords)
+              (or #-(or ecl mkcl)
+                  (apply 'compile-file input-file :output-file tmp-file
+                         #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
+                         #-sbcl keywords)
                   #+ecl (apply 'compile-file input-file :output-file
                                (if object-file
                                    (list* object-file :system-p t keywords)
@@ -638,11 +652,14 @@ it will filter them appropriately."
            (delete-file-if-exists output-file)
            (when output-truename
              #+clisp (when lib-file (rename-file-overwriting-target tmp-lib lib-file))
+             #+sbcl (when cfasl-file (rename-file-overwriting-target tmp-cfasl cfasl-file))
              (rename-file-overwriting-target output-truename output-file)
              (setf output-truename (truename output-file)))
            #+clisp (delete-file-if-exists tmp-lib))
           (t ;; error or failed check
            (delete-file-if-exists output-truename)
+           #+clisp (delete-file-if-exists tmp-lib)
+           #+sbcl (delete-file-if-exists tmp-cfasl)
            (setf output-truename nil)))
         (values output-truename warnings-p failure-p))))
 
@@ -669,11 +686,12 @@ it will filter them appropriately."
 ;;; Links FASLs together
 (with-upgradability ()
   (defun combine-fasls (inputs output)
-    #-(or allegro clisp clozure cmu lispworks sbcl scl xcl)
+    #-(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl)
     (error "~A does not support ~S~%inputs ~S~%output  ~S"
            (implementation-type) 'combine-fasls inputs output)
-    #+clozure (ccl:fasl-concatenate output inputs :if-exists :supersede)
+    #+abcl (funcall 'sys::concatenate-fasls inputs output) ; requires ABCL 1.2.0
     #+(or allegro clisp cmu sbcl scl xcl) (concatenate-files inputs output)
+    #+clozure (ccl:fasl-concatenate output inputs :if-exists :supersede)
     #+lispworks
     (let (fasls)
       (unwind-protect

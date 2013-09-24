@@ -32,7 +32,8 @@
     <div class="contents">
         <a id="ASDF 3"></a>
         <h3>ASDF 3</h3>
-        <p>ASDF 3, pre-released as 2.28 on February 1st 2013,
+        <p>ASDF 3, pre-released as 2.28 on February 1st 2013, and
+          released as 3.0.0 on May 15th 2013,
           is the current successor to Daniel Barlow's ASDF.
           It was rewritten for improved portability, robustness, usability,
           extensibility, configurability, internal consistency,
@@ -114,7 +115,8 @@
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
           All of these implementations provide at least ASDF 2,
           and a few of them aready provide ASDF 3
-          (<tt>abcl</tt>, <tt>allegro</tt>, <tt>ccl</tt>, <tt>cmucl</tt>, <tt>ecl</tt>).
+          (<tt>abcl</tt>, <tt>allegro</tt>, <tt>ccl</tt>, <tt>cmucl</tt>,
+          <tt>ecl</tt>, <tt>sbcl</tt>).
           Hopefully soon all will follow suit;
           but in the meantime, you can download ASDF 3,
           and use <tt>(asdf:load-system :asdf)</tt>
@@ -299,17 +301,20 @@ Peter Graves <gnooth@gmail.com>
         <a id="mailing-lists"></a>
         <h3>Mailing Lists</h3>
         <ul>
-          <li><a href="http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel">asdf-devel</a>:
+          <li><b>asdf-devel</b><!-- <a href="http://lists.common-lisp.net/mailman/listinfo/asdf-devel">asdf-devel</a> -->:
             A list for questions, suggestions, bug reports, patches, and so on.
 	    It's for everyone and everything. Please join the conversation!
 	  </li>
-          <li><a href="http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce">asdf-announce</a>:
+          <li><b>asdf-announce</b><!-- <a href="http://lists.common-lisp.net/mailman/listinfo/asdf-announce">asdf-announce</a> -->:
             A low-volume mailing-list for announcements only, mostly regarding new releases.
 	    Posting is restricted to project administrators and to important notices.
 	    Please subscribe to it if you're a Lisp implementation or distribution vendor,
 	    who needs to know when to upgrade the ASDF you distribute,
 	    but are otherwise not interested in day to day design and development.
         </li></ul>
+        <p>To subscribe to these mailing lists, send an email to, e.g.,
+        asdf-devel+subscribe at common-lisp.net.  For more information about
+        mailing lists at common-lisp.net, see <a href="http://common-lisp.net/listinfo.html">here</a>.</p>
 
         <h3>Contributing</h3>
         <p>Join our mailing list, check the code out from git,
@@ -319,6 +324,11 @@ Peter Graves <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>Summer 2013</dt>
+          <dd>Fran&ccedil;ois-Ren&eacute; Rideau has resigned as maintainer
+            after releasing ASDF 3.0.1.
+        Robert P. Goldman is interim maintainer until someone more gifted,
+        charming, dedicated, and better-looking can be secured to fill the role.</dd>
           <dt>In February 2013</dt>
           <dd>
             ASDF 3 now includes both the traditional <tt>asdf/defsystem</tt>

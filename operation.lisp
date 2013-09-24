@@ -6,7 +6,7 @@
   (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
   (:export
    #:operation
-   #:operation-original-initargs ;; backward-compatibility only. DO NOT USE.
+   #:operation-original-initargs #:original-initargs ;; backward-compatibility only. DO NOT USE.
    #:build-op ;; THE generic operation
    #:*operations* #:make-operation #:find-operation #:feature))
 (in-package :asdf/operation)

@@ -10,7 +10,7 @@
    #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:locate-system #:load-asd #:with-system-definitions
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
-   #:system-definition-error #:missing-component #:missing-requires #:missing-parent
+   #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition
    #:*system-definition-search-functions* #:search-for-system-definition
@@ -25,15 +25,6 @@
 
 (with-upgradability ()
   (declaim (ftype (function (&optional t) t) initialize-source-registry)) ; forward reference
-
-  (define-condition system-definition-error (error) ()
-    ;; [this use of :report should be redundant, but unfortunately it's not.
-    ;; cmucl's lisp::output-instance prefers the kernel:slot-class-print-function
-    ;; over print-object; this is always conditions::%print-condition for
-    ;; condition objects, which in turn does inheritance of :report options at
-    ;; run-time.  fortunately, inheritance means we only need this kludge here in
-    ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
-    #+cmu (:report print-object))
 
   (define-condition missing-component (system-definition-error)
     ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)

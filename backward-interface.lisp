@@ -3,18 +3,17 @@
 
 (asdf/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
-   :asdf/lisp-build :asdf/operate :asdf/output-translations)
+   :asdf/lisp-action :asdf/plan :asdf/operate :asdf/output-translations)
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
-   #:error-component #:error-operation
+   #:error-component #:error-operation #:traverse
    #:component-load-dependencies
    #:enable-asdf-binary-locations-compatibility
    #:operation-forced
-   #:operation-on-failure
-   #:operation-on-warnings
+   #:operation-on-failure #:operation-on-warnings #:on-failure #:on-warnings
    #:component-property
    #:run-shell-command
    #:system-definition-pathname))
@@ -63,7 +62,19 @@ We recommend you use ASDF:SYSTEM-SOURCE-FILE instead
 for a mostly compatible replacement that we're supporting,
 or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
 if that's whay you mean." ;;)
-    (system-source-file x)))
+    (system-source-file x))
+
+  (defgeneric* (traverse) (operation component &key &allow-other-keys)
+    (:documentation
+     "Generate and return a plan for performing OPERATION on COMPONENT.
+
+The plan returned is a list of dotted-pairs. Each pair is the CONS
+of ASDF operation object and a COMPONENT object. The pairs will be
+processed in order by OPERATE."))
+  (define-convenience-action-methods traverse (operation component &key))
+
+  (defmethod traverse ((o operation) (c component) &rest keys &key plan-class &allow-other-keys)
+    (plan-actions (apply 'make-plan plan-class o c keys))))
 
 
 ;;;; ASDF-Binary-Locations compatibility
@@ -131,10 +142,18 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code.
 
 PLEASE DO NOT USE.
 Deprecated function, for backward-compatibility only.
-Please use ASDF-DRIVER:RUN-PROGRAM instead."
+Please use UIOP:RUN-PROGRAM instead."
     (let ((command (apply 'format nil control-string args)))
       (asdf-message "; $ ~A~%" command)
-      (run-program command :force-shell t :ignore-error-status t :output *verbose-out*))))
+      (handler-case
+          (progn
+            (run-program command :force-shell t :ignore-error-status nil :output *verbose-out*)
+            0)
+        (subprocess-error (c)
+          (let ((code (subprocess-error-code c)))
+            (typecase code
+              (integer code)
+              (t 255))))))))
 
 (with-upgradability ()
   (defvar *asdf-verbose* nil)) ;; backward-compatibility with ASDF2 only. Unused.

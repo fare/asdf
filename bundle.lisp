@@ -49,19 +49,20 @@
   ;; we'd have to have the monolithic-op not inherit from the main op,
   ;; but instead inherit from a basic-FOO-op as with basic-fasl-op above.
 
-  (defclass lib-op (bundle-compile-op)
+  (defclass no-ld-flags-op (operation) ())
+
+  (defclass lib-op (bundle-compile-op no-ld-flags-op)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "compile the system and produce linkable (.a) library for it."
      #-(or ecl mkcl) "just compile the system"))
 
-  (defclass dll-op (bundle-op basic-compile-op)
+  (defclass dll-op (bundle-compile-op selfward-operation no-ld-flags-op)
     ((bundle-type :initform :dll))
-    (:documentation "Link together all the dynamic library used by this system into a single one."))
+    (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
 
-  (defclass binary-op (bundle-op basic-compile-op selfward-operation)
-    ((selfward-operation :initform '(lib-op fasl-op)))
-    (:documentation #+(or ecl mkcl) "produce lib and fasl for the system."
-     #-(or ecl mkcl) "produce a fasl for the system"))
+  (defclass binary-op (basic-compile-op selfward-operation)
+    ((selfward-operation :initform '(fasl-op lib-op)))
+    (:documentation "produce fasl and asd files for the system"))
 
   (defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
 
@@ -73,24 +74,21 @@
     ()
     (:documentation "Abstract operation for ways to bundle the outputs of compiling *Lisp* files over all systems"))
 
-  (defclass monolithic-binary-op (monolithic-bundle-compile-op sideway-operation selfward-operation)
+  (defclass monolithic-binary-op (monolithic-op binary-op)
     ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op)))
-    (:documentation
-     #+ecl "produce lib and fasl for combined system and dependencies."
-     #-ecl "produce an image file from system and dependencies (not implemented)."))
-     
+    (:documentation "produce fasl and asd files for combined system and dependencies."))
+
   (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op) ()
     (:documentation "Create a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op)
-    ((bundle-type :initform :lib))
+  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op  no-ld-flags-op)
+    ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "Create a single linkable library for the system and its dependencies."
      #-(or ecl mkcl) "Compile a system and its dependencies."))
 
-  (defclass monolithic-dll-op (monolithic-bundle-op basic-compile-op sideway-operation selfward-operation)
-    ((bundle-type :initform :dll)
-     (selfward-operation :initform 'dll-op)
-     (sideway-operation :initform 'dll-op)))
+  (defclass monolithic-dll-op (monolithic-bundle-compile-op sideway-operation selfward-operation no-ld-flags-op)
+    ((bundle-type :initform :dll))
+    (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
 
   (defclass program-op #+(or mkcl ecl) (monolithic-bundle-compile-op)
             #-(or mkcl ecl) (monolithic-bundle-op selfward-operation)
@@ -100,14 +98,14 @@
 
   (defun bundle-pathname-type (bundle-type)
     (etypecase bundle-type
-      ((eql :no-output-file) nil) ;; should we error out instead?    
+      ((eql :no-output-file) nil) ;; should we error out instead?
       ((or null string) bundle-type)
       ((eql :fasl) #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")
       #+ecl
-      ((member :binary :dll :lib :static-library :program :object :program)
+      ((member :binary :dll :lib :shared-library :static-library :program :object :program)
        (compile-file-type :type bundle-type))
       ((eql :binary) "image")
-      ((eql :dll) (cond ((os-unix-p) "so") ((os-windows-p) "dll")))
+      ((eql :dll) (cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
       ((member :lib :static-library) (cond ((os-unix-p) "a") ((os-windows-p) "lib")))
       ((eql :program) (cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
 
@@ -125,15 +123,10 @@
     (bundle-output-files o c))
 
   #-(or ecl mkcl)
-  (progn
-    (defmethod perform ((o program-op) (c system))
-      (let ((output-file (output-file o c)))
-        (setf *image-entry-point* (ensure-function (component-entry-point c)))
-        (dump-image output-file :executable t)))
-
-    (defmethod perform ((o monolithic-binary-op) (c system))
-      (let ((output-file (output-file o c)))
-        (dump-image output-file))))
+  (defmethod perform ((o program-op) (c system))
+    (let ((output-file (output-file o c)))
+      (setf *image-entry-point* (ensure-function (component-entry-point c)))
+      (dump-image output-file :executable t)))
 
   (defclass compiled-file (file-component)
     ((type :initform #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")))
@@ -181,7 +174,7 @@
           (remove-plist-keys '(:type :monolithic :name-suffix)
                              (operation-original-initargs instance))))
 
-  (defmethod bundle-op-build-args :around ((o lib-op))
+  (defmethod bundle-op-build-args :around ((o no-ld-flags-op))
     (declare (ignorable o))
     (let ((args (call-next-method)))
       (remf args :ld-flags)
@@ -193,7 +186,7 @@
       (or #+ecl (or (equalp type (compile-file-type :type :object))
                     (equalp type (compile-file-type :type :static-library)))
           #+mkcl (equalp type (compile-file-type :fasl-p nil))
-          #+(or allegro clisp clozure cmu lispworks sbcl scl xcl) (equalp type (compile-file-type)))))
+          #+(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl) (equalp type (compile-file-type)))))
 
   (defgeneric* (trivial-system-p) (component))
 
@@ -242,7 +235,8 @@
                      :when (funcall test f) :do (collect f))))))
 
   (defmethod input-files ((o bundle-compile-op) (c system))
-    (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files))
+    (unless (eq (bundle-type o) :no-output-file)
+      (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files)))
 
   (defun select-bundle-operation (type &optional monolithic)
     (ecase type
@@ -365,27 +359,45 @@
                          :defaults (component-pathname s))))
 
   (defmethod perform ((o binary-op) (s system))
-    (let* ((dependencies (component-depends-on o s))
-           (fasl (first (apply #'output-files (first dependencies))))
-           (library (first (apply #'output-files (second dependencies))))
+    (let* ((inputs (input-files o s))
+           (fasl (first inputs))
+           (library (second inputs))
            (asd (first (output-files o s)))
-           (name (pathname-name asd))
-           (name-keyword (intern (string name) (find-package :keyword))))
+           (name (if (and fasl asd) (pathname-name asd) (return-from perform)))
+           (dependencies
+             (if (operation-monolithic-p o)
+                 (remove-if-not 'builtin-system-p
+                                (required-components s :component-type 'system
+                                                       :keep-operation 'load-op))
+                 (while-collecting (x) ;; resolve the sideway-dependencies of s
+                   (map-direct-dependencies
+                    'load-op s
+                    #'(lambda (o c)
+                        (when (and (typep o 'load-op) (typep c 'system))
+                          (x c)))))))
+           (depends-on (mapcar 'coerce-name dependencies)))
+      (when (pathname-equal asd (system-source-file s))
+        (cerror "overwrite the asd file"
+                "~/asdf-action:format-action/ is going to overwrite the system definition file ~S which is probably not what you want; you probably need to tweak your output translations."
+                (cons o s) asd))
       (with-open-file (s asd :direction :output :if-exists :supersede
                              :if-does-not-exist :create)
-        (format s ";;; Prebuilt ASDF definition for system ~A" name)
-        (format s ";;; Built for ~A ~A on a ~A/~A ~A"
+        (format s ";;; Prebuilt~:[~; monolithic~] ASDF definition for system ~A~%"
+                (operation-monolithic-p o) name)
+        (format s ";;; Built for ~A ~A on a ~A/~A ~A~%"
                 (lisp-implementation-type)
                 (lisp-implementation-version)
                 (software-type)
                 (machine-type)
                 (software-version))
-        (let ((*package* (find-package :keyword)))
-          (pprint `(defsystem ,name-keyword
+        (let ((*package* (find-package :asdf-user)))
+          (pprint `(defsystem ,name
                      :class prebuilt-system
+                     :depends-on ,depends-on
                      :components ((:compiled-file ,(pathname-name fasl)))
-                     :lib ,(and library (file-namestring library)))
-                  s)))))
+                     ,@(when library `(:lib ,(file-namestring library))))
+                  s)
+          (terpri s)))))
 
   #-(or ecl mkcl)
   (defmethod perform ((o bundle-compile-op) (c system))
@@ -422,6 +434,29 @@
 (asdf:load-system :precompiled-asdf-utils)
 |#
 
+#+(or ecl mkcl)
+(with-upgradability ()
+  (defun uiop-library-file ()
+    (or (and (find-system :uiop nil)
+             (system-source-directory :uiop)
+             (progn
+               (operate 'lib-op :uiop)
+               (output-file 'lib-op :uiop)))
+        (resolve-symlinks* (c::compile-file-pathname "sys:asdf" :type :lib))))
+  (defmethod input-files :around ((o program-op) (c system))
+    (let ((files (call-next-method))
+          (plan (traverse-sub-actions o c :plan-class 'sequential-plan)))
+      (unless (or (and (find-system :uiop nil)
+                       (system-source-directory :uiop)
+                       (plan-operates-on-p plan '("uiop")))
+                  (and (system-source-directory :asdf)
+                       (plan-operates-on-p plan '("asdf"))))
+        (pushnew (uiop-library-file) files :test 'pathname-equal))
+      files))
+
+  (defun register-pre-built-system (name)
+    (register-system (make-instance 'system :name (coerce-name name) :source-file nil))))
+
 #+ecl
 (with-upgradability ()
   (defmethod perform ((o bundle-compile-op) (c system))
@@ -455,9 +490,3 @@
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'binary-op system args)))
-
-#+(or ecl mkcl)
-(with-upgradability ()
-  (defun register-pre-built-system (name)
-    (register-system (make-instance 'system :name (coerce-name name) :source-file nil))))
-
