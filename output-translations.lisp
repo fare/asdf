@@ -197,10 +197,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                   (cond
                     ((location-function-p dst)
                      (funcall collect
-                              (list trusrc
-                                    (if (symbolp (second dst))
-                                        (fdefinition (second dst))
-                                        (eval (second dst))))))
+                              (list trusrc (ensure-function (second dst)))))
                     ((eq dst t)
                      (funcall collect (list trusrc t)))
                     (t

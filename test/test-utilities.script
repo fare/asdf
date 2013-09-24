@@ -61,10 +61,8 @@
                         (declare (ignore absolute-source))
                         path))
            (function previous-isnt-keyword)
-           (:function f too many arguments)
-           (:function (:lambda isnt lambda))
-           (:function (lambda (too many args) blah))))
- '(t t nil nil nil nil))
+           (:function f too many arguments)))
+ '(t t nil nil))
 
 (initialize-source-registry '())
 

@@ -274,11 +274,7 @@ directive.")
   (defun location-function-p (x)
     (and
      (length=n-p x 2)
-     (eq (car x) :function)
-     (or (symbolp (cadr x))
-         (and (consp (cadr x))
-              (eq (caadr x) 'lambda)
-              (length=n-p (cadadr x) 2)))))
+     (eq (car x) :function)))
 
   (defvar *clear-configuration-hook* '())
 
