@@ -244,10 +244,8 @@ Going forward, we recommend new users should be using the source-registry.
   (defun register-preloaded-system (system-name &rest keys)
     (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
 
-  (register-preloaded-system "asdf" :version *asdf-version*)
-  (register-preloaded-system "uiop" :version *asdf-version*)
-  (register-preloaded-system "asdf-driver" :version *asdf-version*)
-  (register-preloaded-system "asdf-defsystem" :version *asdf-version*)
+  (dolist (s '("asdf" "uiop" "asdf-driver" "asdf-defsystem" "asdf-package-system"))
+    (register-preloaded-system s :version *asdf-version*))
 
   (defmethod find-system ((name null) &optional (error-p t))
     (declare (ignorable name))

@@ -817,30 +817,38 @@ unless IGNORE-ERROR-STATUS is specified.
 
 If OUTPUT is a pathname, a string designating a pathname, or NIL designating the null device,
 the file at that path is used as output.
-If it's :INTERACTIVE, output is inherited from the current process.
+If it's :INTERACTIVE, output is inherited from the current process;
+beware that this may be different from your *STANDARD-OUTPUT*,
+and under SLIME will be on your *inferior-lisp* buffer.
+If it's T, output goes to your current *STANDARD-OUTPUT* stream.
 Otherwise, OUTPUT should be a value that is a suitable first argument to
 SLURP-INPUT-STREAM (qv.), or a list of such a value and keyword arguments.
-In this case, RUN-PROGRAM will create a temporary stream for the program output.
-The program output, in that stream, will be processed by a call to SLURP-INPUT-STREAM,
+In this case, RUN-PROGRAM will create a temporary stream for the program output;
+the program output, in that stream, will be processed by a call to SLURP-INPUT-STREAM,
 using OUTPUT as the first argument (or the first element of OUTPUT, and the rest as keywords).
-T designates the *STANDARD-OUTPUT* to be provided to SLURP-INPUT-STREAM.
 The primary value resulting from that call (or NIL if no call was needed)
 will be the first value returned by RUN-PROGRAM.
 E.g., using :OUTPUT :STRING will have it return the entire output stream as a string.
+And using :OUTPUT '(:STRING :STRIPPED T) will have it return the same string
+stripped of any ending newline.
 
 ERROR-OUTPUT is similar to OUTPUT, except that the resulting value is returned
 as the second value of RUN-PROGRAM. T designates the *ERROR-OUTPUT*.
-Also :OUTPUT means redirecting the error output to the output stream, and NIL is returned.
+Also :OUTPUT means redirecting the error output to the output stream,
+in which case NIL is returned.
 
 INPUT is similar to OUTPUT, except that VOMIT-OUTPUT-STREAM is used,
 no value is returned, and T designates the *STANDARD-INPUT*.
 
-Use ELEMENT-TYPE and EXTERNAL-FORMAT to specify how streams are created.
+Use ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
+to your Lisp implementation, when applicable, for creation of the output stream.
 
 One and only one of the stream slurping or vomiting may or may not happen
-in parallel in parallel with the subprocess, depending on options and implementation.
-Other streams are completely produced or consumed before or after the subprocess is spawned,
-using temporary files.
+in parallel in parallel with the subprocess,
+depending on options and implementation,
+and with priority being given to output processing.
+Other streams are completely produced or consumed
+before or after the subprocess is spawned, using temporary files.
 
 RUN-PROGRAM returns 3 values:
 0- the result of the OUTPUT slurping if any, or NIL

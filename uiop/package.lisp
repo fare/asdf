@@ -680,22 +680,26 @@ or when loading the package is optional."
       :with documentation = nil
       :for (kw . args) :in clauses
       :when (eq kw :nicknames) :append args :into nicknames :else
-        :when (eq kw :documentation)
-          :do (cond
-                (documentation (error "define-package: can't define documentation twice"))
-                ((or (atom args) (cdr args)) (error "define-package: bad documentation"))
-                (t (setf documentation (car args)))) :else
+      :when (eq kw :documentation)
+        :do (cond
+              (documentation (error "define-package: can't define documentation twice"))
+              ((or (atom args) (cdr args)) (error "define-package: bad documentation"))
+              (t (setf documentation (car args)))) :else
       :when (eq kw :use) :append args :into use :and :do (setf use-p t) :else
-        :when (eq kw :shadow) :append args :into shadow :else
-          :when (eq kw :shadowing-import-from) :collect args :into shadowing-import-from :else
-            :when (eq kw :import-from) :collect args :into import-from :else
-              :when (eq kw :export) :append args :into export :else
-                :when (eq kw :intern) :append args :into intern :else
-                  :when (eq kw :recycle) :append args :into recycle :and :do (setf recycle-p t) :else
-                    :when (eq kw :mix) :append args :into mix :else
-                      :when (eq kw :reexport) :append args :into reexport :else
-                        :when (eq kw :unintern) :append args :into unintern :else
-                          :do (error "unrecognized define-package keyword ~S" kw)
+      :when (eq kw :shadow) :append args :into shadow :else
+      :when (eq kw :shadowing-import-from) :collect args :into shadowing-import-from :else
+      :when (eq kw :import-from) :collect args :into import-from :else
+      :when (eq kw :export) :append args :into export :else
+      :when (eq kw :intern) :append args :into intern :else
+      :when (eq kw :recycle) :append args :into recycle :and :do (setf recycle-p t) :else
+      :when (eq kw :mix) :append args :into mix :else
+      :when (eq kw :reexport) :append args :into reexport :else
+      :when (eq kw :use-reexport) :append args :into use :and :append args :into reexport
+        :and :do (setf use-p t) :else
+      :when (eq kw :mix-reexport) :append args :into mix :and :append args :into reexport
+        :and :do (setf use-p t) :else
+      :when (eq kw :unintern) :append args :into unintern :else
+        :do (error "unrecognized define-package keyword ~S" kw)
       :finally (return `(,package
                          :nicknames ,nicknames :documentation ,documentation
                          :use ,(if use-p use '(:common-lisp))

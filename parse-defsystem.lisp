@@ -1,9 +1,10 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Defsystem
 
-(asdf/package:define-package :asdf/defsystem
-  (:recycle :asdf/defsystem :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
+(asdf/package:define-package :asdf/parse-defsystem
+  (:recycle :asdf/parse-defsystem :asdf/defsystem :asdf)
+  (:nicknames :asdf/defsystem) ;; previous name, to be compatible with, in case anyone cares
+  (:use :uiop/common-lisp :asdf/driver :asdf/upgrade
    :asdf/component :asdf/system :asdf/cache
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
@@ -13,7 +14,7 @@
    #:determine-system-directory #:parse-component-form
    #:non-toplevel-system #:non-system-system
    #:sysdef-error-component #:check-component-input))
-(in-package :asdf/defsystem)
+(in-package :asdf/parse-defsystem)
 
 ;;; Pathname
 (with-upgradability ()

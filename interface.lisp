@@ -14,8 +14,8 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry
-   :asdf/plan :asdf/operate :asdf/defsystem :asdf/bundle :asdf/concatenate-source
-   :asdf/backward-internals :asdf/backward-interface)
+   :asdf/plan :asdf/operate :asdf/parse-defsystem :asdf/bundle :asdf/concatenate-source
+   :asdf/backward-internals :asdf/backward-interface :asdf/package-system)
   ;; TODO: automatically generate interface with reexport?
   (:export
    #:defsystem #:find-system #:locate-system #:coerce-name
@@ -57,8 +57,9 @@
    #:file-component #:source-file #:c-source-file #:java-source-file
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:static-file #:doc-file #:html-file
-   #:file-type
-   #:source-file-type
+   #:file-type #:source-file-type
+
+   #:package-system #:register-system-packages
 
    #:component-children          ; component accessors
    #:component-children-by-name

@@ -5,7 +5,7 @@
   (:recycle :asdf/concatenate-source :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation
-   :asdf/system :asdf/find-system :asdf/defsystem
+   :asdf/system :asdf/find-system
    :asdf/action :asdf/lisp-action :asdf/bundle)
   (:export
    #:concatenate-source-op
