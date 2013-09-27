@@ -1,0 +1,113 @@
+UIOP the Utilities for Implementation- and OS- Portability
+==========================================================
+
+UIOP is the portability layer of ASDF.
+It provides utilities that abstract over discrepancies between implementations,
+between operating systems, and between what the standard provides and
+what programmers actually need, to write portable Common Lisp programs.
+
+It is organized by topic in many files, each of which defines its own package
+according to its topic: e.g pathname.lisp will define package UIOP/PATHNAME
+and contain utilities related to the handling of pathname objects.
+All exported symbols are reexported in a convenience package UIOP.
+
+The files that constitute UIOP are, in order:
+
+* package: to deal with packages and their symbols, most notably including
+  DEFINE-PACKAGE, a variant of defpackage capable of hot-upgrade.
+
+* common-lisp: to let you paper over various sub-standard implementations
+  Corman, GCL, Genera, MCL are the biggest (unmaintained) offenders.
+
+* utility: to provide macros and functions that do not involve I/O, handling
+  control-flow, (p)lists, character, strings, functions, classes, conditions,
+  "stamps" (number or boolean for +/- infinity), versions, etc.
+  It also sports uiop-debug, a useful tool to help you debug programs.
+
+* os: to extract information from your environment, including
+  an API identifier, unix vs windows, getenv, hostname, getcwd and chdir, etc.
+
+* pathname: to survive the gruesome non-portability trap that are CL pathnames
+  (and their lovecraftian "logical" variant), offering a vast array of functions
+  and a sensible, usable abstraction to specify relative pathnames.
+
+* filesystem: to provide portable access to the filesystem, inspecting it,
+  only using truename when desired, using native OS namestrings,
+  atomic file renaming, creating or deleting directories, etc.
+
+* stream: to portably deal with character encodings (external formats),
+  element types, safe READing and WRITEing, opening files or temporary files,
+  providing FORMAT-like designators for streams, flushing output buffers,
+  consuming or copying streams, concatenating files, copying files, etc.
+
+* image: to portably deal with images, dumping them, restoring from them,
+  registering hooks to run at suitable events in the image lifetime,
+  printing backtraces, handling fatal conditions, using or avoiding debug modes,
+  accessing command line arguments or quitting the process.
+
+* run-program: to portably spawn external processes and capture their output.
+
+* lisp-build: to portably compile common-lisp code, handle compilation results,
+  muffle uninteresting conditions, save and restore deferred warnings,
+  run hooks around compilation (to e.g. control optimizations or syntax),
+  identify the pathname of the current file, combine FASLs, etc.
+
+* configuration: to write portable configuration files, using best practices
+  to define and validate syntax, search standard paths,
+  let users specify pathnames or pathname patterns, etc.
+
+* backward-driver: to provide backward-compatibility with earlier incarnations
+  of this library (i.e. ASDF internals that have leaked, or ASDF-UTILS)
+
+* driver: to reexport all the above utilities in a single package UIOP.
+
+
+Documentation
+-------------
+
+Each file starts with a package definition form that lists the exported symbols.
+
+All the exported functions, macros and variables ought to have proper docstrings.
+If not, then it's a legitimate bug that we invite you to report.
+
+Maybe some automated tool will extract all that information and
+make a webpage from it, at which point it would be nice to insert a link here.
+Unhappily, at the time of this writing, quickdocs only extracts information
+from the first package::
+
+	http://quickdocs.org/uiop/api
+
+
+Using UIOP
+----------
+
+UIOP is part of ASDF 3, and any modern Common Lisp implementation
+will have all of UIOP available when you (require "asdf").
+NB: (require :asdf) also works on all implementations but CLISP.
+
+If you need some functionality only available in a recent version of UIOP,
+but cannot or will not upgrade ASDF, UIOP is also distributed separately;
+see e.g. in Quicklisp. You may then have to load it like any other library::
+	(asdf:load-system :uiop)
+
+If you want to use UIOP while preserving compatibility with ASDF 2,
+we recommend that in your ASDF system definition you may use the like of::
+	:depends-on (#-asdf3 :uiop)
+
+
+Some history
+------------
+
+UIOP, formerly known as ASDF-DRIVER (the package and system nicknames live on),
+evolved from ASDF 2's internal utilities and portability layer.
+It has since fully superseded functionality from the following libraries:
+ASDF-UTILS (UIOP carries on the ASDF 2 utilities that this exported),
+CL-FAD (UIOP's pathname and filesystem functions are much more portable),
+CL-LAUNCH (UIOP took its image and command-line argument handling from it),
+EXTERNAL-PROGRAM, TRIVIAL-SHELL and XCVB-DRIVER (UIOP's run-program is better),
+SLIME's swank-loader (UIOP has better compilation and API identification),
+TRIVIAL-BACKTRACE (UIOP/IMAGE has all of it and more), etc.
+
+UIOP also captures a large subset of the functionality from TRIVIAL-FEATURES,
+and a small subset of the functionality from ALEXANDRIA.
+

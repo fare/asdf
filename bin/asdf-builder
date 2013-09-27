@@ -138,7 +138,7 @@
     (values)))
 
 (defun driver-files ()
-  (list* "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
+  (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
 (defun driver-name ()
   (format nil "uiop-~A" *version*))
 (defun make-driver-tarball ()
