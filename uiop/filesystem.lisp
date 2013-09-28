@@ -63,10 +63,12 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 ;;; Probing the filesystem
 (with-upgradability ()
   (defun truename* (p)
+    "Nicer variant of TRUENAME that plays well with NIL and avoids logical pathname contexts"
     ;; avoids both logical-pathname merging and physical resolution issues
     (and p (handler-case (with-pathname-defaults () (truename p)) (file-error () nil))))
 
   (defun safe-file-write-date (pathname)
+    "Safe variant of FILE-WRITE-DATE that may return NIL rather than raise an error."
     ;; If FILE-WRITE-DATE returns NIL, it's possible that
     ;; the user or some other agent has deleted an input file.
     ;; Also, generated files will not exist at the time planning is done
@@ -133,14 +135,18 @@ or the original (parsed) pathname if it is false (the default)."
                 (file-error () nil)))))))
 
   (defun directory-exists-p (x)
+    "Is X the name of a directory that exists on the filesystem?"
     (let ((p (probe-file* x :truename t)))
       (and (directory-pathname-p p) p)))
 
   (defun file-exists-p (x)
+    "Is X the name of a file that exists on the filesystem?"
     (let ((p (probe-file* x :truename t)))
       (and (file-pathname-p p) p)))
 
   (defun directory* (pathname-spec &rest keys &key &allow-other-keys)
+    "Return a list of the entries in a directory by calling DIRECTORY.
+Try to override the defaults to not resolving symlinks, if implementation allows."
     (apply 'directory pathname-spec
            (append keys '#.(or #+allegro '(:directories-are-files nil :follow-symbolic-links nil)
                                #+(or clozure digitool) '(:follow-links nil)
@@ -169,6 +175,8 @@ or the original (parsed) pathname if it is false (the default)."
         entries))
 
   (defun directory-files (directory &optional (pattern *wild-file*))
+    "Return a list of the files in a directory according to the PATTERN,
+which is not very portable to override. Try not resolve symlinks if implementation allows."
     (let ((dir (pathname directory)))
       (when (logical-pathname-p dir)
         ;; Because of the filtering we do below,
@@ -263,6 +271,7 @@ or the original (parsed) pathname if it is false (the default)."
                 :finally (return p))))))
 
   (defun resolve-symlinks (path)
+    "Do a best effort at resolving symlinks in PATH, returning a partially or totally resolved PATH."
     #-allegro (truenamize path)
     #+allegro
     (if (physical-pathname-p path)
@@ -274,6 +283,7 @@ or the original (parsed) pathname if it is false (the default)."
 Defaults to T.")
 
   (defun resolve-symlinks* (path)
+    "RESOLVE-SYMLINKS in PATH iff *RESOLVE-SYMLINKS* is T (the default)."
     (if *resolve-symlinks*
         (and path (resolve-symlinks path))
         path)))
@@ -404,10 +414,14 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
 ;;; Pathname defaults
 (with-upgradability ()
   (defun get-pathname-defaults (&optional (defaults *default-pathname-defaults*))
+    "Find the actual DEFAULTS to use for pathnames, including
+resolving them with respect to GETCWD if the DEFAULTS were relative"
     (or (absolute-pathname-p defaults)
         (merge-pathnames* defaults (getcwd))))
 
   (defun call-with-current-directory (dir thunk)
+    "call the THUNK in a context where the current directory was changed to DIR, if not NIL.
+Note that this operation is usually NOT thread-safe."
     (if dir
         (let* ((dir (resolve-symlinks* (get-pathname-defaults (pathname-directory-pathname dir))))
                (cwd (getcwd))
@@ -426,13 +440,18 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
 ;;; Environment pathnames
 (with-upgradability ()
   (defun inter-directory-separator ()
+    "What character does the current OS conventionally uses to separate directories?"
     (if (os-unix-p) #\: #\;))
 
   (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
+    "Given a string of pathnames specified in native OS syntax, separate them in a list,
+check constraints and normalize each one as per ENSURE-PATHNAME."
     (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
           :collect (apply 'parse-native-namestring namestring constraints)))
 
   (defun getenv-pathname (x &rest constraints &key ensure-directory want-directory on-error &allow-other-keys)
+    "Extract a pathname from a user-configured environment variable, as per native OS,
+check constraints and normalize as per ENSURE-PATHNAME."
     ;; For backward compatibility with ASDF 2, want-directory implies ensure-directory
     (apply 'parse-native-namestring (getenvp x)
            :ensure-directory (or ensure-directory want-directory)
@@ -440,16 +459,23 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathname ,x))
            constraints))
   (defun getenv-pathnames (x &rest constraints &key on-error &allow-other-keys)
+    "Extract a list of pathname from a user-configured environment variable, as per native OS,
+check constraints and normalize each one as per ENSURE-PATHNAME."
     (apply 'split-native-pathnames-string (getenvp x)
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
            constraints))
   (defun getenv-absolute-directory (x)
+    "Extract an absolute directory pathname from a user-configured environment variable,
+as per native OS"
     (getenv-pathname x :want-absolute t :ensure-directory t))
   (defun getenv-absolute-directories (x)
+    "Extract a list of absolute directories from a user-configured environment variable,
+as per native OS"
     (getenv-pathnames x :want-absolute t :ensure-directory t))
 
   (defun lisp-implementation-directory (&key truename)
+    "Where are the system files of the current installation of the CL implementation?"
     (declare (ignorable truename))
     #+(or clozure ecl gcl mkcl sbcl)
     (let ((dir
@@ -465,6 +491,7 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
           dir)))
 
   (defun lisp-implementation-pathname-p (pathname)
+    "Is the PATHNAME under the current installation of the CL implementation?"
     ;; Other builtin systems are those under the implementation directory
     (and (when pathname
            (if-let (impdir (lisp-implementation-directory))
@@ -479,11 +506,14 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
 ;;; Simple filesystem operations
 (with-upgradability ()
   (defun ensure-all-directories-exist (pathnames)
+    "Ensure that for every pathname in PATHNAMES, we ensure its directories exist"
     (dolist (pathname pathnames)
       (when pathname
         (ensure-directories-exist (translate-logical-pathname pathname)))))
 
   (defun rename-file-overwriting-target (source target)
+    "Rename a file, overwriting any previous file with the TARGET name,
+in an atomic way if the implementation allows."
     #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
     (posix:copy-file source target :method :rename)
     #-clisp
@@ -491,6 +521,7 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
                  #+clozure :if-exists #+clozure :rename-and-delete))
 
   (defun delete-file-if-exists (x)
+    "Delete a file X if it already exists"
     (when x (handler-case (delete-file x) (file-error () nil))))
 
   (defun delete-empty-directory (directory-pathname)

@@ -258,6 +258,7 @@ Other keys are accepted but discarded."
                               &key element-type external-format if-does-not-exist)
                              &body body)
     (declare (ignore element-type external-format if-does-not-exist))
+    "Evaluate BODY in a context when VAR is bound to an input stream accessing the null device."
     `(call-with-null-input #'(lambda (,var) ,@body) ,@keys))
   (defun call-with-null-output (fun
                                 &key (element-type *default-stream-element-type*)
@@ -271,6 +272,7 @@ Other keys are accepted but discarded."
   (defmacro with-null-output ((var &rest keys
                               &key element-type external-format if-does-not-exist if-exists)
                               &body body)
+    "Evaluate BODY in a context when VAR is bound to an output stream accessing the null device."
     (declare (ignore element-type external-format if-exists if-does-not-exist))
     `(call-with-null-output #'(lambda (,var) ,@body) ,@keys)))
 
@@ -293,6 +295,8 @@ Useful for portably flushing I/O before user input or program exit."
     (finish-outputs stream))
 
   (defun safe-format! (stream format &rest args)
+    "Variant of FORMAT that is safe against both
+dangerous syntax configuration and errors while printing."
     (with-safe-io-syntax ()
       (ignore-errors (apply 'format! stream format args))
       (finish-outputs stream)))) ; just in case format failed
@@ -322,6 +326,7 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
                 (when (< end buffer-size) (return))))))
 
   (defun concatenate-files (inputs output)
+    "create a new OUTPUT file the contents of which a the concatenate of the INPUTS files."
     (with-open-file (o output :element-type '(unsigned-byte 8)
                               :direction :output :if-exists :rename-and-delete)
       (dolist (input inputs)
@@ -330,6 +335,7 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
           (copy-stream-to-stream i o :element-type '(unsigned-byte 8))))))
 
   (defun copy-file (input output)
+    "Copy contents of the INPUT file to the OUTPUT file"
     ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
     (concatenate-files (list input) output))
 
@@ -472,15 +478,18 @@ If a string, repeatedly read and evaluate from it, returning the last values."
 
 (with-upgradability ()
   (defun println (x &optional (stream *standard-output*))
+    "Variant of PRINC that also calls TERPRI afterwards"
     (princ x stream) (terpri stream) (values))
 
   (defun writeln (x &rest keys &key (stream *standard-output*) &allow-other-keys)
+    "Variant of WRITE that also calls TERPRI afterwards"
     (apply 'write x keys) (terpri stream) (values)))
 
 
 ;;; Using temporary files
 (with-upgradability ()
   (defun default-temporary-directory ()
+    "Return a default directory to use for temporary files"
     (or
      (when (os-unix-p)
        (or (getenv-pathname "TMPDIR" :ensure-directory t)
@@ -489,12 +498,14 @@ If a string, repeatedly read and evaluate from it, returning the last values."
        (getenv-pathname "TEMP" :ensure-directory t))
      (subpathname (user-homedir-pathname) "tmp/")))
 
-  (defvar *temporary-directory* nil)
+  (defvar *temporary-directory* nil "User-configurable location for temporary files")
 
   (defun temporary-directory ()
+    "Return a directory to use for temporary files"
     (or *temporary-directory* (default-temporary-directory)))
 
   (defun setup-temporary-directory ()
+    "Configure a default temporary directory to use."
     (setf *temporary-directory* (default-temporary-directory))
     ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
     #+(and gcl (not gcl2.6)) (setf system::*tmp-dir* *temporary-directory*))
@@ -504,6 +515,10 @@ If a string, repeatedly read and evaluate from it, returning the last values."
                prefix keep (direction :io)
                (element-type *default-stream-element-type*)
                (external-format *utf-8-external-format*))
+    "Call a THUNK with STREAM and PATHNAME arguments identifying a temporary file.
+The pathname will be based on appending a random suffix to PREFIX.
+This utility will KEEP the file past its extent if and only if explicitly requested.
+The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT."
     #+gcl2.6 (declare (ignorable external-format))
     (check-type direction (member :output :io))
     (loop
@@ -531,8 +546,10 @@ If a string, repeatedly read and evaluate from it, returning the last values."
                                     prefix keep direction element-type external-format)
                                  &body body)
     "Evaluate BODY where the symbols specified by keyword arguments
-STREAM and PATHNAME are bound corresponding to a newly created temporary file
-ready for I/O. Unless KEEP is specified, delete the file afterwards."
+STREAM and PATHNAME (if respectively specified) are bound corresponding
+to a newly created temporary file ready for I/O, as per CALL-WITH-TEMPORARY-FILE.
+The STREAM will be closed if no binding is specified.
+Unless KEEP is specified, delete the file afterwards."
     (check-type stream symbol)
     (check-type pathname symbol)
     `(flet ((think (,stream ,pathname)
@@ -550,10 +567,12 @@ ready for I/O. Unless KEEP is specified, delete the file afterwards."
 
   ;; Temporary pathnames in simple cases where no contention is assumed
   (defun add-pathname-suffix (pathname suffix)
+    "Add a SUFFIX to the name of a PATHNAME, return a new pathname"
     (make-pathname :name (strcat (pathname-name pathname) suffix)
                    :defaults pathname))
 
   (defun tmpize-pathname (x)
+    "Return a new pathname modified from X by adding a trivial deterministic suffix"
     (add-pathname-suffix x "-ASDF-TMP"))
 
   (defun call-with-staging-pathname (pathname fun)

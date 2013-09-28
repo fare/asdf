@@ -20,6 +20,11 @@
 ;;; Features
 (with-upgradability ()
   (defun featurep (x &optional (*features* *features*))
+    "Checks whether a feature expression X is true with respect to the *FEATURES* set,
+as per the CLHS standard for #+ and #-. Beware that just like the CLHS,
+we assume symbols from the KEYWORD package are used, but that unless you're using #+/#-
+your reader will not have magically used the KEYWORD package, so you need specify
+keywords explicitly."
     (cond
       ((atom x) (and (member x *features*) t))
       ((eq :not (car x)) (assert (null (cddr x))) (not (featurep (cadr x))))
@@ -50,6 +55,8 @@
     (or #+mcl t))
 
   (defun detect-os ()
+    "Detects the current operating system. Only needs be run at compile-time,
+except on ABCL where it might change between FASL compilation and runtime."
     (loop* :with o
            :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-windows . os-windows-p)
                                          (:os-macosx . os-macosx-p)
@@ -66,6 +73,9 @@ that is neither Unix, nor Windows, nor Genera, nor even old MacOS.~%Now you port
 
 (with-upgradability ()
   (defun getenv (x)
+    "Query the environment, as in C getenv.
+Beware: may return empty string if a variable is present but empty;
+use getenvp to return NIL in such a case."
     (declare (ignorable x))
     #+(or abcl clisp ecl xcl) (ext:getenv x)
     #+allegro (sys:getenv x)
@@ -188,6 +198,8 @@ then returning the non-empty string value of the variable"
         s))))
 
   (defun implementation-identifier ()
+    "Return a string that identifies the ABI of the current implementation,
+suitable for use as a directory name to segregate Lisp FASLs, C dynamic libraries, etc."
     (substitute-if
      #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
      (format nil "~(~a~@{~@[-~a~]~}~)"

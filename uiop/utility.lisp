@@ -194,10 +194,12 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 ;;; Strings
 (with-upgradability ()
   (defun base-string-p (string)
+    "Does the STRING only contain BASE-CHARs?"
     (declare (ignorable string))
     (and #+non-base-chars-exist-p (eq 'base-char (array-element-type string))))
 
   (defun strings-common-element-type (strings)
+    "What least subtype of CHARACTER can contain all the elements of all the STRINGS?"
     (declare (ignorable strings))
     #-non-base-chars-exist-p 'character
     #+non-base-chars-exist-p
@@ -220,12 +222,16 @@ NIL is interpreted as an empty string. A character is interpreted as a string of
           :finally (return output)))
 
   (defun strcat (&rest strings)
+    "Concatenate strings.
+NIL is interpreted as an empty string, a character as a string of length one."
     (reduce/strcat strings))
 
   (defun first-char (s)
+    "Return the first character of a non-empty string S, or NIL"
     (and (stringp s) (plusp (length s)) (char s 0)))
 
   (defun last-char (s)
+    "Return the last character of a non-empty string S, or NIL"
     (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
   (defun split-string (string &key max (separator '(#\Space #\Tab)))
@@ -253,6 +259,8 @@ starting the separation from the end, e.g. when called with arguments
   (defvar *crlf* (coerce #(#\cr #\newline) 'string))
 
   (defun stripln (x)
+    "Strip a string X from any ending CR, LF or CRLF.
+Return two values, the stripped string and the strip that was stripped"
     (check-type x string)
     (let* ((len (length x))
            (endlfp (equal (last-char x) #\linefeed))
@@ -295,7 +303,7 @@ starting the separation from the end, e.g. when called with arguments
       (symbol (find-class x errorp environment)))))
 
 
-;;; stamps: a REAL or boolean where NIL=-infinity, T=+infinity
+;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
   (deftype stamp () '(or real boolean)))
 (with-upgradability ()
@@ -489,11 +497,11 @@ or a string describing the format-control of a simple-condition."
     (loop :for x :in conditions :thereis (match-condition-p x condition)))
 
   (defun call-with-muffled-conditions (thunk conditions)
+    "calls the THUNK in a context where the CONDITIONS are muffled"
     (handler-bind ((t #'(lambda (c) (when (match-any-condition-p c conditions)
                                       (muffle-warning c)))))
       (funcall thunk)))
 
   (defmacro with-muffled-conditions ((conditions) &body body)
     `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
-
 
