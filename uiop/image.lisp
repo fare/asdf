@@ -347,5 +347,6 @@ if we are not called from a directly executable image."
 ;;; Some universal image restore hooks
 (with-upgradability ()
   (map () 'register-image-restore-hook
-       '(setup-temporary-directory setup-stderr setup-command-line-arguments
+       '(setup-stdin setup-stdout setup-stderr
+         setup-command-line-arguments setup-temporary-directory
          #+abcl detect-os)))

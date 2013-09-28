@@ -148,6 +148,12 @@
 ;;;; compatfmt: avoid fancy format directives when unsupported
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (defun frob-substrings (string substrings &optional frob)
+    "for each substring in SUBSTRINGS, find occurrences of it within STRING
+that don't use parts of matched occurrences of previous strings, and
+FROB them, that is to say, remove them if FROB is NIL,
+replace by FROB if FROB is a STRING, or if FROB is a FUNCTION,
+call FROB with the match and a function that emits a string in the output.
+Return a string made of the parts not omitted or emitted by FROB."
     (declare (optimize (speed 0) (safety 3) (debug 3)))
     (let ((length (length string)) (stream nil))
       (labels ((emit-string (x &optional (start 0) (end (length x)))
@@ -184,5 +190,3 @@
     #+(or gcl genera)
     (frob-substrings format `("~3i~_" #+(or genera gcl2.6) ,@'("~@<" "~@;" "~@:>" "~:>")))
     #-(or gcl genera) format))
-
-

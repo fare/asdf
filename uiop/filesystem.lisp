@@ -410,8 +410,8 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
   (defun call-with-current-directory (dir thunk)
     (if dir
         (let* ((dir (resolve-symlinks* (get-pathname-defaults (pathname-directory-pathname dir))))
-               (*default-pathname-defaults* dir)
-               (cwd (getcwd)))
+               (cwd (getcwd))
+               (*default-pathname-defaults* dir))
           (chdir dir)
           (unwind-protect
                (funcall thunk)

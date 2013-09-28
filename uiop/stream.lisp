@@ -6,13 +6,16 @@
   (:recycle :uiop/stream :asdf/stream :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os :uiop/pathname :uiop/filesystem)
   (:export
-   #:*default-stream-element-type* #:*stderr* #:setup-stderr
+   #:*default-stream-element-type*
+   #:*stdin* #:setup-stdin #:*stdout* #:setup-stdout #:*stderr* #:setup-stderr
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*
    #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file #:with-output-file #:call-with-output-file
+   #:null-device-pathname #:call-with-null-input #:with-null-input
+   #:call-with-null-output #:with-null-output
    #:finish-outputs #:format! #:safe-format!
    #:copy-stream-to-stream #:concatenate-files #:copy-file
    #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
@@ -32,6 +35,18 @@
   (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)
     "default element-type for open (depends on the current CL implementation)")
 
+  (defvar *stdin* *standard-input*
+    "the original standard input stream at startup")
+
+  (defun setup-stdin ()
+    (setf *stdin* #+clozure ccl::*stdin* #-clozure *standard-input*))
+
+  (defvar *stdout* *standard-output*
+    "the original standard output stream at startup")
+
+  (defun setup-stdout ()
+    (setf *stdout* #+clozure ccl::*stdout* #-clozure *standard-output*))
+
   (defvar *stderr* *error-output*
     "the original error output stream at startup")
 
@@ -40,7 +55,8 @@
           #+allegro excl::*stderr*
           #+clozure ccl::*stderr*
           #-(or allegro clozure) *error-output*))
-  (setup-stderr))
+
+  (setup-stdin) (setup-stdout) (setup-stderr))
 
 
 ;;; Encodings (mostly hooks only; full support requires asdf-encodings)
@@ -117,7 +133,6 @@ and implementation-defined external-format's")
   (defun safe-read-from-string (string &key (package :cl) (eof-error-p t) eof-value (start 0) end preserve-whitespace)
     (with-safe-io-syntax (:package package)
       (read-from-string string eof-error-p eof-value :start start :end end :preserve-whitespace preserve-whitespace))))
-
 
 ;;; Output to a stream or string, FORMAT-style
 (with-upgradability ()
@@ -215,6 +230,36 @@ Other keys are accepted but discarded."
     (declare (ignore element-type external-format if-exists if-does-not-exist))
     `(call-with-output-file ,pathname #'(lambda (,var) ,@body) ,@keys)))
 
+;;; Null device
+(with-upgradability ()
+  (defun null-device-pathname ()
+    (cond
+      ((os-unix-p) #p"/dev/null")
+      ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?
+      (t (error "No /dev/null on your OS"))))
+  (defun call-with-null-input (fun &rest keys &key element-type external-format if-does-not-exist)
+    (declare (ignore element-type external-format if-does-not-exist))
+    (apply 'call-with-input-file (null-device-pathname) fun keys))
+  (defmacro with-null-input ((var &rest keys
+                              &key element-type external-format if-does-not-exist)
+                             &body body)
+    (declare (ignore element-type external-format if-does-not-exist))
+    `(call-with-null-input #'(lambda (,var) ,@body) ,@keys))
+  (defun call-with-null-output (fun
+                                &key (element-type *default-stream-element-type*)
+                                  (external-format *utf-8-external-format*)
+                                  (if-exists :overwrite)
+                                  (if-does-not-exist :error))
+    (call-with-output-file
+     (null-device-pathname) fun
+     :element-type element-type :external-format external-format
+     :if-exists if-exists :if-does-not-exist if-does-not-exist))
+  (defmacro with-null-output ((var &rest keys
+                              &key element-type external-format if-does-not-exist if-exists)
+                              &body body)
+    (declare (ignore element-type external-format if-exists if-does-not-exist))
+    `(call-with-null-output #'(lambda (,var) ,@body) ,@keys)))
+
 ;;; Ensure output buffers are flushed
 (with-upgradability ()
   (defun finish-outputs (&rest streams)
@@ -222,8 +267,8 @@ Other keys are accepted but discarded."
 Useful for portably flushing I/O before user input or program exit."
     ;; CCL notably buffers its stream output by default.
     (dolist (s (append streams
-                       (list *stderr* *error-output* *standard-output* *trace-output*
-                             *debug-io* *terminal-io* *debug-io* *query-io*)))
+                       (list *stdout* *stderr* *error-output* *standard-output* *trace-output*
+                             *debug-io* *terminal-io* *query-io*)))
       (ignore-errors (finish-output s)))
     (values))
 
@@ -231,7 +276,7 @@ Useful for portably flushing I/O before user input or program exit."
     "Just like format, but call finish-outputs before and after the output."
     (finish-outputs stream)
     (apply 'format stream format args)
-    (finish-output stream))
+    (finish-outputs stream))
 
   (defun safe-format! (stream format &rest args)
     (with-safe-io-syntax ()
@@ -435,7 +480,7 @@ If a string, repeatedly read and evaluate from it, returning the last values."
       (thunk &key
                prefix keep (direction :io)
                (element-type *default-stream-element-type*)
-               (external-format :default))
+               (external-format *utf-8-external-format*))
     #+gcl2.6 (declare (ignorable external-format))
     (check-type direction (member :output :io))
     (loop
@@ -478,7 +523,7 @@ ready for I/O. Unless KEEP is specified, delete the file afterwards."
         ,@(when prefix `(:prefix ,prefix))
         ,@(when keep `(:keep ,keep))
         ,@(when element-type `(:element-type ,element-type))
-        ,@(when external-format `(:external-format external-format)))))
+        ,@(when external-format `(:external-format ,external-format)))))
 
   ;; Temporary pathnames in simple cases where no contention is assumed
   (defun add-pathname-suffix (pathname suffix)

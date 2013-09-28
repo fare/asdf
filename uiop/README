@@ -11,13 +11,15 @@ according to its topic: e.g pathname.lisp will define package UIOP/PATHNAME
 and contain utilities related to the handling of pathname objects.
 All exported symbols are reexported in a convenience package UIOP.
 
-The files that constitute UIOP are, in order:
+The files that constitute UIOP are, in loading order:
 
 * package: to deal with packages and their symbols, most notably including
   DEFINE-PACKAGE, a variant of defpackage capable of hot-upgrade.
 
 * common-lisp: to let you paper over various sub-standard implementations
   Corman, GCL, Genera, MCL are the biggest (unmaintained) offenders.
+  Supported without much any issues are:
+  ABCL, Allegro, CCL, CMUCL, CLISP, ECL, LispWorks, MKCL, SBCL, XCL.
 
 * utility: to provide macros and functions that do not involve I/O, handling
   control-flow, (p)lists, character, strings, functions, classes, conditions,
@@ -46,6 +48,7 @@ The files that constitute UIOP are, in order:
   accessing command line arguments or quitting the process.
 
 * run-program: to portably spawn external processes and capture their output.
+  Can also capture error-output, inject input, or let it all be interactive.
 
 * lisp-build: to portably compile common-lisp code, handle compilation results,
   muffle uninteresting conditions, save and restore deferred warnings,

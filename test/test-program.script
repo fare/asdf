@@ -29,9 +29,12 @@
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
 (delete-file-if-exists exe)
-(run-program
- (symbol-call :lisp-invocation :lisp-invocation-arglist
-              :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))))
+(assert-equal
+ (multiple-value-list
+  (run-program
+   (symbol-call :lisp-invocation :lisp-invocation-arglist
+                :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp")))))
+ '(nil nil 0))
 (assert (probe-file* exe))
 
 (assert-equal (run-program `(,(native-namestring exe)) :output :lines)
