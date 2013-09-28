@@ -23,6 +23,7 @@
    #:read-file-string #:read-file-line #:read-file-lines #:safe-read-file-line
    #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
+   #:println #:writeln
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
    #:setup-temporary-directory
@@ -39,22 +40,35 @@
     "the original standard input stream at startup")
 
   (defun setup-stdin ()
-    (setf *stdin* #+clozure ccl::*stdin* #-clozure *standard-input*))
+    (setf *stdin*
+          #.(or #+clozure 'ccl::*stdin*
+                #+(or cmu scl) 'system:*stdin*
+                #+ecl 'ext::+process-standard-input+
+                #+sbcl 'sb-sys:*stdin*
+                '*standard-input*)))
 
   (defvar *stdout* *standard-output*
     "the original standard output stream at startup")
 
   (defun setup-stdout ()
-    (setf *stdout* #+clozure ccl::*stdout* #-clozure *standard-output*))
+    (setf *stdout*
+          #.(or #+clozure 'ccl::*stdout*
+                #+(or cmu scl) 'system:*stdout*
+                #+ecl 'ext::+process-standard-output+
+                #+sbcl 'sb-sys:*stdout*
+                '*standard-output*)))
 
   (defvar *stderr* *error-output*
     "the original error output stream at startup")
 
   (defun setup-stderr ()
     (setf *stderr*
-          #+allegro excl::*stderr*
-          #+clozure ccl::*stderr*
-          #-(or allegro clozure) *error-output*))
+          #.(or #+allegro excl::*stderr*
+                #+clozure 'ccl::*stderr*
+                #+(or cmu scl) 'system:*stderr*
+                #+ecl 'ext::+process-error-output+
+                #+sbcl 'sb-sys:*stderr*
+                '*error-output*)))
 
   (setup-stdin) (setup-stdout) (setup-stderr))
 
@@ -319,11 +333,13 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
     ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
     (concatenate-files (list input) output))
 
-  (defun slurp-stream-string (input &key (element-type 'character))
+  (defun slurp-stream-string (input &key (element-type 'character) stripped)
     "Read the contents of the INPUT stream as a string"
-    (with-open-stream (input input)
-      (with-output-to-string (output)
-        (copy-stream-to-stream input output :element-type element-type))))
+    (let ((string
+            (with-open-stream (input input)
+              (with-output-to-string (output)
+                (copy-stream-to-stream input output :element-type element-type)))))
+      (if stripped (stripln string) string)))
 
   (defun slurp-stream-lines (input &key count)
     "Read the contents of the INPUT stream as a list of lines, return those lines.
@@ -453,6 +469,13 @@ If a string, repeatedly read and evaluate from it, returning the last values."
       (with-safe-io-syntax (:package package)
         (let ((*read-eval* t))
           (eval-thunk thunk))))))
+
+(with-upgradability ()
+  (defun println (x &optional (stream *standard-output*))
+    (princ x stream) (terpri stream) (values))
+
+  (defun writeln (x &rest keys &key (stream *standard-output*) &allow-other-keys)
+    (apply 'write x keys) (terpri stream) (values)))
 
 
 ;;; Using temporary files

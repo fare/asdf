@@ -140,7 +140,7 @@ by /bin/sh in POSIX"
         (apply fun (first processor) stream (rest processor))
         (funcall fun processor stream)))
 
-  (defgeneric slurp-input-stream (processor input-stream &key &allow-other-keys)
+  (defgeneric slurp-input-stream (processor input-stream &key)
     (:documentation
      "SLURP-INPUT-STREAM is a generic function with two positional arguments
 PROCESSOR and INPUT-STREAM and additional keyword arguments, that consumes (slurps)
@@ -165,40 +165,40 @@ Built-in methods include the following:
 Programmers are encouraged to define their own methods for this generic function."))
 
   #-(or gcl2.6 genera)
-  (defmethod slurp-input-stream ((function function) input-stream &key &allow-other-keys)
+  (defmethod slurp-input-stream ((function function) input-stream &key)
     (funcall function input-stream))
 
-  (defmethod slurp-input-stream ((list cons) input-stream &key &allow-other-keys)
+  (defmethod slurp-input-stream ((list cons) input-stream &key)
     (apply (first list) input-stream (rest list)))
 
   #-(or gcl2.6 genera)
   (defmethod slurp-input-stream ((output-stream stream) input-stream
-                                 &key linewise prefix (element-type 'character) buffer-size &allow-other-keys)
+                                 &key linewise prefix (element-type 'character) buffer-size)
     (copy-stream-to-stream
      input-stream output-stream
      :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
 
-  (defmethod slurp-input-stream ((x (eql 'string)) stream &key &allow-other-keys)
+  (defmethod slurp-input-stream ((x (eql 'string)) stream &key stripped)
     (declare (ignorable x))
-    (slurp-stream-string stream))
+    (slurp-stream-string stream :stripped stripped))
 
-  (defmethod slurp-input-stream ((x (eql :string)) stream &key &allow-other-keys)
+  (defmethod slurp-input-stream ((x (eql :string)) stream &key stripped)
     (declare (ignorable x))
-    (slurp-stream-string stream))
+    (slurp-stream-string stream :stripped stripped))
 
-  (defmethod slurp-input-stream ((x (eql :lines)) stream &key count &allow-other-keys)
+  (defmethod slurp-input-stream ((x (eql :lines)) stream &key count)
     (declare (ignorable x))
     (slurp-stream-lines stream :count count))
 
-  (defmethod slurp-input-stream ((x (eql :line)) stream &key (at 0) &allow-other-keys)
+  (defmethod slurp-input-stream ((x (eql :line)) stream &key (at 0))
     (declare (ignorable x))
     (slurp-stream-line stream :at at))
 
-  (defmethod slurp-input-stream ((x (eql :forms)) stream &key count &allow-other-keys)
+  (defmethod slurp-input-stream ((x (eql :forms)) stream &key count)
     (declare (ignorable x))
     (slurp-stream-forms stream :count count))
 
-  (defmethod slurp-input-stream ((x (eql :form)) stream &key (at 0) &allow-other-keys)
+  (defmethod slurp-input-stream ((x (eql :form)) stream &key (at 0))
     (declare (ignorable x))
     (slurp-stream-form stream :at at))
 
@@ -206,8 +206,8 @@ Programmers are encouraged to define their own methods for this generic function
     (declare (ignorable x))
     (apply 'slurp-input-stream *standard-output* stream keys))
 
-  (defmethod slurp-input-stream ((x null) stream &rest keys &key &allow-other-keys)
-    (declare (ignorable x stream keys))
+  (defmethod slurp-input-stream ((x null) stream &key)
+    (declare (ignorable x stream))
     nil)
 
   (defmethod slurp-input-stream ((pathname pathname) input
@@ -228,8 +228,7 @@ Programmers are encouraged to define their own methods for this generic function
        :element-type element-type :buffer-size buffer-size :linewise linewise)))
 
   (defmethod slurp-input-stream (x stream
-                                 &key linewise prefix (element-type 'character) buffer-size
-                                 &allow-other-keys)
+                                 &key linewise prefix (element-type 'character) buffer-size)
     (declare (ignorable stream linewise prefix element-type buffer-size))
     (cond
       #+(or gcl2.6 genera)
@@ -244,7 +243,7 @@ Programmers are encouraged to define their own methods for this generic function
 
 
 (with-upgradability ()
-  (defgeneric vomit-output-stream (processor output-stream &key &allow-other-keys)
+  (defgeneric vomit-output-stream (processor output-stream &key)
     (:documentation
      "VOMIT-OUTPUT-STREAM is a generic function with two positional arguments
 PROCESSOR and OUTPUT-STREAM and additional keyword arguments, that produces (vomits)
@@ -263,20 +262,20 @@ Built-in methods include the following:
 Programmers are encouraged to define their own methods for this generic function."))
 
   #-(or gcl2.6 genera)
-  (defmethod vomit-output-stream ((function function) output-stream &key &allow-other-keys)
+  (defmethod vomit-output-stream ((function function) output-stream &key)
     (funcall function output-stream))
 
-  (defmethod vomit-output-stream ((list cons) output-stream &key &allow-other-keys)
+  (defmethod vomit-output-stream ((list cons) output-stream &key)
     (apply (first list) output-stream (rest list)))
 
   #-(or gcl2.6 genera)
   (defmethod vomit-output-stream ((input-stream stream) output-stream
-                                 &key linewise prefix (element-type 'character) buffer-size &allow-other-keys)
+                                 &key linewise prefix (element-type 'character) buffer-size)
     (copy-stream-to-stream
      input-stream output-stream
      :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
 
-  (defmethod vomit-output-stream ((x string) stream &key fresh-line terpri &allow-other-keys)
+  (defmethod vomit-output-stream ((x string) stream &key fresh-line terpri)
     (princ x stream)
     (when fresh-line (fresh-line stream))
     (when terpri (terpri stream))
@@ -286,8 +285,8 @@ Programmers are encouraged to define their own methods for this generic function
     (declare (ignorable x))
     (apply 'vomit-output-stream *standard-input* stream keys))
 
-  (defmethod vomit-output-stream ((x null) stream &rest keys &key &allow-other-keys)
-    (declare (ignorable x stream keys))
+  (defmethod vomit-output-stream ((x null) stream &key)
+    (declare (ignorable x stream))
     (values))
 
   (defmethod vomit-output-stream ((pathname pathname) input
@@ -308,8 +307,7 @@ Programmers are encouraged to define their own methods for this generic function
        :element-type element-type :buffer-size buffer-size :linewise linewise)))
 
   (defmethod vomit-output-stream (x stream
-                                 &key linewise prefix (element-type 'character) buffer-size
-                                 &allow-other-keys)
+                                 &key linewise prefix (element-type 'character) buffer-size)
     (declare (ignorable stream linewise prefix element-type buffer-size))
     (cond
       #+(or gcl2.6 genera)
@@ -320,7 +318,7 @@ Programmers are encouraged to define their own methods for this generic function
         x stream
         :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
       (t
-       (error "Invalid ~S destination ~S" 'vomit-output-stream x)))))
+       (error "Invalid ~S source ~S" 'vomit-output-stream x)))))
 
 
 ;;;; ----- Running an external program -----

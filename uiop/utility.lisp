@@ -20,7 +20,7 @@
    #:emptyp ;; sequences
    #:+non-base-chars-exist-p+ ;; characters
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
-   #:first-char #:last-char #:split-string
+   #:first-char #:last-char #:split-string #:stripln
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
    #:find-class* ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
@@ -247,6 +247,22 @@ starting the separation from the end, e.g. when called with arguments
                 (push (subseq string (1+ start) end) list)
                 (incf words)
                 (setf end start))))))
+
+  (defvar *cr* (coerce #(#\cr) 'string))
+  (defvar *lf* (coerce #(#\newline) 'string))
+  (defvar *crlf* (coerce #(#\cr #\newline) 'string))
+
+  (defun stripln (x)
+    (check-type x string)
+    (let* ((len (length x))
+           (endlfp (equal (last-char x) #\linefeed))
+           (endcrlfp (and endlfp (<= 2 len) (eql (char x (- len 2)) #\return)))
+           (endcrp (equal (last-char x) #\return)))
+      (cond
+        (endlfp (values (subseq x 0 (- len 1)) *lf*))
+        (endcrp (values (subseq x 0 (- len 1)) *cr*))
+        (endcrlfp (values (subseq x 0 (- len 2)) *crlf*))
+        (t (values x nil)))))
 
   (defun string-prefix-p (prefix string)
     "Does STRING begin with PREFIX?"
