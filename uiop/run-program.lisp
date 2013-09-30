@@ -337,6 +337,8 @@ Programmers are encouraged to define their own methods for this generic function
 
   ;;; Internal helpers for run-program
   (defun %normalize-command (command)
+    "Given a COMMAND as a list or string, transform it in a format suitable
+for the implementation's underlying run-program function"
     (etypecase command
       #+os-unix (string `("/bin/sh" "-c" ,command))
       #+os-unix (list command)
@@ -358,10 +360,16 @@ Programmers are encouraged to define their own methods for this generic function
        #-allegro command)))
 
   (defun %active-io-specifier-p (specifier)
-    (not (typep specifier '(or null string pathname (member :interactive :output)
-                            #+(or cmu sbcl scl) stream))))
+    "Determines whether a run-program I/O specifier requires Lisp-side processing
+via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
+or whether it's already taken care of by the implementation's underlying run-program."
+    (not (typep specifier '(or null string pathname (eql :interactive)
+                            #+(or cmu sbcl scl) stream
+                            #+lispworks file-stream)))) ;; not a type!? comm:socket-stream
 
   (defun %normalize-io-specifier (specifier &optional role)
+    "Normalizes a portable I/O specifier for %RUN-PROGRAM into an implementation-dependent
+argument to pass to the internal RUN-PROGRAM"
     (declare (ignorable role))
     (etypecase specifier
       (null (or #+(or allegro lispworks) (null-device-pathname)))
@@ -389,23 +397,25 @@ Programmers are encouraged to define their own methods for this generic function
       (integer raw-exit-code) ; negative: signal
       (t -1)))
 
-  (defun %invoke-run-program (command
-                              &rest keys
-                              &key input (if-input-does-not-exist :error)
-                                output (if-output-exists :overwrite)
-                                error-output (if-error-output-exists :overwrite)
-                                directory wait ignore-error-status
-                                #+allegro separate-streams
-                                &allow-other-keys)
-    "Runs the specified command (a list of program and arguments).
-     Returns a process-info plist with possible keys:
+  (defun %run-program (command
+                       &rest keys
+                       &key input (if-input-does-not-exist :error)
+                         output (if-output-exists :overwrite)
+                         error-output (if-error-output-exists :overwrite)
+                         directory wait
+                         #+allegro separate-streams
+                         &allow-other-keys)
+    "A portable abstraction of a low-level call to the implementation's run-program or equivalent.
+It spawns a subprocess that runs the specified COMMAND (a list of program and arguments).
+INPUT, OUTPUT and ERROR-OUTPUT specify a portable IO specifer,
+to be normalized by %NORMALIZE-IO-SPECIFIER.
+It returns a process-info plist with possible keys:
      PROCESS, EXIT-CODE, INPUT-STREAM, OUTPUT-STREAM, BIDIR-STREAM, ERROR-STREAM."
     ;; NB: these implementations have unix vs windows set at compile-time.
-    (declare (ignorable ignore-error-status directory wait
-                        if-input-does-not-exist if-output-exists if-error-output-exists))
+    (declare (ignorable if-input-does-not-exist if-output-exists if-error-output-exists))
     (assert (not (and wait (member :stream (list input output error-output)))))
     #-(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
-    (progn command keys input output error-output
+    (progn command keys directory
            (error "run-program not available"))
     #+(or allegro clisp clozure cmu (and lispworks os-unix) sbcl scl)
     (let* ((%command (%normalize-command command))
@@ -432,9 +442,8 @@ Programmers are encouraged to define their own methods for this generic function
                         (multiple-value-list
                          (apply f :input %input :output %output
                                   :allow-other-keys t `(,@args ,@keys)))))
-                 ;; since we now always return a code, that code path is unused
-                 (assert (eq ignore-error-status t))
                  (assert (eq error-output :interactive))
+                 ;;; since we now always return a code, we can't use this code path, anyway!
                  (etypecase %command
                    #+os-windows (string (run 'ext:run-shell-command %command))
                    (list (run 'ext:run-program (car %command)
@@ -460,13 +469,14 @@ Programmers are encouraged to define their own methods for this generic function
                            :if-error-does-not-exist :create)
                   #-sbcl keys #+sbcl (if directory keys (remove-plist-key :directory keys)))))
                #+(and lispworks os-unix) ;; note: only used on Unix in non-interactive case
-               (apply
-                'system:run-shell-command
-                (cons "/usr/bin/env" %command) ; lispworks wants a full path.
-                :input %input :if-input-does-not-exist if-input-does-not-exist
-                :output %output :if-output-exists if-output-exists
-                :error %error-output :if-error-output-exists if-error-output-exists
-                :wait wait :save-exit-status t)))
+               (multiple-value-list
+                (apply
+                 'system:run-shell-command
+                 (cons "/usr/bin/env" %command) ; lispworks wants a full path.
+                 :input %input :if-input-does-not-exist if-input-does-not-exist
+                 :output %output :if-output-exists if-output-exists
+                 :error-output %error-output :if-error-output-exists if-error-output-exists
+                 :wait wait :save-exit-status t :allow-other-keys t keys))))
            (process-info-r ()))
       (flet ((prop (key value) (push key process-info-r) (push value process-info-r)))
         #+allegro
@@ -499,15 +509,6 @@ Programmers are encouraged to define their own methods for this generic function
              (3 (prop :bidir-stream (pop process*))
                 (prop :input-stream (pop process*))
                 (prop :output-stream (pop process*))))))
-        #+ecl
-        (destructuring-bind (stream code process) process*
-          (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-            (cond
-              ((zerop mode))
-              ((null process*) (prop :exit-code -1))
-              (t (prop (case mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) stream))))
-          (when code (prop :exit-code code))
-          (when process (prop :process process)))
         #+(or clozure cmu sbcl scl)
         (progn
           (prop :process process*)
@@ -526,6 +527,25 @@ Programmers are encouraged to define their own methods for this generic function
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmu scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
+        #+ecl
+        (destructuring-bind (stream code process) process*
+          (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
+            (cond
+              ((zerop mode))
+              ((null process*) (prop :exit-code -1))
+              (t (prop (case mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) stream))))
+          (when code (prop :exit-code code))
+          (when process (prop :process process)))
+        #+lispworks
+        (if wait
+            (prop :exit-code (first process*))
+            (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
+              (if (zerop mode)
+                  (prop :process (first process*))
+                  (destructuring-bind (x err pid) process*
+                    (prop :process pid)
+                    (prop (ecase mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) x)
+                    (when (eq error-output :stream) (prop :error-stream err))))))
         (nreverse process-info-r))))
 
   (defun %wait-process-result (process-info)
@@ -639,7 +659,8 @@ Programmers are encouraged to define their own methods for this generic function
     (assert (not (member :stream (list input output error-output))))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
-           (active-error-output-p (%active-io-specifier-p error-output))
+           (active-error-output-p (or (eq error-output :output)
+                                      (%active-io-specifier-p error-output)))
            (activity
              (cond
                (active-output-p :output)
@@ -652,27 +673,32 @@ Programmers are encouraged to define their own methods for this generic function
                             output :keys keys :setf output-result
                             :stream-easy-p t :active (eq activity :output))
         (with-program-error-output ((reduced-error-output error-output-activity)
-                                    error-output :keys keys :setf error-output-result
+                                    (unless (eq error-output :output) error-output)
+                                    :keys keys :setf error-output-result
                                     :stream-easy-p t :active (eq activity :error-output))
           (with-program-input ((reduced-input input-activity)
                                input :keys keys
                                :stream-easy-p t :active (eq activity :input))
             (let ((process-info
-                    (apply '%invoke-run-program command
-                           :wait wait :input reduced-input
-                           :output reduced-output :error-output reduced-error-output
+                    (apply '%run-program command
+                           :wait wait :input reduced-input :output reduced-output
+                           :error-output (if (eq error-output :output) :output reduced-error-output)
                            keys)))
-              (flet ((run-activity (activity stream-property)
-                       (if-let ((stream (getf process-info stream-property)))
-                         (funcall activity stream)
-                         (error 'subprocess-error
-                                :code `(:missing ,stream-property)
-                                :command command :process process-info))))
+              (labels ((get-stream (stream-name &optional fallbackp)
+                         (or (getf process-info stream-name)
+                             (when fallbackp
+                               (getf process-info :bidir-stream))))
+                       (run-activity (activity stream-name &optional fallbackp)
+                         (if-let (stream (get-stream stream-name fallbackp))
+                           (funcall activity stream)
+                           (error 'subprocess-error
+                                  :code `(:missing ,stream-name)
+                                  :command command :process process-info))))
                 (unwind-protect
                      (ecase activity
                        ((nil))
-                       (:input (run-activity input-activity :input-stream))
-                       (:output (run-activity output-activity :output-stream))
+                       (:input (run-activity input-activity :input-stream t))
+                       (:output (run-activity output-activity :output-stream t))
                        (:error-output (run-activity error-output-activity :error-output-stream)))
                   (loop :for (() val) :on process-info :by #'cddr
                         :when (streamp val) :do (ignore-errors (close val)))
@@ -712,12 +738,13 @@ Programmers are encouraged to define their own methods for this generic function
           (when (and directory (os-unix-p)) `("cd " (escape-shell-token directory) " ; "))
           after)))))
 
-  (defun %invoke-system (command &rest keys
-                         &key input output error-output directory &allow-other-keys)
+  (defun %system (command &rest keys
+                  &key input output error-output directory &allow-other-keys)
+    "A portable abstraction of a low-level call to libc's system()."
     (declare (ignorable input output error-output directory keys))
     #+(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
     (%wait-process-result
-     (apply '%invoke-run-program (%normalize-system-command command) keys))
+     (apply '%run-program (%normalize-system-command command) :wait t keys))
     #+(or abcl clisp cormanlisp ecl gcl (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
@@ -748,7 +775,7 @@ Programmers are encouraged to define their own methods for this generic function
                                     error-output :keys keys :setf error-output-result)
           (with-program-input ((reduced-input) input :keys keys)
             (setf exit-code
-                  (%check-result (apply '%invoke-system command
+                  (%check-result (apply '%system command
                                         :input reduced-input :output reduced-output
                                         :error-output reduced-error-output keys)
                                  :command command
@@ -812,7 +839,7 @@ or an indication of failure via the EXIT-CODE of the process"
       (apply (if (or force-shell
                      #+(or clisp ecl) (or (not ignore-error-status) t)
                      #+clisp (eq error-output :interactive)
-                     #+(and lispworks os-unix) (interactivep input output error-output)
+                     #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl mkcl xcl) t)
                  '%use-system '%use-run-program)
              command

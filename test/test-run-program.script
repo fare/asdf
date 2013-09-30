@@ -23,7 +23,26 @@
 (progn
   (DBG "Testing good shell command in current directory via run-shell-command")
   (unless (equal 0 (run-shell-command "./good-shell-command"))
-    (error "Failed to capture exit status indicating shell command success.")))
+    (error "Failed to capture exit status indicating shell command success."))
+
+  ;; this test checks for a problem there was in allegro -- :output :interactive
+  ;; would try to open T as a stream for INPUT.
+  (assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell t :output :interactive)))
+  (assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell nil :output :interactive)))
+  (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell t :output :interactive :ignore-error-status t)))
+  (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell nil :output :interactive :ignore-error-status t)))
+  (assert-equal
+   '("foo" "bar baz" 42)
+   (multiple-value-list
+    (run-program "cat ; echo bar  baz >&2 ; exit 42"
+                 :input '("foo") :output :string :error-output '(:string :stripped t)
+                 :ignore-error-status t)))
+  (assert-equal
+   '(("foo" "bar" "baz" "quux") nil 0)
+   (multiple-value-list
+    (run-program "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
+                 :output :lines :error-output :output))))
+
 
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun remove-cr (x) (remove (code-char 13) x))
@@ -54,12 +73,6 @@
 (assert-equal "ok  1" (run-program '("echo" "ok  1") :output :line))
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
 (assert-equal (format nil "ok  1~%") (remove-cr (run-program '("echo" "ok  1") :output :string)))
-;; this test checks for a problem there was in allegro -- :output :interactive
-;; would try to open T as a stream for INPUT.
-(assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell t :output :interactive)))
-(assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell nil :output :interactive)))
-(assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell t :output :interactive :ignore-error-status t)))
-(assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell nil :output :interactive :ignore-error-status t)))
 
 
 ;;#+allegro (trace excl:run-shell-command sys:reap-os-subprocess)
