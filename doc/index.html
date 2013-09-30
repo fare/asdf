@@ -79,27 +79,36 @@
           We recommend you should <em>not</em> use <tt>asdf-install</tt> anymore,
           as it is an older similar piece of software that is both unmaintained and obsolete.
         </p><p>
-          If you're unsatisfied with ASDF, other actively maintained build systems for Common-Lisp
+          If you're unsatisfied with ASDF,
+          other somewhat actively maintained build systems for Common-Lisp
           that may or may not satisfy you include:
           Fran&ccedil;ois-Ren&eacute; Rideau's
           <a href="http://common-lisp.net/project/xcvb/"><tt>XCVB</tt></a>
-          (trying to build object and image files deterministically and in parallel),
+          (trying to build object and image files deterministically and in parallel,
+          has fallen behind ASDF since 2012),
           or its polar opposite,
           Drew McDermott's
           <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
           (trying to maintain coherence of the current Lisp image at a fine grain),
-          the newcomer
+          Dmitriy Ivanov's
           <a href="http://lisp.ystok.ru/asdlite/"><tt>ASDlite</tt></a>
           (a somewhat improved incompatible variant of ASDF 1, less featureful than ASDF 3),
-          or Alastair Bridgewater's interesting <tt>quick-build</tt> (unreleased, similar to <tt>faslpath</tt> below).
+          or Alastair Bridgewater's one-package-per-file
+          <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a>
+          (similar to <tt>faslpath</tt> below).
           Older systems that are not maintained anymore include
-          Mark Kantrowitz's <a href="http://www.cliki.net/mk-defsystem"><tt>mk-defsystem</tt></a>
-          (free software successor of the old proprietary DEFSYSTEM's and predecessor of ASDF, obsolete),
-          Sean Ross's <a href="http://sean-ross.blogspot.com/search/label/mudballs"><tt>mudballs</tt></a>
+          Mark Kantrowitz's
+          <a href="http://www.cliki.net/mk-defsystem"><tt>mk-defsystem</tt></a>
+          (free software successor of the old proprietary DEFSYSTEM's
+          and predecessor of ASDF, obsolete),
+          Sean Ross's
+          <a href="http://sean-ross.blogspot.com/search/label/mudballs"><tt>mudballs</tt></a>
           (an attempt at making things cleaner than in ASDF, aborted),
-          Peter Etter's <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
+          Peter Etter's
+          <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
           (a much simpler system establishing a mapping between packages and files)
-          Alexander Kahl's <a href="http://www.cliki.net/evol"><tt>evol</tt></a>
+          Alexander Kahl's
+          <a href="http://www.cliki.net/evol"><tt>evol</tt></a>
           (a reimplementation of the GNU autotools stack in Lisp, abandoned),
           and probably more.
           However, none of these systems seems to ever have had the traction of ASDF.
@@ -115,12 +124,12 @@
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
           All of these implementations provide at least ASDF 2,
           and a few of them aready provide ASDF 3
-          (<tt>abcl</tt>, <tt>allegro</tt>, <tt>ccl</tt>, <tt>cmucl</tt>,
+          (<tt>abcl</tt>, <tt>allegro</tt>, <tt>ccl</tt>, <tt>clisp</tt>, <tt>cmucl</tt>,
           <tt>ecl</tt>, <tt>sbcl</tt>).
           Hopefully soon all will follow suit;
           but in the meantime, you can download ASDF 3,
           and use <tt>(asdf:load-system :asdf)</tt>
-          from a properly configured ASDF 2 to upgrade to the latest,
+          to upgrade to the latest ASDF from a properly configured ASDF 2,
           which you should do before you use ASDF for anything else.
         </p><p>
           A few implementations don't provide ASDF yet,
@@ -133,15 +142,18 @@
         </p>
         <table>
           <tr><th></th>
-            <th align="left">Provide "asdf"</th>
+            <th align="left">Provide "asdf" 3</th>
+            <th align="left">Provide "asdf" 2</th>
             <th align="left">Will provide it</th>
             <th align="left">Obsolete</th></tr>
           <tr><th align="left">Free</th>
-            <td align="left"><tt>abcl ccl clisp cmucl ecl mkcl sbcl xcl</tt></td>
+            <td align="left"><tt>abcl ccl clisp cmucl ecl sbcl</tt></td>
+            <td align="left"><tt>mkcl xcl</tt></td>
             <td> </td>
             <td align="left"><tt>gcl mcl</tt></td></tr>
           <tr><th align="left">Proprietary</th>
-            <td align="left"><tt>allegro lispworks</tt></td>
+            <td align="left"><tt>allegro</tt></td>
+            <td align="left"><tt>lispworks</tt></td>
             <td align="left"><tt>scl</tt></td>
             <td align="left"><tt>cormanlisp genera</tt></td></tr>
         </table>
@@ -189,7 +201,10 @@ Peter Graves <gnooth@gmail.com>
           see the last draft version of our paper for
           <a href="http://www.international-lisp-conference.org/2010/index">ILC 2010</a>,
           <cite><a href="ilc2010draft.pdf"
-                   >Evolving ASDF: More Cooperation, Less Coordination</a></cite></p>
+                   >Evolving ASDF: More Cooperation, Less Coordination</a></cite>,
+          or the slides of the
+          <a href="https://github.com/fare/asdf3-2013/blob/master/els-slides.org"
+             >ASDF 3 tutorial</a> presented at ELS 2013.
         <p>Finally, while the manual covers all the basics,
           some advanced or new features remain underdocumented.
           Please contact our mailing-list (see below)
