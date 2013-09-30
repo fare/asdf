@@ -254,9 +254,9 @@ starting the separation from the end, e.g. when called with arguments
                 (incf words)
                 (setf end start))))))
 
-  (defvar *cr* (coerce #(#\cr) 'string))
-  (defvar *lf* (coerce #(#\newline) 'string))
-  (defvar *crlf* (coerce #(#\cr #\newline) 'string))
+  (defvar $cr (coerce #(#\Return) 'string))
+  (defvar $lf (coerce #(#\Linefeed) 'string))
+  (defvar $crlf (coerce #(#\Return #\Linefeed) 'string))
 
   (defun stripln (x)
     "Strip a string X from any ending CR, LF or CRLF.
@@ -267,9 +267,9 @@ Return two values, the stripped string and the strip that was stripped"
            (endcrlfp (and endlfp (<= 2 len) (eql (char x (- len 2)) #\return)))
            (endcrp (equal (last-char x) #\return)))
       (cond
-        (endlfp (values (subseq x 0 (- len 1)) *lf*))
-        (endcrp (values (subseq x 0 (- len 1)) *cr*))
-        (endcrlfp (values (subseq x 0 (- len 2)) *crlf*))
+        (endlfp (values (subseq x 0 (- len 1)) $lf))
+        (endcrp (values (subseq x 0 (- len 1)) $cr))
+        (endcrlfp (values (subseq x 0 (- len 2)) $crlf))
         (t (values x nil)))))
 
   (defun string-prefix-p (prefix string)
