@@ -70,6 +70,7 @@
                 #+sbcl 'sb-sys:*stderr*
                 '*error-output*)))
 
+  ;; Run them now. In image.lisp, we'll register them to be run at image restart.
   (setup-stdin) (setup-stdout) (setup-stderr))
 
 
@@ -100,6 +101,8 @@ with non-ASCII code points being read as several CL characters;
 hopefully, if done consistently, that won't affect program behavior too much.")
 
   (defun always-default-encoding (pathname)
+    "Trivial function to use as *encoding-detection-hook*,
+always 'detects' the *default-encoding*"
     (declare (ignore pathname))
     *default-encoding*)
 
@@ -107,11 +110,15 @@ hopefully, if done consistently, that won't affect program behavior too much.")
     "Hook for an extension to define a function to automatically detect a file's encoding")
 
   (defun detect-encoding (pathname)
+    "Detects the encoding of a specified file, going through user-configurable hooks"
     (if (and pathname (not (directory-pathname-p pathname)) (probe-file* pathname))
         (funcall *encoding-detection-hook* pathname)
         *default-encoding*))
 
   (defun default-encoding-external-format (encoding)
+    "Default, ignorant, function to transform a character ENCODING as a
+portable keyword to an implementation-dependent EXTERNAL-FORMAT specification.
+Load system ASDF-ENCODINGS to hook in a better one."
     (case encoding
       (:default :default) ;; for backward-compatibility only. Explicit usage discouraged.
       (:utf-8 *utf-8-external-format*)
@@ -121,16 +128,20 @@ hopefully, if done consistently, that won't affect program behavior too much.")
 
   (defvar *encoding-external-format-hook*
     #'default-encoding-external-format
-    "Hook for an extension to define a mapping between non-default encodings
-and implementation-defined external-format's")
+    "Hook for an extension (e.g. ASDF-ENCODINGS) to define a better mapping
+from non-default encodings to and implementation-defined external-format's")
 
   (defun encoding-external-format (encoding)
+    "Transform a portable ENCODING keyword to an implementation-dependent EXTERNAL-FORMAT,
+going through all the proper hooks."
     (funcall *encoding-external-format-hook* (or encoding *default-encoding*))))
 
 
 ;;; Safe syntax
 (with-upgradability ()
-  (defvar *standard-readtable* (copy-readtable nil))
+  (defvar *standard-readtable* (with-standard-io-syntax *readtable*)
+    "The standard readtable, implementing the syntax specified by the CLHS.
+It must never be modified, though only good implementations will even enforce that.")
 
   (defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
     "Establish safe CL reader options around the evaluation of BODY"
@@ -145,6 +156,7 @@ and implementation-defined external-format's")
         (funcall thunk))))
 
   (defun safe-read-from-string (string &key (package :cl) (eof-error-p t) eof-value (start 0) end preserve-whitespace)
+    "Read from STRING using a safe syntax, as per WITH-SAFE-IO-SYNTAX"
     (with-safe-io-syntax (:package package)
       (read-from-string string eof-error-p eof-value :start start :end end :preserve-whitespace preserve-whitespace))))
 
@@ -247,6 +259,8 @@ Other keys are accepted but discarded."
 ;;; Null device
 (with-upgradability ()
   (defun null-device-pathname ()
+    "Pathname to a bit bucket device that discards any information written to it
+and always returns EOF when read from"
     (cond
       ((os-unix-p) #p"/dev/null")
       ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?

@@ -16,14 +16,14 @@ The files that constitute UIOP are, in loading order:
 * package: to deal with packages and their symbols, most notably including
   DEFINE-PACKAGE, a variant of defpackage capable of hot-upgrade.
 
-* common-lisp: to let you paper over various sub-standard implementations
-  Corman, GCL, Genera, MCL are the biggest (unmaintained) offenders.
-  Supported without much any issues are:
+* common-lisp: to let you paper over various sub-standard implementations.
+  Big offenders are Corman, GCL, Genera, MCL, all of them unmaintained.
+  Supported without serious issues are:
   ABCL, Allegro, CCL, CMUCL, CLISP, ECL, LispWorks, MKCL, SBCL, XCL.
 
 * utility: to provide macros and functions that do not involve I/O, handling
-  control-flow, (p)lists, character, strings, functions, classes, conditions,
-  "stamps" (number or boolean for +/- infinity), versions, etc.
+  control-flow, (p)lists, characters, strings, functions, classes, conditions,
+  "stamps" (real number or boolean for +/- infinity), versions, etc.
   It also sports uiop-debug, a useful tool to help you debug programs.
 
 * os: to extract information from your environment, including
