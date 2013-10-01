@@ -37,7 +37,6 @@
     (run-program "cat ; echo bar  baz >&2 ; exit 42"
                  :input '("foo") :output :string :error-output '(:string :stripped t)
                  :ignore-error-status t)))
-  #-abcl
   (assert-equal
    '(("foo" "bar" "baz" "quux") nil 0)
    (multiple-value-list

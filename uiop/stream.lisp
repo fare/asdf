@@ -63,7 +63,7 @@
 
   (defun setup-stderr ()
     (setf *stderr*
-          #.(or #+allegro excl::*stderr*
+          #.(or #+allegro 'excl::*stderr*
                 #+clozure 'ccl::*stderr*
                 #+(or cmu scl) 'system:*stderr*
                 #+ecl 'ext::+process-error-output+

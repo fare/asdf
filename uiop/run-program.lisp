@@ -363,7 +363,7 @@ for the implementation's underlying run-program function"
     "Determines whether a run-program I/O specifier requires Lisp-side processing
 via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
 or whether it's already taken care of by the implementation's underlying run-program."
-    (not (typep specifier '(or null string pathname (eql :interactive)
+    (not (typep specifier '(or null string pathname (member :interactive :output)
                             #+(or cmu sbcl scl) stream
                             #+lispworks file-stream)))) ;; not a type!? comm:socket-stream
 
@@ -442,7 +442,7 @@ It returns a process-info plist with possible keys:
                         (multiple-value-list
                          (apply f :input %input :output %output
                                   :allow-other-keys t `(,@args ,@keys)))))
-                 (assert (eq error-output :interactive))
+                 (assert (eq %error-output :terminal))
                  ;;; since we now always return a code, we can't use this code path, anyway!
                  (etypecase %command
                    #+os-windows (string (run 'ext:run-shell-command %command))
@@ -580,7 +580,7 @@ It returns a process-info plist with possible keys:
     ;; GF is the generic function to call to handle arbitrary values of SPEC
     ;; STREAM-EASY-P is T if we're going to use a RUN-PROGRAM that copies streams in the background
     ;; (it's only meaningful on CMUCL, SBCL, SCL that actually do it)
-    ;; DIRECTION is :INPUT or :OUTPUT for the direction of this io argument
+    ;; DIRECTION is :INPUT, :OUTPUT or :ERROR-OUTPUT for the direction of this io argument
     ;; FUN is a function of the new reduced spec and an activity function to call with a stream
     ;; when the subprocess is active and communicating through that stream.
     ;; ACTIVEP is a boolean true if we will get to run code while the process is running
@@ -588,36 +588,46 @@ It returns a process-info plist with possible keys:
     ;; RETURNER is a function called with the value of the activity.
     ;; --- TODO (fare@tunes.org): handle if-output-exists and such when doing it the hard way.
     (declare (ignorable stream-easy-p))
-    (when (eq spec t) (setf spec tval))
-    (labels ((activity (stream)
-               (call-function returner (call-stream-processor gf spec stream)))
-             (easy-case ()
-               (funcall fun spec nil))
-             (hard-case ()
-               (if activep
-                   (funcall fun :stream #'activity)
-                   (with-temporary-file (:pathname tmp :stream s
-                                         :direction (ecase direction (:input :output) (:output :io))
-                                         :element-type element-type
-                                         :external-format external-format)
-                     (ecase direction
-                       (:input ;; for input
-                        (unwind-protect (activity s)
-                          (ignore-errors (close s)))
-                        (funcall fun tmp nil))
-                       (:output ;; for output, error-output
-                        (unwind-protect
-                             (multiple-value-prog1 (funcall fun tmp nil)
-                               (activity s))
-                          (ignore-errors (close s)))))))))
-      (typecase spec
-        ((or null string pathname (eql :interactive))
-         (easy-case))
-        #+(or cmu sbcl scl) ;; streams are only easy on implementations that try very hard
-        (stream
-         (if stream-easy-p (easy-case) (hard-case)))
-        (t
-         (hard-case)))))
+    (let* ((actual-spec (if (eq spec t) tval spec))
+           (activity-spec (if (eq actual-spec :output)
+                              (ecase direction
+                                ((:input :output)
+                                 (error "~S not allowed as a ~S ~S spec"
+                                        :output 'run-program direction))
+                                ((:error-output)
+                                 nil))
+                              actual-spec)))
+      (labels ((activity (stream)
+                 (call-function returner (call-stream-processor gf activity-spec stream)))
+               (easy-case ()
+                 (funcall fun actual-spec nil))
+               (hard-case ()
+                 (if activep
+                     (funcall fun :stream #'activity)
+                     (with-temporary-file (:pathname tmp :stream s
+                                           :direction (ecase direction
+                                                        ((:input) :output)
+                                                        ((:output :error-output) :io))
+                                           :element-type element-type
+                                           :external-format external-format)
+                       (ecase direction
+                         (:input
+                          (unwind-protect (activity s)
+                            (ignore-errors (close s)))
+                          (funcall fun tmp nil))
+                         ((:output :error-output)
+                          (unwind-protect
+                               (multiple-value-prog1 (funcall fun tmp nil)
+                                 (activity s))
+                            (ignore-errors (close s)))))))))
+        (typecase activity-spec
+          ((or null string pathname (eql :interactive))
+           (easy-case))
+          #+(or cmu sbcl scl) ;; streams are only easy on implementations that try very hard
+          (stream
+           (if stream-easy-p (easy-case) (hard-case)))
+          (t
+           (hard-case))))))
 
   (defmacro place-setter (place)
     (when place
@@ -650,7 +660,7 @@ It returns a process-info plist with possible keys:
             #'(lambda (,reduced-error-output-var ,error-output-activity-var)
                 ,@(unless eoavp `((declare (ignore ,error-output-activity-var))))
                 ,@body)
-            :output ,error-output-form ,active (place-setter ,setf) ,keys))
+            :error-output ,error-output-form ,active (place-setter ,setf) ,keys))
 
   (defun %use-run-program (command &rest keys
                            &key input output error-output ignore-error-status &allow-other-keys)
@@ -659,8 +669,7 @@ It returns a process-info plist with possible keys:
     (assert (not (member :stream (list input output error-output))))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
-           (active-error-output-p (or (eq error-output :output)
-                                      (%active-io-specifier-p error-output)))
+           (active-error-output-p (%active-io-specifier-p error-output))
            (activity
              (cond
                (active-output-p :output)
@@ -673,8 +682,7 @@ It returns a process-info plist with possible keys:
                             output :keys keys :setf output-result
                             :stream-easy-p t :active (eq activity :output))
         (with-program-error-output ((reduced-error-output error-output-activity)
-                                    (unless (eq error-output :output) error-output)
-                                    :keys keys :setf error-output-result
+                                    error-output :keys keys :setf error-output-result
                                     :stream-easy-p t :active (eq activity :error-output))
           (with-program-input ((reduced-input input-activity)
                                input :keys keys
@@ -839,6 +847,7 @@ or an indication of failure via the EXIT-CODE of the process"
       (apply (if (or force-shell
                      #+(or clisp ecl) (or (not ignore-error-status) t)
                      #+clisp (eq error-output :interactive)
+                     #+(or abcl clisp) (eq :error-output :output)
                      #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl mkcl xcl) t)
                  '%use-system '%use-run-program)
