@@ -216,7 +216,7 @@ case "$lisp" in
     eval="-eval" ;;
   xcl)
     command="${XCL:-xcl}"
-    flags="--no-userinit --no-siteinit"
+    flags="--no-userinit --no-siteinit --noinform"
     eval="--eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2

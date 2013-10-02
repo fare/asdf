@@ -544,8 +544,9 @@ in an atomic way if the implementation allows."
     #+sbcl #.(if-let (dd (find-symbol* :delete-directory :sb-ext nil))
                `(,dd directory-pathname) ;; requires SBCL 1.0.44 or later
                `(progn (require :sb-posix) (symbol-call :sb-posix :rmdir directory-pathname)))
-    #-(or abcl allegro clisp clozure cmu cormanlisp digitool ecl gcl lispworks sbcl scl)
-    (error "~S not implemented on ~S" 'delete-empty-directory (implementation-type))) ; genera xcl
+    #+xcl (symbol-call :uiop :run-program `("rmdir" ,(native-namestring directory-pathname)))
+    #-(or abcl allegro clisp clozure cmu cormanlisp digitool ecl gcl lispworks sbcl scl xcl)
+    (error "~S not implemented on ~S" 'delete-empty-directory (implementation-type))) ; genera
 
   (defun delete-directory-tree (directory-pathname &key (validate nil validatep) (if-does-not-exist :error))
     "Delete a directory including all its recursive contents, aka rm -rf.
