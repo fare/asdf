@@ -732,10 +732,12 @@ Reminder: before ASDF can operate on a system, however,
 it must be able to find and load that system's definition.
 @xref{Configuring ASDF,,Configuring ASDF to find your systems}.
 
+@findex already-loaded-systems
+
 For the advanced users, note that
 @code{require-system} calls @code{load-system}
-with keyword arguments @code{:force-not (loaded-systems)}.
-@code{loaded-systems} returns a list of the names of loaded systems.
+with keyword arguments @code{:force-not (already-loaded-systems)}.
+@code{already-loaded-systems} returns a list of the names of loaded systems.
 @code{load-system} applies @code{operate} with the operation from
 @code{*load-system-operation*}, which by default is @code{load-op},
 the system, and any provided keyword arguments.
