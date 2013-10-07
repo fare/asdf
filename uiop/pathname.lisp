@@ -412,7 +412,7 @@ The last #\\/-separated substring is interpreted as follows:
 1- If TYPE is :DIRECTORY or ENSURE-DIRECTORY is true,
  the string is made the last directory component, and NAME and TYPE are NIL.
  if the string is empty, it's the empty pathname with all slots NIL.
-2- If TYPE is NIL, the substring is file-namestring, and its NAME and TYPE
+2- If TYPE is NIL, the substring is a file-namestring, and its NAME and TYPE
  are separated by SPLIT-NAME-TYPE.
 3- If TYPE is a string, it is the given TYPE, and the whole string is the NAME.
 
@@ -421,7 +421,7 @@ Any directory named .. is read as DOT-DOT,
 which must be one of :BACK or :UP and defaults to :BACK.
 
 HOST, DEVICE and VERSION components are taken from DEFAULTS,
-which itself defaults to *NIL-PATHNAME*, also used if DEFAULTS in NIL.
+which itself defaults to *NIL-PATHNAME*, also used if DEFAULTS is NIL.
 No host or device can be specified in the string itself,
 which makes it unsuitable for absolute pathnames outside Unix.
 

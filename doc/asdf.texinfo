@@ -2122,7 +2122,7 @@ of an @code{unportable-cl-source-file}.
 @lisp
 (defmethod component-pathname ((component unportable-cl-source-file))
   (merge-pathnames*
-   (coerce-pathname (format nil "~(~A~)/" (asdf:implementation-type)))
+   (parse-unix-namestring (format nil "~(~A~)/" (asdf:implementation-type)))
    (call-next-method)))
 @end lisp
 
@@ -2400,7 +2400,7 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
 
 RELATIVE-COMPONENT-DESIGNATOR :=
     (RELATIVE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...) |
-    STRING | ;; relative directory pathname as interpreted by coerce-pathname.
+    STRING | ;; relative directory pathname as interpreted by parse-unix-namestring.
              ;; In output translations, if last component, **/*.*.* is added
     PATHNAME | ;; pathname; unless last component, directory is assumed.
     :IMPLEMENTATION | ;; directory based on implementation, e.g. sbcl-1.0.45-linux-x64
@@ -3393,39 +3393,7 @@ This might matter, for instance, in meta-data about author's names.
 
 @section Miscellaneous Functions
 
-Most of these functions are not exported by ASDF anymore,
-but only used for private purposes of ASDF.
-Please use ASDF-UTILS for the same functions exported from a stable library.
-
-@defun coerce-pathname name @Akey type defaults
-
-This function (available starting with ASDF 2.012.11)
-takes an argument, and portably interprets it as a pathname.
-If the argument @var{name} is a pathname or @code{nil}, it is passed through;
-if it's a symbol, it's interpreted as a string by downcasing it;
-if it's a string, it is first separated using @code{/} into substrings;
-the leading substrings denote subdirectories of a relative pathname.
-If @var{type} is @code{:directory} or the string ends with @code{/},
-the last substring is also a subdirectory;
-if @var{type} is a string, it is used as the type of the pathname, and
-the last substring is the name component of the pathname;
-if @var{type} is @code{nil}, the last substring specifies both name and type components
-of the pathname, with the last @code{.} separating them, or only the name component
-if there's no last @code{.} or if there is only one dot and it's the first character.
-The host, device and version components come from @var{defaults}, which defaults to
-@var{*default-pathname-defaults*}; but that shouldn't matter if you use @code{merge-pathnames*}.
-
-@end defun
-
-@defun merge-pathnames* @Akey specified defaults
-
-This function is a replacement for @code{merge-pathnames} that uses the host and device
-from the @var{defaults} rather than the @var{specified} pathname when the latter
-is a relative pathname. This allows ASDF and its users to create and use relative pathnames
-without having to know beforehand what are the host and device
-of the absolute pathnames they are relative to.
-
-@end defun
+These functions are exported by ASDF for your convenience.
 
 @defun system-relative-pathname system name @Akey type
 
@@ -3490,15 +3458,103 @@ with respect to its own code, and what it does is ridiculously complex;
 look at the beginning of @file{asdf.lisp} to see what it does.
 @end defun
 
-@defun run-program
+@defun run-shell-command control-string @Arest args
 
-run-program takes a @var{COMMAND} argument that is either
-a list of a program path and its arguments,
+This function is obsolete and present only for the sake of backwards-compatibility:
+``If it's not backwards, it's not compatible''. We @emph{strongly} discourage its use.
+Its current behavior is only well-defined on Unix platforms
+(which include MacOS X and cygwin). On Windows, anything goes.
+The following documentation is only for the purpose of your migrating away from it
+in a way that preserves semantics.
+
+Instead we recommend the use @code{run-program}, described in the next section, and
+available as part of ASDF since ASDF 3.
+
+@code{run-shell-command} takes as arguments a format @code{control-string}
+and arguments to be passed to @code{format} after this control-string
+to produce a string.
+This string is a command that will be evaluated with a POSIX shell if possible;
+yet, on Windows, some implementations will use CMD.EXE,
+while others (like SBCL) will make an attempt at invoking a POSIX shell
+(and fail if it is not present).
+@end defun
+
+@section Some Utility Functions
+
+The below functions are not exported by ASDF itself, but by UIOP, available since ASDF 3.
+Some of them have precursors in ASDF 2, but we recommend
+you rely on ASDF 3 for active developments.
+UIOP provides many, many more utility functions, and we recommend
+you read its README and sources for more information.
+
+
+@defun parse-unix-namestring name @Akey type defaults dot-dot ensure-directory @AallowOtherKeys
+Coerce NAME into a PATHNAME using standard Unix syntax.
+
+Unix syntax is used whether or not the underlying system is Unix;
+on such non-Unix systems it is only usable but for relative pathnames;
+but especially to manipulate relative pathnames portably, it is of crucial
+to possess a portable pathname syntax independent of the underlying OS.
+This is what @code{parse-unix-namestring} provides, and why we use it in ASDF.
+
+When given a @code{pathname} object, just return it untouched.
+When given @code{nil}, just return @code{nil}.
+When given a non-null @code{symbol}, first downcase its name and treat it as a string.
+When given a @code{string}, portably decompose it into a pathname as below.
+
+@code{#\/} separates directory components.
+
+The last @code{#\/}-separated substring is interpreted as follows:
+1- If @var{type} is @code{:directory} or @var{ensure-directory} is true,
+ the string is made the last directory component, and NAME and TYPE are NIL.
+ if the string is empty, it's the empty pathname with all slots NIL.
+2- If @var{type} is @code{nil}, the substring is a file-namestring,
+ and its @code{name} and @code{type} are separated by @code{split-name-type}.
+3- If @var{type} is a string, it is the given @code{type}, and the whole string is the @code{name}.
+
+Directory components with an empty name the name @code{.} are removed.
+Any directory named @code{..} is read as @var{dot-dot},
+which must be one of @code{:back} or @code{:up} and defaults to @code{:back}.
+
+@code{host}, @code{device} and @code{version} components are taken from @var{defaults},
+which itself defaults to @code{*nil-pathname*}, also used if @var{defaults} is @code{nil}.
+No host or device can be specified in the string itself,
+which makes it unsuitable for absolute pathnames outside Unix.
+
+For relative pathnames, these components (and hence the defaults) won't matter
+if you use @code{merge-pathnames*} but will matter if you use @code{merge-pathnames},
+which is an important reason to always use @code{merge-pathnames*}.
+
+Arbitrary keys are accepted, and the parse result is passed to @code{ensure-pathname}
+with those keys, removing @var{type}, @var{defaults} and @var{dot-dot}.
+When you're manipulating pathnames that are supposed to make sense portably
+even though the OS may not be Unixish, we recommend you use @code{:want-relative t}
+to throw an error if the pathname is absolute
+@end defun
+
+@defun merge-pathnames* specified @Aoptional defaults
+
+This function is a replacement for @code{merge-pathnames} that uses the host and device
+from the @var{defaults} rather than the @var{specified} pathname when the latter
+is a relative pathname. This allows ASDF and its users to create and use relative pathnames
+without having to know beforehand what are the host and device
+of the absolute pathnames they are relative to.
+
+@end defun
+
+@defun run-program command @Akey ignore-error-status force-shell input output error-output
+	if-input-does-not-exist if-output-exists if-error-output-exists
+	element-type external-format @AallowOtherKeys
+
+run-program takes a @var{command} argument that is either
+a list of a program name or path and its arguments,
 or a string to be executed by a shell.
 It spawns the command, waits for it to return,
 verifies that it exited cleanly (unless told not too below),
 and optionally captures and processes its output.
 It accepts many keyword arguments to configure its behavior.
+It returns three values: one for the output and
+(starting with 3.0.2.11) one for the error-output and one for the return value.
 
 @code{output} is its most important argument;
 it specifies how the output is captured and processed.
@@ -3522,6 +3578,7 @@ Following POSIX convention, an error is anything but
 a normal exit with status code zero.
 
 run-program works on all platforms supported by ASDF, except Genera.
+See the source code for more documentation.
 
 @end defun
 
@@ -3570,27 +3627,6 @@ See the documentation for asdf-driver:sub-object.
 We recommend you control the syntax with such macro as
 asdf-driver:with-safe-io-syntax.
 
-@end defun
-
-@defun run-shell-command
-
-This function is obsolete and present only for the sake of backwards-compatibility:
-``If it's not backwards, it's not compatible''. We strongly discourage its use.
-Its current behavior is only well-defined on Unix platforms
-(which include MacOS X and cygwin). On Windows, anything goes.
-The following documentation is only for the purpose of your migrating away from it
-in a way that preserves semantics.
-
-Instead we recommend the use @code{run-program} above
-available as part of ASDF since ASDF 3.
-
-@code{run-shell-command} takes as arguments a @code{format} control-string
-and arguments to be passed to @code{format} after this control-string
-to produce a string.
-This string is a command that will be evaluated with a POSIX shell if possible;
-yet, on Windows, some implementations will use CMD.EXE,
-while others (like SBCL) will make an attempt at invoking a POSIX shell
-(and fail if it is not present).
 @end defun
 
 
