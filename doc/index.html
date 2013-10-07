@@ -41,7 +41,7 @@
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
-        <p>ASDF 3 contains two parts: <tt>asdf/defsystem</tt> and <tt>asdf/driver</tt>.
+        <p>ASDF 3 contains two parts: <tt>asdf/defsystem</tt> and <tt>uiop</tt>.
         </p>
         <p><tt>asdf/defsystem</tt>,
           is a tool to describe how Lisp source code is organized in systems,
@@ -53,8 +53,8 @@
         <p>ASDF stands for <em>A</em>nother <em>S</em>ystem <em>D</em>efinition <em>F</em>acility,
           in the continuity of the Lisp <tt>DEFSYSTEM</tt> of yore.
         </p>
-        <p><tt>asdf/driver</tt>,
-          also known as <tt>uiop</tt>,
+        <p><tt>uiop</tt>,
+          also known as <tt>asdf/driver</tt>,
           the Utilities for Implementation- and OS- Portability,
           is a Common Lisp portability library and runtime support system
           that helps you write Common Lisp software in a portable way.
@@ -66,6 +66,8 @@
           access the environment, use the filesystem,
           call other programs and parse their output,
           compile Lisp code, muffle conditions, or configure Lisp software.
+          See its
+          <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=uiop/README;hb=HEAD;js=1">README</a>.
         </p>
         <a id="what_it_is_not"></a>
         <h3>What it is not</h3>
@@ -95,7 +97,8 @@
           (a somewhat improved incompatible variant of ASDF 1, less featureful than ASDF 3),
           or Alastair Bridgewater's one-package-per-file
           <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a>
-          (similar to <tt>faslpath</tt> below).
+          (similar to <tt>faslpath</tt> below,
+          also reimplemented as the ASDF extension <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-package-system.git"><tt>asdf-package-system</tt></a>).
           Older systems that are not maintained anymore include
           Mark Kantrowitz's
           <a href="http://www.cliki.net/mk-defsystem"><tt>mk-defsystem</tt></a>
@@ -270,6 +273,13 @@ Peter Graves <gnooth@gmail.com>
 	  <li><a href="http://www.lrde.epita.fr/~didier/software/lisp/misc.php#asdf-flv"
 		 ><tt>asdf-flv</tt></a>,
 	    to bind file-local variables around the compilation of some files.</li>
+          <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-package-system.git"
+                 ><tt>asdf-package-system</tt></a>,
+            to compile Lisp source files with one package per file
+            that also determines dependencies, in the style of
+            <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a> or
+            <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
+            (hopefully to be merged into a future ASDF 3.0.4 or 3.1 release.</li>
         </ul>
         <p>Former extensions, now superseded, include:</p>
         <ul>
@@ -289,7 +299,7 @@ Peter Graves <gnooth@gmail.com>
             or (on supported implementations), a standalone executable program.
           </li>
 	  <li><tt>asdf-utils</tt> was a collection of utilities that originated with ASDF.
-            It is now superseded by <tt>asdf/driver</tt>, aka <tt>uiop</tt>,
+            It is now superseded by <tt>uiop</tt>, aka <tt>asdf/driver</tt>,
             which is part of ASDF,
             and exports its functionality
             in its own package <tt>uiop</tt>.
@@ -339,41 +349,36 @@ Peter Graves <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
-          <dt>Summer 2013</dt>
+          <dt>Since July 2013</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau has resigned as maintainer
             after releasing ASDF 3.0.1.
-        Robert P. Goldman is interim maintainer until someone more gifted,
-        charming, dedicated, and better-looking can be secured to fill the role.</dd>
-          <dt>In February 2013</dt>
+            Robert P. Goldman is interim maintainer until someone more gifted,
+            charming, dedicated, and better-looking can be secured to fill the role.
+          </dd>
+          <dt>November 2012 to June 2013</dt>
           <dd>
-            ASDF 3 now includes both the traditional <tt>asdf/defsystem</tt>
-            and a formalized portability library <tt>asdf/driver</tt>.
+            Fran&ccedil;ois-Ren&eacute; Rideau completely rewrites ASDF
+            and publishes ASDF 3, beta-released as 2.27 in February 2013,
+            and released as 3.0.1 in May 2013.
+            It now includes both the traditional <tt>asdf/defsystem</tt>
+            and a formalized portability library <tt>uiop</tt> (née <tt>asdf/driver</tt>).
             <tt>asdf/defsystem</tt> is a backward-compatible reimplementation of ASDF
             with correct timestamp propagation based on a consistent dependency model,
             and featuring support for bundle output, deferred warnings check, and more.
-            <tt>asdf/driver</tt> provides many abstractions to write portable Common Lisp programs.
+            <tt>uiop</tt> provides many abstractions to write portable Common Lisp programs.
+            Last version: 3.0.1.
           </dd>
-          <dt>In April 2012</dt>
-          <dd>
-            ASDF 2.21 now controls the character encoding used by Lisp source files.
-            You can specify different encodings in your defsystem,
-            e.g. <kbd>:encoding :latin1</kbd>,
-            if you <kbd>:defsystem-depends-on (:asdf-encodings)</kbd>.
-            While the default will remain to load and compile file
-            with the <kbd>:default</kbd> external-format,
-            we encourage all library authors to adopt
-            the <i>de facto</i> standard, UTF-8,
-            for all their source files (.lisp and .asd).
-            Our intent is to bless and enforce this standard encoding
-            on all these files by default in a not-to-faraway future.
-          </dd>
-          <dt>Since December 2009</dt>
+          <dt>December 2009 to October 2012</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau is de facto maintainer,
             with notable contributions from Robert P. Goldman, but also
             Juanjo Garcia-Ripoll and James Anderson.
-            ASDF 2 released
+            ASDF 2.000 is released in May 2010
             with many clean-ups, better configurability, some new features,
             and updated documentation.
+            The ASDF 2 series culminates with ASDF 2.26 in October 2012,
+            which in addition to many bug fixes and small features
+            includes support for file encodings, around-compile and compile-check hooks.
+            Last version: 2.26.
           </dd>
           <dt>May 2006 to November 2009</dt>
           <dd>Gary King is de facto maintainer,
@@ -390,12 +395,12 @@ Peter Graves <gnooth@gmail.com>
             Nikodemus Siivola, Peter Van Eynde, Edi Weitz, Kevin Rosenberg.
             The system made more robust, a few more features.
             Last version: 1.97.
+          </dd>
           <dt>August 2001 to May 2004</dt>
-          <dd>Developed by Daniel Barlow, with notable contributions from
+          <dd>Created then developed by Daniel Barlow, with notable contributions from
             Christophe Rhodes, Kevin Rosenberg, Edi Weitz, Rahul Jain.
             Last version: 1.85.
-          <dt>August 2001</dt>
-          <dd>Created by Daniel Barlow</dd>
+          </dd>
       </dl>
           </div>
       <div id="footer">
@@ -405,7 +410,7 @@ Peter Graves <gnooth@gmail.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2013 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2013-03-03</div>
+        <div id="timestamp">Last updated 2013-10-07</div>
     </div>
   </body>
 </html>
