@@ -258,7 +258,8 @@ Going forward, we recommend new users should be using the source-registry.
 
   (defun find-system-if-being-defined (name)
     (when *systems-being-defined*
-      (gethash (coerce-name name) *systems-being-defined*)))
+      ;; notable side effect: mark the system as being defined, to avoid infinite loops
+      (ensure-gethash (coerce-name name) *systems-being-defined* nil)))
 
   (defun call-with-system-definitions (thunk)
     (if *systems-being-defined*
@@ -310,13 +311,13 @@ Going forward, we recommend new users should be using the source-registry.
                              (read-file-form version-pathname)))
                (old-version (asdf-version)))
           (or (version<= old-version version)
-              (let ((old-pathname
-                      (if-let (pair (system-registered-p "asdf"))
-                        (system-source-file (cdr pair))))
-                    (key (list pathname old-version)))
-                (unless (gethash key *old-asdf-systems*)
-                  (setf (gethash key *old-asdf-systems*) t)
-                  (warn "~@<~
+              (ensure-gethash
+               (list pathname old-version) *old-asdf-systems*
+                 #'(lambda ()
+                     (let ((old-pathname
+                             (if-let (pair (system-registered-p "asdf"))
+                               (system-source-file (cdr pair)))))
+                       (warn "~@<~
         You are using ASDF version ~A ~:[(probably from (require \"asdf\") ~
         or loaded by quicklisp)~;from ~:*~S~] and have an older version of ASDF ~
         ~:[(and older than 2.27 at that)~;~:*~A~] registered at ~S. ~
@@ -338,7 +339,8 @@ Going forward, we recommend new users should be using the source-registry.
         then you might indeed want to either install and register a more recent version, ~
         or use :ignore-inherited-configuration to avoid registering the old one. ~
         Please consult ASDF documentation and/or experts.~@:>~%"
-                    old-version old-pathname version pathname)))))))
+                             old-version old-pathname version pathname)
+                       t)))))))
 
   (defun locate-system (name)
     "Given a system NAME designator, try to locate where to load the system from.
@@ -375,6 +377,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
 
   (defmethod find-system ((name string) &optional (error-p t))
     (with-system-definitions ()
+      (let ((primary-name (primary-system-name name)))
+        (unless (or (equal name primary-name)
+                    (nth-value 1 (gethash primary-name *systems-being-defined*)))
+          (find-system primary-name nil)))
       (loop
         (restart-case
             (multiple-value-bind (foundp found-system pathname previous previous-time)
