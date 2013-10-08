@@ -26,7 +26,7 @@
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
-   #:list-to-hash-set ;; hash-table
+   #:list-to-hash-set #:ensure-gethash ;; hash-table
    #:ensure-function #:access-at #:access-at-count ;; functions
    #:call-function #:call-functions #:register-hook-function
    #:match-condition-p #:match-any-condition-p ;; conditions
@@ -327,12 +327,6 @@ Return two values, the stripped string and the strip that was stripped"
   (define-modify-macro latest-stamp-f (&rest stamps) latest-stamp))
 
 
-;;; Hash-tables
-(with-upgradability ()
-  (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
-    (dolist (x list h) (setf (gethash x h) t))))
-
-
 ;;; Function designators
 (with-upgradability ()
   (defun ensure-function (fun &key (package :cl))
@@ -350,7 +344,7 @@ and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
-      ((or function symbol) fun)
+      (symbol fun)
       (cons (if (eq 'lambda (car fun))
                 (eval fun)
                 #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args)))))
@@ -383,7 +377,7 @@ instead of a list."
 
   (defun access-at-count (at)
     "From an AT specification, extract a COUNT of maximum number
-   of sub-objects to read as per ACCESS-AT"
+of sub-objects to read as per ACCESS-AT"
     (cond
       ((integerp at)
        (1+ at))
@@ -391,14 +385,36 @@ instead of a list."
        (1+ (first at)))))
 
   (defun call-function (function-spec &rest arguments)
+    "Call the function designated by FUNCTION-SPEC as per ENSURE-FUNCTION,
+with the given ARGUMENTS"
     (apply (ensure-function function-spec) arguments))
 
   (defun call-functions (function-specs)
+    "For each function in the list FUNCTION-SPECS, in order, call the function as per CALL-FUNCTION"
     (map () 'call-function function-specs))
 
   (defun register-hook-function (variable hook &optional call-now-p)
-    (pushnew hook (symbol-value variable))
+    "Push the HOOK function (a designator as per ENSURE-FUNCTION) onto the hook VARIABLE.
+When CALL-NOW-P is true, also call the function immediately."
+    (pushnew hook (symbol-value variable) :test 'equal)
     (when call-now-p (call-function hook))))
+
+
+;;; Hash-tables
+(with-upgradability ()
+  (defun ensure-gethash (key table default)
+    "Lookup the TABLE for a KEY as by gethash, but if not present,
+call the (possibly constant) function designated by DEFAULT as per CALL-FUNCTION,
+set the corresponding entry to the result in the table, and return that result."
+    (multiple-value-bind (value foundp) (gethash key table)
+      (if foundp
+          value
+          (setf (gethash key table) (values (call-function default))))))
+
+  (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
+    "Convert a LIST into hash-table that has the same elements when viewed as a set,
+up to the given equality TEST"
+    (dolist (x list h) (setf (gethash x h) t))))
 
 
 ;;; Version handling
