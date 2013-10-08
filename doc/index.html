@@ -41,34 +41,58 @@
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
-        <p>ASDF 3 contains two parts: <tt>asdf/defsystem</tt> and <tt>uiop</tt>.
-        </p>
-        <p><tt>asdf/defsystem</tt>,
-          is a tool to describe how Lisp source code is organized in systems,
-          and how to build a system in term of actions that depend on previous actions.
-        </p>
-        <p>It is roughly what Common Lisp hackers use to build software
-          where C hackers might use GNU <tt>Make</tt>.
-        </p>
         <p>ASDF stands for <em>A</em>nother <em>S</em>ystem <em>D</em>efinition <em>F</em>acility,
           in the continuity of the Lisp <tt>DEFSYSTEM</tt> of yore.
         </p>
-        <p><tt>uiop</tt>,
-          also known as <tt>asdf/driver</tt>,
-          the Utilities for Implementation- and OS- Portability,
-          is a Common Lisp portability library and runtime support system
-          that helps you write Common Lisp software in a portable way.
+        <p>ASDF 3 contains two parts: <tt>asdf/defsystem</tt> and <tt>uiop</tt>.
         </p>
-        <p>In addition to many general-purpose Lisp utilities,
-          it notably provides portable abstractions to
-          gloss over implementation quirks, support hot-upgrade of code,
-          manipulate pathnames, create programs, use command-line arguments,
-          access the environment, use the filesystem,
-          call other programs and parse their output,
-          compile Lisp code, muffle conditions, or configure Lisp software.
-          See its
-          <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=uiop/README;hb=HEAD;js=1">README</a>.
-        </p>
+        <dl>
+          <dt><tt>asdf/defsystem</tt></dt>
+          <dd>
+            <p>is a tool to describe how Lisp source code is organized in systems,
+              and how to build a system in term of actions that depend on previous actions.
+            </p>
+            <p>
+              Typical actions consist in compiling a Lisp source file (if not up to date)
+              and loading the resulting compilation output (if not both loaded and up to date).
+              And you must typically compile and load files that define packages, macros, variables,
+              before you may compile and load other files that use them.
+            </p>
+            <p>It is roughly what Common Lisp hackers use to build and load software
+              where C hackers might use GNU <tt>Make</tt> to build software and
+              <tt>ld.so</tt> to load it.
+            </p>
+            <p><tt>asdf/defsystem</tt> is the part that people usually refer to as <tt>ASDF</tt>,
+              with <tt>uiop</tt> being only a supporting library,
+              that happens to be distributed at the same time, by necessity.
+            </p>
+          </dd>
+          <dt><tt>uiop</tt></dt>
+          <dd>
+            <p>also known as <tt>asdf/driver</tt>,
+              the Utilities for Implementation- and OS- Portability,
+              is a Common Lisp portability library and runtime support system
+              that helps you write Common Lisp software in a portable way.
+            </p>
+            <p>In addition to many general-purpose Lisp utilities,
+              it notably provides portable abstractions to
+              gloss over implementation quirks, support hot-upgrade of code,
+              manipulate pathnames, create programs, use command-line arguments,
+              access the environment, use the filesystem,
+              call other programs and parse their output,
+              compile Lisp code, muffle conditions, or configure Lisp software.
+              See its
+              <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=uiop/README;hb=HEAD;js=1">README</a>.
+            </p>
+            <p><tt>uiop</tt> is distributed as part of the <tt>ASDF</tt>,
+              its source code is transcluded in the single-file <tt>asdf.lisp</tt> being distributed
+              and the precompiled fasls provided by Lisp implementations.
+              <tt>ASDF</tt> relies heavily on it for its portability layer and runtime support,
+              particularly so as to handle pathnames and filesystem access.
+              <tt>uiop</tt> is useful on its own and can also be compiled and distributed separately.
+            </p>
+          </dd>
+        </dl>
         <a id="what_it_is_not"></a>
         <h3>What it is not</h3>
         <p>ASDF will <em>not</em> download missing software components for you.
