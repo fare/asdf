@@ -3,5 +3,5 @@
 (defsystem :hello-world-example
   :build-operation program-op
   :entry-point "hello:entry-point"
-  :depends-on (:asdf-driver)
+  :depends-on (:uiop)
   :components ((:file "hello")))

@@ -6,7 +6,7 @@ Some constraints:
  But we *can* rely on ASDF being present *after* we load it.
 * evaluating this file MUST NOT print anything,
  because we use it in the forward-ref test to check that nothing is printed.
-* We make sure that none of our symbols clash with asdf/driver or asdf,
+* We make sure that none of our symbols clash with uiop or asdf,
  so we may use-package them during testing.
 |#
 
@@ -320,7 +320,7 @@ is bound, write a message and exit on an error.  If
   (verbose t nil)
   (loop :for file :in files :do
     (load (string-downcase file)))
-  (setf *package* (some 'find-package '(:asdf :asdf/driver :asdf/utility :asdf/package :asdf-test)))
+  (setf *package* (some 'find-package '(:asdf :uiop :asdf/utility :asdf/package :asdf-test)))
   (load "contrib/debug.lisp"))
 
 (defun load-asdf-lisp (&optional tag)
@@ -520,7 +520,7 @@ is bound, write a message and exit on an error.  If
 (defun frob-packages ()
   (format t "Frob packages~%")
   (use-package :asdf :asdf-test)
-  (when (find-package :asdf/driver) (use-package :asdf/driver :asdf-test))
+  (when (find-package :uiop) (use-package :uiop :asdf-test))
   (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
   (setf *package* (find-package :asdf-test))
   t)

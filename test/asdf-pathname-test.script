@@ -1,6 +1,6 @@
 ;;; -*- Lisp -*-
 
-(defpackage :asdf-pathname-test (:use :asdf :asdf/driver :asdf/common-lisp :asdf/cache :asdf-test))
+(defpackage :asdf-pathname-test (:use :asdf :uiop :uiop/common-lisp :asdf/cache :asdf-test))
 (in-package :asdf-pathname-test)
 
 ;;(setf *unspecific-pathname-type* nil)
