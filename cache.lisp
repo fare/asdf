@@ -2,7 +2,7 @@
 ;;;; Stamp cache
 
 (asdf/package:define-package :asdf/cache
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
            #:consult-asdf-cache #:do-asdf-cache
            #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*))

@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/cache)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
@@ -243,7 +243,9 @@ Going forward, we recommend new users should be using the source-registry.
     (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
 
   (register-preloaded-system "asdf" :version *asdf-version*)
+  (register-preloaded-system "uiop" :version *asdf-version*)
   (register-preloaded-system "asdf-driver" :version *asdf-version*)
+  (register-preloaded-system "asdf-defsystem" :version *asdf-version*)
 
   (defmethod find-system ((name null) &optional (error-p t))
     (declare (ignorable name))

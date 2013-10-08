@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/component
   (:recycle :asdf/component :asdf/defsystem :asdf/find-system :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export
    #:component #:component-find-path
    #:component-name #:component-pathname #:component-relative-pathname

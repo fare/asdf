@@ -5,7 +5,7 @@
   (:nicknames :asdf/utility)
   (:recycle :uiop/utility :asdf/utility :asdf)
   (:use :uiop/common-lisp :uiop/package)
-  ;; import and reexport a few things defined in :asdf/common-lisp
+  ;; import and reexport a few things defined in :uiop/common-lisp
   (:import-from :uiop/common-lisp #:compatfmt #:loop* #:frob-substrings
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export #:compatfmt #:loop* #:frob-substrings #:compatfmt
@@ -68,9 +68,9 @@
                  ;; undefining the previous function is the portable way
                  ;; of overriding any incompatible previous gf, except on CLISP.
                  ;; We usually try to do it only for the functions that need it,
-                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer,
+                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer
                  ;; (which causes issues in clisp)
-                 ,@(when (or #-clisp supersede #+(or ecl gcl2.7) t) ; XXX
+                 ,@(when (or #-clisp supersede #+(or ecl gcl2.7) t)
                      `((undefine-function ',name)))
                  #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
                  ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl

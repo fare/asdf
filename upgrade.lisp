@@ -4,7 +4,7 @@
 
 (asdf/package:define-package :asdf/upgrade
   (:recycle :asdf/upgrade :asdf)
-  (:use :asdf/common-lisp :asdf/driver)
+  (:use :uiop/common-lisp :uiop)
   (:export
    #:asdf-version #:*previous-asdf-versions* #:*asdf-version*
    #:asdf-message #:*verbose-out*
@@ -78,7 +78,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
              #:inherit-source-registry #:process-source-registry ;; source-registry
              #:process-source-registry-directive
              #:trivial-system-p ;; bundle
-             ;; NB: it's too late to do anything about asdf-driver functions!
+             ;; NB: it's too late to do anything about uiop functions!
              ))
          (uninterned-symbols
            '(#:*asdf-revision* #:around #:asdf-method-combination

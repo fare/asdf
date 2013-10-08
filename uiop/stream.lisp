@@ -541,7 +541,7 @@ The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT
       :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
-        ;; TODO: on Unix, use CFFI and mkstemp -- but asdf/driver is precisely meant to not depend on CFFI or on anything! Grrrr.
+        ;; TODO: on Unix, use CFFI and mkstemp -- but UIOP is precisely meant to not depend on CFFI or on anything! Grrrr.
         (with-open-file (stream pathname
                                 :direction direction
                                 :element-type element-type
