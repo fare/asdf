@@ -274,7 +274,7 @@ or none at all:
       (null "1.0"))))
 @end lisp
 
-If it returns @code{NIL} then ASDF is not installed.
+If it returns @code{nil} then ASDF is not installed.
 Otherwise it should return a string.
 If it returns @code{"1.0"}, then it can actually be
 any version before 1.77 or so, or some buggy variant of 1.x.
@@ -509,11 +509,11 @@ configure it with:
 Note the trailing slash: when searching for a system,
 ASDF will evaluate each entry of the central registry
 and coerce the result to a pathname@footnote{
-ASDF will indeed call @code{EVAL} on each entry.
-It will also skip entries that evaluate to @code{NIL}.
+ASDF will indeed call @code{eval} on each entry.
+It will also skip entries that evaluate to @code{nil}.
 
 Strings and pathname objects are self-evaluating,
-in which case the @code{EVAL} step does nothing;
+in which case the @code{eval} step does nothing;
 but you may push arbitrary SEXP onto the central registry,
 that will be evaluated to compute e.g. things that depend
 on the value of shell variables or the identity of the user.
@@ -937,7 +937,7 @@ where @code{...} is the component in question.
 In this case @code{...} would expand to something like
 
 @lisp
-(find-component (find-system "foo") "mod")
+(find-component "foo" "mod")
 @end lisp
 
 For more details on the syntax of such forms, see @ref{The defsystem
@@ -1421,7 +1421,7 @@ to use, define or implement the activities
 that are part of building your software.
 Though they manipulate @code{action}s,
 most of these functions do not take as an argument
-a reified pair (a CONS cell) of an operation and a component;
+a reified pair (a @code{cons} cell) of an operation and a component;
 instead, they usually take two separate arguments,
 which allows to take advantage of the power CLOS-style multiple dispatch
 for fun and profit.
@@ -1553,55 +1553,62 @@ They are invoked via the @code{operate} generic function.
 (asdf:operate 'asdf:@var{operation-name} :@var{system-name} @{@var{operation-options ...}@})
 @end lisp
 
-@deffn Operation @code{compile-op} @Akey @code{proclamations}
+@deffn Operation @code{compile-op}
 
 This operation compiles the specified component.
-If proclamations are supplied, they will be proclaimed.
-This is a good place to specify optimization settings.
+A @code{cl-source-file} will be @code{compile-file}'d.
+All the children and dependencies of a system or module
+will be recursively compiled by @code{compile-op}.
 
-When creating a new component type,
-you should provide methods for @code{compile-op}.
-
-When @code{compile-op} is invoked,
-component dependencies often cause some parts of the system
-to be loaded as well as compiled.
-Invoking @code{compile-op}
-does not necessarily load all the parts of the system, though;
-use @code{load-op} to load a system.
+@code{compile-op} depends on @code{prepare-op} which
+itself depends on a @code{load-op} of all of a component's dependencies,
+as well as of its parent's dependencies.
+When @code{operate} is called on @code{compile-op},
+all these dependencies will be loaded as well as compiled;
+yet, some parts of the system main remain unloaded,
+because nothing depends on them.
+Use @code{load-op} to load a system.
 @end deffn
 
-@deffn Operation @code{load-op} @Akey @code{proclamations}
+@deffn Operation @code{load-op}
 
-This operation loads a system.
+This operation loads the compiled code for a specified component.
+A @code{cl-source-file} will have its compiled fasl @code{load}ed,
+which fasl is the output of @code{compile-op} that @code{load-op} depends on.
+All the children and dependencies of a system or module
+will be recursively loaded by @code{load-op}.
 
-The default methods for @code{load-op} compile files before loading them.
-For parity, your own methods on new component types should probably do so too.
+@code{load-op} depends on @code{prepare-op} which
+itself depends on a @code{load-op} of all of a component's dependencies,
+as well as of its parent's dependencies.
 @end deffn
 
-@deffn Operation @code{parent-load-op} @Akey @code{proclamations}
+@deffn Operation @code{prepare-op}
 
-This operation ensures that the dependencies
-of a module, and its parent, and so on, are loaded (as per @code{load-op})
-before the components within that module may be operated upon.
-
-By default, all operations depend on this @code{parent-operation}
-for actions on components to depend on this ``parent operation'' being acted on the parent.
-
-The default methods for @code{load-op} compile files before loading them.
-For parity, your own methods on new component types should probably do so too.
+This operation ensures that the dependencies of a component
+and its recursive parents are loaded (as per @code{load-op}),
+as a prerequisite before @code{compile-op} and @code{load-op} operations
+may be performed on a given component.
 @end deffn
 
-@deffn Operation @code{load-source-op}
+@deffn Operation @code{load-source-op}, @code{prepare-source-op}
 
-This operation will load the source for the files in a module
-even if the source files have been compiled.
-Systems sometimes have knotty dependencies
-which require that sources are loaded
-before they can be compiled.
-This is how you do that.
+@code{load-source-op} will load the source for the files in a module
+rather than they compiled fasl output.
+It has a @code{prepare-source-op} analog to @code{prepare-op},
+that ensures the dependencies are themselves loaded via @code{load-source-op}.
 
-If you are creating a component type,
-you need to implement this operation --- at least, where meaningful.
+There is no provision in ASDF for ensuring that
+some components are always loaded as source, while others are always compiled.
+While this idea often comes up in discussions,
+it actually doesn't play well with either the linking model of ECL
+or with various bundle operations (see below), and is eventually not workable;
+also the dependency model of ASDF would have to be modified incompatibly
+to allow for such trick.
+If your code doesn't compile cleanly, fix it.
+If compilation makes it slow, use @code{declaim} or @code{eval-when}
+to adjust your compiler settings,
+or eschew compilation by @code{eval}uating a quoted source form at load-time.
 @end deffn
 
 @anchor{test-op}
@@ -1625,18 +1632,26 @@ and test techniques in use in the community.
 People typically define @code{test-op} methods like thus:
 @example
 (defmethod perform ((o asdf:test-op)
-                    (s (eql (asdf:find-system @var{:mysystem}))))
-  (asdf:load-system @var{:mysystem})
-  (eval (read-from-string "(some expression that runs the tests)"))
-  t)
+                    (s (eql (asdf:find-system @var{:my-system}))))
+  (asdf:load-system @var{:my-system-test})
+  (funcall (read-from-string "my-system-test:test-suite")))
+@end example
+
+Using @code{load-system} in the perform method
+rather than an @code{:in-order-to} dependency,
+is sometimes necessary for backward compatibility with ASDF 2 and older,
+to avoid circular dependencies that could arise
+because of the way these old versions propagate dependencies.
+
+If you don't care for compatibility with ASDF 2,
+you could use the following options in your @code{defsystem} form:
+@example
+  :in-order-to ((test-op (load-op :my-system-test)))
+  :perform (test-op (o c) (symbol-call :my-system-test :test-suite))
 @end example
 @end deffn
 
-@deffn Operation @code{fasl-op}, @code{monolithic-fasl-op}, @code{load-fasl-op},
-	@code{binary-op}, @code{monolithic-binary-op},
-	@code{lib-op}, @code{monolithic-lib-op},
-	@code{dll-op}, @code{monolithic-dll-op},
-        @code{program-op}
+@deffn Operation @code{fasl-op}, @code{monolithic-fasl-op}, @code{load-fasl-op}, @code{binary-op}, @code{monolithic-binary-op}, @code{lib-op}, @code{monolithic-lib-op}, @code{dll-op}, @code{monolithic-dll-op}, @code{program-op}
 
 These are ``bundle'' operations, that can create a single-file ``bundle''
 for all the contents of each system in an application,
@@ -1716,6 +1731,24 @@ This behavior is not very satisfactory and may change in the future.
 Maybe you have suggestions on how to better configure it?
 @end deffn
 
+@deffn Operation @code{concatenate-source-op}, @code{monolithic-concatenate-source-op}, @code{load-concatenated-source-op}, @code{compile-concatenated-source-op}, @code{load-compiled-concatenated-source-op}, @code{monolithic-load-concatenated-source-op}, @code{monolithic-compile-concatenated-source-op}, @code{monolithic-load-compiled-concatenated-source-op}
+
+These operation, as their respective names indicate,
+consist in concatenating all @code{cl-source-file} source files in a system
+(or in a system and all its dependencies, if monolithic),
+in the order defined by dependencies,
+then loading the result, or compiling then loading the result.
+
+These operations are useful to deliver a system or application
+as a single source file,
+and for testing that said file loads properly, or compiles then loads properly.
+
+ASDF itself is notably delivered as a single source file this way
+using @code{monolithic-concatenate-source-op},
+transcluding a prelude and the @code{uiop} library
+before the @code{asdf/defsystem} system itself.
+@end deffn
+
 
 @node  Creating new operations,  , Predefined operations of ASDF, Operations
 @comment  node-name,  next,  previous,  up
@@ -1732,33 +1765,89 @@ The rationale for this rule is that we don't want to establish a
 ``global asdf operation name registry'',
 but also want to avoid name clashes.
 
-An operation must provide methods for the following generic functions
-when invoked with an object of type @code{source-file}:
-@emph{FIXME describe this better}
+Your operation @emph{must} usually provide methods
+for one or more of the following generic functions:
+
+@itemize
+
+@item @code{perform}
+Unless your operation, like @code{prepare-op},
+is for dependency propagation only,
+the most important function for which to define a method
+is usually @code{perform},
+which will be called to perform the operation on a specified component,
+after all dependencies have been performed.
+
+The @code{perform} method must call @code{output-files} (see below)
+to find out where to put its files,
+because the user is allowed to override the method
+or tweak the output-translation mechanism.
+Perform should only use the primary value returned by @code{output-files}.
+If one and only one output file is expected,
+it can call @code{output-file} that checks that this is the case
+and returns the first and only list element.
+
+@item @code{output-files}
+If your perform method has any output,
+you must define a method for this function.
+for ASDF to determine where the outputs of performing operation lie.
+
+Your method may return two values, a list of pathnames, and a boolean.
+If the boolean is @code{nil} (or you fail to return multiple values),
+then enclosing @code{:around} methods may translate these pathnames,
+e.g. to ensure object files are somehow stored
+in some implementation-dependent cache.
+If the boolean is @code{t} then the pathnames are marked
+not be translated by the enclosing @code{:around} method.
+
+@item @code{component-depends-on}
+If the action of performing the operation on a component has dependencies,
+you must define a method on @code{component-depends-on}.
+
+Your method will take as specialized arguments
+an operation and a component which together identify an action,
+and return a list of entries describing actions that this action depends on.
+The format of entries is described below.
+
+It is @emph{strongly} advised that
+you should always append the results of @code{(call-next-method)}
+to the results of your method,
+or ``interesting'' failures will likely occur,
+unless you're a true specialist of ASDF internals.
+It is unhappily too late to compatibly use the @code{append} method combination,
+but conceptually that's the protocol that is being manually implemented.
+
+Each entry returned by @code{component-depends-on} is itself a list.
+
+The first element of an entry is an operation designator:
+either an operation object designating itself, or
+a symbol that names an operation class
+(that ASDF will instantiate using @code{make-operation}).
+For instance, @code{load-op}, @code{compile-op} and @code{prepare-op}
+are common such names, denoting the respective operations.
+
+The rest of each entry is a list of component designators:
+either a component object designating itself,
+or an identifier to be used with @code{find-component}.
+@code{find-component} will be called with the current component's parent as parent,
+and the identifier as second argument.
+The identifier is typically a string,
+a symbol (to be downcased as per @code{coerce-name}),
+or a list of strings or symbols.
+In particular, the empty list @code{nil} denotes the parent itself.
+
+@end itemize
+
+An operation @emph{may} provide methods for the following generic functions:
 
 @itemize
 
 @item @code{input-files}
-ASDF has a pretty clever default @code{input-files} mechanism.
+A method for this function is often not needed,
+since ASDF has a pretty clever default @code{input-files} mechanism.
 You only need create a method if there are multiple ultimate input files,
 and/or the bottom one doesn't depend
 on the @code{component-pathname} of the component.
-
-@item @code{output-files}
-The @code{output-files} method determines where the method will put its files.
-It returns two values, a list of pathnames, and a boolean.
-If the boolean is @code{T} then the pathnames are marked
-not be translated by enclosing @code{:around} methods.
-If the boolean is @code{NIL} then enclosing @code{:around} methods
-may translate these pathnames, e.g. to ensure object files
-are somehow stored in some implementation-dependent cache.
-
-@item @code{perform}
-The @code{perform} method must call @code{output-files}
-to find out where to put its files,
-because the user is allowed to override.
-@item @code{output-files}
-for local policy @code{explain}
 
 @item @code{operation-done-p}
 You only need to define a method on that function
@@ -1770,49 +1859,8 @@ For instance, the method for @code{test-op} always returns @code{nil},
 so that tests are always run afresh.
 Of course, the @code{test-op} for your system could depend
 on a deterministically repeatable @code{test-report-op},
-and just read the results from the report files.
-
-@item @code{component-depends-on}
-When you add new operations, you probably need to explain
-how they relate to loading, compiling, testing, etc.,
-in terms of dependencies between actions.
-
-That's where you typically define methods on @code{component-depends-on}.
-Your method will take as arguments
-some properly specialized operation
-and a component denoting a current action,
-and return a list of entries,
-denoting the children actions that the current action depends on.
-The format of entries is described below.
-
-It is @emph{strongly} advised that
-you should always append the results of @code{(call-next-method)}
-to the results of your method,
-or ``interesting'' failures will likely occur,
-unless you're a true specialist of ASDF internals.
-
-Each entry returned by @code{component-depends-on} is itself a list.
-
-The first element of an entry is the name of an operation:
-a symbol that you can use with @code{make-instance}
-(ASDF will instead use with @code{asdf::make-sub-operation}),
-to create a related operation for use in a build plan.
-For instance, @code{load-op} and @code{compile-op}
-are common such names, denoting the respective operations.
-
-The rest of an entry is a list of identifiers
-each denote a component such that
-the pair of the previous operation and this component
-is a children action of current action.
-
-Identifiers follow the @code{defsystem} grammar
-previously documented.
-The main format for identifiers is a string or symbol
-(that will be downcase as per @code{coerce-name}),
-and looked up against the sibling list of the parent module's children components,
-as per @code{find-component}.
-As a special case, @code{nil} denotes the parent itself.
-Other syntaxes are allowed, for instance to specify a component with a version.
+and just read the results from the report files,
+in which case you could have this method return @code{t}.
 
 @end itemize
 
@@ -1825,6 +1873,7 @@ CL stream @code{*standard-output*}, as the Lisp compiler and loader do.
 @cindex component
 @cindex system
 @cindex system designator
+@cindex component designator
 @vindex *system-definition-search-functions*
 
 A @dfn{component} represents a source file or
@@ -1832,12 +1881,16 @@ A @dfn{component} represents a source file or
 A @dfn{system} is (roughly speaking) a top-level component
 that can be found via @code{find-system}.
 
-A @dfn{system designator} is a string or symbol
-and behaves just like any other component name
+A @dfn{system designator} is a system itself,
+or a string or symbol that behaves just like any other component name
 (including with regard to the case conversion rules for component names).
 
+A @dfn{component designator}, relative to a base component,
+is either a component itself,
+or a string or symbol,
+or a list of designators.
 
-@defun find-system system-designator &optional (error-p t)
+@defun find-system system-designator @Aoptional (error-p t)
 
 Given a system designator, @code{find-system} finds and returns a system.
 If no system is found, an error of type
@@ -1880,6 +1933,36 @@ The second function does something similar,
 for the directories specified in the @code{source-registry}.
 Hence, it is strongly advised to define a system
 @var{foo} in the corresponding file @var{foo.asd}.
+@end defun
+
+@defun find-component base path
+
+Given a @var{base} component (or designator for such),
+and a @var{path}, find the component designated by the @var{path}
+starting from the @var{base}.
+
+If @var{path} is a component object, it designates itself,
+independently from the base.
+
+If @var{path} is a string, or symbol denoting a string via @code{coerce-name},
+then @var{base} is resolved to a component object,
+which must be a system or module,
+and the designated component is the child named by the @var{path}.
+
+If @var{path} is a @code{cons} cell,
+@code{find-component} with the base and the @code{car} of the @var{path},
+and the resulting object is used as the base for a tail call
+to @code{find-component} with the @code{car} of the @var{path}.
+
+If @var{base} is a component object, it designates itself.
+
+If @var{base} is null, then @var{path} is used as the base, with @code{nil} as the path.
+
+If @var{base} is a string, or symbol denoting a string via @code{coerce-name},
+it designates a system as per @code{find-system}.
+
+If @var{base} is a @code{cons} cell, it designates the component found by
+@code{find-component} with its @code{car} as base and @code{cdr} as path.
 @end defun
 
 
@@ -2329,7 +2412,7 @@ because they are using content-addressed storage where the truename of a file
 is related to a digest of its individual contents,
 and not to other files in the same intended project.
 For these people, ASDF 3 allows to eschew the @code{TRUENAME} mechanism,
-by setting the variable @var{asdf:*resolve-symlinks*} to @code{NIL}.
+by setting the variable @var{asdf:*resolve-symlinks*} to @code{nil}.
 
 PS: Yes, if you haven't read Vernor Vinge's short but great classic
 ``True Names... and Other Dangers'' then you're in for a treat.
@@ -2492,7 +2575,7 @@ the names of files in such a directory begin with two digits
 that determine the order in which these entries will be read.
 Also, the type of these files is conventionally @code{"conf"}
 and as a limitation to some implementations (e.g. GNU clisp),
-the type cannot be @code{NIL}.
+the type cannot be @code{nil}.
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.:
@@ -2633,7 +2716,7 @@ and for XCVB the corresponding functions are in package XCVB.
    You may extend or override configuration
    from the environment and configuration files
    with the given @var{PARAMETER}, which can be
-   @code{NIL} (no configuration override),
+   @code{nil} (no configuration override),
    or a SEXP (in the SEXP DSL),
    a string (as in the string DSL),
    a pathname (of a file or directory with configuration),
@@ -2660,7 +2743,7 @@ and for XCVB the corresponding functions are in package XCVB.
 
 Every time you use ASDF's @code{find-system}, or
 anything that uses it (such as @code{operate}, @code{load-system}, etc.),
-@code{ensure-source-registry} is called with parameter NIL,
+@code{ensure-source-registry} is called with parameter @code{nil},
 which the first time around causes your configuration to be read.
 If you change a configuration file,
 you need to explicitly @code{initialize-source-registry} again,
@@ -2958,7 +3041,7 @@ e.g. @file{#p"some/path/**/foo*/bar-*.fasl"}
 
 You may use @code{#+features} to customize the configuration file.
 
-The second designator of a mapping may be @code{NIL}, indicating that files are not mapped
+The second designator of a mapping may be @code{nil}, indicating that files are not mapped
 to anything but themselves (same as if the second designator was the same as the first).
 
 When the first designator is @code{t},
@@ -3047,7 +3130,7 @@ The convention is that, for sorting purposes,
 the names of files in such a directory begin with two digits
 that determine the order in which these entries will be read.
 Also, the type of these files is conventionally @code{"conf"}
-and as a limitation of some implementations, the type cannot be @code{NIL}.
+and as a limitation of some implementations, the type cannot be @code{nil}.
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.:
@@ -3121,7 +3204,7 @@ The specified functions are exported from package ASDF.
    You may extend or override configuration
    from the environment and configuration files
    with the given @var{PARAMETER}, which can be
-   @code{NIL} (no configuration override),
+   @code{nil} (no configuration override),
    or a SEXP (in the SEXP DSL),
    a string (as in the string DSL),
    a pathname (of a file or directory with configuration),
@@ -3160,7 +3243,7 @@ The specified functions are exported from package ASDF.
 
 Every time you use ASDF's @code{output-files}, or
 anything that uses it (that may compile, such as @code{operate}, @code{perform}, etc.),
-@code{ensure-output-translations} is called with parameter NIL,
+@code{ensure-output-translations} is called with parameter @code{nil},
 which the first time around causes your configuration to be read.
 If you change a configuration file,
 you need to explicitly @code{initialize-output-translations} again,
@@ -3560,8 +3643,8 @@ When given a @code{string}, portably decompose it into a pathname as below.
 
 The last @code{#\/}-separated substring is interpreted as follows:
 1- If @var{type} is @code{:directory} or @var{ensure-directory} is true,
- the string is made the last directory component, and NAME and TYPE are NIL.
- if the string is empty, it's the empty pathname with all slots NIL.
+ the string is made the last directory component, and its @code{name} and @code{type} are @code{nil}.
+ if the string is empty, it's the empty pathname with all slots @code{nil}.
 2- If @var{type} is @code{nil}, the substring is a file-namestring,
  and its @code{name} and @code{type} are separated by @code{split-name-type}.
 3- If @var{type} is a string, it is the given @code{type}, and the whole string is the @code{name}.
@@ -3594,6 +3677,26 @@ is a relative pathname. This allows ASDF and its users to create and use relativ
 without having to know beforehand what are the host and device
 of the absolute pathnames they are relative to.
 
+@end defun
+
+@defun subpathname pathname subpath @Akey type
+
+This function takes a @var{pathname} and a @var{subpath} and a @var{type}.
+If @var{subpath} is already a @code{pathname} object (not namestring),
+and is an absolute pathname at that, it is returned unchanged;
+otherwise, @var{subpath} is turned into a relative pathname with given @var{type}
+as per @code{parse-unix-namestring} with @code{:want-relative t :type }@var{type},
+then it is merged with the @code{pathname-directory-pathname} of @var{pathname},
+as per @code{merge-pathnames*}.
+
+We strongly encourage the use of this function
+for portably resolving relative pathnames in your code base.
+@end defun
+
+@defun subpathname* pathname subpath @Akey type
+
+This function returns @code{nil} if the base @var{pathname} is @code{nil},
+otherwise acts like @code{subpathname}.
 @end defun
 
 @defun run-program command @Akey ignore-error-status force-shell input output error-output
