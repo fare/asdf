@@ -1161,9 +1161,11 @@ which is reported not to work on some implementations.
 Pathname objects may be given to override the path for a component.
 Such objects are typically specified using reader macros such as @code{#p}
 or @code{#.(make-pathname ...)}.
-Note however, that @code{#p...} is a shorthand for @code{#.(parse-namestring ...)}
+Note however, that @code{#p...} is
+a shorthand for @code{#.(parse-namestring ...)}
 and that the behavior of @code{parse-namestring} is completely non-portable,
-unless you are using Common Lisp @code{logical-pathname}s
+unless you are using Common Lisp @code{logical-pathname}s,
+which themselves involve other non-portable behavior
 (@pxref{The defsystem grammar,,Using logical pathnames}, below).
 Pathnames made with @code{#.(make-pathname ...)}
 can usually be done more easily with the string syntax above.
@@ -1622,59 +1624,96 @@ and test techniques in use in the community.
 
 People typically define @code{test-op} methods like thus:
 @example
-(defmethod perform ((o asdf:test-op) (s (eql (asdf:find-system @var{:mysystem}))))
+(defmethod perform ((o asdf:test-op)
+                    (s (eql (asdf:find-system @var{:mysystem}))))
   (asdf:load-system @var{:mysystem})
   (eval (read-from-string "(some expression that runs the tests)"))
   t)
 @end example
 @end deffn
 
-@deffn Operation @code{load-fasl-op}
+@deffn Operation @code{fasl-op}, @code{monolithic-fasl-op}, @code{load-fasl-op},
+	@code{binary-op}, @code{monolithic-binary-op},
+	@code{lib-op}, @code{monolithic-lib-op},
+	@code{dll-op}, @code{monolithic-dll-op},
+        @code{program-op}
 
-This operation will load and create if need be
-a single fasl file for all the files in each loaded system.
-(Its compilation-only equivalent is @code{asdf::fasl-op}.)
+These are ``bundle'' operations, that can create a single-file ``bundle''
+for all the contents of each system in an application,
+or for the entire application.
 
-Once you have created such a fasl,
+@code{fasl-op} will create a single fasl file for each of the systems needed,
+grouping all its many fasls in one,
+so you can deliver each system as a single fasl.
+@code{monolithic-fasl-op} will create a single fasl file for target system
+and all its dependencies,
+so you can deliver your entire application as a single fasl.
+@code{load-fasl-op} will load the output of @code{fasl-op}
+(though if it the output is not up-to-date,
+it will load the intermediate fasls indeed as part of building it);
+this matters a lot on ECL, where the dynamic linking involved in loading
+tens of individual fasls can be noticeably more expensive
+than loading a single one.
+
+Once you have created a fasl with @code{fasl-op},
 you can use @code{precompiled-system} to deliver it in a way
-that is compatible with clients having asdf dependencies
-on your system whether it is distributed as source of as a single binary.
-
-On your build platform, you run something like that:
-@example
-@code{(asdf:operate 'load-fasl-op @var{:mysystem})}
-@end example
-
-And on your delivery platform, a form like this is evaluated
-in a prologue or at some point before you save your image:
+that is compatible with clients having dependencies on your system,
+whether it is distributed as source or as a single binary;
+the @file{.asd} file to be delivered with the fasl will look like this:
 @example
 (defsystem :mysystem :class :precompiled-system
     :fasl (some expression that will evaluate to a pathname))
 @end example
+Or you can use @code{binary-op} to let ASDF create such a system for you
+as well as the @code{fasl-op} output, or @code{monolithic-binary-op}.
+This allows you to deliver code for your systems or applications
+as a single file.
+Of course, if you want to test the result in the current image,
+@emph{before} you try to use any newly created @file{.asd} files,
+you should not forget to @code{(asdf:clear-configuration)}
+or at least @code{(asdf:clear-source-registry)},
+so it re-populates the source-registry from the filesystem.
 
-Of course, @emph{before} you define such systems,
-you should not forget to @code{(asdf:clear-configuration)}.
-
-@code{load-fasl-op} is available on all actively supported Lisp implementations,
-and on those implementations only, and only since ASDF 3.
-This functionality was previously available for select implementations,
-as part of a separate system @code{asdf-bundle},
-itself descended from @code{asdf-ecl}.
-@end deffn
-
-@deffn Operation @code{program-op}
-
-This operation will create an executable program
+The @code{program-op} operation will create an executable program
 from the specified system and its dependencies.
-
-See the example in
-@file{test/test-program.script},
-@file{test/make-hello-world.lisp},
-@file{{test/hello-world-example.asd},
-@file{test/hello.lisp}.
-
 You can use UIOP for its pre-image-dump hooks, its post-image-restore hooks,
 and its access to command-line arguments.
+And you can specify an entry point @code{my-app:main}
+by specifying in your @code{defsystem}
+the option @code{:entry-point "my-app:main"}.
+Depending on your implementation,
+running @code{(asdf:operate 'asdf:program-op :my-app)}
+may quit the current Lisp image upon completion.
+See the example in
+@file{test/hello-world-example.asd} and @file{test/hello.lisp},
+as built and tested by
+@file{test/test-program.script} and @file{test/make-hello-world.lisp}.
+
+There is also @code{lib-op}
+for building a linkable @file{.a} file (Windows: @file{.lib})
+from all linkable object dependencies (FFI files, and on ECL, Lisp files too),
+and its monolithic equivalent @code{monolithic-lib-op}.
+And there is also @code{dll-op}
+(respectively its monolithic equivalent @code{monolithic-lib-op})
+for building a linkable @file{.so} file
+(Windows: @file{.dll}, MacOS X: @file{.dynlib})
+to create a single dynamic library
+for all the extra FFI code to be linked into each of your systems
+(respectively your entire application).
+
+All these ``bundle'' operations are available since ASDF 3
+on all actively supported Lisp implementations,
+but may be unavailable on unmaintained legacy implementations.
+This functionality was previously available for select implementations,
+as part of a separate system @code{asdf-bundle},
+itself descended from the ECL-only @code{asdf-ecl}.
+
+The pathname of the output of bundle operations
+is subject to output-translation as usual,
+unless the operation is equal to
+the @code{:build-operation} argument to @code{defsystem}.
+This behavior is not very satisfactory and may change in the future.
+Maybe you have suggestions on how to better configure it?
 @end deffn
 
 
