@@ -32,8 +32,10 @@
                               (condition-arguments c))))))
 
   (defun get-folder-path (folder)
-    (or ;; this semi-portably implements a subset of the functionality of lispworks' sys:get-folder-path
-        #+(and lispworks mswindows) (sys:get-folder-path folder)
+    "Semi-portable implementation of a subset of LispWorks' sys:get-folder-path,
+this function tries to locate the Windows FOLDER for one of
+:LOCAL-APPDATA, :APPDATA or :COMMON-APPDATA."
+    (or #+(and lispworks mswindows) (sys:get-folder-path folder)
         ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
         (ecase folder
           (:local-appdata (getenv-absolute-directory "LOCALAPPDATA"))
@@ -42,6 +44,7 @@
                                (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
 
   (defun user-configuration-directories ()
+    "Determine user configuration directories"
     (let ((dirs
             `(,@(when (os-unix-p)
                   (cons
@@ -56,6 +59,7 @@
                          :from-end t :test 'equal)))
 
   (defun system-configuration-directories ()
+    "Determine system user configuration directories"
     (cond
       ((os-unix-p) '(#p"/etc/common-lisp/"))
       ((os-windows-p)
@@ -63,23 +67,28 @@
          (list it)))))
 
   (defun in-first-directory (dirs x &key (direction :input))
+    "Determine system user configuration directories"
     (loop :with fun = (ecase direction
                         ((nil :input :probe) 'probe-file*)
                         ((:output :io) 'identity))
           :for dir :in dirs
-          :thereis (and dir (funcall fun (merge-pathnames* x (ensure-directory-pathname dir))))))
+          :thereis (and dir (funcall fun (subpathname (ensure-directory-pathname dir) x)))))
 
   (defun in-user-configuration-directory (x &key (direction :input))
+    "return pathname under user configuration directory, subpathname X"
     (in-first-directory (user-configuration-directories) x :direction direction))
   (defun in-system-configuration-directory (x &key (direction :input))
+    "return pathname under system configuration directory, subpathname X"
     (in-first-directory (system-configuration-directories) x :direction direction))
 
   (defun configuration-inheritance-directive-p (x)
+    "Is X a configuration inheritance directive?"
     (let ((kw '(:inherit-configuration :ignore-inherited-configuration)))
       (or (member x kw)
           (and (length=n-p x 1) (member (car x) kw)))))
 
   (defun report-invalid-form (reporter &rest args)
+    "Report an invalid form according to REPORTER and various ARGS"
     (etypecase reporter
       (null
        (apply 'error 'invalid-configuration args))
@@ -90,10 +99,12 @@
       (cons
        (apply 'apply (append reporter args)))))
 
-  (defvar *ignored-configuration-form* nil)
+  (defvar *ignored-configuration-form* nil
+    "Have configuration forms been ignored while parsing the configuration?")
 
   (defun validate-configuration-form (form tag directive-validator
                                             &key location invalid-form-reporter)
+    "Validate a configuration FORM"
     (unless (and (consp form) (eq (car form) tag))
       (setf *ignored-configuration-form* t)
       (report-invalid-form invalid-form-reporter :form form :location location)
@@ -122,6 +133,7 @@
              (return (nreverse x))))
 
   (defun validate-configuration-file (file validator &key description)
+    "Validate a configuration file for conformance of its form with the validator function"
     (let ((forms (read-file-forms file)))
       (unless (length=n-p forms 1)
         (error (compatfmt "~@<One and only one form allowed for ~A. Got: ~3i~_~S~@:>~%")
@@ -154,6 +166,7 @@ values of TAG include :source-registry and :output-translations."
         :inherit-configuration)))
 
   (defun resolve-relative-location (x &key ensure-directory wilden)
+    "Given a designator X for an relative location, resolve it to a pathname"
     (ensure-pathname
      (etypecase x
        (pathname x)
@@ -192,6 +205,7 @@ directive.")
     "A specification as per RESOLVE-LOCATION of where the user keeps his FASL cache")
 
   (defun compute-user-cache ()
+    "Compute the location of the default user-cache for translate-output objects"
     (setf *user-cache*
           (flet ((try (x &rest sub) (and x `(,x ,@sub))))
             (or
@@ -204,6 +218,7 @@ directive.")
   (register-image-restore-hook 'compute-user-cache)
 
   (defun resolve-absolute-location (x &key ensure-directory wilden)
+    "Given a designator X for an absolute location, resolve it to a pathname"
     (ensure-pathname
      (etypecase x
        (pathname x)
@@ -244,6 +259,7 @@ directive.")
                                (:ensure-directory boolean)) t) resolve-location))
 
   (defun* (resolve-location) (x &key ensure-directory wilden directory)
+    "Resolve location designator X into a PATHNAME"
     ;; :directory backward compatibility, until 2014-01-16: accept directory as well as ensure-directory
     (loop* :with dirp = (or directory ensure-directory)
            :with (first . rest) = (if (atom x) (list x) x)
@@ -261,6 +277,7 @@ directive.")
            :finally (return path)))
 
   (defun location-designator-p (x)
+    "Is X a designator for a location?"
     (flet ((absolute-component-p (c)
              (typep c '(or string pathname
                         (member :root :home :here :user-cache))))
@@ -272,6 +289,7 @@ directive.")
           (and (consp x) (absolute-component-p (first x)) (every #'relative-component-p (rest x))))))
 
   (defun location-function-p (x)
+    "Is X the specification of a location function?"
     (and
      (length=n-p x 2)
      (eq (car x) :function)))
@@ -279,15 +297,17 @@ directive.")
   (defvar *clear-configuration-hook* '())
 
   (defun register-clear-configuration-hook (hook-function &optional call-now-p)
+    "Register a function to be called when clearing configuration"
     (register-hook-function '*clear-configuration-hook* hook-function call-now-p))
 
   (defun clear-configuration ()
+    "Call the functions in *CLEAR-CONFIGURATION-HOOK*"
     (call-functions *clear-configuration-hook*))
 
   (register-image-dump-hook 'clear-configuration)
 
-  ;; If a previous version of ASDF failed to read some configuration, try again.
   (defun upgrade-configuration ()
+    "If a previous version of ASDF failed to read some configuration, try again now."
     (when *ignored-configuration-form*
       (clear-configuration)
       (setf *ignored-configuration-form* nil))))

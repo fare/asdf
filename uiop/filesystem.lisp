@@ -157,6 +157,9 @@ Try to override the defaults to not resolving symlinks, if implementation allows
                                         '(:resolve-symlinks nil))))))
 
   (defun filter-logical-directory-results (directory entries merger)
+    "Given ENTRIES in a DIRECTORY, remove if the directory is logical
+the entries which are physical yet when transformed by MERGER have a different TRUENAME.
+This function is used as a helper to DIRECTORY-FILES to avoid invalid entries when using logical-pathnames."
     (if (logical-pathname-p directory)
         ;; Try hard to not resolve logical-pathname into physical pathnames;
         ;; otherwise logical-pathname users/lovers will be disappointed.
@@ -166,7 +169,7 @@ Try to override the defaults to not resolving symlinks, if implementation allows
         ;; translating the LPN commute.
         (loop :for f :in entries
               :for p = (or (and (logical-pathname-p f) f)
-                           (let* ((u (ignore-errors (funcall merger f))))
+                           (let* ((u (ignore-errors (call-function merger f))))
                              ;; The first u avoids a cumbersome (truename u) error.
                              ;; At this point f should already be a truename,
                              ;; but isn't quite in CLISP, for it doesn't have :version :newest
@@ -201,6 +204,7 @@ which is not very portable to override. Try not resolve symlinks if implementati
                             :version (make-pathname-component-logical (pathname-version f))))))))
 
   (defun subdirectories (directory)
+    "Given a DIRECTORY pathname designator, return a list of the subdirectories under it."
     (let* ((directory (ensure-directory-pathname directory))
            #-(or abcl cormanlisp genera xcl)
            (wild (merge-pathnames*
@@ -238,6 +242,9 @@ which is not very portable to override. Try not resolve symlinks if implementati
                      :directory (append prefix (make-pathname-component-logical (last dir)))))))))))
 
   (defun collect-sub*directories (directory collectp recursep collector)
+    "Given a DIRECTORY, call-function the COLLECTOR function designator
+on the directory if COLLECTP returns true when CALL-FUNCTION'ed with the directory,
+and recurse each of its subdirectories on which the RECURSEP returns true when CALL-FUNCTION'ed with them."
     (when (call-function collectp directory)
       (call-function collector directory))
     (dolist (subdir (subdirectories directory))

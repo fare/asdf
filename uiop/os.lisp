@@ -33,25 +33,30 @@ keywords explicitly."
       (t (error "Malformed feature specification ~S" x))))
 
   (defun os-unix-p ()
+    "Is the underlying operating system some Unix variant?"
     (or #+abcl (featurep :unix)
         #+(and (not abcl) (or unix cygwin darwin)) t))
 
   (defun os-macosx-p ()
-    ;; OS-MACOSX is not mutually exclusive with OS-UNIX, in fact the
-    ;;former implies the latter.
+    "Is the underlying operating system MacOS X?"
+    ;; OS-MACOSX is not mutually exclusive with OS-UNIX,
+    ;; in fact the former implies the latter.
     (or
      #+allegro (featurep :macosx)
      #+clisp (featurep :macos)
      (featurep :darwin)))
 
   (defun os-windows-p ()
+    "Is the underlying operating system Microsoft Windows?"
     (or #+abcl (featurep :windows)
         #+(and (not (or abcl unix cygwin darwin)) (or win32 windows mswindows mingw32)) t))
 
   (defun os-genera-p ()
+    "Is the underlying operating system Genera (running on a Symbolics Lisp Machine)?"
     (or #+genera t))
 
   (defun os-oldmac-p ()
+    "Is the underlying operating system an (emulated?) MacOS 9 or earlier?"
     (or #+mcl t))
 
   (defun detect-os ()
@@ -117,6 +122,7 @@ then returning the non-empty string value of the variable"
 
 (with-upgradability ()
   (defun first-feature (feature-sets)
+    "A helper for various feature detection functions"
     (dolist (x feature-sets)
       (multiple-value-bind (short long feature-expr)
           (if (consp x)
@@ -126,15 +132,18 @@ then returning the non-empty string value of the variable"
           (return (values short long))))))
 
   (defun implementation-type ()
+    "The type of Lisp implementation used, as a short UIOP-standardized keyword"
     (first-feature
      '(:abcl (:acl :allegro) (:ccl :clozure) :clisp (:corman :cormanlisp)
        (:cmu :cmucl :cmu) :ecl :gcl
        (:lwpe :lispworks-personal-edition) (:lw :lispworks)
        :mcl :mkcl :sbcl :scl (:smbx :symbolics) :xcl)))
 
-  (defvar *implementation-type* (implementation-type))
+  (defvar *implementation-type* (implementation-type)
+    "The type of Lisp implementation used, as a short UIOP-standardized keyword")
 
   (defun operating-system ()
+    "The operating system of the current host"
     (first-feature
      '(:cygwin (:win :windows :mswindows :win32 :mingw32) ;; try cygwin first!
        (:linux :linux :linux-target) ;; for GCL at least, must appear before :bsd
@@ -143,6 +152,7 @@ then returning the non-empty string value of the variable"
        :genera)))
 
   (defun architecture ()
+    "The CPU architecture of the current host"
     (first-feature
      '((:x64 :x86-64 :x86_64 :x8664-target :amd64 (:and :word-size=64 :pc386))
        (:x86 :x86 :i386 :i486 :i586 :i686 :pentium3 :pentium4 :pc386 :iapx386 :x8632-target)
@@ -163,6 +173,7 @@ then returning the non-empty string value of the variable"
         (error "Can't determine fasl version.")))
 
   (defun lisp-version-string ()
+    "return a string that identifies the current Lisp implementation version"
     (let ((s (lisp-implementation-version)))
       (car ; as opposed to OR, this idiom prevents some unreachable code warning
        (list
@@ -213,6 +224,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 
 (with-upgradability ()
   (defun hostname ()
+    "return the hostname of the current host"
     ;; Note: untested on RMCL
     #+(or abcl clozure cmu ecl genera lispworks mcl mkcl sbcl scl xcl) (machine-instance)
     #+cormanlisp "localhost" ;; is there a better way? Does it matter?
@@ -226,6 +238,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 
   #+cmu
   (defun parse-unix-namestring* (unix-namestring)
+    "variant of LISP::PARSE-UNIX-NAMESTRING that returns a pathname object"
     (multiple-value-bind (host device directory name type version)
         (lisp::parse-unix-namestring unix-namestring 0 (length unix-namestring))
       (make-pathname :host (or host lisp::*unix-host*) :device device
@@ -275,22 +288,27 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 ;;;; Jesse Hager: The Windows Shortcut File Format.
 ;;;; http://www.wotsit.org/list.asp?fc=13
 
-#-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera.
+#-(or clisp genera) ; CLISP doesn't need it, and READ-SEQUENCE annoys old Genera that doesn't need it
 (with-upgradability ()
   (defparameter *link-initial-dword* 76)
   (defparameter *link-guid* #(1 20 2 0 0 0 0 0 192 0 0 0 0 0 0 70))
 
   (defun read-null-terminated-string (s)
+    "Read a null-terminated string from an octet stream S"
+    ;; note: doesn't play well with UNICODE
     (with-output-to-string (out)
       (loop :for code = (read-byte s)
             :until (zerop code)
             :do (write-char (code-char code) out))))
 
   (defun read-little-endian (s &optional (bytes 4))
+    "Read a number in little-endian format from an byte (octet) stream S,
+the number having BYTES octets (defaulting to 4)."
     (loop :for i :from 0 :below bytes
           :sum (ash (read-byte s) (* 8 i))))
 
   (defun parse-file-location-info (s)
+    "helper to parse-windows-shortcut"
     (let ((start (file-position s))
           (total-length (read-little-endian s))
           (end-of-header (read-little-endian s))
@@ -314,6 +332,8 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
                   (read-null-terminated-string s))))))
 
   (defun parse-windows-shortcut (pathname)
+    "From a .lnk windows shortcut, extract the pathname linked to"
+    ;; NB: doesn't do much checking & doesn't look like it will work well with UNICODE.
     (with-open-file (s pathname :element-type '(unsigned-byte 8))
       (handler-case
           (when (and (= (read-little-endian s) *link-initial-dword*)

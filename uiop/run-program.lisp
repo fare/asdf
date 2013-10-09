@@ -92,6 +92,7 @@ omit the outer double-quotes if key argument :QUOTE is NIL"
     (when quote (princ #\" s)))
 
   (defun easy-sh-character-p (x)
+    "Is X an \"easy\" character that does not require quoting by the shell?"
     (or (alphanumericp x) (find x "+-_.,%@:/")))
 
   (defun escape-sh-token (token &optional s)
@@ -101,6 +102,7 @@ for use within a POSIX Bourne shell, outputing to S."
                         :escaper 'escape-sh-token-within-double-quotes))
 
   (defun escape-shell-token (token &optional s)
+    "Escape a token for the current operating system shell"
     (cond
       ((os-unix-p) (escape-sh-token token s))
       ((os-windows-p) (escape-windows-token token s))))
@@ -136,6 +138,10 @@ by /bin/sh in POSIX"
 ;;;; Slurping a stream, typically the output of another program
 (with-upgradability ()
   (defun call-stream-processor (fun processor stream)
+    "Given FUN (typically SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM,
+a PROCESSOR specification which is either an atom or a list specifying
+a processor an keyword arguments, call the specified processor with
+the given STREAM as input"
     (if (consp processor)
         (apply fun (first processor) stream (rest processor))
         (funcall fun processor stream)))
@@ -664,6 +670,7 @@ It returns a process-info plist with possible keys:
 
   (defun %use-run-program (command &rest keys
                            &key input output error-output ignore-error-status &allow-other-keys)
+    ;; helper for RUN-PROGRAM when using %run-program
     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl mkcl xcl)
     (error "Not implemented on this platform")
     (assert (not (member :stream (list input output error-output))))
@@ -716,13 +723,13 @@ It returns a process-info plist with possible keys:
                                        :ignore-error-status ignore-error-status))))))))
       (values output-result error-output-result exit-code)))
 
-  (defun %normalize-system-command (command)
+  (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
     (etypecase command
       (string command)
       (list (escape-shell-command
              (if (os-unix-p) (cons "exec" command) command)))))
 
-  (defun %redirected-system-command (command in out err directory)
+  (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
     (flet ((redirect (spec operator)
              (let ((pathname
                      (typecase spec
@@ -776,6 +783,7 @@ It returns a process-info plist with possible keys:
 
   (defun %use-system (command &rest keys
                       &key input output error-output ignore-error-status &allow-other-keys)
+    ;; helper for RUN-PROGRAM when using %system
     (let (output-result error-output-result exit-code)
       (with-program-output ((reduced-output)
                             output :keys keys :setf output-result)
