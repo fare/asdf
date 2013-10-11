@@ -370,7 +370,7 @@ for the implementation's underlying run-program function"
 via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
 or whether it's already taken care of by the implementation's underlying run-program."
     (not (typep specifier '(or null string pathname (member :interactive :output)
-                            #+(or cmu sbcl scl) stream
+                            #+(or cmu sbcl scl) (or stream (eql t))
                             #+lispworks file-stream)))) ;; not a type!? comm:socket-stream
 
   (defun %normalize-io-specifier (specifier &optional role)

@@ -74,6 +74,9 @@
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
 (assert-equal (format nil "ok  1~%") (remove-cr (run-program '("echo" "ok  1") :output :string)))
 
+(assert-equal (format nil "ok~%")
+              (remove-cr (with-output-to-string (*standard-output*)
+                           (run-program "echo ok" :output t :error-output :output))))
 
 ;;#+allegro (trace excl:run-shell-command sys:reap-os-subprocess)
 ;;#+lispworks (trace system:run-shell-command system:pid-exit-status)
