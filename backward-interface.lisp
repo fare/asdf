@@ -146,8 +146,9 @@ Please use UIOP:RUN-PROGRAM instead."
     (let ((command (apply 'format nil control-string args)))
       (asdf-message "; $ ~A~%" command)
       (let ((exit-code
-              (nth-value 2 (run-program command :force-shell t :ignore-error-status t
-                                                :output *verbose-out*))))
+              (ignore-errors
+               (nth-value 2 (run-program command :force-shell t :ignore-error-status t
+                                                 :output *verbose-out*)))))
         (typecase exit-code
           ((integer 0 255) exit-code)
           (t 255))))))
