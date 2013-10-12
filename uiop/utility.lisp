@@ -20,7 +20,7 @@
    #:emptyp ;; sequences
    #:+non-base-chars-exist-p+ ;; characters
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
-   #:first-char #:last-char #:split-string #:stripln
+   #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
    #:find-class* ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
@@ -254,24 +254,6 @@ starting the separation from the end, e.g. when called with arguments
                 (incf words)
                 (setf end start))))))
 
-  (defvar $cr (coerce #(#\Return) 'string))
-  (defvar $lf (coerce #(#\Linefeed) 'string))
-  (defvar $crlf (coerce #(#\Return #\Linefeed) 'string))
-
-  (defun stripln (x)
-    "Strip a string X from any ending CR, LF or CRLF.
-Return two values, the stripped string and the strip that was stripped"
-    (check-type x string)
-    (let* ((len (length x))
-           (endlfp (equal (last-char x) #\linefeed))
-           (endcrlfp (and endlfp (<= 2 len) (eql (char x (- len 2)) #\return)))
-           (endcrp (equal (last-char x) #\return)))
-      (cond
-        (endlfp (values (subseq x 0 (- len 1)) $lf))
-        (endcrp (values (subseq x 0 (- len 1)) $cr))
-        (endcrlfp (values (subseq x 0 (- len 2)) $crlf))
-        (t (values x nil)))))
-
   (defun string-prefix-p (prefix string)
     "Does STRING begin with PREFIX?"
     (let* ((x (string prefix))
@@ -292,6 +274,22 @@ Return two values, the stripped string and the strip that was stripped"
     "Does STRING begin with PREFIX and end with SUFFIX?"
     (and (string-prefix-p prefix string)
          (string-suffix-p string suffix))))
+
+  (defvar +cr+ (coerce #(#\Return) 'string))
+  (defvar +lf+ (coerce #(#\Linefeed) 'string))
+  (defvar +crlf+ (coerce #(#\Return #\Linefeed) 'string))
+
+  (defun stripln (x)
+    "Strip a string X from any ending CR, LF or CRLF.
+Return two values, the stripped string and the ending that was stripped,
+or the original value and NIL if no stripping took place.
+Since our STRCAT accepts NIL as empty string designator,
+the two results passed to STRCAT always reconstitute the original string"
+    (check-type x string)
+    (block nil
+      (flet ((c (end) (when (string-suffix-p x end)
+                        (return (values (subseq x 0 (- (length x) (length end))) end)))))
+        (when x (c +crlf+) (c +lf+) (c +cr+) (values x nil)))))
 
 
 ;;; CLOS
