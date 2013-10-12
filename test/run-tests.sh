@@ -108,7 +108,7 @@ do_tests () {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if DO $cmd $debugp $eval "(load(string'|script-support.lisp|))" $eval "(progn(asdf-test::load-asdf)(asdf-test::frob-packages)(asdf-test::with-test()(load(string'|$i|)))" ; then
+      if DO $cmd $debugp $eval "'(#.(load(string'|script-support.lisp|))#.(asdf-test::load-asdf)#.(asdf-test::frob-packages)#.(asdf-test::with-test()(load(string'|$i|))))" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
@@ -362,7 +362,7 @@ run_upgrade_tests () {
                 echo "Testing ASDF upgrade from ${tag} using method $method"
                 extract_tagged_asdf $tag
                 $cmd $debugp $eval \
-                "'(#.(load(string'|$su|))#.#.\`(in-package,:asdf-test)#.(test-upgrade$method\`|$tag|)))" ||
+                "'(#.(load(string'|$su|))#.#.\`(in-package,:asdf-test)#.(test-upgrade$method\`|$tag|))" ||
                 { echo "upgrade FAILED for $lisp from $tag using method $method" ;
                   echo "you can retry just that test with:" ;
                   echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ASDF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
