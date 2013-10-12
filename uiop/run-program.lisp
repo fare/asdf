@@ -560,7 +560,7 @@ It returns a process-info plist with possible keys:
         (let ((process (getf process-info :process)))
           (when process
             ;; 1- wait
-            #+(and clozure os-unix) (ccl::external-process-wait process)
+            #+clozure (ccl::external-process-wait process)
             #+(or cmu scl) (ext:process-wait process)
             #+(and ecl os-unix) (ext:external-process-wait process)
             #+sbcl (sb-ext:process-wait process)

@@ -141,6 +141,11 @@ do_tests () {
   fi
 }
 
+case $(uname) in
+    CYGWIN*) os=windows ;;
+    *) os=unix ;;
+esac
+
 # terminate on error
 set -e
 
@@ -152,13 +157,15 @@ case "$lisp" in
     eval="--eval" ;;
   allegro)
     command="${ALLEGRO:-alisp}"
-    #flags="-q"
+    flags="-q"
     nodebug="-batch"
+    if [ "$os" = windows ] ; then nodebug="$nodebug +c" ; fi
     eval="-e" ;;
   allegromodern)
     command="${ALLEGROMODERN:-mlisp}"
     flags="-q"
     nodebug="-batch"
+    if [ "$os" = windows ] ; then nodebug="$nodebug +c" ; fi
     eval="-e" ;;
   ccl)
     command="${CCL:-ccl}"

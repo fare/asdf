@@ -2,10 +2,10 @@
 (declaim (optimize (debug 3) (safety 3)))
 
 (DBG "Testing echo ok 1 via run-program as a list")
-(assert-equal '("ok 1") (run-program '("echo" "ok" "1") :output :lines))
+(assert-equal "ok 1" (run-program '("echo" "ok" "1") :output '(:string :stripped t)))
 
 (DBG "Testing echo ok 1 via run-program as a string")
-(assert-equal '("ok 1") (run-program "echo ok 1" :output :lines))
+(assert-equal "ok 1" (run-program "echo ok 1" :output '(:string :stripped t)))
 
 ;; (unless (os-unix-p) (leave-test "The rest of this test is only supposed to work on Unix"))
 

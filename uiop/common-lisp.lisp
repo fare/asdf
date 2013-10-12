@@ -46,6 +46,20 @@
     (setf excl:*warn-on-nested-reader-conditionals* nil))
   (setf *print-readably* nil))
 
+#+clozure
+(in-package :ccl)
+#+(and clozure windows-target)
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (fboundp 'external-process-wait)
+    (in-development-mode
+     (defun external-process-wait (proc)
+       (when (external-process-pid proc))
+         (with-interrupts-enabled
+             (wait-on-semaphore (external-process-completed proc)))))))
+#+clozure
+(in-package :uiop/common-lisp)
+
+
 #+cormanlisp
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (deftype logical-pathname () nil)

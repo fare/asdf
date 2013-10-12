@@ -364,13 +364,17 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
   (defun slurp-stream-lines (input &key count)
     "Read the contents of the INPUT stream as a list of lines, return those lines.
 
+Note: relies on the Lisp's READ-LINE, but additionally removes any remaining CR
+from the line-ending if the file or stream had CR+LF but Lisp only removed LF.
+
 Read no more than COUNT lines."
     (check-type count (or null integer))
     (with-open-stream (input input)
       (loop :for n :from 0
             :for l = (and (or (not count) (< n count))
                           (read-line input nil nil))
-            :while l :collect l)))
+            ;; stripln: to remove CR when the OS sends CRLF and Lisp only remove LF
+            :while l :collect (stripln l))))
 
   (defun slurp-stream-line (input &key (at 0))
     "Read the contents of the INPUT stream as a list of lines,
