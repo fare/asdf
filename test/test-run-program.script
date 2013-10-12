@@ -252,7 +252,7 @@ Testing run-program
 
   ;; a basic smoke test
   (assert-equal (run-program '("cmd" "/c" "echo" "ok") :output :lines)
-                '(("ok")))
+                '("ok"))
 
   t)
 
