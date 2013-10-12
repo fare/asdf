@@ -168,7 +168,7 @@ Going forward, we recommend new users should be using the source-registry.
                        :truename truename))
           (return file))
         #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
-        (when (os-windows-p)
+        (when (and (os-windows-p) (physical-pathname-p defaults))
           (let ((shortcut
                   (make-pathname
                    :defaults defaults :case :local
