@@ -576,6 +576,7 @@ is bound, write a message and exit on an error.  If
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
     (verbose t nil)
+    (setf tag (string tag))
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")

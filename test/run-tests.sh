@@ -85,7 +85,10 @@ do_tests () {
   fi
   env | grep -i asdf
   rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-  ( cd .. && DO $cmd $debugp $eval '(or #.(load "test/script-support.lisp") #.(asdf-test::compile-asdf-script))' )
+  ## We go through great lengths to avoid " in the command line,
+  ## the quoting of which some Windows implementations get wrong.
+  ## While we're at it, we also avoid spaces and backslashes.
+  ( cd .. && DO $cmd $debugp $eval '(or #.(load(string`|test/script-support.lisp|))#.(asdf-test::compile-asdf-script))' )
   if [ $? -ne 0 ] ; then
     echo "Compilation FAILED" >&2
     echo "you can retry compilation with:" >&2
@@ -105,7 +108,7 @@ do_tests () {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if DO $cmd $debugp $eval "(load \"script-support.lisp\")" $eval "(progn (asdf-test::load-asdf) (asdf-test::frob-packages) (asdf-test::with-test () (load \"$i\")))" ; then
+      if DO $cmd $debugp $eval "(load(string'|script-support.lisp|))" $eval "(progn(asdf-test::load-asdf)(asdf-test::frob-packages)(asdf-test::with-test()(load(string'|$i|)))" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
@@ -359,14 +362,14 @@ run_upgrade_tests () {
                 echo "Testing ASDF upgrade from ${tag} using method $method"
                 extract_tagged_asdf $tag
                 $cmd $debugp $eval \
-                "'(#.(load\"$su\")#.(in-package :asdf-test)#.(test-upgrade $method \"$tag\"))" ||
+                "'(#.(load(string'|$su|))#.#.\`(in-package,:asdf-test)#.(test-upgrade$method\`|$tag|)))" ||
                 { echo "upgrade FAILED for $lisp from $tag using method $method" ;
                   echo "you can retry just that test with:" ;
                   echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ASDF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
                   echo "or more interactively (and maybe with rlwrap or in emacs), start with:"
                   echo "$cmd"
                   echo "then copy/paste:"
-                  echo "(load\"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
+                  echo "(load \"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
                   exit 1 ;}
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
@@ -398,11 +401,11 @@ test_clean_load () {
     mkdir -p build/results/
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
-    ${cmd} ${eval} \
-      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::exit-lisp 0))' \
+    $cmd $eval \
+      '(or`#.(load(string`|test/script-support.lisp|)`:verbose():print())#.(asdf-test::exit-lisp`0))' \
         > $nop 2>&1
-    ${cmd} ${eval} \
-      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::verbose nil) #.(load "build/asdf.lisp" :verbose nil) #.(asdf/image:quit 0))' \
+    $cmd $eval \
+      '(or`#.(load(string`|test/script-support.lisp|)`:verbose`():print`())#.(asdf-test::verbose())#.(load(string`|build/asdf.lisp|):verbose())#.(asdf/image:quit`0))' \
         > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
@@ -417,14 +420,14 @@ test_load_systems () {
     cd ${ASDFDIR}
     mkdir -p build/results/
     echo "Loading all these systems: $*"
-    ${cmd} ${eval} \
-      "(or #.(load \"test/script-support.lisp\") #.(asdf-test::with-test () (asdf-test::test-load-systems $*)))" \
+    $cmd $eval \
+      "(or #.(load(string'|test/script-support.lisp|))#.(asdf-test::with-test()(asdf-test::test-load-systems $*)))" \
         2>&1 | tee build/results/${lisp}-systems.text
 }
 test_interactively () {
     cd ${ASDFDIR}
     mkdir -p build/results/
-    rlwrap $cmd $eval "(or #.(load \"test/script-support.lisp\") #.(asdf-test::interactive-test '($*)))"
+    rlwrap $cmd $eval "(or'#.(load(string'|test/script-support.lisp|))#.(asdf-test::interactive-test'($*)))"
 }
 
 if [ -z "$cmd" ] ; then
