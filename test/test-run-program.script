@@ -180,18 +180,13 @@ Testing run-program
 
 (defun common-test/run-program ()
   ;; Can we echo a simple string?
-  (is (equal '("abcde")
-             (run-program '("echo" "abcde") :output :lines)))
-  (is (equal (nl "fghij")
-             (run-program '("echo" "fghij") :output :string)))
+  (assert-equal '("abcde") (run-program '("echo" "abcde") :output :lines))
+  (assert-equal (nl "fghij") (run-program '("echo" "fghij") :output :string))
 
   ;; Are spaces handled properly?
-  (is (equal '("Hello World")
-             (run-program '("echo" "Hello World") :output :lines)))
-  (is (equal (nl "Hello World")
-             (run-program '("echo" "Hello World") :output :string)))
-  (is (equal (nl "Hello World")
-             (run-program "echo Hello World" :output :string)))
+  (assert-equal '("Hello World") (run-program '("echo" "Hello World") :output :lines))
+  (assert-equal (nl "Hello World") (run-program '("echo" "Hello World") :output :string))
+  (assert-equal (nl "Hello World") (run-program "echo Hello World" :output :string))
 
   ;; Test that run-program fails properly with an
   ;; empty program string
@@ -199,7 +194,7 @@ Testing run-program
   (signals error (run-program '("") :output :lines))
 
   ;; An empty string itself is ok since it is passed to the shell.
-  (is (equal "" (run-program "" :output :string)))
+  (assert-equal "" (run-program "" :output :string))
 
   ;; Test that run-program fails properly with a
   ;; nil program list
@@ -211,38 +206,38 @@ Testing run-program
   (signals error (run-program '("does-not-exist") :output :lines))
   (signals error (run-program "does-not-exist" :output :lines))
 
-  (is (equal '(nil nil 0) (multiple-value-list (run-program "echo ok" :output nil))))
-  (is (equal '(nil nil 0) (multiple-value-list (run-program '("echo" "ok") :output nil))))
+  (assert-equal '(nil nil 0) (multiple-value-list (run-program "echo ok" :output nil)))
+  (assert-equal '(nil nil 0) (multiple-value-list (run-program '("echo" "ok") :output nil)))
   t)
 
 
 (defun unix-only-test/run-program ()
 
-  (is (equal '(nil nil 0) (multiple-value-list (run-program "true"))))
+  (assert-equal '(nil nil 0) (multiple-value-list (run-program "true")))
   (signals subprocess-error (run-program "false"))
-  (is (equal '(nil nil 1) (multiple-value-list (run-program "false" :ignore-error-status t))))
+  (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :ignore-error-status t)))
 
   (let ((tf (native-namestring (test-source "test-file"))))
 
     ;; a basic smoke test
-    (is (equal '("Single")
-               (run-program `("grep" "Single" ,tf) :output :lines)))
+    (assert-equal '("Single")
+               (run-program `("grep" "Single" ,tf) :output :lines))
 
     ;; Make sure space is handled correctly
-    (is (equal '("double entry")
-               (run-program `("grep" "double entry" ,tf) :output :lines)))
+    (assert-equal '("double entry")
+               (run-program `("grep" "double entry" ,tf) :output :lines))
 
     ;; Make sure space is handled correctly
-    (is (equal '("triple word entry")
-               (run-program `("grep" "triple word entry" ,tf) :output :lines)))
+    (assert-equal '("triple word entry")
+               (run-program `("grep" "triple word entry" ,tf) :output :lines))
 
     ;; Testing special characters
     (loop :for char :across "+-_.,%@:/\\!&*(){}"
       :for str = (string char) :do
-      (is (equal (list (format nil "escape ~A" str))
+      (assert-equal (list (format nil "escape ~A" str))
                  (run-program
                   `("grep" ,(format nil "[~A]" str) ,tf)
-                  :output :lines))))
+                  :output :lines)))
 
     ;; Test that run-program signals an error
     ;; with an executable that doesn't return 0
@@ -256,8 +251,8 @@ Testing run-program
 (defun windows-only-test/run-program ()
 
   ;; a basic smoke test
-  (is (equal (run-program '("cmd" "/c" "echo" "ok") :output :lines)
-             '(("ok"))))
+  (assert-equal (run-program '("cmd" "/c" "echo" "ok") :output :lines)
+                '(("ok")))
 
   t)
 
