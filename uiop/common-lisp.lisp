@@ -48,7 +48,7 @@
 
 #+clozure
 (in-package :ccl)
-#+(and clozure windows-target)
+#+(and clozure windows-target) ;; See http://trac.clozure.com/ccl/ticket/1117
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (fboundp 'external-process-wait)
     (in-development-mode
