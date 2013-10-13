@@ -31,26 +31,16 @@
 (assert (symbol-value (find-symbol (symbol-name '*file-tmp*) :test-package))
         () "symbol `*file-tmp*` has wrong value")
 
-(assert (probe-file
-         (apply-output-translations
-          (merge-pathnames*
-           (make-pathname*
-            :name "file1"
-            :type (compile-file-type)
-            :directory '(:relative "sources" "level1"))
-           *test-directory*)))
-        () "compiled file not found")
+(defun pf (path)
+  (let* ((fasl (apply-output-translations
+                (subpathname *test-directory* path :type (compile-file-type)))))
+    (assert (probe-file fasl) () "Cannot find compiled file ~S" fasl)))
+
+(pf "sources/level1/file1")
 
 (assert (find-symbol (symbol-name '*file-tmp2*) :test-package)
         () "symbol `*file-tmp2*` not found")
 (assert (symbol-value (find-symbol (symbol-name '*file-tmp2*) :test-package))
         () "symbol `*file-tmp2*` has wrong value")
 
-(assert (probe-file
-         (apply-output-translations
-          (merge-pathnames*
-           (make-pathname*
-            :name "file2"
-            :type (compile-file-type)
-            :directory '(:relative "sources" "level1" "level2")))))
-        nil "compiled file not found")
+(pf "sources/level1/level2/file2")
