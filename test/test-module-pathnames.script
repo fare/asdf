@@ -11,7 +11,10 @@
      (:static-file "level2/static.file")
      (:static-file "test-tmp.cl")))))
 
+(DBG "Loading the system")
 (asdf:load-system 'test-module-pathnames)
+
+(DBG "Checking pathnames")
 (flet ((pathname-foo (x)
          (list (or (normalize-pathname-directory-component (pathname-directory x)) '(:relative))
                (pathname-name x) (pathname-type x))))

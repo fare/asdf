@@ -457,7 +457,7 @@ is bound, write a message and exit on an error.  If
             (null "1.0"))))))
 
 (defun output-location (&rest sublocation)
-  (list* *asdf-directory* "build/fasls" :implementation sublocation))
+  (list* *asdf-directory* "build/fasls" :implementation-type sublocation))
 (defun resolve-output (&rest sublocation)
   (acall :resolve-location (apply 'output-location sublocation)))
 

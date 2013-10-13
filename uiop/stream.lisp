@@ -546,18 +546,17 @@ The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
         ;; TODO: on Unix, use CFFI and mkstemp -- but UIOP is precisely meant to not depend on CFFI or on anything! Grrrr.
-        (with-open-file (stream pathname
-                                :direction direction
-                                :element-type element-type
-                                #-gcl2.6 :external-format #-gcl2.6 external-format
-                                :if-exists nil :if-does-not-exist :create)
-          (when stream
-            (return
-              (if keep
-                  (funcall thunk stream pathname)
-                  (unwind-protect
-                       (funcall thunk stream pathname)
-                    (ignore-errors (delete-file pathname)))))))))
+        (unwind-protect
+             (with-open-file (stream pathname
+                                     :direction direction
+                                     :element-type element-type
+                                     #-gcl2.6 :external-format #-gcl2.6 external-format
+                                     :if-exists nil :if-does-not-exist :create)
+               (if stream
+                   (return (funcall thunk stream pathname))
+                   (setf pathname nil)))
+          (when (and pathname (not keep))
+            (ignore-errors (delete-file pathname))))))
 
   (defmacro with-temporary-file ((&key (stream (gensym "STREAM") streamp)
                                     (pathname (gensym "PATHNAME") pathnamep)
