@@ -15,6 +15,7 @@ Some constraints:
   (:export
    #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
+   #:deftest #:is #:signals
    #:assert-compare #:assert-equal #:assert-pathname-equal #:assert-pathnames-equal
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
@@ -105,8 +106,27 @@ Some constraints:
 
 (redirect-outputs) ;; Put everything on standard output, for the sake of scripts
 
-;;; Helpful for debugging
+;;; Poor man's test suite, lacking stefil.
+(defmacro deftest (name formals &body body)
+  `(defun ,name ,formals ,@body))
+(defmacro is (x)
+  `(progn
+     (format *error-output* "~&Checking whether ~S~%" ',x)
+     (finish-output *error-output*)
+     (assert ,x)))
+(defmacro signals (condition sexp)
+  `(progn
+     (format *error-output* "~&Checking whether ~S signals ~S~%" ',sexp ',condition)
+     (finish-output *error-output*)
+     (handler-case
+         ,sexp
+       (,condition () t)
+       (t (c)
+         (error "Expression ~S raises signal ~S, not ~S" ',sexp c ',condition))
+       (:no-error ()
+         (error "Expression ~S fails to raise condition ~S" ',sexp ',condition)))))
 
+;;; Helpful for debugging
 (defun pathname-components (p)
   (when p
     (let ((p (pathname p)))

@@ -81,24 +81,6 @@
 ;;#+allegro (trace excl:run-shell-command sys:reap-os-subprocess)
 ;;#+lispworks (trace system:run-shell-command system:pid-exit-status)
 
-;; Poor man's test suite, lacking stefil.
-(defmacro deftest (name formals &body body)
-  `(defun ,name ,formals ,@body))
-(defmacro is (x)
-  `(progn
-     (format! *error-output* "~&Checking whether ~S~%" ',x)
-     (assert ,x)))
-(defmacro signals (condition sexp)
-  `(progn
-     (format! *error-output* "~&Checking whether ~S signals ~S~%" ',sexp ',condition)
-     (handler-case
-         ,sexp
-       (,condition () t)
-       (t (c)
-         (error "Expression ~S raises signal ~S, not ~S" ',sexp c ',condition))
-       (:no-error ()
-         (error "Expression ~S fails to raise condition ~S" ',sexp ',condition)))))
-
 #|
 Testing run-program
 |#

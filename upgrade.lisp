@@ -57,8 +57,8 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
       (push existing-version *previous-asdf-versions*)
-      (when (or *load-verbose* *verbose-out*)
-        (format *trace-output*
+      (when (or *verbose-out* *load-verbose*)
+        (format (or *verbose-out* *trace-output*)
                 (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
                 existing-version asdf-version)))))
 
