@@ -4,10 +4,12 @@
 (DBG "Testing echo ok 1 via run-program as a list")
 (assert-equal "ok 1" (run-program '("echo" "ok" "1") :output '(:string :stripped t)))
 
-(DBG "Testing echo ok 1 via run-program as a string")
-(assert-equal "ok 1" (run-program "echo ok 1" :output '(:string :stripped t)))
+(defun space-bugged (x)
+  #.(or #+(and sbcl windows) '(strcat x " ") 'x))
 
-;; (unless (os-unix-p) (leave-test "The rest of this test is only supposed to work on Unix"))
+(DBG "Testing echo ok 1 via run-program as a string")
+(assert-equal (space-bugged "ok 1")
+              (run-program "echo ok 1" :output '(:string :stripped t)))
 
 ;;; test asdf run-shell-command function
 (setf *verbose-out* nil)
@@ -43,12 +45,14 @@
     (run-program "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
                  :output :lines :error-output :output))))
 
+#+(and sbcl os-windows)
+(leave-test "SBCL run-program is a big fail on windows")
 
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun remove-cr (x) (remove (code-char 13) x))
 
 (DBG "Testing awkward legacy output capture via run-shell-command")
-(let ((ok1 (format nil "; $ echo ok 1~%ok 1~%")))
+(let ((ok1 (format nil "; $ echo ok 1~%~A~%" (space-bugged "ok 1"))))
   (assert-equal
    (remove-cr
     (with-output-to-string (s)
@@ -69,8 +73,8 @@
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
-(assert-equal '("ok 1") (run-program "echo ok  1" :output :lines))
-(assert-equal "ok  1" (run-program '("echo" "ok  1") :output :line))
+(assert-equal (list (space-bugged "ok 1")) (run-program "echo ok  1" :output :lines))
+(assert-equal (space-bugged "ok  1") (run-program '("echo" "ok  1") :output :line))
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
 (assert-equal (format nil "ok  1~%") (remove-cr (run-program '("echo" "ok  1") :output :string)))
 

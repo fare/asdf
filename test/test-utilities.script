@@ -205,7 +205,8 @@
 
 #-non-base-chars-exist-p
 (progn
-  (assert (base-string-p (make-string 10 :element-type 'character))))
+  (assert (base-string-p (make-string 10 :element-type 'character)))
+  (assert (typep (code-char (1- char-code-limit)) 'base-char)))
 
 (defun basify (s) (coerce s 'base-string))
 (defun unbasify (s) (coerce s '(array character (*)))) ; on ECL, literals are base strings (!)
