@@ -19,6 +19,7 @@
    #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
    #:+non-base-chars-exist-p+ ;; characters
+   #:+max-character-type-index+ #:character-type-index #:+character-types+
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
    #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
@@ -187,8 +188,28 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 ;;; Characters
 (with-upgradability ()
-  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char)))
+  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char))) ;; ECL, LW, SBCL
   (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
+
+(with-upgradability ()
+  (defparameter +character-types+ ;; assuming a simple hierarchy
+    #(#+non-base-chars-exist-p base-char #+lispworks lw:simple-char character))
+  (defparameter +max-character-type-index+ (1- (length +character-types+))))
+
+(with-upgradability ()
+  (defun character-type-index (x)
+    (declare (ignorable x))
+    #.(case +max-character-type-index+
+        (0 0)
+        (1 '(etypecase x
+             (character (if (typep x 'base-char) 0 1))
+             (symbol (if (subtypep x 'base-char) 0 1))))
+        (otherwise
+         '(or (position-if (etypecase x
+                             (character  #'(lambda (type) (typep x type)))
+                             (symbol #'(lambda (type) (subtypep x type))))
+               +character-types+)
+           (error "Not a character or character type: ~S" x))))))
 
 
 ;;; Strings
@@ -201,10 +222,19 @@ Returns two values: \(A B C\) and \(1 2 3\)."
   (defun strings-common-element-type (strings)
     "What least subtype of CHARACTER can contain all the elements of all the STRINGS?"
     (declare (ignorable strings))
-    #-non-base-chars-exist-p 'character
-    #+non-base-chars-exist-p
-    (if (loop :for s :in strings :always (or (null s) (typep s 'base-char) (base-string-p s)))
-        'base-char 'character))
+    #.(if +non-base-chars-exist-p+
+          `(aref +character-types+
+            (loop :with index = 0 :for s :in strings :do
+              (cond
+                ((= index ,+max-character-type-index+) (return index))
+                ((emptyp s)) ;; NIL or empty string
+                ((characterp s) (setf index (max index (character-type-index s))))
+                ((stringp s) (unless (>= index (character-type-index (array-element-type s)))
+                               (setf index (reduce 'max s :key #'character-type-index
+                                                          :initial-value index))))
+                (t (error "Invalid string designator ~S for ~S" s 'strings-common-element-type)))
+                  :finally (return index)))
+          ''character))
 
   (defun reduce/strcat (strings &key key start end)
     "Reduce a list as if by STRCAT, accepting KEY START and END keywords like REDUCE.

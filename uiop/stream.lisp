@@ -33,7 +33,10 @@
 (in-package :uiop/stream)
 
 (with-upgradability ()
-  (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)
+  (defvar *default-stream-element-type*
+    (or #+(or abcl cmu cormanlisp scl xcl) 'character
+        #+lispworks 'lw:simple-char
+        :default)
     "default element-type for open (depends on the current CL implementation)")
 
   (defvar *stdin* *standard-input*

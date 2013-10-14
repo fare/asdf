@@ -17,7 +17,8 @@
 ;;;   '/test/{system1,system2}/'
 ;;; any failure is recorded as a transcript entry which indicates
 ;;;   ( ( system-pathname module-pathname file-pathname ) missing-pathnames )
-;;; where missing pathnames is a list of the component-pathname values which failed to designate an intended file.
+;;; where missing pathnames is a list of the component-pathname values
+;;; which failed to designate an intended file.
 ;;; If there, if the pathname is logical, both the logical and physical pathname appears.
 ;;; where NIL appears, the probe-file succeeded.
 ;;;
@@ -297,7 +298,7 @@
                                                                    ;; :static-file "module2/static-file.type"
                    collect (make-pathname :directory directory :name "static-file" :type "type"
                                           :defaults root)
-                   
+
                                      ;;; source file pathname variations
                    collect (make-pathname :directory (append directory '("module2")) :name  "untyped-file" :type nil
                                           :defaults root)
@@ -379,7 +380,7 @@
                 :files files
                 :modules modules
                 :systems systems)))))
-             
+
            (when delete-host
              (setf (logical-pathname-translations "ASDFTEST") nil))
            (clear-system "test-system")))
