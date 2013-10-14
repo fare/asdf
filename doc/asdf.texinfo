@@ -1001,7 +1001,7 @@ dependency-def := simple-component-name
                | (feature @var{feature-name})
                | ( :version simple-component-name version-specifier)
 
-# ``dependency'' is used in :in-order-to, as opposed to 
+# ``dependency'' is used in :in-order-to, as opposed to
 # ``dependency-def''
 dependency := (dependent-op @var{requirement}+)
 requirement := (required-op @var{required-component}+)
@@ -1070,7 +1070,7 @@ must be loaded @emph{before} the system definition is processed.
 Typically this is used to load an ASDF extension that is used in the
 system definition.
 
-@subsection Weakly depends on 
+@subsection Weakly depends on
 @cindex :weakly-depends-on
 
 We do @emph{NOT} recommend you use this feature.
@@ -1532,7 +1532,7 @@ both of them apply to systems that are dependencies and were already compiled.
 
 To see what @code{operate} would do, you can use:
 @example
-(asdf::traverse (make-instance operation-class initargs ...) (find-system system-name))
+(asdf:traverse operation-class system-name)
 @end example
 
 @end deffn
@@ -3703,43 +3703,84 @@ otherwise acts like @code{subpathname}.
 	if-input-does-not-exist if-output-exists if-error-output-exists
 	element-type external-format @AallowOtherKeys
 
-run-program takes a @var{command} argument that is either
+@code{run-program} takes a @var{command} argument that is either
 a list of a program name or path and its arguments,
 or a string to be executed by a shell.
 It spawns the command, waits for it to return,
 verifies that it exited cleanly (unless told not too below),
 and optionally captures and processes its output.
 It accepts many keyword arguments to configure its behavior.
-It returns three values: one for the output and
-(starting with 3.0.2.11) one for the error-output and one for the return value.
 
-@code{output} is its most important argument;
+@code{run-program} returns three values: the first for the output,
+the second for the error-output, and the third for the return value.
+(Beware that before ASDF 3.0.2.11, it didn't handle input or error-output,
+and returned only one value,
+the one for the output if any handler was specified, or else the exit code;
+please upgrade ASDF, or at least UIOP, to rely on the new enhanced behavior.)
+
+@var{output} is its most important argument;
 it specifies how the output is captured and processed.
-If it is @code{nil}, then the output is not captured.
-If it is @code{:interactive}, then
-input and output are inherited from the current process,
-which the subprocess can control until it exits.
-Otherwise, the output is captured and redirected to a stream,
-and processed by @code{slurp-input-stream} with the object as first argument.
-See below.
+If it is @code{nil}, then the output is redirected to the null device,
+that will discard it.
+If it is @code{:interactive}, then it is inherited from the current process
+(beware: this may be different from your @var{*standard-output*},
+and under SLIME will be on your @code{*inferior-lisp*} buffer).
+If it is @code{t}, output goes to your current @var{*standard-output*} stream.
+Otherwise, @var{output} should be a value that is a suitable first argument to
+@code{slurp-input-stream} (see below), or
+a list of such a value and keyword arguments.
+In this case, @code{run-program} will
+create a temporary stream for the program output;
+the program output, in that stream,
+will be processed by a call to @code{slurp-input-stream},
+using @var{output} as the first argument
+(or if it's a list the first element of @var{output} and the rest as keywords).
+The primary value resulting from that call
+(or @code{nil} if no call was needed)
+will be the first value returned by @code{run-program}.
+E.g., using @code{:output :string}
+will have it return the entire output stream as a string.
+And using @code{:output '(:string :stripped t)}
+will have it return the same string stripped of any ending newline.
+
+@var{error-output} is similar to @var{output}, except that
+the resulting value is returned as the second value of @code{run-program}.
+@code{t} designates the @var{*error-output*}.
+Also @code{:output} means redirecting the error output to the output stream,
+in which case @code{nil} is returned.
+
+@var{input} is similar to @var{output}, except that
+@code{vomit-output-stream} is used, no value is returned,
+and @code{t} designates the @var{*standard-input*}.
 
 @code{element-type} and @code{external-format} are passed on
-to your Lisp implementation, when available, for creation of the output stream.
+to your Lisp implementation, when applicable, for creation of the output stream.
+
+One and only one of the stream slurping or vomiting may or may not happen
+in parallel in parallel with the subprocess,
+depending on options and implementation,
+and with priority being given to output processing.
+Other streams are completely produced or consumed
+before or after the subprocess is spawned, using temporary files.
 
 @code{force-shell} forces evaluation of the command through a shell,
 even if it was passed as a list rather than a string.
+If a shell is used, it is @file{/bin/sh} on Unix or @file{CMD.EXE} on Windows,
+except on implementations that (erroneously, IMNSHO)
+insist on consulting @code{$SHELL} like clisp.
 
 @code{ignore-error-status} causes @code{run-program}
 to not raise an error if the spawned program exits in error.
 Following POSIX convention, an error is anything but
 a normal exit with status code zero.
+By default, an error of type @code{subprocess-error} is raised in this case.
 
-run-program works on all platforms supported by ASDF, except Genera.
+@code{run-program} works on all platforms supported by ASDF, except Genera.
 See the source code for more documentation.
 
 @end defun
 
-@defun slurp-input-stream
+@defun slurp-input-stream processor input-stream @Akey
 
 It's a generic function of two arguments, a target object and an input stream,
 and accepting keyword arguments.
@@ -3751,38 +3792,39 @@ If the object is a cons, its first element is applied to its rest appended by
 a list of the input stream.
 
 If the object is an output stream, the contents of the input stream are copied to it.
-If the linewise argument is provided, copying happens line by line,
-and an optional prefix is printed before each line.
-Otherwise, copying happen based on a buffer of size buffer-size,
-using the element-type.
+If the @var{linewise} keyword argument is provided, copying happens line by line,
+and an optional @var{prefix} is printed before each line.
+Otherwise, copying happen based on a buffer of size @var{buffer-size},
+using the specified @var{element-type}.
 
-If the object is 'string or :string, the content is captured into a string
-of the given element-type.
+If the object is @code{'string} or @code{:string}, the content is captured into a string.
+Accepted keywords include the @var{element-type} and a flag @var{stripped},
+which when true causes any single line ending to be removed as per @code{uiop:stripln}.
 
-If the object is :lines, the content is captured as a list of strings,
-one per line, without line ending. If the count argument is provided,
+If the object is @code{:lines}, the content is captured as a list of strings,
+one per line, without line ending. If the @var{count} keyword argument is provided,
 it is a maximum count of lines to be read.
 
-If the object is :line, the content is capture as with :lines above,
-and then its sub-object is extracted with the path argument,
-which defaults to 0, extracting the first line.
+If the object is @code{:line}, the content is capture as with @code{:lines} above,
+and then its sub-object is extracted with the @var{at} argument,
+which defaults to @code{0}, extracting the first line.
 A number will extract the corresponding line.
-See the documentation for asdf-driver:sub-object.
+See the documentation for @code{uiop:access-at}.
 
-If the object is :forms, the content is captured as a list of S-expressions,
+If the object is @code{:forms}, the content is captured as a list of S-expressions,
 as read by the Lisp reader.
-If the count argument is provided,
+If the @var{count} argument is provided,
 it is a maximum count of lines to be read.
 We recommend you control the syntax with such macro as
-asdf-driver:with-safe-io-syntax.
+@code{uiop:with-safe-io-syntax}.
 
-If the object is :form, the content is capture as with :forms above,
-and then its sub-object is extracted with the path argument,
-which defaults to 0, extracting the first form.
+If the object is @code{:form}, the content is capture as with @code{:forms} above,
+and then its sub-object is extracted with the @var{at} argument,
+which defaults to @code{0}, extracting the first form.
 A number will extract the corresponding form.
-See the documentation for asdf-driver:sub-object.
+See the documentation for @code{uiop:access-at}.
 We recommend you control the syntax with such macro as
-asdf-driver:with-safe-io-syntax.
+@code{uiop:with-safe-io-syntax}.
 
 @end defun
 
