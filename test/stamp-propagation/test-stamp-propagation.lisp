@@ -105,17 +105,19 @@
     (format t "~&EVAL-NOTES ~S~%" n)
     n))
 
-#-genera
-(defun touch-file1.lisp ()
-  (touch-file (asdf::subpathname *tsp* "file1.lisp")
-              :in-filesystem t))
+(defun touch (filename)
+  #+genera filename ;; do something with it!
+  #-genera
+  (uiop:run-program `("touch" ,(native-namestring filename))
+                    :output t :error-output t))
 
-#-genera
+(defun touch-file1.lisp ()
+  (touch (asdf::subpathname *tsp* "file1.lisp")))
+
 (defun touch-file1.fasl (&optional (defsystem *default-defsystem*))
-  (touch-file (funcall
-               (case defsystem (:asdf 'asdf::compile-file-pathname*) (t 'compile-file-pathname))
-               (asdf::subpathname *tsp* "file1.lisp"))
-              :in-filesystem t))
+  (touch (funcall
+          (case defsystem (:asdf 'asdf::compile-file-pathname*) (t 'compile-file-pathname))
+          (asdf::subpathname *tsp* "file1.lisp"))))
 
 (defun sanitize-log (log)
   (remove-duplicates
