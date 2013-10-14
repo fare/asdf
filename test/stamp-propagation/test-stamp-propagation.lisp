@@ -3,7 +3,7 @@
 
 (unless (find-package :asdf-test)
   (load (merge-pathnames
-         (make-pathname :defaults *load-pathname* 
+         (make-pathname :defaults *load-pathname*
                         :name "script-support" :directory '(:relative :back))
          *load-pathname*)))
 
@@ -145,10 +145,10 @@
 
 (test-defsystem :asdf)
 
-#+(or genera)
+#+(or genera lispworks)
 (test-defsystem :native)
 
-#+(or allegro lispworks)
+#+(or allegro)
 (signals error (test-defsystem :native))
 
 #+mkdefsystem
