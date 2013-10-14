@@ -8,7 +8,7 @@
   ;; CAUTION: we must handle the first few packages specially for hot-upgrade.
   ;; This package definition MUST NOT change unless its name too changes;
   ;; if/when it changes, don't forget to add new functions missing from below.
-  ;; Until then, asdf/package is frozen to forever
+  ;; Until then, uiop/package is frozen to forever
   ;; import and export the same exact symbols as for ASDF 2.27.
   ;; Any other symbol must be import-from'ed and re-export'ed in a different package.
   (:use :common-lisp)

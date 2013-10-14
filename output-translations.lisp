@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export
    #:*output-translations* #:*output-translations-parameter*
    #:invalid-output-translation
@@ -282,7 +282,7 @@ effectively disabling the output translation facility."
               :return (translate-pathname* p absolute-source destination root source)
               :finally (return p)))))
 
-  ;; Hook into asdf/driver's output-translation mechanism
+  ;; Hook into uiop's output-translation mechanism
   #-cormanlisp
   (setf *output-translation-function* 'apply-output-translations)
 

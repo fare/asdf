@@ -49,8 +49,10 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
 ;;; Optimization settings
 (with-upgradability ()
-  (defvar *optimization-settings* nil)
-  (defvar *previous-optimization-settings* nil)
+  (defvar *optimization-settings* nil
+    "Optimization settings to be used by PROCLAIM-OPTIMIZATION-SETTINGS")
+  (defvar *previous-optimization-settings* nil
+    "Optimization settings saved by PROCLAIM-OPTIMIZATION-SETTINGS")
   (defun get-optimization-settings ()
     "Get current compiler optimization settings, ready to PROCLAIM again"
     #-(or clisp clozure cmu ecl sbcl scl)
@@ -79,6 +81,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
   #+sbcl
   (progn
     (defun sb-grovel-unknown-constant-condition-p (c)
+      "Detect SB-GROVEL unknown-constant conditions on older versions of SBCL"
       (and (typep c 'sb-int:simple-style-warning)
            (string-enclosed-p
             "Couldn't grovel for "
@@ -124,16 +127,18 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 ;;;; ----- Filtering conditions while building -----
 (with-upgradability ()
   (defun call-with-muffled-compiler-conditions (thunk)
+    "Call given THUNK in a context where uninteresting conditions and compiler conditions are muffled"
     (call-with-muffled-conditions
      thunk (append *uninteresting-conditions* *uninteresting-compiler-conditions*)))
   (defmacro with-muffled-compiler-conditions ((&optional) &body body)
-    "Run BODY where uninteresting compiler conditions are muffled"
+    "Trivial syntax for CALL-WITH-MUFFLED-COMPILER-CONDITIONS"
     `(call-with-muffled-compiler-conditions #'(lambda () ,@body)))
   (defun call-with-muffled-loader-conditions (thunk)
+    "Call given THUNK in a context where uninteresting conditions and loader conditions are muffled"
     (call-with-muffled-conditions
      thunk (append *uninteresting-conditions* *uninteresting-loader-conditions*)))
   (defmacro with-muffled-loader-conditions ((&optional) &body body)
-    "Run BODY where uninteresting compiler and additional loader conditions are muffled"
+    "Trivial syntax for CALL-WITH-MUFFLED-LOADER-CONDITIONS"
     `(call-with-muffled-loader-conditions #'(lambda () ,@body))))
 
 
@@ -159,6 +164,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
   (defun check-lisp-compile-warnings (warnings-p failure-p
                                                   &optional context-format context-arguments)
+    "Given the warnings or failures as resulted from COMPILE-FILE or checking deferred warnings,
+raise an error or warning as appropriate"
     (when failure-p
       (case *compile-file-failure-behaviour*
         (:warn (warn 'compile-failed-warning
@@ -184,6 +191,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 
   (defun check-lisp-compile-results (output warnings-p failure-p
                                              &optional context-format context-arguments)
+    "Given the results of COMPILE-FILE, raise an error or warning as appropriate"
     (unless output
       (error 'compile-file-error :context-format context-format :context-arguments context-arguments))
     (check-lisp-compile-warnings warnings-p failure-p context-format context-arguments)))
@@ -196,6 +204,8 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
 ;;; See their respective docstrings.
 (with-upgradability ()
   (defun reify-simple-sexp (sexp)
+    "Given a simple SEXP, return a representation of it as a portable SEXP.
+Simple means made of symbols, numbers, characters, simple-strings, pathnames, cons cells."
     (etypecase sexp
       (symbol (reify-symbol sexp))
       ((or number character simple-string pathname) sexp)
@@ -203,6 +213,7 @@ Note that ASDF ALWAYS raises an error if it fails to create an output file when 
       (simple-vector (vector (mapcar 'reify-simple-sexp (coerce sexp 'list))))))
 
   (defun unreify-simple-sexp (sexp)
+    "Given the portable output of REIFY-SIMPLE-SEXP, return the simple SEXP it represents"
     (etypecase sexp
       ((or symbol number character simple-string pathname) sexp)
       (cons (cons (unreify-simple-sexp (car sexp)) (unreify-simple-sexp (cdr sexp))))
@@ -454,6 +465,8 @@ possibly in a different process."
         (terpri s))))
 
   (defun warnings-file-type (&optional implementation-type)
+    "The pathname type for warnings files on given IMPLEMENTATION-TYPE,
+where NIL designates the current one"
     (case (or implementation-type *implementation-type*)
       ((:acl :allegro) "allegro-warnings")
       ;;((:clisp) "clisp-warnings")
@@ -463,21 +476,27 @@ possibly in a different process."
       ((:scl) "scl-warnings")))
 
   (defvar *warnings-file-type* nil
-    "Type for warnings files")
+    "Pathname type for warnings files, or NIL if disabled")
 
   (defun enable-deferred-warnings-check ()
+    "Enable the saving of deferred warnings"
     (setf *warnings-file-type* (warnings-file-type)))
 
   (defun disable-deferred-warnings-check ()
+    "Disable the saving of deferred warnings"
     (setf *warnings-file-type* nil))
 
   (defun warnings-file-p (file &optional implementation-type)
+    "Is FILE a saved warnings file for the given IMPLEMENTATION-TYPE?
+If that given type is NIL, use the currently configured *WARNINGS-FILE-TYPE* instead."
     (if-let (type (if implementation-type
                       (warnings-file-type implementation-type)
                       *warnings-file-type*))
       (equal (pathname-type file) type)))
 
   (defun check-deferred-warnings (files &optional context-format context-arguments)
+    "Given a list of FILES in which deferred warnings were saved by CALL-WITH-DEFERRED-WARNINGS,
+re-intern and raise any warnings that are still meaningful."
     (let ((file-errors nil)
           (failure-p nil)
           (warnings-p nil))
@@ -518,6 +537,9 @@ possibly in a different process."
   |#
 
   (defun call-with-saved-deferred-warnings (thunk warnings-file)
+    "If WARNINGS-FILE is not nil, record the deferred-warnings around a call to THUNK
+and save those warnings to the given file for latter use,
+possibly in a different process. Otherwise just call THUNK."
     (if warnings-file
         (with-compilation-unit (:override t)
           (unwind-protect
@@ -529,21 +551,22 @@ possibly in a different process."
         (funcall thunk)))
 
   (defmacro with-saved-deferred-warnings ((warnings-file) &body body)
-    "If WARNINGS-FILE is not nil, records the deferred-warnings around the BODY
-and saves those warnings to the given file for latter use,
-possibly in a different process. Otherwise just run the BODY."
+    "Trivial syntax for CALL-WITH-SAVED-DEFERRED-WARNINGS" 
     `(call-with-saved-deferred-warnings #'(lambda () ,@body) ,warnings-file)))
 
 
 ;;; from ASDF
 (with-upgradability ()
   (defun current-lisp-file-pathname ()
+    "Portably return the PATHNAME of the current Lisp source file being compiled or loaded"
     (or *compile-file-pathname* *load-pathname*))
 
   (defun load-pathname ()
-    *load-pathname*)
+    "Portably return the LOAD-PATHNAME of the current source file or fasl"
+    *load-pathname*) ;; see magic for GCL in uiop/common-lisp 
 
   (defun lispize-pathname (input-file)
+    "From a INPUT-FILE pathname, return a corresponding .lisp source pathname"
     (make-pathname :type "lisp" :defaults input-file))
 
   (defun compile-file-type (&rest keys)
@@ -553,9 +576,11 @@ possibly in a different process. Otherwise just run the BODY."
     #+(or ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo" keys)))
 
   (defun call-around-hook (hook function)
+    "Call a HOOK around the execution of FUNCTION"
     (call-function (or hook 'funcall) function))
 
   (defun compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
+    "Variant of COMPILE-FILE-PATHNAME that works well with COMPILE-FILE*"
     (let* ((keys
              (remove-plist-keys `(#+(and allegro (not (version>= 8 2))) :external-format
                                     ,@(unless output-file '(:output-file))) keys)))
@@ -664,6 +689,7 @@ it will filter them appropriately."
         (values output-truename warnings-p failure-p))))
 
   (defun load* (x &rest keys &key &allow-other-keys)
+    "Portable wrapper around LOAD that properly handles loading from a stream."
     (etypecase x
       ((or pathname string #-(or allegro clozure gcl2.6 genera) stream)
        (apply 'load x
@@ -686,6 +712,7 @@ it will filter them appropriately."
 ;;; Links FASLs together
 (with-upgradability ()
   (defun combine-fasls (inputs output)
+    "Combine a list of FASLs INPUTS into a single FASL OUTPUT"
     #-(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl)
     (error "~A does not support ~S~%inputs ~S~%output  ~S"
            (implementation-type) 'combine-fasls inputs output)

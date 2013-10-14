@@ -85,13 +85,16 @@ do_tests () {
   fi
   env | grep -i asdf
   rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-  ( cd .. && DO $cmd $debugp $eval '(or #.(load "test/script-support.lisp") #.(asdf-test::compile-asdf-script))' )
+  ## We go through great lengths to avoid " in the command line,
+  ## the quoting of which some Windows implementations get wrong.
+  ## While we're at it, we also avoid spaces and backslashes.
+  ( cd .. && DO $bcmd $eval '(or #.(load(string`|test/script-support.lisp|))#.(asdf-test::compile-asdf-script))' )
   if [ $? -ne 0 ] ; then
     echo "Compilation FAILED" >&2
     echo "you can retry compilation with:" >&2
     echo ./test/run-tests.sh $lisp >&2
     echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
-    echo "$cmd" >&2
+    echo "$icmd" >&2
     echo "then copy/paste:" >&2
     echo '(load "test/script-support.lisp") (asdf-test::compile-asdf-script)' >&2
   else
@@ -105,7 +108,7 @@ do_tests () {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if DO $cmd $debugp $eval "(load \"script-support.lisp\")" $eval "(progn (asdf-test::load-asdf) (asdf-test::frob-packages) (asdf-test::with-test () (load \"$i\")))" ; then
+      if DO $bcmd $eval "'(#.(load(string'|script-support.lisp|))#.(asdf-test::load-asdf)#.(asdf-test::frob-packages)#.(asdf-test::with-test()(load(string'|$i|))))" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
@@ -115,7 +118,7 @@ do_tests () {
         echo "you can retry compilation with:" >&2
         echo ./test/run-tests.sh $lisp $i >&2
         echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
-        echo "(cd test ; $cmd )" >&2
+        echo "(cd test ; $icmd )" >&2
         echo "then copy/paste:" >&2
         echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(frob-packages) #.(load \"$i\"))" >&2
       fi
@@ -138,22 +141,30 @@ do_tests () {
   fi
 }
 
+case $(uname) in
+    CYGWIN*) os=windows ;;
+    *) os=unix ;;
+esac
+
 # terminate on error
 set -e
 
-command= flags= nodebug= eval=
+command= flags= nodebug= eval= bcmd= icmd=
 case "$lisp" in
   abcl)
     command="${ABCL:-abcl}"
     flags="--noinit --nosystem --noinform"
-    eval="--eval" ;;
+    eval="--eval"
+    ;;
   allegro)
     command="${ALLEGRO:-alisp}"
-    #flags="-q"
+    flags="-q"
     nodebug="-batch"
+    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
     eval="-e" ;;
   allegromodern)
     command="${ALLEGROMODERN:-mlisp}"
+    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
     flags="-q"
     nodebug="-batch"
     eval="-e" ;;
@@ -206,7 +217,7 @@ case "$lisp" in
     eval="-eval" ;;
   sbcl)
     command="${SBCL:-sbcl}"
-    flags="--noinform --userinit /dev/null --sysinit /dev/null" # --eval (require'asdf)
+    flags="--noinform --no-userinit --no-sysinit"
     nodebug="--disable-debugger"
     eval="--eval" ;;
   scl)
@@ -216,7 +227,7 @@ case "$lisp" in
     eval="-eval" ;;
   xcl)
     command="${XCL:-xcl}"
-    flags="--no-userinit --no-siteinit"
+    flags="--no-userinit --no-siteinit --noinform"
     eval="--eval" ;;
   *)
     echo "Unsupported lisp: $1" >&2
@@ -230,11 +241,9 @@ if ! type "$command" > /dev/null ; then
 fi
 
 ASDFDIR="$(cd $(dirname $0)/.. ; /bin/pwd)"
-
-cmd="$command $flags"
-debugp=
+: ${bcmd:=$command $flags} ${icmd:=$command $flags} # batch and interactive
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
-  debugp="$nodebug"
+  bcmd="$bcmd $nodebug"
 fi
 
 
@@ -358,15 +367,15 @@ run_upgrade_tests () {
             if valid_upgrade_test_p $lisp $tag $method ; then
                 echo "Testing ASDF upgrade from ${tag} using method $method"
                 extract_tagged_asdf $tag
-                $cmd $debugp $eval \
-                "'(#.(load\"$su\")#.(in-package :asdf-test)#.(test-upgrade $method \"$tag\"))" ||
+                $bcmd $eval \
+                "'(#.(load(string'|$su|))#.#.\`(in-package,:asdf-test)#.(test-upgrade$method\`|$tag|))" ||
                 { echo "upgrade FAILED for $lisp from $tag using method $method" ;
                   echo "you can retry just that test with:" ;
                   echo ASDF_UPGRADE_TEST_TAGS=\"$tag\" ASDF_UPGRADE_TEST_METHODS=\"$method\" ./test/run-tests.sh -u $lisp ;
                   echo "or more interactively (and maybe with rlwrap or in emacs), start with:"
-                  echo "$cmd"
+                  echo "$icmd"
                   echo "then copy/paste:"
-                  echo "(load\"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
+                  echo "(load \"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
                   exit 1 ;}
     fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
 }
@@ -398,11 +407,11 @@ test_clean_load () {
     mkdir -p build/results/
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
-    ${cmd} ${eval} \
-      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::exit-lisp 0))' \
+    $bcmd $eval \
+      '(or`#.(load(string`|test/script-support.lisp|)`:verbose():print())#.(asdf-test::exit-lisp`0))' \
         > $nop 2>&1
-    ${cmd} ${eval} \
-      '(or #.(load "test/script-support.lisp" :verbose nil :print nil) #.(asdf-test::verbose nil) #.(load "build/asdf.lisp" :verbose nil) #.(asdf/image:quit 0))' \
+    $bcmd $eval \
+      '(or`#.(load(string`|test/script-support.lisp|)`:verbose`():print`())#.(asdf-test::verbose())#.(load(string`|build/asdf.lisp|):verbose())#.(asdf/image:quit`0))' \
         > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
@@ -417,17 +426,17 @@ test_load_systems () {
     cd ${ASDFDIR}
     mkdir -p build/results/
     echo "Loading all these systems: $*"
-    ${cmd} ${eval} \
-      "(or #.(load \"test/script-support.lisp\") #.(asdf-test::with-test () (asdf-test::test-load-systems $*)))" \
+    $bcmd $eval \
+      "(or #.(load(string'|test/script-support.lisp|))#.(asdf-test::with-test()(asdf-test::test-load-systems $*)))" \
         2>&1 | tee build/results/${lisp}-systems.text
 }
 test_interactively () {
     cd ${ASDFDIR}
     mkdir -p build/results/
-    rlwrap $cmd $eval "(or #.(load \"test/script-support.lisp\") #.(asdf-test::interactive-test '($*)))"
+    rlwrap $icmd $eval "(or'#.(load(string'|test/script-support.lisp|))#.(asdf-test::interactive-test'($*)))"
 }
 
-if [ -z "$cmd" ] ; then
+if [ -z "$command" ] ; then
     echo "Error: cannot find or do not know how to run Lisp named $lisp"
 elif [ -n "$test_interactively" ] ; then
     test_interactively "$@"

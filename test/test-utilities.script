@@ -19,28 +19,20 @@
 ;; These are funky and non portable, omit from tests:
 ;; (make-pathname* :name "." :type nil :directory '(:absolute "tmp"))
 ;; (make-pathname* :name "." :type "" :directory '(:absolute "tmp"))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "" :ensure-directory t))
-               '(:relative nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components ""  :ensure-directory nil))
-               '(:relative nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :ensure-directory t))
-               '(:absolute nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/" :ensure-directory nil))
-               '(:absolute nil nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :ensure-directory t))
-               '(:absolute ("aa" "ba") nil nil)))
-(assert (equal (multiple-value-list (split-unix-namestring-directory-components "/aa/ba" :ensure-directory nil))
-               '(:absolute ("aa") "ba" nil)))
-(assert
- (version-satisfies (asdf-version) (asdf-version)))
-(assert
- (version-satisfies (asdf-version) "3.0"))
-(assert
- (version-satisfies (asdf-version) "2.0"))
-(assert
- (version<= "2.0" (asdf-version)))
-(assert
- (not (version-satisfies (asdf-version) "666")))
+(macrolet ((ts (x y)
+             `(assert-equal (multiple-value-list (split-unix-namestring-directory-components ,@x))
+                            ',y)))
+  (ts ("" :ensure-directory t) (:relative nil nil nil))
+  (ts (""  :ensure-directory nil) (:relative nil nil nil))
+  (ts ("/" :ensure-directory t) (:absolute nil nil nil))
+  (ts ("/" :ensure-directory nil) (:absolute nil nil nil))
+  (ts ("/aa/ba" :ensure-directory t) (:absolute ("aa" "ba") nil nil))
+  (ts ("/aa/ba" :ensure-directory nil) (:absolute ("aa") "ba" nil)))
+(assert (version-satisfies (asdf-version) (asdf-version)))
+(assert (version-satisfies (asdf-version) "3.0"))
+(assert (version-satisfies (asdf-version) "2.0"))
+(assert (version<= "2.0" (asdf-version)))
+(assert (not (version-satisfies (asdf-version) "666")))
 (assert-pathnames-equal
  (split-native-pathnames-string (join-namestrings '("foo" "bar")))
  '(#p"foo" #p"bar"))
@@ -142,7 +134,7 @@
     #+sbcl uiop/lisp-build:sb-grovel-unknown-constant-condition
     ;; on some implementations only
     asdf/bundle:bundle-system
-    asdf/bundle:register-pre-built-system 
+    asdf/bundle:register-pre-built-system
     asdf/bundle:static-library
     uiop/os:parse-file-location-info
     uiop/os:parse-windows-shortcut
@@ -213,18 +205,42 @@
 
 #-non-base-chars-exist-p
 (progn
-  (assert (base-string-p (make-string 10 :element-type 'character))))
+  (assert (base-string-p (make-string 10 :element-type 'character)))
+  (assert (typep (code-char (1- char-code-limit)) 'base-char)))
 
 (defun basify (s) (coerce s 'base-string))
 (defun unbasify (s) (coerce s '(array character (*)))) ; on ECL, literals are base strings (!)
 
 #+non-base-chars-exist-p
-(progn
+(let* ((limit-char (code-char (1- char-code-limit)))
+       (limit-string (string limit-char)))
+  (assert (not (base-string-p limit-string)))
   (assert (not (base-string-p (make-string 10 :element-type 'character))))
   (assert (not (base-string-p (unbasify "abc"))))
   (assert (base-string-p (basify "abc")))
-  (assert (not (base-string-p (strcat "a" nil #\b (unbasify "cd")))))
+  (assert (base-string-p (strcat "a" nil #\b (unbasify "cd"))))
   (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" nil "cd")))))
   (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
-  (assert (not (base-string-p (strcat (basify "ab") #\c (unbasify "d")))))
+  (assert (not (base-string-p (strcat (basify "ab") #\c limit-char (unbasify "d")))))
   (assert (base-string-p (strcat (basify "ab") #\c #\d))))
+
+(assert-equal +crlf+ (map 'string 'code-char '(13 10)))
+(assert-equal +lf+ (map 'string 'code-char '(10)))
+(assert-equal +cr+ (map 'string 'code-char '(13)))
+(defparameter acrlf (strcat "a" +crlf+))
+(defparameter blf (strcat "b" +lf+))
+(defparameter ccr (strcat "c" +cr+))
+(macrolet ((ts (x y z)
+             `(progn
+                (assert-equal (list ,x ,y) (multiple-value-list (stripln ,z)))
+                (assert-equal (strcat ,x ,y) ,z))))
+  (ts "a" +crlf+ acrlf)
+  (ts "b" +lf+ blf)
+  (ts "c" +cr+ ccr)
+  (ts acrlf +crlf+ (strcat acrlf +crlf+))
+  (ts blf +cr+ (strcat blf +cr+))
+  (ts "c" +crlf+ (strcat ccr +lf+))
+  (ts (strcat acrlf "b") +lf+ (strcat acrlf blf)))
+
+(with-temporary-file (:stream s :direction :io :prefix "LEP")
+  (println "Hello, World" s))

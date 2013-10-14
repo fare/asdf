@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/operation
   (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export
    #:operation
    #:operation-original-initargs #:original-initargs ;; backward-compatibility only. DO NOT USE.
@@ -38,11 +38,8 @@
 (with-upgradability ()
   (defparameter *operations* (make-hash-table :test 'equal))
   (defun make-operation (operation-class &rest initargs)
-    (let ((key (cons operation-class initargs)))
-      (multiple-value-bind (operation foundp) (gethash key *operations*)
-        (if foundp operation
-            (setf (gethash key *operations*)
-                  (apply 'make-instance operation-class initargs))))))
+    (ensure-gethash (cons operation-class initargs) *operations*
+                    (list* 'make-instance operation-class initargs)))
 
   (defgeneric find-operation (context spec)
     (:documentation "Find an operation by resolving the SPEC in the CONTEXT"))

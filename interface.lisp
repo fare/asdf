@@ -10,7 +10,7 @@
    #:split #:make-collector
    #:loaded-systems ; makes for annoying SLIME completion
    #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade :asdf/cache
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry

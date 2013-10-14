@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/backward-internals
   (:recycle :asdf/backward-internals :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/system :asdf/component :asdf/operation
    :asdf/find-system :asdf/action :asdf/lisp-action)
   (:export ;; for internal use

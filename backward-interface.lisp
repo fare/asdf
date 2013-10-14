@@ -145,15 +145,13 @@ Deprecated function, for backward-compatibility only.
 Please use UIOP:RUN-PROGRAM instead."
     (let ((command (apply 'format nil control-string args)))
       (asdf-message "; $ ~A~%" command)
-      (handler-case
-          (progn
-            (run-program command :force-shell t :ignore-error-status nil :output *verbose-out*)
-            0)
-        (subprocess-error (c)
-          (let ((code (subprocess-error-code c)))
-            (typecase code
-              (integer code)
-              (t 255))))))))
+      (let ((exit-code
+              (ignore-errors
+               (nth-value 2 (run-program command :force-shell t :ignore-error-status t
+                                                 :output *verbose-out*)))))
+        (typecase exit-code
+          ((integer 0 255) exit-code)
+          (t 255))))))
 
 (with-upgradability ()
   (defvar *asdf-verbose* nil)) ;; backward-compatibility with ASDF2 only. Unused.

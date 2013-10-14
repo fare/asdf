@@ -1,5 +1,5 @@
 (defpackage :hello
-  (:use :cl :asdf/driver)
+  (:use :cl :uiop)
   (:export #:main #:entry-point))
 
 (in-package :hello)

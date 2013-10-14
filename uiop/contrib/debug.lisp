@@ -11,21 +11,21 @@
 #|
 ;;; If ASDF is already loaded,
 ;;; you can load these utilities in the current package as follows:
-(d:asdf-debug)
-;; which if you left the :D nickname to asdf/driver is short for:
-(asdf/utility::asdf-debug)
+(uiop:uiop-debug)
+;; which is the same as:
+(uiop/utility:uiop-debug)
 
 ;; The above macro can be configured to load any other debugging utility
 ;; that you may prefer to this one, with your customizations,
 ;; by setting the variable
-;;    asdf-utility:*asdf-debug-utility*
+;;    uiop/utility:*uiop-debug-utility*
 ;; to a form that evaluates to a designator of the pathname to your file.
 ;; For instance, on a home directory shared via NFS with different names
 ;; on different machines, with your debug file in ~/lisp/debug-utils.lisp
 ;; you could in your ~/.sbclrc have the following configuration setting:
 (require :asdf)
-(setf asdf/utility:*asdf-debug-utility*
-      '(asdf/pathname:subpathname (asdf/os:user-homedir) "lisp/debug-utils.lisp"))
+(setf uiop/utility:*uiop-debug-utility*
+      '(uiop/pathname:subpathname (uiop/os:user-homedir) "lisp/debug-utils.lisp"))
 
 ;;; If ASDF is not loaded (for instance, when debugging ASDF itself),
 ;;; Try the below, fixing the pathname to point to this file:
@@ -102,21 +102,17 @@ The macro expansion has relatively low overhead in space of time."
 ;;; Quick definitions for use at the REPL
 (defun w (&rest x) (format t "~&~{~S~^ ~}~%" x)) ;Write, space separated + LF
 (defun a (&rest x) (format t "~&~{~A~}~%" x)) ;print Anything, no separator, LF
-(defun e (x) (cons x (ignore-errors (list (eval x))))) ;eValuate
+(defun e (x) (cons x (ignore-errors (list (eval x))))) ;Evaluate
 (defmacro x (x) `(format t "~&~S => ~S~%" ',x ,x)) ;eXamine
+(defun i (&rest x) (apply (read-from-string "swank:inspect-in-emacs") x)) ; SLIME inspection
+(defun ra (&rest x) (require :cl-ppcre) (apply (read-from-string "cl-ppcre:regex-apropos") x))
 (defmacro !a (&rest foo) ; define! Alias
   `(progn ,@(loop :for (alias name) :on foo :by #'cddr
                   :collect (if (macro-function name)
                                `(defmacro ,alias (&rest x) `(,',name ,@x))
                                `(defun ,alias (&rest x) (apply ',name x))))))
-
-;;; common aliases
-(!a
+(!a ;;; common aliases
  d describe
  ap apropos
  !p defparameter
  m1 macroexpand-1)
-
-;;; SLIME integration
-(when (find-package :swank)
-  (eval (read-from-string "(!a i swank:inspect-in-emacs)")))

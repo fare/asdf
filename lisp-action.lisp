@@ -4,8 +4,8 @@
 (asdf/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/cache :asdf/component :asdf/system :asdf/find-component :asdf/find-system
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
+   :asdf/component :asdf/system :asdf/find-component :asdf/find-system
    :asdf/operation :asdf/action)
   (:export
    #:try-recompiling

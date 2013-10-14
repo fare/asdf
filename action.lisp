@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/action
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
   (:export
    #:action #:define-convenience-action-methods

@@ -6,7 +6,7 @@ Some constraints:
  But we *can* rely on ASDF being present *after* we load it.
 * evaluating this file MUST NOT print anything,
  because we use it in the forward-ref test to check that nothing is printed.
-* We make sure that none of our symbols clash with asdf/driver or asdf,
+* We make sure that none of our symbols clash with uiop or asdf,
  so we may use-package them during testing.
 |#
 
@@ -15,6 +15,7 @@ Some constraints:
   (:export
    #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
+   #:deftest #:is #:signals
    #:assert-compare #:assert-equal #:assert-pathname-equal #:assert-pathnames-equal
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
@@ -105,8 +106,27 @@ Some constraints:
 
 (redirect-outputs) ;; Put everything on standard output, for the sake of scripts
 
-;;; Helpful for debugging
+;;; Poor man's test suite, lacking stefil.
+(defmacro deftest (name formals &body body)
+  `(defun ,name ,formals ,@body))
+(defmacro is (x)
+  `(progn
+     (format *error-output* "~&Checking whether ~S~%" ',x)
+     (finish-output *error-output*)
+     (assert ,x)))
+(defmacro signals (condition sexp)
+  `(progn
+     (format *error-output* "~&Checking whether ~S signals ~S~%" ',sexp ',condition)
+     (finish-output *error-output*)
+     (handler-case
+         ,sexp
+       (,condition () t)
+       (t (c)
+         (error "Expression ~S raises signal ~S, not ~S" ',sexp c ',condition))
+       (:no-error ()
+         (error "Expression ~S fails to raise condition ~S" ',sexp ',condition)))))
 
+;;; Helpful for debugging
 (defun pathname-components (p)
   (when p
     (let ((p (pathname p)))
@@ -320,7 +340,7 @@ is bound, write a message and exit on an error.  If
   (verbose t nil)
   (loop :for file :in files :do
     (load (string-downcase file)))
-  (setf *package* (some 'find-package '(:asdf :asdf/driver :asdf/utility :asdf/package :asdf-test)))
+  (setf *package* (some 'find-package '(:asdf :uiop :asdf/utility :asdf/package :asdf-test)))
   (load "contrib/debug.lisp"))
 
 (defun load-asdf-lisp (&optional tag)
@@ -457,7 +477,7 @@ is bound, write a message and exit on an error.  If
             (null "1.0"))))))
 
 (defun output-location (&rest sublocation)
-  (list* *asdf-directory* "build/fasls" :implementation sublocation))
+  (list* *asdf-directory* "build/fasls" :implementation-type sublocation))
 (defun resolve-output (&rest sublocation)
   (acall :resolve-location (apply 'output-location sublocation)))
 
@@ -520,7 +540,7 @@ is bound, write a message and exit on an error.  If
 (defun frob-packages ()
   (format t "Frob packages~%")
   (use-package :asdf :asdf-test)
-  (when (find-package :asdf/driver) (use-package :asdf/driver :asdf-test))
+  (when (find-package :uiop) (use-package :uiop :asdf-test))
   (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
   (setf *package* (find-package :asdf-test))
   t)
@@ -576,6 +596,7 @@ is bound, write a message and exit on an error.  If
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
     (verbose t nil)
+    (setf tag (string tag))
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")

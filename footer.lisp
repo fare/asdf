@@ -3,7 +3,7 @@
 
 (asdf/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
-  (:use :asdf/common-lisp :asdf/driver :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/find-system :asdf/find-component :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/operate :asdf/bundle :asdf/concatenate-source
    :asdf/output-translations :asdf/source-registry

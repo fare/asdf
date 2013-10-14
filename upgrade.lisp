@@ -4,7 +4,7 @@
 
 (asdf/package:define-package :asdf/upgrade
   (:recycle :asdf/upgrade :asdf)
-  (:use :asdf/common-lisp :asdf/driver)
+  (:use :uiop/common-lisp :uiop)
   (:export
    #:asdf-version #:*previous-asdf-versions* #:*asdf-version*
    #:asdf-message #:*verbose-out*
@@ -52,13 +52,13 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "3.0.2.10")
+         (asdf-version "3.0.2.21")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
       (push existing-version *previous-asdf-versions*)
-      (when (or *load-verbose* *verbose-out*)
-        (format *trace-output*
+      (when (or *verbose-out* *load-verbose*)
+        (format (or *verbose-out* *trace-output*)
                 (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
                 existing-version asdf-version)))))
 
@@ -78,7 +78,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
              #:inherit-source-registry #:process-source-registry ;; source-registry
              #:process-source-registry-directive
              #:trivial-system-p ;; bundle
-             ;; NB: it's too late to do anything about asdf-driver functions!
+             ;; NB: it's too late to do anything about uiop functions!
              ))
          (uninterned-symbols
            '(#:*asdf-revision* #:around #:asdf-method-combination

@@ -5,7 +5,7 @@
   (:nicknames :asdf/utility)
   (:recycle :uiop/utility :asdf/utility :asdf)
   (:use :uiop/common-lisp :uiop/package)
-  ;; import and reexport a few things defined in :asdf/common-lisp
+  ;; import and reexport a few things defined in :uiop/common-lisp
   (:import-from :uiop/common-lisp #:compatfmt #:loop* #:frob-substrings
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export #:compatfmt #:loop* #:frob-substrings #:compatfmt
@@ -19,14 +19,15 @@
    #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
    #:+non-base-chars-exist-p+ ;; characters
+   #:+max-character-type-index+ #:character-type-index #:+character-types+
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
-   #:first-char #:last-char #:split-string
+   #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
    #:find-class* ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
-   #:list-to-hash-set ;; hash-table
+   #:list-to-hash-set #:ensure-gethash ;; hash-table
    #:ensure-function #:access-at #:access-at-count ;; functions
    #:call-function #:call-functions #:register-hook-function
    #:match-condition-p #:match-any-condition-p ;; conditions
@@ -68,9 +69,9 @@
                  ;; undefining the previous function is the portable way
                  ;; of overriding any incompatible previous gf, except on CLISP.
                  ;; We usually try to do it only for the functions that need it,
-                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer,
+                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer
                  ;; (which causes issues in clisp)
-                 ,@(when (or #-clisp supersede #+(or ecl gcl2.7) t) ; XXX
+                 ,@(when (or #-clisp supersede #+(or ecl gcl2.7) t)
                      `((undefine-function ',name)))
                  #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
                  ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
@@ -187,22 +188,53 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 ;;; Characters
 (with-upgradability ()
-  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char)))
+  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char))) ;; ECL, LW, SBCL
   (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
+
+(with-upgradability ()
+  (defparameter +character-types+ ;; assuming a simple hierarchy
+    #(#+non-base-chars-exist-p base-char #+lispworks lw:simple-char character))
+  (defparameter +max-character-type-index+ (1- (length +character-types+))))
+
+(with-upgradability ()
+  (defun character-type-index (x)
+    (declare (ignorable x))
+    #.(case +max-character-type-index+
+        (0 0)
+        (1 '(etypecase x
+             (character (if (typep x 'base-char) 0 1))
+             (symbol (if (subtypep x 'base-char) 0 1))))
+        (otherwise
+         '(or (position-if (etypecase x
+                             (character  #'(lambda (type) (typep x type)))
+                             (symbol #'(lambda (type) (subtypep x type))))
+               +character-types+)
+           (error "Not a character or character type: ~S" x))))))
 
 
 ;;; Strings
 (with-upgradability ()
   (defun base-string-p (string)
+    "Does the STRING only contain BASE-CHARs?"
     (declare (ignorable string))
     (and #+non-base-chars-exist-p (eq 'base-char (array-element-type string))))
 
   (defun strings-common-element-type (strings)
+    "What least subtype of CHARACTER can contain all the elements of all the STRINGS?"
     (declare (ignorable strings))
-    #-non-base-chars-exist-p 'character
-    #+non-base-chars-exist-p
-    (if (loop :for s :in strings :always (or (null s) (typep s 'base-char) (base-string-p s)))
-        'base-char 'character))
+    #.(if +non-base-chars-exist-p+
+          `(aref +character-types+
+            (loop :with index = 0 :for s :in strings :do
+              (cond
+                ((= index ,+max-character-type-index+) (return index))
+                ((emptyp s)) ;; NIL or empty string
+                ((characterp s) (setf index (max index (character-type-index s))))
+                ((stringp s) (unless (>= index (character-type-index (array-element-type s)))
+                               (setf index (reduce 'max s :key #'character-type-index
+                                                          :initial-value index))))
+                (t (error "Invalid string designator ~S for ~S" s 'strings-common-element-type)))
+                  :finally (return index)))
+          ''character))
 
   (defun reduce/strcat (strings &key key start end)
     "Reduce a list as if by STRCAT, accepting KEY START and END keywords like REDUCE.
@@ -220,12 +252,16 @@ NIL is interpreted as an empty string. A character is interpreted as a string of
           :finally (return output)))
 
   (defun strcat (&rest strings)
+    "Concatenate strings.
+NIL is interpreted as an empty string, a character as a string of length one."
     (reduce/strcat strings))
 
   (defun first-char (s)
+    "Return the first character of a non-empty string S, or NIL"
     (and (stringp s) (plusp (length s)) (char s 0)))
 
   (defun last-char (s)
+    "Return the last character of a non-empty string S, or NIL"
     (and (stringp s) (plusp (length s)) (char s (1- (length s)))))
 
   (defun split-string (string &key max (separator '(#\Space #\Tab)))
@@ -269,6 +305,22 @@ starting the separation from the end, e.g. when called with arguments
     (and (string-prefix-p prefix string)
          (string-suffix-p string suffix))))
 
+  (defvar +cr+ (coerce #(#\Return) 'string))
+  (defvar +lf+ (coerce #(#\Linefeed) 'string))
+  (defvar +crlf+ (coerce #(#\Return #\Linefeed) 'string))
+
+  (defun stripln (x)
+    "Strip a string X from any ending CR, LF or CRLF.
+Return two values, the stripped string and the ending that was stripped,
+or the original value and NIL if no stripping took place.
+Since our STRCAT accepts NIL as empty string designator,
+the two results passed to STRCAT always reconstitute the original string"
+    (check-type x string)
+    (block nil
+      (flet ((c (end) (when (string-suffix-p x end)
+                        (return (values (subseq x 0 (- (length x) (length end))) end)))))
+        (when x (c +crlf+) (c +lf+) (c +cr+) (values x nil)))))
+
 
 ;;; CLOS
 (with-upgradability ()
@@ -279,7 +331,7 @@ starting the separation from the end, e.g. when called with arguments
       (symbol (find-class x errorp environment)))))
 
 
-;;; stamps: a REAL or boolean where NIL=-infinity, T=+infinity
+;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
   (deftype stamp () '(or real boolean)))
 (with-upgradability ()
@@ -303,12 +355,6 @@ starting the separation from the end, e.g. when called with arguments
   (define-modify-macro latest-stamp-f (&rest stamps) latest-stamp))
 
 
-;;; Hash-tables
-(with-upgradability ()
-  (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
-    (dolist (x list h) (setf (gethash x h) t))))
-
-
 ;;; Function designators
 (with-upgradability ()
   (defun ensure-function (fun &key (package :cl))
@@ -326,7 +372,7 @@ and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
-      ((or function symbol) fun)
+      (symbol fun)
       (cons (if (eq 'lambda (car fun))
                 (eval fun)
                 #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args)))))
@@ -359,7 +405,7 @@ instead of a list."
 
   (defun access-at-count (at)
     "From an AT specification, extract a COUNT of maximum number
-   of sub-objects to read as per ACCESS-AT"
+of sub-objects to read as per ACCESS-AT"
     (cond
       ((integerp at)
        (1+ at))
@@ -367,14 +413,36 @@ instead of a list."
        (1+ (first at)))))
 
   (defun call-function (function-spec &rest arguments)
+    "Call the function designated by FUNCTION-SPEC as per ENSURE-FUNCTION,
+with the given ARGUMENTS"
     (apply (ensure-function function-spec) arguments))
 
   (defun call-functions (function-specs)
+    "For each function in the list FUNCTION-SPECS, in order, call the function as per CALL-FUNCTION"
     (map () 'call-function function-specs))
 
   (defun register-hook-function (variable hook &optional call-now-p)
-    (pushnew hook (symbol-value variable))
+    "Push the HOOK function (a designator as per ENSURE-FUNCTION) onto the hook VARIABLE.
+When CALL-NOW-P is true, also call the function immediately."
+    (pushnew hook (symbol-value variable) :test 'equal)
     (when call-now-p (call-function hook))))
+
+
+;;; Hash-tables
+(with-upgradability ()
+  (defun ensure-gethash (key table default)
+    "Lookup the TABLE for a KEY as by gethash, but if not present,
+call the (possibly constant) function designated by DEFAULT as per CALL-FUNCTION,
+set the corresponding entry to the result in the table, and return that result."
+    (multiple-value-bind (value foundp) (gethash key table)
+      (if foundp
+          value
+          (setf (gethash key table) (values (call-function default))))))
+
+  (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
+    "Convert a LIST into hash-table that has the same elements when viewed as a set,
+up to the given equality TEST"
+    (dolist (x list h) (setf (gethash x h) t))))
 
 
 ;;; Version handling
@@ -473,11 +541,11 @@ or a string describing the format-control of a simple-condition."
     (loop :for x :in conditions :thereis (match-condition-p x condition)))
 
   (defun call-with-muffled-conditions (thunk conditions)
+    "calls the THUNK in a context where the CONDITIONS are muffled"
     (handler-bind ((t #'(lambda (c) (when (match-any-condition-p c conditions)
                                       (muffle-warning c)))))
       (funcall thunk)))
 
   (defmacro with-muffled-conditions ((conditions) &body body)
     `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
-
 

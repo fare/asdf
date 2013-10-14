@@ -6,13 +6,16 @@
   (:recycle :uiop/stream :asdf/stream :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os :uiop/pathname :uiop/filesystem)
   (:export
-   #:*default-stream-element-type* #:*stderr* #:setup-stderr
+   #:*default-stream-element-type*
+   #:*stdin* #:setup-stdin #:*stdout* #:setup-stdout #:*stderr* #:setup-stderr
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*
    #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file #:with-output-file #:call-with-output-file
+   #:null-device-pathname #:call-with-null-input #:with-null-input
+   #:call-with-null-output #:with-null-output
    #:finish-outputs #:format! #:safe-format!
    #:copy-stream-to-stream #:concatenate-files #:copy-file
    #:slurp-stream-string #:slurp-stream-lines #:slurp-stream-line
@@ -20,6 +23,7 @@
    #:read-file-string #:read-file-line #:read-file-lines #:safe-read-file-line
    #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
+   #:println #:writeln
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
    #:setup-temporary-directory
@@ -29,18 +33,48 @@
 (in-package :uiop/stream)
 
 (with-upgradability ()
-  (defvar *default-stream-element-type* (or #+(or abcl cmu cormanlisp scl xcl) 'character :default)
+  (defvar *default-stream-element-type*
+    (or #+(or abcl cmu cormanlisp scl xcl) 'character
+        #+lispworks 'lw:simple-char
+        :default)
     "default element-type for open (depends on the current CL implementation)")
+
+  (defvar *stdin* *standard-input*
+    "the original standard input stream at startup")
+
+  (defun setup-stdin ()
+    (setf *stdin*
+          #.(or #+clozure 'ccl::*stdin*
+                #+(or cmu scl) 'system:*stdin*
+                #+ecl 'ext::+process-standard-input+
+                #+sbcl 'sb-sys:*stdin*
+                '*standard-input*)))
+
+  (defvar *stdout* *standard-output*
+    "the original standard output stream at startup")
+
+  (defun setup-stdout ()
+    (setf *stdout*
+          #.(or #+clozure 'ccl::*stdout*
+                #+(or cmu scl) 'system:*stdout*
+                #+ecl 'ext::+process-standard-output+
+                #+sbcl 'sb-sys:*stdout*
+                '*standard-output*)))
 
   (defvar *stderr* *error-output*
     "the original error output stream at startup")
 
   (defun setup-stderr ()
     (setf *stderr*
-          #+allegro excl::*stderr*
-          #+clozure ccl::*stderr*
-          #-(or allegro clozure) *error-output*))
-  (setup-stderr))
+          #.(or #+allegro 'excl::*stderr*
+                #+clozure 'ccl::*stderr*
+                #+(or cmu scl) 'system:*stderr*
+                #+ecl 'ext::+process-error-output+
+                #+sbcl 'sb-sys:*stderr*
+                '*error-output*)))
+
+  ;; Run them now. In image.lisp, we'll register them to be run at image restart.
+  (setup-stdin) (setup-stdout) (setup-stderr))
 
 
 ;;; Encodings (mostly hooks only; full support requires asdf-encodings)
@@ -70,6 +104,8 @@ with non-ASCII code points being read as several CL characters;
 hopefully, if done consistently, that won't affect program behavior too much.")
 
   (defun always-default-encoding (pathname)
+    "Trivial function to use as *encoding-detection-hook*,
+always 'detects' the *default-encoding*"
     (declare (ignore pathname))
     *default-encoding*)
 
@@ -77,11 +113,15 @@ hopefully, if done consistently, that won't affect program behavior too much.")
     "Hook for an extension to define a function to automatically detect a file's encoding")
 
   (defun detect-encoding (pathname)
+    "Detects the encoding of a specified file, going through user-configurable hooks"
     (if (and pathname (not (directory-pathname-p pathname)) (probe-file* pathname))
         (funcall *encoding-detection-hook* pathname)
         *default-encoding*))
 
   (defun default-encoding-external-format (encoding)
+    "Default, ignorant, function to transform a character ENCODING as a
+portable keyword to an implementation-dependent EXTERNAL-FORMAT specification.
+Load system ASDF-ENCODINGS to hook in a better one."
     (case encoding
       (:default :default) ;; for backward-compatibility only. Explicit usage discouraged.
       (:utf-8 *utf-8-external-format*)
@@ -91,16 +131,20 @@ hopefully, if done consistently, that won't affect program behavior too much.")
 
   (defvar *encoding-external-format-hook*
     #'default-encoding-external-format
-    "Hook for an extension to define a mapping between non-default encodings
-and implementation-defined external-format's")
+    "Hook for an extension (e.g. ASDF-ENCODINGS) to define a better mapping
+from non-default encodings to and implementation-defined external-format's")
 
   (defun encoding-external-format (encoding)
+    "Transform a portable ENCODING keyword to an implementation-dependent EXTERNAL-FORMAT,
+going through all the proper hooks."
     (funcall *encoding-external-format-hook* (or encoding *default-encoding*))))
 
 
 ;;; Safe syntax
 (with-upgradability ()
-  (defvar *standard-readtable* (copy-readtable nil))
+  (defvar *standard-readtable* (with-standard-io-syntax *readtable*)
+    "The standard readtable, implementing the syntax specified by the CLHS.
+It must never be modified, though only good implementations will even enforce that.")
 
   (defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
     "Establish safe CL reader options around the evaluation of BODY"
@@ -115,9 +159,9 @@ and implementation-defined external-format's")
         (funcall thunk))))
 
   (defun safe-read-from-string (string &key (package :cl) (eof-error-p t) eof-value (start 0) end preserve-whitespace)
+    "Read from STRING using a safe syntax, as per WITH-SAFE-IO-SYNTAX"
     (with-safe-io-syntax (:package package)
       (read-from-string string eof-error-p eof-value :start start :end end :preserve-whitespace preserve-whitespace))))
-
 
 ;;; Output to a stream or string, FORMAT-style
 (with-upgradability ()
@@ -215,6 +259,40 @@ Other keys are accepted but discarded."
     (declare (ignore element-type external-format if-exists if-does-not-exist))
     `(call-with-output-file ,pathname #'(lambda (,var) ,@body) ,@keys)))
 
+;;; Null device
+(with-upgradability ()
+  (defun null-device-pathname ()
+    "Pathname to a bit bucket device that discards any information written to it
+and always returns EOF when read from"
+    (cond
+      ((os-unix-p) #p"/dev/null")
+      ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?
+      (t (error "No /dev/null on your OS"))))
+  (defun call-with-null-input (fun &rest keys &key element-type external-format if-does-not-exist)
+    (declare (ignore element-type external-format if-does-not-exist))
+    (apply 'call-with-input-file (null-device-pathname) fun keys))
+  (defmacro with-null-input ((var &rest keys
+                              &key element-type external-format if-does-not-exist)
+                             &body body)
+    (declare (ignore element-type external-format if-does-not-exist))
+    "Evaluate BODY in a context when VAR is bound to an input stream accessing the null device."
+    `(call-with-null-input #'(lambda (,var) ,@body) ,@keys))
+  (defun call-with-null-output (fun
+                                &key (element-type *default-stream-element-type*)
+                                  (external-format *utf-8-external-format*)
+                                  (if-exists :overwrite)
+                                  (if-does-not-exist :error))
+    (call-with-output-file
+     (null-device-pathname) fun
+     :element-type element-type :external-format external-format
+     :if-exists if-exists :if-does-not-exist if-does-not-exist))
+  (defmacro with-null-output ((var &rest keys
+                              &key element-type external-format if-does-not-exist if-exists)
+                              &body body)
+    "Evaluate BODY in a context when VAR is bound to an output stream accessing the null device."
+    (declare (ignore element-type external-format if-exists if-does-not-exist))
+    `(call-with-null-output #'(lambda (,var) ,@body) ,@keys)))
+
 ;;; Ensure output buffers are flushed
 (with-upgradability ()
   (defun finish-outputs (&rest streams)
@@ -222,8 +300,8 @@ Other keys are accepted but discarded."
 Useful for portably flushing I/O before user input or program exit."
     ;; CCL notably buffers its stream output by default.
     (dolist (s (append streams
-                       (list *stderr* *error-output* *standard-output* *trace-output*
-                             *debug-io* *terminal-io* *debug-io* *query-io*)))
+                       (list *stdout* *stderr* *error-output* *standard-output* *trace-output*
+                             *debug-io* *terminal-io* *query-io*)))
       (ignore-errors (finish-output s)))
     (values))
 
@@ -231,9 +309,11 @@ Useful for portably flushing I/O before user input or program exit."
     "Just like format, but call finish-outputs before and after the output."
     (finish-outputs stream)
     (apply 'format stream format args)
-    (finish-output stream))
+    (finish-outputs stream))
 
   (defun safe-format! (stream format &rest args)
+    "Variant of FORMAT that is safe against both
+dangerous syntax configuration and errors while printing."
     (with-safe-io-syntax ()
       (ignore-errors (apply 'format! stream format args))
       (finish-outputs stream)))) ; just in case format failed
@@ -263,6 +343,7 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
                 (when (< end buffer-size) (return))))))
 
   (defun concatenate-files (inputs output)
+    "create a new OUTPUT file the contents of which a the concatenate of the INPUTS files."
     (with-open-file (o output :element-type '(unsigned-byte 8)
                               :direction :output :if-exists :rename-and-delete)
       (dolist (input inputs)
@@ -271,17 +352,23 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
           (copy-stream-to-stream i o :element-type '(unsigned-byte 8))))))
 
   (defun copy-file (input output)
+    "Copy contents of the INPUT file to the OUTPUT file"
     ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
     (concatenate-files (list input) output))
 
-  (defun slurp-stream-string (input &key (element-type 'character))
+  (defun slurp-stream-string (input &key (element-type 'character) stripped)
     "Read the contents of the INPUT stream as a string"
-    (with-open-stream (input input)
-      (with-output-to-string (output)
-        (copy-stream-to-stream input output :element-type element-type))))
+    (let ((string
+            (with-open-stream (input input)
+              (with-output-to-string (output)
+                (copy-stream-to-stream input output :element-type element-type)))))
+      (if stripped (stripln string) string)))
 
   (defun slurp-stream-lines (input &key count)
     "Read the contents of the INPUT stream as a list of lines, return those lines.
+
+Note: relies on the Lisp's READ-LINE, but additionally removes any remaining CR
+from the line-ending if the file or stream had CR+LF but Lisp only removed LF.
 
 Read no more than COUNT lines."
     (check-type count (or null integer))
@@ -289,7 +376,8 @@ Read no more than COUNT lines."
       (loop :for n :from 0
             :for l = (and (or (not count) (< n count))
                           (read-line input nil nil))
-            :while l :collect l)))
+            ;; stripln: to remove CR when the OS sends CRLF and Lisp only remove LF
+            :while l :collect (stripln l))))
 
   (defun slurp-stream-line (input &key (at 0))
     "Read the contents of the INPUT stream as a list of lines,
@@ -409,10 +497,20 @@ If a string, repeatedly read and evaluate from it, returning the last values."
         (let ((*read-eval* t))
           (eval-thunk thunk))))))
 
+(with-upgradability ()
+  (defun println (x &optional (stream *standard-output*))
+    "Variant of PRINC that also calls TERPRI afterwards"
+    (princ x stream) (terpri stream) (values))
+
+  (defun writeln (x &rest keys &key (stream *standard-output*) &allow-other-keys)
+    "Variant of WRITE that also calls TERPRI afterwards"
+    (apply 'write x keys) (terpri stream) (values)))
+
 
 ;;; Using temporary files
 (with-upgradability ()
   (defun default-temporary-directory ()
+    "Return a default directory to use for temporary files"
     (or
      (when (os-unix-p)
        (or (getenv-pathname "TMPDIR" :ensure-directory t)
@@ -421,12 +519,14 @@ If a string, repeatedly read and evaluate from it, returning the last values."
        (getenv-pathname "TEMP" :ensure-directory t))
      (subpathname (user-homedir-pathname) "tmp/")))
 
-  (defvar *temporary-directory* nil)
+  (defvar *temporary-directory* nil "User-configurable location for temporary files")
 
   (defun temporary-directory ()
+    "Return a directory to use for temporary files"
     (or *temporary-directory* (default-temporary-directory)))
 
   (defun setup-temporary-directory ()
+    "Configure a default temporary directory to use."
     (setf *temporary-directory* (default-temporary-directory))
     ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
     #+(and gcl (not gcl2.6)) (setf system::*tmp-dir* *temporary-directory*))
@@ -435,7 +535,11 @@ If a string, repeatedly read and evaluate from it, returning the last values."
       (thunk &key
                prefix keep (direction :io)
                (element-type *default-stream-element-type*)
-               (external-format :default))
+               (external-format *utf-8-external-format*))
+    "Call a THUNK with STREAM and PATHNAME arguments identifying a temporary file.
+The pathname will be based on appending a random suffix to PREFIX.
+This utility will KEEP the file past its extent if and only if explicitly requested.
+The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT."
     #+gcl2.6 (declare (ignorable external-format))
     (check-type direction (member :output :io))
     (loop
@@ -444,27 +548,28 @@ If a string, repeatedly read and evaluate from it, returning the last values."
       :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
-        ;; TODO: on Unix, use CFFI and mkstemp -- but asdf/driver is precisely meant to not depend on CFFI or on anything! Grrrr.
-        (with-open-file (stream pathname
-                                :direction direction
-                                :element-type element-type
-                                #-gcl2.6 :external-format #-gcl2.6 external-format
-                                :if-exists nil :if-does-not-exist :create)
-          (when stream
-            (return
-              (if keep
-                  (funcall thunk stream pathname)
-                  (unwind-protect
-                       (funcall thunk stream pathname)
-                    (ignore-errors (delete-file pathname)))))))))
+        ;; TODO: on Unix, use CFFI and mkstemp -- but UIOP is precisely meant to not depend on CFFI or on anything! Grrrr.
+        (unwind-protect
+             (with-open-file (stream pathname
+                                     :direction direction
+                                     :element-type element-type
+                                     #-gcl2.6 :external-format #-gcl2.6 external-format
+                                     :if-exists nil :if-does-not-exist :create)
+               (if stream
+                   (return (funcall thunk stream pathname))
+                   (setf pathname nil)))
+          (when (and pathname (not keep))
+            (ignore-errors (delete-file pathname))))))
 
   (defmacro with-temporary-file ((&key (stream (gensym "STREAM") streamp)
                                     (pathname (gensym "PATHNAME") pathnamep)
                                     prefix keep direction element-type external-format)
                                  &body body)
     "Evaluate BODY where the symbols specified by keyword arguments
-STREAM and PATHNAME are bound corresponding to a newly created temporary file
-ready for I/O. Unless KEEP is specified, delete the file afterwards."
+STREAM and PATHNAME (if respectively specified) are bound corresponding
+to a newly created temporary file ready for I/O, as per CALL-WITH-TEMPORARY-FILE.
+The STREAM will be closed if no binding is specified.
+Unless KEEP is specified, delete the file afterwards."
     (check-type stream symbol)
     (check-type pathname symbol)
     `(flet ((think (,stream ,pathname)
@@ -478,14 +583,16 @@ ready for I/O. Unless KEEP is specified, delete the file afterwards."
         ,@(when prefix `(:prefix ,prefix))
         ,@(when keep `(:keep ,keep))
         ,@(when element-type `(:element-type ,element-type))
-        ,@(when external-format `(:external-format external-format)))))
+        ,@(when external-format `(:external-format ,external-format)))))
 
   ;; Temporary pathnames in simple cases where no contention is assumed
   (defun add-pathname-suffix (pathname suffix)
+    "Add a SUFFIX to the name of a PATHNAME, return a new pathname"
     (make-pathname :name (strcat (pathname-name pathname) suffix)
                    :defaults pathname))
 
   (defun tmpize-pathname (x)
+    "Return a new pathname modified from X by adding a trivial deterministic suffix"
     (add-pathname-suffix x "-ASDF-TMP"))
 
   (defun call-with-staging-pathname (pathname fun)

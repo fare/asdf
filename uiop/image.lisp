@@ -131,6 +131,7 @@ This is designed to abstract away the implementation specific quit forms."
      stream))
 
   (defun print-backtrace (&rest keys &key stream count)
+    "Print a backtrace"
     (declare (ignore stream count))
     (with-safe-io-syntax (:package :cl)
       (let ((*print-readably* nil)
@@ -142,6 +143,7 @@ This is designed to abstract away the implementation specific quit forms."
         (ignore-errors (apply 'raw-print-backtrace keys)))))
 
   (defun print-condition-backtrace (condition &key (stream *stderr*) count)
+    "Print a condition after a backtrace triggered by that condition"
     ;; We print the condition *after* the backtrace,
     ;; for the sake of who sees the backtrace at a terminal.
     ;; It is up to the caller to print the condition *before*, with some context.
@@ -151,10 +153,12 @@ This is designed to abstract away the implementation specific quit forms."
                     condition)))
 
   (defun fatal-condition-p (condition)
+    "Is the CONDITION fatal? It is if it matches any in *FATAL-CONDITIONS*"
     (match-any-condition-p condition *fatal-conditions*))
 
   (defun handle-fatal-condition (condition)
-    "Depending on whether *LISP-INTERACTION* is set, enter debugger or die"
+    "Handle a fatal CONDITION:
+depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     (cond
       (*lisp-interaction*
        (invoke-debugger condition))
@@ -164,10 +168,12 @@ This is designed to abstract away the implementation specific quit forms."
        (die 99 "~A" condition))))
 
   (defun call-with-fatal-condition-handler (thunk)
+    "Call THUNK in a context where fatal conditions are appropriately handled"
     (handler-bind (((satisfies fatal-condition-p) #'handle-fatal-condition))
       (funcall thunk)))
 
   (defmacro with-fatal-condition-handler ((&optional) &body body)
+    "Execute BODY in a context where fatal conditions are appropriately handled"
     `(call-with-fatal-condition-handler #'(lambda () ,@body)))
 
   (defun shell-boolean-exit (x)
@@ -178,15 +184,19 @@ This is designed to abstract away the implementation specific quit forms."
 ;;; Using image hooks
 (with-upgradability ()
   (defun register-image-restore-hook (hook &optional (call-now-p t))
+    "Regiter a hook function to be run when restoring a dumped image"
     (register-hook-function '*image-restore-hook* hook call-now-p))
 
   (defun register-image-dump-hook (hook &optional (call-now-p nil))
+    "Register a the hook function to be run before to dump an image"
     (register-hook-function '*image-dump-hook* hook call-now-p))
 
   (defun call-image-restore-hook ()
+    "Call the hook functions registered to be run when restoring a dumped image"
     (call-functions (reverse *image-restore-hook*)))
 
   (defun call-image-dump-hook ()
+    "Call the hook functions registered to be run before to dump an image"
     (call-functions *image-dump-hook*)))
 
 
@@ -230,6 +240,8 @@ if we are not called from a directly executable image."
                           ((:prelude *image-prelude*) *image-prelude*)
                           ((:entry-point *image-entry-point*) *image-entry-point*)
                           (if-already-restored '(cerror "RUN RESTORE-IMAGE ANYWAY")))
+    "From a freshly restarted Lisp image, restore the saved Lisp environment
+by setting appropriate variables, running various hooks, and calling any specified entry point."
     (when *image-restored-p*
       (if if-already-restored
           (call-function if-already-restored "Image already ~:[being ~;~]restored" (eq *image-restored-p* t))
@@ -255,6 +267,7 @@ if we are not called from a directly executable image."
                                 ((:postlude *image-postlude*) *image-postlude*)
                                 ((:dump-hook *image-dump-hook*) *image-dump-hook*)
                                 #+clozure prepend-symbols #+clozure (purify t))
+    "Dump an image of the current Lisp environment at pathname FILENAME, with various options"
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
@@ -321,6 +334,7 @@ if we are not called from a directly executable image."
                          (entry-point () entry-point-p) build-args)
     (declare (ignorable destination object-files kind output-name prologue-code epilogue-code
                         prelude preludep postlude postludep entry-point entry-point-p build-args))
+    "On ECL, create an executable at pathname DESTINATION from the specified OBJECT-FILES and options"
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,
     ;; and otherwise simulate dump-image, including quitting at the end.
@@ -347,5 +361,6 @@ if we are not called from a directly executable image."
 ;;; Some universal image restore hooks
 (with-upgradability ()
   (map () 'register-image-restore-hook
-       '(setup-temporary-directory setup-stderr setup-command-line-arguments
+       '(setup-stdin setup-stdout setup-stderr
+         setup-command-line-arguments setup-temporary-directory
          #+abcl detect-os)))
