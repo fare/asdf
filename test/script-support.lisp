@@ -41,7 +41,7 @@ Some constraints:
   `(;; If you want to trace some stuff while debugging ASDF,
     ;; here's a nice place to say what.
     ;; These string designators will be interned in ASDF after it is loaded.
-    
+
     ;;#+ecl ,@'( :perform :input-files :output-files :compile-file* :compile-file-pathname* :load*)
     ))
 
@@ -114,17 +114,22 @@ Some constraints:
      (format *error-output* "~&Checking whether ~S~%" ',x)
      (finish-output *error-output*)
      (assert ,x)))
-(defmacro signals (condition sexp)
+(defmacro signals (condition sexp &aux (x (gensym)))
   `(progn
      (format *error-output* "~&Checking whether ~S signals ~S~%" ',sexp ',condition)
      (finish-output *error-output*)
      (handler-case
          ,sexp
-       (,condition () t)
-       (t (c)
-         (error "Expression ~S raises signal ~S, not ~S" ',sexp c ',condition))
-       (:no-error ()
-         (error "Expression ~S fails to raise condition ~S" ',sexp ',condition)))))
+       (,condition (,x)
+         (format *error-output* "~&Received signal ~S~%" ,x)
+         (finish-output *error-output*)
+         t)
+       (:no-error (&rest ,x)
+         (error "Expression ~S fails to raise condition ~S, instead returning~{ ~S~}"
+                ',sexp ',condition ,x))
+       (t (,x)
+         (error "Expression ~S raises signal ~S, not ~S" ',sexp ,x ',condition)))))
+
 
 ;;; Helpful for debugging
 (defun pathname-components (p)
@@ -477,7 +482,7 @@ is bound, write a message and exit on an error.  If
             (null "1.0"))))))
 
 (defun output-location (&rest sublocation)
-  (list* *asdf-directory* "build/fasls" :implementation-type sublocation))
+  (list* *asdf-directory* "build/fasls" :implementation sublocation))
 (defun resolve-output (&rest sublocation)
   (acall :resolve-location (apply 'output-location sublocation)))
 

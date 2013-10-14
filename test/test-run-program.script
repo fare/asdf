@@ -4,7 +4,7 @@
 (DBG "Testing echo ok 1 via run-program as a list")
 (assert-equal "ok 1" (run-program '("echo" "ok" "1") :output '(:string :stripped t)))
 
-(defun space-bugged (x)
+(defun space-bugged (x) ;; some implementations are broken and output extra space on Windows
   #.(or #+(and sbcl windows) '(strcat x " ") 'x))
 
 (DBG "Testing echo ok 1 via run-program as a string")
@@ -73,12 +73,12 @@
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
-(assert-equal (list (space-bugged "ok 1")) (run-program "echo ok  1" :output :lines))
 (assert-equal (space-bugged "ok  1") (run-program '("echo" "ok  1") :output :line))
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
-(assert-equal (format nil "ok  1~%") (remove-cr (run-program '("echo" "ok  1") :output :string)))
+(assert-equal (format nil "~A~%" (space-bugged "ok  1"))
+              (remove-cr (run-program '("echo" "ok  1") :output :string)))
 
-(assert-equal (format nil "ok~%")
+(assert-equal (format nil "~A~%" (space-bugged "ok"))
               (remove-cr (with-output-to-string (*standard-output*)
                            (run-program "echo ok" :output t :error-output :output))))
 
@@ -199,6 +199,8 @@ Testing run-program
 
 (defun unix-only-test/run-program ()
 
+  (assert-equal (list (space-bugged "ok 1")) (run-program "echo ok  1" :output :lines))
+
   (assert-equal '(nil nil 0) (multiple-value-list (run-program "true")))
   (signals subprocess-error (run-program "false"))
   (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :ignore-error-status t)))
@@ -238,8 +240,9 @@ Testing run-program
 
   ;; a basic smoke test
   (assert-equal (run-program '("cmd" "/c" "echo" "ok") :output :lines)
-                '("ok"))
+                (list (space-bugged "ok")))
 
+  (assert-equal (list (space-bugged "ok  1")) (run-program "echo ok  1" :output :lines))
   t)
 
 (deftest test/run-program ()

@@ -53,9 +53,9 @@
   (unless (fboundp 'external-process-wait)
     (in-development-mode
      (defun external-process-wait (proc)
-       (when (external-process-pid proc))
+       (when (external-process-pid proc)
          (with-interrupts-enabled
-             (wait-on-semaphore (external-process-completed proc)))))))
+             (wait-on-semaphore (external-process-completed proc))))))))
 #+clozure
 (in-package :uiop/common-lisp)
 

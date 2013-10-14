@@ -187,8 +187,8 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 
 ;;; Characters
-(with-upgradability ()
-  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char))) ;; ECL, LW, SBCL
+(with-upgradability () ;; base-char != character on ECL, LW, SBCL, Genera. LW also has SIMPLE-CHAR.
+  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char)))
   (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
 
 (with-upgradability ()

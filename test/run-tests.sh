@@ -384,6 +384,7 @@ run_tests () {
   cd ./test/
   echo failure > ../build/results/status
     thedate=`date "+%Y-%m-%d"`
+    rm -f "../build/results/${lisp}.text" || :
     do_tests "$@" 2>&1 | \
 	tee "../build/results/${lisp}.text" "../build/results/${lisp}-${thedate}.save"
     read a < ../build/results/status
