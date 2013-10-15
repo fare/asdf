@@ -52,7 +52,7 @@
   (unless (fboundp 'external-process-wait)
     (in-development-mode
      (defun external-process-wait (proc)
-       (when (and (external-process-pid proc) (eq (external-process-:%status proc) :running))
+       (when (and (external-process-pid proc) (eq (external-process-%status proc) :running))
          (with-interrupts-enabled
              (wait-on-semaphore (external-process-completed proc))))
        (values (external-process-%exit-code proc)
