@@ -80,6 +80,7 @@
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
+#-(and clozure os-windows) ;; http://trac.clozure.com/ccl/ticket/1118
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
