@@ -370,7 +370,7 @@ for the implementation's underlying run-program function"
 via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
 or whether it's already taken care of by the implementation's underlying run-program."
     (not (typep specifier '(or null string pathname (member :interactive :output)
-                            #+(or cmu sbcl scl) (or stream (eql t))
+                            #+(or cmu (and sbcl os-unix) scl) (or stream (eql t))
                             #+lispworks file-stream)))) ;; not a type!? comm:socket-stream
 
   (defun %normalize-io-specifier (specifier &optional role)
@@ -630,7 +630,7 @@ It returns a process-info plist with possible keys:
         (typecase activity-spec
           ((or null string pathname (eql :interactive))
            (easy-case))
-          #+(or cmu sbcl scl) ;; streams are only easy on implementations that try very hard
+          #+(or cmu (and sbcl os-unix) scl) ;; streams are only easy on implementations that try very hard
           (stream
            (if stream-easy-p (easy-case) (hard-case)))
           (t
