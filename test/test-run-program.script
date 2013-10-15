@@ -52,8 +52,9 @@
     (run-program "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
                  :output :lines :error-output :output))))
 
-(DBG "Testing awkward legacy output capture via run-shell-command")
+#-(and sbcl os-windows)
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1")))
+  (DBG "Testing awkward legacy output capture via run-shell-command")
   (assert-equal
    (dewindowize
     (stripln
