@@ -5,7 +5,7 @@
 (defun dewindowize (x)
   (block ()
     (setf x (remove (code-char 13) x))
-    ;;#+(and sbcl os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
+    #+(and sbcl os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
     (when (eql #\space (last-char x))
       (return (subseq x 0 (1- (length x)))))
     x))
@@ -51,10 +51,6 @@
    (multiple-value-list
     (run-program "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
                  :output :lines :error-output :output))))
-
-#+(and sbcl os-windows)
-(leave-test "SBCL run-program is a big fail on windows")
-
 
 (DBG "Testing awkward legacy output capture via run-shell-command")
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1")))
