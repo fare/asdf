@@ -108,12 +108,19 @@
              failures)
        nil))))
 
+(defparameter *backtraces* 0)
+(defparameter *max-backtraces* 2)
+
 (defun test-file (file &key configuration (test-status *test-status*) (start-time 0))
   (with-slots (system-count directory-count file-count
                system-failures directory-failures file-failures failures) test-status
     (incf file-count)
     (unless (block nil
-              (handler-bind ((error #'(lambda (c) (print-condition-backtrace c) (return nil))))
+              (handler-bind ((error #'(lambda (c)
+                                        (incf *backtraces*)
+                                        (when (<= *backtraces* *max-backtraces*)
+                                          (print-condition-backtrace c))
+                                        (return nil))))
                 (with-open-file (stream (component-pathname file)
                                         :direction :output :if-exists :supersede
                                         :if-does-not-exist :error)
