@@ -80,8 +80,6 @@
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
-(assert-equal "ok  1" (dewindowize (run-program '("echo" "ok  1") :output :line)))
-(assert-equal "ok  1" (dewindowize (run-program '("echo" "ok  1") :output '(:string :stripped t))))
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
@@ -205,6 +203,8 @@ Testing run-program
 (defun unix-only-test/run-program ()
 
   (assert-equal '("ok 1") (run-program "echo ok  1" :output :lines))
+  (assert-equal '("ok  1") (run-program '("echo" "ok  1") :output :lines))
+  (assert-equal "ok  1" (run-program '("echo" "ok  1") :output '(:string :stripped t)))
 
   (assert-equal '(nil nil 0) (multiple-value-list (run-program "true")))
   (signals subprocess-error (run-program "false"))
@@ -214,23 +214,23 @@ Testing run-program
 
     ;; a basic smoke test
     (assert-equal '("Single")
-               (run-program `("grep" "Single" ,tf) :output :lines))
+                  (run-program `("grep" "Single" ,tf) :output :lines))
 
     ;; Make sure space is handled correctly
     (assert-equal '("double entry")
-               (run-program `("grep" "double entry" ,tf) :output :lines))
+                  (run-program `("grep" "double entry" ,tf) :output :lines))
 
     ;; Make sure space is handled correctly
     (assert-equal '("triple word entry")
-               (run-program `("grep" "triple word entry" ,tf) :output :lines))
+                  (run-program `("grep" "triple word entry" ,tf) :output :lines))
 
     ;; Testing special characters
     (loop :for char :across "+-_.,%@:/\\!&*(){}"
       :for str = (string char) :do
-      (assert-equal (list (format nil "escape ~A" str))
-                 (run-program
-                  `("grep" ,(format nil "[~A]" str) ,tf)
-                  :output :lines)))
+        (assert-equal (list (format nil "escape ~A" str))
+                      (run-program
+                       `("grep" ,(format nil "[~A]" str) ,tf)
+                       :output :lines)))
 
     ;; Test that run-program signals an error
     ;; with an executable that doesn't return 0
