@@ -122,8 +122,9 @@
                                           (print-condition-backtrace c))
                                         (return nil))))
                 (with-open-file (stream (component-pathname file)
-                                        :direction :output :if-exists :supersede
+                                        :direction :output :if-exists :rename-and-delete
                                         :if-does-not-exist :error)
+                  ;; SBCL on Windows hates :supersede here
                   (print start-time stream)
                   t)))
       (incf file-failures)

@@ -5,7 +5,7 @@
 (defun dewindowize (x)
   (block ()
     (setf x (remove (code-char 13) x))
-    #+(and sbcl os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
+    ;;#+(and sbcl os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
     (when (eql #\space (last-char x))
       (return (subseq x 0 (1- (length x)))))
     x))
