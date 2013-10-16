@@ -57,15 +57,18 @@
           (when (typep c 'cl-source-file)
             (let ((e (component-encoding c)))
               (unless (equal e encoding)
-                (pushnew e other-encodings :test 'equal)))
-            (let ((a (around-compile-hook c)))
-              (unless (equal a around-compile)
-                (pushnew a other-around-compile :test 'equal)))
+                (let ((a (assoc e other-encodings)))
+                  (if a (push (component-find-path c) (cdr a))
+                      (push (list a (component-find-path c)) other-encodings)))))
+            (unless (equal around-compile (around-compile-hook c))
+              (push (component-find-path c) other-around-compile))
             (input-files (make-operation 'compile-op) c)) :into inputs
           :finally
              (when other-encodings
-               (warn "~S uses encoding ~A but has sources that use these encodings: ~A"
-                     operation encoding other-encodings))
+               (warn "~S uses encoding ~A but has sources that use these encodings:~{ ~A~}"
+                     operation encoding
+                     (mapcar #'(lambda (x) (cons (car x) (list (reverse (cdr x)))))
+                             other-encodings)))
              (when other-around-compile
                (warn "~S uses around-compile hook ~A but has sources that use these hooks: ~A"
                      operation around-compile other-around-compile))
