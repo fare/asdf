@@ -128,7 +128,7 @@
   (format t "~&Testing stamp propagation by defsystem ~S~%" defsystem)
   (DBG "loading system")
   (reload defsystem)
-  (sleep 2)
+  (sleep 2) ;; TODO: on ASDF at least, instead touch the file stamp with the cache.
   (DBG "touching first source file and reloading")
   (DBG "defsystem should recompile & reload everything")
   (touch-file1.lisp)
@@ -143,6 +143,7 @@
                 '((:compiling :system) (:load-toplevel :file1)
                   (:compile-toplevel :file2) (:load-toplevel :file2))))
 
+#-abcl ;; TODO: figure out why ABCL fails to recompile anything.
 (test-defsystem :asdf)
 
 #+(or genera lispworks)

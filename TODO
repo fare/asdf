@@ -1,3 +1,4 @@
+* Find out why ABCL fails the timestamp propagation test.
 * Fix bugs on http://bugs.launchpad.net/asdf/+bugs
 * fix directory-files to not return directories on CCL, etc. Add tests.
 * use cl-test-grid to see if asdf-user can :use most (all?) of UIOP.
