@@ -521,8 +521,9 @@ as per native OS"
   (defun rename-file-overwriting-target (source target)
     "Rename a file, overwriting any previous file with the TARGET name,
 in an atomic way if the implementation allows."
-    #+clisp ;; But for a bug in CLISP 2.48, we should use :if-exists :overwrite and be atomic
-    (posix:copy-file source target :method :rename)
+    #+clisp ;; in recent enough versions of CLISP, :if-exists :overwrite would make it atomic
+    (progn (funcall 'require "syscalls")
+           (symbol-call :posix :copy-file source target :method :rename))
     #-clisp
     (rename-file source target
                  #+clozure :if-exists #+clozure :rename-and-delete))
