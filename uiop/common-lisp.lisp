@@ -46,18 +46,18 @@
     (setf excl:*warn-on-nested-reader-conditionals* nil))
   (setf *print-readably* nil))
 
-#+clozure
-(in-package :ccl)
+#+clozure (in-package :ccl)
 #+(and clozure windows-target) ;; See http://trac.clozure.com/ccl/ticket/1117
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (fboundp 'external-process-wait)
     (in-development-mode
      (defun external-process-wait (proc)
-       (when (external-process-pid proc)
+       (when (and (external-process-pid proc) (eq (external-process-%status proc) :running))
          (with-interrupts-enabled
-             (wait-on-semaphore (external-process-completed proc))))))))
-#+clozure
-(in-package :uiop/common-lisp)
+             (wait-on-semaphore (external-process-completed proc))))
+       (values (external-process-%exit-code proc)
+               (external-process-%status proc))))))
+#+clozure (in-package :uiop/common-lisp)
 
 
 #+cormanlisp

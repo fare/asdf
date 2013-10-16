@@ -1,15 +1,22 @@
 ;; -*- Lisp -*-
 (declaim (optimize (debug 3) (safety 3)))
 
-(DBG "Testing echo ok 1 via run-program as a list")
-(assert-equal "ok 1" (run-program '("echo" "ok" "1") :output '(:string :stripped t)))
+;; On Windows, normalize away CRLF into jut the unixy LF.
+(defun dewindowize (x)
+  (block ()
+    (setf x (remove (code-char 13) x))
+    #+(and sbcl os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
+    (when (eql #\space (last-char x))
+      (return (subseq x 0 (1- (length x)))))
+    x))
 
-(defun space-bugged (x) ;; some implementations are broken and output extra space on Windows
-  #.(or #+(and sbcl windows) '(strcat x " ") 'x))
+(DBG "Testing echo ok 1 via run-program as a list")
+(assert-equal "ok 1"
+              (dewindowize (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
 
 (DBG "Testing echo ok 1 via run-program as a string")
-(assert-equal (space-bugged "ok 1")
-              (run-program "echo ok 1" :output '(:string :stripped t)))
+(assert-equal "ok 1"
+              (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
 
 ;;; test asdf run-shell-command function
 (setf *verbose-out* nil)
@@ -45,42 +52,36 @@
     (run-program "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
                  :output :lines :error-output :output))))
 
-#+(and sbcl os-windows)
-(leave-test "SBCL run-program is a big fail on windows")
-
-;; On Windows, normalize away CRLF into jut the unixy LF.
-(defun remove-cr (x) (remove (code-char 13) x))
-
-(DBG "Testing awkward legacy output capture via run-shell-command")
-(let ((ok1 (format nil "; $ echo ok 1~%~A~%" (space-bugged "ok 1"))))
+#-(and sbcl os-windows)
+(let ((ok1 (format nil "; $ echo ok 1~%ok 1")))
+  (DBG "Testing awkward legacy output capture via run-shell-command")
   (assert-equal
-   (remove-cr
-    (with-output-to-string (s)
-      (let ((*verbose-out* s))
-        (run-shell-command "echo ~A 1" "ok"))))
+   (dewindowize
+    (stripln
+     (with-output-to-string (s)
+       (let ((*verbose-out* s))
+         (run-shell-command "echo ~A 1" "ok")))))
    ok1)
   #-ecl
   (assert-equal
-   (remove-cr
-    (with-output-to-string (s)
-      (let ((*verbose-out* t)
-            (*standard-output* s))
-        (let ((status (run-shell-command "echo ok ~D" 1)))
-          (unless (zerop status)
-            (error "Didn't get good exit status."))))))
+   (dewindowize
+    (stripln
+     (with-output-to-string (s)
+       (let ((*verbose-out* t)
+             (*standard-output* s))
+         (let ((status (run-shell-command "echo ok ~D" 1)))
+           (unless (zerop status)
+             (error "Didn't get good exit status.")))))))
    ok1))
 
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
-(assert-equal (space-bugged "ok  1") (run-program '("echo" "ok  1") :output :line))
+#-(and clozure os-windows) ;; http://trac.clozure.com/ccl/ticket/1118
 (assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
-(assert-equal (format nil "~A~%" (space-bugged "ok  1"))
-              (remove-cr (run-program '("echo" "ok  1") :output :string)))
-
-(assert-equal (format nil "~A~%" (space-bugged "ok"))
-              (remove-cr (with-output-to-string (*standard-output*)
-                           (run-program "echo ok" :output t :error-output :output))))
+(assert-equal "ok" (dewindowize (stripln
+                                 (with-output-to-string (*standard-output*)
+                                   (run-program "echo ok" :output t :error-output :output)))))
 
 ;;#+allegro (trace excl:run-shell-command sys:reap-os-subprocess)
 ;;#+lispworks (trace system:run-shell-command system:pid-exit-status)
@@ -199,7 +200,9 @@ Testing run-program
 
 (defun unix-only-test/run-program ()
 
-  (assert-equal (list (space-bugged "ok 1")) (run-program "echo ok  1" :output :lines))
+  (assert-equal '("ok 1") (run-program "echo ok  1" :output :lines))
+  (assert-equal '("ok  1") (run-program '("echo" "ok  1") :output :lines))
+  (assert-equal "ok  1" (run-program '("echo" "ok  1") :output '(:string :stripped t)))
 
   (assert-equal '(nil nil 0) (multiple-value-list (run-program "true")))
   (signals subprocess-error (run-program "false"))
@@ -209,23 +212,23 @@ Testing run-program
 
     ;; a basic smoke test
     (assert-equal '("Single")
-               (run-program `("grep" "Single" ,tf) :output :lines))
+                  (run-program `("grep" "Single" ,tf) :output :lines))
 
     ;; Make sure space is handled correctly
     (assert-equal '("double entry")
-               (run-program `("grep" "double entry" ,tf) :output :lines))
+                  (run-program `("grep" "double entry" ,tf) :output :lines))
 
     ;; Make sure space is handled correctly
     (assert-equal '("triple word entry")
-               (run-program `("grep" "triple word entry" ,tf) :output :lines))
+                  (run-program `("grep" "triple word entry" ,tf) :output :lines))
 
     ;; Testing special characters
     (loop :for char :across "+-_.,%@:/\\!&*(){}"
       :for str = (string char) :do
-      (assert-equal (list (format nil "escape ~A" str))
-                 (run-program
-                  `("grep" ,(format nil "[~A]" str) ,tf)
-                  :output :lines)))
+        (assert-equal (list (format nil "escape ~A" str))
+                      (run-program
+                       `("grep" ,(format nil "[~A]" str) ,tf)
+                       :output :lines)))
 
     ;; Test that run-program signals an error
     ;; with an executable that doesn't return 0
@@ -239,10 +242,10 @@ Testing run-program
 (defun windows-only-test/run-program ()
 
   ;; a basic smoke test
-  (assert-equal (run-program '("cmd" "/c" "echo" "ok") :output :lines)
-                (list (space-bugged "ok")))
+  (assert-equal "ok" (dewindowize (run-program '("cmd" "/c" "echo" "ok") :output :line)))
+  #-clozure ;; http://trac.clozure.com/ccl/ticket/1118
+  (assert-equal "ok  1" (dewindowize (run-program '("echo" "ok  1") :output :line)))
 
-  (assert-equal (list (space-bugged "ok  1")) (run-program "echo ok  1" :output :lines))
   t)
 
 (deftest test/run-program ()

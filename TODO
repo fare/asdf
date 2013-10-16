@@ -1,7 +1,9 @@
+* Fix bugs on http://bugs.launchpad.net/asdf/+bugs
 * fix directory-files to not return directories on CCL, etc. Add tests.
-* use cl-test-grid to see if asdf-user can :use most of UIOP.
+* use cl-test-grid to see if asdf-user can :use most (all?) of UIOP.
   Unhappily, on SBCL, sb-grovel uses asdf and sb-ext,
   which causes a clash with run-program.
+  Or has this been changed long enough ago? Can it be special-cased?
 * have a mode to explain WHY a component needs to be recompiled.
 * have a better defsystem form verifier - see lp#1007335
 * have a function verify-strict-asd that can verify a asd is pure lp#541562
@@ -10,6 +12,7 @@
 * have with-input-file use the encodings mechanism?
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
 * implement deferred warnings support on lispworks
+* work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
 * fix upgrade on clisp, cmucl, abcl (if still broken)
 ** Extract minimal test case, build a battery of automated tests
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
