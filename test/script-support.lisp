@@ -402,7 +402,7 @@ is bound, write a message and exit on an error.  If
              (good (key)
                (when (probe-file afasl) (delete-file afasl))
                (rename-file tmp afasl)
-               compile-asdf key))
+               key))
         (cond
           ((null result)
            (bad :no-output))
