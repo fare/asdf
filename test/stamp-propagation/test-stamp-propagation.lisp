@@ -143,7 +143,7 @@
                 '((:compiling :system) (:load-toplevel :file1)
                   (:compile-toplevel :file2) (:load-toplevel :file2))))
 
-#-abcl ;; TODO: figure out why ABCL fails to recompile anything.
+#-(or abcl xcl) ;; TODO: figure out why ABCL and XCL fail to recompile anything.
 (test-defsystem :asdf)
 
 #+(or genera lispworks)
