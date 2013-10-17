@@ -54,7 +54,7 @@
   (declaim (optimize (speed 1) (safety 3) (debug 3)))
   (setf ext:*gc-verbose* nil))
 
-#+(or abcl clisp clozure cmu ecl xcl)
+#+(or abcl clisp clozure cmu ecl xcl) ;; punt on hard package upgrade on those implementations
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :asdf3 *features*)
     (let* ((existing-version
@@ -71,7 +71,7 @@
            (existing-version-number (and existing-version (read-from-string existing-major-minor)))
            (away (format nil "~A-~A" :asdf existing-version)))
       (when (and existing-version
-                 (< existing-version-number #+abcl 2.25 #+cmu 2.018 #-(or abcl cmu) 2.27))
+                 (< existing-version-number 2.27))
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))))

@@ -290,7 +290,7 @@ upgrade_methods () {
     cat <<EOF
 'load-asdf-lisp'load-asdf-lisp-clean
 'load-asdf-lisp'load-asdf-system
-'load-asdf-lisp'compile-load-asdf
+'load-asdf-lisp'compile-load-asdf-upgrade
 'load-asdf-lisp'load-asdf-fasl
 ()'load-asdf-fasl
 'load-asdf-lisp-and-test-uiop'load-asdf-fasl

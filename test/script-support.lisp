@@ -20,7 +20,8 @@ Some constraints:
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
    #:load-asdf-lisp #:compile-asdf #:load-asdf-fasl
-   #:compile-load-asdf #:load-asdf-system #:clean-load-asdf-system
+   #:compile-load-asdf #:compile-load-asdf-upgrade
+   #:load-asdf-system #:clean-load-asdf-system
    #:register-directory #:load-test-system
    #:with-test #:test-asdf #:debug-asdf
    #:assert-compare
@@ -388,7 +389,7 @@ is bound, write a message and exit on an error.  If
 (defmacro with-asdf-conditions ((&optional verbose) &body body)
   `(call-with-asdf-conditions #'(lambda () ,@body) ,verbose))
 
-(defun compile-asdf (&optional tag verbose)
+(defun compile-asdf (&optional tag verbose upgradep)
   (let* ((alisp (asdf-lisp tag))
          (afasl (asdf-fasl tag))
          (tmp (make-pathname :name "asdf-tmp" :defaults afasl)))
@@ -401,7 +402,7 @@ is bound, write a message and exit on an error.  If
              (good (key)
                (when (probe-file afasl) (delete-file afasl))
                (rename-file tmp afasl)
-               key))
+               compile-asdf key))
         (cond
           ((null result)
            (bad :no-output))
@@ -416,6 +417,7 @@ is bound, write a message and exit on an error.  If
             ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
             ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
             #+(or clisp cmu ecl scl xcl) (good :expected-style-warnings)
+            (and upgradep (good :unexpected-style-warnings))
             (bad :unexpected-style-warnings)))
           (t (good :success)))))))
 
@@ -453,16 +455,20 @@ is bound, write a message and exit on an error.  If
       (:success
        (leave-test "ASDF compiled cleanly" 0)))))
 
-(defun compile-load-asdf (&optional tag)
+(defun compile-load-asdf (&optional tag upgradep)
   ;; emulate the way asdf upgrades itself: load source, compile, load fasl.
   (load-asdf-lisp tag)
-  (let ((results (compile-asdf tag)))
+  (let ((results (compile-asdf tag nil upgradep)))
     (ecase results
       ((:no-output :unexpected-full-warnings :unexpected-style-warnings)
-       (warn "ASDF compiled with ~S" results)
-       (leave-test "failed to compile ASDF" 1))
-      ((:expected-full-warnings :expected-style-warnings :success)
-       (load-asdf-fasl tag)))))
+         (warn "ASDF compiled with ~S" results)
+         (unless (and upgradep (eq results :unexpected-style-warnings))
+           (leave-test "failed to compile ASDF" 1)))
+      ((:expected-full-warnings :expected-style-warnings :success)))
+    (load-asdf-fasl tag)))
+
+(defun compile-load-asdf-upgrade (&optional tag)
+  (compile-load-asdf tag t))
 
 ;;; Now, functions to compile and load ASDF.
 
