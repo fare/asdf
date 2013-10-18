@@ -11,6 +11,7 @@
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
    #:*output-translation-function*
    #:*optimization-settings* #:*previous-optimization-settings*
+   #:*base-build-directory*
    #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
    #:compile-warned-warning #:compile-failed-warning
    #:check-lisp-compile-results #:check-lisp-compile-warnings
@@ -44,8 +45,13 @@ Valid values are :error, :warn, and :ignore.")
     "How should ASDF react if it encounters a failure (per the ANSI spec of COMPILE-FILE)
 when compiling a file, which includes any non-style-warning warning.
 Valid values are :error, :warn, and :ignore.
-Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling."))
+Note that ASDF ALWAYS raises an error if it fails to create an output file when compiling.")
 
+  (defvar *base-build-directory* nil
+    "When set to a non-null value, it should be an absolute directory pathname,
+which will serve as the *DEFAULT-PATHNAME-DEFAULTS* around a COMPILE-FILE,
+what more while the input-file is shortened if possible to ENOUGH-PATHNAME relative to it.
+This can help you produce more deterministic output for FASLs."))
 
 ;;; Optimization settings
 (with-upgradability ()
@@ -551,7 +557,7 @@ possibly in a different process. Otherwise just call THUNK."
         (funcall thunk)))
 
   (defmacro with-saved-deferred-warnings ((warnings-file) &body body)
-    "Trivial syntax for CALL-WITH-SAVED-DEFERRED-WARNINGS" 
+    "Trivial syntax for CALL-WITH-SAVED-DEFERRED-WARNINGS"
     `(call-with-saved-deferred-warnings #'(lambda () ,@body) ,warnings-file)))
 
 
@@ -563,7 +569,7 @@ possibly in a different process. Otherwise just call THUNK."
 
   (defun load-pathname ()
     "Portably return the LOAD-PATHNAME of the current source file or fasl"
-    *load-pathname*) ;; see magic for GCL in uiop/common-lisp 
+    *load-pathname*) ;; see magic for GCL in uiop/common-lisp
 
   (defun lispize-pathname (input-file)
     "From a INPUT-FILE pathname, return a corresponding .lisp source pathname"
@@ -649,16 +655,17 @@ it will filter them appropriately."
       (multiple-value-bind (output-truename warnings-p failure-p)
           (with-saved-deferred-warnings (warnings-file)
             (with-muffled-compiler-conditions ()
-              (or #-(or ecl mkcl)
-                  (apply 'compile-file input-file :output-file tmp-file
-                         #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
-                         #-sbcl keywords)
-                  #+ecl (apply 'compile-file input-file :output-file
-                               (if object-file
-                                   (list* object-file :system-p t keywords)
-                                   (list* tmp-file keywords)))
-                  #+mkcl (apply 'compile-file input-file
-                                :output-file object-file :fasl-p nil keywords))))
+              (with-enough-pathname (input-file :defaults *base-build-directory*)
+                (or #-(or ecl mkcl)
+                    (apply 'compile-file input-file :output-file tmp-file
+                           #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
+                           #-sbcl keywords)
+                    #+ecl (apply 'compile-file input-file :output-file
+                                 (if object-file
+                                     (list* object-file :system-p t keywords)
+                                     (list* tmp-file keywords)))
+                    #+mkcl (apply 'compile-file input-file
+                                  :output-file object-file :fasl-p nil keywords)))))
         (cond
           ((and output-truename
                 (flet ((check-flag (flag behaviour)
