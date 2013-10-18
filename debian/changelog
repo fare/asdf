@@ -1,3 +1,25 @@
+cl-asdf (2:3.0.3-1) unstable; urgency=low
+
+  New release:
+  * Run-program much improved, with a slight backward incompatibility.
+    See the new documentation about it.
+  * Portability enhanced, with more robust Windows support,
+    plus patches for CCL, CLISP, LispWorks, XCL.
+  * UIOP improved, with a README, more docstrings, a few new functions
+    (println, writeln, stripln, ensure-gethash, vomit-output-stream),
+    and bugfixes (to ensure-function, with-temporary-file, split-string).
+  * Debian installations that don't export XDG_DATA_DIRS will benefit
+    from the fix to split-string, as the bug was basically disabling
+    the default source-registry entry for /usr/share/common-lisp/source//
+    Closes: #723977
+  * Minor tweaks to the defsystem, mostly to print more information
+    in some situations, less in other situations, but also to better
+    handle systems with secondary names like foo/bar, a fix for user
+    functions in output-translation, and to :version (:read-file-...)
+  * Documentation somewhat updated.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 18 Oct 2013 14:38:17 -0500
+
 cl-asdf (2:3.0.2.4-1) unstable; urgency=low
 
   UIOP:DIRECTORY* fixed to NOT follow symbolic links on LispWorks.
