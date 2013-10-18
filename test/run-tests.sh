@@ -162,8 +162,20 @@ case "$lisp" in
     nodebug="-batch"
     if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
     eval="-e" ;;
+  allegro8)
+    command="${ALLEGRO8:-alisp8}"
+    flags="-q"
+    nodebug="-batch"
+    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
+    eval="-e" ;;
   allegromodern)
     command="${ALLEGROMODERN:-mlisp}"
+    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
+    flags="-q"
+    nodebug="-batch"
+    eval="-e" ;;
+  allegromodern8)
+    command="${ALLEGROMODERN8:-mlisp8}"
     if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
     flags="-q"
     nodebug="-batch"
