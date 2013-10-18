@@ -32,10 +32,14 @@
 
 ;;;; Early meta-level tweaks
 
-#+(or abcl (and allegro ics) (and (or clisp cmu ecl mkcl) unicode)
-      clozure lispworks (and sbcl sb-unicode) scl)
+#+(or abcl allegro clisp cmu ecl mkcl clozure lispworks sbcl scl)
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (pushnew :asdf-unicode *features*))
+  ;; Check for unicode at runtime, so that a hypothetical FASL compiled with unicode
+  ;; but loaded in a non-unicode setting (e.g. on Allegro) won't tell a lie.
+  (when (and #+allegro (member :ics *features*)
+             #+(or clisp cmu ecl mkcl) (member :unicode *features*)
+             #+sbcl (member :sb-unicode *features*))
+    (pushnew :asdf-unicode *features*)))
 
 #+allegro
 (eval-when (:load-toplevel :compile-toplevel :execute)

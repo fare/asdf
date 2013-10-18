@@ -93,9 +93,9 @@ reading emacs-style -*- coding: utf-8 -*- specifications,
 and falling back to utf-8 or latin1 if nothing is specified.")
 
   (defparameter *utf-8-external-format*
-    #+(and asdf-unicode (not clisp)) :utf-8
-    #+(and asdf-unicode clisp) charset:utf-8
-    #-asdf-unicode :default
+    (if (featurep :asdf-unicode)
+        (or #+clisp charset:utf-8 :utf-8)
+        :default)
     "Default :external-format argument to pass to CL:OPEN and also
 CL:LOAD or CL:COMPILE-FILE to best process a UTF-8 encoded file.
 On modern implementations, this will decode UTF-8 code points as CL characters.
