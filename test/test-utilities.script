@@ -203,7 +203,7 @@
 (assert-equal "abcd" (strcat "a" nil "bc" "d"))
 (assert-equal "abcd" (reduce/strcat '("a" nil "bc" "d")))
 
-(defparameter *last-char-code* (1- (or #+(and allegro (not ics)) 256 char-code-limit)))
+(defparameter *last-char-code* (1- (or #+allegro excl:real-char-code-limit char-code-limit)))
 (defparameter *last-char* (code-char *last-char-code*))
 (defparameter *last-char-string* (string *last-char*))
 
