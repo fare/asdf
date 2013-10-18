@@ -141,10 +141,17 @@ do_tests () {
   fi
 }
 
+#
+# not used currently but leave here for future reference.
+#
 case $(uname) in
     CYGWIN*) os=windows ;;
-    *) os=unix ;;
+    Darwin) os=macos ;;
+    Linux) os=linux ;;
+    *) os=unknown ;;
 esac
+
+
 
 # terminate on error
 set -e
@@ -156,29 +163,16 @@ case "$lisp" in
     flags="--noinit --nosystem --noinform"
     eval="--eval"
     ;;
-  allegro)
-    command="${ALLEGRO:-alisp}"
+  allegro|allegro8|allegromodern|allegromodern8)
+    case "$lisp" in
+      allegro) command="${ALLEGRO:-alisp}" ;;
+      allegro8) command="${ALLEGRO8:-alisp8}" ;;
+      allegromodern) command="${ALLEGROMODERN:-mlisp}" ;;
+      allegromodern8) command="${ALLEGROMODERN8:-mlisp8}" ;;
+    esac
     flags="-q"
     nodebug="-batch"
-    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
-    eval="-e" ;;
-  allegro8)
-    command="${ALLEGRO8:-alisp8}"
-    flags="-q"
-    nodebug="-batch"
-    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
-    eval="-e" ;;
-  allegromodern)
-    command="${ALLEGROMODERN:-mlisp}"
-    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
-    flags="-q"
-    nodebug="-batch"
-    eval="-e" ;;
-  allegromodern8)
-    command="${ALLEGROMODERN8:-mlisp8}"
-    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
-    flags="-q"
-    nodebug="-batch"
+    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then bcmd="$command +c $flags" ; fi
     eval="-e" ;;
   ccl)
     command="${CCL:-ccl}"
