@@ -114,10 +114,23 @@
 (defun touch-file1.lisp ()
   (touch (asdf::subpathname *tsp* "file1.lisp")))
 
+(defun faslpath (lisppath &optional (defsystem *default-defsystem*))
+  (funcall
+   (if (and (eq defsystem :asdf) (fboundp 'asdf::compile-file-pathname*))
+       'asdf::compile-file-pathname*
+       'compile-file-pathname)
+   lisppath))
+
+(defun clear-fasls (&optional (defsystem *default-defsystem*))
+  (loop :for file :in '("file1.lisp" "file2.lisp")
+        :for lisppath = (asdf::subpathname *tsp* file)
+        :for faslpath = (faslpath lisppath defsystem)
+        :do (if (and (eq defsystem :asdf) asdf::*asdf-cache*)
+                (mark-file-deleted faslpath)
+                (delete-file-if-exists faslpath))))
+
 (defun touch-file1.fasl (&optional (defsystem *default-defsystem*))
-  (touch (funcall
-          (case defsystem (:asdf 'asdf::compile-file-pathname*) (t 'compile-file-pathname))
-          (asdf::subpathname *tsp* "file1.lisp"))))
+  (touch (faslpath (asdf::subpathname *tsp* "file1.lisp") defsystem)))
 
 (defun sanitize-log (log)
   (remove-duplicates
@@ -126,6 +139,8 @@
 
 (defun test-defsystem (&optional (defsystem *default-defsystem*))
   (format t "~&Testing stamp propagation by defsystem ~S~%" defsystem)
+  (DBG "removing any old fasls")
+  (clear-fasls defsystem)
   (DBG "loading system")
   (reload defsystem)
   (sleep 2) ;; TODO: on ASDF at least, instead touch the file stamp with the cache.
@@ -141,7 +156,10 @@
   (touch-file1.fasl defsystem)
   (assert-equal (sanitize-log (reload defsystem))
                 '((:compiling :system) (:load-toplevel :file1)
-                  (:compile-toplevel :file2) (:load-toplevel :file2))))
+                  (:compile-toplevel :file2) (:load-toplevel :file2)))
+  (DBG "cleaning up")
+  (clear-fasls defsystem))
+
 
 #-(or abcl xcl) ;; TODO: figure out why ABCL and XCL fail to recompile anything.
 (test-defsystem :asdf)
