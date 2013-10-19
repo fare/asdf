@@ -4,7 +4,7 @@
 (asdf/package:define-package :asdf/cache
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
-           #:consult-asdf-cache #:do-asdf-cache
+           #:consult-asdf-cache #:do-asdf-cache #:normalize-namestring
            #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*))
 (in-package :asdf/cache)
 
@@ -42,13 +42,23 @@
   (defmacro with-asdf-cache ((&key override) &body body)
     `(call-with-asdf-cache #'(lambda () ,@body) :override ,override))
 
-  (defun compute-file-stamp (file)
-    (safe-file-write-date file))
+  (defun normalize-namestring (pathname)
+    (let ((resolved (resolve-symlinks*
+                     (ensure-absolute-pathname
+                      (translate-logical-pathname pathname)
+                      'get-pathname-defaults))))
+      (with-pathname-defaults () (namestring resolved))))
 
-  (defun register-file-stamp (file &optional (stamp (compute-file-stamp file)))
-    (set-asdf-cache-entry `(get-file-stamp ,file) (list stamp)))
+  (defun compute-file-stamp (normalized-namestring)
+    (with-pathname-defaults ()
+      (safe-file-write-date normalized-namestring)))
+
+  (defun register-file-stamp (file &optional (stamp nil stampp))
+    (let* ((namestring (normalize-namestring file))
+           (stamp (if stampp stamp (compute-file-stamp namestring))))
+      (set-asdf-cache-entry `(get-file-stamp ,namestring) (list stamp))))
 
   (defun get-file-stamp (file)
-    (do-asdf-cache `(get-file-stamp ,file) (compute-file-stamp file))))
-
+    (let ((namestring (normalize-namestring file)))
+      (do-asdf-cache `(get-file-stamp ,namestring) (compute-file-stamp namestring)))))
 

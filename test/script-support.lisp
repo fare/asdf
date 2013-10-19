@@ -264,7 +264,7 @@ Some constraints:
           (assert-equal (file-write-date file) stamp)))))
 (defun mark-file-deleted (file)
   (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
-  (acall :register-file-stamp file nil))
+  (acall :register-file-stamp (acall :normalize-namestring file) nil))
 
 (defun hash-table->alist (table)
   (loop :for key :being :the :hash-keys :of table :using (:hash-value value)
