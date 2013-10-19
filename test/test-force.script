@@ -15,7 +15,7 @@
 (touch-file "file1.lisp" :timestamp date1)
 (touch-file file1 :timestamp date2)
 (load-system 'test-force)
-(assert (equal (get-file-stamp file1) date2))
+(assert-equal (get-file-stamp file1) date2)
 
 ;; forced, it should be later
 (load-system 'test-force :force t)
