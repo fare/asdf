@@ -9,7 +9,8 @@
 
 (unless (find-package :asdf)
   (asdf-test::load-asdf)
-  (asdf-test::frob-packages))
+  (asdf-test::frob-packages)
+  (use-package :uiop :asdf))
 
 (in-package :asdf-test)
 
@@ -125,7 +126,7 @@
 (defun touch (filename)
   #+genera filename ;; TODO: do something with it!
   #-genera
-  (uiop:run-program `("touch" ,(native-namestring filename))
+  (uiop:run-program `("touch" ,(uiop:native-namestring filename))
                     :output t :error-output t))
 
 (defun clear-fasls (&optional (defsystem *default-defsystem*))
@@ -166,10 +167,10 @@
     ((use-cache-p defsystem)
      (DBG "marking the old fasl new, the second one up to date")
      (let ((tf2 (file-write-date (faslpath "file2.lisp"))))
-       (touch-file (lisppath "file1.lisp") :timestamp tf2 :offset 0)
+       (touch-file (lisppath "file1.lisp") :timestamp tf2 :offset 100)
        (touch-file (faslpath "file1.lisp") :timestamp tf2 :offset 500)
-       (touch-file (lisppath "file2.lisp") :timestamp tf2 :offset 0)
-       (touch-file (faslpath "file2.lisp") :timestamp tf2 :offset 0)))
+       (touch-file (lisppath "file2.lisp") :timestamp tf2 :offset 100)
+       (touch-file (faslpath "file2.lisp") :timestamp tf2 :offset 100)))
     (t
      (DBG "touching first fasl file and reloading")
      (sleep #-os-windows 3 #+os-windows 5)
@@ -182,8 +183,10 @@
   (clear-fasls defsystem))
 
 
-#-(or abcl xcl) ;; TODO: figure out why ABCL and XCL fail to recompile anything.
-(test-defsystem :asdf)
+(cond
+  #+(and asdf3 (not abcl) (not xcl)) ;; TODO: figure out why ABCL and XCL fail to recompile anything.
+  (t (test-defsystem :asdf))
+  (t (signals error (test-defsystem :asdf))))
 
 #+(or genera lispworks)
 (test-defsystem :native)

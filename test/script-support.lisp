@@ -88,6 +88,7 @@ Some constraints:
         (when errorp (error "Can't find package ~A" pname)))))
 (defun acall (name &rest args)
   (apply (apply 'asym (if (consp name) name (list name))) args))
+(defun ucall (name &rest args) (apply (asym name :uiop) args))
 (defun asymval (name &optional package)
   (symbol-value (asym name package)))
 (defsetf asymval (name &optional package) (new-value) ;; NB: defun setf won't work on GCL2.6
@@ -147,7 +148,7 @@ Some constraints:
   (cond
     ((equal x y)
      (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
-    ((acall :pathname-equal x y)
+    ((ucall :pathname-equal x y)
      (warn "These two expressions yield pathname-equal yet not equal path~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
         the other expression ~S yields that:~%  ~S~%  ~S~%"
@@ -257,10 +258,10 @@ Some constraints:
             (decode-universal-time stamp #+gcl2.6 -5) ;; -5 is for *my* localtime
           (unless in-filesystem
             (error "Y U NO use stamp cache?"))
-          (acall :run-program
+          (ucall :run-program
                  `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                          year month day hr min sec)
-                           ,(acall :native-namestring file)))
+                           ,(ucall :native-namestring file)))
           (assert-equal (file-write-date file) stamp)))))
 (defun mark-file-deleted (file)
   (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
@@ -325,7 +326,7 @@ is bound, write a message and exit on an error.  If
                              (break))
                             (t
                              (ignore-errors
-                              (acall :print-condition-backtrace
+                              (ucall :print-condition-backtrace
                                      c :count 69 :stream *error-output*))
                              (leave-test "Script failed" 1))))))
               (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
