@@ -143,14 +143,16 @@
   (clear-fasls defsystem)
   (DBG "loading system")
   (reload defsystem)
-  (sleep 2) ;; TODO: on ASDF at least, instead touch the file stamp with the cache.
+  #-os-windows (sleep 3) ;; TODO: on ASDF at least, instead touch the file stamp with the cache.
+  #+os-windows (sleep 5) ;; TODO: on ASDF at least, instead touch the file stamp with the cache.
   (DBG "touching first source file and reloading")
   (DBG "defsystem should recompile & reload everything")
   (touch-file1.lisp)
   (assert-equal (sanitize-log (reload defsystem))
                 '((:compiling :system) (:compile-toplevel :file1) (:load-toplevel :file1)
                   (:compile-toplevel :file2) (:load-toplevel :file2)))
-  (sleep 2)
+  #-os-windows (sleep 3)
+  #+os-windows (sleep 5)
   (DBG "touching first fasl file and reloading")
   (DBG "defsystem should reload it, recompile & reload the other")
   (touch-file1.fasl defsystem)
