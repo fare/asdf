@@ -32,6 +32,12 @@
 (eval-note :tsp)
 
 (defvar *tsp* (asdf::pathname-directory-pathname *load-pathname*))
+(defparameter *defsystems* '(#+(or allegro genera lispworks) :native
+                             #+mk-defsystem :mk-defsystem
+                             #+asdf :asdf))
+(defvar *default-defsystem* (first *defsystems*))
+(defvar asdf::*asdf-cache* nil) ;; if defparameter instead of defvar, disable any surrounding cache
+
 (defun lisppath (filename) (asdf::subpathname *tsp* filename))
 (defun faslpath (lisppath &optional (defsystem *default-defsystem*))
   (funcall
@@ -42,7 +48,6 @@
      (pathname lisppath)
      (string (lisppath lisppath)))))
 
-(defvar asdf::*asdf-cache* nil) ;; if defparameter instead of defvar, disable any surrounding cache
 
 (defun use-cache-p (defsystem)
   (and (eq defsystem :asdf)
@@ -85,12 +90,6 @@
   (:serial
    "file1.lisp"
    "file2.lisp"))
-
-(defparameter *defsystems* '(#+(or allegro genera lispworks) :native
-                             #+mk-defsystem :mk-defsystem
-                             #+asdf :asdf))
-
-(defvar *default-defsystem* (first *defsystems*))
 
 (defun reload (&optional (defsystem *default-defsystem*))
   (format t "~&ASDF-CACHE ~S~%" asdf::*asdf-cache*)
@@ -145,16 +144,24 @@
   (format t "~&Testing stamp propagation by defsystem ~S~%" defsystem)
   #+allegro (progn (DBG "removing any old fasls from another flavor of allegro")
                    (clear-fasls defsystem))
+  (when (use-cache-p defsystem)
+    (let ((tl1 (file-write-date (lisppath "file1.lisp"))))
+      (touch-file (lisppath "file1.lisp") :timestamp tl1 :offset -1000)
+      (touch-file (faslpath "file1.lisp") :timestamp tl1 :offset -10000)
+      (touch-file (lisppath "file2.lisp") :timestamp tl1 :offset -1000)
+      (touch-file (faslpath "file2.lisp") :timestamp tl1 :offset -10000)))
   (DBG "loading system")
   (reload defsystem)
   (cond
     ((use-cache-p defsystem)
      (DBG "marking all files old but first source file, and reloading")
+     (clrhash (asdf::component-operation-times (asdf:find-component :test-stamp-propagation "file1")))
+     (clrhash (asdf::component-operation-times (asdf:find-component :test-stamp-propagation "file2")))
      (let ((tf2 (file-write-date (faslpath "file2.lisp"))))
        (touch-file (lisppath "file1.lisp") :timestamp tf2 :offset 0)
-       (touch-file (faslpath "file1.lisp") :timestamp tf2 :offset -2000)
-       (touch-file (lisppath "file2.lisp") :timestamp tf2 :offset -5000)
-       (touch-file (faslpath "file2.lisp") :timestamp tf2 :offset -1000)))
+       (touch-file (faslpath "file1.lisp") :timestamp tf2 :offset -200)
+       (touch-file (lisppath "file2.lisp") :timestamp tf2 :offset -500)
+       (touch-file (faslpath "file2.lisp") :timestamp tf2 :offset -100)))
     (t
      (DBG "touching first source file and reloading")
      (sleep #-os-windows 3 #+os-windows 5)
