@@ -191,8 +191,9 @@
 
 
 (cond
-  #+(and asdf3 (not abcl) (not xcl)) ;; TODO: figure out why ABCL and XCL fail to recompile anything.
-  (t (test-defsystem :asdf))
+  #+asdf3 ;; TODO: figure out why ABCL and XCL fail to recompile anything.
+  ((and #+(or abcl xcl) (use-cache-p :asdf))
+   (test-defsystem :asdf))
   (t (signals error (test-defsystem :asdf))))
 
 #+(or genera lispworks)
