@@ -45,7 +45,7 @@
   (defun normalize-namestring (pathname)
     (let ((resolved (resolve-symlinks*
                      (ensure-absolute-pathname
-                      (translate-logical-pathname pathname)
+                      (physicalize-pathname pathname)
                       'get-pathname-defaults))))
       (with-pathname-defaults () (namestring resolved))))
 

@@ -78,7 +78,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
     ;; as if the file were very old.
     ;; (or should we treat the case in a different, special way?)
     (and pathname
-         (handler-case (file-write-date (translate-logical-pathname pathname))
+         (handler-case (file-write-date (physicalize-pathname pathname))
            (file-error () nil))))
 
   (defun probe-file* (p &key truename)
@@ -100,7 +100,7 @@ or the original (parsed) pathname if it is false (the default)."
                    (if truename
                        (probe-file p)
                        (ignore-errors
-                        (let ((pp (translate-logical-pathname p)))
+                        (let ((pp (physicalize-pathname p)))
                           (and
                            #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
                            #+(and lispworks unix) (system:get-file-stat pp)
@@ -384,7 +384,7 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
           (unless (pathnamep p) (return nil))
           (check want-logical (logical-pathname-p p) "Expected a logical pathname")
           (check want-physical (physical-pathname-p p) "Expected a physical pathname")
-          (transform ensure-physical () (translate-logical-pathname p))
+          (transform ensure-physical () (physicalize-pathname p))
           (check ensure-physical (physical-pathname-p p) "Could not translate to a physical pathname")
           (check want-relative (relative-pathname-p p) "Expected a relative pathname")
           (check want-absolute (absolute-pathname-p p) "Expected an absolute pathname")
@@ -516,7 +516,7 @@ as per native OS"
     "Ensure that for every pathname in PATHNAMES, we ensure its directories exist"
     (dolist (pathname pathnames)
       (when pathname
-        (ensure-directories-exist (translate-logical-pathname pathname)))))
+        (ensure-directories-exist (physicalize-pathname pathname)))))
 
   (defun rename-file-overwriting-target (source target)
     "Rename a file, overwriting any previous file with the TARGET name,

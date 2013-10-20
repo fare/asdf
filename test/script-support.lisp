@@ -224,7 +224,7 @@ Some constraints:
 (defun asdf-lisp (&optional tag)
   (make-pathname :name (asdf-name tag) :type "lisp" :defaults *build-directory*))
 (defun debug-lisp ()
-  (make-sub-pathname :directory (relative-dir "contrib") :name "debug" :type "lisp" :defaults *asdf-directory*))
+  (make-sub-pathname :directory (relative-dir "contrib") :name "debug" :type "lisp" :defaults *uiop-directory*))
 (defun early-compile-file-pathname (file)
   (compile-file-pathname
    (make-pathname :name (pathname-name file) :type "lisp" :defaults *early-fasl-directory*)))

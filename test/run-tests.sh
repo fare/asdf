@@ -84,11 +84,10 @@ do_tests () {
        scripts="$*"
   fi
   env | grep -i asdf
-  rm -f ~/.cache/common-lisp/"`pwd`"/* || true
   ## We go through great lengths to avoid " in the command line,
-  ## the quoting of which some Windows implementations get wrong.
+  ## the quoting of which many Windows implementations get wrong.
   ## While we're at it, we also avoid spaces and backslashes.
-  ( cd .. && DO $bcmd $eval '(or #.(load(string`|test/script-support.lisp|))#.(asdf-test::compile-asdf-script))' )
+  ( DO $bcmd $eval '(or`,#.(load(string`|script-support.lisp|))#.(asdf-test::compile-asdf-script))' )
   if [ $? -ne 0 ] ; then
     echo "Compilation FAILED" >&2
     echo "you can retry compilation with:" >&2

@@ -15,7 +15,7 @@
    #:merge-pathnames*
    #:nil-pathname #:*nil-pathname* #:with-pathname-defaults
    ;; Predicates
-   #:pathname-equal #:logical-pathname-p #:physical-pathname-p
+   #:pathname-equal #:logical-pathname-p #:physical-pathname-p #:physicalize-pathname
    #:absolute-pathname-p #:relative-pathname-p #:hidden-pathname-p #:file-pathname-p
    ;; Directories
    #:pathname-directory-pathname #:pathname-parent-directory-pathname
@@ -181,6 +181,20 @@ by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
                           :type (funcall unspecific-handler type)
                           :version (funcall unspecific-handler version))))))
 
+  (defun logical-pathname-p (x)
+    "is X a logical-pathname?"
+    (typep x 'logical-pathname))
+
+  (defun physical-pathname-p (x)
+    "is X a pathname that is not a logical-pathname?"
+    (and (pathnamep x) (not (logical-pathname-p x))))
+
+  (defun physicalize-pathname (x)
+    "if X is a logical pathname, use translate-logical-pathname on it."
+    ;; Ought to be the same as translate-logical-pathname, except the latter borks on CLISP
+    (let ((p (when x (pathname x))))
+      (if (logical-pathname-p p) (translate-logical-pathname p) p)))
+
   (defun nil-pathname (&optional (defaults *default-pathname-defaults*))
     "A pathname that is as neutral as possible for use as defaults
 when merging, making or parsing pathnames"
@@ -197,7 +211,7 @@ when merging, making or parsing pathnames"
                        ;; the default shouldn't matter, but we really want something physical
                        #-mcl ,@'(:defaults defaults)))
 
-  (defvar *nil-pathname* (nil-pathname (translate-logical-pathname (user-homedir-pathname)))
+  (defvar *nil-pathname* (nil-pathname (physicalize-pathname (user-homedir-pathname)))
     "A pathname that is as neutral as possible for use as defaults
 when merging, making or parsing pathnames")
 
@@ -229,14 +243,6 @@ when merging, making or parsing pathnames"
                       (=? pathname-name)
                       (=? pathname-type)
                       (=? pathname-version)))))))
-
-  (defun logical-pathname-p (x)
-    "is X a logical-pathname?"
-    (typep x 'logical-pathname))
-
-  (defun physical-pathname-p (x)
-    "is X a pathname that is not a logical-pathname?"
-    (and (pathnamep x) (not (logical-pathname-p x))))
 
   (defun absolute-pathname-p (pathspec)
     "If PATHSPEC is a pathname or namestring object that parses as a pathname

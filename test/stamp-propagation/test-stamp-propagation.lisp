@@ -92,7 +92,7 @@
    "file2.lisp"))
 
 (defun reload (&optional (defsystem *default-defsystem*))
-  (format t "~&ASDF-CACHE ~S~%" asdf::*asdf-cache*)
+  (format t "~&ASDF-CACHE before ~S~%" asdf::*asdf-cache*)
   (setf *eval-notes* nil)
   (setf *compile-verbose* t *load-verbose* t)
   (ecase defsystem
@@ -118,9 +118,21 @@
      #+allegro (excl:load-system :test-stamp-propagation)
      #+lispworks (scm:load-system :test-stamp-propagation)
      #+genera (sct:load-system :test-stamp-propagation)))
+  (format t "~&ASDF-CACHE after ~S~%" asdf::*asdf-cache*)
   (let ((n (eval-notes)))
     (format t "~&EVAL-NOTES ~S~%" n)
     n))
+
+(defun clear-sys (&optional (defsystem *default-defsystem*))
+  #+asdf
+  (when (eq defsystem :asdf)
+    (asdf:clear-system :test-stamp-propagation)
+    (asdf:defsystem :test-stamp-propagation
+      :pathname #.*tsp* :source-file nil
+      :serial t
+      :components
+      ((:file "file1")
+       (:file "file2")))))
 
 (defun touch (filename)
   #+genera filename ;; TODO: do something with it!
@@ -140,28 +152,33 @@
    (remove '(:loading :system) log :test 'equal)
    :test 'equal :from-end t))
 
+(defun adjust-stamp-cache (base l1 f1 l2 f2)
+  (clrhash asdf::*asdf-cache*)
+  (touch-file (lisppath "file1.lisp") :timestamp base :offset l1)
+  (touch-file (faslpath "file1.lisp") :timestamp base :offset f1)
+  (dolist (l (asdf:output-files (make-instance 'asdf:compile-op)
+                                (asdf:find-component :test-stamp-propagation '("file1"))))
+    (touch-file l :timestamp base :offset f1))
+  (touch-file (lisppath "file2.lisp") :timestamp base :offset l2)
+  (touch-file (faslpath "file2.lisp") :timestamp base :offset f2)
+  (dolist (l (asdf:output-files (make-instance 'asdf:compile-op)
+                                (asdf:find-component :test-stamp-propagation '("file2"))))
+    (touch-file l :timestamp base :offset f2)))
+
 (defun test-defsystem (&optional (defsystem *default-defsystem*))
-  (format t "~&Testing stamp propagation by defsystem ~S~%" defsystem)
-  #+allegro (progn (DBG "removing any old fasls from another flavor of allegro")
-                   (clear-fasls defsystem))
+  (format t "~%~%Testing stamp propagation by defsystem ~S~%" defsystem)
+  #+(or allegro clisp)
+  (progn (DBG "removing any old fasls from another flavor of the implementation")
+         (clear-fasls defsystem))
   (when (use-cache-p defsystem)
-    (let ((tl1 (file-write-date (lisppath "file1.lisp"))))
-      (touch-file (lisppath "file1.lisp") :timestamp tl1 :offset -1000)
-      (touch-file (faslpath "file1.lisp") :timestamp tl1 :offset -10000)
-      (touch-file (lisppath "file2.lisp") :timestamp tl1 :offset -1000)
-      (touch-file (faslpath "file2.lisp") :timestamp tl1 :offset -10000)))
+    (adjust-stamp-cache (file-write-date (lisppath "file1.lisp")) -1000 -10000 -1000 -10000))
   (DBG "loading system")
   (reload defsystem)
+  (clear-sys defsystem)
   (cond
     ((use-cache-p defsystem)
      (DBG "marking all files old but first source file, and reloading")
-     (clrhash (asdf::component-operation-times (asdf:find-component :test-stamp-propagation "file1")))
-     (clrhash (asdf::component-operation-times (asdf:find-component :test-stamp-propagation "file2")))
-     (let ((tf2 (file-write-date (faslpath "file2.lisp"))))
-       (touch-file (lisppath "file1.lisp") :timestamp tf2 :offset 0)
-       (touch-file (faslpath "file1.lisp") :timestamp tf2 :offset -200)
-       (touch-file (lisppath "file2.lisp") :timestamp tf2 :offset -500)
-       (touch-file (faslpath "file2.lisp") :timestamp tf2 :offset -100)))
+     (adjust-stamp-cache (file-write-date (lisppath "file1.lisp")) 0 -1000 -1000 -1000))
     (t
      (DBG "touching first source file and reloading")
      (sleep #-os-windows 3 #+os-windows 5)
@@ -170,14 +187,11 @@
   (assert-equal (sanitize-log (reload defsystem))
                 '((:compiling :system) (:compile-toplevel :file1) (:load-toplevel :file1)
                   (:compile-toplevel :file2) (:load-toplevel :file2)))
+  (clear-sys defsystem)
   (cond
     ((use-cache-p defsystem)
      (DBG "marking the old fasl new, the second one up to date")
-     (let ((tf2 (file-write-date (faslpath "file2.lisp"))))
-       (touch-file (lisppath "file1.lisp") :timestamp tf2 :offset 100)
-       (touch-file (faslpath "file1.lisp") :timestamp tf2 :offset 500)
-       (touch-file (lisppath "file2.lisp") :timestamp tf2 :offset 100)
-       (touch-file (faslpath "file2.lisp") :timestamp tf2 :offset 100)))
+     (adjust-stamp-cache (file-write-date (lisppath "file1.lisp")) 100 500 100 100))
     (t
      (DBG "touching first fasl file and reloading")
      (sleep #-os-windows 3 #+os-windows 5)

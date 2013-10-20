@@ -292,7 +292,7 @@ Going forward, we recommend new users should be using the source-registry.
               (*print-readably* nil)
               (*default-pathname-defaults*
                 ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
-                (pathname-directory-pathname (translate-logical-pathname pathname))))
+                (pathname-directory-pathname (physicalize-pathname pathname))))
           (handler-bind
               ((error #'(lambda (condition)
                           (error 'load-system-definition-error
@@ -401,8 +401,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                                             (or (pathname-equal pathname previous-pathname)
                                                 (and pathname previous-pathname
                                                      (pathname-equal
-                                                      (translate-logical-pathname pathname)
-                                                      (translate-logical-pathname previous-pathname))))
+                                                      (physicalize-pathname pathname)
+                                                      (physicalize-pathname previous-pathname))))
                                             (stamp<= stamp previous-time))))))
                   ;; only load when it's a pathname that is different or has newer content, and not an old asdf
                   (load-asd pathname :name name)))
