@@ -1,5 +1,5 @@
-;; NB: this file is supposed to work using old defsystems
-;; including not just ASDF2, but also legacy defsystems from allegro, genera, lispworks
+;; NB: This test file is supposed to work using old defsystems:
+;; not just ASDF 2.26, but also legacy defsystems from Allegro, Genera, LispWorks
 
 (unless (find-package :asdf-test)
   (load (merge-pathnames
@@ -9,7 +9,8 @@
 
 (unless (find-package :asdf)
   (asdf-test::load-asdf)
-  (asdf-test::frob-packages))
+  (asdf-test::frob-packages)
+  (use-package :uiop :asdf))
 
 (in-package :asdf-test)
 
@@ -31,8 +32,27 @@
 (eval-note :tsp)
 
 (defvar *tsp* (asdf::pathname-directory-pathname *load-pathname*))
+(defparameter *defsystems* '(#+(or allegro genera lispworks) :native
+                             #+mk-defsystem :mk-defsystem
+                             #+asdf :asdf))
+(defvar *default-defsystem* (first *defsystems*))
+(defvar asdf::*asdf-cache* nil) ;; if defparameter instead of defvar, disable any surrounding cache
 
-(defparameter asdf::*asdf-cache* nil) ;; disable any surrounding cache on ASDF3.
+(defun lisppath (filename) (asdf::subpathname *tsp* filename))
+(defun faslpath (lisppath &optional (defsystem *default-defsystem*))
+  (funcall
+   (if (and (eq defsystem :asdf) (fboundp 'asdf::compile-file-pathname*))
+       'asdf::compile-file-pathname*
+       'compile-file-pathname)
+   (etypecase lisppath
+     (pathname lisppath)
+     (string (lisppath lisppath)))))
+
+
+(defun use-cache-p (defsystem)
+  (and (eq defsystem :asdf)
+       (asdf:version-satisfies (asdf:asdf-version) "2.27")
+       asdf::*asdf-cache*))
 
 #+allegro
 (excl:defsystem :test-stamp-propagation
@@ -71,19 +91,16 @@
    "file1.lisp"
    "file2.lisp"))
 
-(defvar *default-defsystem* (or #+(or allegro genera lispworks) :native
-                                #+asdf :asdf
-                                #+mk-defsystem :mk-defsystem))
-
 (defun reload (&optional (defsystem *default-defsystem*))
-  (format t "~&ASDF-CACHE ~S~%" asdf::*asdf-cache*)
+  (format t "~&ASDF-CACHE before ~S~%" asdf::*asdf-cache*)
   (setf *eval-notes* nil)
   (setf *compile-verbose* t *load-verbose* t)
   (ecase defsystem
     #+asdf
     (:asdf
      (note-eval :compiling :system)
-     (asdf:compile-system :test-stamp-propagation)
+     (unless (use-cache-p :asdf) ;; faking the cache only works for one plan
+       (asdf:compile-system :test-stamp-propagation))
      (note-eval :loading :system)
      (asdf:load-system :test-stamp-propagation))
     #+mk-defsystem
@@ -101,49 +118,97 @@
      #+allegro (excl:load-system :test-stamp-propagation)
      #+lispworks (scm:load-system :test-stamp-propagation)
      #+genera (sct:load-system :test-stamp-propagation)))
+  (format t "~&ASDF-CACHE after ~S~%" asdf::*asdf-cache*)
   (let ((n (eval-notes)))
     (format t "~&EVAL-NOTES ~S~%" n)
     n))
 
+(defun clear-sys (&optional (defsystem *default-defsystem*))
+  #+asdf
+  (when (eq defsystem :asdf)
+    (asdf:clear-system :test-stamp-propagation)
+    (asdf:defsystem :test-stamp-propagation
+      :pathname #.*tsp* :source-file nil
+      :serial t
+      :components
+      ((:file "file1")
+       (:file "file2")))))
+
 (defun touch (filename)
-  #+genera filename ;; do something with it!
+  #+genera filename ;; TODO: do something with it!
   #-genera
-  (uiop:run-program `("touch" ,(native-namestring filename))
+  (uiop:run-program `("touch" ,(uiop:native-namestring filename))
                     :output t :error-output t))
 
-(defun touch-file1.lisp ()
-  (touch (asdf::subpathname *tsp* "file1.lisp")))
-
-(defun touch-file1.fasl (&optional (defsystem *default-defsystem*))
-  (touch (funcall
-          (case defsystem (:asdf 'asdf::compile-file-pathname*) (t 'compile-file-pathname))
-          (asdf::subpathname *tsp* "file1.lisp"))))
+(defun clear-fasls (&optional (defsystem *default-defsystem*))
+  (loop :for file :in '("file1.lisp" "file2.lisp")
+        :for faslpath = (faslpath file defsystem)
+        :do (if (and (eq defsystem :asdf) asdf::*asdf-cache*)
+                (mark-file-deleted faslpath)
+                (delete-file-if-exists faslpath))))
 
 (defun sanitize-log (log)
   (remove-duplicates
    (remove '(:loading :system) log :test 'equal)
    :test 'equal :from-end t))
 
+(defun adjust-stamp-cache (base l1 f1 l2 f2)
+  (clrhash asdf::*asdf-cache*)
+  (touch-file (lisppath "file1.lisp") :timestamp base :offset l1)
+  (touch-file (faslpath "file1.lisp") :timestamp base :offset f1)
+  (dolist (l (asdf:output-files (make-instance 'asdf:compile-op)
+                                (asdf:find-component :test-stamp-propagation '("file1"))))
+    (touch-file l :timestamp base :offset f1))
+  (touch-file (lisppath "file2.lisp") :timestamp base :offset l2)
+  (touch-file (faslpath "file2.lisp") :timestamp base :offset f2)
+  (dolist (l (asdf:output-files (make-instance 'asdf:compile-op)
+                                (asdf:find-component :test-stamp-propagation '("file2"))))
+    (touch-file l :timestamp base :offset f2)))
+
 (defun test-defsystem (&optional (defsystem *default-defsystem*))
-  (format t "~&Testing stamp propagation by defsystem ~S~%" defsystem)
+  (format t "~%~%Testing stamp propagation by defsystem ~S~%" defsystem)
+  #+(or allegro clisp)
+  (progn (DBG "removing any old fasls from another flavor of the implementation")
+         (clear-fasls defsystem))
+  (when (use-cache-p defsystem)
+    (adjust-stamp-cache (file-write-date (lisppath "file1.lisp")) -1000 -10000 -1000 -10000))
   (DBG "loading system")
   (reload defsystem)
-  (sleep 2)
-  (DBG "touching first source file and reloading")
+  (clear-sys defsystem)
+  (cond
+    ((use-cache-p defsystem)
+     (DBG "marking all files old but first source file, and reloading")
+     (adjust-stamp-cache (file-write-date (lisppath "file1.lisp")) 0 -1000 -1000 -1000))
+    (t
+     (DBG "touching first source file and reloading")
+     (sleep #-os-windows 3 #+os-windows 5)
+     (touch (lisppath "file1.lisp"))))
   (DBG "defsystem should recompile & reload everything")
-  (touch-file1.lisp)
   (assert-equal (sanitize-log (reload defsystem))
                 '((:compiling :system) (:compile-toplevel :file1) (:load-toplevel :file1)
                   (:compile-toplevel :file2) (:load-toplevel :file2)))
-  (sleep 2)
-  (DBG "touching first fasl file and reloading")
+  (clear-sys defsystem)
+  (cond
+    ((use-cache-p defsystem)
+     (DBG "marking the old fasl new, the second one up to date")
+     (adjust-stamp-cache (file-write-date (lisppath "file1.lisp")) 100 500 100 100))
+    (t
+     (DBG "touching first fasl file and reloading")
+     (sleep #-os-windows 3 #+os-windows 5)
+     (touch (faslpath "file1.lisp" defsystem))))
   (DBG "defsystem should reload it, recompile & reload the other")
-  (touch-file1.fasl defsystem)
   (assert-equal (sanitize-log (reload defsystem))
                 '((:compiling :system) (:load-toplevel :file1)
-                  (:compile-toplevel :file2) (:load-toplevel :file2))))
+                  (:compile-toplevel :file2) (:load-toplevel :file2)))
+  (DBG "cleaning up")
+  (clear-fasls defsystem))
 
-(test-defsystem :asdf)
+
+(cond
+  #+asdf3 ;; TODO: figure out why ABCL and XCL fail to recompile anything.
+  ((and #+(or abcl xcl) (use-cache-p :asdf))
+   (test-defsystem :asdf))
+  (t (signals error (test-defsystem :asdf))))
 
 #+(or genera lispworks)
 (test-defsystem :native)

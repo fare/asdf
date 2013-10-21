@@ -15,7 +15,7 @@
    #:merge-pathnames*
    #:nil-pathname #:*nil-pathname* #:with-pathname-defaults
    ;; Predicates
-   #:pathname-equal #:logical-pathname-p #:physical-pathname-p
+   #:pathname-equal #:logical-pathname-p #:physical-pathname-p #:physicalize-pathname
    #:absolute-pathname-p #:relative-pathname-p #:hidden-pathname-p #:file-pathname-p
    ;; Directories
    #:pathname-directory-pathname #:pathname-parent-directory-pathname
@@ -28,7 +28,7 @@
    #:subpathname #:subpathname*
    #:ensure-absolute-pathname
    #:pathname-root #:pathname-host-pathname
-   #:subpathp
+   #:subpathp #:enough-pathname #:with-enough-pathname #:call-with-enough-pathname
    ;; Checking constraints
    #:ensure-pathname ;; implemented in filesystem.lisp to accommodate for existence constraints
    ;; Wildcard pathnames
@@ -181,6 +181,20 @@ by default *DEFAULT-PATHNAME-DEFAULTS*, which cannot be NIL."
                           :type (funcall unspecific-handler type)
                           :version (funcall unspecific-handler version))))))
 
+  (defun logical-pathname-p (x)
+    "is X a logical-pathname?"
+    (typep x 'logical-pathname))
+
+  (defun physical-pathname-p (x)
+    "is X a pathname that is not a logical-pathname?"
+    (and (pathnamep x) (not (logical-pathname-p x))))
+
+  (defun physicalize-pathname (x)
+    "if X is a logical pathname, use translate-logical-pathname on it."
+    ;; Ought to be the same as translate-logical-pathname, except the latter borks on CLISP
+    (let ((p (when x (pathname x))))
+      (if (logical-pathname-p p) (translate-logical-pathname p) p)))
+
   (defun nil-pathname (&optional (defaults *default-pathname-defaults*))
     "A pathname that is as neutral as possible for use as defaults
 when merging, making or parsing pathnames"
@@ -197,7 +211,7 @@ when merging, making or parsing pathnames"
                        ;; the default shouldn't matter, but we really want something physical
                        #-mcl ,@'(:defaults defaults)))
 
-  (defvar *nil-pathname* (nil-pathname (translate-logical-pathname (user-homedir-pathname)))
+  (defvar *nil-pathname* (nil-pathname (physicalize-pathname (user-homedir-pathname)))
     "A pathname that is as neutral as possible for use as defaults
 when merging, making or parsing pathnames")
 
@@ -229,14 +243,6 @@ when merging, making or parsing pathnames"
                       (=? pathname-name)
                       (=? pathname-type)
                       (=? pathname-version)))))))
-
-  (defun logical-pathname-p (x)
-    "is X a logical-pathname?"
-    (typep x 'logical-pathname))
-
-  (defun physical-pathname-p (x)
-    "is X a pathname that is not a logical-pathname?"
-    (and (pathnamep x) (not (logical-pathname-p x))))
 
   (defun absolute-pathname-p (pathspec)
     "If PATHSPEC is a pathname or namestring object that parses as a pathname
@@ -559,6 +565,29 @@ when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPA
          (with-pathname-defaults ()
            (let ((enough (enough-namestring maybe-subpath base-pathname)))
              (and (relative-pathname-p enough) (pathname enough))))))
+
+  (defun enough-pathname (maybe-subpath base-pathname)
+    "if MAYBE-SUBPATH is a pathname that is under BASE-PATHNAME, return a pathname object that
+when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPATH."
+    (check-type maybe-subpath (or null pathname))
+    (check-type base-pathname (or null pathname))
+    (when (pathnamep base-pathname) (assert (absolute-pathname-p base-pathname)))
+    (or (and base-pathname (subpathp maybe-subpath base-pathname))
+        maybe-subpath))
+
+  (defun call-with-enough-pathname (maybe-subpath defaults-pathname thunk)
+    "In a context where *DEFAULT-PATHNAME-DEFAULTS* is bound to DEFAULTS-PATHNAME (if not null,
+or else to its current value), call THUNK with ENOUGH-PATHNAME for MAYBE-SUBPATH
+given DEFAULTS-PATHNAME as a base pathname."
+    (let ((enough (enough-pathname maybe-subpath defaults-pathname))
+          (*default-pathname-defaults* (or defaults-pathname *default-pathname-defaults*)))
+      (funcall thunk enough)))
+
+  (defmacro with-enough-pathname ((pathname-var &key (pathname pathname-var)
+                                                  (defaults *default-pathname-defaults*))
+                                  &body body)
+    "Shorthand syntax for CALL-WITH-ENOUGH-PATHNAME"
+    `(call-with-enough-pathname ,pathname ,defaults #'(lambda (,pathname-var) ,@body)))
 
   (defun ensure-absolute-pathname (path &optional defaults (on-error 'error))
     "Given a pathname designator PATH, return an absolute pathname as specified by PATH

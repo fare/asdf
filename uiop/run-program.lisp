@@ -611,22 +611,20 @@ It returns a process-info plist with possible keys:
                (hard-case ()
                  (if activep
                      (funcall fun :stream #'activity)
-                     (with-temporary-file (:pathname tmp :stream s
-                                           :direction (ecase direction
-                                                        ((:input) :output)
-                                                        ((:output :error-output) :io))
-                                           :element-type element-type
-                                           :external-format external-format)
+                     (with-temporary-file (:pathname tmp)
                        (ecase direction
                          (:input
-                          (unwind-protect (activity s)
-                            (ignore-errors (close s)))
+                          (with-output-file (s tmp :if-exists :overwrite
+                                               :external-format external-format
+                                               :element-type element-type)
+                            (activity s))
                           (funcall fun tmp nil))
                          ((:output :error-output)
-                          (unwind-protect
-                               (multiple-value-prog1 (funcall fun tmp nil)
-                                 (activity s))
-                            (ignore-errors (close s)))))))))
+                          (multiple-value-prog1 (funcall fun tmp nil)
+                            (with-input-file (s tmp
+                                               :external-format external-format
+                                               :element-type element-type)
+                              (activity s)))))))))
         (typecase activity-spec
           ((or null string pathname (eql :interactive))
            (easy-case))

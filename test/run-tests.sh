@@ -84,11 +84,10 @@ do_tests () {
        scripts="$*"
   fi
   env | grep -i asdf
-  rm -f ~/.cache/common-lisp/"`pwd`"/* || true
   ## We go through great lengths to avoid " in the command line,
-  ## the quoting of which some Windows implementations get wrong.
+  ## the quoting of which many Windows implementations get wrong.
   ## While we're at it, we also avoid spaces and backslashes.
-  ( cd .. && DO $bcmd $eval '(or #.(load(string`|test/script-support.lisp|))#.(asdf-test::compile-asdf-script))' )
+  ( DO $bcmd $eval '(or`,#.(load(string`|script-support.lisp|))#.(asdf-test::compile-asdf-script))' )
   if [ $? -ne 0 ] ; then
     echo "Compilation FAILED" >&2
     echo "you can retry compilation with:" >&2
@@ -120,7 +119,7 @@ do_tests () {
         echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
         echo "(cd test ; $icmd )" >&2
         echo "then copy/paste:" >&2
-        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(frob-packages) #.(load \"$i\"))" >&2
+        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(frob-packages) #.(asdf::with-asdf-cache () (load \"$i\")))" >&2
       fi
       echo >&2
       echo >&2
@@ -141,10 +140,17 @@ do_tests () {
   fi
 }
 
+#
+# not used currently but leave here for future reference.
+#
 case $(uname) in
     CYGWIN*) os=windows ;;
-    *) os=unix ;;
+    Darwin) os=macos ;;
+    Linux) os=linux ;;
+    *) os=unknown ;;
 esac
+
+
 
 # terminate on error
 set -e
@@ -156,17 +162,16 @@ case "$lisp" in
     flags="--noinit --nosystem --noinform"
     eval="--eval"
     ;;
-  allegro)
-    command="${ALLEGRO:-alisp}"
+  allegro|allegro8|allegromodern|allegromodern8)
+    case "$lisp" in
+      allegro) command="${ALLEGRO:-alisp}" ;;
+      allegro8) command="${ALLEGRO8:-alisp8}" ;;
+      allegromodern) command="${ALLEGROMODERN:-mlisp}" ;;
+      allegromodern8) command="${ALLEGROMODERN8:-mlisp8}" ;;
+    esac
     flags="-q"
     nodebug="-batch"
-    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
-    eval="-e" ;;
-  allegromodern)
-    command="${ALLEGROMODERN:-mlisp}"
-    if [ "$os" = windows ] ; then bcmd="$command +c $flags" ; fi
-    flags="-q"
-    nodebug="-batch"
+    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then bcmd="$command +c $flags" ; fi
     eval="-e" ;;
   ccl)
     command="${CCL:-ccl}"
@@ -290,7 +295,7 @@ upgrade_methods () {
     cat <<EOF
 'load-asdf-lisp'load-asdf-lisp-clean
 'load-asdf-lisp'load-asdf-system
-'load-asdf-lisp'compile-load-asdf
+'load-asdf-lisp'compile-load-asdf-upgrade
 'load-asdf-lisp'load-asdf-fasl
 ()'load-asdf-fasl
 'load-asdf-lisp-and-test-uiop'load-asdf-fasl

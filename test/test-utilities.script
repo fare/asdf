@@ -203,25 +203,28 @@
 (assert-equal "abcd" (strcat "a" nil "bc" "d"))
 (assert-equal "abcd" (reduce/strcat '("a" nil "bc" "d")))
 
+(defparameter *last-char-code* (1- (or #+allegro excl:real-char-code-limit char-code-limit)))
+(defparameter *last-char* (code-char *last-char-code*))
+(defparameter *last-char-string* (string *last-char*))
+
 #-non-base-chars-exist-p
 (progn
   (assert (base-string-p (make-string 10 :element-type 'character)))
-  (assert (typep (code-char (1- char-code-limit)) 'base-char)))
+  (assert (typep *last-char* 'base-char)))
 
 (defun basify (s) (coerce s 'base-string))
 (defun unbasify (s) (coerce s '(array character (*)))) ; on ECL, literals are base strings (!)
 
 #+non-base-chars-exist-p
-(let* ((limit-char (code-char (1- char-code-limit)))
-       (limit-string (string limit-char)))
-  (assert (not (base-string-p limit-string)))
+(progn
+  (assert (not (base-string-p *last-char-string*)))
   (assert (not (base-string-p (make-string 10 :element-type 'character))))
   (assert (not (base-string-p (unbasify "abc"))))
   (assert (base-string-p (basify "abc")))
   (assert (base-string-p (strcat "a" nil #\b (unbasify "cd"))))
   (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" nil "cd")))))
   (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
-  (assert (not (base-string-p (strcat (basify "ab") #\c limit-char (unbasify "d")))))
+  (assert (not (base-string-p (strcat (basify "ab") #\c *last-char* (unbasify "d")))))
   (assert (base-string-p (strcat (basify "ab") #\c #\d))))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
@@ -242,5 +245,24 @@
   (ts "c" +crlf+ (strcat ccr +lf+))
   (ts (strcat acrlf "b") +lf+ (strcat acrlf blf)))
 
+(DBG :wtf-s)
 (with-temporary-file (:stream s :direction :io :prefix "LEP")
-  (println "Hello, World" s))
+  (println "Hello, World" s)
+  (file-position s 0)
+  (assert-equal (read-line s) "Hello, World"))
+
+(DBG :wtf-p)
+(let ((pn
+        (with-temporary-file (:pathname pn :direction :output :prefix "LEP")
+          (assert-equal (read-file-lines pn) ())
+          pn)))
+  (assert (not (probe-file pn))))
+
+(DBG :wtf-s-p)
+(let ((pn
+        (with-temporary-file (:stream s :pathname p :keep t :direction :io :prefix "LEP")
+          (println "Hello, World" s)
+          (DBG :wsp s p (probe-file p))
+          p)))
+  (assert-equal (read-file-lines pn) '("Hello, World"))
+  (delete-file pn))

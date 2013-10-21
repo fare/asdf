@@ -16,8 +16,8 @@
 
 (DBG :logical
      (logical-pathname-translations "ASDF")
-     (translate-logical-pathname "ASDF:test;test-force.asd")
-     (truename "ASDF:test;test-force.asd"))
+     (translate-logical-pathname "ASDF:test;test-logical-pathname.asd")
+     (truename "ASDF:test;test-logical-pathname.asd"))
 
 #+xcl (leave-test "GCL 2.6 doesn't do Logical pathnames well enough" 0)
 
