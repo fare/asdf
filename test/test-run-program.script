@@ -242,7 +242,7 @@ Testing run-program
 
   ;; a basic smoke test
   (assert-equal "ok" (dewindowize (run-program '("cmd" "/c" "echo" "ok") :output :line)))
-  (assert-equal "ok  1" (dewindowize (run-program "echo ok  1" :output :line)))
+  (assert-equal "ok 1" (dewindowize (run-program "echo ok 1" :output :line)))
   ;; clozure: beware http://trac.clozure.com/ccl/ticket/1118
 
   t)
