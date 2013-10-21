@@ -245,5 +245,24 @@
   (ts "c" +crlf+ (strcat ccr +lf+))
   (ts (strcat acrlf "b") +lf+ (strcat acrlf blf)))
 
+(DBG :wtf-s)
 (with-temporary-file (:stream s :direction :io :prefix "LEP")
-  (println "Hello, World" s))
+  (println "Hello, World" s)
+  (file-position s 0)
+  (assert-equal (read-line s) "Hello, World"))
+
+(DBG :wtf-p)
+(let ((pn
+        (with-temporary-file (:pathname pn :direction :output :prefix "LEP")
+          (assert-equal (read-file-lines pn) ())
+          pn)))
+  (assert (not (probe-file pn))))
+
+(DBG :wtf-s-p)
+(let ((pn
+        (with-temporary-file (:stream s :pathname p :keep t :direction :io :prefix "LEP")
+          (println "Hello, World" s)
+          (DBG :wsp s p (probe-file p))
+          p)))
+  (assert-equal (read-file-lines pn) '("Hello, World"))
+  (delete-file pn))

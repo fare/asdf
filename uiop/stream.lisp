@@ -533,6 +533,7 @@ If a string, repeatedly read and evaluate from it, returning the last values."
 
   (defun call-with-temporary-file
       (thunk &key
+               (want-stream-p t) (want-pathname-p t)
                prefix keep (direction :io)
                (element-type *default-stream-element-type*)
                (external-format *utf-8-external-format*))
@@ -542,24 +543,37 @@ This utility will KEEP the file past its extent if and only if explicitly reques
 The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT."
     #+gcl2.6 (declare (ignorable external-format))
     (check-type direction (member :output :io))
+    (assert (or want-stream-p want-pathname-p))
     (loop
       :with prefix = (namestring (ensure-absolute-pathname (or prefix "tmp") #'temporary-directory))
+      :with results = ()
       :for counter :from (random (ash 1 32))
-      :for pathname = (pathname (format nil "~A~36R" prefix counter)) :do
+      :for pathname = (pathname (format nil "~A~36R" prefix counter))
+      :for okp = nil :do
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
         ;; TODO: on Unix, use CFFI and mkstemp -- but UIOP is precisely meant to not depend on CFFI or on anything! Grrrr.
         (unwind-protect
-             (with-open-file (stream pathname
-                                     :direction direction
-                                     :element-type element-type
-                                     #-gcl2.6 :external-format #-gcl2.6 external-format
-                                     :if-exists nil :if-does-not-exist :create)
-               (if stream
-                   (return (funcall thunk stream pathname))
-                   (setf pathname nil)))
-          (when (and pathname (not keep))
-            (ignore-errors (delete-file pathname))))))
+             (progn
+               (with-open-file (stream pathname
+                                       :direction direction
+                                       :element-type element-type
+                                       #-gcl2.6 :external-format #-gcl2.6 external-format
+                                       :if-exists nil :if-does-not-exist :create)
+                 (when stream
+                   (setf okp pathname)
+                   (when want-stream-p
+                     (setf results
+                           (multiple-value-list
+                            (if want-pathname-p
+                                (funcall thunk stream pathname)
+                                (funcall thunk stream)))))))
+               (when okp
+                 (if want-stream-p
+                     (return (apply 'values results))
+                     (return (funcall thunk pathname)))))
+          (when (and okp (not keep))
+            (ignore-errors (delete-file-if-exists okp))))))
 
   (defmacro with-temporary-file ((&key (stream (gensym "STREAM") streamp)
                                     (pathname (gensym "PATHNAME") pathnamep)
@@ -572,18 +586,23 @@ The STREAM will be closed if no binding is specified.
 Unless KEEP is specified, delete the file afterwards."
     (check-type stream symbol)
     (check-type pathname symbol)
-    `(flet ((think (,stream ,pathname)
-              ,@(unless pathnamep `((declare (ignore ,pathname))))
-              ,@(unless streamp `((when ,stream (close ,stream))))
+    (assert (or streamp pathnamep))
+    `(flet ((think (,@(when streamp `(,stream)) ,@(when pathnamep `(,pathname)))
               ,@body))
        #-gcl (declare (dynamic-extent #'think))
        (call-with-temporary-file
         #'think
+        :want-stream-p ,streamp
+        :want-pathname-p ,pathnamep
         ,@(when direction `(:direction ,direction))
         ,@(when prefix `(:prefix ,prefix))
         ,@(when keep `(:keep ,keep))
         ,@(when element-type `(:element-type ,element-type))
         ,@(when external-format `(:external-format ,external-format)))))
+
+  (defun get-temporary-file (&key prefix)
+    (with-temporary-file (:pathname pn :keep t :prefix prefix)
+      pn))
 
   ;; Temporary pathnames in simple cases where no contention is assumed
   (defun add-pathname-suffix (pathname suffix)
