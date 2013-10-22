@@ -3595,6 +3595,22 @@ with respect to its own code, and what it does is ridiculously complex;
 look at the beginning of @file{asdf.lisp} to see what it does.
 @end defun
 
+@defun register-preloaded-system name @Arest keys
+A system with name @var{name},
+created by @code{make-instance} with extra keys @var{keys}
+(e.g. @code{:version}),
+is registered as @emph{preloaded}.
+That is, its code has already been loaded into the current image,
+and if at some point some other system @code{:depends-on} it yet no source code is found,
+it is considered as already provided,
+and ASDF will not raise a @code{missing-component} error.
+
+This function is particularly useful if you distribute your code
+as fasls with either @code{fasl-op} or @code{monolithic-fasl-op},
+and want to register systems so that dependencies will work uniformly
+whether you're using your software from source or from fasl.
+@end defun
+
 @defun run-shell-command control-string @Arest args
 
 This function is obsolete and present only for the sake of backwards-compatibility:
