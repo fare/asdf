@@ -125,7 +125,7 @@ called with an object of type asdf:system."
     (setf *system-definition-search-functions*
           (append
            ;; Remove known-incompatible sysdef functions from old versions of asdf.
-           (remove-if #'(lambda (x) (member x '(contrib-sysdef-search sysdef-find-asdf)))
+           (remove-if #'(lambda (x) (member x '(contrib-sysdef-search sysdef-find-asdf sysdef-preloaded-system-search)))
                       *system-definition-search-functions*)
            ;; Tuck our defaults at the end of the list if they were absent.
            ;; This is imperfect, in case they were removed on purpose,
@@ -133,14 +133,16 @@ called with an object of type asdf:system."
            ;; to upgrade asdf before he does such a thing rather than after.
            (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
                       '(sysdef-central-registry-search
-                        sysdef-source-registry-search
-                        sysdef-preloaded-system-search)))))
+                        sysdef-source-registry-search)))))
   (cleanup-system-definition-search-functions)
 
   (defun search-for-system-definition (system)
-    (some (let ((name (coerce-name system))) #'(lambda (x) (funcall x name)))
-          (cons 'find-system-if-being-defined
-                *system-definition-search-functions*)))
+    (block ()
+      (let ((name (coerce-name system)))
+        (flet ((try (f) (if-let ((x (funcall f name))) (return x))))
+          (try 'find-system-if-being-defined)
+          (map () #'try *system-definition-search-functions*)
+          (try 'sysdef-preloaded-system-search)))))
 
   (defvar *central-registry* nil
     "A list of 'system directory designators' ASDF uses to find systems.

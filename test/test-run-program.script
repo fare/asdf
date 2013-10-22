@@ -5,7 +5,7 @@
 (defun dewindowize (x)
   (block ()
     (setf x (remove (code-char 13) x))
-    #+(and sbcl os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
+    #+(and (or sbcl lispworks) os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
     (when (eql #\space (last-char x))
       (return (subseq x 0 (1- (length x)))))
     x))
@@ -77,8 +77,7 @@
 ;; NB1: run-shell-command is deprecated. Use run-program instead.
 ;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
 ;; If you want 2>&1 redirection, you know where to find it.
-#-(and clozure os-windows) ;; http://trac.clozure.com/ccl/ticket/1118
-(assert-equal '(:ok 1) (run-program '("echo" ":ok  1") :output :forms))
+(assert-equal '(:ok 1) (run-program "echo :ok  1" :output :forms))
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
                                    (run-program "echo ok" :output t :error-output :output)))))
@@ -243,8 +242,8 @@ Testing run-program
 
   ;; a basic smoke test
   (assert-equal "ok" (dewindowize (run-program '("cmd" "/c" "echo" "ok") :output :line)))
-  #-clozure ;; http://trac.clozure.com/ccl/ticket/1118
-  (assert-equal "ok  1" (dewindowize (run-program '("echo" "ok  1") :output :line)))
+  (assert-equal "ok 1" (dewindowize (run-program "echo ok 1" :output :line)))
+  ;; clozure: beware http://trac.clozure.com/ccl/ticket/1118
 
   t)
 

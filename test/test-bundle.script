@@ -1,6 +1,7 @@
 ;;; -*- Lisp -*-
 (in-package :asdf-test)
 
+
 ;;;---------------------------------------------------------------------------
 ;;; Check to see if the bundle functionality is doing something.
 ;;;---------------------------------------------------------------------------
@@ -9,6 +10,9 @@
 (asdf:clear-system :test-asdf/bundle-1)
 (asdf:clear-system :test-asdf/bundle-2)
 (when (find-package :test-package) (delete-package :test-package))
+
+#+(and darwin (or abcl ecl))
+(leave-test "Bundle test doesn't work on Mac on this lisp." 0)
 
 #+(or (and ecl ecl-bytecmp) gcl) ;; actually available on ABCL 1.2.0 and later.
 (leave-test "bundles not on this implementation" 0)
