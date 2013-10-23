@@ -56,7 +56,7 @@
 
   (dolist (f '(:asdf :asdf2 :asdf3)) (pushnew f *features*))
 
-  (provide :asdf)
+  (provide "asdf") (provide "ASDF") ;; do it both ways to satisfy more people.
 
   (cleanup-upgraded-asdf))
 
