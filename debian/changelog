@@ -18,7 +18,7 @@ cl-asdf (2:3.0.3-1) unstable; urgency=low
     functions in output-translation, and to :version (:read-file-...)
   * Documentation somewhat updated.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Tue, 18 Oct 2013 14:38:17 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue Oct 22 22:30:12 CDT 2013
 
 cl-asdf (2:3.0.2.4-1) unstable; urgency=low
 
