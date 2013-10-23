@@ -736,10 +736,10 @@ It returns a process-info plist with possible keys:
                        (string (pathname spec))
                        (pathname spec)
                        ((eql :output)
-                        (assert (equal operator "2>"))
+                        (assert (equal operator " 2>"))
                         (return-from redirect '(" 2>&1"))))))
                (when pathname
-                 (list " " operator " "
+                 (list operator " "
                        (escape-shell-token (native-namestring pathname)))))))
       (multiple-value-bind (before after)
           (let ((normalized (%normalize-system-command command)))
@@ -748,7 +748,7 @@ It returns a process-info plist with possible keys:
                 (values (list normalized) ())))
         (reduce/strcat
          (append
-          before (redirect in "<") (redirect out ">") (redirect err "2>")
+          before (redirect in "<") (redirect out ">") (redirect err " 2>")
           (when (and directory (os-unix-p)) `("cd " (escape-shell-token directory) " ; "))
           after)))))
 
