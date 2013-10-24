@@ -60,6 +60,8 @@ load: build/asdf.lisp
 install: archive
 
 bump: bump-version
+	git commit -a -m "Bump version to $$(eval a=$$(cat version.lisp-expr) ; echo $$a)"
+
 bump-version: build/asdf.lisp
 	./bin/asdf-builder bump-version ${v}
 
