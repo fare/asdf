@@ -67,16 +67,16 @@ Some constraints:
   (when (and (= system::*gcl-major-version* 2)
              (= system::*gcl-minor-version* 6))
     (pushnew :gcl2.6 *features*)
-    (shadowing-import 'system:*load-pathname* :asdf-test))
+    (shadowing-import 'system::*load-pathname* :asdf-test))
   #+lispworks
   (setf system:*stack-overflow-behaviour* :warn))
 
-#+(or gcl genera)
+#+(or gcl2.6 genera)
 (unless (fboundp 'ensure-directories-exist)
   (defun ensure-directories-exist (path)
     #+genera (fs:create-directories-recursively (pathname path))
-    #+gcl (lisp:system (format nil "mkdir -p ~S"
-                               (namestring (make-pathname :name nil :type nil :defaults path))))))
+    #+gcl2.6 (lisp:system (format nil "mkdir -p ~S"
+                                  (namestring (make-pathname :name nil :type nil :defaults path))))))
 
 ;;; Survival utilities
 (defun asym (name &optional package errorp)
@@ -280,7 +280,7 @@ Some constraints:
   #+cormanlisp (win32:exitprocess code)
   #+(or cmu scl) (unix:unix-exit code)
   #+ecl (si:quit code)
-  #+gcl (lisp:quit code)
+  #+gcl (#+gcl2.6 lisp:quit #-gcl2.6 system:quit code)
   #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
   #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
   #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?

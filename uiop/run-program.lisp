@@ -772,7 +772,7 @@ It returns a process-info plist with possible keys:
                     (*standard-output* *stdout*)
                     (*error-output* *stderr*))
                 (ext:system %command))
-        #+gcl (lisp:system %command)
+        #+gcl (#+gcl2.6 lisp:system #-gcl2.6 system:system %command)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
         #+mkcl ;; PROBABLY BOGUS -- ask jcb
         (multiple-value-bind (io process exit-code)

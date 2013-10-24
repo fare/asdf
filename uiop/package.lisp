@@ -537,7 +537,7 @@ or when loading the package is optional."
                (unintern existing))
              (when intern
                (intern* name package))))))))
-  (declaim (ftype function ensure-exported))
+  (declaim (ftype (function (t t t &optional t) t) ensure-exported))
   (defun ensure-exported-to-user (name symbol to-package &optional recycle)
     (check-type name string)
     (check-type symbol symbol)
@@ -750,20 +750,27 @@ UNINTERN -- Remove symbols here from PACKAGE."
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car))
-  #+gcl
-  ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff,
-  ;; but can run ASDF 2.011. GCL 2.6 has even more issues.
-  (cond
-    ((or (< system::*gcl-major-version* 2)
-         (and (= system::*gcl-major-version* 2)
-              (< system::*gcl-minor-version* 6)))
-     (error "GCL 2.6 or later required to use ASDF"))
-    ((and (= system::*gcl-major-version* 2)
-          (= system::*gcl-minor-version* 6))
-     (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
-     (pushnew :gcl2.6 *features*))
-    (t
-     (pushnew :gcl2.7 *features*))))
+  #.(progn
+      ;; Debian's antique GCL 2.7.0 has bugs with compiling multiple-value stuff,
+      ;; but can run ASDF 2.011. Its GCL 2.6.7 has even more issues.
+      ;; What more, the compiler doesn't look like it's doing eval-when quite like we'd like,
+      ;; so we do this essential feature thing at read-time instead.
+      #+gcl
+      (let ((code
+              (cond
+                ((or (< system::*gcl-major-version* 2)
+                     (and (= system::*gcl-major-version* 2)
+                          (< system::*gcl-minor-version* 6)))
+                 '(error "GCL 2.6 or later required to use ASDF"))
+                ((and (= system::*gcl-major-version* 2)
+                      (= system::*gcl-minor-version* 6))
+                 '(progn
+                   (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
+                   (pushnew :gcl2.6 *features*)))
+                (t
+                 '(pushnew :gcl2.7 *features*)))))
+        (eval code)
+        code)))
 
 ;; Compatibility with whoever calls asdf/package
 (define-package :asdf/package (:use :cl :uiop/package) (:reexport :uiop/package))

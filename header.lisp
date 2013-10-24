@@ -75,4 +75,3 @@
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))))
-

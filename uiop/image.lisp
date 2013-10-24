@@ -70,7 +70,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+cormanlisp (win32:exitprocess code)
     #+(or cmu scl) (unix:unix-exit code)
     #+ecl (si:quit code)
-    #+gcl (lisp:quit code)
+    #+gcl (#+gcl2.6 lisp:quit #-gcl2.6 system:quit code)
     #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
     #+mcl (progn code (ccl:quit)) ;; or should we use FFI to call libc's exit(3) ?

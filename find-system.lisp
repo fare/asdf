@@ -245,6 +245,7 @@ Going forward, we recommend new users should be using the source-registry.
     (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
 
   (dolist (s '("asdf" "uiop" "asdf-driver" "asdf-defsystem" "asdf-package-system"))
+    ;; don't bother with these, no one relies on them: "asdf-utils" "asdf-bundle"
     (register-preloaded-system s :version *asdf-version*))
 
   (defmethod find-system ((name null) &optional (error-p t))
