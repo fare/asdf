@@ -94,7 +94,8 @@ This is designed to abstract away the implementation specific quit forms."
     "Print a backtrace, directly accessing the implementation"
     (declare (ignorable stream count))
     #+abcl
-    (let ((*debug-io* stream)) (top-level::backtrace-command count))
+    (dolist (frame (sys:backtrace))
+      (println frame stream))
     #+allegro
     (let ((*terminal-io* stream)
           (*standard-output* stream)
@@ -117,7 +118,10 @@ This is designed to abstract away the implementation specific quit forms."
           (debug:*debug-print-length* *print-length*))
       (debug:backtrace most-positive-fixnum stream))
     #+ecl
-    (si::tpl-backtrace)
+    (let* ((backtrace (loop :for ihs :from 0 :below (si:ihs-top)
+                            :collect (list (si::ihs-fun ihs)
+                                           (si::ihs-env ihs)))))
+      (dolist (frame (nreverse backtrace)) (writeln frame :stream stream)))
     #+lispworks
     (let ((dbg::*debugger-stack*
             (dbg::grab-stack nil :how-many (or count most-positive-fixnum)))
