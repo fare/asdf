@@ -372,7 +372,7 @@ and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
-      (symbol fun)
+      (symbol (fdefinition fun))
       (cons (if (eq 'lambda (car fun))
                 (eval fun)
                 #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args)))))
