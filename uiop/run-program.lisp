@@ -671,7 +671,9 @@ It returns a process-info plist with possible keys:
                            &key input output error-output ignore-error-status &allow-other-keys)
     ;; helper for RUN-PROGRAM when using %run-program
     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl mkcl xcl)
-    (error "Not implemented on this platform")
+    (progn
+      command keys input output error-output ignore-error-status ;; ignore
+      (error "Not implemented on this platform"))
     (assert (not (member :stream (list input output error-output))))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
