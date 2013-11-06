@@ -1,5 +1,5 @@
 ;; -*- Lisp -*-
-(declaim (optimize (debug 3) (safety 3)))
+(declaim (optimize (debug 3) (safety #-gcl 3 #+gcl 0)))
 
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun dewindowize (x)

@@ -172,7 +172,7 @@ FROB them, that is to say, remove them if FROB is NIL,
 replace by FROB if FROB is a STRING, or if FROB is a FUNCTION,
 call FROB with the match and a function that emits a string in the output.
 Return a string made of the parts not omitted or emitted by FROB."
-    (declare (optimize (speed 0) (safety 3) (debug 3)))
+    (declare (optimize (speed 0) (safety #-gcl 3 #+gcl 0) (debug 3)))
     (let ((length (length string)) (stream nil))
       (labels ((emit-string (x &optional (start 0) (end (length x)))
                  (when (< start end)

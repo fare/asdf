@@ -33,9 +33,9 @@ Some constraints:
 
 (in-package :asdf-test)
 
-(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
+(declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                    #+(or cmu scl) (c::brevity 2)))
-(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
+(proclaim '(optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                      #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*
