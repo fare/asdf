@@ -35,7 +35,7 @@
 (handler-case (version-satisfies (find-system :test-asdf) "666")
   (simple-warning (c)
     (assert-equal (simple-condition-format-control c)
-                  "Requested version ~S but component ~S has no version"))
+                  "Requested version ~S but ~S has no version"))
   (:no-error (x)
     (error "version-satisfies must warn when given component without version")))
 (assert (version<= "2.0" (asdf-version)))
