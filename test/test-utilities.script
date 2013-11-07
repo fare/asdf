@@ -31,6 +31,13 @@
 (assert (version-satisfies (asdf-version) (asdf-version)))
 (assert (version-satisfies (asdf-version) "3.0"))
 (assert (version-satisfies (asdf-version) "2.0"))
+(assert (version-satisfies (find-system :test-asdf) "666"))
+(handler-case (version-satisfies (find-system :test-asdf) "666")
+  (simple-warning (c)
+    (assert-equal (simple-condition-format-control c)
+                  "Requested version ~S but component ~S has no version"))
+  (:no-error (x)
+    (error "version-satisfies must warn when given component without version")))
 (assert (version<= "2.0" (asdf-version)))
 (assert (not (version-satisfies (asdf-version) "666")))
 (assert-pathnames-equal
