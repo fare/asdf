@@ -40,8 +40,8 @@
 
   (defgeneric operation-on-warnings (operation))
   (defgeneric operation-on-failure (operation))
-  #-gcl2.6 (defgeneric (setf operation-on-warnings) (x operation))
-  #-gcl2.6 (defgeneric (setf operation-on-failure) (x operation))
+  (defgeneric (setf operation-on-warnings) (x operation))
+  (defgeneric (setf operation-on-failure) (x operation))
   (defmethod operation-on-warnings ((o operation))
     (declare (ignorable o)) *compile-file-warnings-behaviour*)
   (defmethod operation-on-failure ((o operation))

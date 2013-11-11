@@ -48,10 +48,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                                     (let ((directory (pathname-directory (car x))))
                                       (if (listp directory) (length directory) 0))))))))
     new-value)
-  #-gcl2.6
   (defun* ((setf output-translations)) (new-value) (set-output-translations new-value))
-  #+gcl2.6
-  (defsetf output-translations set-output-translations)
 
   (defun output-translations-initialized-p ()
     (and *output-translations* t))
@@ -211,7 +208,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                                                        (inherit *default-output-translations*)
                                                        collect)
     (process-output-translations (funcall x) :inherit inherit :collect collect))
-  (defmethod process-output-translations ((pathname #-gcl2.6 pathname #+gcl2.6 t) &key inherit collect)
+  (defmethod process-output-translations ((pathname pathname) &key inherit collect)
     (cond
       ((directory-pathname-p pathname)
        (process-output-translations (validate-output-translations-directory pathname)

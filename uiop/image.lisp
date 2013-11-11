@@ -70,7 +70,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+cormanlisp (win32:exitprocess code)
     #+(or cmu scl) (unix:unix-exit code)
     #+ecl (si:quit code)
-    #+gcl (#+gcl2.6 lisp:quit #-gcl2.6 system:quit code)
+    #+gcl (system:quit code)
     #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
     #+mcl (progn code (ccl:quit)) ;; or should we use FFI to call libc's exit(3) ?
@@ -239,10 +239,10 @@ if we are not called from a directly executable image."
     (setf *command-line-arguments* (command-line-arguments)))
 
   (defun restore-image (&key
-                          ((:lisp-interaction *lisp-interaction*) *lisp-interaction*)
-                          ((:restore-hook *image-restore-hook*) *image-restore-hook*)
-                          ((:prelude *image-prelude*) *image-prelude*)
-                          ((:entry-point *image-entry-point*) *image-entry-point*)
+                          (lisp-interaction *lisp-interaction*)
+                          (restore-hook *image-restore-hook* restore-hook-p)
+                          (prelude *image-prelude*)
+                          (entry-point *image-entry-point*)
                           (if-already-restored '(cerror "RUN RESTORE-IMAGE ANYWAY")))
     "From a freshly restarted Lisp image, restore the saved Lisp environment
 by setting appropriate variables, running various hooks, and calling any specified entry point."
@@ -252,14 +252,16 @@ by setting appropriate variables, running various hooks, and calling any specifi
           (return-from restore-image)))
     (with-fatal-condition-handler ()
       (setf *image-restored-p* :in-progress)
+      (when restore-hook-p
+        (setf *image-restore-hook* restore-hook))
       (call-image-restore-hook)
-      (standard-eval-thunk *image-prelude*)
+      (standard-eval-thunk prelude)
       (setf *image-restored-p* t)
       (let ((results (multiple-value-list
-                      (if *image-entry-point*
-                          (call-function *image-entry-point*)
+                      (if entry-point
+                          (call-function entry-point)
                           t))))
-        (if *lisp-interaction*
+        (if lisp-interaction
             (apply 'values results)
             (shell-boolean-exit (first results)))))))
 
