@@ -1,30 +1,68 @@
+* Decree that versions older than 2 years are not supported,
+  remove them from upgrade tests.
+
+* Improve upgrade so that we don't lose state when upgrading from a "recent enough" ASDF.
+  This requires better upgrade tests, with hot data.
+
+* ASDF 3.2: moving toward cross-compilation.
+   This would allow to get all or most of the benefits of XCVB
+   (reproducibility, scalability, applicability to mobile platforms, etc.),
+   except without the backward incompatibility of XCVB.
+** Need to further split asdf:perform in two parts:
+   A part that runs on the host and specifies (as SEXP or string to read)
+   a form that must be evaluated on the target machine, not the host.
+   A trivial that runs on the target
+   and doesn't require ASDF or CLOS installed there (though maybe UIOP).
+** Audit all the current users of perform, and offer them a new way;
+   they can keep the perform method to run on older versions of ASDF.
+
+* Some out-of-line configuration mechanism for various options?
+   i.e. have files that override some variables around compilation of some systems.
+
+* Find an easier way to bind variables around compilation and loading of files
+
 * Find out why ABCL fails the timestamp propagation test.
+
 * Fix bugs on http://bugs.launchpad.net/asdf/+bugs
+
 * fix directory-files to not return directories on CCL, etc. Add tests.
+
 * use cl-test-grid to see if asdf-user can :use most (all?) of UIOP.
   Unhappily, on SBCL, sb-grovel uses asdf and sb-ext,
   which causes a clash with run-program.
   Or has this been changed long enough ago? Can it be special-cased?
+
 * have a mode to explain WHY a component needs to be recompiled.
+
 * have a better defsystem form verifier - see lp#1007335
+
 * have a function verify-strict-asd that can verify a asd is pure lp#541562
   Then if it passes, use load-strict-asd.
   If not, optionally issue a warning. Start migrating people toward that.
+
 * have with-input-file use the encodings mechanism?
+
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
+
 * implement deferred warnings support on lispworks
+
 * work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
+
 * fix upgrade on clisp, cmucl, abcl (if still broken)
 ** Extract minimal test case, build a battery of automated tests
+
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
   are not in strict defsystem-depends-on dependency order.
 ** At least document the issue.
 ** Real solution: defer parsing and evaluation of defsystem forms.
+
 * Learn to use cl-grid-test, to make sure ASDF changes don't break stuff,
  and that breakage gets fixed quickly.
-* Include some ABL test for stassats's thing:
+
+* Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
     :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
+
 * Make load-op a generic operation that selects the proper strategy
   for each system, module or file, according to component properties and user-configuration:
   compile the lisp file then load the fasl (load-fasl-op on a cl-source-file),
@@ -35,9 +73,11 @@
   concatenate all files for the system, then load the result (load-concatenated-source-op),
   concatenate all files for the system, then link them and load the result (load-compiled-concatenated-op),
   concatenate all files for the system *and* its dependencies, link and load (monolithic-load-compiled-concatenated-op).
+
 * operation cleanup?
 ** Kill backward-compat functions after all clients have moved on.
 ** Kill original-initargs -- BEWARE, it currently has clients!
+
 * Get rid of component-properties
 ** directly use component-properties:
 *** yaclml.asd => misguided :features for version comparison
@@ -112,3 +152,6 @@
 *** ucw ucw-core 
    =>
    version
+
+* ASDF4: search for this tag, rename things (incompatibly, thus) and cleanup code.
+
