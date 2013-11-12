@@ -16,6 +16,7 @@
    #:compile-warned-warning #:compile-failed-warning
    #:check-lisp-compile-results #:check-lisp-compile-warnings
    #:*uninteresting-conditions* #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
+   #:*usual-uninteresting-conditions*
    ;; Types
    #+sbcl #:sb-grovel-unknown-constant-condition
    ;; Functions & Macros
@@ -501,7 +502,7 @@ If that given type is NIL, use the currently configured *WARNINGS-FILE-TYPE* ins
       (equal (pathname-type file) type)))
 
   (defun check-deferred-warnings (files &optional context-format context-arguments)
-    "Given a list of FILES in which deferred warnings were saved by CALL-WITH-DEFERRED-WARNINGS,
+    "Given a list of FILES in which deferred warnings were saved by CALL-WITH-SAVED-DEFERRED-WARNINGS,
 re-intern and raise any warnings that are still meaningful."
     (let ((file-errors nil)
           (failure-p nil)
@@ -542,12 +543,13 @@ re-intern and raise any warnings that are still meaningful."
   (macroexpand-1 '(with-compilation-unit () foo))
   |#
 
-  (defun call-with-saved-deferred-warnings (thunk warnings-file)
+  (defun call-with-saved-deferred-warnings (thunk warnings-file &key source-namestring)
     "If WARNINGS-FILE is not nil, record the deferred-warnings around a call to THUNK
 and save those warnings to the given file for latter use,
 possibly in a different process. Otherwise just call THUNK."
+    (declare (ignorable source-namestring))
     (if warnings-file
-        (with-compilation-unit (:override t)
+        (with-compilation-unit (:override t #+sbcl :source-namestring #+sbcl source-namestring)
           (unwind-protect
                (let (#+sbcl (sb-c::*undefined-warnings* nil))
                  (multiple-value-prog1
@@ -556,9 +558,10 @@ possibly in a different process. Otherwise just call THUNK."
             (reset-deferred-warnings)))
         (funcall thunk)))
 
-  (defmacro with-saved-deferred-warnings ((warnings-file) &body body)
+  (defmacro with-saved-deferred-warnings ((warnings-file &key source-namestring) &body body)
     "Trivial syntax for CALL-WITH-SAVED-DEFERRED-WARNINGS"
-    `(call-with-saved-deferred-warnings #'(lambda () ,@body) ,warnings-file)))
+    `(call-with-saved-deferred-warnings
+      #'(lambda () ,@body) ,warnings-file :source-namestring ,source-namestring)))
 
 
 ;;; from ASDF
@@ -653,9 +656,9 @@ it will filter them appropriately."
            #+clisp
            (tmp-lib (make-pathname :type "lib" :defaults tmp-file)))
       (multiple-value-bind (output-truename warnings-p failure-p)
-          (with-saved-deferred-warnings (warnings-file)
-            (with-muffled-compiler-conditions ()
-              (with-enough-pathname (input-file :defaults *base-build-directory*)
+          (with-enough-pathname (input-file :defaults *base-build-directory*)
+            (with-saved-deferred-warnings (warnings-file :source-namestring (namestring input-file))
+              (with-muffled-compiler-conditions ()
                 (or #-(or ecl mkcl)
                     (apply 'compile-file input-file :output-file tmp-file
                            #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
