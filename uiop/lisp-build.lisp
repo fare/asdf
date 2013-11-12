@@ -15,8 +15,8 @@
    #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
    #:compile-warned-warning #:compile-failed-warning
    #:check-lisp-compile-results #:check-lisp-compile-warnings
-   #:*uninteresting-conditions* #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
-   #:*usual-uninteresting-conditions*
+   #:*uninteresting-conditions* #:*usual-uninteresting-conditions*
+   #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
    ;; Types
    #+sbcl #:sb-grovel-unknown-constant-condition
    ;; Functions & Macros
@@ -502,7 +502,7 @@ If that given type is NIL, use the currently configured *WARNINGS-FILE-TYPE* ins
       (equal (pathname-type file) type)))
 
   (defun check-deferred-warnings (files &optional context-format context-arguments)
-    "Given a list of FILES in which deferred warnings were saved by CALL-WITH-SAVED-DEFERRED-WARNINGS,
+    "Given a list of FILES containing deferred warnings saved by CALL-WITH-SAVED-DEFERRED-WARNINGS,
 re-intern and raise any warnings that are still meaningful."
     (let ((file-errors nil)
           (failure-p nil)

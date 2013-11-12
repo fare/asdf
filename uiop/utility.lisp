@@ -241,7 +241,8 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 NIL is interpreted as an empty string. A character is interpreted as a string of length one."
     (when (or start end) (setf strings (subseq strings start end)))
     (when key (setf strings (mapcar key strings)))
-    (loop :with output = (make-string (loop :for s :in strings :sum (if (characterp s) 1 (length s)))
+    (loop :with output = (make-string (loop :for s :in strings
+                                            :sum (if (characterp s) 1 (length s)))
                                       :element-type (strings-common-element-type strings))
           :with pos = 0
           :for input :in strings
