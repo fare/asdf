@@ -68,12 +68,10 @@ Some constraints:
   #+lispworks
   (setf system:*stack-overflow-behaviour* :warn))
 
-#+(or gcl2.6 genera)
+#+genera
 (unless (fboundp 'ensure-directories-exist)
   (defun ensure-directories-exist (path)
-    #+genera (fs:create-directories-recursively (pathname path))
-    #+gcl2.6 (lisp:system (format nil "mkdir -p ~S"
-                                  (namestring (make-pathname :name nil :type nil :defaults path))))))
+    #+genera (fs:create-directories-recursively (pathname path))))
 
 ;;; Survival utilities
 (defun asym (name &optional package errorp)
@@ -88,7 +86,7 @@ Some constraints:
 (defun ucall (name &rest args) (apply (asym name :uiop) args))
 (defun asymval (name &optional package)
   (symbol-value (asym name package)))
-(defsetf asymval (name &optional package) (new-value) ;; NB: defun setf won't work on GCL2.6
+(defsetf asymval (name &optional package) (new-value)
   (let ((sym (gensym "SYM")))
     `(let ((,sym (asym ,name ,package)))
        (if ,sym
@@ -252,7 +250,7 @@ Some constraints:
     (if (and (asymval :*asdf-cache*) (not in-filesystem))
         (acall :register-file-stamp file stamp)
         (multiple-value-bind (sec min hr day month year)
-            (decode-universal-time stamp #+gcl2.6 -5) ;; -5 is for *my* localtime
+            (decode-universal-time stamp)
           (unless in-filesystem
             (error "Y U NO use stamp cache?"))
           (ucall :run-program
@@ -277,7 +275,7 @@ Some constraints:
   #+cormanlisp (win32:exitprocess code)
   #+(or cmu scl) (unix:unix-exit code)
   #+ecl (si:quit code)
-  #+gcl (#+gcl2.6 lisp:quit #-gcl2.6 system:quit code)
+  #+gcl (system:quit code)
   #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
   #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
   #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?
@@ -434,7 +432,6 @@ is bound, write a message and exit on an error.  If
 
 (defun compile-asdf-script ()
   (with-test ()
-    #-gcl2.6
     (ecase (with-asdf-conditions () (maybe-compile-asdf))
       (:not-found
        (leave-test "Testsuite failed: unable to find ASDF source" 3))
@@ -570,7 +567,6 @@ is bound, write a message and exit on an error.  If
   (acall :oos (asym :load-op) :test-module-depend))
 
 (defun load-asdf (&optional tag)
-  #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
   (configure-asdf))
 

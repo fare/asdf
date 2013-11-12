@@ -630,8 +630,7 @@ it will filter them appropriately."
             (rotatef output-file object-file))
     (let* ((keywords (remove-plist-keys
                       `(:output-file :compile-check :warnings-file
-                                     #+clisp :lib-file #+(or ecl mkcl) :object-file
-                                     #+gcl2.6 ,@'(:external-format :print :verbose)) keys))
+                                     #+clisp :lib-file #+(or ecl mkcl) :object-file) keys))
            (output-file
              (or output-file
                  (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
@@ -701,13 +700,12 @@ it will filter them appropriately."
   (defun load* (x &rest keys &key &allow-other-keys)
     "Portable wrapper around LOAD that properly handles loading from a stream."
     (etypecase x
-      ((or pathname string #-(or allegro clozure gcl2.6 genera) stream)
-       (apply 'load x
-              #-gcl2.6 keys #+gcl2.6 (remove-plist-key :external-format keys)))
-      ;; GCL 2.6, Genera can't load from a string-input-stream
+      ((or pathname string #-(or allegro clozure genera) stream)
+       (apply 'load x keys))
+      ;; Genera can't load from a string-input-stream
       ;; ClozureCL 1.6 can only load from file input stream
       ;; Allegro 5, I don't remember but it must have been broken when I tested.
-      #+(or allegro clozure gcl2.6 genera)
+      #+(or allegro clozure genera)
       (stream ;; make do this way
        (let ((*package* *package*)
              (*readtable* *readtable*)

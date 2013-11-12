@@ -1,10 +1,9 @@
 ;;; -*- Lisp -*-
 
+(load (subpathname *asdf-directory* "contrib/wild-modules.lisp"))
 
-(progn
- (load (asdf::subpathname *asdf-directory* "contrib/wild-modules.lisp"))
- (def-test-system :wild-module
-   :version "0.0"
-   :components ((:wild-module "systems" :pathname #p"*.asd")))
- #-gcl2.6
- (load-system :wild-module))
+(def-test-system :wild-module
+  :version "0.0"
+  :components ((:wild-module "systems" :pathname #p"*.asd")))
+
+(load-system :wild-module)

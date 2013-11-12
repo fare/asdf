@@ -224,10 +224,9 @@ as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
                                  (if-does-not-exist :error))
     "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
 Other keys are accepted but discarded."
-    #+gcl2.6 (declare (ignore external-format))
     (with-open-file (s pathname :direction :input
                                 :element-type element-type
-                                #-gcl2.6 :external-format #-gcl2.6 external-format
+                                :external-format external-format
                                 :if-does-not-exist if-does-not-exist)
       (funcall thunk s)))
 
@@ -245,10 +244,9 @@ Other keys are accepted but discarded."
                                   (if-does-not-exist :create))
     "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
 Other keys are accepted but discarded."
-    #+gcl2.6 (declare (ignore external-format))
     (with-open-file (s pathname :direction :output
                                 :element-type element-type
-                                #-gcl2.6 :external-format #-gcl2.6 external-format
+                                :external-format external-format
                                 :if-exists if-exists
                                 :if-does-not-exist if-does-not-exist)
       (funcall thunk s)))
@@ -528,8 +526,7 @@ If a string, repeatedly read and evaluate from it, returning the last values."
   (defun setup-temporary-directory ()
     "Configure a default temporary directory to use."
     (setf *temporary-directory* (default-temporary-directory))
-    ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
-    #+(and gcl (not gcl2.6)) (setf system::*tmp-dir* *temporary-directory*))
+    #+gcl (setf system::*tmp-dir* *temporary-directory*))
 
   (defun call-with-temporary-file
       (thunk &key
@@ -541,7 +538,6 @@ If a string, repeatedly read and evaluate from it, returning the last values."
 The pathname will be based on appending a random suffix to PREFIX.
 This utility will KEEP the file past its extent if and only if explicitly requested.
 The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT."
-    #+gcl2.6 (declare (ignorable external-format))
     (check-type direction (member :output :io))
     (assert (or want-stream-p want-pathname-p))
     (loop
@@ -558,7 +554,7 @@ The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT
                (with-open-file (stream pathname
                                        :direction direction
                                        :element-type element-type
-                                       #-gcl2.6 :external-format #-gcl2.6 external-format
+                                       :external-format external-format
                                        :if-exists nil :if-does-not-exist :create)
                  (when stream
                    (setf okp pathname)

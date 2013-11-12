@@ -170,14 +170,14 @@ Built-in methods include the following:
 
 Programmers are encouraged to define their own methods for this generic function."))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod slurp-input-stream ((function function) input-stream &key)
     (funcall function input-stream))
 
   (defmethod slurp-input-stream ((list cons) input-stream &key)
     (apply (first list) input-stream (rest list)))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod slurp-input-stream ((output-stream stream) input-stream
                                  &key linewise prefix (element-type 'character) buffer-size)
     (copy-stream-to-stream
@@ -237,9 +237,9 @@ Programmers are encouraged to define their own methods for this generic function
                                  &key linewise prefix (element-type 'character) buffer-size)
     (declare (ignorable stream linewise prefix element-type buffer-size))
     (cond
-      #+(or gcl2.6 genera)
+      #+genera
       ((functionp x) (funcall x stream))
-      #+(or gcl2.6 genera)
+      #+genera
       ((output-stream-p x)
        (copy-stream-to-stream
         stream x
@@ -267,14 +267,14 @@ Built-in methods include the following:
 
 Programmers are encouraged to define their own methods for this generic function."))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod vomit-output-stream ((function function) output-stream &key)
     (funcall function output-stream))
 
   (defmethod vomit-output-stream ((list cons) output-stream &key)
     (apply (first list) output-stream (rest list)))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod vomit-output-stream ((input-stream stream) output-stream
                                  &key linewise prefix (element-type 'character) buffer-size)
     (copy-stream-to-stream
@@ -316,9 +316,9 @@ Programmers are encouraged to define their own methods for this generic function
                                  &key linewise prefix (element-type 'character) buffer-size)
     (declare (ignorable stream linewise prefix element-type buffer-size))
     (cond
-      #+(or gcl2.6 genera)
+      #+genera
       ((functionp x) (funcall x stream))
-      #+(or gcl2.6 genera)
+      #+genera
       ((input-stream-p x)
        (copy-stream-to-stream
         x stream
@@ -774,7 +774,7 @@ It returns a process-info plist with possible keys:
                     (*standard-output* *stdout*)
                     (*error-output* *stderr*))
                 (ext:system %command))
-        #+gcl (#+gcl2.6 lisp:system #-gcl2.6 system:system %command)
+        #+gcl (system:system %command)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
         #+mkcl ;; PROBABLY BOGUS -- ask jcb
         (multiple-value-bind (io process exit-code)

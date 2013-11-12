@@ -345,7 +345,6 @@
                                            (format nil "results/~(~A~)-pathnames.text" *implementation*))
                                           :direction :output
                                           :if-exists :supersede :if-does-not-exist :create)
-             #-gcl2.6
              (setup-asdftest-logical-host :root root)
              (multiple-value-bind (systems modules files test-files)
                  (make-test-files
@@ -401,7 +400,7 @@
 (format t "output translations: ~S~%" (asdf::output-translations))
 
 #+gcl (format t "~&~A~&" (progn (defvar *x* -1) (incf *x*)))
-#-(or xcl gcl2.6) ;;---*** pathnames are known to be massively broken on XCL and GCL 2.6
+#-xcl ;;---*** pathnames are known to be massively broken on XCL
 (progn
   ;; we're testing with unix, are we not?
   (assert-pathname-equal (resolve-location '(:home)) (truename (user-homedir-pathname)))

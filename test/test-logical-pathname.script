@@ -1,7 +1,5 @@
 ;;; -*- Lisp -*-
 
-#+gcl2.6 (leave-test "GCL 2.6 doesn't do Logical pathnames" 0)
-
 (setf (logical-pathname-translations "ASDF")
       #+(or allegro clisp)
       `(("**;*.*.*" ,(asdf::wilden *asdf-directory*)))

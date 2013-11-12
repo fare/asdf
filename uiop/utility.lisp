@@ -53,7 +53,7 @@
        (fmakunbound function-spec))
       ((and (consp function-spec) (eq (car function-spec) 'setf)
             (consp (cdr function-spec)) (null (cddr function-spec)))
-       #-gcl2.6 (fmakunbound function-spec))
+       (fmakunbound function-spec))
       (t (error "bad function spec ~S" function-spec))))
   (defun undefine-functions (function-spec-list)
     (map () 'undefine-function function-spec-list))
@@ -86,9 +86,7 @@
                    (destructuring-bind (car . cdr) form
                      (case car
                        ((defun) `(defun* ,@cdr))
-                       ((defgeneric)
-                        (unless (or #+gcl2.6 (and (consp (car cdr)) (eq 'setf (caar cdr))))
-                          `(defgeneric* ,@cdr)))
+                       ((defgeneric) `(defgeneric* ,@cdr))
                        (otherwise form)))
                    form)))))
 
@@ -328,7 +326,6 @@ the two results passed to STRCAT always reconstitute the original string"
   (defun find-class* (x &optional (errorp t) environment)
     (etypecase x
       ((or standard-class built-in-class) x)
-      #+gcl2.6 (keyword nil)
       (symbol (find-class x errorp environment)))))
 
 

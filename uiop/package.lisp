@@ -578,7 +578,7 @@ or when loading the package is optional."
                                 import-from export intern
                                 recycle mix reexport
                                 unintern)
-    #+(or gcl2.6 genera) (declare (ignore documentation))
+    #+genera (declare (ignore documentation))
     (let* ((package-name (string name))
            (nicknames (mapcar #'string nicknames))
            (names (cons package-name nicknames))
@@ -600,7 +600,7 @@ or when loading the package is optional."
            ;; string to list home package and use package:
            (inherited (make-hash-table :test 'equal)))
       (when-package-fishiness (record-fishy package-name))
-      #-(or gcl2.6 genera)
+      #-genera
       (when documentation (setf (documentation package t) documentation))
       (loop :for p :in (set-difference (package-use-list package) (append mix use))
             :do (note-package-fishiness :over-use name (package-names p))
@@ -751,24 +751,15 @@ UNINTERN -- Remove symbols here from PACKAGE."
         (remove "asdf" excl::*autoload-package-name-alist*
                 :test 'equalp :key 'car))
   #.(progn
-      ;; Debian's antique GCL 2.7.0 has bugs with compiling multiple-value stuff,
-      ;; but can run ASDF 2.011. Its GCL 2.6.7 has even more issues.
       ;; What more, the compiler doesn't look like it's doing eval-when quite like we'd like,
       ;; so we do this essential feature thing at read-time instead.
-      #+gcl
-      (let ((code
+      #+gcl ;; Only support very recent GCL 2.7.0 from November 2013 or later.
+      (let ((code ;; Old ASDF 2.011 might run on GCL 2.7.0. Or not.
               (cond
                 ((or (< system::*gcl-major-version* 2)
                      (and (= system::*gcl-major-version* 2)
-                          (< system::*gcl-minor-version* 6)))
-                 '(error "GCL 2.6 or later required to use ASDF"))
-                ((and (= system::*gcl-major-version* 2)
-                      (= system::*gcl-minor-version* 6))
-                 '(progn
-                   (pushnew 'ignorable pcl::*variable-declarations-without-argument*)
-                   (pushnew :gcl2.6 *features*)))
-                (t
-                 '(pushnew :gcl2.7 *features*)))))
+                          (< system::*gcl-minor-version* 7)))
+                 '(error "GCL 2.7 or later required to use ASDF")))))
         (eval code)
         code)))
 

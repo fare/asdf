@@ -96,7 +96,7 @@ or the original (parsed) pathname if it is false (the default)."
                   (or
                    #+allegro
                    (probe-file p :follow-symlinks truename)
-                   #-(or allegro clisp gcl2.6)
+                   #-(or allegro clisp)
                    (if truename
                        (probe-file p)
                        (ignore-errors
@@ -107,19 +107,12 @@ or the original (parsed) pathname if it is false (the default)."
                            #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
                            #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
                            p))))
-                   #+(or clisp gcl2.6)
+                   #+clisp
                    #.(flet ((probe (probe)
                               `(let ((foundtrue ,probe))
                                  (cond
                                    (truename foundtrue)
                                    (foundtrue p)))))
-                       #+gcl2.6
-                       (probe '(or (probe-file p)
-                                (and (directory-pathname-p p)
-                                 (ignore-errors
-                                  (ensure-directory-pathname
-                                   (truename* (subpathname
-                                               (ensure-directory-pathname p) ".")))))))
                        #+clisp
                        (let* ((fs (find-symbol* '#:file-stat :posix nil))
                               (pp (find-symbol* '#:probe-pathname :ext nil))
