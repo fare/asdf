@@ -64,10 +64,7 @@ Some constraints:
                 :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
   #+cmucl (setf ext:*gc-verbose* nil)
   #+gcl
-  (when (and (= system::*gcl-major-version* 2)
-             (= system::*gcl-minor-version* 6))
-    (pushnew :gcl2.6 *features*)
-    (shadowing-import 'system::*load-pathname* :asdf-test))
+  (si::use-fast-links nil)
   #+lispworks
   (setf system:*stack-overflow-behaviour* :warn))
 
