@@ -59,6 +59,7 @@
       (set-asdf-cache-entry `(get-file-stamp ,namestring) (list stamp))))
 
   (defun get-file-stamp (file)
-    (let ((namestring (normalize-namestring file)))
-      (do-asdf-cache `(get-file-stamp ,namestring) (compute-file-stamp namestring)))))
+    (when file
+      (let ((namestring (normalize-namestring file)))
+        (do-asdf-cache `(get-file-stamp ,namestring) (compute-file-stamp namestring))))))
 
