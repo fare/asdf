@@ -270,14 +270,18 @@ by setting appropriate variables, running various hooks, and calling any specifi
 
 (with-upgradability ()
   (defun dump-image (filename &key output-name executable
-                                ((:postlude *image-postlude*) *image-postlude*)
-                                ((:dump-hook *image-dump-hook*) *image-dump-hook*)
+                                (postlude *image-postlude*)
+                                (dump-hook *image-dump-hook*)
                                 #+clozure prepend-symbols #+clozure (purify t))
     "Dump an image of the current Lisp environment at pathname FILENAME, with various options"
+    ;; Note: at least SBCL saves only global values of variables in the heap image,
+    ;; so make sure things you want to dump are NOT just local bindings shadowing the global values.
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
+    (setf *image-postlude* postlude)
     (standard-eval-thunk *image-postlude*)
+    (setf *image-dump-hook* dump-hook)
     (call-image-dump-hook)
     (setf *image-restored-p* nil)
     #-(or clisp clozure cmu lispworks sbcl scl)
