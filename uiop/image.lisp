@@ -240,7 +240,7 @@ if we are not called from a directly executable image."
 
   (defun restore-image (&key
                           (lisp-interaction *lisp-interaction*)
-                          (restore-hook *image-restore-hook* restore-hook-p)
+                          (restore-hook *image-restore-hook*)
                           (prelude *image-prelude*)
                           (entry-point *image-entry-point*)
                           (if-already-restored '(cerror "RUN RESTORE-IMAGE ANYWAY")))
@@ -248,12 +248,14 @@ if we are not called from a directly executable image."
 by setting appropriate variables, running various hooks, and calling any specified entry point."
     (when *image-restored-p*
       (if if-already-restored
-          (call-function if-already-restored "Image already ~:[being ~;~]restored" (eq *image-restored-p* t))
+          (call-function if-already-restored "Image already ~:[being ~;~]restored"
+                         (eq *image-restored-p* t))
           (return-from restore-image)))
     (with-fatal-condition-handler ()
+      (setf *lisp-interaction* lisp-interaction)
+      (setf *image-restore-hook* restore-hook)
+      (setf *image-prelude* prelude)
       (setf *image-restored-p* :in-progress)
-      (when restore-hook-p
-        (setf *image-restore-hook* restore-hook))
       (call-image-restore-hook)
       (standard-eval-thunk prelude)
       (setf *image-restored-p* t)

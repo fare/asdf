@@ -726,7 +726,7 @@ package on the list if the list is not empty.
 MIX -- Takes a list of package designators.  MIX behaves like 
 \(:USE PKG1 PKG2 ... PKGn\) but additionally uses :SHADOWING-IMPORT-FROM to
 resolve conflicts in favor of the first found symbol.  It may still yield
-an error if there is a conflict with an explicitly :SHADOWING-IMPORT-FROM symbol.
+an error if there is a conflict with an explicitly :IMPORT-FROM symbol.
 REEXPORT -- Takes a list of package designators.  For each package, p, in the list,
 export symbols with the same name as those exported from p.  Note that in the case
 of shadowing, etc. the symbols with the same name may not be the same symbols.

@@ -555,6 +555,16 @@ It returns a process-info plist with possible keys:
                     (when (eq error-output :stream) (prop :error-stream err))))))
         (nreverse process-info-r))))
 
+  (defun %process-info-pid (process-info)
+    (let ((process (getf process-info :process)))
+      (declare (ignorable process))
+      #+(or allegro lispworks) process
+      #+clozure (ccl::external-process-pid process)
+      #+ecl (si:external-process-pid process)
+      #+(or cmu scl) (ext:process-pid process)
+      #+sbcl (sb-ext:process-pid process)
+      #-(or allegro cmu sbcl scl) (error "~S not implemented" '%process-info-pid)))
+
   (defun %wait-process-result (process-info)
     (or (getf process-info :exit-code)
         (let ((process (getf process-info :process)))

@@ -13,8 +13,9 @@
   (:export
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
-   #:undefine-function #:undefine-functions #:defun* #:defgeneric* #:with-upgradability ;; (un)defining functions
-   #:if-let ;; basic flow control
+   ;; (un)defining functions
+   #:undefine-function #:undefine-functions #:defun* #:defgeneric* #:with-upgradability
+   #:nest #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
    #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
@@ -110,11 +111,65 @@
         (let* ((utility-file (or utility-file *uiop-debug-utility*))
                (file (ignore-errors (probe-file (eval utility-file)))))
           (if file (load file)
-              (error "Failed to locate debug utility file: ~S" utility-file)))))))
+              (error "Failed to locate debug utility file: ~S" utility-file))))))
 
+  (defmacro :DBG (tag &rest exprs) ;; NB: universally accessible in the KEYWORD package
+    "debug macro for print-debugging:
+TAG is typically a constant string or keyword to identify who is printing,
+but can be an arbitrary expression returning a tag to be princ'ed first;
+if the expression returns NIL, nothing is printed.
+EXPRS are expressions, which when the TAG was not NIL are evaluated in order,
+with their source code then their return values being printed each time.
+The last expresion is *always* evaluated and its multiple values are returned,
+but its source and return values are only printed if TAG was not NIL;
+previous expressions are not evaluated at all if TAG returned NIL.
+The macro expansion has relatively low overhead in space or time."
+    (let* ((last-expr (car (last exprs)))
+           (other-exprs (butlast exprs))
+           (tag-var (gensym "TAG"))
+           (thunk-var (gensym "THUNK")))
+      `(let ((,tag-var ,tag))
+         (flet ,(when exprs `((,thunk-var () ,last-expr)))
+           (if ,tag-var
+               (DBG-helper ,tag-var
+                           (list ,@(loop :for x :in other-exprs :collect
+                                         `(cons ',x #'(lambda () ,x))))
+                           ',last-expr ,(if exprs `#',thunk-var nil))
+               ,(if exprs `(,thunk-var) '(values)))))))
+
+  (defun DBG-helper (tag expressions-thunks last-expression last-thunk)
+    ;; Helper for the above debugging macro
+    (labels
+      ((f (stream fmt &rest args)
+         (with-standard-io-syntax
+           (let ((*print-readably* nil)
+                 (*package* (find-package :cl)))
+             (apply 'format stream fmt args)
+             (finish-output stream))))
+       (z (stream)
+         (f stream "~&"))
+       (e (fmt arg)
+         (f *error-output* fmt arg))
+       (x (expression thunk)
+         (e "~&  ~S => " expression)
+         (let ((results (multiple-value-list (funcall thunk))))
+           (e "~{~S~^ ~}~%" results)
+           (apply 'values results))))
+      (map () #'z (list *standard-output* *error-output* *trace-output*))
+      (e "~A~%" tag)
+      (loop :for (expression . thunk) :in expressions-thunks
+            :do (x expression thunk))
+      (if last-thunk
+          (x last-expression last-thunk)
+          (values)))))
 
 ;;; Flow control
 (with-upgradability ()
+  (defmacro nest (&rest things)
+    "Macro to do keep code nesting and indentation under control." ;; Thanks to mbaringer
+    (reduce #'(lambda (outer inner) `(,@outer ,inner))
+            things :from-end t))
+
   (defmacro if-let (bindings &body (then-form &optional else-form)) ;; from alexandria
     ;; bindings can be (var form) or ((var1 form1) ...)
     (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
