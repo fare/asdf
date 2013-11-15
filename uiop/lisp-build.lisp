@@ -699,19 +699,20 @@ it will filter them appropriately."
 
   (defun load* (x &rest keys &key &allow-other-keys)
     "Portable wrapper around LOAD that properly handles loading from a stream."
-    (etypecase x
-      ((or pathname string #-(or allegro clozure genera) stream)
-       (apply 'load x keys))
-      ;; Genera can't load from a string-input-stream
-      ;; ClozureCL 1.6 can only load from file input stream
-      ;; Allegro 5, I don't remember but it must have been broken when I tested.
-      #+(or allegro clozure genera)
-      (stream ;; make do this way
-       (let ((*package* *package*)
-             (*readtable* *readtable*)
-             (*load-pathname* nil)
-             (*load-truename* nil))
-         (eval-input x)))))
+    (with-muffled-loader-conditions ()
+      (etypecase x
+        ((or pathname string #-(or allegro clozure genera) stream #+clozure file-stream)
+         (apply 'load x keys))
+        ;; Genera can't load from a string-input-stream
+        ;; ClozureCL 1.6 can only load from file input stream
+        ;; Allegro 5, I don't remember but it must have been broken when I tested.
+        #+(or allegro clozure genera)
+        (stream ;; make do this way
+         (let ((*package* *package*)
+               (*readtable* *readtable*)
+               (*load-pathname* nil)
+               (*load-truename* nil))
+           (eval-input x))))))
 
   (defun load-from-string (string)
     "Portably read and evaluate forms from a STRING."

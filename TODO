@@ -1,5 +1,7 @@
 * Decree that versions older than 2 years are not supported,
-  remove them from upgrade tests.
+  remove them from upgrade tests. We should already not support
+  anything older than 2.014.5 from Quicklisp, or so.
+  Yet, we should keep supporting upgrading from what vendors provide.
 
 * Improve upgrade so that we don't lose state when upgrading from a "recent enough" ASDF.
   This requires better upgrade tests, with hot data.

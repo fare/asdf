@@ -13,8 +13,8 @@
   (:export
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
-   ;; (un)defining functions
-   #:undefine-function #:undefine-functions #:defun* #:defgeneric* #:with-upgradability
+   #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
+   #:undefine-function #:undefine-functions #:defun* #:defgeneric*
    #:nest #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
    #:remove-plist-keys #:remove-plist-key ;; plists
@@ -114,7 +114,7 @@
               (error "Failed to locate debug utility file: ~S" utility-file))))))
 
   (defmacro :DBG (tag &rest exprs) ;; NB: universally accessible in the KEYWORD package
-    "debug macro for print-debugging:
+    "debug macro for print-debugging from UIOP:
 TAG is typically a constant string or keyword to identify who is printing,
 but can be an arbitrary expression returning a tag to be princ'ed first;
 if the expression returns NIL, nothing is printed.

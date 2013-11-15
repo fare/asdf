@@ -301,8 +301,7 @@ Going forward, we recommend new users should be using the source-registry.
                                  :condition condition))))
             (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
                           name pathname)
-            (with-muffled-loader-conditions ()
-              (load* pathname :external-format external-format)))))))
+            (load* pathname :external-format external-format))))))
 
   (defvar *old-asdf-systems* (make-hash-table :test 'equal))
 

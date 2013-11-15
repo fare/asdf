@@ -189,7 +189,7 @@
           (perform (find-operation o 'compile-op) c)))))
   (defun perform-lisp-load-fasl (o c)
     (if-let (fasl (first (input-files o c)))
-      (with-muffled-loader-conditions () (load* fasl))))
+      (load* fasl)))
   (defmethod perform ((o load-op) (c cl-source-file))
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-op) (c static-file))
@@ -225,9 +225,8 @@
   (defun perform-lisp-load-source (o c)
     (call-with-around-compile-hook
      c #'(lambda ()
-           (with-muffled-loader-conditions ()
-             (load* (first (input-files o c))
-                    :external-format (component-external-format c))))))
+           (load* (first (input-files o c))
+                  :external-format (component-external-format c)))))
 
   (defmethod perform ((o load-source-op) (c cl-source-file))
     (perform-lisp-load-source o c))
