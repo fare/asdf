@@ -122,6 +122,9 @@ This is designed to abstract away the implementation specific quit forms."
                             :collect (list (si::ihs-fun ihs)
                                            (si::ihs-env ihs)))))
       (dolist (frame (nreverse backtrace)) (writeln frame :stream stream)))
+    #+gcl
+    (let ((*debug-io* stream))
+      (system::simple-backtrace))
     #+lispworks
     (let ((dbg::*debugger-stack*
             (dbg::grab-stack nil :how-many (or count most-positive-fixnum)))

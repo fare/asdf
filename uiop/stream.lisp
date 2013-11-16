@@ -557,7 +557,7 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
       :with prefix = (namestring (ensure-absolute-pathname (or prefix "tmp")
                                                            (or directory #'temporary-directory)))
       :with results = ()
-      :for counter :from (random (expt 36 8))
+      :for counter :from (random (expt 36 #-gcl 8 #+gcl 6))
       :for pathname = (pathname (format nil "~A~36R~@[~A~]~@[.~A~]" prefix counter suffix type))
       :for okp = nil :do
         ;; TODO: on Unix, do something about umask
