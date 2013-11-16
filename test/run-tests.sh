@@ -201,12 +201,8 @@ case "$lisp" in
   gcl)
     GCL_ANSI=t
     command="${GCL:-gcl}"
-    flags="-batch"
-    eval="-eval" ;;
-  gclcvs)
-    GCL_ANSI=t
-    command="${GCLCVS:-gclcvs}"
-    flags="-batch"
+    flags=""
+    nodebug="-batch"
     eval="-eval" ;;
   lispworks)
     command="${LISPWORKS:-lispworks}"
