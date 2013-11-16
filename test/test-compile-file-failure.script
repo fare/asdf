@@ -1,6 +1,7 @@
 ;;; -*- Lisp -*-
 
-(in-package :asdf)
+(def-test-system test-compile-file-failure
+  :components ((:file "test-compile-file-failure")))
 
 (assert (handler-case
             (let ((*compile-file-failure-behaviour* :warn))
