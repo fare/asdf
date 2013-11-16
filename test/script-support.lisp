@@ -35,7 +35,7 @@ Some constraints:
 
 (declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                    #+(or cmu scl) (c::brevity 2)))
-(proclaim '(optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
+(proclaim '(optimize (speed #-gcl 2 #+gcl 0) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                      #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*

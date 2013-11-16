@@ -65,7 +65,8 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
   (defun truename* (p)
     "Nicer variant of TRUENAME that plays well with NIL and avoids logical pathname contexts"
     ;; avoids both logical-pathname merging and physical resolution issues
-    (and p (handler-case (with-pathname-defaults () (truename p)) (file-error () nil))))
+    (and p (handler-case (with-pathname-defaults () (truename p))
+             (#-gcl file-error #+gcl error () nil))))
 
   (defun safe-file-write-date (pathname)
     "Safe variant of FILE-WRITE-DATE that may return NIL rather than raise an error."
@@ -107,7 +108,7 @@ or the original (parsed) pathname if it is false (the default)."
                            #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
                            #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
                            p))))
-                   #+clisp
+                   #+(or clisp gcl)
                    #.(flet ((probe (probe)
                               `(let ((foundtrue ,probe))
                                  (cond
@@ -124,8 +125,11 @@ or the original (parsed) pathname if it is false (the default)."
                              `(if truename
                                   ,resolve
                                   (and (ignore-errors (,fs p)) p))
-                             (probe resolve)))))
-                (file-error () nil)))))))
+                             (probe resolve)))
+                       #+gcl
+                       (probe '(or (probe-file p)
+                                (truename* (ensure-directory-pathname p))))))
+                (#-gcl file-error #+gcl error () nil)))))))
 
   (defun directory-exists-p (x)
     "Is X the name of a directory that exists on the filesystem?"
@@ -523,7 +527,7 @@ in an atomic way if the implementation allows."
 
   (defun delete-file-if-exists (x)
     "Delete a file X if it already exists"
-    (when x (handler-case (delete-file x) (file-error () nil))))
+    (when x (handler-case (delete-file x) (#-gcl file-error #+gcl error () nil))))
 
   (defun delete-empty-directory (directory-pathname)
     "Delete an empty directory"
