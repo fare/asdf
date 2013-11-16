@@ -2,6 +2,7 @@
 
 (defsystem :test-system-pathnames
   :pathname "sources/level1"
+  :source-file nil
   :components
   ((:file "file1")
    (:file "file2" :pathname "level2/file2")
