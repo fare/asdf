@@ -266,13 +266,19 @@ and recurse each of its subdirectories on which the RECURSEP returns true when C
                (down-components ()))
           (assert (eq :absolute (first directory)))
           (loop :while up-components :do
-            (if-let (parent (probe-file* (make-pathname* :directory `(:absolute ,@(reverse up-components))
-                                                         :name nil :type nil :version nil :defaults p)))
-              (return (merge-pathnames* (make-pathname* :directory `(:relative ,@down-components)
-                                                        :defaults p)
-                                        (ensure-directory-pathname parent)))
-              (push (pop up-components) down-components))
-                :finally (return p))))))
+            (if-let (parent
+                     (ignore-errors
+                      (probe-file* (make-pathname* :directory `(:absolute ,@(reverse up-components))
+                                                   :name nil :type nil :version nil :defaults p))))
+              (if-let (simplified
+                       (ignore-errors
+                        (merge-pathnames*
+                         (make-pathname* :directory `(:relative ,@down-components)
+                                         :defaults p)
+                         (ensure-directory-pathname parent))))
+                (return simplified)))
+            (push (pop up-components) down-components)
+            :finally (return p))))))
 
   (defun resolve-symlinks (path)
     "Do a best effort at resolving symlinks in PATH, returning a partially or totally resolved PATH."
