@@ -80,12 +80,21 @@
   (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
   (unless (use-ecl-byte-compiler-p) (require :cmp)))
 
-#+gcl ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff, but can run ASDF 2.011
+#+gcl
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :ansi-cl *features*)
     (error "ASDF only supports GCL in ANSI mode. Aborting.~%"))
   (setf compiler::*compiler-default-type* (pathname "")
-        compiler::*lsp-ext* ""))
+        compiler::*lsp-ext* "")
+  #.(let ((code ;; Only support very recent GCL 2.7.0 from November 2013 or later.
+            (cond
+              #+gcl
+              ((or (< system::*gcl-major-version* 2)
+                   (and (= system::*gcl-major-version* 2)
+                        (< system::*gcl-minor-version* 7)))
+               '(error "GCL 2.7 or later required to use ASDF")))))
+      (eval code)
+      code))
 
 #+genera
 (eval-when (:load-toplevel :compile-toplevel :execute)

@@ -572,7 +572,7 @@ possibly in a different process. Otherwise just call THUNK."
 
   (defun load-pathname ()
     "Portably return the LOAD-PATHNAME of the current source file or fasl"
-    *load-pathname*) ;; see magic for GCL in uiop/common-lisp
+    *load-pathname*) ;; magic no longer needed for GCL.
 
   (defun lispize-pathname (input-file)
     "From a INPUT-FILE pathname, return a corresponding .lisp source pathname"
@@ -591,7 +591,7 @@ possibly in a different process. Otherwise just call THUNK."
   (defun compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
     "Variant of COMPILE-FILE-PATHNAME that works well with COMPILE-FILE*"
     (let* ((keys
-             (remove-plist-keys `(#+(or (and allegro (not (version>= 8 2))) gcl) :external-format
+             (remove-plist-keys `(#+(or (and allegro (not (version>= 8 2)))) :external-format
                                     ,@(unless output-file '(:output-file))) keys)))
       (if (absolute-pathname-p output-file)
           ;; what cfp should be doing, w/ mp* instead of mp
@@ -629,7 +629,7 @@ it will filter them appropriately."
                     'compile-file* output-file object-file)
             (rotatef output-file object-file))
     (let* ((keywords (remove-plist-keys
-                      `(:output-file :compile-check :warnings-file #+gcl :external-format
+                      `(:output-file :compile-check :warnings-file
                                      #+clisp :lib-file #+(or ecl mkcl) :object-file) keys))
            (output-file
              (or output-file

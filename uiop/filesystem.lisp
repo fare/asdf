@@ -65,8 +65,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
   (defun truename* (p)
     "Nicer variant of TRUENAME that plays well with NIL and avoids logical pathname contexts"
     ;; avoids both logical-pathname merging and physical resolution issues
-    (and p (handler-case (with-pathname-defaults () (truename p))
-             (#-gcl file-error #+gcl error () nil))))
+    (and p (handler-case (with-pathname-defaults () (truename p)) (file-error () nil))))
 
   (defun safe-file-write-date (pathname)
     "Safe variant of FILE-WRITE-DATE that may return NIL rather than raise an error."
@@ -97,24 +96,26 @@ or the original (parsed) pathname if it is false (the default)."
                   (or
                    #+allegro
                    (probe-file p :follow-symlinks truename)
-                   #-(or allegro clisp)
+                   #+gcl
                    (if truename
-                       (probe-file p)
-                       (ignore-errors
-                        (let ((pp (physicalize-pathname p)))
-                          (and
-                           #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
-                           #+(and lispworks unix) (system:get-file-stat pp)
-                           #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
-                           #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
-                           p))))
-                   #+(or clisp gcl)
+                       (truename* p)
+                       (let ((kind (car (si::stat p))))
+                         (when (eq kind :link)
+                           (setf kind (ignore-errors (car (si::stat (truename* p))))))
+                         (ecase kind
+                           ((nil) nil)
+                           ((:file :link)
+                            (cond
+                              ((file-pathname-p p) p)
+                              ((directory-pathname-p p)
+                               (subpathname p (car (last (pathname-directory p)))))))
+                           (:directory (ensure-directory-pathname p)))))
+                   #+clisp
                    #.(flet ((probe (probe)
                               `(let ((foundtrue ,probe))
                                  (cond
                                    (truename foundtrue)
                                    (foundtrue p)))))
-                       #+clisp
                        (let* ((fs (find-symbol* '#:file-stat :posix nil))
                               (pp (find-symbol* '#:probe-pathname :ext nil))
                               (resolve (if pp
@@ -125,11 +126,19 @@ or the original (parsed) pathname if it is false (the default)."
                              `(if truename
                                   ,resolve
                                   (and (ignore-errors (,fs p)) p))
-                             (probe resolve)))
-                       #+gcl
-                       (probe '(or (probe-file p)
-                                (truename* (ensure-directory-pathname p))))))
-                (#-gcl file-error #+gcl error () nil)))))))
+                             (probe resolve))))
+                   #-(or allegro clisp gcl)
+                   (if truename
+                       (probe-file p)
+                       (ignore-errors
+                        (let ((pp (physicalize-pathname p)))
+                          (and
+                           #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
+                           #+(and lispworks unix) (system:get-file-stat pp)
+                           #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
+                           #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
+                           p)))))
+                (file-error () nil)))))))
 
   (defun directory-exists-p (x)
     "Is X the name of a directory that exists on the filesystem?"
@@ -533,7 +542,7 @@ in an atomic way if the implementation allows."
 
   (defun delete-file-if-exists (x)
     "Delete a file X if it already exists"
-    (when x (handler-case (delete-file x) (#-gcl file-error #+gcl error () nil))))
+    (when x (handler-case (delete-file x) (file-error () nil))))
 
   (defun delete-empty-directory (directory-pathname)
     "Delete an empty directory"

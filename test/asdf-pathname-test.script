@@ -5,8 +5,6 @@
 
 ;;(setf *unspecific-pathname-type* nil)
 
-#+gcl (trace compile-file-pathname*)
-
 ;;; test asdf pathname specifications
 ;;;
 ;;; Originally written by James Anderson, refactored by Francois-Rene Rideau
@@ -332,7 +330,6 @@
                                    (delete-host t)
                                    (support-string-pathnames nil)
                                    (support-absolute-string-pathnames nil))
-  #+gcl (format t "root: ~S~%" root)
   (unwind-protect
        (let ((root-directory-namestring (format nil "~{/~a~}/" (rest (pathname-directory root))))
              (test-status (setf *test-status* (make-instance 'test-status)))
@@ -399,7 +396,6 @@
 (asdf:initialize-output-translations)
 (format t "output translations: ~S~%" (asdf::output-translations))
 
-#+gcl (format t "~&~A~&" (progn (defvar *x* -1) (incf *x*)))
 #-xcl ;;---*** pathnames are known to be massively broken on XCL
 (progn
   ;; we're testing with unix, are we not?
@@ -408,7 +404,6 @@
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t) #p"/foo/bar/baz/")
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t :wilden t) (wilden #p"/foo/bar/baz/"))
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory nil :wilden t) (wilden #p"/foo/bar/"))
-  #-gcl
   (assert-pathname-equal (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :ensure-directory nil :wilden t) #p"/foo/bar/**/baz/*.*")
 
   (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-1))))

@@ -749,19 +749,7 @@ UNINTERN -- Remove symbols here from PACKAGE."
   #+allegro ;; We need to disable autoloading BEFORE any mention of package ASDF.
   (setf excl::*autoload-package-name-alist*
         (remove "asdf" excl::*autoload-package-name-alist*
-                :test 'equalp :key 'car))
-  #.(progn
-      ;; What more, the compiler doesn't look like it's doing eval-when quite like we'd like,
-      ;; so we do this essential feature thing at read-time instead.
-      #+gcl ;; Only support very recent GCL 2.7.0 from November 2013 or later.
-      (let ((code ;; Old ASDF 2.011 might run on GCL 2.7.0. Or not.
-              (cond
-                ((or (< system::*gcl-major-version* 2)
-                     (and (= system::*gcl-major-version* 2)
-                          (< system::*gcl-minor-version* 7)))
-                 '(error "GCL 2.7 or later required to use ASDF")))))
-        (eval code)
-        code)))
+                :test 'equalp :key 'car)))
 
 ;; Compatibility with whoever calls asdf/package
 (define-package :asdf/package (:use :cl :uiop/package) (:reexport :uiop/package))

@@ -255,7 +255,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
                         (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
         #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
         #+ecl (ext:getcwd)
-        #+gcl (let ((*default-pathname-defaults* #p"")) (truename #p""))
+        #+gcl (let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))
         #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
         #+lispworks (system:current-directory)
         #+mkcl (mk-ext:getcwd)

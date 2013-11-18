@@ -561,7 +561,6 @@ is bound, write a message and exit on an error.  If
   (register-directory *asdf-directory*)
   (register-directory *uiop-directory*)
   (register-directory *test-directory*)
-  (DBG :lalatu (asymval :*central-registry*))
   (quietly
    (acall :oos (asym :load-op) :uiop))
   (acall :oos (asym :load-op) :test-module-depend))

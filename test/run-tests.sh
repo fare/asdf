@@ -12,7 +12,7 @@ usage () {
     echo " - quit with exit status >0 if an unhandled error occurs"
     echo " you need to supply the .script in the second argument"
     echo " lisps include abcl, allegro, allegromodern, ccl (clozure),"
-    echo "  clisp, cmucl, ecl, gcl, gclcvs, sbcl, scl and xcl."
+    echo "  clisp, cmucl, ecl, gcl, sbcl, scl and xcl."
     echo "OPTIONS:"
     echo "    -d -- debug mode"
     echo "    -h -- show this message."
@@ -422,9 +422,6 @@ test_clean_load () {
     fi
 }
 test_load_systems () {
-    case $lisp in
-        gcl) return 0 ;; # This one is hopeless
-    esac
     cd ${ASDFDIR}
     mkdir -p build/results/
     echo "Loading all these systems: $*"
