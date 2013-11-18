@@ -12,7 +12,7 @@
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
-   #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
+   #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility* #:DBG
    #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
    #:undefine-function #:undefine-functions #:defun* #:defgeneric*
    #:nest #:if-let ;; basic flow control
@@ -113,7 +113,7 @@
           (if file (load file)
               (error "Failed to locate debug utility file: ~S" utility-file))))))
 
-  (defmacro :DBG (tag &rest exprs) ;; NB: universally accessible in the KEYWORD package
+  (defmacro DBG (tag &rest exprs) ;; NB: universally accessible in the KEYWORD package
     "debug macro for print-debugging from UIOP:
 TAG is typically a constant string or keyword to identify who is printing,
 but can be an arbitrary expression returning a tag to be princ'ed first;
