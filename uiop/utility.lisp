@@ -12,7 +12,7 @@
    #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
-   #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility* #:DBG
+   #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
    #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
    #:undefine-function #:undefine-functions #:defun* #:defgeneric*
    #:nest #:if-let ;; basic flow control
@@ -72,9 +72,8 @@
                  ;; We usually try to do it only for the functions that need it,
                  ;; which happens in asdf/upgrade - however, for ECL, we need this hammer
                  ;; (which causes issues in clisp)
-                 ,@(when (or #-clisp supersede #+(or ecl gcl2.7) t)
+                 ,@(when (or #-clisp supersede #+ecl t)
                      `((undefine-function ',name)))
-                 #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
                  ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
                      `((declaim (notinline ,name))))
                  (,',def ,name ,formals ,@rest))))))
@@ -111,57 +110,7 @@
         (let* ((utility-file (or utility-file *uiop-debug-utility*))
                (file (ignore-errors (probe-file (eval utility-file)))))
           (if file (load file)
-              (error "Failed to locate debug utility file: ~S" utility-file))))))
-
-  (defmacro DBG (tag &rest exprs) ;; NB: universally accessible in the KEYWORD package
-    "debug macro for print-debugging from UIOP:
-TAG is typically a constant string or keyword to identify who is printing,
-but can be an arbitrary expression returning a tag to be princ'ed first;
-if the expression returns NIL, nothing is printed.
-EXPRS are expressions, which when the TAG was not NIL are evaluated in order,
-with their source code then their return values being printed each time.
-The last expresion is *always* evaluated and its multiple values are returned,
-but its source and return values are only printed if TAG was not NIL;
-previous expressions are not evaluated at all if TAG returned NIL.
-The macro expansion has relatively low overhead in space or time."
-    (let* ((last-expr (car (last exprs)))
-           (other-exprs (butlast exprs))
-           (tag-var (gensym "TAG"))
-           (thunk-var (gensym "THUNK")))
-      `(let ((,tag-var ,tag))
-         (flet ,(when exprs `((,thunk-var () ,last-expr)))
-           (if ,tag-var
-               (DBG-helper ,tag-var
-                           (list ,@(loop :for x :in other-exprs :collect
-                                         `(cons ',x #'(lambda () ,x))))
-                           ',last-expr ,(if exprs `#',thunk-var nil))
-               ,(if exprs `(,thunk-var) '(values)))))))
-
-  (defun DBG-helper (tag expressions-thunks last-expression last-thunk)
-    ;; Helper for the above debugging macro
-    (labels
-      ((f (stream fmt &rest args)
-         (with-standard-io-syntax
-           (let ((*print-readably* nil)
-                 (*package* (find-package :cl)))
-             (apply 'format stream fmt args)
-             (finish-output stream))))
-       (z (stream)
-         (f stream "~&"))
-       (e (fmt arg)
-         (f *error-output* fmt arg))
-       (x (expression thunk)
-         (e "~&  ~S => " expression)
-         (let ((results (multiple-value-list (funcall thunk))))
-           (e "~{~S~^ ~}~%" results)
-           (apply 'values results))))
-      (map () #'z (list *standard-output* *error-output* *trace-output*))
-      (e "~A~%" tag)
-      (loop :for (expression . thunk) :in expressions-thunks
-            :do (x expression thunk))
-      (if last-thunk
-          (x last-expression last-thunk)
-          (values)))))
+              (error "Failed to locate debug utility file: ~S" utility-file)))))))
 
 ;;; Flow control
 (with-upgradability ()
