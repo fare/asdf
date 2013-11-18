@@ -10,7 +10,7 @@
              (probe-file (test-fasl "file4.lisp"))))
 
 (DBG "test2: loading test2b2 should fail")
-#-gcl
+
 (handler-case
     (asdf:load-system 'test2b2)
   (asdf:missing-dependency (c)
@@ -20,7 +20,7 @@
     (error "should have failed, oops")))
 
 (DBG "test2: loading test2b3 should fail")
-#-gcl
+
 (handler-case
     (asdf:load-system 'test2b3)
   (asdf:missing-dependency (c)

@@ -25,7 +25,7 @@
 
 (assert (find-symbol* '*file-tmp2* :test-package nil)
         () "symbol `*file-tmp2*` not found")
-(assert (symbol-value (find-symbol* '*file-tmp2* :test-package)
+(assert (symbol-value (find-symbol* '*file-tmp2* :test-package))
         () "symbol `*file-tmp2*` has wrong value")
 
 (assert (probe-file* (test-fasl "sources/level1/level2/file2"))

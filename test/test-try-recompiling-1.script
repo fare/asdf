@@ -8,7 +8,6 @@
 
 (delete-file-if-exists (test-fasl "try-recompiling-1"))
 
-#-gcl
 (handler-bind
     ((error (lambda (c)
               (setf *caught-error* t)
@@ -25,5 +24,4 @@
                     (invoke-restart restart)))))))
   (oos 'load-op 'try-recompiling-1))
 
-#-gcl
 (assert *caught-error*)

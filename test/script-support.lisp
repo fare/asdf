@@ -33,9 +33,9 @@ Some constraints:
 
 (in-package :asdf-test)
 
-(declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
+(declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 1) #-(or allegro gcl genera) (debug 3)
                    #+(or cmu scl) (c::brevity 2)))
-(proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
+(proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 1) #-(or allegro gcl genera) (debug 3)
                      #+(or cmu scl) (c::brevity 2)))
 
 (defvar *trace-symbols*
@@ -184,14 +184,12 @@ Some constraints:
                   :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))
 (defun make-sub-pathname (&rest keys &key defaults &allow-other-keys)
   (merge-pathnames (apply 'make-pathname keys) defaults))
-(defun relative-dir (&rest dir) #-gcl (cons ':relative dir) #+gcl dir)
-(defun back-dir () #-gcl :back #+gcl :parent)
 (defparameter *asdf-directory*
-  (truename (make-sub-pathname :directory (relative-dir (back-dir)) :defaults *test-directory*)))
+  (truename (make-sub-pathname :directory '(:relative :back) :defaults *test-directory*)))
 (defparameter *uiop-directory*
-  (truename (make-sub-pathname :directory (relative-dir "uiop") :defaults *asdf-directory*)))
+  (truename (make-sub-pathname :directory '(:relative "uiop") :defaults *asdf-directory*)))
 (defparameter *build-directory*
-  (make-sub-pathname :directory (relative-dir "build") :defaults *asdf-directory*))
+  (make-sub-pathname :directory '(:relative "build") :defaults *asdf-directory*))
 (defparameter *implementation*
   (or #+allegro
       (ecase excl:*current-case-mode*
@@ -211,7 +209,7 @@ Some constraints:
       #+scl :scl
       #+xcl :xcl))
 (defparameter *early-fasl-directory*
-  (make-sub-pathname :directory (relative-dir "fasls" (string-downcase *implementation*))
+  (make-sub-pathname :directory `(:relative "fasls" ,(string-downcase *implementation*))
                      :defaults *build-directory*))
 
 (defun asdf-name (&optional tag)
@@ -219,7 +217,7 @@ Some constraints:
 (defun asdf-lisp (&optional tag)
   (make-pathname :name (asdf-name tag) :type "lisp" :defaults *build-directory*))
 (defun debug-lisp ()
-  (make-sub-pathname :directory (relative-dir "contrib") :name "debug" :type "lisp" :defaults *uiop-directory*))
+  (make-sub-pathname :directory '(:relative "contrib") :name "debug" :type "lisp" :defaults *uiop-directory*))
 (defun early-compile-file-pathname (file)
   (compile-file-pathname
    (make-pathname :name (pathname-name file) :type "lisp" :defaults *early-fasl-directory*)))
@@ -391,7 +389,7 @@ is bound, write a message and exit on an error.  If
          (tmp (make-pathname :name "asdf-tmp" :defaults afasl)))
     (ensure-directories-exist afasl)
     (multiple-value-bind (result warnings-p failure-p)
-        (compile-file alisp :output-file tmp #-gcl :verbose #-gcl verbose :print verbose)
+        (compile-file alisp :output-file tmp :verbose verbose :print verbose)
       (flet ((bad (key)
                (when result (ignore-errors (delete-file result)))
                key)

@@ -14,7 +14,7 @@
 #+(and darwin (or abcl ecl))
 (leave-test "Bundle test doesn't work on Mac on this lisp." 0)
 
-#+(or (and ecl ecl-bytecmp) gcl) ;; actually available on ABCL 1.2.0 and later.
+#+(or (and ecl ecl-bytecmp) gcl)
 (leave-test "bundles not on this implementation" 0)
 
 #+abcl
