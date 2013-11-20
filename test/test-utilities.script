@@ -34,8 +34,7 @@
 (assert (version-satisfies (find-system :test-asdf) "666"))
 (handler-case (version-satisfies (find-system :test-asdf) "666")
   (simple-warning (c)
-    (assert-equal (simple-condition-format-control c)
-                  "Requested version ~S but ~S has no version"))
+    (assert (search "Requested version ~S but ~S has no version" (simple-condition-format-control c))))
   (:no-error (x)
     (error "version-satisfies must warn when given component without version")))
 (assert (version<= "2.0" (asdf-version)))
@@ -233,6 +232,8 @@
   (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
   (assert (not (base-string-p (strcat (basify "ab") #\c *last-char* (unbasify "d")))))
   (assert (base-string-p (strcat (basify "ab") #\c #\d))))
+
+(assert-pathname-equal *test-directory* (getcwd))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
 (assert-equal +lf+ (map 'string 'code-char '(10)))

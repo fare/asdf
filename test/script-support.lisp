@@ -36,7 +36,7 @@ Some constraints:
 (declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 1) #-(or allegro gcl genera) (debug 3)
                    #+(or cmu scl) (c::brevity 2)))
 (proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 1) #-(or allegro gcl genera) (debug 3)
-                     #+(or cmu scl) (c::brevity 2)))
+                     #+(or cmu scl) (c::brevity 2) #+(or cmu scl) (ext:inhibit-warnings 3)))
 
 (defvar *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,
