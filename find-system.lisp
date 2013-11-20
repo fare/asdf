@@ -177,9 +177,7 @@ Going forward, we recommend new users should be using the source-registry.
                    :name (strcat name ".asd")
                    :type "lnk")))
             (when (probe-file* shortcut)
-              (let ((target (parse-windows-shortcut shortcut)))
-                (when target
-                  (return (pathname target))))))))))
+              (ensure-pathname (parse-windows-shortcut shortcut) :namestring :native)))))))
 
   (defun sysdef-central-registry-search (system)
     (let ((name (primary-system-name system))

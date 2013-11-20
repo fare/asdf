@@ -267,19 +267,22 @@ and always returns EOF when read from"
       ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?
       (t (error "No /dev/null on your OS"))))
   (defun call-with-null-input (fun &rest keys &key element-type external-format if-does-not-exist)
+    "Call FUN with an input stream from the null device; pass keyword arguments to OPEN."
     (declare (ignore element-type external-format if-does-not-exist))
     (apply 'call-with-input-file (null-device-pathname) fun keys))
   (defmacro with-null-input ((var &rest keys
                               &key element-type external-format if-does-not-exist)
                              &body body)
     (declare (ignore element-type external-format if-does-not-exist))
-    "Evaluate BODY in a context when VAR is bound to an input stream accessing the null device."
+    "Evaluate BODY in a context when VAR is bound to an input stream accessing the null device.
+Pass keyword arguments to OPEN."
     `(call-with-null-input #'(lambda (,var) ,@body) ,@keys))
   (defun call-with-null-output (fun
                                 &key (element-type *default-stream-element-type*)
                                   (external-format *utf-8-external-format*)
                                   (if-exists :overwrite)
                                   (if-does-not-exist :error))
+    "Call FUN with an output stream to the null device; pass keyword arguments to OPEN."
     (call-with-output-file
      (null-device-pathname) fun
      :element-type element-type :external-format external-format
@@ -287,7 +290,8 @@ and always returns EOF when read from"
   (defmacro with-null-output ((var &rest keys
                               &key element-type external-format if-does-not-exist if-exists)
                               &body body)
-    "Evaluate BODY in a context when VAR is bound to an output stream accessing the null device."
+    "Evaluate BODY in a context when VAR is bound to an output stream accessing the null device.
+Pass keyword arguments to OPEN."
     (declare (ignore element-type external-format if-exists if-does-not-exist))
     `(call-with-null-output #'(lambda (,var) ,@body) ,@keys)))
 
@@ -554,11 +558,15 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
     (check-type direction (member :output :io))
     (assert (or want-stream-p want-pathname-p))
     (loop
-      :with prefix = (namestring (ensure-absolute-pathname (or prefix "tmp")
-                                                           (or directory #'temporary-directory)))
+      :with prefix = (native-namestring
+                      (ensure-absolute-pathname
+                       (or prefix "tmp")
+                       (or (ensure-pathname directory :namestring :native :ensure-directory t)
+                           #'temporary-directory)))
       :with results = ()
       :for counter :from (random (expt 36 #-gcl 8 #+gcl 5))
-      :for pathname = (pathname (format nil "~A~36R~@[~A~]~@[.~A~]" prefix counter suffix type))
+      :for pathname = (parse-native-namestring
+                       (format nil "~A~36R~@[~A~]~@[.~A~]" prefix counter suffix type))
       :for okp = nil :do
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
@@ -648,11 +656,10 @@ Further KEYS can be passed to MAKE-PATHNAME."
     (add-pathname-suffix x "-TMP"))
 
   (defun call-with-staging-pathname (pathname fun)
-    "Calls fun with a staging pathname, and atomically
-renames the staging pathname to the pathname in the end.
-Note: this protects only against failure of the program,
-not against concurrent attempts.
-For the latter case, we ought pick random suffix and atomically open it."
+    "Calls FUN with a staging pathname, and atomically
+renames the staging pathname to the PATHNAME in the end.
+NB: this protects only against failure of the program, not against concurrent attempts.
+For the latter case, we ought pick a random suffix and atomically open it."
     (let* ((pathname (pathname pathname))
            (staging (tmpize-pathname pathname)))
       (unwind-protect
@@ -662,5 +669,6 @@ For the latter case, we ought pick random suffix and atomically open it."
         (delete-file-if-exists staging))))
 
   (defmacro with-staging-pathname ((pathname-var &optional (pathname-value pathname-var)) &body body)
+    "Trivial syntax wrapper for CALL-WITH-STAGING-PATHNAME"
     `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body))))
 

@@ -257,7 +257,7 @@
     (let* ((operation-name (select-bundle-operation type monolithic))
            (move-here-path (if (and move-here
                                     (typep move-here '(or pathname string)))
-                               (pathname move-here)
+                               (ensure-pathname move-here :namestring :lisp :ensure-directory t)
                                (system-relative-pathname system "asdf-output/")))
            (operation (apply #'operate operation-name
                              system
@@ -409,7 +409,7 @@
       (assert (eq (not input-files) (not output-files)))
       (when input-files
         (when non-fasl-files
-          (error "On ~A, asdf-bundle can only bundle FASL files, but these were also produced: ~S"
+          (error "On ~A, asdf/bundle can only bundle FASL files, but these were also produced: ~S"
                  (implementation-type) non-fasl-files))
         (when (and (typep o 'monolithic-bundle-op)
                    (or (monolithic-op-prologue-code o) (monolithic-op-epilogue-code o)))

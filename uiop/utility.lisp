@@ -80,6 +80,11 @@
     (defdef defgeneric* defgeneric)
     (defdef defun* defun))
   (defmacro with-upgradability ((&optional) &body body)
+    "Evaluate BODY at compile- load- and run- times, with DEFUN and DEFGENERIC modified
+to also declare the functions NOTINLINE and to accept a wrapping the function name
+specification into a list with keyword argument SUPERSEDE (which defaults to T if the name
+is not wrapped, and NIL if it is wrapped). If SUPERSEDE is true, call UNDEFINE-FUNCTION
+to supersede any previous definition."
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        ,@(loop :for form :in body :collect
                (if (consp form)
@@ -549,5 +554,6 @@ or a string describing the format-control of a simple-condition."
       (funcall thunk)))
 
   (defmacro with-muffled-conditions ((conditions) &body body)
+    "Shorthand syntax for CALL-WITH-MUFFLED-CONDITIONS"
     `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
 

@@ -379,7 +379,7 @@ argument to pass to the internal RUN-PROGRAM"
     (declare (ignorable role))
     (etypecase specifier
       (null (or #+(or allegro lispworks) (null-device-pathname)))
-      (string (pathname specifier))
+      (string (parse-native-namestring specifier))
       (pathname specifier)
       (stream specifier)
       ((eql :stream) :stream)
@@ -745,7 +745,7 @@ It returns a process-info plist with possible keys:
              (let ((pathname
                      (typecase spec
                        (null (null-device-pathname))
-                       (string (pathname spec))
+                       (string (parse-native-namestring spec))
                        (pathname spec)
                        ((eql :output)
                         (assert (equal operator " 2>"))

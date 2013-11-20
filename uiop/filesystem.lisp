@@ -313,7 +313,7 @@ Defaults to T.")
   (defun ensure-pathname
       (pathname &key
                   on-error
-                  defaults type dot-dot
+                  defaults type dot-dot namestring
                   want-pathname
                   want-logical want-physical ensure-physical
                   want-relative want-absolute ensure-absolute ensure-subpath
@@ -327,10 +327,17 @@ optionally doing some transformations and checking specified constraints.
 
 If the argument is NIL, then NIL is returned unless the WANT-PATHNAME constraint is specified.
 
-If the argument is a STRING, it is first converted to a pathname via PARSE-UNIX-NAMESTRING
-reusing the keywords DEFAULTS TYPE DOT-DOT ENSURE-DIRECTORY WANT-RELATIVE;
-then the result is optionally merged into the DEFAULTS if ENSURE-ABSOLUTE is true,
-and the all the checks and transformations are run.
+If the argument is a STRING, it is first converted to a pathname via
+PARSE-UNIX-NAMESTRING, PARSE-NAMESTRING or PARSE-NATIVE-NAMESTRING respectively
+depending on the NAMESTRING argument being :UNIX, :LISP or :NATIVE respectively,
+or else by using CALL-FUNCTION on the NAMESTRING argument;
+if :UNIX is specified (or NIL, the default, which specifies the same thing),
+then PARSE-UNIX-NAMESTRING it is called with the keywords
+DEFAULTS TYPE DOT-DOT ENSURE-DIRECTORY WANT-RELATIVE, and
+the result is optionally merged into the DEFAULTS if ENSURE-ABSOLUTE is true.
+
+The pathname passed or resulting from parsing the string
+is then subjected to all the checks and transformations below are run.
 
 Each non-nil constraint argument can be one of the symbols T, ERROR, CERROR or IGNORE.
 The boolean T is an alias for ERROR.
@@ -389,11 +396,22 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
           (etypecase p
             ((or null pathname))
             (string
-             (setf p (parse-unix-namestring
-                      p :defaults defaults :type type :dot-dot dot-dot
-                        :ensure-directory ensure-directory :want-relative want-relative))))
-          (check want-pathname (pathnamep p) "Expected a pathname, not NIL")
-          (unless (pathnamep p) (return nil))
+             (setf p (case namestring
+                       ((:unix nil)
+                        (parse-unix-namestring
+                         p :defaults defaults :type type :dot-dot dot-dot
+                           :ensure-directory ensure-directory :want-relative want-relative))
+                       ((:native)
+                        (parse-native-namestring p))
+                       ((:lisp)
+                        (parse-namestring p))
+                       (t
+                        (call-function namestring p))))))
+          (etypecase p
+            (pathname)
+            (null
+             (check want-pathname (pathnamep p) "Expected a pathname, not NIL")
+             (return nil)))
           (check want-logical (logical-pathname-p p) "Expected a logical pathname")
           (check want-physical (physical-pathname-p p) "Expected a physical pathname")
           (transform ensure-physical () (physicalize-pathname p))
