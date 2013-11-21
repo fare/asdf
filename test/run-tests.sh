@@ -385,16 +385,16 @@ run_tests () {
   cd ./test/
   echo failure > ../build/results/status
     thedate=`date "+%Y-%m-%d"`
-    rm -f "../build/results/${lisp}.text" || :
+    rm -f "../build/results/${lisp}-test.text" || :
     do_tests "$@" 2>&1 | \
-	tee "../build/results/${lisp}.text" "../build/results/${lisp}-${thedate}.save"
+	tee "../build/results/${lisp}-test.text" "../build/results/${lisp}-test-${thedate}.save"
     read a < ../build/results/status
   clean_up
   if [ success = "$a" ] ; then ## exit code
       return 0
   else
      echo "To view full results and failures, try the following command:" >&2
-     echo "     less -p ABORTED build/results/${lisp}.text" >&2
+     echo "     less -p ABORTED build/results/${lisp}-test.text" >&2
      return 1
   fi
 }
