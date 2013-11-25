@@ -53,6 +53,9 @@ that is a list and not a string."
       ((or (null directory)
            (and (consp directory) (member (first directory) '(:absolute :relative))))
        directory)
+      #+gcl
+      ((consp directory)
+       (cons :relative directory))
       (t
        (error (compatfmt "~@<Unrecognized pathname directory component ~S~@:>") directory))))
 

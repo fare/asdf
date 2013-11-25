@@ -100,15 +100,14 @@
                  warnings-file) outputs
             (call-with-around-compile-hook
              c #'(lambda (&rest flags)
-                   (with-muffled-compiler-conditions ()
-                     (apply 'compile-file* input-file
-                            :output-file output-file
-                            :external-format (component-external-format c)
-                            :warnings-file warnings-file
-                            (append
-                             #+clisp (list :lib-file lib-file)
-                             #+(or ecl mkcl) (list :object-file object-file)
-                             flags (compile-op-flags o)))))))
+                   (apply 'compile-file* input-file
+                          :output-file output-file
+                          :external-format (component-external-format c)
+                          :warnings-file warnings-file
+                          (append
+                           #+clisp (list :lib-file lib-file)
+                           #+(or ecl mkcl) (list :object-file object-file)
+                           flags (compile-op-flags o))))))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
 

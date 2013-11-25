@@ -30,7 +30,7 @@
    #:enable-deferred-warnings-check #:disable-deferred-warnings-check
    #:current-lisp-file-pathname #:load-pathname
    #:lispize-pathname #:compile-file-type #:call-around-hook
-   #:compile-file* #:compile-file-pathname*
+   #:compile-file* #:compile-file-pathname* #:*compile-check*
    #:load* #:load-from-string #:combine-fasls)
   (:intern #:defaults #:failure-p #:warnings-p #:s #:y #:body))
 (in-package :uiop/lisp-build)
@@ -602,8 +602,11 @@ possibly in a different process. Otherwise just call THUNK."
           (funcall *output-translation-function*
                    (apply 'compile-file-pathname input-file keys)))))
 
+  (defvar *compile-check* nil
+    "A hook for user-defined compile-time invariants")
+
   (defun* (compile-file*) (input-file &rest keys
-                                      &key compile-check output-file warnings-file
+                                      &key (compile-check *compile-check*) output-file warnings-file
                                       #+clisp lib-file #+(or ecl mkcl) object-file #+sbcl emit-cfasl
                                       &allow-other-keys)
     "This function provides a portable wrapper around COMPILE-FILE.
