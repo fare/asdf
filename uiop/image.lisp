@@ -277,7 +277,8 @@ by setting appropriate variables, running various hooks, and calling any specifi
   (defun dump-image (filename &key output-name executable
                                 (postlude *image-postlude*)
                                 (dump-hook *image-dump-hook*)
-                                #+clozure prepend-symbols #+clozure (purify t))
+                                #+clozure prepend-symbols #+clozure (purify t)
+                                #+(and sbcl windows) application-type)
     "Dump an image of the current Lisp environment at pathname FILENAME, with various options"
     ;; Note: at least SBCL saves only global values of variables in the heap image,
     ;; so make sure things you want to dump are NOT just local bindings shadowing the global values.
@@ -322,8 +323,9 @@ by setting appropriate variables, running various hooks, and calling any specifi
       (ext:gc :full t)
       (setf ext:*batch-mode* nil)
       (setf ext::*gc-run-time* 0)
-      (apply 'ext:save-lisp filename #+cmu :executable #+cmu t
-                                     (when executable '(:init-function restore-image :process-command-line nil))))
+      (apply 'ext:save-lisp filename
+             #+cmu :executable #+cmu t
+             (when executable '(:init-function restore-image :process-command-line nil))))
     #+gcl
     (progn
       (si::set-hole-size 500) (si::gbc nil) (si::sgc-on t)
@@ -338,7 +340,10 @@ by setting appropriate variables, running various hooks, and calling any specifi
       (setf sb-ext::*gc-run-time* 0)
       (apply 'sb-ext:save-lisp-and-die filename
              :executable t ;--- always include the runtime that goes with the core
-             (when executable (list :toplevel #'restore-image :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
+             (when executable (list :toplevel #'restore-image :save-runtime-options t)) ;--- only save runtime-options for standalone executables
+             #+(and sbcl windows) ;; passing :application-type :gui will disable the console window.
+             ;; the default is :console - only works with SBCL 1.1.15 or later.
+             (when application-type (list :application-type application-type))))
     #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
     (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
            'dump-image filename (nth-value 1 (implementation-type))))
