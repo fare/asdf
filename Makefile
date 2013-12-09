@@ -136,13 +136,13 @@ test-load-systems: build/asdf.lisp
 test-all-lisps:
 	${MAKE} test-load-systems
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp test-upgrade test-clean-load l=$$lisp || exit 1 ; \
+		${MAKE} test-clean-load test-lisp test-upgrade l=$$lisp || exit 1 ; \
 	done
 
 # test upgrade is a very long run... This does just the regression tests
 test-all-no-upgrade:
 	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp test-clean-load l=$$lisp || exit 1 ; \
+		${MAKE} test-clean-load test-lisp l=$$lisp || exit 1 ; \
 	done
 
 test-all-upgrade:
@@ -153,7 +153,12 @@ test-all-upgrade:
 test-all: doc test-all-lisps
 
 test-all-no-stop:
-	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
+	-make doc ; for l in ${lisps} ; do \
+	   make test-clean-load test-lisp l=$$l ; make test-upgrade l=$$l ; \
+	done ; true
+
+test-all-no-upgrade-no-stop:
+	-make doc ; for l in ${lisps} ; do make test-clean-load test-lisp l=$$l ; done ; true
 
 extract: extract-all-tagged-asdf
 extract-all-tagged-asdf: build/asdf.lisp
