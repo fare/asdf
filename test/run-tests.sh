@@ -11,8 +11,12 @@ usage () {
     echo " - quit with exit status 0 on getting eof"
     echo " - quit with exit status >0 if an unhandled error occurs"
     echo " you need to supply the .script in the second argument"
-    echo " lisps include abcl, allegro, allegromodern, ccl (clozure),"
-    echo "  clisp, cmucl, ecl, gcl, sbcl, scl and xcl."
+    echo " lisps include abcl, ccl (clozure),"
+    echo " allegro, allegro8, allegromodern, allegromodern8,"
+    echo " allegro_s, allegro8_s, allegromodern_s, allegromodern8_s (SMP variants)"
+    echo " allegro_64, allegro8_64, allegromodern_64, allegromodern8_64 (64-bit variants),"
+    echo " allegro_64_S, allegro8_64_S, allegromodern_64_S, allegromodern8_64_S, (SMP, 64-bit variants)"
+    echo " clisp, cmucl, ecl, gcl, sbcl, scl and xcl."
     echo "OPTIONS:"
     echo "    -d -- debug mode"
     echo "    -h -- show this message."
@@ -168,6 +172,19 @@ case "$lisp" in
       allegro8) command="${ALLEGRO8:-alisp8}" ;;
       allegromodern) command="${ALLEGROMODERN:-mlisp}" ;;
       allegromodern8) command="${ALLEGROMODERN8:-mlisp8}" ;;
+      allegro_s) command="${ALLEGRO_S:-alisp_s}" ;;
+      allegro8_s) command="${ALLEGRO8_S:-alisp8_s}" ;;
+      allegromodern_s) command="${ALLEGROMODERN_S:-mlisp_s}" ;;
+      allegromodern8_s) command="${ALLEGROMODERN8_S:-mlisp8_s}" ;;
+      allegro_64) command="${ALLEGRO_64:-alisp_64}" ;;
+      allegro8_64) command="${ALLEGRO8_64:-alisp8_64}" ;;
+      allegromodern_64) command="${ALLEGROMODERN_64:-mlisp_64}" ;;
+      allegromodern8_64) command="${ALLEGROMODERN8_64:-mlisp8_64}" ;;
+      allegro_64_s) command="${ALLEGRO_64_S:-alisp_64_s}" ;;
+      allegro8_64_s) command="${ALLEGRO8_64_S:-alisp8_64_s}" ;;
+      allegromodern_64_s) command="${ALLEGROMODERN_64_S:-mlisp_64_s}" ;;
+      allegromodern8_64_s) command="${ALLEGROMODERN8_64_S:-mlisp8_64_s}" ;;
+
     esac
     flags="-q"
     nodebug="-batch"
