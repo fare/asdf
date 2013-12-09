@@ -166,7 +166,7 @@ case "$lisp" in
     flags="--noinit --nosystem --noinform"
     eval="--eval"
     ;;
-  allegro|allegro8|allegromodern|allegromodern8)
+  allegro*)
     case "$lisp" in
       allegro) command="${ALLEGRO:-alisp}" ;;
       allegro8) command="${ALLEGRO8:-alisp8}" ;;
@@ -184,7 +184,6 @@ case "$lisp" in
       allegro8_64_s) command="${ALLEGRO8_64_S:-alisp8_64_s}" ;;
       allegromodern_64_s) command="${ALLEGROMODERN_64_S:-mlisp_64_s}" ;;
       allegromodern8_64_s) command="${ALLEGROMODERN8_64_S:-mlisp8_64_s}" ;;
-
     esac
     flags="-q"
     nodebug="-batch"
