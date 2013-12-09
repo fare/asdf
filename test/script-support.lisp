@@ -142,7 +142,7 @@ Some constraints:
 (defun assert-pathname-equal-helper (qx x qy y)
   (cond
     ((equal x y)
-     (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
+     (format t "~S and~% ~S both evaluate to same path:~%  ~S~%" qx qy x))
     ((ucall :pathname-equal x y)
      (warn "These two expressions yield pathname-equal yet not equal path~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
@@ -532,7 +532,9 @@ is bound, write a message and exit on an error.  If
              (asym :pathname-equal))
     (format t "Comparing directories~%")
     (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
-      (assert-pathname-equal *test-directory* x) ;; not always EQUAL (!)
+      (assert-pathname-equal-helper ;; not always EQUAL (!)
+       '*test-directory* *test-directory*
+       '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
       (unless (equal *test-directory* x)
         (format t "Interestingly, while *test-directory* has components~% ~S~%~
                  ASDF finds the ASDs in~% ~S~%Using the latter.~%"
