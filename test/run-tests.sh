@@ -36,25 +36,25 @@ unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively extract
 SHELL=/bin/sh
 export SHELL DEBUG_ASDF_TEST GCL_ANSI ASDF_OUTPUT_TRANSLATIONS
 
-if [ $ALLEGRO64DIR ] ; then
+if [ -n "$ALLEGRO64DIR" ] ; then
     ALLEGRO_64=${ALLEGRO64DIR}/alisp
     ALLEGRO8_64=${ALLEGRO64DIR}/alisp8
     ALLEGROMODERN_64=${ALLEGRO64DIR}/mlisp
     ALLEGROMODERN8_64=${ALLEGRO64DIR}/mlisp8
 fi
-if [ $ALLEGRO64SDIR ] ; then
+if [ -n "$ALLEGRO64SDIR" ] ; then
     ALLEGRO_64_S=${ALLEGRO64SDIR}/alisp
     ALLEGRO8_64_S=${ALLEGRO64SDIR}/alisp8
     ALLEGROMODERN_64_S=${ALLEGRO64SDIR}/mlisp
     ALLEGROMODERN8_64_S=${ALLEGRO64SDIR}/mlisp8
 fi
-if [ $ALLEGRODIR ] ; then
+if [ -n "$ALLEGRODIR" ] ; then
     ALLEGRO=${ALLEGRODIR}/alisp
     ALLEGRO8=${ALLEGRODIR}/alisp8
     ALLEGROMODERN=${ALLEGRODIR}/mlisp
     ALLEGROMODERN8=${ALLEGRODIR}/mlisp8
 fi
-if [ $ALLEGROSDIR ] ; then
+if [ -n "$ALLEGROSDIR" ] ; then
     ALLEGRO_S=${ALLEGROSDIR}/alisp
     ALLEGRO8_S=${ALLEGROSDIR}/alisp8
     ALLEGROMODERN_S=${ALLEGROSDIR}/mlisp
