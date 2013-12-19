@@ -1,10 +1,8 @@
 * Decree that versions older than 2 years are not supported,
   remove them from upgrade tests. We should already not support
   anything older than 2.014.5 from Quicklisp, or so.
-  Yet, we should keep supporting upgrading from what vendors provide.
-
-* Improve upgrade so that we don't lose state when upgrading from a "recent enough" ASDF.
-  This requires better upgrade tests, with hot data.
+  Yet, we should keep supporting upgrading from what vendors provide
+  — so push them to provide recent stuff.
 
 * ASDF 3.2: moving toward cross-compilation.
    This would allow to get all or most of the benefits of XCVB
@@ -13,10 +11,13 @@
 ** Need to further split asdf:perform in two parts:
    A part that runs on the host and specifies (as SEXP or string to read)
    a form that must be evaluated on the target machine, not the host.
-   A trivial that runs on the target
-   and doesn't require ASDF or CLOS installed there (though maybe UIOP).
-** Audit all the current users of perform, and offer them a new way;
+   A trivial that runs on the target and doesn't require the network
+   of objects related to the ASDF plan to be present,
+   or even ASDF itself, for the matter (though UIOP, yes, for sanity).
+** Audit all the current specializers of perform, and offer them a new way;
    they can keep the perform method to run on older versions of ASDF.
+** Modify SBCL and other implementations so they provide UIOP
+   independently from ASDF?
 
 * Some out-of-line configuration mechanism for various options?
    i.e. have files that override some variables around compilation of some systems.
