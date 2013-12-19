@@ -141,7 +141,7 @@ system names to pathnames of .asd files")
         (collect-sub*directories-asd-files
          directory :exclude exclude :collect collect)))
 
-  (defparameter *default-source-registries*
+  (defparameter* *default-source-registries*
     '(environment-source-registry
       user-source-registry
       user-source-registry-directory

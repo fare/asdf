@@ -8,7 +8,7 @@
   (:export
    #:asdf-version #:*previous-asdf-versions* #:*asdf-version*
    #:asdf-message #:*verbose-out*
-   #:upgrading-p #:when-upgrading #:upgrade-asdf #:asdf-upgrade-error
+   #:upgrading-p #:when-upgrading #:upgrade-asdf #:asdf-upgrade-error #:defparameter*
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
    #:intern*)
@@ -29,8 +29,20 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
               (string rev)
               (cons (format nil "~{~D~^.~}" rev))
               (null "1.0"))))))
+  ;; Important: define *p-a-v* /before/ *a-v* so that it initializes correctly.
+  (defvar *previous-asdf-versions* (if-let (previous (asdf-version)) (list previous)))
   (defvar *asdf-version* nil)
-  (defvar *previous-asdf-versions* nil)
+  ;; We need to clear systems from versions yet older than the below:
+  (defparameter *oldest-forward-compatible-asdf-version* "2.27")
+  (defmacro defparameter* (var value &optional docstring)
+    (let* ((name (string-trim "*" var))
+           (valfun (intern (format nil "%~A-~A-~A" :compute name :value)))
+           (clearfun (intern (format nil "%~A-~A" :clear name))))
+      `(progn
+         (defun ,valfun () ,value)
+         (defvar ,var (,valfun) ,@(ensure-list docstring))
+         (defun ,clearfun () (setf ,var (,valfun)))
+         (register-hook-function '*post-upgrade-cleanup-hook* ',clearfun))))
   (defvar *verbose-out* nil)
   (defun asdf-message (format-string &rest format-args)
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
@@ -126,7 +138,12 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
                      old-version new-version)
               (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
                             old-version new-version))
-          (call-functions (reverse *post-upgrade-cleanup-hook*))
+          ;; In case the previous version was too old to be forward-compatible, clear systems.
+          ;; TODO: if needed, we may have to define a separate hook to run
+          ;; in case of forward-compatible upgrade.
+          ;; Or to move the tests forward-compatibility test inside each hook function?
+          (unless (version<= *oldest-forward-compatible-asdf-version* old-version)
+            (call-functions (reverse *post-upgrade-cleanup-hook*)))
           t))))
 
   (defun upgrade-asdf ()

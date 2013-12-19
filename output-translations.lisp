@@ -128,7 +128,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                  (push :ignore-inherited-configuration directives))
                (return `(:output-translations ,@(nreverse directives)))))))))
 
-  (defparameter *default-output-translations*
+  (defparameter* *default-output-translations*
     '(environment-output-translations
       user-output-translations-pathname
       user-output-translations-directory-pathname

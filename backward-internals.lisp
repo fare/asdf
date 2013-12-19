@@ -16,7 +16,7 @@
 
 ;;;; Backward compatibility with "inline methods"
 (with-upgradability ()
-  (defparameter +asdf-methods+
+  (defparameter* +asdf-methods+
     '(perform-with-restarts perform explain output-files operation-done-p))
 
   (defun %remove-component-inline-methods (component)

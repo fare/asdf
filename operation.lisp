@@ -36,7 +36,8 @@
 ;;; make-operation, find-operation
 
 (with-upgradability ()
-  (defparameter *operations* (make-hash-table :test 'equal))
+  (defparameter* *operations* (make-hash-table :test 'equal))
+
   (defun make-operation (operation-class &rest initargs)
     (ensure-gethash (cons operation-class initargs) *operations*
                     (list* 'make-instance operation-class initargs)))
