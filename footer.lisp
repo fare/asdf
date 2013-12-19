@@ -50,7 +50,7 @@
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
     (setf excl:*warn-on-nested-reader-conditionals* asdf/common-lisp::*acl-warn-save*))
 
-  (dolist (f '(:asdf :asdf2 :asdf3 :asdf-package-system)) (pushnew f *features*))
+  (dolist (f '(:asdf :asdf2 :asdf3 :asdf3.1 :asdf-package-system)) (pushnew f *features*))
 
   (provide "asdf") (provide "ASDF") ;; do it both ways to satisfy more people.
 
