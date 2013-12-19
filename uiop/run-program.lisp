@@ -760,7 +760,7 @@ It returns a process-info plist with possible keys:
                 (values (list normalized) ())))
         (reduce/strcat
          (append
-          before (redirect in "<") (redirect out ">") (redirect err " 2>")
+          before (redirect in " <") (redirect out " >") (redirect err " 2>")
           (when (and directory (os-unix-p)) `("cd " (escape-shell-token directory) " ; "))
           after)))))
 

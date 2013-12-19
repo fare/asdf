@@ -5,7 +5,8 @@
 (defun dewindowize (x)
   (block ()
     (setf x (remove (code-char 13) x))
-    #+(and (or sbcl lispworks) os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
+    ;; Some buggy implementations output extra space on Windows;
+    ;; Implementations that rely on shell redirection on Windows also do, as a limitation.
     (when (eql #\space (last-char x))
       (return (subseq x 0 (1- (length x)))))
     x))
