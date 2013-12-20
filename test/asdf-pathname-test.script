@@ -59,7 +59,7 @@
    (system-failures :initform 0)
    (directory-failures :initform 0)
    (file-failures :initform 0)
-   (failures :initform ())))
+   (all-tests :initform ())))
 
 (defparameter *test-status* (make-instance 'test-status))
 
@@ -85,53 +85,58 @@
                      :pathname ,file-pathname))))))))))
 
 (defun translate-if-needed (pathname)
-  (if (typep pathname 'logical-pathname)
+  (if (logical-pathname-p pathname)
       (cons (translate-logical-pathname pathname) pathname)
       pathname))
 
 (defun test-module (module &key configuration (test-status *test-status*))
   (with-slots (system-count directory-count file-count
-               system-failures directory-failures file-failures failures) test-status
+               system-failures directory-failures file-failures all-tests) test-status
     (incf directory-count)
-    (cond
-      ((probe-file* (component-pathname module))
-       t)
-      (t
-       (incf directory-failures)
-       (push (list (type-of module) (component-find-path module)
-                   (translate-if-needed (component-pathname module))
-                   configuration
-                   (list (if-let (parent (component-parent module))
-                           (component-pathname parent))))
-             failures)
-       nil))))
+    (let ((success (and (probe-file* (component-pathname module)) t)))
+      (unless success
+        (incf directory-failures))
+      (push (list success (type-of module) (component-find-path module)
+                  (translate-if-needed (component-pathname module))
+                  configuration
+                  (list (if-let (parent (component-parent module))
+                                (component-pathname parent))))
+            all-tests)
+      success)))
 
 (defparameter *backtraces* 0)
-(defparameter *max-backtraces* 2)
+(defparameter *max-backtraces* 4)
 
 (defun test-file (file &key configuration (test-status *test-status*) (start-time 0))
   (with-slots (system-count directory-count file-count
-               system-failures directory-failures file-failures failures) test-status
-    (incf file-count)
-    (unless (block nil
+               system-failures directory-failures file-failures all-tests) test-status
+    (let ((success
+            (block nil
               (handler-bind ((error #'(lambda (c)
                                         (incf *backtraces*)
-                                        (when (<= *backtraces* *max-backtraces*)
-                                          (print-condition-backtrace c))
+                                        (dolist (o (list *trace-output*))
+                                          (format o "BACKTRACES: ~S (max ~S)~%"
+                                                  *backtraces* *max-backtraces*)
+                                          (when (<= *backtraces* *max-backtraces*)
+                                            (print-condition-backtrace c :stream o)))
                                         (return nil))))
+                (assert (probe-file* (component-pathname file)))
                 (with-open-file (stream (component-pathname file)
                                         :direction :output :if-exists
                                         (or #+(and sbcl os-windows) :rename-and-delete :supersede)
                                         :if-does-not-exist :error)
-                  (print start-time stream)
-                  t)))
-      (incf file-failures)
-      (push (list (type-of file) (component-find-path file)
+                  (assert stream)
+                  (println start-time stream)))
+              t)))
+      (incf file-count)
+      (unless success
+        (incf file-failures))
+      (push (list success (type-of file) (component-find-path file)
                   (translate-if-needed (component-pathname file))
                   configuration
                   (list (component-pathname (component-system file))
                         (component-pathname (component-parent file))))
-            failures))))
+            all-tests))))
 
 (defun test-pathname-configuration (&key system-pathname module-pathname file-pathname
                                       (start-time (get-universal-time))
@@ -139,8 +144,7 @@
                                       (support-absolute-string-pathnames t)
                                       (root-directory-namestring (namestring *build-directory*))
                                       (result-stream *standard-output*))
-  (with-slots (system-count directory-count file-count
-               system-failures directory-failures file-failures failures) test-status
+  (with-slots (system-count directory-count file-count system-failures) test-status
     (let ((configuration (list system-pathname module-pathname file-pathname))
           (system-definition (pathname-defsystem
                               :system-pathname system-pathname
@@ -151,13 +155,12 @@
       (handler-bind
           ((error (lambda (c)
                     (incf system-failures)
-                    (format *error-output* "~&error! ~a~%sysdef:~% ~S~%" c system-definition)
-                    (print-condition-backtrace c :stream *error-output*)
-                    (format result-stream "~&~%***~%error: ~a~%~s"
-                            c system-definition)
+                    (dolist (o (list *trace-output* result-stream))
+                      (format o "~&error during sysdef:~% ~S~%" system-definition)
+                      (print-condition-backtrace c :stream o))
                     (return-from test-pathname-configuration test-status))))
-        (unless (and (or (typep system-pathname 'logical-pathname)
-                         (typep module-pathname 'logical-pathname))
+        (unless (and (or (logical-pathname-p system-pathname)
+                         (logical-pathname-p module-pathname))
                      (and (stringp file-pathname) (find #\. file-pathname)))
           (incf system-count)
           (with-asdf-cache (:override t)
@@ -166,8 +169,6 @@
                              (eval system-definition)))
                    (module (first (component-children system)))
                    (file-components (component-children module)))
-              (incf file-count (length file-components))
-              (incf directory-count 2)
               (test-module system :test-status test-status :configuration configuration)
               (test-module module :test-status test-status :configuration configuration)
               (dolist (file file-components)
@@ -177,7 +178,7 @@
 (defun print-test-report (&key (test-status *test-status*) (result-stream *standard-output*)
                             (start-time 0) test-files files modules systems)
   (with-slots (system-count directory-count file-count
-               system-failures directory-failures file-failures failures) test-status
+               system-failures directory-failures file-failures all-tests) test-status
     (format result-stream "~% target files [~s]~:{~% ~s -> ~s~}~%"
             (length test-files)
             (mapcar #'(lambda (file)
@@ -191,15 +192,24 @@
     (format result-stream "~&~%~% variations:~% systems: ~s~% modules: ~s~% files: ~s"
             systems modules files)
 
-    (let ((homogeneous-failures 0) (*print-length* nil))
-      (format result-stream "~&~%~% pathname failures [~s]:" (length failures))
-      (dolist (failure failures)
-        (destructuring-bind (type name intended-pathname configuration parent-pathnames) failure
-          (format result-stream "~&~%~:[ ~;!~]~a~24T~s~%  missing:~24T~s~%  configuration:~24T~s~%  parent pathnames:~24T~s"
-                  (flet ((logical-p (p) (typep p 'logical-pathname)))
-                    (when (or (every #'logical-p configuration) (notany #'logical-p configuration))
-                      (incf homogeneous-failures)))
-                  type name intended-pathname configuration parent-pathnames)))
+    (let ((homogeneous-failures 0)
+          (failures (+ system-failures directory-failures file-failures))
+          (*print-length* nil))
+      (format result-stream "~&~%~% pathname failures [~s]:" failures)
+      (dolist (tst (and (plusp failures) all-tests))
+        (destructuring-bind (success type name intended-pathname configuration parent-pathnames) tst
+          (format result-stream "~&~%~:[FAILURE~;SUCCESS~] ~:[ ~;!~]~a~24T~s~%  ~:[missing:  ~;found:  ~]~24T~s~%  configuration:~24T~s~%  parent pathnames:~24T~s"
+                  success
+                  (let ((homogeneousp
+                          (let ((f (first configuration)))
+                            (assert f)
+                            (let ((logicalp (logical-pathname-p f)))
+                              (loop for p in (rest configuration)
+                                    always (or (null p) (eq logicalp (logical-pathname-p p))))))))
+                    (when (and (not success) homogeneousp)
+                      (incf homogeneous-failures))
+                    homogeneousp)
+                  type name success intended-pathname configuration parent-pathnames)))
       (terpri result-stream)
       (print (print `(:result :type ,(lisp-implementation-type) :version ,(lisp-implementation-version)
                               :file ,(pathname result-stream)
@@ -211,8 +221,7 @@
              *trace-output*)
       (terpri *trace-output*)
       (force-output *trace-output*)
-      (and (zerop system-failures) (zerop directory-failures)
-           (zerop file-failures) (zerop homogeneous-failures)))))
+      (zerop failures))))
 
 (defun make-test-files (&key (root *build-directory*) (support-string-pathnames t)
                           (support-absolute-string-pathnames t)
@@ -352,8 +361,8 @@
                (dolist (file test-files)
                  (ensure-directories-exist file)
                  (with-open-file (stream file :direction :output :if-exists :supersede :if-does-not-exist :create)
-                   stream))
-
+                   (println ":dummy-content" stream)
+                   (format t "Created test file ~S~%" file)))
                (multiple-value-bind (second minute hour day month year)
                    (decode-universal-time (setf start-time (get-universal-time)) 0)
                  (let ((header (format nil "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0dZ : ~a ~a ~a"
@@ -396,9 +405,9 @@
 (asdf:initialize-output-translations)
 (format t "output translations: ~S~%" (asdf::output-translations))
 
-#-xcl ;;---*** pathnames are known to be massively broken on XCL
+;;#-xcl ;;---*** pathnames are known to be massively broken on XCL
 (progn
-  ;; we're testing with unix, are we not?
+  ;; we're testing with unix or some emulation, are we not?
   (assert-pathname-equal (resolve-location '(:home)) (truename (user-homedir-pathname)))
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz")
   (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t) #p"/foo/bar/baz/")
