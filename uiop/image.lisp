@@ -146,7 +146,7 @@ This is designed to abstract away the implementation specific quit forms."
      #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream '(or count most-positive-fixnum))
      stream)
     #+xcl
-    (loop :for i :from 0
+    (loop :for i :from 0 :below (or count most-positive-fixnum)
 	  :for frame :in (extensions:backtrace-as-list) :do
 	    (safe-format! stream "~&~D: ~S~%" i frame)))
 

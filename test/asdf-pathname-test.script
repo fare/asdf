@@ -117,15 +117,12 @@
   (with-slots (system-count directory-count file-count
                system-failures directory-failures file-failures all-tests) test-status
     (let ((success
-            (block :foo
+            (block :foo ;; XCL 0.0.0.291 is confused if using block nil
               (handler-bind ((error #'(lambda (c)
                                         (incf *backtraces*)
-                                        (dolist (o (list *trace-output*))
-                                          (format o "BACKTRACES: ~S (max ~S)~%"
-                                                  *backtraces* *max-backtraces*)
+                                        (dolist (o (list *trace-output* *standard-output*))
                                           (when (<= *backtraces* *max-backtraces*)
-                                            #+xcl (safe-format! stream "~&Condition:~%~A~&" c)
-                                            #-xcl (print-condition-backtrace c :stream o)))
+                                            (print-condition-backtrace c :stream o)))
                                         (return-from :foo nil))))
                 (assert (probe-file* (component-pathname file)) ()
                         "Can't find pathname ~S for component ~S" (component-pathname file) file)
@@ -367,6 +364,11 @@
                                           :direction :output
                                           :if-exists :supersede :if-does-not-exist :create)
              (setup-asdftest-logical-host :root root)
+             #+asdf-test-logical-pathname
+             (assert-pathname-equal
+              (make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
+                             :name nil :type nil)
+              (parse-namestring "ASDFTEST:system2;module4;"))
              (multiple-value-bind (systems modules files test-files)
                  (make-test-files
                   :root root
