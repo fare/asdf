@@ -11,6 +11,7 @@
       (return (subseq x 0 (1- (length x)))))
     x))
 
+
 (DBG "Testing echo ok 1 via run-program as a list")
 (assert-equal "ok 1"
               (dewindowize (run-program '("echo" "ok" "1") :output '(:string :stripped t))))

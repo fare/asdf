@@ -3,6 +3,10 @@
 (defpackage :asdf-pathname-test (:use :asdf :uiop :uiop/common-lisp :asdf/cache :asdf-test))
 (in-package :asdf-pathname-test)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  #-xcl (push :asdf-test-logical-pathname *features*)
+  #+xcl (push :buggy-untyped-file *features*))
+
 ;;(setf *unspecific-pathname-type* nil)
 
 ;;; test asdf pathname specifications
@@ -37,6 +41,8 @@
 ;;; (:static-file "module1-1/file3.lisp") means #p"module1-1/file3.lisp"
 
 (defun setup-asdftest-logical-host (&key (root *build-directory*) (bin-type (compile-file-type)))
+  (declare (ignorable root bin-type))
+  #+asdf-test-logical-pathname
   (setf (logical-pathname-translations "ASDFTEST")
         `((,(format nil "**;*.~a" bin-type)
            ,(subpathname root (make-pathname :directory '(:relative :wild-inferiors)
@@ -74,8 +80,8 @@
        :components
        ((:file "file" :pathname ,file-pathname)
         (:file "module2/file" :pathname ,file-pathname)
-        ,@(unless (or (typep system-pathname 'logical-pathname)
-                      (typep module-pathname 'logical-pathname))
+        ,@(unless (or (logical-pathname-p system-pathname)
+                      (logical-pathname-p module-pathname))
             `((:file "typed-file.type" :pathname ,file-pathname)
               (:static-file "static-file.type" :pathname ,file-pathname)
               (:file "module2/typed-file.type" :pathname ,file-pathname)
@@ -105,22 +111,24 @@
       success)))
 
 (defparameter *backtraces* 0)
-(defparameter *max-backtraces* 4)
+(defparameter *max-backtraces* 10)
 
 (defun test-file (file &key configuration (test-status *test-status*) (start-time 0))
   (with-slots (system-count directory-count file-count
                system-failures directory-failures file-failures all-tests) test-status
     (let ((success
-            (block nil
+            (block :foo
               (handler-bind ((error #'(lambda (c)
                                         (incf *backtraces*)
                                         (dolist (o (list *trace-output*))
                                           (format o "BACKTRACES: ~S (max ~S)~%"
                                                   *backtraces* *max-backtraces*)
                                           (when (<= *backtraces* *max-backtraces*)
-                                            (print-condition-backtrace c :stream o)))
-                                        (return nil))))
-                (assert (probe-file* (component-pathname file)))
+                                            #+xcl (safe-format! stream "~&Condition:~%~A~&" c)
+                                            #-xcl (print-condition-backtrace c :stream o)))
+                                        (return-from :foo nil))))
+                (assert (probe-file* (component-pathname file)) ()
+                        "Can't find pathname ~S for component ~S" (component-pathname file) file)
                 (with-open-file (stream (component-pathname file)
                                         :direction :output :if-exists
                                         (or #+(and sbcl os-windows) :rename-and-delete :supersede)
@@ -188,6 +196,7 @@
                                            :untouched)
                                        :missing)))
                     test-files))
+    #+asdf-test-logical-pathname
     (format result-stream "~&~%~% translations: ~a: ~s" "ASDFTEST" (logical-pathname-translations "ASDFTEST"))
     (format result-stream "~&~%~% variations:~% systems: ~s~% modules: ~s~% files: ~s"
             systems modules files)
@@ -228,8 +237,9 @@
                           (root-directory-namestring (namestring root)))
   (let ((systems
           `(,(subpathname root "asdf-src/system1/")
-            ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system1"))
-            ,(parse-namestring "ASDFTEST:system1;")
+            #+asdf-test-logical-pathname
+            ,@'(,(make-pathname :host "ASDFTEST" :directory '(:absolute "system1"))
+                ,(parse-namestring "ASDFTEST:system1;"))
             ,@(when support-string-pathnames
                 `(,(format nil "~{/~a~}/asdf-src/system1" (rest (pathname-directory root)))))))
         (modules
@@ -238,9 +248,10 @@
             ,(make-pathname :directory '(:relative "module2") :name nil :type nil)
             ,(make-pathname :directory '(:relative "module2" "module3") :name nil :type nil)
             ,(subpathname root "asdf-src/system2/module4/")
-            ,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
-                            :name nil :type nil)
-            ,(parse-namestring "ASDFTEST:system2;module4;")
+            #+asdf-test-logical-pathname
+            ,@'(,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
+                                :name nil :type nil)
+                ,(parse-namestring "ASDFTEST:system2;module4;"))
             ,@(when support-string-pathnames
                 `(""
                   "module2"
@@ -255,23 +266,24 @@
                         ,(strcat root-directory-namestring "asdf-src/system2/module4/")))))))
         (files
           `(nil
-            ,(parse-unix-namestring "./untyped-file")
-            ,(parse-unix-namestring "file")
+            #-buggy-untyped-file ,(parse-unix-namestring "./untyped-file")
+            #-buggy-untyped-file ,(parse-unix-namestring "file")
             ,(parse-unix-namestring "./file.lisp")
             ,(parse-unix-namestring "typed-file.type")
-            ,(parse-unix-namestring "module2/untyped-file")
+            #-buggy-untyped-file ,(parse-unix-namestring "module2/untyped-file")
             ,(parse-unix-namestring "module2/file.lisp")
             ,(parse-unix-namestring "module2/module3/file.lisp")
-            ,(subpathname root "asdf-src/system1/module1/untyped-file")
+            #-buggy-untyped-file ,(subpathname root "asdf-src/system1/module1/untyped-file")
             ,(subpathname root "asdf-src/system1/module1/file.lisp")
-            ,(subpathname root "asdf-src/system1/module2/untyped-file")
+            #-buggy-untyped-file ,(subpathname root "asdf-src/system1/module2/untyped-file")
             ,(subpathname root "asdf-src/system1/module2/file.lisp")
             ,(subpathname root "asdf-src/system1/module2/module3/file.lisp")
             ,(subpathname root "asdf-src/system2/module4/file.lisp")
-            ,(make-pathname :host "ASDFTEST" :device nil
-                            :directory '(:absolute "system2" "module4")
-                            :name "file" :type "lisp" :version nil)
-            ,(parse-namestring "ASDFTEST:system2;module4;file.lisp")
+            #+asdf-test-logical-pathname
+            ,@'(,(make-pathname :host "ASDFTEST" :device nil
+                                :directory '(:absolute "system2" "module4")
+                                :name "file" :type "lisp" :version nil)
+                ,(parse-namestring "ASDFTEST:system2;module4;file.lisp"))
             ,@(when support-string-pathnames
                 `(,(strcat root-directory-namestring "asdf-src/system1/module1/file.lisp")))))
         (test-files
@@ -290,11 +302,13 @@
                                          (src-dir "system1" "module2" "module3")
                                          (src-dir "system2" "module4")))
                    ;; :pathname #p"untyped-file"
+                   #-buggy-untyped-file #-buggy-untyped-file
                    collect (make-pathname :directory directory :name "untyped-file" :type nil
                                           :defaults root)
                    ;; :file "file"
                    collect (make-pathname :directory directory :name "file" :type "lisp"
                                           :defaults root)     ; for source files
+                   #-buggy-untyped-file #-buggy-untyped-file
                    collect (make-pathname :directory directory :name "file" :type nil
                                           :defaults root)        ; for static files
                                                                  ;; :file "typed-file.type"
@@ -311,12 +325,13 @@
                    ;; :file "module2/typed-file.type"
                    collect (make-pathname :directory directory :name "typed-file.type" :type "lisp"
                                           :defaults root)          ; for source files
-                                                                   ;;collect (make-pathname :directory directory :name "typed-file.type" :type nil)          ; for static files ;; invalid as static file, unlike the below.
-                                                                   ;; :static-file "module2/static-file.type"
+                   ;; collect (make-pathname :directory directory :name "typed-file.type" :type nil)          ; for static files ;; invalid as static file, unlike the below.
+                   ;; :static-file "module2/static-file.type"
                    collect (make-pathname :directory directory :name "static-file" :type "type"
                                           :defaults root)
 
                                      ;;; source file pathname variations
+                   #-buggy-untyped-file #-buggy-untyped-file
                    collect (make-pathname :directory (append directory '("module2")) :name  "untyped-file" :type nil
                                           :defaults root)
                    collect (make-pathname :directory (append directory '("module2")) :name  "file" :type "lisp"
@@ -396,16 +411,16 @@
                 :modules modules
                 :systems systems)))))
 
-           (when delete-host
-             (setf (logical-pathname-translations "ASDFTEST") nil))
-           (clear-system "test-system")))
+    #+asdf-test-logical-pathname
+    (when delete-host
+      (setf (logical-pathname-translations "ASDFTEST") nil))
+    (clear-system "test-system")))
 
 (asdf:initialize-source-registry)
 (format t "source registry: ~S~%" (hash-table->alist asdf::*source-registry*))
 (asdf:initialize-output-translations)
 (format t "output translations: ~S~%" (asdf::output-translations))
 
-;;#-xcl ;;---*** pathnames are known to be massively broken on XCL
 (progn
   ;; we're testing with unix or some emulation, are we not?
   (assert-pathname-equal (resolve-location '(:home)) (truename (user-homedir-pathname)))

@@ -93,9 +93,10 @@ This is designed to abstract away the implementation specific quit forms."
   (defun raw-print-backtrace (&key (stream *debug-io*) count)
     "Print a backtrace, directly accessing the implementation"
     (declare (ignorable stream count))
-    #+abcl
-    (dolist (frame (sys:backtrace))
-      (println frame stream))
+    #+(or abcl xcl)
+    (loop :for i :from 0
+          :for frame :in #+abcl (sys:backtrace) #+xcl (extensions:backtrace-as-list) :do
+      (safe-format! stream "~&~D: ~S~%" i frame))
     #+allegro
     (let ((*terminal-io* stream)
           (*standard-output* stream)
@@ -135,10 +136,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+sbcl
     (sb-debug:backtrace
      #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream '(or count most-positive-fixnum))
-     stream)
-    #+xcl
-    (dolist (frame (extensions:backtrace-as-list))
-      (println frame stream)))
+     stream))
 
   (defun print-backtrace (&rest keys &key stream count)
     "Print a backtrace"

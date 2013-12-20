@@ -10,13 +10,13 @@ sourceDirectory := $(shell pwd)
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern gcl
+lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern gcl xcl
 endif
 ## NOT SUPPORTED BY OUR AUTOMATED TESTS:
 ##	cormancl genera lispworks-personal-edition mkcl rmcl
 ## Some are manually tested once in a while.
 ## FAIL: gcl -- most implementation bugs are now fixed, but some remain. See TODO.
-## FAIL: xcl -- implementation bugs now prevent ASDF3 from working at all. See TODO.
+## FAIL: xcl -- implementation bugs require lots of papering over during tests. See TODO.
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
 ifdef ASDF_TEST_SYSTEMS
 s ?= ${ASDF_TEST_SYSTEMS}

@@ -137,12 +137,11 @@ called with an object of type asdf:system."
   (cleanup-system-definition-search-functions)
 
   (defun search-for-system-definition (system)
-    (block ()
-      (let ((name (coerce-name system)))
-        (flet ((try (f) (if-let ((x (funcall f name))) (return x))))
-          (try 'find-system-if-being-defined)
-          (map () #'try *system-definition-search-functions*)
-          (try 'sysdef-preloaded-system-search)))))
+    (let ((name (coerce-name system)))
+      (flet ((try (f) (if-let ((x (funcall f name))) (return-from search-for-system-definition x))))
+        (try 'find-system-if-being-defined)
+        (map () #'try *system-definition-search-functions*)
+        (try 'sysdef-preloaded-system-search))))
 
   (defvar *central-registry* nil
     "A list of 'system directory designators' ASDF uses to find systems.

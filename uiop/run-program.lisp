@@ -777,7 +777,7 @@ It returns a process-info plist with possible keys:
       (system:call-system %command :current-directory directory :wait t)
       #-(and lispworks os-windows)
       (with-current-directory ((unless (os-unix-p) directory))
-        #+(or abcl xcl) (ext:run-shell-command %command)
+        #+abcl (ext:run-shell-command %command)
         #+clisp (clisp-exit-code (ext:shell %command))
         #+cormanlisp (win32:system %command)
         #+ecl (let ((*standard-input* *stdin*)
@@ -790,7 +790,8 @@ It returns a process-info plist with possible keys:
         (multiple-value-bind (io process exit-code)
             (mkcl:run-program #+windows %command #+windows ()
                               #-windows "/bin/sh" #-windows (list "-c" %command)
-                              :input t :output t)))))
+                              :input t :output t))
+        #+xcl (system:%run-shell-command %command))))
 
   (defun %use-system (command &rest keys
                       &key input output error-output ignore-error-status &allow-other-keys)
