@@ -90,13 +90,13 @@ This is designed to abstract away the implementation specific quit forms."
        (format! *stderr* "~&~?~&" format arguments)))
     (quit code))
 
-  (defun raw-print-backtrace (&key (stream *debug-io*) count)
+  (defun raw-print-backtrace (&key (stream *debug-io*) count condition)
     "Print a backtrace, directly accessing the implementation"
-    (declare (ignorable stream count))
-    #+(or abcl xcl)
+    (declare (ignorable stream count condition))
+    #+abcl
     (loop :for i :from 0
-          :for frame :in #+abcl (sys:backtrace) #+xcl (extensions:backtrace-as-list) :do
-      (safe-format! stream "~&~D: ~S~%" i frame))
+	  :for frame :in (sys:backtrace (or count most-positive-fixnum)) :do
+	    (safe-format! stream "~&~D: ~A~%" i frame))
     #+allegro
     (let ((*terminal-io* stream)
           (*standard-output* stream)
@@ -105,7 +105,7 @@ This is designed to abstract away the implementation specific quit forms."
           (tpl:*zoom-print-length* *print-length*))
       (tpl:do-command "zoom"
         :from-read-eval-print-loop nil
-        :count t
+        :count (or count t)
         :all t))
     #+clisp
     (system::print-backtrace :out stream :limit count)
@@ -117,15 +117,23 @@ This is designed to abstract away the implementation specific quit forms."
     #+(or cmu scl)
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
-      (debug:backtrace most-positive-fixnum stream))
+      (debug:backtrace (or count most-positive-fixnum) stream))
     #+ecl
-    (let* ((backtrace (loop :for ihs :from 0 :below (si:ihs-top)
+    (let* ((top (si:ihs-top))
+	   (repeats (if count (min top count) top))
+	   (backtrace (loop :for ihs :from 0 :below top
                             :collect (list (si::ihs-fun ihs)
                                            (si::ihs-env ihs)))))
-      (dolist (frame (nreverse backtrace)) (writeln frame :stream stream)))
+      (loop :for i :from 0 :below repeats
+	    :for frame :in (nreverse backtrace) :do
+	      (safe-format! stream "~&~D: ~S~%" i frame)))
     #+gcl
     (let ((*debug-io* stream))
-      (system::simple-backtrace))
+      (ignore-errors
+       (with-safe-io-syntax ()
+	 (if condition
+	     (conditions::condition-backtrace condition)
+	     (system::simple-backtrace)))))
     #+lispworks
     (let ((dbg::*debugger-stack*
             (dbg::grab-stack nil :how-many (or count most-positive-fixnum)))
@@ -136,11 +144,15 @@ This is designed to abstract away the implementation specific quit forms."
     #+sbcl
     (sb-debug:backtrace
      #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream '(or count most-positive-fixnum))
-     stream))
+     stream)
+    #+xcl
+    (loop :for i :from 0
+	  :for frame :in (extensions:backtrace-as-list) :do
+	    (safe-format! stream "~&~D: ~S~%" i frame)))
 
-  (defun print-backtrace (&rest keys &key stream count)
+  (defun print-backtrace (&rest keys &key stream count condition)
     "Print a backtrace"
-    (declare (ignore stream count))
+    (declare (ignore stream count condition))
     (with-safe-io-syntax (:package :cl)
       (let ((*print-readably* nil)
             (*print-circle* t)
@@ -155,7 +167,7 @@ This is designed to abstract away the implementation specific quit forms."
     ;; We print the condition *after* the backtrace,
     ;; for the sake of who sees the backtrace at a terminal.
     ;; It is up to the caller to print the condition *before*, with some context.
-    (print-backtrace :stream stream :count count)
+    (print-backtrace :stream stream :count count :condition condition)
     (when condition
       (safe-format! stream "~&Above backtrace due to this condition:~%~A~&"
                     condition)))
