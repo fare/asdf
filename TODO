@@ -28,6 +28,7 @@
   It also takes a long time for errors to propagate into a debugging REPL —
   Maybe O(n^3) behavior or worse in walking the C++ stack?
   The backtrace frames may contains unprintable objects.
+  make-pathname fails to copy the version from the defaults.
 
 * GCL is almost working again; but implementation bugs remain.
   See November 2013 discussion on gcl-devel
