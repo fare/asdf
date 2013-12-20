@@ -46,6 +46,9 @@
   (defun undefine-function (function-spec)
     (cond
       ((symbolp function-spec)
+       ;; undefining the previous function is the portable way
+       ;; of overriding any incompatible previous gf,
+       ;; but CLISP needs extra help with getting rid of previous methods.
        #+clisp
        (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
          (when (typep f 'clos:standard-generic-function)
@@ -67,12 +70,9 @@
                     name)
               (declare (ignorable supersede))
               `(progn
-                 ;; undefining the previous function is the portable way
-                 ;; of overriding any incompatible previous gf, except on CLISP.
                  ;; We usually try to do it only for the functions that need it,
-                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer
-                 ;; (which causes issues in clisp)
-                 ,@(when (or #-clisp supersede #+ecl t)
+                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
+                 ,@(when (or supersede #+ecl t)
                      `((undefine-function ',name)))
                  ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
                      `((declaim (notinline ,name))))

@@ -23,7 +23,7 @@
 
 (with-upgradability ()
   (defgeneric* (find-system) (system &optional error-p))
-  (defgeneric* (system-source-file) (system)
+  (defgeneric* (system-source-file :supersede #-clisp t #+clisp nil) (system)
     (:documentation "Return the source file in which system is defined."))
   (defgeneric component-build-pathname (component))
 

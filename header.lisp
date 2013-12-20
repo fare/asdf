@@ -54,7 +54,7 @@
   (declaim (optimize (speed 1) (safety 3) (debug 3)))
   (setf ext:*gc-verbose* nil))
 
-#+(or abcl clisp clozure cmu ecl xcl) ;; punt on hard package upgrade on those implementations
+#+(or abcl clozure cmu ecl xcl) ;; punt on hard package upgrade on those implementations
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :asdf3 *features*)
     (let* ((existing-version
