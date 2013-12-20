@@ -734,10 +734,7 @@ UNINTERN -- Remove symbols here from PACKAGE."
   (let ((ensure-form
           `(apply 'ensure-package ',(parse-define-package-form package clauses))))
     `(progn
-       #+clisp
-       (eval-when (:compile-toplevel :load-toplevel :execute)
-         ,ensure-form)
-       #+(or clisp ecl gcl) (defpackage ,package (:use))
+       #+(or ecl gcl) (defpackage ,package (:use))
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form))))
 

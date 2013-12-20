@@ -83,7 +83,6 @@ Some constraints:
         (when errorp (error "Can't find package ~A" pname)))))
 (defun acall (name &rest args)
   (apply (apply 'asym (if (consp name) name (list name))) args))
-(defun ucall (name &rest args) (apply (asym name :uiop) args))
 (defun asymval (name &optional package)
   (symbol-value (asym name package)))
 (defsetf asymval (name &optional package) (new-value)
@@ -143,7 +142,7 @@ Some constraints:
   (cond
     ((equal x y)
      (format t "~S and~% ~S both evaluate to same path:~%  ~S~%" qx qy x))
-    ((ucall :pathname-equal x y)
+    ((acall :pathname-equal x y)
      (warn "These two expressions yield pathname-equal yet not equal path~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
         the other expression ~S yields that:~%  ~S~%  ~S~%"
@@ -251,10 +250,10 @@ Some constraints:
             (decode-universal-time stamp)
           (unless in-filesystem
             (error "Y U NO use stamp cache?"))
-          (ucall :run-program
+          (acall :run-program
                  `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                          year month day hr min sec)
-                           ,(ucall :native-namestring file)))
+                           ,(acall :native-namestring file)))
           (assert-equal (file-write-date file) stamp)))))
 (defun mark-file-deleted (file)
   (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
@@ -319,7 +318,7 @@ is bound, write a message and exit on an error.  If
                              (break))
                             (t
                              (ignore-errors
-                              (ucall :print-condition-backtrace
+                              (acall :print-condition-backtrace
                                      c :count 69 :stream *error-output*))
                              (leave-test "Script failed" 1))))))
               (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
@@ -528,8 +527,7 @@ is bound, write a message and exit on an error.  If
   (format t "Being a bit verbose~%")
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (when (and (asym :locate-system) (asym :pathname-directory-pathname)
-             (asym :pathname-equal))
+  (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
     (format t "Comparing directories~%")
     (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
       (assert-pathname-equal-helper ;; not always EQUAL (!)
