@@ -19,6 +19,19 @@
 ** Modify SBCL and other implementations so they provide UIOP
    independently from ASDF?
 
+* XCL is no longer supported due to an implementation bug:
+  the return in search-for-system-definition fails to return from the
+  (block nil ...) and seems to mistakenly return from
+  some implicit internal block.
+  TODO: either get it fixed, or provide a workaround in uiop/common-lisp.
+  In the meantime, XCL is officially not supported anymore.
+  XCL also has a bug in make-pathname, and probably other bugs;
+  it takes a long time for errors to propagate to the REPL —
+  Maybe O(n^3) behavior or worse in walking the C++ stack?
+
+* GCL is almost working again; but implementation bugs remain.
+  See November 2013 discussion on gcl-devel
+
 * Some out-of-line configuration mechanism for various options?
    i.e. have files that override some variables around compilation of some systems.
 

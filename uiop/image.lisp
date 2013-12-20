@@ -135,7 +135,10 @@ This is designed to abstract away the implementation specific quit forms."
     #+sbcl
     (sb-debug:backtrace
      #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream '(or count most-positive-fixnum))
-     stream))
+     stream)
+    #+xcl
+    (dolist (frame (extensions:backtrace-as-list))
+      (println frame stream)))
 
   (defun print-backtrace (&rest keys &key stream count)
     "Print a backtrace"
