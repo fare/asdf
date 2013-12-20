@@ -238,7 +238,7 @@
   (let ((systems
           `(,(subpathname root "asdf-src/system1/")
             #+asdf-test-logical-pathname
-            ,@'(,(make-pathname :host "ASDFTEST" :directory '(:absolute "system1"))
+            ,@`(,(make-pathname :host "ASDFTEST" :directory '(:absolute "system1"))
                 ,(parse-namestring "ASDFTEST:system1;"))
             ,@(when support-string-pathnames
                 `(,(format nil "~{/~a~}/asdf-src/system1" (rest (pathname-directory root)))))))
@@ -249,7 +249,7 @@
             ,(make-pathname :directory '(:relative "module2" "module3") :name nil :type nil)
             ,(subpathname root "asdf-src/system2/module4/")
             #+asdf-test-logical-pathname
-            ,@'(,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
+            ,@`(,(make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
                                 :name nil :type nil)
                 ,(parse-namestring "ASDFTEST:system2;module4;"))
             ,@(when support-string-pathnames
@@ -280,7 +280,7 @@
             ,(subpathname root "asdf-src/system1/module2/module3/file.lisp")
             ,(subpathname root "asdf-src/system2/module4/file.lisp")
             #+asdf-test-logical-pathname
-            ,@'(,(make-pathname :host "ASDFTEST" :device nil
+            ,@`(,(make-pathname :host "ASDFTEST" :device nil
                                 :directory '(:absolute "system2" "module4")
                                 :name "file" :type "lisp" :version nil)
                 ,(parse-namestring "ASDFTEST:system2;module4;file.lisp"))
