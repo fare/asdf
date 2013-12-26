@@ -33,7 +33,28 @@
    :name nil :type nil) fails to handle the logical-pathname-ness of ASDFTEST.
 
 * GCL is almost working again; but implementation bugs remain.
-  See November 2013 discussion on gcl-devel
+  See November 2013 discussion on gcl-devel.
+   * Another GCL compiler bug:
+   when I changed the definition of getcwd from
+   (let ((*default-pathname-defaults* #p"")) (truename #p"")) to
+   (let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))
+   to guard against e.g. a logical-pathname context while loading asdf
+   and parsing #p"", calls to getcwd result in a segfault.
+   * An another bug: gcl refuses dynamic-extent declaration on functions.
+    uiop/stream.lisp:         #-gcl (declare (dynamic-extent ,@(when
+    before `(#',beforef)) ,@(when after `(#',afterf))))
+   * (typep p 'logical-pathname) should be T if p has a logical-pathname host.
+   * apropos is case-sensitive and returns a same symbol many times
+   * compile-file fails to return proper secondary values in case of non-style WARNING.
+   * (pathname-directory #p"foo/") is incorrectly ("foo") instead of (:RELATIVE "foo")
+   * Missing: chdir, combine-fasls, and plenty more UIOP functions.
+   * Do whatever it takes to pass the asdf tests, add the above?
+   * Have (require "asdf") and (require "ASDF") both work.
+   * Trying to uiop:slurp-stream-forms from a stream with #+(or) :foo
+     (or read-file-forms from an file with same) results in an error,
+     rather than nil. This is probably a bug in #+ processing.
+     Unhappily, debian creates such a file in
+     /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
 
 * Some out-of-line configuration mechanism for various options?
   i.e. let configuration files override some variables around compilation of some systems.
