@@ -2,25 +2,25 @@
   (:use :cl :asdf))
 (in-package :test-asdf-system)
 
-(defsystem :test-asdf)
+(defsystem :test-asdf :class package-system)
 
 (defsystem :test-asdf/all
   :version "0"
-  :depends-on ((:version :test-asdf/file2 "2")
-               :test-asdf/file4))
+  :depends-on ((:version :test-asdf/2 "2")
+               :test-asdf/4))
 
-(defsystem :test-asdf/file1
+(defsystem :test-asdf/1
   :components ((:file "file1" :if-feature :common-lisp)
                (:file "does-not-exist" :if-feature (:not :common-lisp))))
 
-(defsystem :test-asdf/file2
+(defsystem :test-asdf/2
   :version "2.2"
-  :depends-on (:test-asdf/file1)
+  :depends-on (:test-asdf/1)
   :components ((:module "foo" :pathname ""
                 :components ((:module "bar" :pathname ""
                               :components ((:file "file2")))))))
 
-(defsystem :test-asdf/file4
+(defsystem :test-asdf/4
   :components ((:file "file3")
                (:file "file4" :in-order-to ((load-op (load-op "file3"))
                                             (compile-op (load-op "file3"))))))

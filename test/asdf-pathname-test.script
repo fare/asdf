@@ -378,8 +378,8 @@
                (dolist (file test-files)
                  (ensure-directories-exist file)
                  (with-open-file (stream file :direction :output :if-exists :supersede :if-does-not-exist :create)
-                   (println ":dummy-content" stream)
-                   (format t "Created test file ~S~%" file)))
+                   ;;(format t "Created test file ~S~%" file)
+                   (println ":dummy-content" stream)))
                (multiple-value-bind (second minute hour day month year)
                    (decode-universal-time (setf start-time (get-universal-time)) 0)
                  (let ((header (format nil "~4,'0d~2,'0d~2,'0dT~2,'0d~2,'0d~2,'0dZ : ~a ~a ~a"

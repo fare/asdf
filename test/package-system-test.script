@@ -1,0 +1,3 @@
+(register-directory (subpathname *test-directory* "package-system-test/"))
+(load-system :package-system-test/a/x)
+(load-system :package-system-test/d)
