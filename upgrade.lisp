@@ -58,10 +58,10 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. make bump-version v=3.4.5.67.8
          ;; can help you do these changes in synch (look at the source for documentation).
-         ;; Relying on its automation, the version is now redundantly present on top of this file.
+         ;; Relying on its automation, the version is now redundantly present on top of asdf.lisp.
          ;; "3.4" would be the general branch for major version 3, minor version 4.
          ;; "3.4.5" would be an official release in the 3.4 branch.
-         ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
+         ;; "3.4.5.67" would be a development version in the official branch, on top of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
          (asdf-version "3.1.0.32")
