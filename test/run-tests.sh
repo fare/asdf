@@ -23,16 +23,18 @@ usage () {
     echo "     ALLEGRO64DIR, ALLEGRO64SDIR (64-bit Allegro and SMP Allegro, respectively), ALLEGRODIR, and"
     echo "     ALLEGROSDIR."
     echo "OPTIONS:"
-    echo "    -d -- debug mode"
+    echo "    -c -- clean load test."
+    echo "    -d -- debug mode."
+    echo "    -t -- test interactively."
     echo "    -h -- show this message."
     echo "    -u -- upgrade tests."
-    echo "    -c -- clean load test"
-    echo "    -l -- load systems tests"
-    echo "    -t -- test interactively"
-    echo "    -H -- extract all asdf versions to upgrade from"
+    echo "    -l -- load systems tests."
+    echo "    -H -- extract all asdf versions to upgrade from."
+    echo "    -u -- upgrade tests, we already told you."
 }
 
 unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively extract_all
+
 SHELL=/bin/sh
 export SHELL DEBUG_ASDF_TEST GCL_ANSI ASDF_OUTPUT_TRANSLATIONS
 
@@ -65,27 +67,27 @@ fi
 while getopts "cdtHulhu" OPTION
 do
     case $OPTION in
-        d)
-            DEBUG_ASDF_TEST=t
-            ;;
-        u)
-            upgrade=t
-            ;;
         c)
             clean_load=t
             ;;
-        l)
-            load_systems=t
+        d)
+            DEBUG_ASDF_TEST=t
             ;;
         t)
             test_interactively=t
             ;;
-        H)
-            extract_all=t
-            ;;
         h)
             usage
             exit 1
+            ;;
+        u)
+            upgrade=t
+            ;;
+        l)
+            load_systems=t
+            ;;
+        H)
+            extract_all=t
             ;;
     esac
 done
