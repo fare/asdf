@@ -10,3 +10,23 @@
    (:directory ,*uiop-directory*)
    :ignore-inherited-configuration))
 (load-system :asdf)
+
+(defun system-lisp-files (system)
+  (loop :for f :in (required-components system :keep-component 'cl-source-file)
+        :collect (enough-namestring (component-pathname f) *asdf-directory*)))
+
+(defun makefile-lisp-files (target)
+  (remove-if 'emptyp
+             (split-string
+              (run-program `("make" "--quiet" "--no-print-directory" ,target)
+                           :output :string :error-output t :directory *asdf-directory*)
+              :separator #(#\space #\newline #\return #\tab))))
+
+(defmacro compare-files (system target)
+  `(assert-equal (system-lisp-files ,system) (makefile-lisp-files ,target)))
+
+(DBG "Testing that the Makefile and ASDF agree on the order of UIOP files")
+(compare-files :uiop "driver-files")
+
+(DBG "Testing that the Makefile and ASDF agree on the order of ASDF/DEFSYSTEM files")
+(compare-files :asdf/defsystem "defsystem-files")
