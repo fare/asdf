@@ -535,14 +535,15 @@ If a string, repeatedly read and evaluate from it, returning the last values."
   (defun call-with-temporary-file
       (thunk &key
                (want-stream-p t) (want-pathname-p t) (direction :io) keep after
-               directory prefix suffix (type ".tmp")
+               directory (type "tmp" typep) prefix (suffix (when typep "-tmp"))
                (element-type *default-stream-element-type*)
                (external-format *utf-8-external-format*))
     "Call a THUNK with stream and/or pathname arguments identifying a temporary file.
 
 The temporary file's pathname will be based on concatenating
 PREFIX (defaults to \"uiop\"), a random alphanumeric string,
-and optional SUFFIX and TYPE (defaults to \".tmp\"),
+and optional SUFFIX (defaults to \"-tmp\" if a type was provided)
+and TYPE (defaults to \"tmp\", using a dot as separator if not NIL),
 within DIRECTORY (defaulting to the TEMPORARY-DIRECTORY) if the PREFIX isn't absolute.
 
 The file will be open with specified DIRECTION (defaults to :IO),

@@ -761,7 +761,8 @@ It returns a process-info plist with possible keys:
         (reduce/strcat
          (append
           before (redirect in " <") (redirect out " >") (redirect err " 2>")
-          (when (and directory (os-unix-p)) `("cd " (escape-shell-token directory) " ; "))
+          (when (and directory (os-unix-p))
+            `(" ; cd " ,(escape-shell-token (native-namestring directory))))
           after)))))
 
   (defun %system (command &rest keys

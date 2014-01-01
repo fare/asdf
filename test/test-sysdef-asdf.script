@@ -13,14 +13,16 @@
 
 (defun system-lisp-files (system)
   (loop :for f :in (required-components system :keep-component 'cl-source-file)
-        :collect (enough-namestring (component-pathname f) *asdf-directory*)))
+        :collect (namestring (enough-pathname (component-pathname f) *asdf-directory*))))
 
 (defun makefile-lisp-files (target)
   (remove-if 'emptyp
-             (split-string
+             (split-string ;; NB: assumes GNU make
               (run-program `("make" "--quiet" "--no-print-directory" ,target)
                            :output :string :error-output t :directory *asdf-directory*)
               :separator #(#\space #\newline #\return #\tab))))
+
+#+clisp (trace run-program reduce/strcat)
 
 (defmacro compare-files (system target)
   `(assert-equal (system-lisp-files ,system) (makefile-lisp-files ,target)))
