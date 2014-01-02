@@ -364,7 +364,7 @@
                                           :direction :output
                                           :if-exists :supersede :if-does-not-exist :create)
              (setup-asdftest-logical-host :root root)
-             #+asdf-test-logical-pathname
+             #+(and asdf-test-logical-pathname (not clisp))
              (assert-pathname-equal
               (make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
                              :name nil :type nil)
