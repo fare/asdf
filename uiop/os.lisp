@@ -267,7 +267,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
   (defun chdir (x)
     "Change current directory, as per POSIX chdir(2), to a given pathname object"
     (if-let (x (pathname x))
-      (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (native-namestring x))
+      (or #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
           #+allegro (excl:chdir x)
           #+clisp (ext:cd x)
           #+clozure (setf (ccl:current-directory) x)
