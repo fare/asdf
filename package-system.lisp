@@ -36,10 +36,14 @@
             :return form))
 
   (defun file-defpackage-form (file)
+    "Return the first DEFPACKAGE form in FILE."
     (with-input-file (f file)
       (stream-defpackage-form f)))
 
   (defun package-dependencies (defpackage-form)
+    "Return a list of packages depended on by the package
+defined in DEFPACKAGE-FORM.  A package is depended upon if
+the DEFPACKAGE-FORM imports a symbol from it."
     (assert (defpackage-form-p defpackage-form))
     (remove-duplicates
      (while-collecting (dep)
@@ -59,11 +63,14 @@
       (symbol (string package))))
 
   (defun register-system-packages (system packages)
+    "Register SYSTEM as providing PACKAGES."
     (let ((name (or (eq system t) (coerce-name system))))
       (dolist (p (ensure-list packages))
         (setf (gethash (package-designator-name p) *package-systems*) name))))
 
   (defun package-name-system (package-name)
+    "Return the name of the SYSTEM providing PACKAGE-NAME, if such exists,
+otherwise return a default system name computed from PACKAGE-NAME."
     (check-type package-name string)
     (if-let ((system-name (gethash package-name *package-systems*)))
       system-name
