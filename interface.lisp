@@ -119,6 +119,7 @@
    #:missing-dependency-of-version
    #:circular-dependency        ; errors
    #:duplicate-names #:non-toplevel-system #:non-system-system
+   #:package-system-missing-package-error
 
    #:try-recompiling
    #:retry

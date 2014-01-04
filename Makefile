@@ -134,32 +134,31 @@ test: test-lisp test-clean-load test-load-systems doc
 test-load-systems: build/asdf.lisp
 	./test/run-tests.sh -l ${l} ${s}
 
-test-all-lisps:
-	${MAKE} test-load-systems
-	@for lisp in ${lisps} ; do \
-		${MAKE} test-clean-load test-lisp test-upgrade l=$$lisp || exit 1 ; \
-	done
+test-all-lisps: test-load-systems test-all-clean-load test-all-lisp test-all-upgrade
 
-# test upgrade is a very long run... This does just the regression tests
-test-all-no-upgrade:
-	@for lisp in ${lisps} ; do \
-		${MAKE} test-clean-load test-lisp l=$$lisp || exit 1 ; \
-	done
+test-all-clean-load:
+	@for lisp in ${lisps} ; do ${MAKE} test-clean-load l=$$lisp || exit 1 ; done
+
+test-all-lisp:
+	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp || exit 1 ; done
 
 test-all-upgrade:
-	@for lisp in ${lisps} ; do \
-		${MAKE} test-upgrade l=$$lisp || exit 1 ; \
-	done
+	@for lisp in ${lisps} ; do ${MAKE} test-upgrade l=$$lisp || exit 1 ; done
 
-test-all: doc test-all-lisps
+test-all-no-upgrade: doc test-load-systems test-all-clean-load test-all-lisp
 
-test-all-no-stop:
-	-make doc ; for l in ${lisps} ; do \
-	   make test-clean-load test-lisp l=$$l ; make test-upgrade l=$$l ; \
-	done ; true
+test-all: test-all-no-upgrade test-all-upgrade
 
-test-all-no-upgrade-no-stop:
-	-make doc ; for l in ${lisps} ; do make test-clean-load test-lisp l=$$l ; done ; true
+test-all-lisp-no-stop:
+	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp ; done ; :
+
+test-all-upgrade-no-stop:
+	@for lisp in ${lisps} ; do ${MAKE} test-upgrade l=$$lisp ; done ; :
+
+test-all-no-upgrade-no-stop: doc test-load-systems test-all-clean-load test-all-lisp-no-stop
+
+test-all-no-stop: test-all-no-upgrade-no-stop test-all-upgrade-no-stop
+
 
 extract: extract-all-tagged-asdf
 extract-all-tagged-asdf: build/asdf.lisp

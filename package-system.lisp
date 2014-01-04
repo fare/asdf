@@ -8,7 +8,7 @@
         :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/lisp-action)
   (:export
    #:package-system #:register-system-packages #:sysdef-package-system-search
-   #:*defpackage-forms* #:*package-systems*))
+   #:*defpackage-forms* #:*package-systems* #:package-system-missing-package-error))
 (in-package :asdf/package-system)
 
 (with-upgradability ()
@@ -31,14 +31,21 @@
          (member (car form) *defpackage-forms*)))
 
   (defun stream-defpackage-form (stream)
-    (loop :for form = (read stream)
-          :when (defpackage-form-p form)
-            :return form))
+    (loop :for form = (read stream nil nil) :while form
+          :when (defpackage-form-p form) :return form))
 
   (defun file-defpackage-form (file)
     "Return the first DEFPACKAGE form in FILE."
     (with-input-file (f file)
       (stream-defpackage-form f)))
+
+  (define-condition package-system-missing-package-error (system-definition-error)
+    ((system :initarg :system :reader error-system)
+     (pathname :initarg :pathname :reader error-pathname))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<No package form found while ~
+                                     trying to define package-system ~A from file ~A~>")
+                       (error-system c) (error-pathname c)))))
 
   (defun package-dependencies (defpackage-form)
     "Return a list of packages depended on by the package
@@ -76,10 +83,10 @@ otherwise return a default system name computed from PACKAGE-NAME."
       system-name
       (string-downcase package-name)))
 
-  (defun package-system-file-dependencies (file)
-    (let* ((defpackage-form (file-defpackage-form file))
-           (package-dependencies (package-dependencies defpackage-form)))
-      (remove t (mapcar 'package-name-system package-dependencies))))
+  (defun package-system-file-dependencies (file &optional system)
+    (if-let (defpackage-form (file-defpackage-form file))
+      (remove t (mapcar 'package-name-system (package-dependencies defpackage-form)))
+      (error 'package-system-missing-package-error :system system :pathname file)))
 
   (defun same-package-system-p (system name directory subpath dependencies)
     (and (eq (type-of system) 'package-system)
@@ -104,7 +111,7 @@ otherwise return a default system name computed from PACKAGE-NAME."
                      (f (probe-file* (subpathname dir sub :type "lisp")
                                      :truename *resolve-symlinks*)))
                 (when (file-pathname-p f)
-                  (let ((dependencies (package-system-file-dependencies f))
+                  (let ((dependencies (package-system-file-dependencies f system))
                         (previous (cdr (system-registered-p system))))
                     (if (same-package-system-p previous system dir sub dependencies)
                         previous
