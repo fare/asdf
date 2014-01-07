@@ -19,8 +19,14 @@
    #:action-path #:find-action #:stamp #:done-p))
 (in-package :asdf/action)
 
-(eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
-  (deftype action () '(cons operation component))) ;; a step to be performed while building
+(eval-when (#-lispworks :compile-toplevel :load-toplevel :execute) ;; LispWorks issues spurious warning
+  (deftype action () '(cons operation component)) ;; a step to be performed while building
+
+  (deftype operation-designator ()
+    ;; an operation designates itself,
+    ;; nil designates a context-dependent current operation, and
+    ;; class-name or class designates an instance of the designated class.
+    '(or operation null symbol class)))
 
 (with-upgradability ()
   (defgeneric traverse-actions (actions &key &allow-other-keys))
@@ -127,11 +133,6 @@ You can put together sentences using this phrase."))
 ;;;; upward-operation, downward-operation, sideway-operation, selfward-operation
 ;; These together handle actions that propagate along the component hierarchy or operation universe.
 (with-upgradability ()
-  (deftype operation-designator ()
-    ;; an operation, nil designates a context-dependent current operation,
-    ;; class-name or class designates an instance of the designated class.
-    '(or operation null symbol class))
-
   (defclass downward-operation (operation)
     ((downward-operation
       :initform nil :initarg :downward-operation :reader downward-operation
