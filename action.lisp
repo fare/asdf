@@ -130,9 +130,16 @@ You can put together sentences using this phrase."))
 ;; operation on a parent depends-on operation on its children.
 ;; By default, an operation propagates itself, but it may propagate another one instead.
 (with-upgradability ()
+  (deftype op-class-designator ()
+    '(or symbol class))
   (defclass downward-operation (operation)
     ((downward-operation
-      :initform nil :initarg :downward-operation :reader downward-operation :allocation :class)))
+      :initform nil :initarg :downward-operation :reader downward-operation
+      :type op-class-designator :allocation :class))
+    (:documentation "A DOWNWARD-OPERATION object propagates its DOWNWARD-OPERATION value to its children.  
+I.e., if DOWNWARD-OPERATION OP is requested on C, \(DOWNWARD-OPERATION OP\) will be propagated to C's 
+children.  E.g., in order to load a MODULE, you must load all of the children of the MODULE.
+\(DOWNWARD-OPERATION OP\) defaults to be the same as OP's class."))
   (defmethod component-depends-on ((o downward-operation) (c parent-component))
     `((,(or (downward-operation o) o) ,@(component-children c)) ,@(call-next-method)))
   ;; Upward operations like prepare-op propagate up the component hierarchy:
@@ -140,7 +147,12 @@ You can put together sentences using this phrase."))
   ;; By default, an operation propagates itself, but it may propagate another one instead.
   (defclass upward-operation (operation)
     ((upward-operation
-      :initform nil :initarg :downward-operation :reader upward-operation :allocation :class)))
+      :initform nil :initarg :downward-operation :reader upward-operation :allocation :class))
+    (:documentation "An UPWARD-OPERATION object propagates its UPWARD-OPERATION value to its parent.  
+I.e., if UPWARD-OPERATION OP is requested on C, \(UPWARD-OPERATION OP\) will be propagated to C's 
+parent.  E.g., in order to PREPARE-OP (prepare to load) a file C, ASDF must perform PREPARE-OP 
+on C's parent MODULE or SYSTEM.
+\(UPWARD-OPERATION OP\) defaults to be the same as OP's class."))
   ;; For backward-compatibility reasons, a system inherits from module and is a child-component
   ;; so we must guard against this case. ASDF4: remove that.
   (defmethod component-depends-on ((o upward-operation) (c child-component))
@@ -151,7 +163,11 @@ You can put together sentences using this phrase."))
   ;; By default, an operation propagates itself, but it may propagate another one instead.
   (defclass sideway-operation (operation)
     ((sideway-operation
-      :initform nil :initarg :sideway-operation :reader sideway-operation :allocation :class)))
+      :initform nil :initarg :sideway-operation :reader sideway-operation :allocation :class))
+     (:documentation "A SIDEWAY-OPERATION object propagates its SIDEWAY-OPERATION value to its \"leftward\"
+siblings: those components that have the same parent as the object component, C, and that are ordered prior to
+C in the :DEPENDS-ON graph of C's parent.
+\(SIDEWAY-OPERATION OP\) defaults to be the same as OP's class."))
   (defmethod component-depends-on ((o sideway-operation) (c component))
     `((,(or (sideway-operation o) o)
        ,@(loop :for dep :in (component-sideway-dependencies c)
@@ -161,7 +177,11 @@ You can put together sentences using this phrase."))
   ;; they depend on some other operation being acted on the same component.
   (defclass selfward-operation (operation)
     ((selfward-operation
-      :initform nil :initarg :selfward-operation :reader selfward-operation :allocation :class)))
+      ;; no :initform -- if you are going to propagate an operation to yourself, you must
+      ;; specify it explicitly.
+      :initarg :selfward-operation :reader selfward-operation :allocation :class))
+    (:documentation "A SELFWARD-OPERATION object propagates its SELFWARD-OPERATION value to itself.  
+I.e., if SELFWARD-OPERATION OP is requested on C, \(SELFWARD-OPERATION OP\) will first be performed on C."))
   (defmethod component-depends-on ((o selfward-operation) (c component))
     `(,@(loop :for op :in (ensure-list (selfward-operation o))
               :collect `(,op ,c))
