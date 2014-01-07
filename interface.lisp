@@ -18,7 +18,7 @@
    :asdf/backward-internals :asdf/backward-interface :asdf/package-system)
   ;; TODO: automatically generate interface with reexport?
   (:export
-   #:defsystem #:find-system #:locate-system #:coerce-name
+   #:defsystem #:find-system #:locate-system #:coerce-name #:primary-system-name
    #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
    #:system-definition-pathname #:with-system-definitions
    #:search-for-system-definition #:find-component #:component-find-path
