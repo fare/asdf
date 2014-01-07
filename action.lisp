@@ -127,13 +127,15 @@ You can put together sentences using this phrase."))
 ;;;; upward-operation, downward-operation, sideway-operation, selfward-operation
 ;; These together handle actions that propagate along the component hierarchy or operation universe.
 (with-upgradability ()
-  (deftype operation-class-designator ()
-    '(or symbol class))
+  (deftype operation-designator ()
+    ;; an operation, nil designates a context-dependent current operation,
+    ;; class-name or class designates an instance of the designated class.
+    '(or operation null symbol class))
 
   (defclass downward-operation (operation)
     ((downward-operation
       :initform nil :initarg :downward-operation :reader downward-operation
-      :type operation-class-designator :allocation :class))
+      :type operation-designator :allocation :class))
     (:documentation "A DOWNWARD-OPERATION's dependencies propagate down the component hierarchy.
 I.e., if O is a DOWNWARD-OPERATION and its DOWNWARD-OPERATION slot designates operation D, then
 the action (O . M) of O on module M will depends on each of (D . C) for each child C of module M.
@@ -146,7 +148,7 @@ children of the MODULE must have been loaded with LOAD-OP (resp. compiled with C
   (defclass upward-operation (operation)
     ((upward-operation
       :initform nil :initarg :upward-operation :reader upward-operation
-      :type operation-class-designator :allocation :class))
+      :type operation-designator :allocation :class))
     (:documentation "An UPWARD-OPERATION has dependencies that propagate up the component hierarchy.
 I.e., if O is an instance of UPWARD-OPERATION, and its UPWARD-OPERATION slot designates operation U,
 then the action (O . C) of O on a component C that has the parent P will depends on (U . P).
@@ -162,7 +164,7 @@ must first be prepared for loading or compiling with PREPARE-OP."))
   (defclass sideway-operation (operation)
     ((sideway-operation
       :initform nil :initarg :sideway-operation :reader sideway-operation
-      :type operation-class-designator :allocation :class))
+      :type operation-designator :allocation :class))
     (:documentation "A SIDEWAY-OPERATION has dependencies that propagate \"sideway\" to siblings
 that a component depends on. I.e. if O is a SIDEWAY-OPERATION, and its SIDEWAY-OPERATION slot
 designates operation S (where NIL designates O itself), then the action (O . C) of O on component C
@@ -179,7 +181,7 @@ each of its declared dependencies must first be loaded as by LOAD-OP."))
     ((selfward-operation
       :initarg :selfward-operation ;; NB: no :initform -- if an operation depends on another one,
       ;; which that is must explicitly specified.
-      :type operation-class-designator :reader selfward-operation :allocation :class))
+      :type operation-designator :reader selfward-operation :allocation :class))
     (:documentation "A SELFWARD-OPERATION depends on another operation on the same component.
 I.e., if O is a SELFWARD-OPERATION, and its SELFWARD-OPERATION designates operation S, then
 the action (O . C) of O on component C depends on (S . C).
