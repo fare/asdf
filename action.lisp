@@ -179,12 +179,15 @@ each of its declared dependencies must first be loaded as by LOAD-OP."))
 
   (defclass selfward-operation (operation)
     ((selfward-operation
-      :initarg :selfward-operation ;; NB: no :initform -- if an operation depends on another one,
-      ;; which that is must explicitly specified.
-      :type operation-designator :reader selfward-operation :allocation :class))
+      :initarg :selfward-operation ;; NB: no :initform -- if an operation depends on others,
+      ;; which must be explicitly specified.
+      :type (or operation-designator list) :reader selfward-operation :allocation :class))
     (:documentation "A SELFWARD-OPERATION depends on another operation on the same component.
-I.e., if O is a SELFWARD-OPERATION, and its SELFWARD-OPERATION designates operation S, then
-the action (O . C) of O on component C depends on (S . C).
+I.e., if O is a SELFWARD-OPERATION, and its SELFWARD-OPERATION designates a list of operations L,
+then the action (O . C) of O on component C depends on each (S . C) for S in L.
+A operation-designator designates a singleton list of the designated operation;
+a list of operation-designators designates the list of designated operations;
+NIL is not a valid operation designator in that context.
 E.g. before a component may be loaded by LOAD-OP, it must have been compiled by COMPILE-OP."))
   (defmethod component-depends-on ((o selfward-operation) (c component))
     `(,@(loop :for op :in (ensure-list (selfward-operation o))
