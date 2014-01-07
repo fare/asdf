@@ -124,64 +124,66 @@ You can put together sentences using this phrase."))
     (cdr (assoc (type-of o) (component-in-order-to c))))) ; User-specified in-order dependencies
 
 
-;;;; upward-operation, downward-operation
-;; These together handle actions that propagate along the component hierarchy.
-;; Downward operations like load-op or compile-op propagate down the hierarchy:
-;; operation on a parent depends-on operation on its children.
-;; By default, an operation propagates itself, but it may propagate another one instead.
+;;;; upward-operation, downward-operation, sideway-operation, selfward-operation
+;; These together handle actions that propagate along the component hierarchy or operation universe.
 (with-upgradability ()
-  (deftype op-class-designator ()
+  (deftype operation-class-designator ()
     '(or symbol class))
+
   (defclass downward-operation (operation)
     ((downward-operation
       :initform nil :initarg :downward-operation :reader downward-operation
-      :type op-class-designator :allocation :class))
-    (:documentation "A DOWNWARD-OPERATION object propagates its DOWNWARD-OPERATION value to its children.  
-I.e., if DOWNWARD-OPERATION OP is requested on C, \(DOWNWARD-OPERATION OP\) will be propagated to C's 
-children.  E.g., in order to load a MODULE, you must load all of the children of the MODULE.
-\(DOWNWARD-OPERATION OP\) defaults to be the same as OP's class."))
+      :type operation-class-designator :allocation :class))
+    (:documentation "A DOWNWARD-OPERATION's dependencies propagate down the component hierarchy.
+I.e., if O is a DOWNWARD-OPERATION and its DOWNWARD-OPERATION slot designates operation D, then
+the action (O . M) of O on module M will depends on each of (D . C) for each child C of module M.
+The default value for slot DOWNWARD-OPERATION is NIL, which designates the operation O itself.
+E.g. in order for a MODULE to be loaded with LOAD-OP (resp. compiled with COMPILE-OP), all the
+children of the MODULE must have been loaded with LOAD-OP (resp. compiled with COMPILE-OP."))
   (defmethod component-depends-on ((o downward-operation) (c parent-component))
     `((,(or (downward-operation o) o) ,@(component-children c)) ,@(call-next-method)))
-  ;; Upward operations like prepare-op propagate up the component hierarchy:
-  ;; operation on a child depends-on operation on its parent.
-  ;; By default, an operation propagates itself, but it may propagate another one instead.
+
   (defclass upward-operation (operation)
     ((upward-operation
-      :initform nil :initarg :downward-operation :reader upward-operation :allocation :class))
-    (:documentation "An UPWARD-OPERATION object propagates its UPWARD-OPERATION value to its parent.  
-I.e., if UPWARD-OPERATION OP is requested on C, \(UPWARD-OPERATION OP\) will be propagated to C's 
-parent.  E.g., in order to PREPARE-OP (prepare to load) a file C, ASDF must perform PREPARE-OP 
-on C's parent MODULE or SYSTEM.
-\(UPWARD-OPERATION OP\) defaults to be the same as OP's class."))
+      :initform nil :initarg :upward-operation :reader upward-operation
+      :type operation-class-designator :allocation :class))
+    (:documentation "An UPWARD-OPERATION has dependencies that propagate up the component hierarchy.
+I.e., if O is an instance of UPWARD-OPERATION, and its UPWARD-OPERATION slot designates operation U,
+then the action (O . C) of O on a component C that has the parent P will depends on (U . P).
+The default value for slot UPWARD-OPERATION is NIL, which designates the operation O itself.
+E.g. in order for a COMPONENT to be prepared for loading or compiling with PREPARE-OP, its PARENT
+must first be prepared for loading or compiling with PREPARE-OP."))
   ;; For backward-compatibility reasons, a system inherits from module and is a child-component
   ;; so we must guard against this case. ASDF4: remove that.
   (defmethod component-depends-on ((o upward-operation) (c child-component))
     `(,@(if-let (p (component-parent c))
           `((,(or (upward-operation o) o) ,p))) ,@(call-next-method)))
-  ;; Sibling operations propagate to siblings in the component hierarchy:
-  ;; operation on a child depends-on operation on its parent.
-  ;; By default, an operation propagates itself, but it may propagate another one instead.
+
   (defclass sideway-operation (operation)
     ((sideway-operation
-      :initform nil :initarg :sideway-operation :reader sideway-operation :allocation :class))
-     (:documentation "A SIDEWAY-OPERATION object propagates its SIDEWAY-OPERATION value to its \"leftward\"
-siblings: those components that have the same parent as the object component, C, and that are ordered prior to
-C in the :DEPENDS-ON graph of C's parent.
-\(SIDEWAY-OPERATION OP\) defaults to be the same as OP's class."))
+      :initform nil :initarg :sideway-operation :reader sideway-operation
+      :type operation-class-designator :allocation :class))
+    (:documentation "A SIDEWAY-OPERATION has dependencies that propagate \"sideway\" to siblings
+that a component depends on. I.e. if O is a SIDEWAY-OPERATION, and its SIDEWAY-OPERATION slot
+designates operation S (where NIL designates O itself), then the action (O . C) of O on component C
+depends on each of (S . D) where D is a declared dependency of C.
+E.g. in order for a COMPONENT to be prepared for loading or compiling with PREPARE-OP,
+each of its declared dependencies must first be loaded as by LOAD-OP."))
   (defmethod component-depends-on ((o sideway-operation) (c component))
     `((,(or (sideway-operation o) o)
        ,@(loop :for dep :in (component-sideway-dependencies c)
                :collect (resolve-dependency-spec c dep)))
       ,@(call-next-method)))
-  ;; Selfward operations propagate to themselves a sub-operation:
-  ;; they depend on some other operation being acted on the same component.
+
   (defclass selfward-operation (operation)
     ((selfward-operation
-      ;; no :initform -- if you are going to propagate an operation to yourself, you must
-      ;; specify it explicitly.
-      :initarg :selfward-operation :reader selfward-operation :allocation :class))
-    (:documentation "A SELFWARD-OPERATION object propagates its SELFWARD-OPERATION value to itself.  
-I.e., if SELFWARD-OPERATION OP is requested on C, \(SELFWARD-OPERATION OP\) will first be performed on C."))
+      :initarg :selfward-operation ;; NB: no :initform -- if an operation depends on another one,
+      ;; which that is must explicitly specified.
+      :type operation-class-designator :reader selfward-operation :allocation :class))
+    (:documentation "A SELFWARD-OPERATION depends on another operation on the same component.
+I.e., if O is a SELFWARD-OPERATION, and its SELFWARD-OPERATION designates operation S, then
+the action (O . C) of O on component C depends on (S . C).
+E.g. before a component may be loaded by LOAD-OP, it must have been compiled by COMPILE-OP."))
   (defmethod component-depends-on ((o selfward-operation) (c component))
     `(,@(loop :for op :in (ensure-list (selfward-operation o))
               :collect `(,op ,c))

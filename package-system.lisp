@@ -50,7 +50,7 @@
   (defun package-dependencies (defpackage-form)
     "Return a list of packages depended on by the package
 defined in DEFPACKAGE-FORM.  A package is depended upon if
-the DEFPACKAGE-FORM imports a symbol from it."
+the DEFPACKAGE-FORM uses it or imports a symbol from it."
     (assert (defpackage-form-p defpackage-form))
     (remove-duplicates
      (while-collecting (dep)
