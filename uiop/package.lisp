@@ -484,7 +484,7 @@ or when loading the package is optional."
                     (home-package-p existing to-package) (symbol-package-name existing)))
             (t
              (ensure-inherited name symbol to-package from-package t shadowed imported inherited)))))))
-  
+
   (defun recycle-symbol (name recycle exported)
     ;; Takes a symbol NAME (a string), a list of package designators for RECYCLE
     ;; packages, and a hash-table of names (strings) of symbols scheduled to be
@@ -709,7 +709,7 @@ or when loading the package is optional."
                          :mix ,mix :reexport ,reexport :unintern ,unintern)))))
 
 (defmacro define-package (package &rest clauses)
-  "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form 
+  "DEFINE-PACKAGE takes a PACKAGE and a number of CLAUSES, of the form
 \(KEYWORD . ARGS\).
 DEFINE-PACKAGE supports the following keywords:
 USE, SHADOW, SHADOWING-IMPORT-FROM, IMPORT-FROM, EXPORT, INTERN -- as per CL:DEFPACKAGE.
@@ -723,7 +723,7 @@ should appear in first position if it already exists, and even if it doesn't,
 ahead of any package that is not going to be deleted afterwards and never
 created again. In short, except for special cases, always make it the first
 package on the list if the list is not empty.
-MIX -- Takes a list of package designators.  MIX behaves like 
+MIX -- Takes a list of package designators.  MIX behaves like
 \(:USE PKG1 PKG2 ... PKGn\) but additionally uses :SHADOWING-IMPORT-FROM to
 resolve conflicts in favor of the first found symbol.  It may still yield
 an error if there is a conflict with an explicitly :IMPORT-FROM symbol.
