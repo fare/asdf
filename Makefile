@@ -12,12 +12,10 @@ lisps ?= ${ASDF_TEST_LISPS}
 else
 lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern gcl xcl
 endif
+## grep for #+/#- features in the test/ directory to see plenty of disabled tests on some platforms
 ## NOT SUPPORTED BY OUR AUTOMATED TESTS:
 ##	cormancl genera lispworks-personal-edition mkcl rmcl
 ## Some are manually tested once in a while.
-## FAIL: gcl -- most implementation bugs are now fixed, but some remain. See TODO.
-## FAIL: xcl -- implementation bugs require lots of papering over during tests. See TODO.
-## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
 ifdef ASDF_TEST_SYSTEMS
 s ?= ${ASDF_TEST_SYSTEMS}
 endif
@@ -41,8 +39,6 @@ MKCL ?= mkcl
 SBCL ?= sbcl
 SCL ?= scl
 XCL ?= xcl
-
-# website, tag, install
 
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
@@ -156,9 +152,32 @@ test-all-upgrade-no-stop:
 	@for lisp in ${lisps} ; do ${MAKE} test-upgrade l=$$lisp ; done ; :
 
 test-all-no-upgrade-no-stop: doc test-load-systems test-all-clean-load test-all-lisp-no-stop
+	make check-all-test-results
 
-test-all-no-stop: test-all-no-upgrade-no-stop test-all-upgrade-no-stop
+test-all-no-stop: doc test-load-systems test-all-clean-load test-all-lisp-no-stop test-all-upgrade-no-stop
+	make check-all-results
 
+check-all-test-results:
+	@A="`grep -L '49 passing and 0 failing' build/results/*-test.text`" ; \
+	if [ -n "$$A" ] ; then \
+		echo "Unexpected test failures on these implementations:" ; \
+		echo "$$A" ; \
+		exit 1 ; \
+	fi
+
+check-all-upgrade-results:
+	@A="$$(for i in build/results/*-upgrade.text ; do \
+		case $$i in */cmucl-*|*/gcl-*|*/xcl-*) ;; *) \
+		if [ 'Script succeeded' != "$$(tail -1 < $$i)" ] ; \
+		then echo $$i ; fi ; esac ; done)" ; \
+	if [ -n "$$A" ] ; then \
+		echo "Unexpected upgrade failures on these implementations:" ; \
+		echo "$$A" ; \
+		exit 1 ; \
+	fi
+
+check-all-results:
+	@r=0 ; make check-all-test-results || r=1 ; make check-all-upgrade-results || r=1 ; exit $r
 
 extract: extract-all-tagged-asdf
 extract-all-tagged-asdf: build/asdf.lisp
