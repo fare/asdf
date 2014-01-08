@@ -51,7 +51,6 @@
 
 #+cmu
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (declaim (optimize (speed 1) (safety 3) (debug 3)))
   (setf ext:*gc-verbose* nil))
 
 #+(or abcl clozure cmu ecl xcl) ;; punt on hard package upgrade on those implementations
