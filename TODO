@@ -19,6 +19,25 @@
 ** Modify SBCL and other implementations so they provide UIOP
    independently from ASDF?
 
+* CMUCL has bugs:
+** In ASDF 2.32.13, sibling-dependencies is renamed to sideway-dependencies
+   in defclass component, a superclass of system, and upgrade from
+   2.32 or earlier thus fails with
+   Error in function KERNEL:CLASS-TYPEP:  Class is currently invalid:
+   #<KERNEL::STANDARD-CLASS ASDF/SYSTEM:SYSTEM {58398145}>
+   in a direct call from ASDF/FIND-SYSTEM:LOCATE-SYSTEM,
+   which suggests CMUCL's PCL fails to finalize classes properly.
+** Non-default optimize settings may or may not subtly break PCL.
+   For the longest time (from 2.26.136 to 3.1.0.42), ASDF had:
+   (declaim (optimize (speed 1) (safety 3) (debug 3)))
+   This form may or may not work around that breakage in some cases:
+   (setf c::top-level-lambda-max 0)
+** At some point there was massive breakage due to uninitialized slots
+   as revealed in 3.1.0.37 with
+   make t l=cmucl t=test-encodings.script
+   which was a different PCL bug from the above (without same workaround)
+   but possibly also triggered by the non-standard declaim.
+
 * XCL has bad bugs:
   make-pathname doesn't handle :type nil properly and
   has massive lossage in logical-pathname support.

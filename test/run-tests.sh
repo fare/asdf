@@ -311,27 +311,41 @@ upgrade_tags () {
     # 1.97 (2006-05-14) is the last release before Gary King takes over
     # 1.369 (2009-10-27) is the last release by Gary King
     #
-    # 2.000 to 2.019 and 2.20 to 2.26 and beyond are Faré's "stable" ASDF 2 releases
-    # 2.26.61 is the last single-file, single-package ASDF.
-    # 2.27 and beyond are Faré's "stable" ASDF 3 pre-releases
+    # 2.000 to 2.019 and 2.20 to 2.26 are Faré's "stable" ASDF 2 releases
+    #   2.000 (2010-05-31) was the first ASDF 2 release
+    #   2.008 (2010-09-10) was a somewhat stable ASDF 2 release
+    #   2.011 (2010-11-28) was used by CLISP 2.49, Debian squeeze, Ubuntu 10.04 LTS
+    #   2.014.6 (2011-04-06) was used by Quicklisp in 2011
+    #   2.019 (2011-11-27) was stable and used by LispWorks since 2012.
+    #   2.20 (2012-01-18) was in CCL 1.8, Ubuntu 12.04 LTS
+    #   2.22 (2012-06-12) was used by debian wheezy
+    #   2.26 (2012-10-30) was used by Quicklisp in 2013
     #
-    # 2.000 (2010-05-31) was the first ASDF 2 release
-    # 2.008 (2010-09-10) was a somewhat stable ASDF 2 release
-    # 2.011 (2010-11-28) was used by CLISP 2.49, Debian squeeze, Ubuntu 10.04 LTS
-    # 2.014.6 (2011-04-06) was used by Quicklisp in 2011
-    # 2.019 (2011-11-27) was stable
-    # 2.20 (2012-01-18) was in CCL 1.8, Ubuntu 12.04 LTS
-    # 2.22 (2012-06-12) was used by debian wheezy
-    # 2.26 (2012-10-30) was used by Quicklisp
-    # 2.27 (2013-02-01) is the first ASDF 3 pre-release
-    # 2.32 (2013-03-05) is the first really stable ASDF 3 pre-release
-    # 3.0.1 (2013-05-16) is the first stable ASDF 3 release
-    echo REQUIRE 1.85 1.97 1.369
-    # git tag -l '2.0??'
-    # git tag -l '2.??'
-    echo 2.000 2.008 2.011 2.014.6 2.019 2.20 2.22 2.26
-    echo 2.27 2.32
-    git tag -l '3.0.[1-9]'
+    # 2.26.x is where the refactoring that begat ASDF 3 took place.
+    # 2.26.61 is the last single-file, single-package ASDF.
+    # 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
+    #   2.27 (2013-02-01) is the first ASDF 3 pre-release
+    #   2.32 (2013-03-05) is the first really stable ASDF 3 pre-release
+    #
+    # The 3.0 series is a stable release of ASDF 3
+    # with Robert Goldman taking over maintainership at 3.0.2.
+    # 3.0.0 was 2.33.10 promoted, but version-satisfies meant it was suddenly
+    # not compatible with ASDF2 anymore, so we immediately released 3.0.1
+    #   3.0.1 (2013-05-16) is the first stable ASDF 3 release
+    #   3.0.2 (2013-07-02) was the first ASDF 3 in SBCL
+    #   3.0.3 (2013-10-22) was the last in the ASDF 3.0 series
+    #
+    # The 3.1 series provides the 3.1 feature, meaning users can rely on
+    # all the stabilization work done in 3.0 so far, plus extra developments
+    # in UIOP, package-system, and more robustification.
+    #
+    # We return the above designated versions in order of decreasing relevance,
+    # which pretty much means REQUIRE and most recent first.
+    echo REQUIRE
+    echo 3.0.3 3.0.2 3.0.1
+    echo 2.32 2.27
+    echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
+    echo 1.369 1.97 1.85
 }
 upgrade_methods () {
     if [ -n "$ASDF_UPGRADE_TEST_METHODS" ] ; then
@@ -390,10 +404,9 @@ valid_upgrade_test_p () {
         # Note that for the longest time, CLISP has included 2.011 in its distribution.
         # We don't punt on upgrade anymore, so we can go at it!
         ### clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
-        # Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade.
-        # Weird unidentified problems before 2.018, so we punt equally for everything before,
-        # and only need to test it once: above, for 2.017.
-        cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-6]:*) : ;;
+        # CMUCL has problems with 2.32 and earlier because of
+        # the redefinition of system's superclass component.
+        cmucl:1.*|cmucl:2.*) : ;;
         # Skip many ECL tests, for various ASDF issues
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
         # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.1
