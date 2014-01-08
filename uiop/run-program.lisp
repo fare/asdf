@@ -579,7 +579,14 @@ It returns a process-info plist with possible keys:
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
             #+ecl (nth-value 1 (ext:external-process-status process))
-            #+lispworks (system:pid-exit-status process :wait t)
+            #+lispworks
+            (if-let ((stream (or (getf process-info :input-stream)
+                                 (getf process-info :output-stream)
+                                 (getf process-info :bidir-stream)
+                                 (getf process-info :error-stream))))
+              (system:pipe-exit-status stream :wait t)
+              (if-let ((f (find-symbol* :pid-exit-status :system nil)))
+                (funcall f process :wait t)))
             #+sbcl (sb-ext:process-exit-code process)))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
