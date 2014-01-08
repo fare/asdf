@@ -38,22 +38,22 @@
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
   (defclass prepare-op (upward-operation sideway-operation)
-    ((sideway-operation :initform 'load-op)))
+    ((sideway-operation :initform 'load-op :allocation :class)))
   (defclass load-op (basic-load-op downward-operation sideway-operation selfward-operation)
     ;; NB: even though compile-op depends on prepare-op it is not needed-in-image-p,
     ;; so we need to directly depend on prepare-op for its side-effects in the current image.
-    ((selfward-operation :initform '(prepare-op compile-op))))
+    ((selfward-operation :initform '(prepare-op compile-op) :allocation :class)))
   (defclass compile-op (basic-compile-op downward-operation selfward-operation)
-    ((selfward-operation :initform 'prepare-op)
-     (downward-operation :initform 'load-op)))
+    ((selfward-operation :initform 'prepare-op :allocation :class)
+     (downward-operation :initform 'load-op :allocation :class)))
 
   (defclass prepare-source-op (upward-operation sideway-operation)
-    ((sideway-operation :initform 'load-source-op)))
+    ((sideway-operation :initform 'load-source-op :allocation :class)))
   (defclass load-source-op (basic-load-op downward-operation selfward-operation)
-    ((selfward-operation :initform 'prepare-source-op)))
+    ((selfward-operation :initform 'prepare-source-op :allocation :class)))
 
   (defclass test-op (selfward-operation)
-    ((selfward-operation :initform 'load-op))))
+    ((selfward-operation :initform 'load-op :allocation :class))))
 
 
 ;;;; prepare-op, compile-op and load-op

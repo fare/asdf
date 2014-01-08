@@ -38,11 +38,11 @@
   (defclass basic-fasl-op (bundle-compile-op)
     ((bundle-type :initform :fasl)))
   (defclass prepare-fasl-op (sideway-operation)
-    ((sideway-operation :initform 'load-fasl-op)))
+    ((sideway-operation :initform 'load-fasl-op :allocation :class)))
   (defclass fasl-op (basic-fasl-op selfward-operation)
-    ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op))))
+    ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op) :allocation :class)))
   (defclass load-fasl-op (basic-load-op selfward-operation)
-    ((selfward-operation :initform '(prepare-op fasl-op))))
+    ((selfward-operation :initform '(prepare-op fasl-op) :allocation :class)))
 
   ;; NB: since the monolithic-op's can't be sideway-operation's,
   ;; if we wanted lib-op, dll-op, binary-op to be sideway-operation's,
@@ -61,7 +61,7 @@
     (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
 
   (defclass binary-op (basic-compile-op selfward-operation)
-    ((selfward-operation :initform '(fasl-op lib-op)))
+    ((selfward-operation :initform '(fasl-op lib-op) :allocation :class))
     (:documentation "produce fasl and asd files for the system"))
 
   (defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
@@ -75,7 +75,7 @@
     (:documentation "Abstract operation for ways to bundle the outputs of compiling *Lisp* files over all systems"))
 
   (defclass monolithic-binary-op (monolithic-op binary-op)
-    ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op)))
+    ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op) :allocation :class))
     (:documentation "produce fasl and asd files for combined system and dependencies."))
 
   (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op) ()
