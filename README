@@ -4,6 +4,10 @@ ASDF: another system definition facility
 If you cloned our git repository, bootstrap a copy of build/asdf.lisp with:
     make
 
+To run all the tests on your favorite Lisp implementation $L,
+choose your most elaborate installed system $S, and try:
+    make t u l=$L s=$S
+
 
 To use ASDF, read our manual:
     http://common-lisp.net/project/asdf/asdf.html
@@ -22,4 +26,11 @@ More information and additional links can be found on ASDF's home page at:
     http://common-lisp.net/project/asdf/
 
 
-Last updated Thursday, April 10th, 2013.
+Debugging tip:
+To load ASDF in such a way that M-. will work, install the source code, and run
+(asdf:load-system :uiop) ;; for uiop
+(dolist (c (asdf::required-components :asdf/defsystem
+             :keep-component 'asdf:cl-source-file))
+  (load (asdf:component-pathname c))) ;; for asdf/defsystem
+
+Last updated Wednesday, January 8th, 2014.
