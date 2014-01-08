@@ -33,7 +33,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defvar *previous-asdf-versions* (if-let (previous (asdf-version)) (list previous)))
   (defvar *asdf-version* nil)
   ;; We need to clear systems from versions yet older than the below:
-  (defparameter *oldest-forward-compatible-asdf-version* "2.27")
+  (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.
   (defmacro defparameter* (var value &optional docstring)
     (let* ((name (string-trim "*" var))
            (valfun (intern (format nil "%~A-~A-~A" :compute name :value)))
