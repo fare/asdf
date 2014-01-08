@@ -167,7 +167,7 @@ check-all-test-results:
 
 check-all-upgrade-results:
 	@A="$$(for i in build/results/*-upgrade.text ; do \
-		case $$i in */cmucl-*|*/gcl-*|*/xcl-*) ;; *) \
+		case $$i in */gcl-*|*/xcl-*) ;; *) \
 		if [ 'Script succeeded' != "$$(tail -1 < $$i)" ] ; \
 		then echo $$i ; fi ; esac ; done)" ; \
 	if [ -n "$$A" ] ; then \
