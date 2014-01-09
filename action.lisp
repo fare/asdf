@@ -135,7 +135,7 @@ You can put together sentences using this phrase."))
 (with-upgradability ()
   (defclass downward-operation (operation)
     ((downward-operation
-      :initform nil :initarg :downward-operation :reader downward-operation
+      :initform nil :reader downward-operation
       :type operation-designator :allocation :class))
     (:documentation "A DOWNWARD-OPERATION's dependencies propagate down the component hierarchy.
 I.e., if O is a DOWNWARD-OPERATION and its DOWNWARD-OPERATION slot designates operation D, then
@@ -148,7 +148,7 @@ children of the MODULE must have been loaded with LOAD-OP (resp. compiled with C
 
   (defclass upward-operation (operation)
     ((upward-operation
-      :initform nil :initarg :upward-operation :reader upward-operation
+      :initform nil :reader upward-operation
       :type operation-designator :allocation :class))
     (:documentation "An UPWARD-OPERATION has dependencies that propagate up the component hierarchy.
 I.e., if O is an instance of UPWARD-OPERATION, and its UPWARD-OPERATION slot designates operation U,
@@ -164,7 +164,7 @@ must first be prepared for loading or compiling with PREPARE-OP."))
 
   (defclass sideway-operation (operation)
     ((sideway-operation
-      :initform nil :initarg :sideway-operation :reader sideway-operation
+      :initform nil :reader sideway-operation
       :type operation-designator :allocation :class))
     (:documentation "A SIDEWAY-OPERATION has dependencies that propagate \"sideway\" to siblings
 that a component depends on. I.e. if O is a SIDEWAY-OPERATION, and its SIDEWAY-OPERATION slot
@@ -180,8 +180,7 @@ each of its declared dependencies must first be loaded as by LOAD-OP."))
 
   (defclass selfward-operation (operation)
     ((selfward-operation
-      :initarg :selfward-operation ;; NB: no :initform -- if an operation depends on others,
-      ;; which must be explicitly specified.
+      ;; NB: no :initform -- if an operation depends on others, it must explicitly specify which
       :type (or operation-designator list) :reader selfward-operation :allocation :class))
     (:documentation "A SELFWARD-OPERATION depends on another operation on the same component.
 I.e., if O is a SELFWARD-OPERATION, and its SELFWARD-OPERATION designates a list of operations L,
