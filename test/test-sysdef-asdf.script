@@ -1,15 +1,22 @@
 ;;; -*- Lisp -*-
 
+;; Empty configuration: no asdf.asd
 (initialize-source-registry
  '(:source-registry :ignore-inherited-configuration))
 (load-system :asdf)
+;; We didn't find it and got the fallback
+(assert-equal nil (system-source-file (find-system :asdf)))
 
+;; Proper configuration: asdf.asd from the source above
 (initialize-source-registry
  `(:source-registry
    (:directory ,*asdf-directory*)
    (:directory ,*uiop-directory*)
    :ignore-inherited-configuration))
 (load-system :asdf)
+;; This time we found it
+(assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
+                       (system-source-file (find-system :asdf)))
 
 (defun system-lisp-files (system)
   (loop :for f :in (required-components system :keep-component 'cl-source-file)
@@ -21,8 +28,6 @@
               (run-program `("make" "--quiet" "--no-print-directory" ,target)
                            :output :string :error-output t :directory *asdf-directory*)
               :separator #(#\space #\newline #\return #\tab))))
-
-#+clisp (trace run-program reduce/strcat)
 
 (defmacro compare-files (system target)
   `(assert-equal (system-lisp-files ,system) (makefile-lisp-files ,target)))
