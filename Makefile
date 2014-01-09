@@ -167,9 +167,8 @@ check-all-test-results:
 
 check-all-upgrade-results:
 	@A="$$(for i in build/results/*-upgrade.text ; do \
-		case $$i in */gcl-*|*/xcl-*) ;; *) \
-		if [ 'Script succeeded' != "$$(tail -1 < $$i)" ] ; \
-		then echo $$i ; fi ; esac ; done)" ; \
+		case "$$(tail -1 < $$i)" in "Upgrade test succeeded for "*) ;; \
+		*) echo $$i ; esac ; done)" ; \
 	if [ -n "$$A" ] ; then \
 		echo "Unexpected upgrade failures on these implementations:" ; \
 		echo "$$A" ; \

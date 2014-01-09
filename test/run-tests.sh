@@ -426,8 +426,11 @@ run_upgrade_tests () {
     rm -f build/*.*f* uiop/*.*f* test/*.*f* ## Remove stale FASLs from ASDF 1.x, especially when different implementations have same name
     ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
     su=test/script-support.lisp
-    for tag in `upgrade_tags` ; do
-        for method in `upgrade_methods` ; do
+    tags="`upgrade_tags`"
+    methods="`upgrade_methods`"
+    {
+    for tag in $tags ; do
+        for method in $methods ; do
             if valid_upgrade_test_p $lisp $tag $method ; then
                 echo "Testing ASDF upgrade from ${tag} using method $method"
                 extract_tagged_asdf $tag
@@ -441,7 +444,9 @@ run_upgrade_tests () {
                   echo "then copy/paste:"
                   echo "(load \"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
                   exit 1 ;}
-    fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
+    fi ; done ; done
+    echo "Upgrade test succeeded for ${lisp}"
+    } 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {
   create_config
