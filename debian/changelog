@@ -4,13 +4,15 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
   * asdf-package-system combines the one-file, one-package, one-system paradigm
     of quick-build and faslpath with the portability and robustness of ASDF 3.
   * Portability: much improved support for the latest GCL 2.8.
-  * Robustness: Fixes and tweaks for ABCL, CLISP, ECL, SBCL/Windows, XCL.
+  * Robustness: Fixes for ABCL, CLISP, ECL, LispWorks, SBCL/Windows, XCL.
     Test improvements. Added missing dependencies in asdf.asd(!).
     Fixes to version-satisfies (thanks to stassats) and to the file-stamp cache.
+    Fixes regression from 3.0.2.12 whereby ASDF failed to avoid downgrading.
+    Some cleanups in the operation class definitions.
   * run-program tweaked again on Windows;
     punting on trying to ensure no final space is ever echo'ed by CMD.EXE " ".
   * provide both "asdf" and "ASDF" to play nicer with various Lisps.
-  * Upgrading from a sufficiently forward-compatible version (currently: 2.27)
+  * Upgrading from a sufficiently forward-compatible version (currently: 2.33)
     will be less disruptive of ASDF uses and enhancements in the current image:
     previously loaded systems will not be cleared anymore,
     variables defined with defparameter* will not be reset.
@@ -20,7 +22,7 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
   * ASDF3.1 feature pushed, to signal the slew of significant improvements
     since initial ASDF 3.0 pre-release (i.e. version 2.27).
 
- -- Francois-Rene Rideau <fare@tunes.org>  Tue, 03 Jan 2014 15:10:56 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 14 Jan 2014 00:28:00 -0500
 
 cl-asdf (2:3.0.3-1) unstable; urgency=low
 
