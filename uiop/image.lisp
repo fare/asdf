@@ -291,6 +291,7 @@ by setting appropriate variables, running various hooks, and calling any specifi
                                 (postlude *image-postlude*)
                                 (dump-hook *image-dump-hook*)
                                 #+clozure prepend-symbols #+clozure (purify t)
+                                #+sbcl compression
                                 #+(and sbcl windows) application-type)
     "Dump an image of the current Lisp environment at pathname FILENAME, with various options"
     ;; Note: at least SBCL saves only global values of variables in the heap image,
@@ -353,10 +354,13 @@ by setting appropriate variables, running various hooks, and calling any specifi
       (setf sb-ext::*gc-run-time* 0)
       (apply 'sb-ext:save-lisp-and-die filename
              :executable t ;--- always include the runtime that goes with the core
-             (when executable (list :toplevel #'restore-image :save-runtime-options t)) ;--- only save runtime-options for standalone executables
-             #+(and sbcl windows) ;; passing :application-type :gui will disable the console window.
-             ;; the default is :console - only works with SBCL 1.1.15 or later.
-             (when application-type (list :application-type application-type))))
+             (append
+              (when compression (list :compression compression))
+              ;;--- only save runtime-options for standalone executables
+              (when executable (list :toplevel #'restore-image :save-runtime-options t))
+              #+(and sbcl windows) ;; passing :application-type :gui will disable the console window.
+              ;; the default is :console - only works with SBCL 1.1.15 or later.
+              (when application-type (list :application-type application-type)))))
     #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
     (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
            'dump-image filename (nth-value 1 (implementation-type))))
