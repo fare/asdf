@@ -19,7 +19,7 @@
 ;;;  http://www.opensource.org/licenses/mit-license.html on or about
 ;;;  Monday; July 13, 2009)
 ;;;
-;;; Copyright (c) 2001-2012 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2014 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -53,7 +53,7 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (setf ext:*gc-verbose* nil))
 
-#+(or abcl clozure cmu ecl xcl) ;; punt on hard package upgrade on those implementations
+;; Punt on hard package upgrade: from ASDF1 always, and even from ASDF2 on most implementations.
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :asdf3 *features*)
     (let* ((existing-version
@@ -70,7 +70,8 @@
            (existing-version-number (and existing-version (read-from-string existing-major-minor)))
            (away (format nil "~A-~A" :asdf existing-version)))
       (when (and existing-version
-                 (< existing-version-number 2.27))
+                 (< existing-version-number
+		    (or #+(or allegro clisp lispworks sbcl) 2.0 2.27)))
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))))
