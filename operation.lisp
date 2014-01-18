@@ -22,6 +22,8 @@
     ((original-initargs ;; for backward-compat -- used by GBBopen and swank (via operation-forced)
       :initform nil :initarg :original-initargs :accessor operation-original-initargs)))
 
+  ;; Cache a copy of the INITARGS in the ORIGINAL-INITARGS slot, if that slot is not
+  ;; already bound.
   (defmethod initialize-instance :after ((o operation) &rest initargs
                                          &key force force-not system verbose &allow-other-keys)
     (declare (ignorable force force-not system verbose))
