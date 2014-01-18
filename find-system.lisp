@@ -309,14 +309,17 @@ Going forward, we recommend new users should be using the source-registry.
                (version (and (probe-file* version-pathname :truename nil)
                              (read-file-form version-pathname)))
                (old-version (asdf-version)))
-          (or (version<= old-version version)
-              (ensure-gethash
-               (list pathname old-version) *old-asdf-systems*
-                 #'(lambda ()
-                     (let ((old-pathname
-                             (if-let (pair (system-registered-p "asdf"))
-                               (system-source-file (cdr pair)))))
-                       (warn "~@<~
+          (cond
+            ((version< old-version version) t) ;; newer version: good!
+            ((equal old-version version) nil) ;; same version: don't load, but don't warn
+            (t ;; old version: bad
+             (ensure-gethash
+              (list (namestring pathname) version) *old-asdf-systems*
+              #'(lambda ()
+                 (let ((old-pathname
+                         (if-let (pair (system-registered-p "asdf"))
+                           (system-source-file (cdr pair)))))
+                   (warn "~@<~
         You are using ASDF version ~A ~:[(probably from (require \"asdf\") ~
         or loaded by quicklisp)~;from ~:*~S~] and have an older version of ASDF ~
         ~:[(and older than 2.27 at that)~;~:*~A~] registered at ~S. ~
@@ -338,8 +341,8 @@ Going forward, we recommend new users should be using the source-registry.
         then you might indeed want to either install and register a more recent version, ~
         or use :ignore-inherited-configuration to avoid registering the old one. ~
         Please consult ASDF documentation and/or experts.~@:>~%"
-                             old-version old-pathname version pathname)
-                       t)))))))
+                         old-version old-pathname version pathname))))
+             nil))))) ;; only issue the warning the first time, but always return nil
 
   (defun locate-system (name)
     "Given a system NAME designator, try to locate where to load the system from.

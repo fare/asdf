@@ -438,13 +438,16 @@ When CALL-NOW-P is true, also call the function immediately."
 ;;; Hash-tables
 (with-upgradability ()
   (defun ensure-gethash (key table default)
-    "Lookup the TABLE for a KEY as by gethash, but if not present,
+    "Lookup the TABLE for a KEY as by GETHASH, but if not present,
 call the (possibly constant) function designated by DEFAULT as per CALL-FUNCTION,
-set the corresponding entry to the result in the table, and return that result."
+set the corresponding entry to the result in the table.
+Return two values: the entry after its optional computation, and whether it was found"
     (multiple-value-bind (value foundp) (gethash key table)
-      (if foundp
-          value
-          (setf (gethash key table) (values (call-function default))))))
+      (values
+       (if foundp
+           value
+           (setf (gethash key table) (call-function default)))
+       foundp)))
 
   (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
     "Convert a LIST into hash-table that has the same elements when viewed as a set,
