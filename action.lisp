@@ -192,7 +192,30 @@ E.g. before a component may be loaded by LOAD-OP, it must have been compiled by 
   (defmethod component-depends-on ((o selfward-operation) (c component))
     `(,@(loop :for op :in (ensure-list (selfward-operation o))
               :collect `(,op ,c))
-      ,@(call-next-method))))
+      ,@(call-next-method)))
+
+  (defclass non-propagating-operation (operation)
+    ()
+    (:documentation "A NON-PROPAGATING-OPERATION is an operation that propagates 
+no dependencies whatsoever.  It is supplied in order that the programmer be able
+to specify that s/he is intentionally specifying an operation which invokes no
+dependencies.")))
+
+
+;;;---------------------------------------------------------------------------
+;;; Help programmers catch obsolete OPERATION subclasses
+;;;---------------------------------------------------------------------------
+(defmethod initialize-instance :before ((obj operation) &key)
+  (unless 
+      (loop :for x :in '(downward-operation upward-operation sideway-operation
+                                            selfward-operation non-propagating-operation)
+            :when (typep obj x)
+            :return t
+            :finally (return nil))
+    (error "No dependency propagating scheme specified for operation ~a.~
+This is likely because the OPERATION subclass of this object has not been ~
+updated for ASDF 3." obj)))
+        
 
 
 ;;;; Inputs, Outputs, and invisible dependencies

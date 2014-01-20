@@ -26,6 +26,7 @@
    #:require-system #:test-system #:clear-system
    #:operation #:make-operation #:find-operation
    #:upward-operation #:downward-operation #:sideway-operation #:selfward-operation
+                      #:non-propagating-operation
    #:build-system #:build-op
    #:load-op #:prepare-op #:compile-op
    #:prepare-source-op #:load-source-op #:test-op
