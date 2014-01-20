@@ -490,3 +490,11 @@
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'binary-op system args)))
+
+#+(and (not asdf-use-unsafe-mac-bundle-op)
+       (or (and ecl darwin) (and abcl darwin)))
+(defmethod perform :before ((op bundle-op) c)
+  (declare (ignorable op c))
+  (unless (uiop:featurep :asdf-use-unsafe-mac-bundle-op)
+    (cerror "Continue after modifying *FEATURES*."
+            "The BUNDLE-OPs are not supported on Mac OSX for this lisp.~%~TTo continue, push :asdf-use-unsafe-mac-bundle-op on *FEATURES*.~%~TPlease report to ASDF-DEVEL if this works for you.")))
