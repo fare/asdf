@@ -71,7 +71,8 @@
            (away (format nil "~A-~A" :asdf existing-version)))
       (when (and existing-version
                  (< existing-version-number
-		    (or #+(or allegro clisp lispworks sbcl) 2.0 2.27)))
+                    #+(or allegro clisp lispworks sbcl) 2.0
+                    #+(or allegro clisp lispworks sbcl) 2.27))
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))))
