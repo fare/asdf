@@ -9,7 +9,7 @@
   (:export
    #:action #:define-convenience-action-methods
    #:explain #:action-description
-   #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation
+   #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation #:non-propagating-operation
    #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
@@ -208,14 +208,29 @@ dependencies.")))
 (defmethod initialize-instance :before ((obj operation) &key)
   (unless 
       (loop :for x :in '(downward-operation upward-operation sideway-operation
-                                            selfward-operation non-propagating-operation)
+                                            selfward-operation non-propagating-operation
+                                            ;; the following is a special case
+                                            build-op)
             :when (typep obj x)
             :return t
             :finally (return nil))
     (error "No dependency propagating scheme specified for operation ~a.~
 This is likely because the OPERATION subclass of this object has not been ~
 updated for ASDF 3." obj)))
-        
+
+(defmethod initialize-instance :before ((obj non-propagating-operation) &key)
+  (when
+      (loop :for x :in '(downward-operation upward-operation sideway-operation
+                                            selfward-operation)
+            :when (typep obj x)
+            :return t
+            :finally (return nil))
+    (error "Inconsistent class: ~a No class should have both NON-PROPAGATING-OPERATION and a propagating 
+operation class as superclasses." (class-name (class-of obj)))))
+
+;;;---------------------------------------------------------------------------
+;;; End of OPERATION class checking
+;;;---------------------------------------------------------------------------
 
 
 ;;;; Inputs, Outputs, and invisible dependencies

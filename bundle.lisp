@@ -51,7 +51,7 @@
 
   (defclass no-ld-flags-op (operation) ())
 
-  (defclass lib-op (bundle-compile-op no-ld-flags-op)
+  (defclass lib-op (bundle-compile-op no-ld-flags-op non-propagating-operation)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "compile the system and produce linkable (.a) library for it."
      #-(or ecl mkcl) "just compile the system"))
@@ -78,10 +78,10 @@
     ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op) :allocation :class))
     (:documentation "produce fasl and asd files for combined system and dependencies."))
 
-  (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op) ()
+  (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op non-propagating-operation) ()
     (:documentation "Create a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op  no-ld-flags-op)
+  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op non-propagating-operation no-ld-flags-op)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "Create a single linkable library for the system and its dependencies."
      #-(or ecl mkcl) "Compile a system and its dependencies."))
@@ -90,10 +90,13 @@
     ((bundle-type :initform :dll))
     (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
 
-  (defclass program-op #+(or mkcl ecl) (monolithic-bundle-compile-op)
+  ;; Fare reports that the PROGRAM-OP doesn't need any propagation on MKCL or
+  ;; ECL because the necessary dependency wrangling is done by other, earlier
+  ;; operations. [2014/01/20:rpg]
+  (defclass program-op #+(or mkcl ecl) (monolithic-bundle-compile-op non-propagating-operation)
             #-(or mkcl ecl) (monolithic-bundle-op selfward-operation)
     ((bundle-type :initform :program)
-     #-(or mkcl ecl) (selfward-operation :initform #-(or mkcl ecl) 'load-op))
+     #-(or mkcl ecl) (selfward-operation :initform 'load-op))
     (:documentation "create an executable file from the system and its dependencies"))
 
   (defun bundle-pathname-type (bundle-type)

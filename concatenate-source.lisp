@@ -36,7 +36,7 @@
   (defclass load-compiled-concatenated-source-op (basic-load-compiled-concatenated-source-op)
     ((selfward-operation :initform '(prepare-op compile-concatenated-source-op) :allocation :class)))
 
-  (defclass monolithic-concatenate-source-op (basic-concatenate-source-op monolithic-bundle-op) ())
+  (defclass monolithic-concatenate-source-op (basic-concatenate-source-op monolithic-bundle-op non-propagating-operation) ())
   (defclass monolithic-load-concatenated-source-op (basic-load-concatenated-source-op)
     ((selfward-operation :initform 'monolithic-concatenate-source-op :allocation :class)))
   (defclass monolithic-compile-concatenated-source-op (basic-compile-concatenated-source-op)
