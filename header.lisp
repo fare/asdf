@@ -1,5 +1,5 @@
 ;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 3.1.0.50: Another System Definition Facility.
+;;; This is ASDF 3.1.0.51: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -72,7 +72,7 @@
       (when (and existing-version
                  (< existing-version-number
                     #+(or allegro clisp lispworks sbcl) 2.0
-                    #+(or allegro clisp lispworks sbcl) 2.27))
+                    #-(or allegro clisp lispworks sbcl) 2.27))
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))))
