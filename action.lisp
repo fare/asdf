@@ -222,10 +222,11 @@ OPERATION objects."))
             :return t
             :finally (return nil))
     (error 'operation-definition-error
+           :format-control
            "No dependency propagating scheme specified for operation ~a.~
 This is likely because the OPERATION subclass of this object has not been ~
 updated for ASDF 3."
-           obj)))
+           :format-arguments (list obj))))
 
 (defmethod initialize-instance :before ((obj non-propagating-operation) &key)
   (when
@@ -235,8 +236,12 @@ updated for ASDF 3."
             :return t
             :finally (return nil))
     (error 'operation-definition-error
+           :format-control
            "Inconsistent class: ~a No class should have both NON-PROPAGATING-OPERATION and a propagating 
-operation class as superclasses." (class-name (class-of obj)))))
+operation class as superclasses."
+           :format-arguments
+           (list
+            (class-name (class-of obj))))))
 
 ;;;---------------------------------------------------------------------------
 ;;; End of OPERATION class checking
