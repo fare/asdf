@@ -1,0 +1,72 @@
+;;; -*- Lisp -*-
+
+;;;---------------------------------------------------------------------------
+;;; Test that we can successfully create new subclasses of OPERATION and that we
+;;; can detect bad subclasses of OPERATION.
+;;;---------------------------------------------------------------------------
+
+
+(in-package :asdf)
+(use-package :asdf-test)
+
+(defparameter *good-classes*
+  '(build-op
+    prepare-source-op
+    prepare-op
+    prepare-fasl-op
+    load-op
+    monolithic-load-compiled-concatenated-source-op
+    prepare-fasl-op
+    load-source-op
+    load-compiled-concatenated-source-op
+    monolithic-load-concatenated-source-op
+    load-concatenated-source-op
+    load-fasl-op
+    compile-op
+    compile-concatenated-source-op
+    test-op
+    fasl-op
+    program-op
+    monolithic-compile-concatenated-source-op
+    monolithic-dll-op
+    monolithic-binary-op
+    monolithic-fasl-op
+    dll-op
+    concatenate-source-op
+    monolithic-lib-op
+    monolithic-concatenate-source-op
+    lib-op)
+  "All of these classes should be instantiable without error.")
+
+(defclass my-unupdated-operation (operation)
+  ()
+  )
+
+(defclass my-good-operation (downward-operation)
+  ()
+  )
+
+(defclass my-incoherent-operation (downward-operation non-propagating-operation)
+  ()
+  )
+
+(loop :for class :in *good-classes*
+      :do (assert (make-instance class)))
+
+(assert
+ (catch 'op-def-error
+   (handler-bind ((operation-definition-error #'(lambda (e)
+                                                  (declare (ignore e))
+                                                  (throw 'op-def-error t))))
+     (make-instance 'my-unupdated-operation)
+     nil)))
+
+(assert
+ (catch 'op-def-error
+   (handler-bind ((operation-definition-error #'(lambda (e)
+                                                  (declare (ignore e))
+                                                  (throw 'op-def-error t))))
+     (make-instance 'my-incoherent-operation)
+     nil)))
+
+(assert (make-instance 'my-good-operation))
