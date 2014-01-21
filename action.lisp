@@ -16,7 +16,10 @@
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
-   #:action-path #:find-action #:stamp #:done-p))
+   #:action-path #:find-action #:stamp #:done-p
+   ;; condition
+   #:operation-definition-error
+   ))
 (in-package :asdf/action)
 
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute) ;; LispWorks issues spurious warning
@@ -205,6 +208,10 @@ dependencies.")))
 ;;;---------------------------------------------------------------------------
 ;;; Help programmers catch obsolete OPERATION subclasses
 ;;;---------------------------------------------------------------------------
+(define-condition operation-definition-error (simple-error)
+  ()
+  (:documentation "Error conditions related to incorrect definitions of 
+OPERATION objects."))
 (defmethod initialize-instance :before ((obj operation) &key)
   (unless 
       (loop :for x :in '(downward-operation upward-operation sideway-operation
@@ -214,9 +221,11 @@ dependencies.")))
             :when (typep obj x)
             :return t
             :finally (return nil))
-    (error "No dependency propagating scheme specified for operation ~a.~
+    (error 'operation-definition-error
+           "No dependency propagating scheme specified for operation ~a.~
 This is likely because the OPERATION subclass of this object has not been ~
-updated for ASDF 3." obj)))
+updated for ASDF 3."
+           obj)))
 
 (defmethod initialize-instance :before ((obj non-propagating-operation) &key)
   (when
@@ -225,7 +234,8 @@ updated for ASDF 3." obj)))
             :when (typep obj x)
             :return t
             :finally (return nil))
-    (error "Inconsistent class: ~a No class should have both NON-PROPAGATING-OPERATION and a propagating 
+    (error 'operation-definition-error
+           "Inconsistent class: ~a No class should have both NON-PROPAGATING-OPERATION and a propagating 
 operation class as superclasses." (class-name (class-of obj)))))
 
 ;;;---------------------------------------------------------------------------
