@@ -28,7 +28,7 @@
   (defclass basic-compile-concatenated-source-op (basic-compile-op selfward-operation) ())
   (defclass basic-load-compiled-concatenated-source-op (basic-load-op selfward-operation) ())
 
-  (defclass concatenate-source-op (basic-concatenate-source-op) ())
+  (defclass concatenate-source-op (basic-concatenate-source-op non-propagating-operation) ())
   (defclass load-concatenated-source-op (basic-load-concatenated-source-op)
     ((selfward-operation :initform '(prepare-op concatenate-source-op) :allocation :class)))
   (defclass compile-concatenated-source-op (basic-compile-concatenated-source-op)

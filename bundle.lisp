@@ -56,7 +56,7 @@
     (:documentation #+(or ecl mkcl) "compile the system and produce linkable (.a) library for it."
      #-(or ecl mkcl) "just compile the system"))
 
-  (defclass dll-op (bundle-compile-op no-ld-flags-op)
+  (defclass dll-op (bundle-compile-op no-ld-flags-op non-propagating-operation)
     ((bundle-type :initform :dll))
     (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
 
