@@ -81,12 +81,12 @@
   (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op non-propagating-operation) ()
     (:documentation "Create a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op non-propagating-operation no-ld-flags-op)
+  (defclass monolithic-lib-op (monolithic-bundle-compile-op non-propagating-operation no-ld-flags-op)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "Create a single linkable library for the system and its dependencies."
      #-(or ecl mkcl) "Compile a system and its dependencies."))
 
-  (defclass monolithic-dll-op (monolithic-bundle-compile-op sideway-operation selfward-operation no-ld-flags-op)
+  (defclass monolithic-dll-op (monolithic-bundle-compile-op non-propagating-operation no-ld-flags-op)
     ((bundle-type :initform :dll))
     (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
 

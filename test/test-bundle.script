@@ -43,10 +43,14 @@
 (operate 'monolithic-fasl-op :test-asdf/bundle-2)
 (assert (probe-file *mono-bundle-2*))
 
-;;; Test DLL-op on ECL.
+;;; Test dll-op and monolithic-dll-op on ECL.
 #+ecl
 (progn
   (operate 'dll-op :test-asdf/dll-test)
   (si:load-foreign-module (first (output-files 'dll-op :test-asdf/dll-test)))
   (operate 'load-op :test-asdf/dll-user)
-  (assert (= (test-package::sample-function) 42)))
+  (assert (= (test-package::sample-function) 42))
+  (operate 'monolithic-dll-op :test-asdf/monodll)
+  (si:load-foreign-module (first (output-files 'monolithic-dll-op :test-asdf/monodll)))
+  (operate 'load-op :test-asdf/monodll-user)
+  (assert (= (test-package::always-42) 42)))
