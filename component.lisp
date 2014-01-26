@@ -142,6 +142,9 @@ another pathname in a degenerate way."))
       :initarg :build-operation :initform nil :reader component-build-operation)))
 
   (defun component-find-path (component)
+    "Return a path from a root system to the COMPONENT.
+The return value is a list of component NAMES; a list of
+strings."
     (check-type component (or null component))
     (reverse
      (loop :for c = component :then (component-parent c)
@@ -160,7 +163,9 @@ another pathname in a degenerate way."))
 ;;;; Component hierarchy within a system
 ;; The tree typically but not necessarily follows the filesystem hierarchy.
 (with-upgradability ()
-  (defclass child-component (component) ())
+  (defclass child-component (component) ()
+    (:documentation "A CHILD-COMPONENT is a component that may be part of
+a PARENT-COMPONENT."))
 
   (defclass file-component (child-component)
     ((type :accessor file-type :initarg :type))) ; no default
@@ -189,7 +194,9 @@ another pathname in a degenerate way."))
      (default-component-class
       :initform nil
       :initarg :default-component-class
-      :accessor module-default-component-class))))
+      :accessor module-default-component-class)))
+  (:documentation "A PARENT-COMPONENT is a component that may have
+children."))
 
 (with-upgradability ()
   (defun compute-children-by-name (parent &key only-if-needed-p)

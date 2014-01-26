@@ -302,9 +302,16 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
   (defmethod traverse-action (plan operation component needed-in-image-p)
     (block nil
+      ;; ACTION-VALID-P among other things, handles forcing logic, including
+      ;; FORCE-NOT.
       (unless (action-valid-p plan operation component) (return nil))
+      ;; the following is needed by POIU, which tracks a dependency graph,
+      ;; instead of just a dependency order as in vanilla ASDF
       (plan-record-dependency plan operation component)
+      ;; needed in image distinguishes b/w things that must happen in the
+      ;; current image and those things that simply need to have been done.
       (let* ((aniip (needed-in-image-p operation component))
+             ;; effectively needed in image
              (eniip (and aniip needed-in-image-p))
              (status (plan-action-status plan operation component)))
         (when (and status (or (action-done-p status) (action-planned-p status) (not eniip)))
@@ -402,6 +409,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
 
 ;;;; Incidental traversals
+
+;;; Making a FILTERED-SEQUENTIAL-PLAN can be used to, e.g., all of the source
+;;; files required by a bundling operation.
 (with-upgradability ()
   (defclass filtered-sequential-plan (sequential-plan)
     ((action-filter :initform t :initarg :action-filter :reader plan-action-filter)

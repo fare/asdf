@@ -23,11 +23,11 @@
 
 1. It creates an instance of OPERATION-CLASS using any keyword parameters as initargs.
 2. It finds the  asdf-system specified by SYSTEM (possibly loading it from disk).
-3. It then calls TRAVERSE with the operation and system as arguments
+3. It then calls MAKE-PLAN with the operation and system as arguments
 
-The traverse operation is wrapped in WITH-COMPILATION-UNIT and error handling code.
-If a VERSION argument is supplied, then operate also ensures that the system found
-satisfies it using the VERSION-SATISFIES method.
+The operation of making a plan is wrapped in WITH-COMPILATION-UNIT and error
+handling code.  If a VERSION argument is supplied, then operate also ensures
+that the system found satisfies it using the VERSION-SATISFIES method.
 
 Note that dependencies may cause the operation to invoke other operations on the system
 or its components: the new operations will be created with the same initargs as the original one.

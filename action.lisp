@@ -115,7 +115,14 @@ You can put together sentences using this phrase."))
         and each <component> is a component designator with respect to
         FIND-COMPONENT in the context of the COMPONENT argument,
         and means that the component depends on
-        <operation> having been performed on each <component>; or
+        <operation> having been performed on each <component>;
+
+        [Note: an <operation> is an operation designator -- it can be either an
+        operation name or an operation object.  Similarly, a <component> may be
+        a component name or a component object.  Finally, the degenerate case of
+        (<operation>) is treated as a no-op.]
+
+      or
 
       (FEATURE <feature>), which means that the component depends
         on the <feature> expression satisfying FEATUREP.
@@ -188,10 +195,12 @@ each of its declared dependencies must first be loaded as by LOAD-OP."))
     (:documentation "A SELFWARD-OPERATION depends on another operation on the same component.
 I.e., if O is a SELFWARD-OPERATION, and its SELFWARD-OPERATION designates a list of operations L,
 then the action (O . C) of O on component C depends on each (S . C) for S in L.
+E.g. before a component may be loaded by LOAD-OP, it must have been compiled by COMPILE-OP.
 A operation-designator designates a singleton list of the designated operation;
 a list of operation-designators designates the list of designated operations;
-NIL is not a valid operation designator in that context.
-E.g. before a component may be loaded by LOAD-OP, it must have been compiled by COMPILE-OP."))
+NIL is not a valid operation designator in that context.  Note that orderings between 
+the operations in a list of SELWARD-OPERATION should be indicated separately in order
+that they be scheduled properly."))
   (defmethod component-depends-on ((o selfward-operation) (c component))
     `(,@(loop :for op :in (ensure-list (selfward-operation o))
               :collect `(,op ,c))

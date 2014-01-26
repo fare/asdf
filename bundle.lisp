@@ -64,7 +64,12 @@
     ((selfward-operation :initform '(fasl-op lib-op) :allocation :class))
     (:documentation "produce fasl and asd files for the system"))
 
-  (defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
+  (defclass monolithic-op (operation) ()
+    (:documentation "A MONOLITHIC operation operates on a system *and all of its
+dependencies*.  So, for example, a monolithic concatenate operation will
+concatenate together a system's components and all of its dependencies, but a
+simple concatenate operation will concatenate only the components of the system
+itself.")) ;; operation on a system and its dependencies
 
   (defclass monolithic-bundle-op (monolithic-op bundle-op)
     ((prologue-code :accessor monolithic-op-prologue-code)
@@ -72,7 +77,8 @@
 
   (defclass monolithic-bundle-compile-op (monolithic-bundle-op bundle-compile-op)
     ()
-    (:documentation "Abstract operation for ways to bundle the outputs of compiling *Lisp* files over all systems"))
+    (:documentation "Abstract operation for ways to bundle the outputs of compiling
+*Lisp* files over a system, and all of its dependencies."))
 
   (defclass monolithic-binary-op (monolithic-op binary-op)
     ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op) :allocation :class))

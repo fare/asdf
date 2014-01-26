@@ -58,6 +58,11 @@
     (declare (ignorable context))
     nil)
 
+  ;; build op was intended to be the master, default operation on a system
+  ;; (LOAD-OP typically serves that function now).  This feature has not yet
+  ;; been fully implemented yet.
+  ;; This is a path forward, but is not backwardly compatible, and is not used
+  ;; yet. [2014/01/26:rpg]
   (defclass build-op (operation) ()))
 
 
