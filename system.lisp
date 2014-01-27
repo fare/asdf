@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Systems
 
-(asdf/package:define-package :asdf/system
+(uiop/package:define-package :asdf/system
   (:recycle :asdf :asdf/system)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/component)
   (:export

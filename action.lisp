@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Actions
 
-(asdf/package:define-package :asdf/action
+(uiop/package:define-package :asdf/action
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade

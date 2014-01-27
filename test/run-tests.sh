@@ -393,8 +393,6 @@ valid_upgrade_test_p () {
         # It's damn slow. Also, for some reason, we punt on anything earlier than 2.25,
         # and only need to test it once, below for 2.24.
         abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-9]:*|abcl:2.2[0-3]:*) : ;;
-        # Skip allegro modern on 1.x -- fails for rpgoldman on his mac (!)
-        allegromodern:1.*) : ;;
         # ccl fasl numbering broke loading of old asdf 2.0
         ccl:2.0[01]*) : ;;
         # My old ubuntu 10.04LTS clisp 2.44.1 came wired in

@@ -2,7 +2,7 @@
 ;;;; Source Registry Configuration, by Francois-Rene Rideau
 ;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
-(asdf/package:define-package :asdf/source-registry
+(uiop/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/find-system)
   (:export

@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Invoking Operations
 
-(asdf/package:define-package :asdf/operate
+(uiop/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/operation :asdf/action

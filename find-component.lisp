@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding components
 
-(asdf/package:define-package :asdf/find-component
+(uiop/package:define-package :asdf/find-component
   (:recycle :asdf/find-component :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system)

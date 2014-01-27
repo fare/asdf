@@ -1,7 +1,7 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; asdf-output-translations
 
-(asdf/package:define-package :asdf/output-translations
+(uiop/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export

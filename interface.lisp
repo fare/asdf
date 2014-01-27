@@ -1,7 +1,7 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Handle ASDF package upgrade, including implementation-dependent magic.
 
-(asdf/package:define-package :asdf/interface
+(uiop/package:define-package :asdf/interface
   (:nicknames :asdf :asdf-utilities)
   (:recycle :asdf/interface :asdf)
   (:unintern

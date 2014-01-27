@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Plan
 
-(asdf/package:define-package :asdf/plan
+(uiop/package:define-package :asdf/plan
   (:recycle :asdf/plan :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation :asdf/system
@@ -198,8 +198,21 @@ the action of OPERATION on COMPONENT in the PLAN"))
     stamp)
 
   (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
-    ;; In a distant future, get-file-stamp and component-operation-time
-    ;; shall also be parametrized by the plan, or by a second model object.
+    ;; Given an action, figure out at what time in the past it has been done,
+    ;; or if it has just been done, return the time that it has.
+    ;; Returns two values:
+    ;; 1- the TIMESTAMP of the action if it has already been done and is up to date,
+    ;;   or T is either hasn't been done or is out of date.
+    ;; 2- the DONE-IN-IMAGE-P boolean flag that is T if the action has already been done
+    ;;   in the current image, or NIL if it hasn't.
+    ;; Note that if e.g. LOAD-OP only depends on up-to-date files, but
+    ;; hasn't been done in the current image yet, then it can have a non-T timestamp,
+    ;; yet a NIL done-in-image-p flag.
+    ;;
+    ;; In a distant future, get-file-stamp, component-operation-time and latest-stamp
+    ;; shall also be parametrized by the plan, or by a second model object,
+    ;; so they need not refer to the state of the filesystem,
+    ;; and the stamps could be cryptographic checksums rather than timestamps.
     (let* ((stamp-lookup #'(lambda (o c)
                              (if-let (it (plan-action-status plan o c)) (action-stamp it) t)))
            (out-files (output-files o c))

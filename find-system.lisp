@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding systems
 
-(asdf/package:define-package :asdf/find-system
+(uiop/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/cache)

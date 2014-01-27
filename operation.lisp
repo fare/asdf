@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
 
-(asdf/package:define-package :asdf/operation
+(uiop/package:define-package :asdf/operation
   (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export

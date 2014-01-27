@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Actions to build Common Lisp software
 
-(asdf/package:define-package :asdf/lisp-action
+(uiop/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
@@ -39,13 +39,12 @@
 (with-upgradability ()
   (defclass prepare-op (upward-operation sideway-operation)
     ((sideway-operation :initform 'load-op :allocation :class)))
-  (defclass load-op (basic-load-op downward-operation sideway-operation selfward-operation)
+  (defclass load-op (basic-load-op downward-operation selfward-operation)
     ;; NB: even though compile-op depends on prepare-op it is not needed-in-image-p,
     ;; so we need to directly depend on prepare-op for its side-effects in the current image.
     ((selfward-operation :initform '(prepare-op compile-op) :allocation :class)))
   (defclass compile-op (basic-compile-op downward-operation selfward-operation)
-    ((selfward-operation :initform 'prepare-op :allocation :class)
-     (downward-operation :initform 'load-op :allocation :class)))
+    ((selfward-operation :initform 'prepare-op :allocation :class)))
 
   (defclass prepare-source-op (upward-operation sideway-operation)
     ((sideway-operation :initform 'load-source-op :allocation :class)))
@@ -64,9 +63,6 @@
     (declare (ignorable o))
     (format nil (compatfmt "~@<loading dependencies of ~3i~_~A~@:>") c))
   (defmethod perform ((o prepare-op) (c component))
-    (declare (ignorable o c))
-    nil)
-  (defmethod input-files ((o prepare-op) (c component))
     (declare (ignorable o c))
     nil)
   (defmethod input-files ((o prepare-op) (s system))

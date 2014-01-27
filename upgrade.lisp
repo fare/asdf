@@ -2,7 +2,7 @@
 ;;;; Handle upgrade as forward- and backward-compatibly as possible
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 
-(asdf/package:define-package :asdf/upgrade
+(uiop/package:define-package :asdf/upgrade
   (:recycle :asdf/upgrade :asdf)
   (:use :uiop/common-lisp :uiop)
   (:export
@@ -12,7 +12,7 @@
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
    #:intern*)
-  (:import-from :asdf/package #:intern* #:find-symbol*))
+  (:import-from :uiop/package #:intern* #:find-symbol*))
 (in-package :asdf/upgrade)
 
 ;;; Special magic to detect if this is an upgrade

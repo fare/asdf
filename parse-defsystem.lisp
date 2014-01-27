@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Defsystem
 
-(asdf/package:define-package :asdf/parse-defsystem
+(uiop/package:define-package :asdf/parse-defsystem
   (:recycle :asdf/parse-defsystem :asdf/defsystem :asdf)
   (:nicknames :asdf/defsystem) ;; previous name, to be compatible with, in case anyone cares
   (:use :uiop/common-lisp :asdf/driver :asdf/upgrade
