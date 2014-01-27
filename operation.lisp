@@ -7,7 +7,6 @@
   (:export
    #:operation
    #:operation-original-initargs #:original-initargs ;; backward-compatibility only. DO NOT USE.
-   #:build-op ;; THE generic operation
    #:*operations* #:make-operation #:find-operation #:feature))
 (in-package :asdf/operation)
 
@@ -55,8 +54,5 @@
       ;; FEATURE is the ASDF1 misfeature that comes with IF-COMPONENT-DEP-FAILS
       (apply 'make-operation spec (operation-original-initargs context))))
   (defmethod operation-original-initargs ((context symbol))
-    nil)
-
-  (defclass build-op (operation) ()))
-
+    nil))
 

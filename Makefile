@@ -158,7 +158,7 @@ test-all-no-stop: doc test-load-systems test-all-clean-load test-all-lisp-no-sto
 	make check-all-results
 
 check-all-test-results:
-	@A="`grep -L '49 passing and 0 failing' build/results/*-test.text`" ; \
+	@A="`grep -L '[5-9][0-9] passing and 0 failing' build/results/*-test.text`" ; \
 	if [ -n "$$A" ] ; then \
 		echo "Unexpected test failures on these implementations:" ; \
 		echo "$$A" ; \

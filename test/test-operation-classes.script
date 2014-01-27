@@ -39,23 +39,20 @@
   "All of these classes should be instantiable without error.")
 
 (defclass my-unupdated-operation (operation)
-  ()
-  )
+  ())
 
 (defclass my-good-operation (downward-operation)
-  ()
-  )
+  ())
 
 (defclass my-incoherent-operation (downward-operation non-propagating-operation)
-  ()
-  )
+  ())
 
-(loop :for class :in *good-classes*
-      :do (assert (make-instance class)))
+(dolist (class *good-classes*) (assert (make-instance class)))
 
 (signals operation-definition-warning
          (make-instance 'my-unupdated-operation))
 
+#-gcl
 (signals operation-definition-error
          (make-instance 'my-incoherent-operation))
 

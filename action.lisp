@@ -17,8 +17,8 @@
    #:perform #:perform-with-restarts #:retry #:accept
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
    #:action-path #:find-action #:stamp #:done-p
-   ;; condition
-   #:operation-definition-warning #:operation-definition-error
+   #:operation-definition-warning #:operation-definition-error ;; condition
+   #:build-op ;; THE generic operation
    ))
 (in-package :asdf/action)
 
@@ -221,7 +221,7 @@ dependencies.")))
   (defmethod initialize-instance :before ((o operation) &key)
     ;; build-op is a special case.
     (unless (typep o '(or downward-operation upward-operation sideway-operation
-                          selfward-operation non-propagating-operation build-op))
+                          selfward-operation non-propagating-operation))
       (warn 'operation-definition-warning
             :format-control
             "No dependency propagating scheme specified for operation class ~S.
@@ -243,7 +243,7 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
       ;; For backward-compatibility with ASDF2, any operation that doesn't specify propagation
       ;; or non-propagation through an appropriate mixin will be downward and sideway.
       ,@(unless (typep o '(or downward-operation upward-operation sideway-operation
-                              selfward-operation non-propagating-operation build-op))
+                              selfward-operation non-propagating-operation))
           `(,@(downward-operation-depends-on o c)
             ,@(sideway-operation-depends-on o c)))))
 
@@ -396,6 +396,7 @@ in some previous image, or T if it needs to be done.")
 
 ;;; Generic build operation
 (with-upgradability ()
+  (defclass build-op (non-propagating-operation) ())
   (defmethod component-depends-on ((o build-op) (c component))
     `((,(or (component-build-operation c) 'load-op) ,c))))
 
