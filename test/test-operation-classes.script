@@ -53,20 +53,10 @@
 (loop :for class :in *good-classes*
       :do (assert (make-instance class)))
 
-(assert
- (catch 'op-def-error
-   (handler-bind ((operation-definition-error #'(lambda (e)
-                                                  (declare (ignore e))
-                                                  (throw 'op-def-error t))))
-     (make-instance 'my-unupdated-operation)
-     nil)))
+(signals operation-definition-warning
+         (make-instance 'my-unupdated-operation))
 
-(assert
- (catch 'op-def-error
-   (handler-bind ((operation-definition-error #'(lambda (e)
-                                                  (declare (ignore e))
-                                                  (throw 'op-def-error t))))
-     (make-instance 'my-incoherent-operation)
-     nil)))
+(signals operation-definition-error
+         (make-instance 'my-incoherent-operation))
 
 (assert (make-instance 'my-good-operation))

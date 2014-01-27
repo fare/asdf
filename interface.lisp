@@ -121,7 +121,7 @@
    #:circular-dependency        ; errors
    #:duplicate-names #:non-toplevel-system #:non-system-system
    #:package-system-missing-package-error
-   #:operation-definition-error
+   #:operation-definition-warning #:operation-definition-error
 
    #:try-recompiling
    #:retry
