@@ -282,7 +282,7 @@ Programmers are encouraged to define their own methods for this generic function
   (defmethod vomit-output-stream ((x (eql t)) stream &rest keys &key &allow-other-keys)
     (apply 'vomit-output-stream *standard-input* stream keys))
 
-  (defmethod vomit-output-stream ((x null) stream &key)
+  (defmethod vomit-output-stream ((x null) (stream t) &key)
     (values))
 
   (defmethod vomit-output-stream ((pathname pathname) input
