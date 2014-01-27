@@ -14,8 +14,9 @@
 ;;; Operation Classes
 
 (when-upgrading (:when (find-class 'operation nil))
-  (defmethod shared-initialize :after ((o operation) slot-names &rest initargs &key)
-    (declare (ignorable o slot-names initargs)) (values)))
+  ;; override any obsolete shared-initialize method when upgrading from ASDF2.
+  (defmethod shared-initialize :after ((o operation) (slot-names t) &key)
+    (values)))
 
 (with-upgradability ()
   (defclass operation ()
@@ -26,7 +27,7 @@
   ;; already bound.
   (defmethod initialize-instance :after ((o operation) &rest initargs
                                          &key force force-not system verbose &allow-other-keys)
-    (declare (ignorable force force-not system verbose))
+    (declare (ignore force force-not system verbose))
     (unless (slot-boundp o 'original-initargs)
       (setf (operation-original-initargs o) initargs)))
 
@@ -46,8 +47,7 @@
 
   (defgeneric find-operation (context spec)
     (:documentation "Find an operation by resolving the SPEC in the CONTEXT"))
-  (defmethod find-operation (context (spec operation))
-    (declare (ignorable context))
+  (defmethod find-operation ((context t) (spec operation))
     spec)
   (defmethod find-operation (context (spec symbol))
     (unless (member spec '(nil feature))
@@ -55,7 +55,6 @@
       ;; FEATURE is the ASDF1 misfeature that comes with IF-COMPONENT-DEP-FAILS
       (apply 'make-operation spec (operation-original-initargs context))))
   (defmethod operation-original-initargs ((context symbol))
-    (declare (ignorable context))
     nil)
 
   (defclass build-op (operation) ()))

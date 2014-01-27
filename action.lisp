@@ -267,7 +267,6 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
   (define-convenience-action-methods operation-done-p (operation component))
 
   (defmethod operation-done-p ((o operation) (c component))
-    (declare (ignorable o c))
     t)
 
   (defmethod output-files :around (operation component)
@@ -289,7 +288,6 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
                (mapcar *output-translation-function* absolute-pathnames))))
        t)))
   (defmethod output-files ((o operation) (c component))
-    (declare (ignorable o c))
     nil)
   (defun output-file (operation component)
     "The unique output file of performing OPERATION on COMPONENT"
@@ -303,7 +301,6 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
       (call-next-method)))
 
   (defmethod input-files ((o operation) (c component))
-    (declare (ignorable o c))
     nil)
 
   (defmethod input-files ((o selfward-operation) (c component))
@@ -369,7 +366,6 @@ in some previous image, or T if it needs to be done.")
   (defmethod perform :after ((o operation) (c component))
     (mark-operation-done o c))
   (defmethod perform ((o operation) (c parent-component))
-    (declare (ignorable o c))
     nil)
   (defmethod perform ((o operation) (c source-file))
     (sysdef-error

@@ -143,7 +143,7 @@
                                 do-first if-component-dep-fails version
                                 ;; list ends
          &allow-other-keys) options
-      (declare (ignorable perform explain output-files operation-done-p builtin-system-p))
+      (declare (ignore perform explain output-files operation-done-p builtin-system-p))
       (check-component-input type name weakly-depends-on depends-on components)
       (when (and parent
                  (find-component parent name)

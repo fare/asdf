@@ -68,9 +68,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
       (with-slots (stamp done-p planned-p index) status
         (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p :planned-p planned-p :index index))))
 
-  (defmethod action-planned-p (action-status)
-    (declare (ignorable action-status)) ; default method for non planned-action-status objects
-    t)
+  (defmethod action-planned-p ((action-status t))
+    t) ; default method for non planned-action-status objects
 
   ;; TODO: eliminate NODE-FOR, use CONS.
   ;; Supposes cleaner protocol for operation initargs passed to MAKE-OPERATION.
@@ -81,12 +80,10 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (action-done-p (plan-action-status plan operation component)))
 
   (defmethod plan-action-status ((plan null) (o operation) (c component))
-    (declare (ignorable plan))
     (multiple-value-bind (stamp done-p) (component-operation-time o c)
       (make-instance 'action-status :stamp stamp :done-p done-p)))
 
   (defmethod (setf plan-action-status) (new-status (plan null) (o operation) (c component))
-    (declare (ignorable plan))
     (let ((to (type-of o))
           (times (component-operation-times c)))
       (if (action-done-p new-status)
@@ -107,7 +104,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
       ((eql t) (when system (list-to-hash-set (list (coerce-name system)))))))
 
   (defun action-override-p (plan operation component override-accessor)
-    (declare (ignorable operation))
+    (declare (ignore operation))
     (let* ((override (funcall override-accessor plan)))
       (and override
            (if (typep override 'hash-table)
@@ -131,12 +128,10 @@ the action of OPERATION on COMPONENT in the PLAN"))
      ;; Force takes precedence over force-not
      (not (action-forced-p plan operation component))))
 
-  (defmethod action-forced-p ((plan null) operation component)
-    (declare (ignorable plan operation component))
+  (defmethod action-forced-p ((plan null) (operation operation) (component component))
     nil)
 
-  (defmethod action-forced-not-p ((plan null) operation component)
-    (declare (ignorable plan operation component))
+  (defmethod action-forced-not-p ((plan null) (operation operation) (component component))
     nil))
 
 
@@ -144,14 +139,11 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (with-upgradability ()
   (defgeneric action-valid-p (plan operation component)
     (:documentation "Is this action valid to include amongst dependencies?"))
-  (defmethod action-valid-p (plan operation (c component))
-    (declare (ignorable plan operation))
+  (defmethod action-valid-p ((plan plan-traversal) (o operation) (c component))
     (if-let (it (component-if-feature c)) (featurep it) t))
-  (defmethod action-valid-p (plan (o null) c) (declare (ignorable plan o c)) nil)
-  (defmethod action-valid-p (plan o (c null)) (declare (ignorable plan o c)) nil)
-  (defmethod action-valid-p ((plan null) operation component)
-    (declare (ignorable plan operation component))
-    (and operation component t)))
+  (defmethod action-valid-p ((plan t) (o null) (c t)) nil)
+  (defmethod action-valid-p ((plan t) (o t) (c null)) nil)
+  (defmethod action-valid-p ((plan null) (o operation) (c component)) t))
 
 
 ;;;; Is the action needed in this image?
@@ -313,6 +305,15 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
   (defgeneric traverse-action (plan operation component needed-in-image-p))
 
+  ;; TRAVERSE-ACTION, in the context of a given PLAN object that accumulates dependency data,
+  ;; visits the action defined by its OPERATION and COMPONENT arguments,
+  ;; and all its transitive dependencies (unless already visited),
+  ;; in the context of the action being (or not) NEEDED-IN-IMAGE-P,
+  ;; i.e. needs to be done in the current image vs merely have been done in a previous image.
+  ;; For actions that are up-to-date, it returns a STAMP identifying the state of the action
+  ;; (that's timestamp, but it could be a cryptographic digest in some ASDF extension),
+  ;; or T if the action needs to be done again.
+
   (defmethod traverse-action (plan operation component needed-in-image-p)
     (block nil
       (unless (action-valid-p plan operation component) (return nil))
@@ -362,9 +363,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defmethod plan-actions ((plan sequential-plan))
     (reverse (plan-actions-r plan)))
 
-  (defmethod plan-record-dependency ((plan sequential-plan)
-                                     (operation operation) (component component))
-    (declare (ignorable plan operation component))
+  (defmethod plan-record-dependency ((plan sequential-plan) (o operation) (c component))
     (values))
 
   (defmethod (setf plan-action-status) :after

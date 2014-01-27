@@ -246,7 +246,6 @@ Going forward, we recommend new users should be using the source-registry.
     (register-preloaded-system s :version *asdf-version*))
 
   (defmethod find-system ((name null) &optional (error-p t))
-    (declare (ignorable name))
     (when error-p
       (sysdef-error (compatfmt "~@<NIL is not a valid system name~@:>"))))
 

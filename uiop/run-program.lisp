@@ -185,35 +185,27 @@ Programmers are encouraged to define their own methods for this generic function
      :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
 
   (defmethod slurp-input-stream ((x (eql 'string)) stream &key stripped)
-    (declare (ignorable x))
     (slurp-stream-string stream :stripped stripped))
 
   (defmethod slurp-input-stream ((x (eql :string)) stream &key stripped)
-    (declare (ignorable x))
     (slurp-stream-string stream :stripped stripped))
 
   (defmethod slurp-input-stream ((x (eql :lines)) stream &key count)
-    (declare (ignorable x))
     (slurp-stream-lines stream :count count))
 
   (defmethod slurp-input-stream ((x (eql :line)) stream &key (at 0))
-    (declare (ignorable x))
     (slurp-stream-line stream :at at))
 
   (defmethod slurp-input-stream ((x (eql :forms)) stream &key count)
-    (declare (ignorable x))
     (slurp-stream-forms stream :count count))
 
   (defmethod slurp-input-stream ((x (eql :form)) stream &key (at 0))
-    (declare (ignorable x))
     (slurp-stream-form stream :at at))
 
   (defmethod slurp-input-stream ((x (eql t)) stream &rest keys &key &allow-other-keys)
-    (declare (ignorable x))
     (apply 'slurp-input-stream *standard-output* stream keys))
 
-  (defmethod slurp-input-stream ((x null) stream &key)
-    (declare (ignorable x stream))
+  (defmethod slurp-input-stream ((x null) (stream t) &key)
     nil)
 
   (defmethod slurp-input-stream ((pathname pathname) input
@@ -288,11 +280,9 @@ Programmers are encouraged to define their own methods for this generic function
     (values))
 
   (defmethod vomit-output-stream ((x (eql t)) stream &rest keys &key &allow-other-keys)
-    (declare (ignorable x))
     (apply 'vomit-output-stream *standard-input* stream keys))
 
   (defmethod vomit-output-stream ((x null) stream &key)
-    (declare (ignorable x stream))
     (values))
 
   (defmethod vomit-output-stream ((pathname pathname) input
