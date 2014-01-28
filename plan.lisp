@@ -181,6 +181,12 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defun direct-dependencies (operation component)
     (reduce-direct-dependencies operation component #'acons nil))
 
+  ;; In a distant future, get-file-stamp, component-operation-time and latest-stamp
+  ;; shall also be parametrized by the plan, or by a second model object,
+  ;; so they need not refer to the state of the filesystem,
+  ;; and the stamps could be cryptographic checksums rather than timestamps.
+  ;; Such a change remarkably would only affect VISIT-DEPENDENCIES and COMPUTE-ACTION-STAMP.
+
   (defun visit-dependencies (plan operation component dependency-stamper &aux stamp)
     (map-direct-dependencies
      operation component
@@ -200,11 +206,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
     ;; Note that if e.g. LOAD-OP only depends on up-to-date files, but
     ;; hasn't been done in the current image yet, then it can have a non-T timestamp,
     ;; yet a NIL done-in-image-p flag.
-    ;;
-    ;; In a distant future, get-file-stamp, component-operation-time and latest-stamp
-    ;; shall also be parametrized by the plan, or by a second model object,
-    ;; so they need not refer to the state of the filesystem,
-    ;; and the stamps could be cryptographic checksums rather than timestamps.
     (let* ((stamp-lookup #'(lambda (o c)
                              (if-let (it (plan-action-status plan o c)) (action-stamp it) t)))
            (out-files (output-files o c))
@@ -313,43 +314,47 @@ the action of OPERATION on COMPONENT in the PLAN"))
   ;; For actions that are up-to-date, it returns a STAMP identifying the state of the action
   ;; (that's timestamp, but it could be a cryptographic digest in some ASDF extension),
   ;; or T if the action needs to be done again.
+  ;;
+  ;; Note that for an XCVB-like plan with one-image-per-file-outputting-action,
+  ;; the below method would be insufficient, since it assumes a single image
+  ;; to traverse each node at most twice; non-niip actions would be traversed only once,
+  ;; but niip nodes could be traversed once per image, i.e. once plus once per non-niip action.
 
   (defmethod traverse-action (plan operation component needed-in-image-p)
     (block nil
-      (unless (action-valid-p plan operation component) (return nil))
-      (plan-record-dependency plan operation component)
-      (let* ((aniip (needed-in-image-p operation component))
-             (eniip (and aniip needed-in-image-p))
-             (status (plan-action-status plan operation component)))
+      (unless (action-valid-p plan operation component) (return nil)) ; if-feature, forced-not...
+      (plan-record-dependency plan operation component) ; hook to maintain complete graph (POIU)
+      (let* ((aniip (needed-in-image-p operation component)) ; does it side-effect the image?
+             (eniip (and aniip needed-in-image-p)) ; does it side-effect the *current* image?
+             (status (plan-action-status plan operation component))) ; status of action so far
         (when (and status (or (action-done-p status) (action-planned-p status) (not eniip)))
-          ;; Already visited with sufficient need-in-image level: just return the stamp.
-          (return (action-stamp status)))
-        (labels ((visit-action (niip)
-                   (visit-dependencies plan operation component
+          (return (action-stamp status))) ; Already visited with sufficient need-in-image level!
+        (labels ((visit-action (niip) ; We may visit the action twice, once with niip NIL, then T
+                   (visit-dependencies plan operation component ; recursively traverse dependencies
                                        #'(lambda (o c) (traverse-action plan o c niip)))
-                   (multiple-value-bind (stamp done-p)
-                       (compute-action-stamp plan operation component)
+                   (multiple-value-bind (stamp done-p) ; AFTER dependencies have been traversed,
+                       (compute-action-stamp plan operation component) ; compute action stamp
                      (let ((add-to-plan-p (or (eql stamp t) (and niip (not done-p)))))
-                       (cond
-                         ((and add-to-plan-p (not niip)) ;; if we need to do it,
-                          (visit-action t)) ;; then we need to do it in the image!
+                       (cond ; it needs be done if it's out of date or needed in image but absent
+                         ((and add-to-plan-p (not niip)) ; if we need to do it,
+                          (visit-action t)) ; then we need to do it *in the (current) image*!
                          (t
-                          (setf (plan-action-status plan operation component)
+                          (setf (plan-action-status plan operation component) ; update status:
                                 (make-instance
                                  'planned-action-status
-                                 :stamp stamp
-                                 :done-p (and done-p (not add-to-plan-p))
-                                 :planned-p add-to-plan-p
-                                 :index (if status
-                                            (action-index status)
-                                            (incf (plan-total-action-count plan)))))
-                          (when add-to-plan-p
-                            (incf (plan-planned-action-count plan))
-                            (unless aniip
-                              (incf (plan-planned-output-action-count plan))))
-                          stamp))))))
+                                 :stamp stamp ; computed stamp
+                                 :done-p (and done-p (not add-to-plan-p)) ; done *and* up-to-date?
+                                 :planned-p add-to-plan-p ; included in list of things to be done?
+                                 :index (if status ; index of action amongst all nodes in traversal
+                                            (action-index status) ;; if already visited, keep index
+                                            (incf (plan-total-action-count plan))))) ; else new index
+                          (when add-to-plan-p ; if it needs to be added to the plan,
+                            (incf (plan-planned-action-count plan)) ; count it
+                            (unless aniip ; if it's output-producing,
+                              (incf (plan-planned-output-action-count plan)))) ; count it
+                          stamp)))))) ; return the stamp
           (while-visiting-action (plan operation component) ; maintain context, handle circularity.
-            (visit-action eniip)))))))
+            (visit-action eniip))))))) ; visit the action
 
 
 ;;;; Sequential plans (the default)
