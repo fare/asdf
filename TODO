@@ -1,10 +1,12 @@
 * Decree that versions older than 2 years are not supported,
-  remove them from upgrade tests. We should already not support
-  anything older than 2.014.5 from Quicklisp, or so.
+  maybe remove them from upgrade tests
+  (or split upgrade tests in two test sets: short and long).
+  We should already not support anything older than 2.019 or so
+  (still used by LispWorks).
   Yet, we should keep supporting upgrading from what vendors provide
   — so push them to provide recent stuff.
 
-* ASDF 3.2: moving toward cross-compilation.
+* Moving toward cross-compilation (ASDF 3.2?)
    This would allow to get all or most of the benefits of XCVB
    (reproducibility, scalability, applicability to mobile platforms, etc.),
    except without the backward incompatibility of XCVB.
@@ -19,70 +21,74 @@
 ** Modify SBCL and other implementations so they provide UIOP
    independently from ASDF?
 
-* CMUCL has bugs:
-** In ASDF 2.32.13, sibling-dependencies is renamed to sideway-dependencies
-   in defclass component, a superclass of system, and upgrade from
-   2.32 or earlier thus fails with
-   Error in function KERNEL:CLASS-TYPEP:  Class is currently invalid:
-   #<KERNEL::STANDARD-CLASS ASDF/SYSTEM:SYSTEM {58398145}>
-   in a direct call from ASDF/FIND-SYSTEM:LOCATE-SYSTEM,
-   which suggests CMUCL's PCL fails to finalize classes properly.
-** Non-default optimize settings may or may not subtly break PCL.
-   For the longest time (from 2.26.136 to 3.1.0.42), ASDF had:
-   (declaim (optimize (speed 1) (safety 3) (debug 3)))
-   This form may or may not work around that breakage in some cases:
-   (setf c::top-level-lambda-max 0)
-** At some point there was massive breakage due to uninitialized slots
-   as revealed in 3.1.0.37 with
-   make t l=cmucl t=test-encodings.script
-   which was a different PCL bug from the above (without same workaround)
-   but possibly also triggered by the non-standard declaim.
+* Implementation bugs
+** CMUCL has bugs:
+*** In ASDF 2.32.13, sibling-dependencies is renamed to sideway-dependencies
+    in defclass component, a superclass of system, and upgrade from
+    2.32 or earlier thus fails with
+    Error in function KERNEL:CLASS-TYPEP:  Class is currently invalid:
+    #<KERNEL::STANDARD-CLASS ASDF/SYSTEM:SYSTEM {58398145}>
+    in a direct call from ASDF/FIND-SYSTEM:LOCATE-SYSTEM,
+    which suggests CMUCL's PCL fails to finalize classes properly.
+*** Non-default optimize settings may or may not subtly break PCL.
+    For the longest time (from 2.26.136 to 3.1.0.42), ASDF had:
+    (declaim (optimize (speed 1) (safety 3) (debug 3)))
+    This form may or may not work around that breakage in some cases:
+    (setf c::top-level-lambda-max 0)
+*** At some point there was massive breakage due to uninitialized slots
+    as revealed in 3.1.0.37 with
+    make t l=cmucl t=test-encodings.script
+    which was a different PCL bug from the above (without same workaround)
+    but possibly also triggered by the non-standard declaim.
 
-* XCL has bad bugs:
-  make-pathname doesn't handle :type nil properly and
-  has massive lossage in logical-pathname support.
-  If using block () and return in search-for-system-definition
-  instead of return-from, XCL mistakenly has the return jump
-  to the end of the try function or something.
-  It also takes a long time for errors to propagate into a debugging REPL —
-  Maybe O(n^3) behavior or worse in walking the C++ stack?
-  The backtrace frames may contains unprintable objects.
-  make-pathname fails to copy the version from the defaults.
-  (make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
-   :name nil :type nil) fails to handle the logical-pathname-ness of ASDFTEST.
+** XCL has bad bugs:
+   make-pathname doesn't handle :type nil properly and
+   has massive lossage in logical-pathname support.
+   If using block () and return in search-for-system-definition
+   instead of return-from, XCL mistakenly has the return jump
+   to the end of the try function or something.
+   It also takes a long time for errors to propagate into a debugging REPL —
+   Maybe O(n^3) behavior or worse in walking the C++ stack?
+   The backtrace frames may contains unprintable objects.
+   make-pathname fails to copy the version from the defaults.
+   (make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
+    :name nil :type nil) fails to handle the logical-pathname-ness of ASDFTEST.
 
-* GCL is almost working again; but implementation bugs remain.
-  See November 2013 discussion on gcl-devel.
-   * Another GCL compiler bug:
-   when I changed the definition of getcwd from
-   (let ((*default-pathname-defaults* #p"")) (truename #p"")) to
-   (let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))
-   to guard against e.g. a logical-pathname context while loading asdf
-   and parsing #p"", calls to getcwd result in a segfault.
-   * An another bug: gcl refuses dynamic-extent declaration on functions.
-    uiop/stream.lisp:         #-gcl (declare (dynamic-extent ,@(when
-    before `(#',beforef)) ,@(when after `(#',afterf))))
-   * (typep p 'logical-pathname) should be T if p has a logical-pathname host.
-   * apropos is case-sensitive and returns a same symbol many times
-   * compile-file fails to return proper secondary values in case of non-style WARNING.
-   * (pathname-directory #p"foo/") is incorrectly ("foo") instead of (:RELATIVE "foo")
-   * Missing: chdir, combine-fasls, and plenty more UIOP functions.
-   * Do whatever it takes to pass the asdf tests, add the above?
-   * Have (require "asdf") and (require "ASDF") both work.
-   * Trying to uiop:slurp-stream-forms from a stream with #+(or) :foo
-     (or read-file-forms from an file with same) results in an error,
-     rather than nil. This is probably a bug in #+ processing.
-     Unhappily, debian creates such a file in
-     /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
-   * Tests that try to catch an error fail (but catching a warning succeeds),
-     which suggests brokenness in handler-bind and/or error.
+** GCL is almost working again; but implementation bugs remain.
+   See November 2013 discussion on gcl-devel.
+    * Another GCL compiler bug:
+    when I changed the definition of getcwd from
+    (let ((*default-pathname-defaults* #p"")) (truename #p"")) to
+    (let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))
+    to guard against e.g. a logical-pathname context while loading asdf
+    and parsing #p"", calls to getcwd result in a segfault.
+    * An another bug: gcl refuses dynamic-extent declaration on functions.
+     uiop/stream.lisp:         #-gcl (declare (dynamic-extent ,@(when
+     before `(#',beforef)) ,@(when after `(#',afterf))))
+    * (typep p 'logical-pathname) should be T if p has a logical-pathname host.
+    * apropos is case-sensitive and returns a same symbol many times
+    * compile-file fails to return proper secondary values in case of non-style WARNING.
+    * (pathname-directory #p"foo/") is incorrectly ("foo") instead of (:RELATIVE "foo")
+    * Missing: chdir, combine-fasls, and plenty more UIOP functions.
+    * Do whatever it takes to pass the asdf tests, add the above?
+    * Have (require "asdf") and (require "ASDF") both work.
+    * Trying to uiop:slurp-stream-forms from a stream with #+(or) :foo
+      (or read-file-forms from an file with same) results in an error,
+      rather than nil. This is probably a bug in #+ processing.
+      Unhappily, debian creates such a file in
+      /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
+    * Tests that try to catch an error fail (but catching a warning succeeds),
+      which suggests brokenness in handler-bind and/or error.
 
-* Some out-of-line configuration mechanism for various options?
-  i.e. let configuration files override some variables around compilation of some systems.
+** Find out why ABCL fails the timestamp propagation test.
 
 * Find an easier way to bind variables around compilation and loading of files
 
-* Find out why ABCL fails the timestamp propagation test.
+* Design & Implement some out-of-line configuration mechanism for various options?
+  i.e. let configuration files override some variables around some actions.
+  * Could be used to override new backward-incompatible defaults
+   (e.g. for operation propagation, deferred warnings, etc.)
+  * Use the above variable binding mechanism.
 
 * Fix bugs on http://bugs.launchpad.net/asdf/+bugs
 
@@ -104,13 +110,6 @@
 * have with-input-file use the encodings mechanism?
 
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
-
-* implement deferred warnings support on lispworks
-
-* work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
-
-* fix upgrade on clisp, cmucl, abcl (if still broken)
-** Extract minimal test case, build a battery of automated tests
 
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
   are not in strict defsystem-depends-on dependency order.
@@ -245,3 +244,10 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 
 * See message from 2014-01-27 05:26:44 GMT for stuff to document.
    http://thread.gmane.org/gmane.lisp.asdf.devel/3675/focus=3695
+
+* deferred-warnings support probably needs to be redone better.
+  * implement deferred warnings support on lispworks
+  * work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
+  * https://www.mail-archive.com/asdf-devel@common-lisp.net/msg03608.html
+  * czak@google.com rewrote part of deferred warnings support.
+   Ask him for the code he implemented at Google.
