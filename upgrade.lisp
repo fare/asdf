@@ -51,7 +51,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defun upgrading-p ()
     (and *previous-asdf-versions* (not (equal *asdf-version* (first *previous-asdf-versions*)))))
   (defmacro when-upgrading ((&key (upgrading-p '(upgrading-p)) when) &body body)
-    "A wrapper macro for code that should only be run when upgrading a 
+    "A wrapper macro for code that should only be run when upgrading a
 previously-loaded version of ASDF."
     `(with-upgradability ()
        (when (and ,upgrading-p ,@(when when `(,when)))

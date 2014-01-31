@@ -138,8 +138,7 @@ another pathname in a degenerate way."))
 
   (defun component-find-path (component)
     "Return a path from a root system to the COMPONENT.
-The return value is a list of component NAMES; a list of
-strings."
+The return value is a list of component NAMES; a list of strings."
     (check-type component (or null component))
     (reverse
      (loop :for c = component :then (component-parent c)

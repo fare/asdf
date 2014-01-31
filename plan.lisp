@@ -322,17 +322,18 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
   (defmethod traverse-action (plan operation component needed-in-image-p)
     (block nil
-      ;; ACTION-VALID-P among other things, handles forcing logic, including
-      ;; FORCE-NOT.
+      ;; ACTION-VALID-P among other things, handles forcing logic, including FORCE-NOT,
+      ;; and IF-FEATURE filtering.
       (unless (action-valid-p plan operation component) (return nil))
-      ;; the following is needed by POIU, which tracks a dependency graph,
+      ;; the following hook is needed by POIU, which tracks a full dependency graph,
       ;; instead of just a dependency order as in vanilla ASDF
       (plan-record-dependency plan operation component)
       ;; needed in image distinguishes b/w things that must happen in the
-      ;; current image and those things that simply need to have been done.
-      (let* ((aniip (needed-in-image-p operation component))
-             ;; effectively needed in image
+      ;; current image and those things that simply need to have been done in a previous one.
+      (let* ((aniip (needed-in-image-p operation component)) ; action-specific needed-in-image
+             ;; effective niip: meaningful for the action and required by the plan as traversed
              (eniip (and aniip needed-in-image-p))
+             ;; status: have we traversed that action previously, and if so what was its status?
              (status (plan-action-status plan operation component)))
         (when (and status (or (action-done-p status) (action-planned-p status) (not eniip)))
           (return (action-stamp status))) ; Already visited with sufficient need-in-image level!

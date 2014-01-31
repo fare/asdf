@@ -119,8 +119,8 @@ You can put together sentences using this phrase."))
 
         [Note: an <operation> is an operation designator -- it can be either an
         operation name or an operation object.  Similarly, a <component> may be
-        a component name or a component object.  Finally, the degenerate case of
-        (<operation>) is treated as a no-op.]
+        a component name or a component object.  Also note that, the degenerate
+        case of (<operation>) is a no-op.]
 
       or
 
@@ -199,9 +199,9 @@ then the action (O . C) of O on component C depends on each (S . C) for S in L.
 E.g. before a component may be loaded by LOAD-OP, it must have been compiled by COMPILE-OP.
 A operation-designator designates a singleton list of the designated operation;
 a list of operation-designators designates the list of designated operations;
-NIL is not a valid operation designator in that context.  Note that orderings between 
-the operations in a list of SELWARD-OPERATION should be indicated separately in order
-that they be scheduled properly."))
+NIL is not a valid operation designator in that context.  Note that any dependency
+ordering between the operations in a list of SELFWARD-OPERATION should be specified separately
+in the respective operation's COMPONENT-DEPENDS-ON methods so that they be scheduled properly."))
   (defun selfward-operation-depends-on (o c)
     (loop :for op :in (ensure-list (selfward-operation o)) :collect `(,op ,c)))
   (defmethod component-depends-on ((o selfward-operation) (c component))
@@ -405,11 +405,11 @@ in some previous image, or T if it needs to be done.")
 
 ;;; Generic build operation
 (with-upgradability ()
-  ;; build op was intended to be the master, default operation on a system
-  ;; (LOAD-OP typically serves that function now).  This feature has not yet
-  ;; been fully implemented yet.
-  ;; This is a path forward, but is not backwardly compatible, and is not used
-  ;; yet. [2014/01/26:rpg]
+  ;; BUILD-OP was intended to be the default "master" operation to invoke on a system in ASDF3
+  ;; (LOAD-OP typically serves that function now).
+  ;; This feature has not yet been fully implemented yet, and is not used by anyone yet.
+  ;; This is a path forward, and its default below is to backward compatibly depend on LOAD-OP.
+  ;; [2014/01/26:rpg]
   (defclass build-op (non-propagating-operation) ())
   (defmethod component-depends-on ((o build-op) (c component))
     `((,(or (component-build-operation c) 'load-op) ,c))))
