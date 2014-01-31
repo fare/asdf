@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Stamp cache
 
-(asdf/package:define-package :asdf/cache
+(uiop/package:define-package :asdf/cache
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
            #:consult-asdf-cache #:do-asdf-cache #:normalize-namestring

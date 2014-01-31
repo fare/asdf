@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;; Backward-compatible interfaces
 
-(asdf/package:define-package :asdf/backward-interface
+(uiop/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
@@ -43,13 +43,13 @@
   (defgeneric (setf operation-on-warnings) (x operation))
   (defgeneric (setf operation-on-failure) (x operation))
   (defmethod operation-on-warnings ((o operation))
-    (declare (ignorable o)) *compile-file-warnings-behaviour*)
+    *compile-file-warnings-behaviour*)
   (defmethod operation-on-failure ((o operation))
-    (declare (ignorable o)) *compile-file-failure-behaviour*)
+    *compile-file-failure-behaviour*)
   (defmethod (setf operation-on-warnings) (x (o operation))
-    (declare (ignorable o)) (setf *compile-file-warnings-behaviour* x))
+    (setf *compile-file-warnings-behaviour* x))
   (defmethod (setf operation-on-failure) (x (o operation))
-    (declare (ignorable o)) (setf *compile-file-failure-behaviour* x))
+    (setf *compile-file-failure-behaviour* x))
 
   (defun system-definition-pathname (x)
     ;; As of 2.014.8, we mean to make this function obsolete,
@@ -119,7 +119,7 @@ processed in order by OPERATE."))
          :ignore-inherited-configuration))))
 
   (defmethod operate :before (operation-class system &rest args &key &allow-other-keys)
-    (declare (ignorable operation-class system args))
+    (declare (ignore operation-class system args))
     (when (find-symbol* '#:output-files-for-system-and-operation :asdf nil)
       (error "ASDF 2 is not compatible with ASDF-BINARY-LOCATIONS, which you are using.
 ASDF 2 now achieves the same purpose with its builtin ASDF-OUTPUT-TRANSLATIONS,

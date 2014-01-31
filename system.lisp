@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Systems
 
-(asdf/package:define-package :asdf/system
+(uiop/package:define-package :asdf/system
   (:recycle :asdf :asdf/system)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/component)
   (:export
@@ -29,7 +29,6 @@
 
   (defgeneric component-entry-point (component))
   (defmethod component-entry-point ((c component))
-    (declare (ignorable c))
     nil))
 
 
@@ -106,6 +105,5 @@ in which the system specification (.asd file) is located."
     (system-source-directory system))
 
   (defmethod component-build-pathname ((c component))
-    (declare (ignorable c))
     nil))
 

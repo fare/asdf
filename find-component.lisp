@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding components
 
-(asdf/package:define-package :asdf/find-component
+(uiop/package:define-package :asdf/find-component
   (:recycle :asdf/find-component :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system)
@@ -79,8 +79,7 @@
   (defmethod find-component ((c component) (name cons))
     (find-component (find-component c (car name)) (cdr name)))
 
-  (defmethod find-component (base (actual component))
-    (declare (ignorable base))
+  (defmethod find-component ((base t) (actual component))
     actual)
 
   (defun resolve-dependency-name (component name &optional version)
@@ -120,11 +119,9 @@
            (cons combinator arguments) component))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :feature)) arguments)
-    (declare (ignorable combinator))
     (when (featurep (first arguments))
       (resolve-dependency-spec component (second arguments))))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :version)) arguments)
-    (declare (ignorable combinator)) ;; See https://bugs.launchpad.net/asdf/+bug/527788
-    (resolve-dependency-name component (first arguments) (second arguments))))
+    (resolve-dependency-name component (first arguments) (second arguments)))) ;; See lp#527788
 

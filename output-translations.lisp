@@ -1,7 +1,7 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; asdf-output-translations
 
-(asdf/package:define-package :asdf/output-translations
+(uiop/package:define-package :asdf/output-translations
   (:recycle :asdf/output-translations :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export
@@ -222,7 +222,6 @@ and the order is by decreasing length of namestring of the source pathname.")
     (process-output-translations (parse-output-translations-string string)
                                  :inherit inherit :collect collect))
   (defmethod process-output-translations ((x null) &key inherit collect)
-    (declare (ignorable x))
     (inherit-output-translations inherit :collect collect))
   (defmethod process-output-translations ((form cons) &key inherit collect)
     (dolist (directive (cdr (validate-output-translations-form form)))

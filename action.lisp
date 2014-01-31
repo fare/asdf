@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Actions
 
-(asdf/package:define-package :asdf/action
+(uiop/package:define-package :asdf/action
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
@@ -17,8 +17,8 @@
    #:perform #:perform-with-restarts #:retry #:accept
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
    #:action-path #:find-action #:stamp #:done-p
-   ;; condition
-   #:operation-definition-error
+   #:operation-definition-warning #:operation-definition-error ;; condition
+   #:build-op ;; THE generic operation
    ))
 (in-package :asdf/action)
 
@@ -134,10 +134,7 @@ You can put together sentences using this phrase."))
 
   (defmethod component-depends-on :around ((o operation) (c component))
     (do-asdf-cache `(component-depends-on ,o ,c)
-      (call-next-method)))
-
-  (defmethod component-depends-on ((o operation) (c component))
-    (cdr (assoc (type-of o) (component-in-order-to c))))) ; User-specified in-order dependencies
+      (call-next-method))))
 
 
 ;;;; upward-operation, downward-operation, sideway-operation, selfward-operation
@@ -153,8 +150,10 @@ the action (O . M) of O on module M will depends on each of (D . C) for each chi
 The default value for slot DOWNWARD-OPERATION is NIL, which designates the operation O itself.
 E.g. in order for a MODULE to be loaded with LOAD-OP (resp. compiled with COMPILE-OP), all the
 children of the MODULE must have been loaded with LOAD-OP (resp. compiled with COMPILE-OP."))
+  (defun downward-operation-depends-on (o c)
+    `((,(or (downward-operation o) o) ,@(component-children c))))
   (defmethod component-depends-on ((o downward-operation) (c parent-component))
-    `((,(or (downward-operation o) o) ,@(component-children c)) ,@(call-next-method)))
+    `(,@(downward-operation-depends-on o c) ,@(call-next-method)))
 
   (defclass upward-operation (operation)
     ((upward-operation
@@ -168,9 +167,10 @@ E.g. in order for a COMPONENT to be prepared for loading or compiling with PREPA
 must first be prepared for loading or compiling with PREPARE-OP."))
   ;; For backward-compatibility reasons, a system inherits from module and is a child-component
   ;; so we must guard against this case. ASDF4: remove that.
+  (defun upward-operation-depends-on (o c)
+    (if-let (p (component-parent c)) `((,(or (upward-operation o) o) ,p))))
   (defmethod component-depends-on ((o upward-operation) (c child-component))
-    `(,@(if-let (p (component-parent c))
-          `((,(or (upward-operation o) o) ,p))) ,@(call-next-method)))
+    `(,@(upward-operation-depends-on o c) ,@(call-next-method)))
 
   (defclass sideway-operation (operation)
     ((sideway-operation
@@ -182,11 +182,12 @@ designates operation S (where NIL designates O itself), then the action (O . C) 
 depends on each of (S . D) where D is a declared dependency of C.
 E.g. in order for a COMPONENT to be prepared for loading or compiling with PREPARE-OP,
 each of its declared dependencies must first be loaded as by LOAD-OP."))
-  (defmethod component-depends-on ((o sideway-operation) (c component))
+  (defun sideway-operation-depends-on (o c)
     `((,(or (sideway-operation o) o)
        ,@(loop :for dep :in (component-sideway-dependencies c)
-               :collect (resolve-dependency-spec c dep)))
-      ,@(call-next-method)))
+               :collect (resolve-dependency-spec c dep)))))
+  (defmethod component-depends-on ((o sideway-operation) (c component))
+    `(,@(sideway-operation-depends-on o c) ,@(call-next-method)))
 
   (defclass selfward-operation (operation)
     ((selfward-operation
@@ -201,14 +202,14 @@ a list of operation-designators designates the list of designated operations;
 NIL is not a valid operation designator in that context.  Note that orderings between 
 the operations in a list of SELWARD-OPERATION should be indicated separately in order
 that they be scheduled properly."))
+  (defun selfward-operation-depends-on (o c)
+    (loop :for op :in (ensure-list (selfward-operation o)) :collect `(,op ,c)))
   (defmethod component-depends-on ((o selfward-operation) (c component))
-    `(,@(loop :for op :in (ensure-list (selfward-operation o))
-              :collect `(,op ,c))
-      ,@(call-next-method)))
+    `(,@(selfward-operation-depends-on o c) ,@(call-next-method)))
 
   (defclass non-propagating-operation (operation)
     ()
-    (:documentation "A NON-PROPAGATING-OPERATION is an operation that propagates 
+    (:documentation "A NON-PROPAGATING-OPERATION is an operation that propagates
 no dependencies whatsoever.  It is supplied in order that the programmer be able
 to specify that s/he is intentionally specifying an operation which invokes no
 dependencies.")))
@@ -217,37 +218,47 @@ dependencies.")))
 ;;;---------------------------------------------------------------------------
 ;;; Help programmers catch obsolete OPERATION subclasses
 ;;;---------------------------------------------------------------------------
-(define-condition operation-definition-error (simple-error)
-  ()
-  (:documentation "Error conditions related to incorrect definitions of 
-OPERATION objects."))
-(defmethod initialize-instance :before ((obj operation) &key)
-  (unless 
-      (loop :for x :in '(downward-operation upward-operation sideway-operation
-                                            selfward-operation non-propagating-operation
-                                            ;; the following is a special case
-                                            build-op)
-            :when (typep obj x)
-            :return t
-            :finally (return nil))
-    (error 'operation-definition-error
-           :format-control
-           "No dependency propagating scheme specified for operation ~a. This is likely because the OPERATION subclass of this object has not been updated for ASDF 3."
-           :format-arguments (list obj))))
+(with-upgradability ()
+  (define-condition operation-definition-warning (simple-warning)
+    ()
+    (:documentation "Warning condition related to definition of obsolete OPERATION objects."))
 
-(defmethod initialize-instance :before ((obj non-propagating-operation) &key)
-  (when
-      (loop :for x :in '(downward-operation upward-operation sideway-operation
-                                            selfward-operation)
-            :when (typep obj x)
-            :return t
-            :finally (return nil))
-    (error 'operation-definition-error
-           :format-control
-           "Inconsistent class: ~a. No class should have both NON-PROPAGATING-OPERATION and a propagating operation class as superclasses."
-           :format-arguments
-           (list
-            (class-name (class-of obj))))))
+  (define-condition operation-definition-error (simple-error)
+    ()
+    (:documentation "Error condition related to definition of incorrect OPERATION objects."))
+
+  (defmethod initialize-instance :before ((o operation) &key)
+    ;; build-op is a special case.
+    (unless (typep o '(or downward-operation upward-operation sideway-operation
+                          selfward-operation non-propagating-operation))
+      (warn 'operation-definition-warning
+            :format-control
+            "No dependency propagating scheme specified for operation class ~S.
+The class needs to be updated for ASDF 3.1 and specify appropriate propagation mixins."
+            :format-arguments (list (type-of o)))))
+
+  (defmethod initialize-instance :before ((o non-propagating-operation) &key)
+    (when (typep o '(or downward-operation upward-operation sideway-operation selfward-operation))
+      (error 'operation-definition-error
+             :format-control
+             "Inconsistent class: ~S
+  NON-PROPAGATING-OPERATION is incompatible with propagating operation classes as superclasses."
+             :format-arguments
+             (list (type-of o)))))
+
+  (defmethod component-depends-on ((o operation) (c component))
+    `(;; Normal behavior, to allow user-specified in-order-to dependencies
+      ,@(cdr (assoc (type-of o) (component-in-order-to c)))
+      ;; For backward-compatibility with ASDF2, any operation that doesn't specify propagation
+      ;; or non-propagation through an appropriate mixin will be downward and sideway.
+      ,@(unless (typep o '(or downward-operation upward-operation sideway-operation
+                              selfward-operation non-propagating-operation))
+          `(,@(downward-operation-depends-on o c)
+            ,@(sideway-operation-depends-on o c)))))
+
+  (defmethod downward-operation ((o operation)) nil)
+  (defmethod sideway-operation ((o operation)) nil))
+
 
 ;;;---------------------------------------------------------------------------
 ;;; End of OPERATION class checking
@@ -265,7 +276,6 @@ OPERATION objects."))
   (define-convenience-action-methods operation-done-p (operation component))
 
   (defmethod operation-done-p ((o operation) (c component))
-    (declare (ignorable o c))
     t)
 
   (defmethod output-files :around (operation component)
@@ -287,7 +297,6 @@ OPERATION objects."))
                (mapcar *output-translation-function* absolute-pathnames))))
        t)))
   (defmethod output-files ((o operation) (c component))
-    (declare (ignorable o c))
     nil)
   (defun output-file (operation component)
     "The unique output file of performing OPERATION on COMPONENT"
@@ -301,7 +310,6 @@ OPERATION objects."))
       (call-next-method)))
 
   (defmethod input-files ((o operation) (c component))
-    (declare (ignorable o c))
     nil)
 
   (defmethod input-files ((o selfward-operation) (c component))
@@ -367,7 +375,6 @@ in some previous image, or T if it needs to be done.")
   (defmethod perform :after ((o operation) (c component))
     (mark-operation-done o c))
   (defmethod perform ((o operation) (c parent-component))
-    (declare (ignorable o c))
     nil)
   (defmethod perform ((o operation) (c source-file))
     (sysdef-error
@@ -398,6 +405,12 @@ in some previous image, or T if it needs to be done.")
 
 ;;; Generic build operation
 (with-upgradability ()
+  ;; build op was intended to be the master, default operation on a system
+  ;; (LOAD-OP typically serves that function now).  This feature has not yet
+  ;; been fully implemented yet.
+  ;; This is a path forward, but is not backwardly compatible, and is not used
+  ;; yet. [2014/01/26:rpg]
+  (defclass build-op (non-propagating-operation) ())
   (defmethod component-depends-on ((o build-op) (c component))
     `((,(or (component-build-operation c) 'load-op) ,c))))
 

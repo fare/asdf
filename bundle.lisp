@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF-Bundle
 
-(asdf/package:define-package :asdf/bundle
+(uiop/package:define-package :asdf/bundle
   (:recycle :asdf/bundle :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
@@ -163,7 +163,7 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod initialize-instance :after ((instance bundle-op) &rest initargs
                                          &key (name-suffix nil name-suffix-p)
                                          &allow-other-keys)
-    (declare (ignorable initargs name-suffix))
+    (declare (ignore initargs name-suffix))
     (unless name-suffix-p
       (setf (slot-value instance 'name-suffix)
             (unless (typep instance 'program-op)
@@ -184,7 +184,6 @@ itself.")) ;; operation on a system and its dependencies
                              (operation-original-initargs instance))))
 
   (defmethod bundle-op-build-args :around ((o no-ld-flags-op))
-    (declare (ignorable o))
     (let ((args (call-next-method)))
       (remf args :ld-flags)
       args))
@@ -229,7 +228,6 @@ itself.")) ;; operation on a system and its dependencies
       ,@(call-next-method)))
 
   (defmethod component-depends-on :around ((o bundle-op) (c component))
-    (declare (ignorable o c))
     (if-let (op (and (eq (type-of o) 'bundle-op) (component-build-operation c)))
       `((,op ,c))
       (call-next-method)))
@@ -291,7 +289,6 @@ itself.")) ;; operation on a system and its dependencies
 ;;;
 (with-upgradability ()
   (defmethod component-depends-on ((o load-fasl-op) (c system))
-    (declare (ignorable o))
     `((,o ,@(loop :for dep :in (component-sideway-dependencies c)
                   :collect (resolve-dependency-spec c dep)))
       (,(if (user-system-p c) 'fasl-op 'load-op) ,c)
@@ -300,10 +297,6 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod input-files ((o load-fasl-op) (c system))
     (when (user-system-p c)
       (output-files (find-operation o 'fasl-op) c)))
-
-  (defmethod perform ((o load-fasl-op) c)
-    (declare (ignorable o c))
-    nil)
 
   (defmethod perform ((o load-fasl-op) (c system))
     (when (input-files o c)
@@ -322,11 +315,7 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod trivial-system-p ((s system))
     (every #'(lambda (c) (typep c 'compiled-file)) (component-children s)))
 
-  (defmethod output-files (o (c compiled-file))
-    (declare (ignorable o c))
-    nil)
-  (defmethod input-files (o (c compiled-file))
-    (declare (ignorable o))
+  (defmethod input-files ((o operation) (c compiled-file))
     (component-pathname c))
   (defmethod perform ((o load-op) (c compiled-file))
     (perform-lisp-load-fasl o c))
@@ -335,7 +324,6 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod perform ((o load-fasl-op) (c compiled-file))
     (perform (find-operation o 'load-op) c))
   (defmethod perform ((o operation) (c compiled-file))
-    (declare (ignorable o c))
     nil))
 
 ;;;
@@ -343,19 +331,15 @@ itself.")) ;; operation on a system and its dependencies
 ;;;
 (with-upgradability ()
   (defmethod trivial-system-p ((s prebuilt-system))
-    (declare (ignorable s))
     t)
 
   (defmethod perform ((o lib-op) (c prebuilt-system))
-    (declare (ignorable o c))
     nil)
 
   (defmethod component-depends-on ((o lib-op) (c prebuilt-system))
-    (declare (ignorable o c))
     nil)
 
   (defmethod component-depends-on ((o monolithic-lib-op) (c prebuilt-system))
-    (declare (ignorable o))
     nil))
 
 
@@ -428,14 +412,12 @@ itself.")) ;; operation on a system and its dependencies
           (combine-fasls fasl-files output-file)))))
 
   (defmethod input-files ((o load-op) (s precompiled-system))
-    (declare (ignorable o))
     (bundle-output-files (find-operation o 'fasl-op) s))
 
   (defmethod perform ((o load-op) (s precompiled-system))
     (perform-lisp-load-fasl o s))
 
   (defmethod component-depends-on ((o load-fasl-op) (s precompiled-system))
-    (declare (ignorable o))
     `((load-op ,s) ,@(call-next-method))))
 
   #| ;; Example use:
@@ -502,8 +484,9 @@ itself.")) ;; operation on a system and its dependencies
 
 #+(and (not asdf-use-unsafe-mac-bundle-op)
        (or (and ecl darwin) (and abcl darwin)))
-(defmethod perform :before ((op basic-fasl-op) c)
-  (declare (ignorable op c))
-  (unless (uiop:featurep :asdf-use-unsafe-mac-bundle-op)
+(defmethod perform :before ((o basic-fasl-op) (c component))
+  (unless (featurep :asdf-use-unsafe-mac-bundle-op)
     (cerror "Continue after modifying *FEATURES*."
-            "BASIC-FASL-OP bundle operations are not supported on Mac OSX for this lisp.~%~TTo continue, push :asdf-use-unsafe-mac-bundle-op on *FEATURES*.~%~TPlease report to ASDF-DEVEL if this works for you.")))
+            "BASIC-FASL-OP bundle operations are not supported on Mac OS X for this lisp.~%~T~
+To continue, push :asdf-use-unsafe-mac-bundle-op onto *FEATURES*.~%~T~
+Please report to ASDF-DEVEL if this works for you.")))

@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;; Internal hacks for backward-compatibility
 
-(asdf/package:define-package :asdf/backward-internals
+(uiop/package:define-package :asdf/backward-internals
   (:recycle :asdf/backward-internals :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/system :asdf/component :asdf/operation

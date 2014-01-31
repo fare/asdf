@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Invoking Operations
 
-(asdf/package:define-package :asdf/operate
+(uiop/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/operation :asdf/action
@@ -53,7 +53,6 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
                               &key verbose
                                 (on-warnings *compile-file-warnings-behaviour*)
                                 (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
-    (declare (ignorable operation component))
     (let* ((systems-being-operated *systems-being-operated*)
            (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
            (operation-name (reify-symbol (etypecase operation
@@ -160,18 +159,15 @@ for how to load or compile stuff")
     ((module :initarg :module :initform nil :accessor required-module)))
 
   (defmethod perform ((o compile-op) (c require-system))
-    (declare (ignorable o c))
     nil)
 
   (defmethod perform ((o load-op) (s require-system))
-    (declare (ignorable o))
     (let* ((module (or (required-module s) (coerce-name s)))
            (*modules-being-required* (cons module *modules-being-required*)))
       (assert (null (component-children s)))
       (require module)))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
-    (declare (ignorable component combinator))
     (unless (length=n-p arguments 1)
       (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes only one argument~@:>")
              (cons combinator arguments) component combinator))

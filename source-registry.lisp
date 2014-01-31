@@ -2,7 +2,7 @@
 ;;;; Source Registry Configuration, by Francois-Rene Rideau
 ;;;; See the Manual and https://bugs.launchpad.net/asdf/+bug/485918
 
-(asdf/package:define-package :asdf/source-registry
+(uiop/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/find-system)
   (:export
@@ -235,7 +235,6 @@ system names to pathnames of .asd files")
     (process-source-registry (parse-source-registry-string string)
                              :inherit inherit :register register))
   (defmethod process-source-registry ((x null) &key inherit register)
-    (declare (ignorable x))
     (inherit-source-registry inherit :register register))
   (defmethod process-source-registry ((form cons) &key inherit register)
     (let ((*source-registry-exclusions* *default-source-registry-exclusions*))

@@ -1,21 +1,21 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
 
-(asdf/package:define-package :asdf/operation
+(uiop/package:define-package :asdf/operation
   (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export
    #:operation
    #:operation-original-initargs #:original-initargs ;; backward-compatibility only. DO NOT USE.
-   #:build-op ;; THE generic operation
    #:*operations* #:make-operation #:find-operation #:feature))
 (in-package :asdf/operation)
 
 ;;; Operation Classes
 
 (when-upgrading (:when (find-class 'operation nil))
-  (defmethod shared-initialize :after ((o operation) slot-names &rest initargs &key)
-    (declare (ignorable o slot-names initargs)) (values)))
+  ;; override any obsolete shared-initialize method when upgrading from ASDF2.
+  (defmethod shared-initialize :after ((o operation) (slot-names t) &key)
+    (values)))
 
 (with-upgradability ()
   (defclass operation ()
@@ -26,7 +26,7 @@
   ;; already bound.
   (defmethod initialize-instance :after ((o operation) &rest initargs
                                          &key force force-not system verbose &allow-other-keys)
-    (declare (ignorable force force-not system verbose))
+    (declare (ignore force force-not system verbose))
     (unless (slot-boundp o 'original-initargs)
       (setf (operation-original-initargs o) initargs)))
 
@@ -46,8 +46,7 @@
 
   (defgeneric find-operation (context spec)
     (:documentation "Find an operation by resolving the SPEC in the CONTEXT"))
-  (defmethod find-operation (context (spec operation))
-    (declare (ignorable context))
+  (defmethod find-operation ((context t) (spec operation))
     spec)
   (defmethod find-operation (context (spec symbol))
     (unless (member spec '(nil feature))
@@ -56,13 +55,7 @@
       (apply 'make-operation spec (operation-original-initargs context))))
   (defmethod operation-original-initargs ((context symbol))
     (declare (ignorable context))
-    nil)
+    nil))
 
-  ;; build op was intended to be the master, default operation on a system
-  ;; (LOAD-OP typically serves that function now).  This feature has not yet
-  ;; been fully implemented yet.
-  ;; This is a path forward, but is not backwardly compatible, and is not used
-  ;; yet. [2014/01/26:rpg]
-  (defclass build-op (operation) ()))
 
 

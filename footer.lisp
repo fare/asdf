@@ -1,7 +1,7 @@
 ;;;; -----------------------------------------------------------------------
 ;;;; ASDF Footer: last words and cleanup
 
-(asdf/package:define-package :asdf/footer
+(uiop/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/operate :asdf/bundle))
 (in-package :asdf/footer)

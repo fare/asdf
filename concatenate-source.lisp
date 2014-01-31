@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Concatenate-source
 
-(asdf/package:define-package :asdf/concatenate-source
+(uiop/package:define-package :asdf/concatenate-source
   (:recycle :asdf/concatenate-source :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation

@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Actions to build Common Lisp software
 
-(asdf/package:define-package :asdf/lisp-action
+(uiop/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
@@ -41,13 +41,12 @@
     ((sideway-operation :initform 'load-op :allocation :class))
     (:documentation "Load the necessary dependencies for the COMPONENT to which we apply
 the PREPARE-OP."))
-  (defclass load-op (basic-load-op downward-operation sideway-operation selfward-operation)
+  (defclass load-op (basic-load-op downward-operation selfward-operation)
     ;; NB: even though compile-op depends on prepare-op it is not needed-in-image-p,
     ;; so we need to directly depend on prepare-op for its side-effects in the current image.
     ((selfward-operation :initform '(prepare-op compile-op) :allocation :class)))
   (defclass compile-op (basic-compile-op downward-operation selfward-operation)
-    ((selfward-operation :initform 'prepare-op :allocation :class)
-     (downward-operation :initform 'load-op :allocation :class)))
+    ((selfward-operation :initform 'prepare-op :allocation :class)))
 
   (defclass prepare-source-op (upward-operation sideway-operation)
     ((sideway-operation :initform 'load-source-op :allocation :class)))
@@ -63,25 +62,17 @@ the PREPARE-OP."))
 ;;; prepare-op
 (with-upgradability ()
   (defmethod action-description ((o prepare-op) (c component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<loading dependencies of ~3i~_~A~@:>") c))
   (defmethod perform ((o prepare-op) (c component))
-    (declare (ignorable o c))
-    nil)
-  (defmethod input-files ((o prepare-op) (c component))
-    (declare (ignorable o c))
     nil)
   (defmethod input-files ((o prepare-op) (s system))
-    (declare (ignorable o))
     (if-let (it (system-source-file s)) (list it))))
 
 ;;; compile-op
 (with-upgradability ()
   (defmethod action-description ((o compile-op) (c component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") c))
   (defmethod action-description ((o compile-op) (c parent-component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<completing compilation for ~3i~_~A~@:>") c))
   (defgeneric call-with-around-compile-hook (component thunk))
   (defmethod call-with-around-compile-hook ((c component) function)
@@ -147,10 +138,6 @@ the PREPARE-OP."))
   (defmethod output-files ((o compile-op) (c cl-source-file))
     (lisp-compilation-output-files o c))
   (defmethod perform ((o compile-op) (c static-file))
-    (declare (ignorable o c))
-    nil)
-  (defmethod output-files ((o compile-op) (c static-file))
-    (declare (ignorable o c))
     nil)
   (defmethod perform ((o compile-op) (c system))
     (when (and *warnings-file-type* (not (builtin-system-p c)))
@@ -170,15 +157,11 @@ the PREPARE-OP."))
 ;;; load-op
 (with-upgradability ()
   (defmethod action-description ((o load-op) (c cl-source-file))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>") c))
   (defmethod action-description ((o load-op) (c parent-component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<completing load for ~3i~_~A~@:>") c))
-  (defmethod action-description ((o load-op) component)
-    (declare (ignorable o))
-    (format nil (compatfmt "~@<loading ~3i~_~A~@:>")
-            component))
+  (defmethod action-description ((o load-op) (c component))
+    (format nil (compatfmt "~@<loading ~3i~_~A~@:>") c))
   (defmethod perform-with-restarts ((o load-op) (c cl-source-file))
     (loop
       (restart-case
@@ -194,7 +177,6 @@ the PREPARE-OP."))
   (defmethod perform ((o load-op) (c cl-source-file))
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-op) (c static-file))
-    (declare (ignorable o c))
     nil))
 
 
@@ -203,25 +185,17 @@ the PREPARE-OP."))
 ;;; prepare-source-op
 (with-upgradability ()
   (defmethod action-description ((o prepare-source-op) (c component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<loading source for dependencies of ~3i~_~A~@:>") c))
-  (defmethod input-files ((o prepare-source-op) (c component))
-    (declare (ignorable o c))
-    nil)
   (defmethod input-files ((o prepare-source-op) (s system))
-    (declare (ignorable o))
     (if-let (it (system-source-file s)) (list it)))
   (defmethod perform ((o prepare-source-op) (c component))
-    (declare (ignorable o c))
     nil))
 
 ;;; load-source-op
 (with-upgradability ()
-  (defmethod action-description ((o load-source-op) c)
-    (declare (ignorable o))
+  (defmethod action-description ((o load-source-op) (c component))
     (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>") c))
   (defmethod action-description ((o load-source-op) (c parent-component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") c))
   (defun perform-lisp-load-source (o c)
     (call-with-around-compile-hook
@@ -232,20 +206,14 @@ the PREPARE-OP."))
   (defmethod perform ((o load-source-op) (c cl-source-file))
     (perform-lisp-load-source o c))
   (defmethod perform ((o load-source-op) (c static-file))
-    (declare (ignorable o c))
-    nil)
-  (defmethod output-files ((o load-source-op) (c component))
-    (declare (ignorable o c))
     nil))
 
 
 ;;;; test-op
 (with-upgradability ()
   (defmethod perform ((o test-op) (c component))
-    (declare (ignorable o c))
     nil)
   (defmethod operation-done-p ((o test-op) (c system))
     "Testing a system is _never_ done."
-    (declare (ignorable o c))
     nil))
 

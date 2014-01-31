@@ -1,7 +1,7 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Handle ASDF package upgrade, including implementation-dependent magic.
 
-(asdf/package:define-package :asdf/interface
+(uiop/package:define-package :asdf/interface
   (:nicknames :asdf :asdf-utilities)
   (:recycle :asdf/interface :asdf)
   (:unintern
@@ -121,7 +121,7 @@
    #:circular-dependency        ; errors
    #:duplicate-names #:non-toplevel-system #:non-system-system
    #:package-system-missing-package-error
-   #:operation-definition-error
+   #:operation-definition-warning #:operation-definition-error
 
    #:try-recompiling
    #:retry

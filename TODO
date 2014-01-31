@@ -74,6 +74,8 @@
      rather than nil. This is probably a bug in #+ processing.
      Unhappily, debian creates such a file in
      /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
+   * Tests that try to catch an error fail (but catching a warning succeeds),
+     which suggests brokenness in handler-bind and/or error.
 
 * Some out-of-line configuration mechanism for various options?
   i.e. let configuration files override some variables around compilation of some systems.
@@ -136,6 +138,33 @@
 * operation cleanup?
 ** Kill backward-compat functions after all clients have moved on.
 ** Kill original-initargs -- BEWARE, it currently has clients!
+** To allow semantically distinct operations of the same class:
+You'd need to have a protocol to canonicalize them
+in the *OPERATIONS* memoization table, not by class name,
+but by CONS of the class name and some CANONICAL-OPERATION-INITARGS.
+The latter would be a generic function called on the initargs,
+where any parasite initargs such as FORCE and FORCE-NOT have been removed,
+since they below to the PLAN, not the OPERATION:
+the OPERATE protocol would be refined to explicit split
+arguments to be passed to MAKE-PLAN or to MAKE-OPERATION.
+The default method for CANONICAL-OPERATION-INITARGS
+would SORT (a plist->alist of) the initargs,
+and that would replace the current ORIGINAL-INITARGS slot.
+For this scheme to work even in presence of undisciplined users
+using MAKE-INSTANCE on an operation class,
+the OPERATION class would have an extra slot EFFECTIVE-OPERATION,
+uninitialized by default (nil or unbound), whose accessor initializes it
+if it's uninitialized, by looking up a canonical instance in *OPERATIONS*,
+and if unfound registering the current operation as canonical.
+Then, each component's COMPONENT-OPERATION-TIME hash-table
+would be indexed by canonicalized operation object
+rather than by operation class,
+and POIU would have to be changed accordingly.
+Of course, this entire cleanup is incompatible
+with how SWANK and GBBopen currently abuse slots of operation,
+so these would have to be fixed first.
+And that's why I didn't do it.
+It looks like SWANK can be fixed soon, though, so we'll see.
 
 * Get rid of component-properties
 ** directly use component-properties:
@@ -214,3 +243,5 @@
 
 * ASDF4: search for this tag, rename things (incompatibly, thus) and cleanup code.
 
+* See message from 2014-01-27 05:26:44 GMT for stuff to document.
+   http://thread.gmane.org/gmane.lisp.asdf.devel/3675/focus=3695

@@ -2,7 +2,7 @@
 ;;;; Handle upgrade as forward- and backward-compatibly as possible
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 
-(asdf/package:define-package :asdf/upgrade
+(uiop/package:define-package :asdf/upgrade
   (:recycle :asdf/upgrade :asdf)
   (:use :uiop/common-lisp :uiop)
   (:export
@@ -12,7 +12,7 @@
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
    #:intern*)
-  (:import-from :asdf/package #:intern* #:find-symbol*))
+  (:import-from :uiop/package #:intern* #:find-symbol*))
 (in-package :asdf/upgrade)
 
 ;;; Special magic to detect if this is an upgrade
@@ -66,7 +66,7 @@ previously-loaded version of ASDF."
          ;; "3.4.5.67" would be a development version in the official branch, on top of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "3.1.0.54")
+         (asdf-version "3.1.0.60")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -100,8 +100,7 @@ previously-loaded version of ASDF."
              #:component-self-dependencies
              #:resolve-relative-location-component #:resolve-absolute-location-component
              #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
-    (declare (ignorable redefined-functions uninterned-symbols))
-    (loop :for name :in (append redefined-functions)
+    (loop :for name :in redefined-functions
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
               ;; On CLISP we seem to be unable to fmakunbound and define a function in the same fasl. Sigh.

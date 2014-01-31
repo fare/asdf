@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Defsystem
 
-(asdf/package:define-package :asdf/parse-defsystem
+(uiop/package:define-package :asdf/parse-defsystem
   (:recycle :asdf/parse-defsystem :asdf/defsystem :asdf)
   (:nicknames :asdf/defsystem) ;; previous name, to be compatible with, in case anyone cares
   (:use :uiop/common-lisp :asdf/driver :asdf/upgrade
@@ -143,7 +143,7 @@
                                 do-first if-component-dep-fails version
                                 ;; list ends
          &allow-other-keys) options
-      (declare (ignorable perform explain output-files operation-done-p builtin-system-p))
+      (declare (ignore perform explain output-files operation-done-p builtin-system-p))
       (check-component-input type name weakly-depends-on depends-on components)
       (when (and parent
                  (find-component parent name)

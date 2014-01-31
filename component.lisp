@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Components
 
-(asdf/package:define-package :asdf/component
+(uiop/package:define-package :asdf/component
   (:recycle :asdf/component :asdf/defsystem :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export
@@ -61,7 +61,7 @@ another pathname in a degenerate way."))
   (defgeneric component-version (component))
   (defgeneric (setf component-version) (new-version component))
   (defgeneric component-parent (component))
-  (defmethod component-parent ((component null)) (declare (ignorable component)) nil)
+  (defmethod component-parent ((component null)) nil)
 
   ;; Backward compatible way of computing the FILE-TYPE of a component.
   ;; TODO: find users, have them stop using that, remove it for ASDF4.
@@ -82,11 +82,6 @@ another pathname in a degenerate way."))
                (format s (compatfmt "~@<Error while defining system: multiple components are given same name ~S~@:>")
                        (duplicate-names-name c))))))
 
-
-
-(when-upgrading (:when (find-class 'component nil))
-  (defmethod reinitialize-instance :after ((c component) &rest initargs &key)
-    (declare (ignorable c initargs)) (values)))
 
 (with-upgradability ()
   (defclass component ()
@@ -194,9 +189,9 @@ a PARENT-COMPONENT."))
      (default-component-class
       :initform nil
       :initarg :default-component-class
-      :accessor module-default-component-class)))
+      :accessor module-default-component-class))
   (:documentation "A PARENT-COMPONENT is a component that may have
-children."))
+children.")))
 
 (with-upgradability ()
   (defun compute-children-by-name (parent &key only-if-needed-p)
@@ -209,19 +204,6 @@ children."))
               :do (when previous (error 'duplicate-names :name name))
                   (setf (gethash name hash) c))
         hash))))
-
-(when-upgrading (:when (find-class 'module nil))
-  (defmethod reinitialize-instance :after ((m module) &rest initargs &key)
-    (declare (ignorable m initargs)) (values))
-  (defmethod update-instance-for-redefined-class :after
-      ((m module) added deleted plist &key)
-    (declare (ignorable m added deleted plist))
-    (when (and (member 'children added) (member 'components deleted))
-      (setf (slot-value m 'children)
-            ;; old ECLs provide an alist instead of a plist(!)
-            (if (or #+ecl (consp (first plist))) (or #+ecl (cdr (assoc 'components plist)))
-                (getf plist 'components)))
-      (compute-children-by-name m))))
 
 (with-upgradability ()
   (defclass module (child-component parent-component)
@@ -248,9 +230,10 @@ children."))
           pathname)))
 
   (defmethod component-relative-pathname ((component component))
-    ;; source-file-type is backward-compatibility with ASDF1;
-    ;; we ought to be able to extract this from the component alone with COMPONENT-TYPE.
-    ;; TODO: track who uses it, and have them not use it anymore.
+    ;; SOURCE-FILE-TYPE below is strictly for backward-compatibility with ASDF1.
+    ;; We ought to be able to extract this from the component alone with COMPONENT-TYPE.
+    ;; TODO: track who uses it, and have them not use it anymore;
+    ;; maybe issue a WARNING (then eventually CERROR) if the two methods diverge?
     (parse-unix-namestring
      (or (and (slot-boundp component 'relative-pathname)
               (slot-value component 'relative-pathname))
@@ -259,12 +242,10 @@ children."))
      :type (source-file-type component (component-system component))
      :defaults (component-parent-pathname component)))
 
-  (defmethod source-file-type ((component parent-component) system)
-    (declare (ignorable component system))
+  (defmethod source-file-type ((component parent-component) (system parent-component))
     :directory)
 
-  (defmethod source-file-type ((component file-component) system)
-    (declare (ignorable system))
+  (defmethod source-file-type ((component file-component) (system parent-component))
     (file-type component)))
 
 
