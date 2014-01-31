@@ -1,36 +1,75 @@
-ASDF: another system definition facility
+ASDF: Another System Definition Facility
 ========================================
 
-If you cloned our git repository, bootstrap a copy of build/asdf.lisp with:
-    make
+Quick Summary
+-------------
 
-To run all the tests on your favorite Lisp implementation $L,
-choose your most elaborate installed system $S, and try:
-    make t u l=$L s=$S
+  1- Build it with::
+
+	make
 
 
-To use ASDF, read our manual:
+  2- Make sure you put it under a path registered by the source-registry,
+    if that isn't the case yet (see the manual). One place would be::
+
+	~/.local/share/common-lisp/source/asdf/
+
+
+What is ASDF?
+-------------
+
+ASDF is the de facto standard build facility for Common Lisp.
+
+If you come from the C/C++ world, the function ASDF covers a bit of what
+each of Make, autoconf, Make, dlopen and libc do for C programs:
+it orchestrates the compilation and dependency management,
+handles some of the portability issues, dynamically finds and loads code,
+and offers some portable system access.
+Except everything is different in Common Lisp, and ultimately much simpler,
+though it requires acquiring some basic concepts;
+notably, ASDF tries to make it all happen in the current Lisp image.
+
+To use ASDF, read our manual::
+
     http://common-lisp.net/project/asdf/asdf.html
+
 The first few sections, Loading ASDF, Configuring ASDF and Using ASDF,
 will get you started as a simple user.
 If you want to define your own systems, further read the section
 Defining systems with defsystem.
 
-
 ASDF 3 now includes an extensive runtime support library:
 UIOP, the Utilities for Implementation- and OS- Portability.
 Its documentation unhappily lies mainly in the source code and docstrings.
+See uiop/README for an introduction.
 
+More information and additional links can be found on ASDF's home page at::
 
-More information and additional links can be found on ASDF's home page at:
     http://common-lisp.net/project/asdf/
 
 
-Debugging tip:
-To load ASDF in such a way that M-. will work, install the source code, and run
-(asdf:load-system :uiop) ;; for uiop
-(dolist (c (asdf::required-components :asdf/defsystem
-             :keep-component 'asdf:cl-source-file))
-  (load (asdf:component-pathname c))) ;; for asdf/defsystem
+Building and testing it
+-----------------------
 
-Last updated Wednesday, January 8th, 2014.
+If you cloned our git repository, bootstrap a copy of build/asdf.lisp with::
+
+    make
+
+To run all the tests on your favorite Lisp implementation $L,
+choose your most elaborate installed system $S, and try::
+
+    make t u l=$L s=$S
+
+
+Debugging tip
+-------------
+
+To load ASDF in such a way that M-. will work, install the source code, and run::
+
+  (asdf:load-system :uiop) ;; for uiop
+  (map () 'load ;; for asdf/defsystem
+   (mapcar 'asdf:component-pathname
+    (asdf::required-components :asdf/defsystem :keep-component 'asdf:cl-source-file)))
+
+
+Last updated Wednesday, January 31st, 2014.
