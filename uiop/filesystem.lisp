@@ -166,22 +166,25 @@ Try to override the defaults to not resolving symlinks, if implementation allows
     "Given ENTRIES in a DIRECTORY, remove if the directory is logical
 the entries which are physical yet when transformed by MERGER have a different TRUENAME.
 This function is used as a helper to DIRECTORY-FILES to avoid invalid entries when using logical-pathnames."
-    (if (logical-pathname-p directory)
-        ;; Try hard to not resolve logical-pathname into physical pathnames;
-        ;; otherwise logical-pathname users/lovers will be disappointed.
-        ;; If directory* could use some implementation-dependent magic,
-        ;; we will have logical pathnames already; otherwise,
-        ;; we only keep pathnames for which specifying the name and
-        ;; translating the LPN commute.
-        (loop :for f :in entries
-              :for p = (or (and (logical-pathname-p f) f)
-                           (let* ((u (ignore-errors (call-function merger f))))
-                             ;; The first u avoids a cumbersome (truename u) error.
-                             ;; At this point f should already be a truename,
-                             ;; but isn't quite in CLISP, for it doesn't have :version :newest
-                             (and u (equal (truename* u) (truename* f)) u)))
-              :when p :collect p)
-        entries))
+    (remove-duplicates ;; on CLISP, querying ~/ will return duplicates
+     (if (logical-pathname-p directory)
+         ;; Try hard to not resolve logical-pathname into physical pathnames;
+         ;; otherwise logical-pathname users/lovers will be disappointed.
+         ;; If directory* could use some implementation-dependent magic,
+         ;; we will have logical pathnames already; otherwise,
+         ;; we only keep pathnames for which specifying the name and
+         ;; translating the LPN commute.
+         (loop :for f :in entries
+               :for p = (or (and (logical-pathname-p f) f)
+                            (let* ((u (ignore-errors (call-function merger f))))
+                              ;; The first u avoids a cumbersome (truename u) error.
+                              ;; At this point f should already be a truename,
+                              ;; but isn't quite in CLISP, for it doesn't have :version :newest
+                              (and u (equal (truename* u) (truename* f)) u)))
+               :when p :collect p)
+         entries)
+     :test 'pathname-equal))
+
 
   (defun directory-files (directory &optional (pattern *wild-file*))
     "Return a list of the files in a directory according to the PATTERN,
