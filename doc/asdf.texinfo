@@ -1473,7 +1473,7 @@ and has many options that prove useful in this context,
 such as @code{:use-reexport} and @code{:mix-reexport}
 that allow for ``inheritance'' of symbols being exported.
 
-@node The object model of ASDF, Controlling where ASDF searches for systems, Defining systems with defsystem, Top
+@node The object model of ASDF, Operations, Defining systems with defsystem, Top
 @comment  node-name,  next,  previous,  up
 @chapter The object model of ASDF
 
@@ -1565,7 +1565,7 @@ but instead do something global on the system.
 * Functions::
 @end menu
 
-@node  Operations, Components, The object model of ASDF, The object model of ASDF
+@node  Operations, Predefined operations of ASDF, The object model of ASDF, The object model of ASDF
 @comment  node-name,  next,  previous,  up
 @section Operations
 @cindex operation
@@ -1583,11 +1583,23 @@ Operations can be invoked directly, or examined
 to see what their effects would be without performing them.
 There are a bunch of methods specialised on operation and component type
 that actually do the grunt work.
+Operations are invoked on systems via @code{operate} (@pxref{operate}).
 
-The operation object contains whatever state is relevant for this purpose
-(perhaps a list of visited nodes, for example)
-but primarily is a nice thing to specialise operation methods on
-and easier than having them all be @code{EQL} methods.
+ASDF contains a number of pre-defined @t{operation} classes for common,
+and even fairly uncommon tasks that you might want to do with it.
+In addition, ASDF contains ``abstract'' @t{operation} classes that
+programmers can use as building blocks to define ASDF extensions.  We
+discuss these in turn below.
+
+@c The operation object contains whatever state is relevant for this purpose
+@c (perhaps a list of visited nodes, for example)
+@c but primarily is a nice thing to specialise operation methods on
+@c and easier than having them all be @code{EQL} methods.
+
+@menu
+* Predefined operations of ASDF::
+* Creating new operations::
+@end menu
 
 Operations are invoked on systems via @code{operate}.
 @anchor{operate}
@@ -1631,10 +1643,7 @@ To see what @code{operate} would do, you can use:
 
 @end deffn
 
-@menu
-* Predefined operations of ASDF::
-* Creating new operations::
-@end menu
+
 
 @node Predefined operations of ASDF, Creating new operations, Operations, Operations
 @comment  node-name,  next,  previous,  up
@@ -3638,6 +3647,7 @@ This might matter, for instance, in meta-data about author's names.
 
 These functions are exported by ASDF for your convenience.
 
+@anchor{system-relative-pathname}
 @defun system-relative-pathname system name @Akey type
 
 It's often handy to locate a file relative to some system.
