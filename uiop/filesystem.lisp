@@ -142,6 +142,9 @@ or the original (parsed) pathname if it is false (the default)."
 
   (defun directory-exists-p (x)
     "Is X the name of a directory that exists on the filesystem?"
+    #+allegro
+    (excl:probe-directory x)
+    #-allegro
     (let ((p (probe-file* x :truename t)))
       (and (directory-pathname-p p) p)))
 
@@ -187,8 +190,12 @@ This function is used as a helper to DIRECTORY-FILES to avoid invalid entries wh
 
 
   (defun directory-files (directory &optional (pattern *wild-file*))
-    "Return a list of the files in a directory according to the PATTERN,
-which is not very portable to override. Try not resolve symlinks if implementation allows."
+    "Return a list of the files in a directory according to the PATTERN.
+Subdirectories should NOT be returned.
+  PATTERN defaults to a pattern carefully chosen based on the implementation;
+override the default at your own risk.
+  DIRECTORY-FILES tries NOT to resolve symlinks if the implementation
+permits this."
     (let ((dir (pathname directory)))
       (when (logical-pathname-p dir)
         ;; Because of the filtering we do below,
@@ -204,13 +211,14 @@ which is not very portable to override. Try not resolve symlinks if implementati
                               #+clisp
                               (when (equal :wild (pathname-type pattern))
                                 (ignore-errors (directory* (make-pathname :type nil :defaults pat)))))))
-        (filter-logical-directory-results
-         directory entries
-         #'(lambda (f)
-             (make-pathname :defaults dir
-                            :name (make-pathname-component-logical (pathname-name f))
-                            :type (make-pathname-component-logical (pathname-type f))
-                            :version (make-pathname-component-logical (pathname-version f))))))))
+        (remove-if 'directory-exists-p
+                   (filter-logical-directory-results
+                    directory entries
+                    #'(lambda (f)
+                        (make-pathname :defaults dir
+                                       :name (make-pathname-component-logical (pathname-name f))
+                                       :type (make-pathname-component-logical (pathname-type f))
+                                       :version (make-pathname-component-logical (pathname-version f)))))))))
 
   (defun subdirectories (directory)
     "Given a DIRECTORY pathname designator, return a list of the subdirectories under it."
