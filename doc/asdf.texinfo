@@ -4670,6 +4670,23 @@ you also define the following method:
   "lis")
 @end lisp
 
+@section ASDF development FAQs
+
+@subsection How do run the tests interactively in a REPL?
+
+This not-so-frequently asked question is primarily for ASDF developers,
+but those who encounter an unexpected error in some test may be
+interested, too.
+
+Here's the procedure for experimenting with tests in a REPL:
+@example
+(load "script-support.lisp")
+(in-package :asdf-test)
+(compile-load-asdf) ; there are a number of other functions to load ASDF
+;; experiment with test code from a .script file...
+@end example
+
+
 @comment FIXME: Add a FAQ about how to use a new system class...
 
 
