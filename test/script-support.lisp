@@ -241,6 +241,14 @@ Some constraints:
 (defmacro assert-equal (x y)
   `(assert-compare (equal ,x ,y)))
 
+(defun set-equality (s1 s2 &key (test 'eql))
+  (and (= (length s1) (length s2))
+       (every #'(lambda (x)
+                  (some #'(lambda (y)
+                            (funcall test x y))
+                        s2))
+              s1)))
+
 (defun touch-file (file &key offset timestamp in-filesystem)
   (let* ((base (or timestamp (get-universal-time)))
          (stamp (if offset (+ base offset) base)))

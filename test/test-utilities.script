@@ -192,6 +192,22 @@
 (assert (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/")))
 (assert (probe-file* (subpathname *build-directory* "deleteme/a/1.x")))
 (assert (probe-file* (subpathname *build-directory* "deleteme/a/b/2")))
+;;; check to make sure DIRECTORY-FILES doesn't list subdirectories
+(let ((directory-a (directory-files (subpathname *build-directory* "deleteme/a/")))
+      (directory-b (directory-files (subpathname *build-directory* "deleteme/a/b/"))))
+  (assert (every 'pathname-equal directory-a (list (subpathname *build-directory* "deleteme/a/1.x"))))
+  (assert (every 'pathname-equal directory-b (list (subpathname *build-directory* "deleteme/a/b/2")))))
+;;; check to make sure SUBDIRECTORIES does list subdirectories
+(let ((directory-a (subdirectories (subpathname *build-directory* "deleteme/a/")))
+      (directory-b (subdirectories (subpathname *build-directory* "deleteme/a/b/"))))
+  (assert (set-equality directory-a
+                        (list (subpathname *build-directory* "deleteme/a/b/"))
+                        :test 'pathname-equal))
+  (assert (set-equality directory-b
+                        (list (subpathname *build-directory* "deleteme/a/b/c/")
+                              (subpathname *build-directory* "deleteme/a/b/d/")
+                              (subpathname *build-directory* "deleteme/a/b/e/"))
+                        :test 'pathname-equal)))
 (delete-empty-directory (subpathname *build-directory* "deleteme/a/b/e/"))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/"))))
 (delete-directory-tree (subpathname *build-directory* "deleteme/")
