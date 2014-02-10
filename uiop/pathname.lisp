@@ -302,6 +302,13 @@ ways that the filename components can be missing are for it to be NIL,
 Note that this does _not_ check to see that PATHNAME points to an
 actually-existing directory."
     (when pathname
+      #+allegro
+      (handler-case 
+       (excl:file-directory-p pathname)
+       ;; Allegro can be fussy about translating oddball pathnames
+       ;; to namestrings
+       (file-error () nil))
+      #-allegro
       (let ((pathname (pathname pathname)))
         (flet ((check-one (x)
                  (member x '(nil :unspecific "") :test 'equal)))
