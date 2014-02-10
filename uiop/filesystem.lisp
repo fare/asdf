@@ -144,7 +144,11 @@ or the original (parsed) pathname if it is false (the default)."
     "Is X the name of a directory that exists on the filesystem?"
     #+allegro
     (excl:probe-directory x)
-    #-allegro
+    #+clisp
+    (handler-case (ext:probe-directory x)
+           (sys::simple-file-error ()
+             nil))
+    #-(or allegro clisp)
     (let ((p (probe-file* x :truename t)))
       (and (directory-pathname-p p) p)))
 
@@ -211,7 +215,7 @@ permits this."
                               #+clisp
                               (when (equal :wild (pathname-type pattern))
                                 (ignore-errors (directory* (make-pathname :type nil :defaults pat)))))))
-        (remove-if 'directory-exists-p
+        (remove-if 'directory-pathname-p
                    (filter-logical-directory-results
                     directory entries
                     #'(lambda (f)
