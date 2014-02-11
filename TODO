@@ -27,15 +27,25 @@
    but still require loading the defsystem-depends-on dependencies:
    on the target:
 
-   (defmethod perform-forms ((target null) operation component)
-     ;; null target designates current image
-     `((asdf:perform ',op ',comp)))
-   (defmethod perform-forms ((target external-target) operation component)
-     ;; external target means a cross compiler
-     `((require :asdf)
-       (map () 'asdf:load-system '(,defsystem-deps))
+   ;; null means the target is the current host.
+   ;; Or should the base class be plan-traversal or such?
+   (defmethod perform-form ((target null) operation component)
+     ;; :host means execute on the host. () is empty options.
+     `(:host () (asdf:perform ',op ',comp)))
+
+   ;; external-target means a cross compiler that we spawn.
+   (defmethod perform-form ((target external-target) operation component)
+     `(:target ;; who is to execute that? the target Lisp.
+       ;; options for the performing system:
+       (:depends-on ,(defsystem-dependencies
+                      (component-system component)))
+       ;; The actual forms to evaluate
        (asdf:perform ,(fake-operation-form operation)
                      ,(fake-component-form component))))
+
+   By specifying :host-common-lisp you can have forms run on the host.
+   By specifying :run-program, you can spawn a subprocess without
+   having to first spawn a Lisp that will call run-program. etc.
 
    The other way around the default perform method could be:
 
@@ -66,6 +76,13 @@
    they can keep the perform method to run on older versions of ASDF.
 ** Modify SBCL and other implementations so they provide UIOP
    independently from ASDF?
+** The default perform-plan method could iterate over pre-computed forms,
+   in a way that does not involve the ASDF object model anymore,
+   making ASDF friendlier to self-upgrades.
+   Then, ASDF wouldn't need to be concatenated during upgrade
+   — but should still concatenate for bootstrap purposes,
+   when require'ing it as an implementation-provided module,
+   compiling from ASDF 2, or otherwise distributing as a single file.
 
 * Implementation bugs
 ** CMUCL has bugs:
@@ -128,6 +145,11 @@
 
 ** Find out why ABCL fails the timestamp propagation test.
 
+** ECL has issues with its bundles.
+   On MacOS X, test-bundle.script fails.
+   On Linux, test-program.script fails with recent ECL 237af2e,
+   but used to work quite fine earlier in 2013.
+
 * Find an easier way to bind variables around compilation and loading of files
 
 * Design & Implement some out-of-line configuration mechanism for various options?
@@ -137,10 +159,12 @@
   * Use the above variable binding mechanism.
 
 * Fix bugs on http://bugs.launchpad.net/asdf/+bugs
+** fix directory-files to not return directories on CCL, etc. Add tests.
 
-* fix directory-files to not return directories on CCL, etc. Add tests.
-
-* use cl-test-grid to see if asdf-user can :use most (all?) of UIOP.
+* Learn to use cl-grid-test
+** So we can easily make sure ASDF changes don't break stuff,
+   and that breakage gets fixed quickly.
+** So we see if ASDF-USER can :use most (all?) of UIOP.
   SB-GROVEL used (until 25c1769 from 2013-02-23) to :use both ASDF and
   SB-EXT, which prevents ASDF from exporting RUN-PROGRAM, but
   should not be a problem with ASDF-USER :use'ing UIOP.
@@ -149,13 +173,14 @@
 
 * have a mode to explain WHY a component needs to be recompiled.
 
-* have a better defsystem form verifier - see lp#1007335
-
-* have a function verify-strict-asd that can verify a asd is pure lp#541562
+* Improve robustness
+** have a better defsystem form verifier - see lp#1007335
+** have a function verify-strict-asd that can verify a asd is pure lp#541562
   Then if it passes, use load-strict-asd.
   If not, optionally issue a warning. Start migrating people toward that.
 
 * have with-input-file use the encodings mechanism?
+** Import asdf-encodings into UIOP? Sounds a lot of code for no users.
 
 * have a single test .asd that tests as many features as possible, use it for upgrade test.
 
@@ -164,12 +189,15 @@
 ** At least document the issue.
 ** Real solution: defer parsing and evaluation of defsystem forms.
 
-* Learn to use cl-grid-test, to make sure ASDF changes don't break stuff,
- and that breakage gets fixed quickly.
-
 * Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
-    :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
+    :centralize-lisp-binaries t :default-toplevel-directory
+   *fasl-dir*)
+** Or deprecate and remove ABL compatibility altogether?
+   No one has been using ASDF1 for years.
+   There is no ABL to be compatible with —
+   is anyone still using the compatibility mode?
+   Maybe issue a warning, then a cerror, before to remove the code?
 
 * Make load-op a generic operation that selects the proper strategy
   for each system, module or file, according to component properties and user-configuration:
