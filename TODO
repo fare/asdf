@@ -1,21 +1,67 @@
-* Decree that versions older than 2 years are not supported,
-  maybe remove them from upgrade tests
-  (or split upgrade tests in two test sets: short and long).
-  We should already not support anything older than 2.019 or so
-  (still used by LispWorks).
-  Yet, we should keep supporting upgrading from what vendors provide
+* Decree that versions older than 2 years are not supported;
+  yet, keep supporting an upgrade from whatever vendors provide
   — so push them to provide recent stuff.
+  Already, swank-asdf doesn't support anything older than 2.014.6
+  (as provided by the first 2011 iteration of Quicklisp), and
+  I (fare) am pushing for swank-asdf to not support anything older
+  than 2.019 (still used by LispWorks 6.1).
+  Hopefully, sometime in 2014, everyone will have adopted ASDF 3.
+  Maybe remove old versions from upgrade tests; or maybe not:
+  if we support old versions in any way,
+  it should be for upgrade only, and "punt" is acceptable.
+  Upgrade tests might be split in two test sets: short and long.
 
-* Moving toward cross-compilation (ASDF 3.2?)
-   This would allow to get all or most of the benefits of XCVB
+* Moving toward cross-compilation (ASDF 3.2? 4?)
+   This would allow to get most of the benefits of XCVB
    (reproducibility, scalability, applicability to mobile platforms, etc.),
    except without the backward incompatibility of XCVB.
+   NB: the MOCL author would benefit a lot, and might chip in.
 ** Need to further split asdf:perform in two parts:
    A part that runs on the host and specifies (as SEXP or string to read)
-   a form that must be evaluated on the target machine, not the host.
-   A trivial that runs on the target and doesn't require the network
-   of objects related to the ASDF plan to be present,
-   or even ASDF itself, for the matter (though UIOP, yes, for sanity).
+   forms that must be evaluated on the target machine, not the host:
+   (asdf:perform-forms target operation component)
+   The default implementation can fallback to running the
+   (asdf:perform operation component) on the target,
+   which if it is on specially crafted operation and component objects
+   that do not require recreating the component hierarchy and plan,
+   but still require loading the defsystem-depends-on dependencies:
+   on the target:
+
+   (defmethod perform-forms ((target null) operation component)
+     ;; null target designates current image
+     `((asdf:perform ',op ',comp)))
+   (defmethod perform-forms ((target external-target) operation component)
+     ;; external target means a cross compiler
+     `((require :asdf)
+       (map () 'asdf:load-system '(,defsystem-deps))
+       (asdf:perform ,(fake-operation-form operation)
+                     ,(fake-component-form component))))
+
+   The other way around the default perform method could be:
+
+   (defmethod perform ((o t) (c t))
+     (let ((forms (perform-forms nil o c)))
+       (if (equal forms
+                  `((asdf:perform ',o ',c)))
+           (error "Missing perform method on ..." ...)
+           (map () 'eval-thunk forms))))
+
+   Note that in the general case, there are multiple forms,
+   that must be provided on the command line somehow
+   (see the lisp-invocation system and also how cl-launch does it),
+   with packages necessary to read latter forms being
+   created by former forms, so you cannot read everything in one go.
+   ASDF or at least UIOP should probably be provided in the target
+   image by default, anyway, without needing to be explicitly specified.
+   A more declarative interface to needing the defsystem-deps
+   is probably useful.
+** A real cross-compiling backend that works the way of XCVB
+   would need to compute a complete graph for the plan,
+   which could be achieved by inheriting from the code in POIU.
+   Thinking about it, the cross-compiling target object
+   could actually be the same as the plan object.
+   The basic case of in-image execution would need to be in ASDF,
+   while the actual cross-compilation case would be in an extension.
 ** Audit all the current specializers of perform, and offer them a new way;
    they can keep the perform method to run on older versions of ASDF.
 ** Modify SBCL and other implementations so they provide UIOP
@@ -95,9 +141,11 @@
 * fix directory-files to not return directories on CCL, etc. Add tests.
 
 * use cl-test-grid to see if asdf-user can :use most (all?) of UIOP.
-  Unhappily, on SBCL, sb-grovel uses asdf and sb-ext,
-  which causes a clash with run-program.
-  Or has this been changed long enough ago? Can it be special-cased?
+  SB-GROVEL used (until 25c1769 from 2013-02-23) to :use both ASDF and
+  SB-EXT, which prevents ASDF from exporting RUN-PROGRAM, but
+  should not be a problem with ASDF-USER :use'ing UIOP.
+  A run of quicklisp is necessary, with an eye also for warnings
+  from .asd's that might be overriding definitions in UIOP(!)
 
 * have a mode to explain WHY a component needs to be recompiled.
 
@@ -236,7 +284,7 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** com.clearly-useful.generic-collection-interface => :com.clearly-useful
 *** metatilities
    => :ait-timeout :system-applicable-p
-*** ucw ucw-core 
+*** ucw ucw-core
    =>
    version
 
@@ -247,6 +295,7 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 
 * deferred-warnings support probably needs to be redone better.
   * implement deferred warnings support on lispworks
+  * turn undefined function style-warnings into full warnings(?)
   * work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
   * https://www.mail-archive.com/asdf-devel@common-lisp.net/msg03608.html
   * czak@google.com rewrote part of deferred warnings support.
