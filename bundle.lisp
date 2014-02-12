@@ -483,7 +483,8 @@ itself.")) ;; operation on a system and its dependencies
     (apply #'operate 'binary-op system args)))
 
 #+(and (not asdf-use-unsafe-mac-bundle-op)
-       (or (and ecl darwin) (and abcl darwin)))
+       (or (and ecl darwin)
+           (and abcl darwin (not abcl-bundle-op-supported))))
 (defmethod perform :before ((o basic-fasl-op) (c component))
   (unless (featurep :asdf-use-unsafe-mac-bundle-op)
     (cerror "Continue after modifying *FEATURES*."

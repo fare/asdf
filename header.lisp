@@ -53,6 +53,13 @@
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (setf ext:*gc-verbose* nil))
 
+;;; pre 1.3.0 ABCL versions do not support the bundle-op on Mac OS X
+#+abcl
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (and (member :darwin *features*)
+               (second (third (sys::arglist 'directory))))
+    (push :abcl-bundle-op-supported *features*)))
+
 ;; Punt on hard package upgrade: from ASDF1 always, and even from ASDF2 on most implementations.
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :asdf3 *features*)
