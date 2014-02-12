@@ -57,3 +57,17 @@
          (make-instance 'my-incoherent-operation))
 
 (assert (make-instance 'my-good-operation))
+
+
+;; This test exercises the backward-compatibility mechanism of operation,
+;; whereby traditional unqualified operations are implicitly downward and sideward
+(defclass trivial-operation (operation) ())
+
+(assert-equal
+ (loop :for (o . c) :in (traverse 'trivial-operation '(:test-asdf/test-module-depend "quux"))
+       :collect (cons (type-of o) (component-find-path c)))
+ '((trivial-operation "test-asdf/test-module-depend" "file1")
+   (trivial-operation "test-asdf/test-module-depend" "quux" "file2")
+   (trivial-operation "test-asdf/test-module-depend" "quux" "file3mod" "file3")
+   (trivial-operation "test-asdf/test-module-depend" "quux" "file3mod")
+   (trivial-operation "test-asdf/test-module-depend" "quux")))
