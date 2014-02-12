@@ -253,8 +253,8 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
       ;; or non-propagation through an appropriate mixin will be downward and sideway.
       ,@(unless (typep o '(or downward-operation upward-operation sideway-operation
                               selfward-operation non-propagating-operation))
-          `(,@(downward-operation-depends-on o c)
-            ,@(sideway-operation-depends-on o c)))))
+          `(,@(sideway-operation-depends-on o c)
+            ,@(when (typep c 'parent-component) (downward-operation-depends-on o c))))))
 
   (defmethod downward-operation ((o operation)) nil)
   (defmethod sideway-operation ((o operation)) nil))
