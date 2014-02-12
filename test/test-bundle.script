@@ -13,6 +13,7 @@
 #+(and darwin ecl)
 (leave-test "Bundle test doesn't work on Mac on this lisp." 0)
 
+#+abcl
 (when (and (member :abcl *features*)
            (os-macosx-p)
            ;; bundles don't work on pre-1.3.0
