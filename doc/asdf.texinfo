@@ -2881,6 +2881,15 @@ you need to explicitly @code{initialize-source-registry} again,
 or maybe simply to @code{clear-source-registry} (or @code{clear-configuration})
 which will cause the initialization to happen next time around.
 
+@section Introspection
+@vindex *source-registry-parameter*
+
+We have made available the variable @code{*source-registry-parameter*}
+that can be used by code that wishes to introspect about the (past)
+configuration of ASDF's source registry.  @strong{This variable should
+never be set!}  It will be set as a side-effect of calling
+@code{initialize-source-registry}; user code should treat it as
+read-only.
 
 @section Status
 
