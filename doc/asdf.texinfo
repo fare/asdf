@@ -2569,6 +2569,22 @@ This old mechanism will therefore not affect you if you don't use it,
 but will take precedence over the new mechanism if you do use it.
 
 @section Configuration DSL
+@cindex :inherit-configuration source config directive
+@cindex inherit-configuration source config directive
+@cindex :ignore-invalid-entries source config directive
+@cindex ignore-invalid-entries source config directive
+@cindex :directory source config directive
+@cindex directory source config directive
+@cindex :tree source config directive
+@cindex tree source config directive
+@cindex :exclude source config directive
+@cindex exclude source config directive
+@cindex :also-exclude source config directive
+@cindex also-exclude source config directive
+@cindex :include source config directive
+@cindex include source config directive
+@cindex :default-registry source config directive
+@cindex default-registry source config directive
 
 Here is the grammar of the s-expression (SEXP) DSL for source-registry
 configuration:
