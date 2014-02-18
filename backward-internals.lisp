@@ -49,7 +49,7 @@
     (%remove-component-inline-methods component)
     (%define-component-inline-methods component rest)))
 
-;;;; PARTIAL SUPPORT for the :if-component-dep-fails component attribute
+;;;; PARTIAL SUPPORT ONLY for the :if-component-dep-fails component attribute
 ;; and the companion asdf:feature pseudo-dependency.
 ;; This won't recurse into dependencies to accumulate feature conditions.
 ;; Therefore it will accept the SB-ROTATE-BYTE of an old SBCL
@@ -57,8 +57,8 @@
 (with-upgradability ()
   (defun %resolve-if-component-dep-fails (if-component-dep-fails component)
     (asdf-message "The system definition for ~S uses deprecated ~
-                 ASDF option :IF-COMPONENT-DEP-DAILS. ~
-                 Starting with ASDF 3, please use :IF-FEATURE instead"
+                  ASDF option :IF-COMPONENT-DEP-FAILS. ~
+                  Starting with ASDF 3, please use :IF-FEATURE instead"
                   (coerce-name (component-system component)))
     ;; This only supports the pattern of use of the "feature" seen in the wild
     (check-type component parent-component)
@@ -81,7 +81,7 @@
     (load-asd pathname :name name))
 
   (defun make-temporary-package ()
-    ;; For loading a .asd file, we dont't make a temporary package anymore,
+    ;; For loading a .asd file, we don't make a temporary package anymore,
     ;; but use ASDF-USER. I'd like to have this function do this,
     ;; but since whoever uses it is likely to delete-package the result afterwards,
     ;; this would be a bad idea, so preserve the old behavior.
