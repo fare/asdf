@@ -2967,7 +2967,7 @@ Thanks a lot to Stelian Ionescu for the initial idea.
 
 Thanks to Rommel Martinez for the initial implementation attempt.
 
-All bad design ideas and implementation bugs are to mine, not theirs.
+All bad design ideas and implementation bugs are mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
 
  --- Francois-Rene Rideau @email{fare@@tunes.org}, Mon, 22 Feb 2010 00:07:33 -0500
