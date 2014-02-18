@@ -71,3 +71,5 @@
    (trivial-operation "test-asdf/test-module-depend" "quux" "file3mod" "file3")
    (trivial-operation "test-asdf/test-module-depend" "quux" "file3mod")
    (trivial-operation "test-asdf/test-module-depend" "quux")))
+
+(operate 'trivial-operation 'test-asdf/test-module-depend)

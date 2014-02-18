@@ -377,9 +377,12 @@ in some previous image, or T if it needs to be done.")
   (defmethod perform ((o operation) (c parent-component))
     nil)
   (defmethod perform ((o operation) (c source-file))
-    (sysdef-error
-     (compatfmt "~@<Required method PERFORM not implemented for operation ~A, component ~A~@:>")
-     (class-of o) (class-of c)))
+    ;; For backward compatibility, don't error on operations that don't specify propagation.
+    (when (typep o '(or downward-operation upward-operation sideway-operation
+                     selfward-operation non-propagating-operation))
+      (sysdef-error
+       (compatfmt "~@<Required method ~S not implemented for ~/asdf-action:format-action/~@:>")
+       'perform (cons o c))))
 
   (defmethod perform-with-restarts (operation component)
     ;; TOO verbose, especially as the default. Add your own :before method
