@@ -316,7 +316,7 @@ itself.")) ;; operation on a system and its dependencies
     (every #'(lambda (c) (typep c 'compiled-file)) (component-children s)))
 
   (defmethod input-files ((o operation) (c compiled-file))
-    (component-pathname c))
+    (list (component-pathname c)))
   (defmethod perform ((o load-op) (c compiled-file))
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-source-op) (c compiled-file))
