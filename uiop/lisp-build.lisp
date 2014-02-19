@@ -15,7 +15,8 @@
    #:compile-condition #:compile-file-error #:compile-warned-error #:compile-failed-error
    #:compile-warned-warning #:compile-failed-warning
    #:check-lisp-compile-results #:check-lisp-compile-warnings
-   #:*uninteresting-conditions* #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
+   #:*uninteresting-conditions* #:*usual-uninteresting-conditions*
+   #:*uninteresting-compiler-conditions* #:*uninteresting-loader-conditions*
    ;; Types
    #+sbcl #:sb-grovel-unknown-constant-condition
    ;; Functions & Macros
@@ -29,7 +30,7 @@
    #:enable-deferred-warnings-check #:disable-deferred-warnings-check
    #:current-lisp-file-pathname #:load-pathname
    #:lispize-pathname #:compile-file-type #:call-around-hook
-   #:compile-file* #:compile-file-pathname*
+   #:compile-file* #:compile-file-pathname* #:*compile-check*
    #:load* #:load-from-string #:combine-fasls)
   (:intern #:defaults #:failure-p #:warnings-p #:s #:y #:body))
 (in-package :uiop/lisp-build)
@@ -501,7 +502,7 @@ If that given type is NIL, use the currently configured *WARNINGS-FILE-TYPE* ins
       (equal (pathname-type file) type)))
 
   (defun check-deferred-warnings (files &optional context-format context-arguments)
-    "Given a list of FILES in which deferred warnings were saved by CALL-WITH-DEFERRED-WARNINGS,
+    "Given a list of FILES containing deferred warnings saved by CALL-WITH-SAVED-DEFERRED-WARNINGS,
 re-intern and raise any warnings that are still meaningful."
     (let ((file-errors nil)
           (failure-p nil)
@@ -542,12 +543,13 @@ re-intern and raise any warnings that are still meaningful."
   (macroexpand-1 '(with-compilation-unit () foo))
   |#
 
-  (defun call-with-saved-deferred-warnings (thunk warnings-file)
+  (defun call-with-saved-deferred-warnings (thunk warnings-file &key source-namestring)
     "If WARNINGS-FILE is not nil, record the deferred-warnings around a call to THUNK
 and save those warnings to the given file for latter use,
 possibly in a different process. Otherwise just call THUNK."
+    (declare (ignorable source-namestring))
     (if warnings-file
-        (with-compilation-unit (:override t)
+        (with-compilation-unit (:override t #+sbcl :source-namestring #+sbcl source-namestring)
           (unwind-protect
                (let (#+sbcl (sb-c::*undefined-warnings* nil))
                  (multiple-value-prog1
@@ -556,9 +558,10 @@ possibly in a different process. Otherwise just call THUNK."
             (reset-deferred-warnings)))
         (funcall thunk)))
 
-  (defmacro with-saved-deferred-warnings ((warnings-file) &body body)
+  (defmacro with-saved-deferred-warnings ((warnings-file &key source-namestring) &body body)
     "Trivial syntax for CALL-WITH-SAVED-DEFERRED-WARNINGS"
-    `(call-with-saved-deferred-warnings #'(lambda () ,@body) ,warnings-file)))
+    `(call-with-saved-deferred-warnings
+      #'(lambda () ,@body) ,warnings-file :source-namestring ,source-namestring)))
 
 
 ;;; from ASDF
@@ -569,7 +572,7 @@ possibly in a different process. Otherwise just call THUNK."
 
   (defun load-pathname ()
     "Portably return the LOAD-PATHNAME of the current source file or fasl"
-    *load-pathname*) ;; see magic for GCL in uiop/common-lisp
+    *load-pathname*) ;; magic no longer needed for GCL.
 
   (defun lispize-pathname (input-file)
     "From a INPUT-FILE pathname, return a corresponding .lisp source pathname"
@@ -588,7 +591,7 @@ possibly in a different process. Otherwise just call THUNK."
   (defun compile-file-pathname* (input-file &rest keys &key output-file &allow-other-keys)
     "Variant of COMPILE-FILE-PATHNAME that works well with COMPILE-FILE*"
     (let* ((keys
-             (remove-plist-keys `(#+(and allegro (not (version>= 8 2))) :external-format
+             (remove-plist-keys `(#+(or (and allegro (not (version>= 8 2)))) :external-format
                                     ,@(unless output-file '(:output-file))) keys)))
       (if (absolute-pathname-p output-file)
           ;; what cfp should be doing, w/ mp* instead of mp
@@ -599,8 +602,11 @@ possibly in a different process. Otherwise just call THUNK."
           (funcall *output-translation-function*
                    (apply 'compile-file-pathname input-file keys)))))
 
+  (defvar *compile-check* nil
+    "A hook for user-defined compile-time invariants")
+
   (defun* (compile-file*) (input-file &rest keys
-                                      &key compile-check output-file warnings-file
+                                      &key (compile-check *compile-check*) output-file warnings-file
                                       #+clisp lib-file #+(or ecl mkcl) object-file #+sbcl emit-cfasl
                                       &allow-other-keys)
     "This function provides a portable wrapper around COMPILE-FILE.
@@ -627,8 +633,7 @@ it will filter them appropriately."
             (rotatef output-file object-file))
     (let* ((keywords (remove-plist-keys
                       `(:output-file :compile-check :warnings-file
-                                     #+clisp :lib-file #+(or ecl mkcl) :object-file
-                                     #+gcl2.6 ,@'(:external-format :print :verbose)) keys))
+                                     #+clisp :lib-file #+(or ecl mkcl) :object-file) keys))
            (output-file
              (or output-file
                  (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
@@ -653,9 +658,9 @@ it will filter them appropriately."
            #+clisp
            (tmp-lib (make-pathname :type "lib" :defaults tmp-file)))
       (multiple-value-bind (output-truename warnings-p failure-p)
-          (with-saved-deferred-warnings (warnings-file)
-            (with-muffled-compiler-conditions ()
-              (with-enough-pathname (input-file :defaults *base-build-directory*)
+          (with-enough-pathname (input-file :defaults *base-build-directory*)
+            (with-saved-deferred-warnings (warnings-file :source-namestring (namestring input-file))
+              (with-muffled-compiler-conditions ()
                 (or #-(or ecl mkcl)
                     (apply 'compile-file input-file :output-file tmp-file
                            #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
@@ -697,20 +702,20 @@ it will filter them appropriately."
 
   (defun load* (x &rest keys &key &allow-other-keys)
     "Portable wrapper around LOAD that properly handles loading from a stream."
-    (etypecase x
-      ((or pathname string #-(or allegro clozure gcl2.6 genera) stream)
-       (apply 'load x
-              #-gcl2.6 keys #+gcl2.6 (remove-plist-key :external-format keys)))
-      ;; GCL 2.6, Genera can't load from a string-input-stream
-      ;; ClozureCL 1.6 can only load from file input stream
-      ;; Allegro 5, I don't remember but it must have been broken when I tested.
-      #+(or allegro clozure gcl2.6 genera)
-      (stream ;; make do this way
-       (let ((*package* *package*)
-             (*readtable* *readtable*)
-             (*load-pathname* nil)
-             (*load-truename* nil))
-         (eval-input x)))))
+    (with-muffled-loader-conditions ()
+      (etypecase x
+        ((or pathname string #-(or allegro clozure genera) stream #+clozure file-stream)
+         (apply 'load x keys))
+        ;; Genera can't load from a string-input-stream
+        ;; ClozureCL 1.6 can only load from file input stream
+        ;; Allegro 5, I don't remember but it must have been broken when I tested.
+        #+(or allegro clozure genera)
+        (stream ;; make do this way
+         (let ((*package* *package*)
+               (*readtable* *readtable*)
+               (*load-pathname* nil)
+               (*load-truename* nil))
+           (eval-input x))))))
 
   (defun load-from-string (string)
     "Portably read and evaluate forms from a STRING."

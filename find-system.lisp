@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Finding systems
 
-(asdf/package:define-package :asdf/find-system
+(uiop/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/cache)
@@ -137,12 +137,11 @@ called with an object of type asdf:system."
   (cleanup-system-definition-search-functions)
 
   (defun search-for-system-definition (system)
-    (block ()
-      (let ((name (coerce-name system)))
-        (flet ((try (f) (if-let ((x (funcall f name))) (return x))))
-          (try 'find-system-if-being-defined)
-          (map () #'try *system-definition-search-functions*)
-          (try 'sysdef-preloaded-system-search)))))
+    (let ((name (coerce-name system)))
+      (flet ((try (f) (if-let ((x (funcall f name))) (return-from search-for-system-definition x))))
+        (try 'find-system-if-being-defined)
+        (map () #'try *system-definition-search-functions*)
+        (try 'sysdef-preloaded-system-search))))
 
   (defvar *central-registry* nil
     "A list of 'system directory designators' ASDF uses to find systems.
@@ -177,9 +176,7 @@ Going forward, we recommend new users should be using the source-registry.
                    :name (strcat name ".asd")
                    :type "lnk")))
             (when (probe-file* shortcut)
-              (let ((target (parse-windows-shortcut shortcut)))
-                (when target
-                  (return (pathname target))))))))))
+              (ensure-pathname (parse-windows-shortcut shortcut) :namestring :native)))))))
 
   (defun sysdef-central-registry-search (system)
     (let ((name (primary-system-name system))
@@ -244,13 +241,11 @@ Going forward, we recommend new users should be using the source-registry.
   (defun register-preloaded-system (system-name &rest keys)
     (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
 
-  (register-preloaded-system "asdf" :version *asdf-version*)
-  (register-preloaded-system "uiop" :version *asdf-version*)
-  (register-preloaded-system "asdf-driver" :version *asdf-version*)
-  (register-preloaded-system "asdf-defsystem" :version *asdf-version*)
+  (dolist (s '("asdf" "uiop" "asdf-driver" "asdf-defsystem" "asdf-package-system"))
+    ;; don't bother with these, no one relies on them: "asdf-utils" "asdf-bundle"
+    (register-preloaded-system s :version *asdf-version*))
 
   (defmethod find-system ((name null) &optional (error-p t))
-    (declare (ignorable name))
     (when error-p
       (sysdef-error (compatfmt "~@<NIL is not a valid system name~@:>"))))
 
@@ -302,8 +297,7 @@ Going forward, we recommend new users should be using the source-registry.
                                  :condition condition))))
             (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
                           name pathname)
-            (with-muffled-loader-conditions ()
-              (load* pathname :external-format external-format)))))))
+            (load* pathname :external-format external-format))))))
 
   (defvar *old-asdf-systems* (make-hash-table :test 'equal))
 
@@ -314,14 +308,17 @@ Going forward, we recommend new users should be using the source-registry.
                (version (and (probe-file* version-pathname :truename nil)
                              (read-file-form version-pathname)))
                (old-version (asdf-version)))
-          (or (version<= old-version version)
-              (ensure-gethash
-               (list pathname old-version) *old-asdf-systems*
-                 #'(lambda ()
-                     (let ((old-pathname
-                             (if-let (pair (system-registered-p "asdf"))
-                               (system-source-file (cdr pair)))))
-                       (warn "~@<~
+          (cond
+            ((version< old-version version) t) ;; newer version: good!
+            ((equal old-version version) nil) ;; same version: don't load, but don't warn
+            (t ;; old version: bad
+             (ensure-gethash
+              (list (namestring pathname) version) *old-asdf-systems*
+              #'(lambda ()
+                 (let ((old-pathname
+                         (if-let (pair (system-registered-p "asdf"))
+                           (system-source-file (cdr pair)))))
+                   (warn "~@<~
         You are using ASDF version ~A ~:[(probably from (require \"asdf\") ~
         or loaded by quicklisp)~;from ~:*~S~] and have an older version of ASDF ~
         ~:[(and older than 2.27 at that)~;~:*~A~] registered at ~S. ~
@@ -343,8 +340,8 @@ Going forward, we recommend new users should be using the source-registry.
         then you might indeed want to either install and register a more recent version, ~
         or use :ignore-inherited-configuration to avoid registering the old one. ~
         Please consult ASDF documentation and/or experts.~@:>~%"
-                             old-version old-pathname version pathname)
-                       t)))))))
+                         old-version old-pathname version pathname))))
+             nil))))) ;; only issue the warning the first time, but always return nil
 
   (defun locate-system (name)
     "Given a system NAME designator, try to locate where to load the system from.

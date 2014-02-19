@@ -1,7 +1,7 @@
 ;;;; ---------------------------------------------------------------------------
 ;;;; Handle ASDF package upgrade, including implementation-dependent magic.
 
-(asdf/package:define-package :asdf/interface
+(uiop/package:define-package :asdf/interface
   (:nicknames :asdf :asdf-utilities)
   (:recycle :asdf/interface :asdf)
   (:unintern
@@ -14,11 +14,11 @@
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry
-   :asdf/plan :asdf/operate :asdf/defsystem :asdf/bundle :asdf/concatenate-source
-   :asdf/backward-internals :asdf/backward-interface)
+   :asdf/plan :asdf/operate :asdf/parse-defsystem :asdf/bundle :asdf/concatenate-source
+   :asdf/backward-internals :asdf/backward-interface :asdf/package-system)
   ;; TODO: automatically generate interface with reexport?
   (:export
-   #:defsystem #:find-system #:locate-system #:coerce-name
+   #:defsystem #:find-system #:locate-system #:coerce-name #:primary-system-name
    #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
    #:system-definition-pathname #:with-system-definitions
    #:search-for-system-definition #:find-component #:component-find-path
@@ -26,6 +26,7 @@
    #:require-system #:test-system #:clear-system
    #:operation #:make-operation #:find-operation
    #:upward-operation #:downward-operation #:sideway-operation #:selfward-operation
+                      #:non-propagating-operation
    #:build-system #:build-op
    #:load-op #:prepare-op #:compile-op
    #:prepare-source-op #:load-source-op #:test-op
@@ -57,8 +58,9 @@
    #:file-component #:source-file #:c-source-file #:java-source-file
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:static-file #:doc-file #:html-file
-   #:file-type
-   #:source-file-type
+   #:file-type #:source-file-type
+
+   #:package-system #:register-system-packages
 
    #:component-children          ; component accessors
    #:component-children-by-name
@@ -118,6 +120,8 @@
    #:missing-dependency-of-version
    #:circular-dependency        ; errors
    #:duplicate-names #:non-toplevel-system #:non-system-system
+   #:package-system-missing-package-error
+   #:operation-definition-warning #:operation-definition-error
 
    #:try-recompiling
    #:retry

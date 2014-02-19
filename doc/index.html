@@ -32,12 +32,12 @@
     <div class="contents">
         <a id="ASDF 3"></a>
         <h3>ASDF 3</h3>
-        <p>ASDF 3, pre-released as 2.27 on February 1st 2013, and
-          released as 3.0.0 on May 15th 2013,
-          is the current successor to Daniel Barlow's ASDF.
+        <p>ASDF 3 is the current successor to Daniel Barlow's ASDF.
           It was rewritten for improved portability, robustness, usability,
           extensibility, configurability, internal consistency,
           and the ability to create standalone executables.
+          It was pre-released as 2.27 on February 1st 2013,
+          released as 3.0.0 on May 15th 2013, with further stable releases since.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -186,9 +186,7 @@
         </table>
         <!-- Note to self:
              The maintainers of the following implementations follow asdf-announce:
-             allegro	Gary King <gwking@franz.com>
              clisp	(sds)
-             ecl	(juanjo)
 
              The maintainers of the following implementations require direct notification:
              abcl ccl cmucl gcl lispworks sbcl mkcl scl xcl
@@ -197,10 +195,12 @@ openmcl-devel@clozure.com,
 cmucl-imp@cons.org,
 gcl-devel@gnu.org,
 lisp-support@lispworks.com,
+bugs@franz.com, (allegro)
+ecls-list@lists.sourceforge.net
 SBCL Devel-list <sbcl-devel@lists.sourceforge.net>,
-Jean-Claude Beaudoin <jean.claude.beaudoin@gmail.com>,
-Douglas Crosher <dtc3@scieneer.com>,
-Peter Graves <gnooth@gmail.com>
+Jean-Claude Beaudoin <jean.claude.beaudoin@gmail.com>, (MKCL)
+Douglas Crosher <dtc3@scieneer.com>, (Scieneer CL)
+Peter Graves <gnooth@gmail.com> (XCL).
         -->
         <p>
           If there is an old or new implementation that we are missing,
@@ -232,6 +232,9 @@ Peter Graves <gnooth@gmail.com>
           or the slides of the
           <a href="https://github.com/fare/asdf3-2013/blob/master/els-slides.org"
              >ASDF 3 tutorial</a> presented at ELS 2013.
+          For an introduction to the source code, see also this video:
+          <a href="https://www.youtube.com/watch?v=Qqqbc31ZZ-U">ASDF3.1 walkthrough</a>.
+        </p>
         <p>Finally, while the manual covers all the basics,
           some advanced or new features remain underdocumented.
           Please contact our mailing-list (see below)
@@ -303,7 +306,8 @@ Peter Graves <gnooth@gmail.com>
             that also determines dependencies, in the style of
             <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a> or
             <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
-            (hopefully to be merged into a future ASDF 3.0.4 or 3.1 release.</li>
+            (this functionality is built into recent ASDF releases,
+            but this package exists for backward compatibility with earlier versions of ASDF 3).
         </ul>
         <p>Former extensions, now superseded, include:</p>
         <ul>
@@ -373,6 +377,10 @@ Peter Graves <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>October 2013</dt>
+          <dd>Version 3.0.3 of ASDF 3 has been released.
+            It contains many bug fixes, including notably better Windows support.
+          </dd>
           <dt>Since July 2013</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau has resigned as maintainer
             after releasing ASDF 3.0.1.
@@ -434,7 +442,7 @@ Peter Graves <gnooth@gmail.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2013 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2013-10-07</div>
+        <div id="timestamp">Last updated 2013-10-22</div>
     </div>
   </body>
 </html>

@@ -70,7 +70,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+cormanlisp (win32:exitprocess code)
     #+(or cmu scl) (unix:unix-exit code)
     #+ecl (si:quit code)
-    #+gcl (lisp:quit code)
+    #+gcl (system:quit code)
     #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
     #+mcl (progn code (ccl:quit)) ;; or should we use FFI to call libc's exit(3) ?
@@ -90,11 +90,13 @@ This is designed to abstract away the implementation specific quit forms."
        (format! *stderr* "~&~?~&" format arguments)))
     (quit code))
 
-  (defun raw-print-backtrace (&key (stream *debug-io*) count)
+  (defun raw-print-backtrace (&key (stream *debug-io*) count condition)
     "Print a backtrace, directly accessing the implementation"
-    (declare (ignorable stream count))
+    (declare (ignorable stream count condition))
     #+abcl
-    (let ((*debug-io* stream)) (top-level::backtrace-command count))
+    (loop :for i :from 0
+	  :for frame :in (sys:backtrace (or count most-positive-fixnum)) :do
+	    (safe-format! stream "~&~D: ~A~%" i frame))
     #+allegro
     (let ((*terminal-io* stream)
           (*standard-output* stream)
@@ -103,7 +105,7 @@ This is designed to abstract away the implementation specific quit forms."
           (tpl:*zoom-print-length* *print-length*))
       (tpl:do-command "zoom"
         :from-read-eval-print-loop nil
-        :count t
+        :count (or count t)
         :all t))
     #+clisp
     (system::print-backtrace :out stream :limit count)
@@ -115,9 +117,23 @@ This is designed to abstract away the implementation specific quit forms."
     #+(or cmu scl)
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
-      (debug:backtrace most-positive-fixnum stream))
+      (debug:backtrace (or count most-positive-fixnum) stream))
     #+ecl
-    (si::tpl-backtrace)
+    (let* ((top (si:ihs-top))
+	   (repeats (if count (min top count) top))
+	   (backtrace (loop :for ihs :from 0 :below top
+                            :collect (list (si::ihs-fun ihs)
+                                           (si::ihs-env ihs)))))
+      (loop :for i :from 0 :below repeats
+	    :for frame :in (nreverse backtrace) :do
+	      (safe-format! stream "~&~D: ~S~%" i frame)))
+    #+gcl
+    (let ((*debug-io* stream))
+      (ignore-errors
+       (with-safe-io-syntax ()
+	 (if condition
+	     (conditions::condition-backtrace condition)
+	     (system::simple-backtrace)))))
     #+lispworks
     (let ((dbg::*debugger-stack*
             (dbg::grab-stack nil :how-many (or count most-positive-fixnum)))
@@ -128,11 +144,15 @@ This is designed to abstract away the implementation specific quit forms."
     #+sbcl
     (sb-debug:backtrace
      #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream '(or count most-positive-fixnum))
-     stream))
+     stream)
+    #+xcl
+    (loop :for i :from 0 :below (or count most-positive-fixnum)
+	  :for frame :in (extensions:backtrace-as-list) :do
+	    (safe-format! stream "~&~D: ~S~%" i frame)))
 
-  (defun print-backtrace (&rest keys &key stream count)
+  (defun print-backtrace (&rest keys &key stream count condition)
     "Print a backtrace"
-    (declare (ignore stream count))
+    (declare (ignore stream count condition))
     (with-safe-io-syntax (:package :cl)
       (let ((*print-readably* nil)
             (*print-circle* t)
@@ -147,7 +167,7 @@ This is designed to abstract away the implementation specific quit forms."
     ;; We print the condition *after* the backtrace,
     ;; for the sake of who sees the backtrace at a terminal.
     ;; It is up to the caller to print the condition *before*, with some context.
-    (print-backtrace :stream stream :count count)
+    (print-backtrace :stream stream :count count :condition condition)
     (when condition
       (safe-format! stream "~&Above backtrace due to this condition:~%~A~&"
                     condition)))
@@ -235,27 +255,31 @@ if we are not called from a directly executable image."
     (setf *command-line-arguments* (command-line-arguments)))
 
   (defun restore-image (&key
-                          ((:lisp-interaction *lisp-interaction*) *lisp-interaction*)
-                          ((:restore-hook *image-restore-hook*) *image-restore-hook*)
-                          ((:prelude *image-prelude*) *image-prelude*)
-                          ((:entry-point *image-entry-point*) *image-entry-point*)
+                          (lisp-interaction *lisp-interaction*)
+                          (restore-hook *image-restore-hook*)
+                          (prelude *image-prelude*)
+                          (entry-point *image-entry-point*)
                           (if-already-restored '(cerror "RUN RESTORE-IMAGE ANYWAY")))
     "From a freshly restarted Lisp image, restore the saved Lisp environment
 by setting appropriate variables, running various hooks, and calling any specified entry point."
     (when *image-restored-p*
       (if if-already-restored
-          (call-function if-already-restored "Image already ~:[being ~;~]restored" (eq *image-restored-p* t))
+          (call-function if-already-restored "Image already ~:[being ~;~]restored"
+                         (eq *image-restored-p* t))
           (return-from restore-image)))
     (with-fatal-condition-handler ()
+      (setf *lisp-interaction* lisp-interaction)
+      (setf *image-restore-hook* restore-hook)
+      (setf *image-prelude* prelude)
       (setf *image-restored-p* :in-progress)
       (call-image-restore-hook)
-      (standard-eval-thunk *image-prelude*)
+      (standard-eval-thunk prelude)
       (setf *image-restored-p* t)
       (let ((results (multiple-value-list
-                      (if *image-entry-point*
-                          (call-function *image-entry-point*)
+                      (if entry-point
+                          (call-function entry-point)
                           t))))
-        (if *lisp-interaction*
+        (if lisp-interaction
             (apply 'values results)
             (shell-boolean-exit (first results)))))))
 
@@ -264,14 +288,20 @@ by setting appropriate variables, running various hooks, and calling any specifi
 
 (with-upgradability ()
   (defun dump-image (filename &key output-name executable
-                                ((:postlude *image-postlude*) *image-postlude*)
-                                ((:dump-hook *image-dump-hook*) *image-dump-hook*)
-                                #+clozure prepend-symbols #+clozure (purify t))
+                                (postlude *image-postlude*)
+                                (dump-hook *image-dump-hook*)
+                                #+clozure prepend-symbols #+clozure (purify t)
+                                #+sbcl compression
+                                #+(and sbcl windows) application-type)
     "Dump an image of the current Lisp environment at pathname FILENAME, with various options"
+    ;; Note: at least SBCL saves only global values of variables in the heap image,
+    ;; so make sure things you want to dump are NOT just local bindings shadowing the global values.
     (declare (ignorable filename output-name executable))
     (setf *image-dumped-p* (if executable :executable t))
     (setf *image-restored-p* :in-regress)
+    (setf *image-postlude* postlude)
     (standard-eval-thunk *image-postlude*)
+    (setf *image-dump-hook* dump-hook)
     (call-image-dump-hook)
     (setf *image-restored-p* nil)
     #-(or clisp clozure cmu lispworks sbcl scl)
@@ -307,8 +337,9 @@ by setting appropriate variables, running various hooks, and calling any specifi
       (ext:gc :full t)
       (setf ext:*batch-mode* nil)
       (setf ext::*gc-run-time* 0)
-      (apply 'ext:save-lisp filename #+cmu :executable #+cmu t
-                                     (when executable '(:init-function restore-image :process-command-line nil))))
+      (apply 'ext:save-lisp filename
+             #+cmu :executable #+cmu t
+             (when executable '(:init-function restore-image :process-command-line nil))))
     #+gcl
     (progn
       (si::set-hole-size 500) (si::gbc nil) (si::sgc-on t)
@@ -323,7 +354,13 @@ by setting appropriate variables, running various hooks, and calling any specifi
       (setf sb-ext::*gc-run-time* 0)
       (apply 'sb-ext:save-lisp-and-die filename
              :executable t ;--- always include the runtime that goes with the core
-             (when executable (list :toplevel #'restore-image :save-runtime-options t)))) ;--- only save runtime-options for standalone executables
+             (append
+              (when compression (list :compression compression))
+              ;;--- only save runtime-options for standalone executables
+              (when executable (list :toplevel #'restore-image :save-runtime-options t))
+              #+(and sbcl windows) ;; passing :application-type :gui will disable the console window.
+              ;; the default is :console - only works with SBCL 1.1.15 or later.
+              (when application-type (list :application-type application-type)))))
     #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
     (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
            'dump-image filename (nth-value 1 (implementation-type))))

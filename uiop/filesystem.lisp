@@ -96,31 +96,26 @@ or the original (parsed) pathname if it is false (the default)."
                   (or
                    #+allegro
                    (probe-file p :follow-symlinks truename)
-                   #-(or allegro clisp gcl2.6)
+                   #+gcl
                    (if truename
-                       (probe-file p)
-                       (ignore-errors
-                        (let ((pp (physicalize-pathname p)))
-                          (and
-                           #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
-                           #+(and lispworks unix) (system:get-file-stat pp)
-                           #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
-                           #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
-                           p))))
-                   #+(or clisp gcl2.6)
+                       (truename* p)
+                       (let ((kind (car (si::stat p))))
+                         (when (eq kind :link)
+                           (setf kind (ignore-errors (car (si::stat (truename* p))))))
+                         (ecase kind
+                           ((nil) nil)
+                           ((:file :link)
+                            (cond
+                              ((file-pathname-p p) p)
+                              ((directory-pathname-p p)
+                               (subpathname p (car (last (pathname-directory p)))))))
+                           (:directory (ensure-directory-pathname p)))))
+                   #+clisp
                    #.(flet ((probe (probe)
                               `(let ((foundtrue ,probe))
                                  (cond
                                    (truename foundtrue)
                                    (foundtrue p)))))
-                       #+gcl2.6
-                       (probe '(or (probe-file p)
-                                (and (directory-pathname-p p)
-                                 (ignore-errors
-                                  (ensure-directory-pathname
-                                   (truename* (subpathname
-                                               (ensure-directory-pathname p) ".")))))))
-                       #+clisp
                        (let* ((fs (find-symbol* '#:file-stat :posix nil))
                               (pp (find-symbol* '#:probe-pathname :ext nil))
                               (resolve (if pp
@@ -131,11 +126,29 @@ or the original (parsed) pathname if it is false (the default)."
                              `(if truename
                                   ,resolve
                                   (and (ignore-errors (,fs p)) p))
-                             (probe resolve)))))
+                             (probe resolve))))
+                   #-(or allegro clisp gcl)
+                   (if truename
+                       (probe-file p)
+                       (ignore-errors
+                        (let ((pp (physicalize-pathname p)))
+                          (and
+                           #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
+                           #+(and lispworks unix) (system:get-file-stat pp)
+                           #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
+                           #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
+                           p)))))
                 (file-error () nil)))))))
 
   (defun directory-exists-p (x)
     "Is X the name of a directory that exists on the filesystem?"
+    #+allegro
+    (excl:probe-directory x)
+    #+clisp
+    (handler-case (ext:probe-directory x)
+           (sys::simple-file-error ()
+             nil))
+    #-(or allegro clisp)
     (let ((p (probe-file* x :truename t)))
       (and (directory-pathname-p p) p)))
 
@@ -160,26 +173,33 @@ Try to override the defaults to not resolving symlinks, if implementation allows
     "Given ENTRIES in a DIRECTORY, remove if the directory is logical
 the entries which are physical yet when transformed by MERGER have a different TRUENAME.
 This function is used as a helper to DIRECTORY-FILES to avoid invalid entries when using logical-pathnames."
-    (if (logical-pathname-p directory)
-        ;; Try hard to not resolve logical-pathname into physical pathnames;
-        ;; otherwise logical-pathname users/lovers will be disappointed.
-        ;; If directory* could use some implementation-dependent magic,
-        ;; we will have logical pathnames already; otherwise,
-        ;; we only keep pathnames for which specifying the name and
-        ;; translating the LPN commute.
-        (loop :for f :in entries
-              :for p = (or (and (logical-pathname-p f) f)
-                           (let* ((u (ignore-errors (call-function merger f))))
-                             ;; The first u avoids a cumbersome (truename u) error.
-                             ;; At this point f should already be a truename,
-                             ;; but isn't quite in CLISP, for it doesn't have :version :newest
-                             (and u (equal (truename* u) (truename* f)) u)))
-              :when p :collect p)
-        entries))
+    (remove-duplicates ;; on CLISP, querying ~/ will return duplicates
+     (if (logical-pathname-p directory)
+         ;; Try hard to not resolve logical-pathname into physical pathnames;
+         ;; otherwise logical-pathname users/lovers will be disappointed.
+         ;; If directory* could use some implementation-dependent magic,
+         ;; we will have logical pathnames already; otherwise,
+         ;; we only keep pathnames for which specifying the name and
+         ;; translating the LPN commute.
+         (loop :for f :in entries
+               :for p = (or (and (logical-pathname-p f) f)
+                            (let* ((u (ignore-errors (call-function merger f))))
+                              ;; The first u avoids a cumbersome (truename u) error.
+                              ;; At this point f should already be a truename,
+                              ;; but isn't quite in CLISP, for it doesn't have :version :newest
+                              (and u (equal (truename* u) (truename* f)) u)))
+               :when p :collect p)
+         entries)
+     :test 'pathname-equal))
+
 
   (defun directory-files (directory &optional (pattern *wild-file*))
-    "Return a list of the files in a directory according to the PATTERN,
-which is not very portable to override. Try not resolve symlinks if implementation allows."
+    "Return a list of the files in a directory according to the PATTERN.
+Subdirectories should NOT be returned.
+  PATTERN defaults to a pattern carefully chosen based on the implementation;
+override the default at your own risk.
+  DIRECTORY-FILES tries NOT to resolve symlinks if the implementation
+permits this."
     (let ((dir (pathname directory)))
       (when (logical-pathname-p dir)
         ;; Because of the filtering we do below,
@@ -195,13 +215,14 @@ which is not very portable to override. Try not resolve symlinks if implementati
                               #+clisp
                               (when (equal :wild (pathname-type pattern))
                                 (ignore-errors (directory* (make-pathname :type nil :defaults pat)))))))
-        (filter-logical-directory-results
-         directory entries
-         #'(lambda (f)
-             (make-pathname :defaults dir
-                            :name (make-pathname-component-logical (pathname-name f))
-                            :type (make-pathname-component-logical (pathname-type f))
-                            :version (make-pathname-component-logical (pathname-version f))))))))
+        (remove-if 'directory-pathname-p
+                   (filter-logical-directory-results
+                    directory entries
+                    #'(lambda (f)
+                        (make-pathname :defaults dir
+                                       :name (make-pathname-component-logical (pathname-name f))
+                                       :type (make-pathname-component-logical (pathname-type f))
+                                       :version (make-pathname-component-logical (pathname-version f)))))))))
 
   (defun subdirectories (directory)
     "Given a DIRECTORY pathname designator, return a list of the subdirectories under it."
@@ -269,13 +290,19 @@ and recurse each of its subdirectories on which the RECURSEP returns true when C
                (down-components ()))
           (assert (eq :absolute (first directory)))
           (loop :while up-components :do
-            (if-let (parent (probe-file* (make-pathname* :directory `(:absolute ,@(reverse up-components))
-                                                         :name nil :type nil :version nil :defaults p)))
-              (return (merge-pathnames* (make-pathname* :directory `(:relative ,@down-components)
-                                                        :defaults p)
-                                        (ensure-directory-pathname parent)))
-              (push (pop up-components) down-components))
-                :finally (return p))))))
+            (if-let (parent
+                     (ignore-errors
+                      (probe-file* (make-pathname* :directory `(:absolute ,@(reverse up-components))
+                                                   :name nil :type nil :version nil :defaults p))))
+              (if-let (simplified
+                       (ignore-errors
+                        (merge-pathnames*
+                         (make-pathname* :directory `(:relative ,@down-components)
+                                         :defaults p)
+                         (ensure-directory-pathname parent))))
+                (return simplified)))
+            (push (pop up-components) down-components)
+            :finally (return p))))))
 
   (defun resolve-symlinks (path)
     "Do a best effort at resolving symlinks in PATH, returning a partially or totally resolved PATH."
@@ -301,7 +328,7 @@ Defaults to T.")
   (defun ensure-pathname
       (pathname &key
                   on-error
-                  defaults type dot-dot
+                  defaults type dot-dot namestring
                   want-pathname
                   want-logical want-physical ensure-physical
                   want-relative want-absolute ensure-absolute ensure-subpath
@@ -315,10 +342,17 @@ optionally doing some transformations and checking specified constraints.
 
 If the argument is NIL, then NIL is returned unless the WANT-PATHNAME constraint is specified.
 
-If the argument is a STRING, it is first converted to a pathname via PARSE-UNIX-NAMESTRING
-reusing the keywords DEFAULTS TYPE DOT-DOT ENSURE-DIRECTORY WANT-RELATIVE;
-then the result is optionally merged into the DEFAULTS if ENSURE-ABSOLUTE is true,
-and the all the checks and transformations are run.
+If the argument is a STRING, it is first converted to a pathname via
+PARSE-UNIX-NAMESTRING, PARSE-NAMESTRING or PARSE-NATIVE-NAMESTRING respectively
+depending on the NAMESTRING argument being :UNIX, :LISP or :NATIVE respectively,
+or else by using CALL-FUNCTION on the NAMESTRING argument;
+if :UNIX is specified (or NIL, the default, which specifies the same thing),
+then PARSE-UNIX-NAMESTRING it is called with the keywords
+DEFAULTS TYPE DOT-DOT ENSURE-DIRECTORY WANT-RELATIVE, and
+the result is optionally merged into the DEFAULTS if ENSURE-ABSOLUTE is true.
+
+The pathname passed or resulting from parsing the string
+is then subjected to all the checks and transformations below are run.
 
 Each non-nil constraint argument can be one of the symbols T, ERROR, CERROR or IGNORE.
 The boolean T is an alias for ERROR.
@@ -377,11 +411,22 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
           (etypecase p
             ((or null pathname))
             (string
-             (setf p (parse-unix-namestring
-                      p :defaults defaults :type type :dot-dot dot-dot
-                        :ensure-directory ensure-directory :want-relative want-relative))))
-          (check want-pathname (pathnamep p) "Expected a pathname, not NIL")
-          (unless (pathnamep p) (return nil))
+             (setf p (case namestring
+                       ((:unix nil)
+                        (parse-unix-namestring
+                         p :defaults defaults :type type :dot-dot dot-dot
+                           :ensure-directory ensure-directory :want-relative want-relative))
+                       ((:native)
+                        (parse-native-namestring p))
+                       ((:lisp)
+                        (parse-namestring p))
+                       (t
+                        (call-function namestring p))))))
+          (etypecase p
+            (pathname)
+            (null
+             (check want-pathname (pathnamep p) "Expected a pathname, not NIL")
+             (return nil)))
           (check want-logical (logical-pathname-p p) "Expected a logical pathname")
           (check want-physical (physical-pathname-p p) "Expected a physical pathname")
           (transform ensure-physical () (physicalize-pathname p))

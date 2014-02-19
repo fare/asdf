@@ -1,11 +1,11 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Concatenate-source
 
-(asdf/package:define-package :asdf/concatenate-source
+(uiop/package:define-package :asdf/concatenate-source
   (:recycle :asdf/concatenate-source :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation
-   :asdf/system :asdf/find-system :asdf/defsystem
+   :asdf/system :asdf/find-system
    :asdf/action :asdf/lisp-action :asdf/bundle)
   (:export
    #:concatenate-source-op
@@ -28,21 +28,21 @@
   (defclass basic-compile-concatenated-source-op (basic-compile-op selfward-operation) ())
   (defclass basic-load-compiled-concatenated-source-op (basic-load-op selfward-operation) ())
 
-  (defclass concatenate-source-op (basic-concatenate-source-op) ())
+  (defclass concatenate-source-op (basic-concatenate-source-op non-propagating-operation) ())
   (defclass load-concatenated-source-op (basic-load-concatenated-source-op)
-    ((selfward-operation :initform '(prepare-op concatenate-source-op))))
+    ((selfward-operation :initform '(prepare-op concatenate-source-op) :allocation :class)))
   (defclass compile-concatenated-source-op (basic-compile-concatenated-source-op)
-    ((selfward-operation :initform '(prepare-op concatenate-source-op))))
+    ((selfward-operation :initform '(prepare-op concatenate-source-op) :allocation :class)))
   (defclass load-compiled-concatenated-source-op (basic-load-compiled-concatenated-source-op)
-    ((selfward-operation :initform '(prepare-op compile-concatenated-source-op))))
+    ((selfward-operation :initform '(prepare-op compile-concatenated-source-op) :allocation :class)))
 
-  (defclass monolithic-concatenate-source-op (basic-concatenate-source-op monolithic-bundle-op) ())
+  (defclass monolithic-concatenate-source-op (basic-concatenate-source-op monolithic-bundle-op non-propagating-operation) ())
   (defclass monolithic-load-concatenated-source-op (basic-load-concatenated-source-op)
-    ((selfward-operation :initform 'monolithic-concatenate-source-op)))
+    ((selfward-operation :initform 'monolithic-concatenate-source-op :allocation :class)))
   (defclass monolithic-compile-concatenated-source-op (basic-compile-concatenated-source-op)
-    ((selfward-operation :initform 'monolithic-concatenate-source-op)))
+    ((selfward-operation :initform 'monolithic-concatenate-source-op :allocation :class)))
   (defclass monolithic-load-compiled-concatenated-source-op (basic-load-compiled-concatenated-source-op)
-    ((selfward-operation :initform 'monolithic-compile-concatenated-source-op)))
+    ((selfward-operation :initform 'monolithic-compile-concatenated-source-op :allocation :class)))
 
   (defmethod input-files ((operation basic-concatenate-source-op) (s system))
     (loop :with encoding = (or (component-encoding s) *default-encoding*)

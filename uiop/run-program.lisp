@@ -170,14 +170,14 @@ Built-in methods include the following:
 
 Programmers are encouraged to define their own methods for this generic function."))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod slurp-input-stream ((function function) input-stream &key)
     (funcall function input-stream))
 
   (defmethod slurp-input-stream ((list cons) input-stream &key)
     (apply (first list) input-stream (rest list)))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod slurp-input-stream ((output-stream stream) input-stream
                                  &key linewise prefix (element-type 'character) buffer-size)
     (copy-stream-to-stream
@@ -185,35 +185,27 @@ Programmers are encouraged to define their own methods for this generic function
      :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
 
   (defmethod slurp-input-stream ((x (eql 'string)) stream &key stripped)
-    (declare (ignorable x))
     (slurp-stream-string stream :stripped stripped))
 
   (defmethod slurp-input-stream ((x (eql :string)) stream &key stripped)
-    (declare (ignorable x))
     (slurp-stream-string stream :stripped stripped))
 
   (defmethod slurp-input-stream ((x (eql :lines)) stream &key count)
-    (declare (ignorable x))
     (slurp-stream-lines stream :count count))
 
   (defmethod slurp-input-stream ((x (eql :line)) stream &key (at 0))
-    (declare (ignorable x))
     (slurp-stream-line stream :at at))
 
   (defmethod slurp-input-stream ((x (eql :forms)) stream &key count)
-    (declare (ignorable x))
     (slurp-stream-forms stream :count count))
 
   (defmethod slurp-input-stream ((x (eql :form)) stream &key (at 0))
-    (declare (ignorable x))
     (slurp-stream-form stream :at at))
 
   (defmethod slurp-input-stream ((x (eql t)) stream &rest keys &key &allow-other-keys)
-    (declare (ignorable x))
     (apply 'slurp-input-stream *standard-output* stream keys))
 
-  (defmethod slurp-input-stream ((x null) stream &key)
-    (declare (ignorable x stream))
+  (defmethod slurp-input-stream ((x null) (stream t) &key)
     nil)
 
   (defmethod slurp-input-stream ((pathname pathname) input
@@ -237,9 +229,9 @@ Programmers are encouraged to define their own methods for this generic function
                                  &key linewise prefix (element-type 'character) buffer-size)
     (declare (ignorable stream linewise prefix element-type buffer-size))
     (cond
-      #+(or gcl2.6 genera)
+      #+genera
       ((functionp x) (funcall x stream))
-      #+(or gcl2.6 genera)
+      #+genera
       ((output-stream-p x)
        (copy-stream-to-stream
         stream x
@@ -267,14 +259,14 @@ Built-in methods include the following:
 
 Programmers are encouraged to define their own methods for this generic function."))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod vomit-output-stream ((function function) output-stream &key)
     (funcall function output-stream))
 
   (defmethod vomit-output-stream ((list cons) output-stream &key)
     (apply (first list) output-stream (rest list)))
 
-  #-(or gcl2.6 genera)
+  #-genera
   (defmethod vomit-output-stream ((input-stream stream) output-stream
                                  &key linewise prefix (element-type 'character) buffer-size)
     (copy-stream-to-stream
@@ -288,11 +280,9 @@ Programmers are encouraged to define their own methods for this generic function
     (values))
 
   (defmethod vomit-output-stream ((x (eql t)) stream &rest keys &key &allow-other-keys)
-    (declare (ignorable x))
     (apply 'vomit-output-stream *standard-input* stream keys))
 
-  (defmethod vomit-output-stream ((x null) stream &key)
-    (declare (ignorable x stream))
+  (defmethod vomit-output-stream ((x null) (stream t) &key)
     (values))
 
   (defmethod vomit-output-stream ((pathname pathname) input
@@ -316,9 +306,9 @@ Programmers are encouraged to define their own methods for this generic function
                                  &key linewise prefix (element-type 'character) buffer-size)
     (declare (ignorable stream linewise prefix element-type buffer-size))
     (cond
-      #+(or gcl2.6 genera)
+      #+genera
       ((functionp x) (funcall x stream))
-      #+(or gcl2.6 genera)
+      #+genera
       ((input-stream-p x)
        (copy-stream-to-stream
         x stream
@@ -379,7 +369,7 @@ argument to pass to the internal RUN-PROGRAM"
     (declare (ignorable role))
     (etypecase specifier
       (null (or #+(or allegro lispworks) (null-device-pathname)))
-      (string (pathname specifier))
+      (string (parse-native-namestring specifier))
       (pathname specifier)
       (stream specifier)
       ((eql :stream) :stream)
@@ -555,6 +545,16 @@ It returns a process-info plist with possible keys:
                     (when (eq error-output :stream) (prop :error-stream err))))))
         (nreverse process-info-r))))
 
+  (defun %process-info-pid (process-info)
+    (let ((process (getf process-info :process)))
+      (declare (ignorable process))
+      #+(or allegro lispworks) process
+      #+clozure (ccl::external-process-pid process)
+      #+ecl (si:external-process-pid process)
+      #+(or cmu scl) (ext:process-pid process)
+      #+sbcl (sb-ext:process-pid process)
+      #-(or allegro cmu sbcl scl) (error "~S not implemented" '%process-info-pid)))
+
   (defun %wait-process-result (process-info)
     (or (getf process-info :exit-code)
         (let ((process (getf process-info :process)))
@@ -569,7 +569,14 @@ It returns a process-info plist with possible keys:
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
             #+ecl (nth-value 1 (ext:external-process-status process))
-            #+lispworks (system:pid-exit-status process :wait t)
+            #+lispworks
+            (if-let ((stream (or (getf process-info :input-stream)
+                                 (getf process-info :output-stream)
+                                 (getf process-info :bidir-stream)
+                                 (getf process-info :error-stream))))
+              (system:pipe-exit-status stream :wait t)
+              (if-let ((f (find-symbol* :pid-exit-status :system nil)))
+                (funcall f process :wait t)))
             #+sbcl (sb-ext:process-exit-code process)))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
@@ -671,7 +678,9 @@ It returns a process-info plist with possible keys:
                            &key input output error-output ignore-error-status &allow-other-keys)
     ;; helper for RUN-PROGRAM when using %run-program
     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl mkcl xcl)
-    (error "Not implemented on this platform")
+    (progn
+      command keys input output error-output ignore-error-status ;; ignore
+      (error "Not implemented on this platform"))
     (assert (not (member :stream (list input output error-output))))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
@@ -733,13 +742,13 @@ It returns a process-info plist with possible keys:
              (let ((pathname
                      (typecase spec
                        (null (null-device-pathname))
-                       (string (pathname spec))
+                       (string (parse-native-namestring spec))
                        (pathname spec)
                        ((eql :output)
-                        (assert (equal operator "2>"))
+                        (assert (equal operator " 2>"))
                         (return-from redirect '(" 2>&1"))))))
                (when pathname
-                 (list " " operator " "
+                 (list operator " "
                        (escape-shell-token (native-namestring pathname)))))))
       (multiple-value-bind (before after)
           (let ((normalized (%normalize-system-command command)))
@@ -748,8 +757,9 @@ It returns a process-info plist with possible keys:
                 (values (list normalized) ())))
         (reduce/strcat
          (append
-          before (redirect in "<") (redirect out ">") (redirect err "2>")
-          (when (and directory (os-unix-p)) `("cd " (escape-shell-token directory) " ; "))
+          before (redirect in " <") (redirect out " >") (redirect err " 2>")
+          (when (and directory (os-unix-p))
+            `(" ; cd " ,(escape-shell-token (native-namestring directory))))
           after)))))
 
   (defun %system (command &rest keys
@@ -765,20 +775,21 @@ It returns a process-info plist with possible keys:
       (system:call-system %command :current-directory directory :wait t)
       #-(and lispworks os-windows)
       (with-current-directory ((unless (os-unix-p) directory))
-        #+(or abcl xcl) (ext:run-shell-command %command)
+        #+abcl (ext:run-shell-command %command)
         #+clisp (clisp-exit-code (ext:shell %command))
         #+cormanlisp (win32:system %command)
         #+ecl (let ((*standard-input* *stdin*)
                     (*standard-output* *stdout*)
                     (*error-output* *stderr*))
                 (ext:system %command))
-        #+gcl (lisp:system %command)
+        #+gcl (system:system %command)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
         #+mkcl ;; PROBABLY BOGUS -- ask jcb
         (multiple-value-bind (io process exit-code)
             (mkcl:run-program #+windows %command #+windows ()
                               #-windows "/bin/sh" #-windows (list "-c" %command)
-                              :input t :output t)))))
+                              :input t :output t))
+        #+xcl (system:%run-shell-command %command))))
 
   (defun %use-system (command &rest keys
                       &key input output error-output ignore-error-status &allow-other-keys)
@@ -817,30 +828,38 @@ unless IGNORE-ERROR-STATUS is specified.
 
 If OUTPUT is a pathname, a string designating a pathname, or NIL designating the null device,
 the file at that path is used as output.
-If it's :INTERACTIVE, output is inherited from the current process.
+If it's :INTERACTIVE, output is inherited from the current process;
+beware that this may be different from your *STANDARD-OUTPUT*,
+and under SLIME will be on your *inferior-lisp* buffer.
+If it's T, output goes to your current *STANDARD-OUTPUT* stream.
 Otherwise, OUTPUT should be a value that is a suitable first argument to
 SLURP-INPUT-STREAM (qv.), or a list of such a value and keyword arguments.
-In this case, RUN-PROGRAM will create a temporary stream for the program output.
-The program output, in that stream, will be processed by a call to SLURP-INPUT-STREAM,
+In this case, RUN-PROGRAM will create a temporary stream for the program output;
+the program output, in that stream, will be processed by a call to SLURP-INPUT-STREAM,
 using OUTPUT as the first argument (or the first element of OUTPUT, and the rest as keywords).
-T designates the *STANDARD-OUTPUT* to be provided to SLURP-INPUT-STREAM.
 The primary value resulting from that call (or NIL if no call was needed)
 will be the first value returned by RUN-PROGRAM.
 E.g., using :OUTPUT :STRING will have it return the entire output stream as a string.
+And using :OUTPUT '(:STRING :STRIPPED T) will have it return the same string
+stripped of any ending newline.
 
 ERROR-OUTPUT is similar to OUTPUT, except that the resulting value is returned
 as the second value of RUN-PROGRAM. T designates the *ERROR-OUTPUT*.
-Also :OUTPUT means redirecting the error output to the output stream, and NIL is returned.
+Also :OUTPUT means redirecting the error output to the output stream,
+in which case NIL is returned.
 
 INPUT is similar to OUTPUT, except that VOMIT-OUTPUT-STREAM is used,
 no value is returned, and T designates the *STANDARD-INPUT*.
 
-Use ELEMENT-TYPE and EXTERNAL-FORMAT to specify how streams are created.
+Use ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
+to your Lisp implementation, when applicable, for creation of the output stream.
 
 One and only one of the stream slurping or vomiting may or may not happen
-in parallel in parallel with the subprocess, depending on options and implementation.
-Other streams are completely produced or consumed before or after the subprocess is spawned,
-using temporary files.
+in parallel in parallel with the subprocess,
+depending on options and implementation,
+and with priority being given to output processing.
+Other streams are completely produced or consumed
+before or after the subprocess is spawned, using temporary files.
 
 RUN-PROGRAM returns 3 values:
 0- the result of the OUTPUT slurping if any, or NIL

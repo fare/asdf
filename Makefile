@@ -10,13 +10,12 @@ sourceDirectory := $(shell pwd)
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern xcl gcl
+lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern gcl xcl
 endif
+## grep for #+/#- features in the test/ directory to see plenty of disabled tests on some platforms
 ## NOT SUPPORTED BY OUR AUTOMATED TESTS:
 ##	cormancl genera lispworks-personal-edition mkcl rmcl
 ## Some are manually tested once in a while.
-## MAJOR FAIL: gclcvs -- Compiler bug fixed upstream, but gcl fails to compile on modern Linuxen.
-## grep for #+/#- features in the test/ directory to see plenty of disabled tests.
 ifdef ASDF_TEST_SYSTEMS
 s ?= ${ASDF_TEST_SYSTEMS}
 endif
@@ -41,11 +40,9 @@ SBCL ?= sbcl
 SCL ?= scl
 XCL ?= xcl
 
-# website, tag, install
-
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
-defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp backward-internals.lisp defsystem.lisp bundle.lisp concatenate-source.lisp output-translations.lisp backward-interface.lisp source-registry.lisp interface.lisp user.lisp footer.lisp
+defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp package-system.lisp interface.lisp user.lisp footer.lisp
 all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 
 # Making ASDF itself should be our first, default, target:
@@ -60,6 +57,8 @@ load: build/asdf.lisp
 install: archive
 
 bump: bump-version
+	git commit -a -m "Bump version to $$(eval a=$$(cat version.lisp-expr) ; echo $$a)"
+
 bump-version: build/asdf.lisp
 	./bin/asdf-builder bump-version ${v}
 
@@ -131,27 +130,53 @@ test: test-lisp test-clean-load test-load-systems doc
 test-load-systems: build/asdf.lisp
 	./test/run-tests.sh -l ${l} ${s}
 
-test-all-lisps:
-	${MAKE} test-load-systems
-	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp test-upgrade test-clean-load l=$$lisp || exit 1 ; \
-	done
+test-all-lisps: test-load-systems test-all-clean-load test-all-lisp test-all-upgrade
 
-# test upgrade is a very long run... This does just the regression tests
-test-all-no-upgrade:
-	@for lisp in ${lisps} ; do \
-		${MAKE} test-lisp test-clean-load l=$$lisp || exit 1 ; \
-	done
+test-all-clean-load:
+	@for lisp in ${lisps} ; do ${MAKE} test-clean-load l=$$lisp || exit 1 ; done
+
+test-all-lisp:
+	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp || exit 1 ; done
 
 test-all-upgrade:
-	@for lisp in ${lisps} ; do \
-		${MAKE} test-upgrade l=$$lisp || exit 1 ; \
-	done
+	@for lisp in ${lisps} ; do ${MAKE} test-upgrade l=$$lisp || exit 1 ; done
 
-test-all: doc test-all-lisps
+test-all-no-upgrade: doc test-load-systems test-all-clean-load test-all-lisp
 
-test-all-no-stop:
-	-make doc ; for l in ${lisps} ; do make t l=$$l ; make u l=$$l ; done ; true
+test-all: test-all-no-upgrade test-all-upgrade
+
+test-all-lisp-no-stop:
+	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp ; done ; :
+
+test-all-upgrade-no-stop:
+	@for lisp in ${lisps} ; do ${MAKE} test-upgrade l=$$lisp ; done ; :
+
+test-all-no-upgrade-no-stop: doc test-load-systems test-all-clean-load test-all-lisp-no-stop
+	make --quiet check-all-test-results
+
+test-all-no-stop: doc test-load-systems test-all-clean-load test-all-lisp-no-stop test-all-upgrade-no-stop
+	make --quiet check-all-results
+
+check-all-test-results:
+	@A="`grep -L '[5-9][0-9] passing and 0 failing' build/results/*-test.text`" ; \
+	if [ -n "$$A" ] ; then \
+		echo "Unexpected test failures on these implementations:" ; \
+		echo "$$A" ; \
+		exit 1 ; \
+	fi
+
+check-all-upgrade-results:
+	@A="$$(for i in build/results/*-upgrade.text ; do \
+		case "$$(tail -1 < $$i)" in "Upgrade test succeeded for "*) ;; \
+		*) echo $$i ; esac ; done)" ; \
+	if [ -n "$$A" ] ; then \
+		echo "Unexpected upgrade failures on these implementations:" ; \
+		echo "$$A" ; \
+		exit 1 ; \
+	fi
+
+check-all-results:
+	@r=0 ; make check-all-test-results || r=1 ; make check-all-upgrade-results || r=1 ; exit $r
 
 extract: extract-all-tagged-asdf
 extract-all-tagged-asdf: build/asdf.lisp

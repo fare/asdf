@@ -13,8 +13,9 @@
   (:export
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
-   #:undefine-function #:undefine-functions #:defun* #:defgeneric* #:with-upgradability ;; (un)defining functions
-   #:if-let ;; basic flow control
+   #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
+   #:undefine-function #:undefine-functions #:defun* #:defgeneric*
+   #:nest #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
    #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
@@ -45,6 +46,9 @@
   (defun undefine-function (function-spec)
     (cond
       ((symbolp function-spec)
+       ;; undefining the previous function is the portable way
+       ;; of overriding any incompatible previous gf,
+       ;; but CLISP needs extra help with getting rid of previous methods.
        #+clisp
        (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
          (when (typep f 'clos:standard-generic-function)
@@ -53,7 +57,7 @@
        (fmakunbound function-spec))
       ((and (consp function-spec) (eq (car function-spec) 'setf)
             (consp (cdr function-spec)) (null (cddr function-spec)))
-       #-gcl2.6 (fmakunbound function-spec))
+       (fmakunbound function-spec))
       (t (error "bad function spec ~S" function-spec))))
   (defun undefine-functions (function-spec-list)
     (map () 'undefine-function function-spec-list))
@@ -66,29 +70,28 @@
                     name)
               (declare (ignorable supersede))
               `(progn
-                 ;; undefining the previous function is the portable way
-                 ;; of overriding any incompatible previous gf, except on CLISP.
                  ;; We usually try to do it only for the functions that need it,
-                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer
-                 ;; (which causes issues in clisp)
-                 ,@(when (or #-clisp supersede #+(or ecl gcl2.7) t)
+                 ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
+                 ,@(when (or supersede #+ecl t)
                      `((undefine-function ',name)))
-                 #-gcl ; gcl 2.7.0 notinline functions lose secondary return values :-(
                  ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
                      `((declaim (notinline ,name))))
                  (,',def ,name ,formals ,@rest))))))
     (defdef defgeneric* defgeneric)
     (defdef defun* defun))
   (defmacro with-upgradability ((&optional) &body body)
+    "Evaluate BODY at compile- load- and run- times, with DEFUN and DEFGENERIC modified
+to also declare the functions NOTINLINE and to accept a wrapping the function name
+specification into a list with keyword argument SUPERSEDE (which defaults to T if the name
+is not wrapped, and NIL if it is wrapped). If SUPERSEDE is true, call UNDEFINE-FUNCTION
+to supersede any previous definition."
     `(eval-when (:compile-toplevel :load-toplevel :execute)
        ,@(loop :for form :in body :collect
                (if (consp form)
                    (destructuring-bind (car . cdr) form
                      (case car
                        ((defun) `(defun* ,@cdr))
-                       ((defgeneric)
-                        (unless (or #+gcl2.6 (and (consp (car cdr)) (eq 'setf (caar cdr))))
-                          `(defgeneric* ,@cdr)))
+                       ((defgeneric) `(defgeneric* ,@cdr))
                        (otherwise form)))
                    form)))))
 
@@ -114,9 +117,13 @@
           (if file (load file)
               (error "Failed to locate debug utility file: ~S" utility-file)))))))
 
-
 ;;; Flow control
 (with-upgradability ()
+  (defmacro nest (&rest things)
+    "Macro to do keep code nesting and indentation under control." ;; Thanks to mbaringer
+    (reduce #'(lambda (outer inner) `(,@outer ,inner))
+            things :from-end t))
+
   (defmacro if-let (bindings &body (then-form &optional else-form)) ;; from alexandria
     ;; bindings can be (var form) or ((var1 form1) ...)
     (let* ((binding-list (if (and (consp bindings) (symbolp (car bindings)))
@@ -241,7 +248,8 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 NIL is interpreted as an empty string. A character is interpreted as a string of length one."
     (when (or start end) (setf strings (subseq strings start end)))
     (when key (setf strings (mapcar key strings)))
-    (loop :with output = (make-string (loop :for s :in strings :sum (if (characterp s) 1 (length s)))
+    (loop :with output = (make-string (loop :for s :in strings
+                                            :sum (if (characterp s) 1 (length s)))
                                       :element-type (strings-common-element-type strings))
           :with pos = 0
           :for input :in strings
@@ -327,7 +335,6 @@ the two results passed to STRCAT always reconstitute the original string"
   (defun find-class* (x &optional (errorp t) environment)
     (etypecase x
       ((or standard-class built-in-class) x)
-      #+gcl2.6 (keyword nil)
       (symbol (find-class x errorp environment)))))
 
 
@@ -372,7 +379,7 @@ and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
-      (symbol fun)
+      (symbol (fdefinition fun))
       (cons (if (eq 'lambda (car fun))
                 (eval fun)
                 #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args)))))
@@ -431,13 +438,16 @@ When CALL-NOW-P is true, also call the function immediately."
 ;;; Hash-tables
 (with-upgradability ()
   (defun ensure-gethash (key table default)
-    "Lookup the TABLE for a KEY as by gethash, but if not present,
+    "Lookup the TABLE for a KEY as by GETHASH, but if not present,
 call the (possibly constant) function designated by DEFAULT as per CALL-FUNCTION,
-set the corresponding entry to the result in the table, and return that result."
+set the corresponding entry to the result in the table.
+Return two values: the entry after its optional computation, and whether it was found"
     (multiple-value-bind (value foundp) (gethash key table)
-      (if foundp
-          value
-          (setf (gethash key table) (values (call-function default))))))
+      (values
+       (if foundp
+           value
+           (setf (gethash key table) (call-function default)))
+       foundp)))
 
   (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
     "Convert a LIST into hash-table that has the same elements when viewed as a set,
@@ -547,5 +557,6 @@ or a string describing the format-control of a simple-condition."
       (funcall thunk)))
 
   (defmacro with-muffled-conditions ((conditions) &body body)
+    "Shorthand syntax for CALL-WITH-MUFFLED-CONDITIONS"
     `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
 

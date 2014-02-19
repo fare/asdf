@@ -11,46 +11,83 @@ usage () {
     echo " - quit with exit status 0 on getting eof"
     echo " - quit with exit status >0 if an unhandled error occurs"
     echo " you need to supply the .script in the second argument"
-    echo " lisps include abcl, allegro, allegromodern, ccl (clozure),"
-    echo "  clisp, cmucl, ecl, gcl, gclcvs, sbcl, scl and xcl."
+    echo " lisps include abcl, ccl (clozure),"
+    echo "    allegro, allegro8, allegromodern, allegromodern8,"
+    echo "    allegro_s, allegro8_s, allegromodern_s, allegromodern8_s (SMP variants)"
+    echo "    allegro_64, allegro8_64, allegromodern_64, allegromodern8_64 (64-bit variants),"
+    echo "    allegro_64_s, allegro8_64_s, allegromodern_64_s, allegromodern8_64_s, (SMP, 64-bit variants)"
+    echo "    clisp, cmucl, ecl, gcl, sbcl, scl and xcl."
+    echo " To configure the script, you may set environment variables to point to the various lisp runtimes."
+    echo " Allegro CL is a special case: instead of setting environment variables for the specific runtime"
+    echo "   locations, you may simply specify the Allegro install directories using these variables:"
+    echo "     ALLEGRO64DIR, ALLEGRO64SDIR (64-bit Allegro and SMP Allegro, respectively), ALLEGRODIR, and"
+    echo "     ALLEGROSDIR."
     echo "OPTIONS:"
-    echo "    -d -- debug mode"
+    echo "    -c -- clean load test."
+    echo "    -d -- debug mode."
+    echo "    -t -- test interactively."
     echo "    -h -- show this message."
     echo "    -u -- upgrade tests."
-    echo "    -c -- clean load test"
-    echo "    -l -- load systems tests"
-    echo "    -t -- test interactively"
-    echo "    -H -- extract all asdf versions to upgrade from"
+    echo "    -l -- load systems tests."
+    echo "    -H -- extract all asdf versions to upgrade from."
+    echo "    -u -- upgrade tests, we already told you."
 }
 
 unset DEBUG_ASDF_TEST upgrade clean_load load_systems test_interactively extract_all
+
 SHELL=/bin/sh
 export SHELL DEBUG_ASDF_TEST GCL_ANSI ASDF_OUTPUT_TRANSLATIONS
+
+if [ -n "$ALLEGRO64DIR" ] ; then
+    ALLEGRO_64=${ALLEGRO64DIR}/alisp
+    ALLEGRO8_64=${ALLEGRO64DIR}/alisp8
+    ALLEGROMODERN_64=${ALLEGRO64DIR}/mlisp
+    ALLEGROMODERN8_64=${ALLEGRO64DIR}/mlisp8
+fi
+if [ -n "$ALLEGRO64SDIR" ] ; then
+    ALLEGRO_64_S=${ALLEGRO64SDIR}/alisp
+    ALLEGRO8_64_S=${ALLEGRO64SDIR}/alisp8
+    ALLEGROMODERN_64_S=${ALLEGRO64SDIR}/mlisp
+    ALLEGROMODERN8_64_S=${ALLEGRO64SDIR}/mlisp8
+fi
+if [ -n "$ALLEGRODIR" ] ; then
+    ALLEGRO=${ALLEGRODIR}/alisp
+    ALLEGRO8=${ALLEGRODIR}/alisp8
+    ALLEGROMODERN=${ALLEGRODIR}/mlisp
+    ALLEGROMODERN8=${ALLEGRODIR}/mlisp8
+fi
+if [ -n "$ALLEGROSDIR" ] ; then
+    ALLEGRO_S=${ALLEGROSDIR}/alisp
+    ALLEGRO8_S=${ALLEGROSDIR}/alisp8
+    ALLEGROMODERN_S=${ALLEGROSDIR}/mlisp
+    ALLEGROMODERN8_S=${ALLEGROSDIR}/mlisp8
+fi
+
 
 while getopts "cdtHulhu" OPTION
 do
     case $OPTION in
-        d)
-            DEBUG_ASDF_TEST=t
-            ;;
-        u)
-            upgrade=t
-            ;;
         c)
             clean_load=t
             ;;
-        l)
-            load_systems=t
+        d)
+            DEBUG_ASDF_TEST=t
             ;;
         t)
             test_interactively=t
             ;;
-        H)
-            extract_all=t
-            ;;
         h)
             usage
             exit 1
+            ;;
+        u)
+            upgrade=t
+            ;;
+        l)
+            load_systems=t
+            ;;
+        H)
+            extract_all=t
             ;;
     esac
 done
@@ -162,12 +199,24 @@ case "$lisp" in
     flags="--noinit --nosystem --noinform"
     eval="--eval"
     ;;
-  allegro|allegro8|allegromodern|allegromodern8)
+  allegro*)
     case "$lisp" in
       allegro) command="${ALLEGRO:-alisp}" ;;
       allegro8) command="${ALLEGRO8:-alisp8}" ;;
       allegromodern) command="${ALLEGROMODERN:-mlisp}" ;;
       allegromodern8) command="${ALLEGROMODERN8:-mlisp8}" ;;
+      allegro_s) command="${ALLEGRO_S:-alisp_s}" ;;
+      allegro8_s) command="${ALLEGRO8_S:-alisp8_s}" ;;
+      allegromodern_s) command="${ALLEGROMODERN_S:-mlisp_s}" ;;
+      allegromodern8_s) command="${ALLEGROMODERN8_S:-mlisp8_s}" ;;
+      allegro_64) command="${ALLEGRO_64:-alisp_64}" ;;
+      allegro8_64) command="${ALLEGRO8_64:-alisp8_64}" ;;
+      allegromodern_64) command="${ALLEGROMODERN_64:-mlisp_64}" ;;
+      allegromodern8_64) command="${ALLEGROMODERN8_64:-mlisp8_64}" ;;
+      allegro_64_s) command="${ALLEGRO_64_S:-alisp_64_s}" ;;
+      allegro8_64_s) command="${ALLEGRO8_64_S:-alisp8_64_s}" ;;
+      allegromodern_64_s) command="${ALLEGROMODERN_64_S:-mlisp_64_s}" ;;
+      allegromodern8_64_s) command="${ALLEGROMODERN8_64_S:-mlisp8_64_s}" ;;
     esac
     flags="-q"
     nodebug="-batch"
@@ -201,12 +250,8 @@ case "$lisp" in
   gcl)
     GCL_ANSI=t
     command="${GCL:-gcl}"
-    flags="-batch"
-    eval="-eval" ;;
-  gclcvs)
-    GCL_ANSI=t
-    command="${GCLCVS:-gclcvs}"
-    flags="-batch"
+    flags=""
+    nodebug="-batch"
     eval="-eval" ;;
   lispworks)
     command="${LISPWORKS:-lispworks}"
@@ -266,27 +311,41 @@ upgrade_tags () {
     # 1.97 (2006-05-14) is the last release before Gary King takes over
     # 1.369 (2009-10-27) is the last release by Gary King
     #
-    # 2.000 to 2.019 and 2.20 to 2.26 and beyond are Faré's "stable" ASDF 2 releases
-    # 2.26.61 is the last single-file, single-package ASDF.
-    # 2.27 and beyond are Faré's "stable" ASDF 3 pre-releases
+    # 2.000 to 2.019 and 2.20 to 2.26 are Faré's "stable" ASDF 2 releases
+    #   2.000 (2010-05-31) was the first ASDF 2 release
+    #   2.008 (2010-09-10) was a somewhat stable ASDF 2 release
+    #   2.011 (2010-11-28) was used by CLISP 2.49, Debian squeeze, Ubuntu 10.04 LTS
+    #   2.014.6 (2011-04-06) was used by Quicklisp in 2011
+    #   2.019 (2011-11-27) was stable and used by LispWorks since 2012.
+    #   2.20 (2012-01-18) was in CCL 1.8, Ubuntu 12.04 LTS
+    #   2.22 (2012-06-12) was used by debian wheezy
+    #   2.26 (2012-10-30) was used by Quicklisp in 2013
     #
-    # 2.000 (2010-05-31) was the first ASDF 2 release
-    # 2.008 (2010-09-10) was a somewhat stable ASDF 2 release
-    # 2.011 (2010-11-28) was used by CLISP 2.49, Debian squeeze, Ubuntu 10.04 LTS
-    # 2.014.6 (2011-04-06) was used by Quicklisp in 2011
-    # 2.019 (2011-11-27) was stable
-    # 2.20 (2012-01-18) was in CCL 1.8, Ubuntu 12.04 LTS
-    # 2.22 (2012-06-12) was used by debian wheezy
-    # 2.26 (2012-10-30) was used by Quicklisp
-    # 2.27 (2013-02-01) is the first ASDF 3 pre-release
-    # 2.32 (2013-03-05) is the first really stable ASDF 3 pre-release
-    # 3.0.1 (2013-05-16) is the first stable ASDF 3 release
-    echo REQUIRE 1.85 1.97 1.369
-    # git tag -l '2.0??'
-    # git tag -l '2.??'
-    echo 2.000 2.008 2.011 2.014.6 2.019 2.20 2.22 2.26
-    echo 2.27 2.32
-    git tag -l '3.0.[1-9]'
+    # 2.26.x is where the refactoring that begat ASDF 3 took place.
+    # 2.26.61 is the last single-file, single-package ASDF.
+    # 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
+    #   2.27 (2013-02-01) is the first ASDF 3 pre-release
+    #   2.32 (2013-03-05) is the first really stable ASDF 3 pre-release
+    #
+    # The 3.0 series is a stable release of ASDF 3
+    # with Robert Goldman taking over maintainership at 3.0.2.
+    # 3.0.0 was 2.33.10 promoted, but version-satisfies meant it was suddenly
+    # not compatible with ASDF2 anymore, so we immediately released 3.0.1
+    #   3.0.1 (2013-05-16) is the first stable ASDF 3 release
+    #   3.0.2 (2013-07-02) was the first ASDF 3 in SBCL
+    #   3.0.3 (2013-10-22) was the last in the ASDF 3.0 series
+    #
+    # The 3.1 series provides the 3.1 feature, meaning users can rely on
+    # all the stabilization work done in 3.0 so far, plus extra developments
+    # in UIOP, package-system, and more robustification.
+    #
+    # We return the above designated versions in order of decreasing relevance,
+    # which pretty much means REQUIRE and most recent first.
+    echo REQUIRE
+    echo 3.0.3 3.0.2 3.0.1
+    echo 2.32 2.27
+    echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
+    echo 1.369 1.97 1.85
 }
 upgrade_methods () {
     if [ -n "$ASDF_UPGRADE_TEST_METHODS" ] ; then
@@ -334,24 +393,22 @@ valid_upgrade_test_p () {
         # It's damn slow. Also, for some reason, we punt on anything earlier than 2.25,
         # and only need to test it once, below for 2.24.
         abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-9]:*|abcl:2.2[0-3]:*) : ;;
-        # Skip allegro modern on 1.x -- fails for rpgoldman on his mac (!)
-        allegromodern:1.*) : ;;
         # ccl fasl numbering broke loading of old asdf 2.0
         ccl:2.0[01]*) : ;;
-        # my old ubuntu clisp 2.44.1 is wired in
+        # My old ubuntu 10.04LTS clisp 2.44.1 came wired in
         # with an antique ASDF 1.374 from CLC that can't be downgraded.
-        # 2.00[0-7] use UID, which fails on that CLISP and was removed afterwards.
+        # More recent CLISPs work.
+        # 2.00[0-7] use UID, which fails on some old CLISPs.
         # Note that for the longest time, CLISP has included 2.011 in its distribution.
-        # Since we punt on the upgrade, let's only do the test once, for 2.26.
-        clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
-        # Skip, CMUCL has problems before 2.014.7 due to source-registry upgrade.
-        # Weird unidentified problems before 2.018, so we punt equally for everything before,
-        # and only need to test it once: above, for 2.017.
-        cmucl:1.*|cmucl:2.00*|cmucl:2.01[0-6]:*) : ;;
+        # We don't punt on upgrade anymore, so we can go at it!
+        ### clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
+        # CMUCL has problems with 2.32 and earlier because of
+        # the redefinition of system's superclass component.
+        cmucl:1.*|cmucl:2.*) : ;;
         # Skip many ECL tests, for various ASDF issues
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
-        # GCL 2.6 is only supported with ASDF 2.27, so skip earlier versions
-        gcl:1.*|gcl:2.0*|gcl:2.2[0-6]*) : ;;
+        # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.1
+        gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*) : ;;
         # MKCL is only supported starting with 2.24, so skip earlier versions
         mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) : ;;
         # XCL support starts with ASDF 2.014.2
@@ -367,8 +424,11 @@ run_upgrade_tests () {
     rm -f build/*.*f* uiop/*.*f* test/*.*f* ## Remove stale FASLs from ASDF 1.x, especially when different implementations have same name
     ASDF_OUTPUT_TRANSLATIONS="(:output-translations (\"${ASDFDIR}\" (\"${ASDFDIR}/build/fasls/\" :implementation \"asdf/\")) (t (\"${ASDFDIR}/build/fasls/\" :implementation \"root/\")) :ignore-inherited-configuration)"
     su=test/script-support.lisp
-    for tag in `upgrade_tags` ; do
-        for method in `upgrade_methods` ; do
+    tags="`upgrade_tags`"
+    methods="`upgrade_methods`"
+    {
+    for tag in $tags ; do
+        for method in $methods ; do
             if valid_upgrade_test_p $lisp $tag $method ; then
                 echo "Testing ASDF upgrade from ${tag} using method $method"
                 extract_tagged_asdf $tag
@@ -382,23 +442,25 @@ run_upgrade_tests () {
                   echo "then copy/paste:"
                   echo "(load \"$su\") (asdf-test::da) (test-upgrade $method \"$tag\")"
                   exit 1 ;}
-    fi ; done ; done 2>&1 | tee build/results/${lisp}-upgrade.text
+    fi ; done ; done
+    echo "Upgrade test succeeded for ${lisp}"
+    } 2>&1 | tee build/results/${lisp}-upgrade.text
 }
 run_tests () {
   create_config
   cd ./test/
   echo failure > ../build/results/status
     thedate=`date "+%Y-%m-%d"`
-    rm -f "../build/results/${lisp}.text" || :
+    rm -f "../build/results/${lisp}-test.text" || :
     do_tests "$@" 2>&1 | \
-	tee "../build/results/${lisp}.text" "../build/results/${lisp}-${thedate}.save"
+	tee "../build/results/${lisp}-test.text" "../build/results/${lisp}-test-${thedate}.save"
     read a < ../build/results/status
   clean_up
   if [ success = "$a" ] ; then ## exit code
       return 0
   else
      echo "To view full results and failures, try the following command:" >&2
-     echo "     less -p ABORTED build/results/${lisp}.text" >&2
+     echo "     less -p ABORTED build/results/${lisp}-test.text" >&2
      return 1
   fi
 }
@@ -426,9 +488,6 @@ test_clean_load () {
     fi
 }
 test_load_systems () {
-    case $lisp in
-        gcl) return 0 ;; # This one is hopeless
-    esac
     cd ${ASDFDIR}
     mkdir -p build/results/
     echo "Loading all these systems: $*"

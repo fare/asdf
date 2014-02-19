@@ -75,8 +75,15 @@ If not, then it's a legitimate bug that we invite you to report.
 
 Maybe some automated tool will extract all that information and
 make a webpage from it, at which point it would be nice to insert a link here.
-Unhappily, at the time of this writing, quickdocs only extracts information
-from the first package::
+
+One tool with which you can extract all the documentation is HEΛP.
+At this time, the interface is not great, but if you use the scrollbar on the right
+of the left side panel, you can see many packages and from there the defined symbols::
+
+	http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html
+
+Another automated documentation tool is quickdocs, but unhappily, at the time of this writing,
+it only extracts information from the first package::
 
 	http://quickdocs.org/uiop/api
 
@@ -112,5 +119,5 @@ SLIME's swank-loader (UIOP has better compilation and API identification),
 TRIVIAL-BACKTRACE (UIOP/IMAGE has all of it and more), etc.
 
 UIOP also captures a large subset of the functionality from TRIVIAL-FEATURES,
-and a small subset of the functionality from ALEXANDRIA.
+and a small subset of the functionality from ALEXANDRIA or FARE-UTILS.
 

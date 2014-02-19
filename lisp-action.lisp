@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Actions to build Common Lisp software
 
-(asdf/package:define-package :asdf/lisp-action
+(uiop/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
@@ -38,22 +38,22 @@
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
   (defclass prepare-op (upward-operation sideway-operation)
-    ((sideway-operation :initform 'load-op)))
-  (defclass load-op (basic-load-op downward-operation sideway-operation selfward-operation)
+    ((sideway-operation :initform 'load-op :allocation :class))
+    (:documentation "Load dependencies necessary for COMPILE-OP or LOAD-OP of a given COMPONENT."))
+  (defclass load-op (basic-load-op downward-operation selfward-operation)
     ;; NB: even though compile-op depends on prepare-op it is not needed-in-image-p,
     ;; so we need to directly depend on prepare-op for its side-effects in the current image.
-    ((selfward-operation :initform '(prepare-op compile-op))))
+    ((selfward-operation :initform '(prepare-op compile-op) :allocation :class)))
   (defclass compile-op (basic-compile-op downward-operation selfward-operation)
-    ((selfward-operation :initform 'prepare-op)
-     (downward-operation :initform 'load-op)))
+    ((selfward-operation :initform 'prepare-op :allocation :class)))
 
   (defclass prepare-source-op (upward-operation sideway-operation)
-    ((sideway-operation :initform 'load-source-op)))
+    ((sideway-operation :initform 'load-source-op :allocation :class)))
   (defclass load-source-op (basic-load-op downward-operation selfward-operation)
-    ((selfward-operation :initform 'prepare-source-op)))
+    ((selfward-operation :initform 'prepare-source-op :allocation :class)))
 
   (defclass test-op (selfward-operation)
-    ((selfward-operation :initform 'load-op))))
+    ((selfward-operation :initform 'load-op :allocation :class))))
 
 
 ;;;; prepare-op, compile-op and load-op
@@ -61,25 +61,17 @@
 ;;; prepare-op
 (with-upgradability ()
   (defmethod action-description ((o prepare-op) (c component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<loading dependencies of ~3i~_~A~@:>") c))
   (defmethod perform ((o prepare-op) (c component))
-    (declare (ignorable o c))
-    nil)
-  (defmethod input-files ((o prepare-op) (c component))
-    (declare (ignorable o c))
     nil)
   (defmethod input-files ((o prepare-op) (s system))
-    (declare (ignorable o))
     (if-let (it (system-source-file s)) (list it))))
 
 ;;; compile-op
 (with-upgradability ()
   (defmethod action-description ((o compile-op) (c component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<compiling ~3i~_~A~@:>") c))
   (defmethod action-description ((o compile-op) (c parent-component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<completing compilation for ~3i~_~A~@:>") c))
   (defgeneric call-with-around-compile-hook (component thunk))
   (defmethod call-with-around-compile-hook ((c component) function)
@@ -100,15 +92,14 @@
                  warnings-file) outputs
             (call-with-around-compile-hook
              c #'(lambda (&rest flags)
-                   (with-muffled-compiler-conditions ()
-                     (apply 'compile-file* input-file
-                            :output-file output-file
-                            :external-format (component-external-format c)
-                            :warnings-file warnings-file
-                            (append
-                             #+clisp (list :lib-file lib-file)
-                             #+(or ecl mkcl) (list :object-file object-file)
-                             flags (compile-op-flags o)))))))
+                   (apply 'compile-file* input-file
+                          :output-file output-file
+                          :external-format (component-external-format c)
+                          :warnings-file warnings-file
+                          (append
+                           #+clisp (list :lib-file lib-file)
+                           #+(or ecl mkcl) (list :object-file object-file)
+                           flags (compile-op-flags o))))))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
 
@@ -146,10 +137,6 @@
   (defmethod output-files ((o compile-op) (c cl-source-file))
     (lisp-compilation-output-files o c))
   (defmethod perform ((o compile-op) (c static-file))
-    (declare (ignorable o c))
-    nil)
-  (defmethod output-files ((o compile-op) (c static-file))
-    (declare (ignorable o c))
     nil)
   (defmethod perform ((o compile-op) (c system))
     (when (and *warnings-file-type* (not (builtin-system-p c)))
@@ -169,15 +156,11 @@
 ;;; load-op
 (with-upgradability ()
   (defmethod action-description ((o load-op) (c cl-source-file))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<loading FASL for ~3i~_~A~@:>") c))
   (defmethod action-description ((o load-op) (c parent-component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<completing load for ~3i~_~A~@:>") c))
-  (defmethod action-description ((o load-op) component)
-    (declare (ignorable o))
-    (format nil (compatfmt "~@<loading ~3i~_~A~@:>")
-            component))
+  (defmethod action-description ((o load-op) (c component))
+    (format nil (compatfmt "~@<loading ~3i~_~A~@:>") c))
   (defmethod perform-with-restarts ((o load-op) (c cl-source-file))
     (loop
       (restart-case
@@ -189,11 +172,10 @@
           (perform (find-operation o 'compile-op) c)))))
   (defun perform-lisp-load-fasl (o c)
     (if-let (fasl (first (input-files o c)))
-      (with-muffled-loader-conditions () (load* fasl))))
+      (load* fasl)))
   (defmethod perform ((o load-op) (c cl-source-file))
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-op) (c static-file))
-    (declare (ignorable o c))
     nil))
 
 
@@ -202,50 +184,35 @@
 ;;; prepare-source-op
 (with-upgradability ()
   (defmethod action-description ((o prepare-source-op) (c component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<loading source for dependencies of ~3i~_~A~@:>") c))
-  (defmethod input-files ((o prepare-source-op) (c component))
-    (declare (ignorable o c))
-    nil)
   (defmethod input-files ((o prepare-source-op) (s system))
-    (declare (ignorable o))
     (if-let (it (system-source-file s)) (list it)))
   (defmethod perform ((o prepare-source-op) (c component))
-    (declare (ignorable o c))
     nil))
 
 ;;; load-source-op
 (with-upgradability ()
-  (defmethod action-description ((o load-source-op) c)
-    (declare (ignorable o))
+  (defmethod action-description ((o load-source-op) (c component))
     (format nil (compatfmt "~@<Loading source of ~3i~_~A~@:>") c))
   (defmethod action-description ((o load-source-op) (c parent-component))
-    (declare (ignorable o))
     (format nil (compatfmt "~@<Loaded source of ~3i~_~A~@:>") c))
   (defun perform-lisp-load-source (o c)
     (call-with-around-compile-hook
      c #'(lambda ()
-           (with-muffled-loader-conditions ()
-             (load* (first (input-files o c))
-                    :external-format (component-external-format c))))))
+           (load* (first (input-files o c))
+                  :external-format (component-external-format c)))))
 
   (defmethod perform ((o load-source-op) (c cl-source-file))
     (perform-lisp-load-source o c))
   (defmethod perform ((o load-source-op) (c static-file))
-    (declare (ignorable o c))
-    nil)
-  (defmethod output-files ((o load-source-op) (c component))
-    (declare (ignorable o c))
     nil))
 
 
 ;;;; test-op
 (with-upgradability ()
   (defmethod perform ((o test-op) (c component))
-    (declare (ignorable o c))
     nil)
   (defmethod operation-done-p ((o test-op) (c system))
     "Testing a system is _never_ done."
-    (declare (ignorable o c))
     nil))
 

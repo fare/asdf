@@ -18,7 +18,7 @@
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
             *uiop-directory*
             ;; try finding xcvb's lisp-invocation right next to asdf.
-            (subpathname *asdf-directory* "../xcvb/")))
+            (subpathname *asdf-directory* "../lisp-invocation/")))
 (unless (find-system :lisp-invocation nil)
   ;; try harder by enabling the user's source-registry
   (initialize-source-registry ""))
@@ -30,11 +30,12 @@
 
 (delete-file-if-exists exe)
 (assert-equal
- (multiple-value-list
+ (nth-value 2
   (run-program
    (symbol-call :lisp-invocation :lisp-invocation-arglist
-                :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp")))))
- '(nil nil 0))
+                :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp")))
+   :output t :error-output :output :input nil))
+ 0)
 (assert (probe-file* exe))
 
 (assert-equal (run-program `(,(native-namestring exe)) :output :lines)

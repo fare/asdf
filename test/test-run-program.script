@@ -1,14 +1,16 @@
 ;; -*- Lisp -*-
-(declaim (optimize (debug 3) (safety 3)))
+(declaim (optimize (debug 3) (safety #-gcl 3 #+gcl 0)))
 
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun dewindowize (x)
   (block ()
     (setf x (remove (code-char 13) x))
-    #+(and (or sbcl lispworks) os-windows) ;; buggy implementations output extra space on Windows. Also old CCL.
+    ;; Some buggy implementations output extra space on Windows;
+    ;; Implementations that rely on shell redirection on Windows also do, as a limitation.
     (when (eql #\space (last-char x))
       (return (subseq x 0 (1- (length x)))))
     x))
+
 
 (DBG "Testing echo ok 1 via run-program as a list")
 (assert-equal "ok 1"

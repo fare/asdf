@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Stamp cache
 
-(asdf/package:define-package :asdf/cache
+(uiop/package:define-package :asdf/cache
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
            #:consult-asdf-cache #:do-asdf-cache #:normalize-namestring
@@ -59,6 +59,7 @@
       (set-asdf-cache-entry `(get-file-stamp ,namestring) (list stamp))))
 
   (defun get-file-stamp (file)
-    (let ((namestring (normalize-namestring file)))
-      (do-asdf-cache `(get-file-stamp ,namestring) (compute-file-stamp namestring)))))
+    (when file
+      (let ((namestring (normalize-namestring file)))
+        (do-asdf-cache `(get-file-stamp ,namestring) (compute-file-stamp namestring))))))
 

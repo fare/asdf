@@ -1,13 +1,9 @@
 ;;;; -----------------------------------------------------------------------
 ;;;; ASDF Footer: last words and cleanup
 
-(asdf/package:define-package :asdf/footer
+(uiop/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/find-system :asdf/find-component :asdf/operation :asdf/action :asdf/lisp-action
-   :asdf/operate :asdf/bundle :asdf/concatenate-source
-   :asdf/output-translations :asdf/source-registry
-   :asdf/backward-internals :asdf/defsystem :asdf/backward-interface))
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/operate :asdf/bundle))
 (in-package :asdf/footer)
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
@@ -54,13 +50,12 @@
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
     (setf excl:*warn-on-nested-reader-conditionals* asdf/common-lisp::*acl-warn-save*))
 
-  (dolist (f '(:asdf :asdf2 :asdf3)) (pushnew f *features*))
+  (dolist (f '(:asdf :asdf2 :asdf3 :asdf3.1 :asdf-package-system)) (pushnew f *features*))
 
-  (provide :asdf)
+  (provide "asdf") (provide "ASDF") ;; do it both ways to satisfy more people.
 
   (cleanup-upgraded-asdf))
 
 (when *load-verbose*
   (asdf-message ";; ASDF, version ~a~%" (asdf-version)))
-
 

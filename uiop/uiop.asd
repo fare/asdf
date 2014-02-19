@@ -16,6 +16,7 @@
 
 (defsystem :uiop
   :licence "MIT"
+  :class #.(if (find-class 'package-system nil) 'package-system 'system)
   #+asdf3 :long-name #+asdf3 "Utilities for Implementation- and OS- Portability"
   :description "Runtime support for Common Lisp programs"
   :long-description "Basic general-purpose utilities that are in such a need

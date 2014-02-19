@@ -17,8 +17,6 @@
   (:export
    #:logical-pathname #:translate-logical-pathname
    #:make-broadcast-stream #:file-namestring)
-  #+gcl2.6 (:shadow #:type-of #:with-standard-io-syntax) ; causes errors when loading fasl(!)
-  #+gcl2.6 (:shadowing-import-from :system #:*load-pathname*)
   #+genera (:shadowing-import-from :scl #:boolean)
   #+genera (:export #:boolean #:ensure-directories-exist)
   #+mcl (:shadow #:user-homedir-pathname))
@@ -82,48 +80,21 @@
   (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))
   (unless (use-ecl-byte-compiler-p) (require :cmp)))
 
-#+gcl ;; Debian's GCL 2.7 has bugs with compiling multiple-value stuff, but can run ASDF 2.011
+#+gcl
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :ansi-cl *features*)
     (error "ASDF only supports GCL in ANSI mode. Aborting.~%"))
   (setf compiler::*compiler-default-type* (pathname "")
-        compiler::*lsp-ext* ""))
-
-#+gcl2.6
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (shadow 'type-of :uiop/common-lisp)
-  (shadowing-import 'system:*load-pathname* :uiop/common-lisp))
-
-#+gcl2.6
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (export 'type-of :uiop/common-lisp)
-  (export 'system:*load-pathname* :uiop/common-lisp))
-
-#+gcl2.6 ;; Doesn't support either logical-pathnames or output-translations.
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  (defvar *gcl2.6* t)
-  (deftype logical-pathname () nil)
-  (defun type-of (x) (class-name (class-of x)))
-  (defun wild-pathname-p (path) (declare (ignore path)) nil)
-  (defun translate-logical-pathname (x) x)
-  (defvar *compile-file-pathname* nil)
-  (defun pathname-match-p (in-pathname wild-pathname)
-    (declare (ignore in-wildname wild-wildname)) nil)
-  (defun translate-pathname (source from-wildname to-wildname &key)
-    (declare (ignore from-wildname to-wildname)) source)
-  (defun %print-unreadable-object (object stream type identity thunk)
-    (format stream "#<~@[~S ~]" (when type (type-of object)))
-    (funcall thunk)
-    (format stream "~@[ ~X~]>" (when identity (system:address object))))
-  (defmacro with-standard-io-syntax (&body body)
-    `(progn ,@body))
-  (defmacro with-compilation-unit (options &body body)
-    (declare (ignore options)) `(progn ,@body))
-  (defmacro print-unreadable-object ((object stream &key type identity) &body body)
-    `(%print-unreadable-object ,object ,stream ,type ,identity (lambda () ,@body)))
-  (defun ensure-directories-exist (path)
-    (lisp:system (format nil "mkdir -p ~S"
-                         (namestring (make-pathname :name nil :type nil :version nil :defaults path))))))
+        compiler::*lsp-ext* "")
+  #.(let ((code ;; Only support very recent GCL 2.7.0 from November 2013 or later.
+            (cond
+              #+gcl
+              ((or (< system::*gcl-major-version* 2)
+                   (and (= system::*gcl-major-version* 2)
+                        (< system::*gcl-minor-version* 7)))
+               '(error "GCL 2.7 or later required to use ASDF")))))
+      (eval code)
+      code))
 
 #+genera
 (eval-when (:load-toplevel :compile-toplevel :execute)
@@ -172,7 +143,7 @@ FROB them, that is to say, remove them if FROB is NIL,
 replace by FROB if FROB is a STRING, or if FROB is a FUNCTION,
 call FROB with the match and a function that emits a string in the output.
 Return a string made of the parts not omitted or emitted by FROB."
-    (declare (optimize (speed 0) (safety 3) (debug 3)))
+    (declare (optimize (speed 0) (safety #-gcl 3 #+gcl 0) (debug 3)))
     (let ((length (length string)) (stream nil))
       (labels ((emit-string (x &optional (start 0) (end (length x)))
                  (when (< start end)
@@ -206,5 +177,5 @@ Return a string made of the parts not omitted or emitted by FROB."
 
   (defmacro compatfmt (format)
     #+(or gcl genera)
-    (frob-substrings format `("~3i~_" #+(or genera gcl2.6) ,@'("~@<" "~@;" "~@:>" "~:>")))
+    (frob-substrings format `("~3i~_" #+genera ,@'("~@<" "~@;" "~@:>" "~:>")))
     #-(or gcl genera) format))

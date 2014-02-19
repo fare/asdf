@@ -246,8 +246,9 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 
   (defun getcwd ()
     "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-    (or #+abcl (parse-namestring
-                (java:jstatic "getProperty" "java.lang.System" "user.dir") :ensure-directory t)
+    (or #+abcl (symbol-call :asdf/filesystem :parse-native-namestring
+                            (java:jstatic "getProperty" "java.lang.System" "user.dir")
+                                                     :ensure-directory t)
         #+allegro (excl::current-directory)
         #+clisp (ext:default-directory)
         #+clozure (ccl:current-directory)
@@ -255,8 +256,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
                         (strcat (nth-value 1 (unix:unix-current-directory)) "/"))
         #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
         #+ecl (ext:getcwd)
-        #+gcl (parse-namestring ;; this is a joke. Isn't there a better way?
-               (first (symbol-call :uiop :run-program '("/bin/pwd") :output :lines)))
+        #+gcl (let ((*default-pathname-defaults* #p"")) (truename #p""))
         #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
         #+lispworks (system:current-directory)
         #+mkcl (mk-ext:getcwd)

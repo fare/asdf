@@ -6,10 +6,11 @@ Uploaders: Peter Van Eynde <pvaneynd@debian.org>,
   Milan Zamazal <pdm@zamazal.org>,
   Christoph Egger <christoph@debian.org>,
   Julien Danjou <acid@debian.org>,
+  Francois-Rene Rideau <fare@tunes.org>,
   Robert P. Goldman <rpgoldman@sift.info>
 Build-Depends: debhelper (>> 7)
 Build-Depends-Indep: texinfo, texlive-extra-utils, texlive, texlive-generic-recommended
-Standards-Version: 3.9.3
+Standards-Version: 3.9.4
 Homepage: http://common-lisp.net/project/asdf/
 Vcs-Git: git://common-lisp.net/projects/asdf/asdf.git
 
@@ -20,10 +21,14 @@ Replaces: sbcl-common (<= 1:0.9.13.0-2)
 Breaks: sbcl-common (<= 1:0.9.13.0-2), common-lisp-controller (<< 7.3)
 Depends: ${misc:Depends}
 Description: Another System Definition Facility
- asdf provides a "make" type functions for Common Lisp software.
+ ASDF provides the functionality of make and ld.so for Common Lisp software:
  It drives compilation and dynamic loading for complex Lisp systems
  with multiple modules and files, and is the de facto standard used
  by free software written in Common Lisp.
+ .
+ It also includes a utility library, UIOP, to portably deal with many issues
+ that all Common Lisp programs have to deal with, including handling pathnames,
+ accessing the filesystem, executing external programs, user configuration, etc.
  .
  Most Common Lisp implementations already provide asdf via (require "asdf"),
  but not all of them provide an up-to-date version.

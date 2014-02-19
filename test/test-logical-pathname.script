@@ -1,7 +1,5 @@
 ;;; -*- Lisp -*-
 
-#+gcl2.6 (leave-test "GCL 2.6 doesn't do Logical pathnames" 0)
-
 (setf (logical-pathname-translations "ASDF")
       #+(or allegro clisp)
       `(("**;*.*.*" ,(asdf::wilden *asdf-directory*)))
@@ -19,7 +17,7 @@
      (translate-logical-pathname "ASDF:test;test-logical-pathname.asd")
      (truename "ASDF:test;test-logical-pathname.asd"))
 
-#+xcl (leave-test "GCL 2.6 doesn't do Logical pathnames well enough" 0)
+#+(or gcl xcl) (leave-test "This implementation doesn't do Logical pathnames well enough" 0)
 
 (DBG "Test logical pathnames in central registry")
 (setf *central-registry* '(#p"ASDF:test;"))

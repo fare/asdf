@@ -1,30 +1,32 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Operations
 
-(asdf/package:define-package :asdf/operation
+(uiop/package:define-package :asdf/operation
   (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export
    #:operation
    #:operation-original-initargs #:original-initargs ;; backward-compatibility only. DO NOT USE.
-   #:build-op ;; THE generic operation
    #:*operations* #:make-operation #:find-operation #:feature))
 (in-package :asdf/operation)
 
 ;;; Operation Classes
 
 (when-upgrading (:when (find-class 'operation nil))
-  (defmethod shared-initialize :after ((o operation) slot-names &rest initargs &key)
-    (declare (ignorable o slot-names initargs)) (values)))
+  ;; override any obsolete shared-initialize method when upgrading from ASDF2.
+  (defmethod shared-initialize :after ((o operation) (slot-names t) &key)
+    (values)))
 
 (with-upgradability ()
   (defclass operation ()
     ((original-initargs ;; for backward-compat -- used by GBBopen and swank (via operation-forced)
       :initform nil :initarg :original-initargs :accessor operation-original-initargs)))
 
+  ;; Cache a copy of the INITARGS in the ORIGINAL-INITARGS slot, if that slot is not
+  ;; already bound.
   (defmethod initialize-instance :after ((o operation) &rest initargs
                                          &key force force-not system verbose &allow-other-keys)
-    (declare (ignorable force force-not system verbose))
+    (declare (ignore force force-not system verbose))
     (unless (slot-boundp o 'original-initargs)
       (setf (operation-original-initargs o) initargs)))
 
@@ -36,15 +38,15 @@
 ;;; make-operation, find-operation
 
 (with-upgradability ()
-  (defparameter *operations* (make-hash-table :test 'equal))
+  (defparameter* *operations* (make-hash-table :test 'equal))
+
   (defun make-operation (operation-class &rest initargs)
     (ensure-gethash (cons operation-class initargs) *operations*
                     (list* 'make-instance operation-class initargs)))
 
   (defgeneric find-operation (context spec)
     (:documentation "Find an operation by resolving the SPEC in the CONTEXT"))
-  (defmethod find-operation (context (spec operation))
-    (declare (ignorable context))
+  (defmethod find-operation ((context t) (spec operation))
     spec)
   (defmethod find-operation (context (spec symbol))
     (unless (member spec '(nil feature))
@@ -53,8 +55,5 @@
       (apply 'make-operation spec (operation-original-initargs context))))
   (defmethod operation-original-initargs ((context symbol))
     (declare (ignorable context))
-    nil)
-
-  (defclass build-op (operation) ()))
-
+    nil))
 

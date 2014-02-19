@@ -1,0 +1,8 @@
+(register-directory (subpathname *test-directory* "package-system-test/"))
+(load-system :package-system-test/a/x)
+(load-system :package-system-test/d)
+
+(signals package-system-missing-package-error (load-system :package-system-test/e))
+
+;; No such file.
+(signals missing-component (load-system :package-system-test/f))

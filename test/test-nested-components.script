@@ -2,10 +2,27 @@
 
 ;;; check that added nesting via modules doesn't confuse ASDF
 
-(setf *central-registry* nil)
-(load "test-nested-components-1.asd")
+(def-test-system test-nested-components-a
+  :components
+  ((:module "nested-components"
+            :pathname ""
+            :components ((:file "test-nested-1")))))
 
-(print
+(def-test-system test-nested-components-b
+  :components
+  ((:file "test-nested-1")))
+
+(def-test-system db-agraph-preflight
+  :components
+  ((:module "preflight-checks"
+            :components ((:file "preflight")))))
+
+(defsystem db-agraph-preflight-2
+  :pathname "preflight-checks" :source-file nil
+  :components
+  ((:file "preflight")))
+
+(writeln
  (list
   :a
   (traverse 'compile-op 'test-nested-components-a)
@@ -18,7 +35,7 @@
 (oos 'compile-op 'test-nested-components-a)
 (oos 'compile-op 'test-nested-components-b)
 
-(print
+(writeln
  (list
   (traverse 'load-op 'test-nested-components-a)
   (traverse 'load-op 'test-nested-components-b)))

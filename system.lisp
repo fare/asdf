@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Systems
 
-(asdf/package:define-package :asdf/system
+(uiop/package:define-package :asdf/system
   (:recycle :asdf :asdf/system)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/component)
   (:export
@@ -23,13 +23,12 @@
 
 (with-upgradability ()
   (defgeneric* (find-system) (system &optional error-p))
-  (defgeneric* (system-source-file) (system)
+  (defgeneric* (system-source-file :supersede #-clisp t #+clisp nil) (system)
     (:documentation "Return the source file in which system is defined."))
   (defgeneric component-build-pathname (component))
 
   (defgeneric component-entry-point (component))
   (defmethod component-entry-point ((c component))
-    (declare (ignorable c))
     nil))
 
 
@@ -106,6 +105,5 @@ in which the system specification (.asd file) is located."
     (system-source-directory system))
 
   (defmethod component-build-pathname ((c component))
-    (declare (ignorable c))
     nil))
 

@@ -33,10 +33,10 @@ Some constraints:
 
 (in-package :asdf-test)
 
-(declaim (optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
+(declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                    #+(or cmu scl) (c::brevity 2)))
-(proclaim '(optimize (speed 2) (safety 3) #-(or allegro gcl genera) (debug 3)
-                     #+(or cmu scl) (c::brevity 2)))
+(proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
+                     #+(or cmu scl) (c::brevity 2) #+(or cmu scl) (ext:inhibit-warnings 3)))
 
 (defvar *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,
@@ -64,19 +64,14 @@ Some constraints:
                 :test 'equalp :key 'car)) ; We need that BEFORE any mention of package ASDF.
   #+cmucl (setf ext:*gc-verbose* nil)
   #+gcl
-  (when (and (= system::*gcl-major-version* 2)
-             (= system::*gcl-minor-version* 6))
-    (pushnew :gcl2.6 *features*)
-    (shadowing-import 'system:*load-pathname* :asdf-test))
+  (si::use-fast-links nil)
   #+lispworks
   (setf system:*stack-overflow-behaviour* :warn))
 
-#+(or gcl genera)
+#+genera
 (unless (fboundp 'ensure-directories-exist)
   (defun ensure-directories-exist (path)
-    #+genera (fs:create-directories-recursively (pathname path))
-    #+gcl (lisp:system (format nil "mkdir -p ~S"
-                               (namestring (make-pathname :name nil :type nil :defaults path))))))
+    #+genera (fs:create-directories-recursively (pathname path))))
 
 ;;; Survival utilities
 (defun asym (name &optional package errorp)
@@ -88,10 +83,9 @@ Some constraints:
         (when errorp (error "Can't find package ~A" pname)))))
 (defun acall (name &rest args)
   (apply (apply 'asym (if (consp name) name (list name))) args))
-(defun ucall (name &rest args) (apply (asym name :uiop) args))
 (defun asymval (name &optional package)
   (symbol-value (asym name package)))
-(defsetf asymval (name &optional package) (new-value) ;; NB: defun setf won't work on GCL2.6
+(defsetf asymval (name &optional package) (new-value)
   (let ((sym (gensym "SYM")))
     `(let ((,sym (asym ,name ,package)))
        (if ,sym
@@ -147,8 +141,8 @@ Some constraints:
 (defun assert-pathname-equal-helper (qx x qy y)
   (cond
     ((equal x y)
-     (format t "~S and ~S both evaluate to same path:~%  ~S~%" qx qy x))
-    ((ucall :pathname-equal x y)
+     (format t "~S and~% ~S both evaluate to same path:~%  ~S~%" qx qy x))
+    ((acall :pathname-equal x y)
      (warn "These two expressions yield pathname-equal yet not equal path~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
         the other expression ~S yields that:~%  ~S~%  ~S~%"
@@ -189,14 +183,12 @@ Some constraints:
                   :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))
 (defun make-sub-pathname (&rest keys &key defaults &allow-other-keys)
   (merge-pathnames (apply 'make-pathname keys) defaults))
-(defun relative-dir (&rest dir) #-gcl (cons ':relative dir) #+gcl dir)
-(defun back-dir () #-gcl :back #+gcl :parent)
 (defparameter *asdf-directory*
-  (truename (make-sub-pathname :directory (relative-dir (back-dir)) :defaults *test-directory*)))
+  (truename (make-sub-pathname :directory '(:relative :back) :defaults *test-directory*)))
 (defparameter *uiop-directory*
-  (truename (make-sub-pathname :directory (relative-dir "uiop") :defaults *asdf-directory*)))
+  (truename (make-sub-pathname :directory '(:relative "uiop") :defaults *asdf-directory*)))
 (defparameter *build-directory*
-  (make-sub-pathname :directory (relative-dir "build") :defaults *asdf-directory*))
+  (make-sub-pathname :directory '(:relative "build") :defaults *asdf-directory*))
 (defparameter *implementation*
   (or #+allegro
       (ecase excl:*current-case-mode*
@@ -216,7 +208,7 @@ Some constraints:
       #+scl :scl
       #+xcl :xcl))
 (defparameter *early-fasl-directory*
-  (make-sub-pathname :directory (relative-dir "fasls" (string-downcase *implementation*))
+  (make-sub-pathname :directory `(:relative "fasls" ,(string-downcase *implementation*))
                      :defaults *build-directory*))
 
 (defun asdf-name (&optional tag)
@@ -224,7 +216,7 @@ Some constraints:
 (defun asdf-lisp (&optional tag)
   (make-pathname :name (asdf-name tag) :type "lisp" :defaults *build-directory*))
 (defun debug-lisp ()
-  (make-sub-pathname :directory (relative-dir "contrib") :name "debug" :type "lisp" :defaults *uiop-directory*))
+  (make-sub-pathname :directory '(:relative "contrib") :name "debug" :type "lisp" :defaults *uiop-directory*))
 (defun early-compile-file-pathname (file)
   (compile-file-pathname
    (make-pathname :name (pathname-name file) :type "lisp" :defaults *early-fasl-directory*)))
@@ -249,19 +241,27 @@ Some constraints:
 (defmacro assert-equal (x y)
   `(assert-compare (equal ,x ,y)))
 
+(defun set-equality (s1 s2 &key (test 'eql))
+  (and (= (length s1) (length s2))
+       (every #'(lambda (x)
+                  (some #'(lambda (y)
+                            (funcall test x y))
+                        s2))
+              s1)))
+
 (defun touch-file (file &key offset timestamp in-filesystem)
   (let* ((base (or timestamp (get-universal-time)))
          (stamp (if offset (+ base offset) base)))
     (if (and (asymval :*asdf-cache*) (not in-filesystem))
         (acall :register-file-stamp file stamp)
         (multiple-value-bind (sec min hr day month year)
-            (decode-universal-time stamp #+gcl2.6 -5) ;; -5 is for *my* localtime
+            (decode-universal-time stamp)
           (unless in-filesystem
             (error "Y U NO use stamp cache?"))
-          (ucall :run-program
+          (acall :run-program
                  `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                          year month day hr min sec)
-                           ,(ucall :native-namestring file)))
+                           ,(acall :native-namestring file)))
           (assert-equal (file-write-date file) stamp)))))
 (defun mark-file-deleted (file)
   (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
@@ -280,7 +280,7 @@ Some constraints:
   #+cormanlisp (win32:exitprocess code)
   #+(or cmu scl) (unix:unix-exit code)
   #+ecl (si:quit code)
-  #+gcl (lisp:quit code)
+  #+gcl (system:quit code)
   #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
   #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
   #+mcl (ccl:quit) ;; or should we use FFI to call libc's exit(3) ?
@@ -326,7 +326,7 @@ is bound, write a message and exit on an error.  If
                              (break))
                             (t
                              (ignore-errors
-                              (ucall :print-condition-backtrace
+                              (acall :print-condition-backtrace
                                      c :count 69 :stream *error-output*))
                              (leave-test "Script failed" 1))))))
               (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
@@ -396,7 +396,7 @@ is bound, write a message and exit on an error.  If
          (tmp (make-pathname :name "asdf-tmp" :defaults afasl)))
     (ensure-directories-exist afasl)
     (multiple-value-bind (result warnings-p failure-p)
-        (compile-file alisp :output-file tmp #-gcl :verbose #-gcl verbose :print verbose)
+        (compile-file alisp :output-file tmp :verbose verbose :print verbose)
       (flet ((bad (key)
                (when result (ignore-errors (delete-file result)))
                key)
@@ -437,7 +437,6 @@ is bound, write a message and exit on an error.  If
 
 (defun compile-asdf-script ()
   (with-test ()
-    #-gcl2.6
     (ecase (with-asdf-conditions () (maybe-compile-asdf))
       (:not-found
        (leave-test "Testsuite failed: unable to find ASDF source" 3))
@@ -536,11 +535,12 @@ is bound, write a message and exit on an error.  If
   (format t "Being a bit verbose~%")
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (when (and (asym :locate-system) (asym :pathname-directory-pathname)
-             (asym :pathname-equal))
+  (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
     (format t "Comparing directories~%")
     (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
-      (assert-pathname-equal *test-directory* x) ;; not always EQUAL (!)
+      (assert-pathname-equal-helper ;; not always EQUAL (!)
+       '*test-directory* *test-directory*
+       '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
       (unless (equal *test-directory* x)
         (format t "Interestingly, while *test-directory* has components~% ~S~%~
                  ASDF finds the ASDs in~% ~S~%Using the latter.~%"
@@ -567,13 +567,11 @@ is bound, write a message and exit on an error.  If
   (register-directory *asdf-directory*)
   (register-directory *uiop-directory*)
   (register-directory *test-directory*)
-  (DBG :lalatu (asymval :*central-registry*))
   (quietly
    (acall :oos (asym :load-op) :uiop))
   (acall :oos (asym :load-op) :test-module-depend))
 
 (defun load-asdf (&optional tag)
-  #+gcl2.6 (load-asdf-lisp tag) #-gcl2.6
   (load-asdf-fasl tag)
   (configure-asdf))
 

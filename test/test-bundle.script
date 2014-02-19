@@ -1,7 +1,6 @@
 ;;; -*- Lisp -*-
 (in-package :asdf-test)
 
-
 ;;;---------------------------------------------------------------------------
 ;;; Check to see if the bundle functionality is doing something.
 ;;;---------------------------------------------------------------------------
@@ -11,10 +10,17 @@
 (asdf:clear-system :test-asdf/bundle-2)
 (when (find-package :test-package) (delete-package :test-package))
 
-#+(and darwin (or abcl ecl))
+#+(and darwin ecl)
 (leave-test "Bundle test doesn't work on Mac on this lisp." 0)
 
-#+(or (and ecl ecl-bytecmp) gcl) ;; actually available on ABCL 1.2.0 and later.
+#+abcl
+(when (and (member :abcl *features*)
+           (os-macosx-p)
+           ;; bundles don't work on pre-1.3.0
+           (second (third (sys::arglist 'directory))))
+  (leave-test "Bundle test doesn't work on Mac on this version of ABCL." 0))
+
+#+(or (and ecl ecl-bytecmp) gcl)
 (leave-test "bundles not on this implementation" 0)
 
 #+abcl
@@ -44,10 +50,15 @@
 (operate 'monolithic-fasl-op :test-asdf/bundle-2)
 (assert (probe-file *mono-bundle-2*))
 
-;;; Test DLL-op on ECL.
+;;; Test dll-op and monolithic-dll-op on ECL.
 #+ecl
 (progn
+  (require 'sockets) ;; Test the pre-compiled system feature
   (operate 'dll-op :test-asdf/dll-test)
   (si:load-foreign-module (first (output-files 'dll-op :test-asdf/dll-test)))
   (operate 'load-op :test-asdf/dll-user)
-  (assert (= (test-package::sample-function) 42)))
+  (assert (= (test-package::sample-function) 42))
+  (operate 'monolithic-dll-op :test-asdf/monodll)
+  (si:load-foreign-module (first (output-files 'monolithic-dll-op :test-asdf/monodll)))
+  (operate 'load-op :test-asdf/monodll-user)
+  (assert (= (test-package::always-42) 42)))

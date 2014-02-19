@@ -1,5 +1,5 @@
-;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp -*-
-;;; This is ASDF 3.0.2.34: Another System Definition Facility.
+;;; -*- mode: Common-Lisp; Base: 10 ; Syntax: ANSI-Common-Lisp ; buffer-read-only: t; -*-
+;;; This is ASDF 3.1.0.67: Another System Definition Facility.
 ;;;
 ;;; Feedback, bug reports, and patches are all welcome:
 ;;; please mail to <asdf-devel@common-lisp.net>.
@@ -19,7 +19,7 @@
 ;;;  http://www.opensource.org/licenses/mit-license.html on or about
 ;;;  Monday; July 13, 2009)
 ;;;
-;;; Copyright (c) 2001-2012 Daniel Barlow and contributors
+;;; Copyright (c) 2001-2014 Daniel Barlow and contributors
 ;;;
 ;;; Permission is hereby granted, free of charge, to any person obtaining
 ;;; a copy of this software and associated documentation files (the
@@ -51,10 +51,16 @@
 
 #+cmu
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (declaim (optimize (speed 1) (safety 3) (debug 3)))
   (setf ext:*gc-verbose* nil))
 
-#+(or abcl clisp clozure cmu ecl xcl) ;; punt on hard package upgrade on those implementations
+;;; pre 1.3.0 ABCL versions do not support the bundle-op on Mac OS X
+#+abcl
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (and (member :darwin *features*)
+               (second (third (sys::arglist 'directory))))
+    (push :abcl-bundle-op-supported *features*)))
+
+;; Punt on hard package upgrade: from ASDF1 always, and even from ASDF2 on most implementations.
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (unless (member :asdf3 *features*)
     (let* ((existing-version
@@ -71,8 +77,9 @@
            (existing-version-number (and existing-version (read-from-string existing-major-minor)))
            (away (format nil "~A-~A" :asdf existing-version)))
       (when (and existing-version
-                 (< existing-version-number 2.27))
+                 (< existing-version-number
+                    #+(or allegro clisp lispworks sbcl) 2.0
+                    #-(or allegro clisp lispworks sbcl) 2.27))
         (rename-package :asdf away)
         (when *load-verbose*
           (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))))
-

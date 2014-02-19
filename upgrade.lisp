@@ -2,17 +2,17 @@
 ;;;; Handle upgrade as forward- and backward-compatibly as possible
 ;; See https://bugs.launchpad.net/asdf/+bug/485687
 
-(asdf/package:define-package :asdf/upgrade
+(uiop/package:define-package :asdf/upgrade
   (:recycle :asdf/upgrade :asdf)
   (:use :uiop/common-lisp :uiop)
   (:export
    #:asdf-version #:*previous-asdf-versions* #:*asdf-version*
    #:asdf-message #:*verbose-out*
-   #:upgrading-p #:when-upgrading #:upgrade-asdf #:asdf-upgrade-error
+   #:upgrading-p #:when-upgrading #:upgrade-asdf #:asdf-upgrade-error #:defparameter*
    #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
    #:intern*)
-  (:import-from :asdf/package #:intern* #:find-symbol*))
+  (:import-from :uiop/package #:intern* #:find-symbol*))
 (in-package :asdf/upgrade)
 
 ;;; Special magic to detect if this is an upgrade
@@ -29,8 +29,20 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
               (string rev)
               (cons (format nil "~{~D~^.~}" rev))
               (null "1.0"))))))
+  ;; Important: define *p-a-v* /before/ *a-v* so that it initializes correctly.
+  (defvar *previous-asdf-versions* (if-let (previous (asdf-version)) (list previous)))
   (defvar *asdf-version* nil)
-  (defvar *previous-asdf-versions* nil)
+  ;; We need to clear systems from versions yet older than the below:
+  (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.
+  (defmacro defparameter* (var value &optional docstring)
+    (let* ((name (string-trim "*" var))
+           (valfun (intern (format nil "%~A-~A-~A" :compute name :value)))
+           (clearfun (intern (format nil "%~A-~A" :clear name))))
+      `(progn
+         (defun ,valfun () ,value)
+         (defvar ,var (,valfun) ,@(ensure-list docstring))
+         (defun ,clearfun () (setf ,var (,valfun)))
+         (register-hook-function '*post-upgrade-cleanup-hook* ',clearfun))))
   (defvar *verbose-out* nil)
   (defun asdf-message (format-string &rest format-args)
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
@@ -39,6 +51,8 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defun upgrading-p ()
     (and *previous-asdf-versions* (not (equal *asdf-version* (first *previous-asdf-versions*)))))
   (defmacro when-upgrading ((&key (upgrading-p '(upgrading-p)) when) &body body)
+    "A wrapper macro for code that should only be run when upgrading a
+previously-loaded version of ASDF."
     `(with-upgradability ()
        (when (and ,upgrading-p ,@(when when `(,when)))
          (handler-bind ((style-warning #'muffle-warning))
@@ -46,13 +60,13 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. make bump-version v=3.4.5.67.8
          ;; can help you do these changes in synch (look at the source for documentation).
-         ;; Relying on its automation, the version is now redundantly present on top of this file.
+         ;; Relying on its automation, the version is now redundantly present on top of asdf.lisp.
          ;; "3.4" would be the general branch for major version 3, minor version 4.
          ;; "3.4.5" would be an official release in the 3.4 branch.
-         ;; "3.4.5.67" would be a development version in the official upstream of 3.4.5.
+         ;; "3.4.5.67" would be a development version in the official branch, on top of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "3.0.2.34")
+         (asdf-version "3.1.0.67")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -86,8 +100,7 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
              #:component-self-dependencies
              #:resolve-relative-location-component #:resolve-absolute-location-component
              #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
-    (declare (ignorable redefined-functions uninterned-symbols))
-    (loop :for name :in (append redefined-functions)
+    (loop :for name :in redefined-functions
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
               ;; On CLISP we seem to be unable to fmakunbound and define a function in the same fasl. Sigh.
@@ -126,7 +139,12 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
                      old-version new-version)
               (asdf-message (compatfmt "~&~@<; ~@;Upgraded ASDF from version ~A to version ~A~@:>~%")
                             old-version new-version))
-          (call-functions (reverse *post-upgrade-cleanup-hook*))
+          ;; In case the previous version was too old to be forward-compatible, clear systems.
+          ;; TODO: if needed, we may have to define a separate hook to run
+          ;; in case of forward-compatible upgrade.
+          ;; Or to move the tests forward-compatibility test inside each hook function?
+          (unless (version<= *oldest-forward-compatible-asdf-version* old-version)
+            (call-functions (reverse *post-upgrade-cleanup-hook*)))
           t))))
 
   (defun upgrade-asdf ()

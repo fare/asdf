@@ -47,33 +47,22 @@
     "Convert the DIRECTORY component from a format usable by the underlying
 implementation's MAKE-PATHNAME and other primitives to a CLHS-standard format
 that is a list and not a string."
-    #+gcl2.6 (setf directory (substitute :back :parent directory))
     (cond
       #-(or cmu sbcl scl) ;; these implementations already normalize directory components.
       ((stringp directory) `(:absolute ,directory))
-      #+gcl2.6
-      ((and (consp directory) (eq :root (first directory)))
-       `(:absolute ,@(rest directory)))
       ((or (null directory)
            (and (consp directory) (member (first directory) '(:absolute :relative))))
        directory)
-      #+gcl2.6
+      #+gcl
       ((consp directory)
-       `(:relative ,@directory))
+       (cons :relative directory))
       (t
        (error (compatfmt "~@<Unrecognized pathname directory component ~S~@:>") directory))))
 
   (defun denormalize-pathname-directory-component (directory-component)
     "Convert the DIRECTORY-COMPONENT from a CLHS-standard format to a format usable
 by the underlying implementation's MAKE-PATHNAME and other primitives"
-    #-gcl2.6 directory-component
-    #+gcl2.6
-    (let ((d (substitute-if :parent (lambda (x) (member x '(:up :back)))
-                            directory-component)))
-      (cond
-        ((and (consp d) (eq :relative (first d))) (rest d))
-        ((and (consp d) (eq :absolute (first d))) `(:root ,@(rest d)))
-        (t d))))
+    directory-component)
 
   (defun merge-pathname-directory-components (specified defaults)
     "Helper for MERGE-PATHNAMES* that handles directory components"
@@ -102,11 +91,11 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   ;; See CLHS make-pathname and 19.2.2.2.3.
   ;; This will be :unspecific if supported, or NIL if not.
   (defparameter *unspecific-pathname-type*
-    #+(or abcl allegro clozure cmu gcl genera lispworks mkcl sbcl scl xcl) :unspecific
-    #+(or clisp ecl #|These haven't been tested:|# cormanlisp mcl) nil
+    #+(or abcl allegro clozure cmu genera lispworks mkcl sbcl scl xcl) :unspecific
+    #+(or clisp ecl gcl #|These haven't been tested:|# cormanlisp mcl) nil
     "Unspecific type component to use with the underlying implementation's MAKE-PATHNAME")
 
-  (defun make-pathname* (&rest keys &key (directory nil #+gcl2.6 directoryp)
+  (defun make-pathname* (&rest keys &key (directory nil)
                                       host (device () #+allegro devicep) name type version defaults
                                       #+scl &allow-other-keys)
     "Takes arguments like CL:MAKE-PATHNAME in the CLHS, and
@@ -117,9 +106,6 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
     (apply 'make-pathname
            (append
             #+allegro (when (and devicep (null device)) `(:device :unspecific))
-            #+gcl2.6
-            (when directoryp
-              `(:directory ,(denormalize-pathname-directory-component directory)))
             keys)))
 
   (defun make-pathname-component-logical (x)
@@ -316,6 +302,9 @@ ways that the filename components can be missing are for it to be NIL,
 Note that this does _not_ check to see that PATHNAME points to an
 actually-existing directory."
     (when pathname
+      ;; I tried using Allegro's excl:file-directory-p, but this cannot be done,
+      ;; because it rejects apparently legal pathnames as
+      ;; ill-formed. [2014/02/10:rpg]
       (let ((pathname (pathname pathname)))
         (flet ((check-one (x)
                  (member x '(nil :unspecific "") :test 'equal)))
@@ -613,9 +602,9 @@ with a format control-string and other arguments as arguments"
 (with-upgradability ()
   (defparameter *wild* (or #+cormanlisp "*" :wild)
     "Wild component for use with MAKE-PATHNAME")
-  (defparameter *wild-directory-component* (or #+gcl2.6 "*" :wild)
+  (defparameter *wild-directory-component* (or :wild)
     "Wild directory component for use with MAKE-PATHNAME")
-  (defparameter *wild-inferiors-component* (or #+gcl2.6 "**" :wild-inferiors)
+  (defparameter *wild-inferiors-component* (or :wild-inferiors)
     "Wild-inferiors directory component for use with MAKE-PATHNAME")
   (defparameter *wild-file*
     (make-pathname :directory nil :name *wild* :type *wild*

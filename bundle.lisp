@@ -1,7 +1,7 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; ASDF-Bundle
 
-(asdf/package:define-package :asdf/bundle
+(uiop/package:define-package :asdf/bundle
   (:recycle :asdf/bundle :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
@@ -38,11 +38,11 @@
   (defclass basic-fasl-op (bundle-compile-op)
     ((bundle-type :initform :fasl)))
   (defclass prepare-fasl-op (sideway-operation)
-    ((sideway-operation :initform 'load-fasl-op)))
+    ((sideway-operation :initform 'load-fasl-op :allocation :class)))
   (defclass fasl-op (basic-fasl-op selfward-operation)
-    ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op))))
+    ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op) :allocation :class)))
   (defclass load-fasl-op (basic-load-op selfward-operation)
-    ((selfward-operation :initform '(prepare-op fasl-op))))
+    ((selfward-operation :initform '(prepare-op fasl-op) :allocation :class)))
 
   ;; NB: since the monolithic-op's can't be sideway-operation's,
   ;; if we wanted lib-op, dll-op, binary-op to be sideway-operation's,
@@ -51,20 +51,25 @@
 
   (defclass no-ld-flags-op (operation) ())
 
-  (defclass lib-op (bundle-compile-op no-ld-flags-op)
+  (defclass lib-op (bundle-compile-op no-ld-flags-op non-propagating-operation)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "compile the system and produce linkable (.a) library for it."
      #-(or ecl mkcl) "just compile the system"))
 
-  (defclass dll-op (bundle-compile-op selfward-operation no-ld-flags-op)
+  (defclass dll-op (bundle-compile-op no-ld-flags-op non-propagating-operation)
     ((bundle-type :initform :dll))
     (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
 
   (defclass binary-op (basic-compile-op selfward-operation)
-    ((selfward-operation :initform '(fasl-op lib-op)))
+    ((selfward-operation :initform '(fasl-op lib-op) :allocation :class))
     (:documentation "produce fasl and asd files for the system"))
 
-  (defclass monolithic-op (operation) ()) ;; operation on a system and its dependencies
+  (defclass monolithic-op (operation) ()
+    (:documentation "A MONOLITHIC operation operates on a system *and all of its
+dependencies*.  So, for example, a monolithic concatenate operation will
+concatenate together a system's components and all of its dependencies, but a
+simple concatenate operation will concatenate only the components of the system
+itself.")) ;; operation on a system and its dependencies
 
   (defclass monolithic-bundle-op (monolithic-op bundle-op)
     ((prologue-code :accessor monolithic-op-prologue-code)
@@ -72,28 +77,32 @@
 
   (defclass monolithic-bundle-compile-op (monolithic-bundle-op bundle-compile-op)
     ()
-    (:documentation "Abstract operation for ways to bundle the outputs of compiling *Lisp* files over all systems"))
+    (:documentation "Abstract operation for ways to bundle the outputs of compiling
+*Lisp* files over a system, and all of its dependencies."))
 
   (defclass monolithic-binary-op (monolithic-op binary-op)
-    ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op)))
+    ((selfward-operation :initform '(monolithic-fasl-op monolithic-lib-op) :allocation :class))
     (:documentation "produce fasl and asd files for combined system and dependencies."))
 
-  (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op) ()
+  (defclass monolithic-fasl-op (monolithic-bundle-compile-op basic-fasl-op non-propagating-operation) ()
     (:documentation "Create a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-compile-op basic-compile-op  no-ld-flags-op)
+  (defclass monolithic-lib-op (monolithic-bundle-compile-op non-propagating-operation no-ld-flags-op)
     ((bundle-type :initform #+(or ecl mkcl) :lib #-(or ecl mkcl) :no-output-file))
     (:documentation #+(or ecl mkcl) "Create a single linkable library for the system and its dependencies."
      #-(or ecl mkcl) "Compile a system and its dependencies."))
 
-  (defclass monolithic-dll-op (monolithic-bundle-compile-op sideway-operation selfward-operation no-ld-flags-op)
+  (defclass monolithic-dll-op (monolithic-bundle-compile-op non-propagating-operation no-ld-flags-op)
     ((bundle-type :initform :dll))
     (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
 
-  (defclass program-op #+(or mkcl ecl) (monolithic-bundle-compile-op)
+  ;; Fare reports that the PROGRAM-OP doesn't need any propagation on MKCL or
+  ;; ECL because the necessary dependency wrangling is done by other, earlier
+  ;; operations. [2014/01/20:rpg]
+  (defclass program-op #+(or mkcl ecl) (monolithic-bundle-compile-op non-propagating-operation)
             #-(or mkcl ecl) (monolithic-bundle-op selfward-operation)
     ((bundle-type :initform :program)
-     #-(or mkcl ecl) (selfward-operation :initform #-(or mkcl ecl) 'load-op))
+     #-(or mkcl ecl) (selfward-operation :initform 'load-op))
     (:documentation "create an executable file from the system and its dependencies"))
 
   (defun bundle-pathname-type (bundle-type)
@@ -154,7 +163,7 @@
   (defmethod initialize-instance :after ((instance bundle-op) &rest initargs
                                          &key (name-suffix nil name-suffix-p)
                                          &allow-other-keys)
-    (declare (ignorable initargs name-suffix))
+    (declare (ignore initargs name-suffix))
     (unless name-suffix-p
       (setf (slot-value instance 'name-suffix)
             (unless (typep instance 'program-op)
@@ -175,7 +184,6 @@
                              (operation-original-initargs instance))))
 
   (defmethod bundle-op-build-args :around ((o no-ld-flags-op))
-    (declare (ignorable o))
     (let ((args (call-next-method)))
       (remf args :ld-flags)
       args))
@@ -220,7 +228,6 @@
       ,@(call-next-method)))
 
   (defmethod component-depends-on :around ((o bundle-op) (c component))
-    (declare (ignorable o c))
     (if-let (op (and (eq (type-of o) 'bundle-op) (component-build-operation c)))
       `((,op ,c))
       (call-next-method)))
@@ -257,7 +264,7 @@
     (let* ((operation-name (select-bundle-operation type monolithic))
            (move-here-path (if (and move-here
                                     (typep move-here '(or pathname string)))
-                               (pathname move-here)
+                               (ensure-pathname move-here :namestring :lisp :ensure-directory t)
                                (system-relative-pathname system "asdf-output/")))
            (operation (apply #'operate operation-name
                              system
@@ -282,7 +289,6 @@
 ;;;
 (with-upgradability ()
   (defmethod component-depends-on ((o load-fasl-op) (c system))
-    (declare (ignorable o))
     `((,o ,@(loop :for dep :in (component-sideway-dependencies c)
                   :collect (resolve-dependency-spec c dep)))
       (,(if (user-system-p c) 'fasl-op 'load-op) ,c)
@@ -291,10 +297,6 @@
   (defmethod input-files ((o load-fasl-op) (c system))
     (when (user-system-p c)
       (output-files (find-operation o 'fasl-op) c)))
-
-  (defmethod perform ((o load-fasl-op) c)
-    (declare (ignorable o c))
-    nil)
 
   (defmethod perform ((o load-fasl-op) (c system))
     (when (input-files o c)
@@ -313,12 +315,8 @@
   (defmethod trivial-system-p ((s system))
     (every #'(lambda (c) (typep c 'compiled-file)) (component-children s)))
 
-  (defmethod output-files (o (c compiled-file))
-    (declare (ignorable o c))
-    nil)
-  (defmethod input-files (o (c compiled-file))
-    (declare (ignorable o))
-    (component-pathname c))
+  (defmethod input-files ((o operation) (c compiled-file))
+    (list (component-pathname c)))
   (defmethod perform ((o load-op) (c compiled-file))
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-source-op) (c compiled-file))
@@ -326,7 +324,6 @@
   (defmethod perform ((o load-fasl-op) (c compiled-file))
     (perform (find-operation o 'load-op) c))
   (defmethod perform ((o operation) (c compiled-file))
-    (declare (ignorable o c))
     nil))
 
 ;;;
@@ -334,19 +331,15 @@
 ;;;
 (with-upgradability ()
   (defmethod trivial-system-p ((s prebuilt-system))
-    (declare (ignorable s))
     t)
 
   (defmethod perform ((o lib-op) (c prebuilt-system))
-    (declare (ignorable o c))
     nil)
 
   (defmethod component-depends-on ((o lib-op) (c prebuilt-system))
-    (declare (ignorable o c))
     nil)
 
   (defmethod component-depends-on ((o monolithic-lib-op) (c prebuilt-system))
-    (declare (ignorable o))
     nil))
 
 
@@ -409,7 +402,7 @@
       (assert (eq (not input-files) (not output-files)))
       (when input-files
         (when non-fasl-files
-          (error "On ~A, asdf-bundle can only bundle FASL files, but these were also produced: ~S"
+          (error "On ~A, asdf/bundle can only bundle FASL files, but these were also produced: ~S"
                  (implementation-type) non-fasl-files))
         (when (and (typep o 'monolithic-bundle-op)
                    (or (monolithic-op-prologue-code o) (monolithic-op-epilogue-code o)))
@@ -419,14 +412,12 @@
           (combine-fasls fasl-files output-file)))))
 
   (defmethod input-files ((o load-op) (s precompiled-system))
-    (declare (ignorable o))
     (bundle-output-files (find-operation o 'fasl-op) s))
 
   (defmethod perform ((o load-op) (s precompiled-system))
     (perform-lisp-load-fasl o s))
 
   (defmethod component-depends-on ((o load-fasl-op) (s precompiled-system))
-    (declare (ignorable o))
     `((load-op ,s) ,@(call-next-method))))
 
   #| ;; Example use:
@@ -490,3 +481,13 @@
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'binary-op system args)))
+
+#+(and (not asdf-use-unsafe-mac-bundle-op)
+       (or (and ecl darwin)
+           (and abcl darwin (not abcl-bundle-op-supported))))
+(defmethod perform :before ((o basic-fasl-op) (c component))
+  (unless (featurep :asdf-use-unsafe-mac-bundle-op)
+    (cerror "Continue after modifying *FEATURES*."
+            "BASIC-FASL-OP bundle operations are not supported on Mac OS X for this lisp.~%~T~
+To continue, push :asdf-use-unsafe-mac-bundle-op onto *FEATURES*.~%~T~
+Please report to ASDF-DEVEL if this works for you.")))

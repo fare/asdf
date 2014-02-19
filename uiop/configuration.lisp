@@ -128,8 +128,12 @@ this function tries to locate the Windows FOLDER for one of
           :finally
              (unless (= inherit 1)
                (report-invalid-form invalid-form-reporter
-                                    :arguments (list (compatfmt "~@<One and only one of ~S or ~S is required.~@:>")
-                                                     :inherit-configuration :ignore-inherited-configuration)))
+                                    :form form :location location
+                                    ;; we throw away the form and location arguments, hence the ~2*
+                                    ;; this is necessary because of the report in INVALID-CONFIGURATION
+                                    :format (compatfmt "~@<Invalid source registry ~S~@[ in ~S~]. ~
+                                                        One and only one of ~S or ~S is required.~@:>")
+                                    :arguments '(:inherit-configuration :ignore-inherited-configuration)))
              (return (nreverse x))))
 
   (defun validate-configuration-file (file validator &key description)

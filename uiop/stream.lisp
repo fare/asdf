@@ -224,10 +224,9 @@ as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
                                  (if-does-not-exist :error))
     "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
 Other keys are accepted but discarded."
-    #+gcl2.6 (declare (ignore external-format))
     (with-open-file (s pathname :direction :input
                                 :element-type element-type
-                                #-gcl2.6 :external-format #-gcl2.6 external-format
+                                :external-format external-format
                                 :if-does-not-exist if-does-not-exist)
       (funcall thunk s)))
 
@@ -245,10 +244,9 @@ Other keys are accepted but discarded."
                                   (if-does-not-exist :create))
     "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
 Other keys are accepted but discarded."
-    #+gcl2.6 (declare (ignore external-format))
     (with-open-file (s pathname :direction :output
                                 :element-type element-type
-                                #-gcl2.6 :external-format #-gcl2.6 external-format
+                                :external-format external-format
                                 :if-exists if-exists
                                 :if-does-not-exist if-does-not-exist)
       (funcall thunk s)))
@@ -269,19 +267,22 @@ and always returns EOF when read from"
       ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?
       (t (error "No /dev/null on your OS"))))
   (defun call-with-null-input (fun &rest keys &key element-type external-format if-does-not-exist)
+    "Call FUN with an input stream from the null device; pass keyword arguments to OPEN."
     (declare (ignore element-type external-format if-does-not-exist))
     (apply 'call-with-input-file (null-device-pathname) fun keys))
   (defmacro with-null-input ((var &rest keys
                               &key element-type external-format if-does-not-exist)
                              &body body)
     (declare (ignore element-type external-format if-does-not-exist))
-    "Evaluate BODY in a context when VAR is bound to an input stream accessing the null device."
+    "Evaluate BODY in a context when VAR is bound to an input stream accessing the null device.
+Pass keyword arguments to OPEN."
     `(call-with-null-input #'(lambda (,var) ,@body) ,@keys))
   (defun call-with-null-output (fun
                                 &key (element-type *default-stream-element-type*)
                                   (external-format *utf-8-external-format*)
                                   (if-exists :overwrite)
                                   (if-does-not-exist :error))
+    "Call FUN with an output stream to the null device; pass keyword arguments to OPEN."
     (call-with-output-file
      (null-device-pathname) fun
      :element-type element-type :external-format external-format
@@ -289,7 +290,8 @@ and always returns EOF when read from"
   (defmacro with-null-output ((var &rest keys
                               &key element-type external-format if-does-not-exist if-exists)
                               &body body)
-    "Evaluate BODY in a context when VAR is bound to an output stream accessing the null device."
+    "Evaluate BODY in a context when VAR is bound to an output stream accessing the null device.
+Pass keyword arguments to OPEN."
     (declare (ignore element-type external-format if-exists if-does-not-exist))
     `(call-with-null-output #'(lambda (,var) ,@body) ,@keys)))
 
@@ -528,37 +530,57 @@ If a string, repeatedly read and evaluate from it, returning the last values."
   (defun setup-temporary-directory ()
     "Configure a default temporary directory to use."
     (setf *temporary-directory* (default-temporary-directory))
-    ;; basic lack fixed after gcl 2.7.0-61, but ending / required still on 2.7.0-64.1
-    #+(and gcl (not gcl2.6)) (setf system::*tmp-dir* *temporary-directory*))
+    #+gcl (setf system::*tmp-dir* *temporary-directory*))
 
   (defun call-with-temporary-file
       (thunk &key
-               (want-stream-p t) (want-pathname-p t)
-               prefix keep (direction :io)
+               (want-stream-p t) (want-pathname-p t) (direction :io) keep after
+               directory (type "tmp" typep) prefix (suffix (when typep "-tmp"))
                (element-type *default-stream-element-type*)
                (external-format *utf-8-external-format*))
-    "Call a THUNK with STREAM and PATHNAME arguments identifying a temporary file.
-The pathname will be based on appending a random suffix to PREFIX.
-This utility will KEEP the file past its extent if and only if explicitly requested.
-The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT."
-    #+gcl2.6 (declare (ignorable external-format))
+    "Call a THUNK with stream and/or pathname arguments identifying a temporary file.
+
+The temporary file's pathname will be based on concatenating
+PREFIX (defaults to \"uiop\"), a random alphanumeric string,
+and optional SUFFIX (defaults to \"-tmp\" if a type was provided)
+and TYPE (defaults to \"tmp\", using a dot as separator if not NIL),
+within DIRECTORY (defaulting to the TEMPORARY-DIRECTORY) if the PREFIX isn't absolute.
+
+The file will be open with specified DIRECTION (defaults to :IO),
+ELEMENT-TYPE (defaults to *DEFAULT-STREAM-ELEMENT-TYPE*) and
+EXTERNAL-FORMAT (defaults to *UTF-8-EXTERNAL-FORMAT*).
+If WANT-STREAM-P is true (the defaults to T), then THUNK will then be CALL-FUNCTION'ed
+with the stream and the pathname (if WANT-PATHNAME-P is true, defaults to T),
+and stream with be closed after the THUNK exits (either normally or abnormally).
+If WANT-STREAM-P is false, then WANT-PATHAME-P must be true, and then
+THUNK is only CALL-FUNCTION'ed after the stream is closed, with the pathname as argument.
+Upon exit of THUNK, the AFTER thunk if defined is CALL-FUNCTION'ed with the pathname as argument.
+If AFTER is defined, its results are returned, otherwise, the results of THUNK are returned.
+Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'ed returns true."
     (check-type direction (member :output :io))
     (assert (or want-stream-p want-pathname-p))
     (loop
-      :with prefix = (namestring (ensure-absolute-pathname (or prefix "tmp") #'temporary-directory))
+      :with prefix = (native-namestring
+                      (ensure-absolute-pathname
+                       (or prefix "tmp")
+                       (or (ensure-pathname directory :namestring :native :ensure-directory t)
+                           #'temporary-directory)))
       :with results = ()
-      :for counter :from (random (ash 1 32))
-      :for pathname = (pathname (format nil "~A~36R" prefix counter))
+      :for counter :from (random (expt 36 #-gcl 8 #+gcl 5))
+      :for pathname = (parse-native-namestring
+                       (format nil "~A~36R~@[~A~]~@[.~A~]" prefix counter suffix type))
       :for okp = nil :do
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
-        ;; TODO: on Unix, use CFFI and mkstemp -- but UIOP is precisely meant to not depend on CFFI or on anything! Grrrr.
+        ;; TODO: on Unix, use CFFI and mkstemp --
+        ;; except UIOP is precisely meant to not depend on CFFI or on anything! Grrrr.
+        ;; Can we at least design some hook?
         (unwind-protect
              (progn
                (with-open-file (stream pathname
                                        :direction direction
                                        :element-type element-type
-                                       #-gcl2.6 :external-format #-gcl2.6 external-format
+                                       :external-format external-format
                                        :if-exists nil :if-does-not-exist :create)
                  (when stream
                    (setf okp pathname)
@@ -569,57 +591,77 @@ The file will be open with specified DIRECTION, ELEMENT-TYPE and EXTERNAL-FORMAT
                                 (funcall thunk stream pathname)
                                 (funcall thunk stream)))))))
                (when okp
-                 (if want-stream-p
-                     (return (apply 'values results))
-                     (return (funcall thunk pathname)))))
-          (when (and okp (not keep))
+                 (unless want-stream-p
+                   (setf results (multiple-value-list (call-function thunk pathname))))
+                 (when after
+                   (setf results (multiple-value-list (call-function after pathname))))
+                 (return (apply 'values results))))
+          (when (and okp (not (call-function keep)))
             (ignore-errors (delete-file-if-exists okp))))))
 
   (defmacro with-temporary-file ((&key (stream (gensym "STREAM") streamp)
                                     (pathname (gensym "PATHNAME") pathnamep)
-                                    prefix keep direction element-type external-format)
+                                    directory prefix suffix type
+                                    keep direction element-type external-format)
                                  &body body)
     "Evaluate BODY where the symbols specified by keyword arguments
 STREAM and PATHNAME (if respectively specified) are bound corresponding
 to a newly created temporary file ready for I/O, as per CALL-WITH-TEMPORARY-FILE.
-The STREAM will be closed if no binding is specified.
-Unless KEEP is specified, delete the file afterwards."
+At least one of STREAM or PATHNAME must be specified.
+If the STREAM is not specified, it will be closed before the BODY is evaluated.
+If STREAM is specified, then the :CLOSE-STREAM label if it appears in the BODY,
+separates forms run before and after the stream is closed.
+The values of the last form of the BODY (not counting the separating :CLOSE-STREAM) are returned.
+Upon success, the KEEP form is evaluated and the file is is deleted unless it evaluates to TRUE."
     (check-type stream symbol)
     (check-type pathname symbol)
     (assert (or streamp pathnamep))
-    `(flet ((think (,@(when streamp `(,stream)) ,@(when pathnamep `(,pathname)))
-              ,@body))
-       #-gcl (declare (dynamic-extent #'think))
-       (call-with-temporary-file
-        #'think
-        :want-stream-p ,streamp
-        :want-pathname-p ,pathnamep
-        ,@(when direction `(:direction ,direction))
-        ,@(when prefix `(:prefix ,prefix))
-        ,@(when keep `(:keep ,keep))
-        ,@(when element-type `(:element-type ,element-type))
-        ,@(when external-format `(:external-format ,external-format)))))
+    (let* ((afterp (position :close-stream body))
+           (before (if afterp (subseq body 0 (1- afterp)) body))
+           (after (when afterp (subseq body (1+ afterp))))
+           (beforef (gensym "BEFORE"))
+           (afterf (gensym "AFTER")))
+      `(flet (,@(when before
+                  `((,beforef (,@(when streamp `(,stream)) ,@(when pathnamep `(,pathname))) ,@before)))
+              ,@(when after
+                  (assert pathnamep)
+                  `((,afterf (,pathname) ,@after))))
+         #-gcl (declare (dynamic-extent ,@(when before `(#',beforef)) ,@(when after `(#',afterf))))
+         (call-with-temporary-file
+          ,(when before `#',beforef)
+          :want-stream-p ,streamp
+          :want-pathname-p ,pathnamep
+          ,@(when direction `(:direction ,direction))
+          ,@(when directory `(:directory ,directory))
+          ,@(when prefix `(:prefix ,prefix))
+          ,@(when suffix `(:suffix ,suffix))
+          ,@(when type `(:suffix ,type))
+          ,@(when keep `(:keep ,keep))
+          ,@(when after `(:after `#',afterf))
+          ,@(when element-type `(:element-type ,element-type))
+          ,@(when external-format `(:external-format ,external-format))))))
 
-  (defun get-temporary-file (&key prefix)
-    (with-temporary-file (:pathname pn :keep t :prefix prefix)
+  (defun get-temporary-file (&key directory prefix suffix type)
+    (with-temporary-file (:pathname pn :keep t
+                          :directory directory :prefix prefix :suffix suffix :type type)
       pn))
 
   ;; Temporary pathnames in simple cases where no contention is assumed
-  (defun add-pathname-suffix (pathname suffix)
-    "Add a SUFFIX to the name of a PATHNAME, return a new pathname"
-    (make-pathname :name (strcat (pathname-name pathname) suffix)
-                   :defaults pathname))
+  (defun add-pathname-suffix (pathname suffix &rest keys)
+    "Add a SUFFIX to the name of a PATHNAME, return a new pathname.
+Further KEYS can be passed to MAKE-PATHNAME."
+    (apply 'make-pathname :name (strcat (pathname-name pathname) suffix)
+                          :defaults pathname keys))
 
   (defun tmpize-pathname (x)
     "Return a new pathname modified from X by adding a trivial deterministic suffix"
-    (add-pathname-suffix x "-ASDF-TMP"))
+    (add-pathname-suffix x "-TMP"))
 
   (defun call-with-staging-pathname (pathname fun)
-    "Calls fun with a staging pathname, and atomically
-renames the staging pathname to the pathname in the end.
-Note: this protects only against failure of the program,
-not against concurrent attempts.
-For the latter case, we ought pick random suffix and atomically open it."
+    "Calls FUN with a staging pathname, and atomically
+renames the staging pathname to the PATHNAME in the end.
+NB: this protects only against failure of the program, not against concurrent attempts.
+For the latter case, we ought pick a random suffix and atomically open it."
     (let* ((pathname (pathname pathname))
            (staging (tmpize-pathname pathname)))
       (unwind-protect
@@ -629,5 +671,6 @@ For the latter case, we ought pick random suffix and atomically open it."
         (delete-file-if-exists staging))))
 
   (defmacro with-staging-pathname ((pathname-var &optional (pathname-value pathname-var)) &body body)
+    "Trivial syntax wrapper for CALL-WITH-STAGING-PATHNAME"
     `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body))))
 
