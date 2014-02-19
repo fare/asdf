@@ -8,6 +8,7 @@
    :asdf/component :asdf/system :asdf/cache
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
+  (:import-from :asdf/system #:depends-on #:weakly-depends-on)
   (:export
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
@@ -169,6 +170,10 @@
             (apply 'reinitialize-instance component args)
             (setf component (apply 'make-instance class args)))
         (component-pathname component) ; eagerly compute the absolute pathname
+        ;; cache information for introspection
+        (when (typep component 'system)
+          (setf (slot-value component 'depends-on) depends-on
+                (slot-value component 'weakly-depends-on) weakly-depends-on))
         (let ((sysfile (system-source-file (component-system component)))) ;; requires the previous
           (when (and (typep component 'system) (not bspp))
             (setf (builtin-system-p component) (lisp-implementation-pathname-p sysfile)))
