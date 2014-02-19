@@ -93,7 +93,9 @@
     asdf/component:components
     asdf/component:components-by-name
     asdf/component:default-component-class
-    asdf/component:defsystem-depends-on
+    ;; the following is here only for backward compatibility; should be in
+    ;; asdf/system. [2014/02/20:rpg]
+    asdf/component:defsystem-depends-on    
     asdf/component:description
     asdf/component:%encoding
     asdf/component:if-feature
@@ -124,6 +126,8 @@
     asdf/plan:visiting-action-list
     asdf/system:bug-tracker
     asdf/system:build-pathname
+    asdf/system:system-defsystem-depends-on
+    asdf/system:system-weakly-depends-on
     asdf/system:entry-point
     asdf/system:homepage
     asdf/system:long-name

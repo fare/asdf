@@ -94,6 +94,9 @@
    #:system-long-name
    #:system-source-control
    #:map-systems
+   #:system-defsystem-depends-on
+   #:system-depends-on
+   #:system-weakly-depends-on
 
    #:*system-definition-search-functions*   ; variables
    #:*central-registry*

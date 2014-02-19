@@ -10,7 +10,7 @@
    #:reset-system
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
-   #:system-defsystem-depends-on
+   #:system-defsystem-depends-on #:system-depends-on #:system-weakly-depends-on
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
    #:homepage #:system-homepage
@@ -62,7 +62,12 @@
      (entry-point
       :initform nil :initarg :entry-point :accessor component-entry-point)
      (source-file :initform nil :initarg :source-file :accessor system-source-file)
-     (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on)))
+     (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on
+                           :initform nil)
+     ;; these two are specially set in parse-component-form, so have no :INITARGs.
+     (depends-on :reader system-depends-on :initform nil)
+     (weakly-depends-on :reader system-weakly-depends-on :initform nil)
+     ))
 
   (defun reset-system (system &rest keys &key &allow-other-keys)
     (change-class (change-class system 'proto-system) 'system)
