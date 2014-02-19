@@ -340,8 +340,13 @@ is bound, write a message and exit on an error.  If
   `(call-quietly #'(lambda () ,@body)))
 
 (defun call-quietly (thunk)
+  #-allegro
   (handler-bind (#+sbcl (sb-kernel:redefinition-warning #'muffle-warning))
-    (funcall thunk)))
+    (funcall thunk))
+  #+allegro
+  (excl:without-redefinition-warnings
+   (funcall thunk))
+  )
 
 (defun interactive-test (&optional files)
   (verbose t nil)
