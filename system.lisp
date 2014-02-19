@@ -64,6 +64,7 @@
      (source-file :initform nil :initarg :source-file :accessor system-source-file)
      (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on
                            :initform nil)
+     ;; these two are specially set in parse-component-form, so have no :INITARGs.
      (depends-on :reader system-depends-on :initform nil)
      (weakly-depends-on :reader system-weakly-depends-on :initform nil)
      ))

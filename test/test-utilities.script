@@ -93,6 +93,9 @@
     asdf/component:components
     asdf/component:components-by-name
     asdf/component:default-component-class
+    ;; the following is here only for backward compatibility; should be in
+    ;; asdf/system. [2014/02/20:rpg]
+    asdf/component:defsystem-depends-on    
     asdf/component:description
     asdf/component:%encoding
     asdf/component:if-feature
@@ -124,7 +127,10 @@
     asdf/system:bug-tracker
     asdf/system:build-pathname
     asdf/system:system-defsystem-depends-on
+<<<<<<< HEAD
     asdf/system:system-depends-on
+=======
+>>>>>>> Fix for launchpad bug 1247662.
     asdf/system:system-weakly-depends-on
     asdf/system:entry-point
     asdf/system:homepage
