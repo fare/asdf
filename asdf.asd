@@ -57,7 +57,7 @@
    (:file "output-translations" :depends-on ("operate"))
    (:file "source-registry" :depends-on ("find-system"))
    (:file "backward-internals" :depends-on ("lisp-action" "operate"))
-   (:file "parse-defsystem" :depends-on ("backward-internals" "cache"))
+   (:file "parse-defsystem" :depends-on ("backward-internals" "cache" "system"))
    (:file "bundle" :depends-on ("lisp-action" "operate"))
    (:file "concatenate-source" :depends-on ("plan" "parse-defsystem" "bundle"))
    (:file "backward-interface" :depends-on ("operate" "output-translations"))
