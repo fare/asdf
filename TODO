@@ -326,10 +326,23 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 * See message from 2014-01-27 05:26:44 GMT for stuff to document.
    http://thread.gmane.org/gmane.lisp.asdf.devel/3675/focus=3695
 
-* deferred-warnings support probably needs to be redone better.
-  * implement deferred warnings support on lispworks
-  * turn undefined function style-warnings into full warnings(?)
-  * work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
-  * https://www.mail-archive.com/asdf-devel@common-lisp.net/msg03608.html
-  * czak@google.com rewrote part of deferred warnings support.
+* UIOP
+** deferred-warnings support probably needs to be redone better.
+*** implement deferred warnings support on lispworks
+*** turn undefined function style-warnings into full warnings(?)
+*** work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
+*** https://www.mail-archive.com/asdf-devel@common-lisp.net/msg03608.html
+*** czak@google.com rewrote part of deferred warnings support.
    Ask him for the code he implemented at Google.
+
+** define-package cannot deal with symbols moving "forward".
+*** document that THOU SHALT NOT USE :RECYCLE with packages previously
+   defined by define-package when building from scratch.
+*** Maybe add a check? But how to tell whether you're building from scratch?
+*** Add some :moved-to directive to define-package, such that
+   (:moved-to forward-package symbols...)
+   will declare symbols as moved forward: when the symbol already exists,
+   it is moved to the forward package if that package already exists,
+   after the package created if it doesn't exist yet (!)
+*** There again, a check that a forward-package is not backward
+   would be very nice.
