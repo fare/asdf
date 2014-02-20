@@ -103,63 +103,75 @@
     make t l=cmucl t=test-encodings.script
     which was a different PCL bug from the above (without same workaround)
     but possibly also triggered by the non-standard declaim.
+*** `#5(1 ,@`(2 3)))` returns #(1 2 3),
+     rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 
 ** XCL has bad bugs:
-   make-pathname doesn't handle :type nil properly and
-   has massive lossage in logical-pathname support.
-   If using block () and return in search-for-system-definition
-   instead of return-from, XCL mistakenly has the return jump
-   to the end of the try function or something.
-   It also takes a long time for errors to propagate into a debugging REPL —
-   Maybe O(n^3) behavior or worse in walking the C++ stack?
-   The backtrace frames may contains unprintable objects.
-   make-pathname fails to copy the version from the defaults.
-   (make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
-    :name nil :type nil) fails to handle the logical-pathname-ness of ASDFTEST.
+*** make-pathname doesn't handle :type nil properly and
+    has massive lossage in logical-pathname support.
+*** If using block () and return in search-for-system-definition
+    instead of return-from, XCL mistakenly has the return jump
+    to the end of the try function or something.
+*** It also takes a long time for errors to propagate into a debugging REPL —
+     Maybe O(n^3) behavior or worse in walking the C++ stack?
+*** The backtrace frames may contains unprintable objects.
+*** make-pathname fails to copy the version from the defaults.
+*** (make-pathname :host "ASDFTEST" :directory '(:absolute "system2" "module4")
+      :name nil :type nil) fails to handle the logical-pathname-ness of ASDFTEST.
+*** `#5(1 ,@`(2 3)))` returns #(1 2 3),
+     rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 
 ** GCL is almost working again; but implementation bugs remain.
    See November 2013 discussion on gcl-devel.
-    * Another GCL compiler bug:
-    when I changed the definition of getcwd from
-    (let ((*default-pathname-defaults* #p"")) (truename #p"")) to
-    (let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))
-    to guard against e.g. a logical-pathname context while loading asdf
-    and parsing #p"", calls to getcwd result in a segfault.
-    * An another bug: gcl refuses dynamic-extent declaration on functions.
-     uiop/stream.lisp:         #-gcl (declare (dynamic-extent ,@(when
-     before `(#',beforef)) ,@(when after `(#',afterf))))
-    * (typep p 'logical-pathname) should be T if p has a logical-pathname host.
-    * apropos is case-sensitive and returns a same symbol many times
-    * compile-file fails to return proper secondary values in case of non-style WARNING.
-    * (pathname-directory #p"foo/") is incorrectly ("foo") instead of (:RELATIVE "foo")
-    * Missing: chdir, combine-fasls, and plenty more UIOP functions.
-    * Do whatever it takes to pass the asdf tests, add the above?
-    * Have (require "asdf") and (require "ASDF") both work.
-    * Trying to uiop:slurp-stream-forms from a stream with #+(or) :foo
-      (or read-file-forms from an file with same) results in an error,
-      rather than nil. This is probably a bug in #+ processing.
-      Unhappily, debian creates such a file in
-      /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
-    * Tests that try to catch an error fail (but catching a warning succeeds),
-      which suggests brokenness in handler-bind and/or error.
+*** Another GCL compiler bug:
+   when I changed the definition of getcwd from
+   (let ((*default-pathname-defaults* #p"")) (truename #p"")) to
+   (let ((*default-pathname-defaults* *nil-pathname*)) (truename *nil-pathname*))
+   to guard against e.g. a logical-pathname context while loading asdf
+   and parsing #p"", calls to getcwd result in a segfault.
+*** An another bug: gcl refuses dynamic-extent declaration on functions.
+   uiop/stream.lisp:         #-gcl (declare (dynamic-extent ,@(when
+   before `(#',beforef)) ,@(when after `(#',afterf))))
+*** (typep p 'logical-pathname) should be T if p has a logical-pathname host.
+*** apropos is case-sensitive and returns a same symbol many times
+*** compile-file fails to return proper secondary values in case of non-style WARNING.
+*** (pathname-directory #p"foo/") is incorrectly ("foo") instead of (:RELATIVE "foo")
+*** Missing: chdir, combine-fasls, and plenty more UIOP functions.
+*** Do whatever it takes to pass the asdf tests, add the above?
+*** Have (require "asdf") and (require "ASDF") both work.
+*** Trying to uiop:slurp-stream-forms from a stream with #+(or) :foo
+   (or read-file-forms from an file with same) results in an error,
+   rather than nil. This is probably a bug in #+ processing.
+   Unhappily, debian creates such a file in
+   /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
+*** Tests that try to catch an error fail (but catching a warning succeeds),
+   which suggests brokenness in handler-bind and/or error.
+*** `#5(1 ,@`(2 3)))` returns #(1 2 3),
+     rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 
-** Find out why ABCL fails the timestamp propagation test.
+** ABCL has a few bugs.
+*** ABCL fails the timestamp propagation test.
+*** `#5(1 ,@`(2 3)))` returns #(1 2 3),
+   rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 
 ** ECL has issues with its bundles.
    On MacOS X, test-bundle.script fails.
    On Linux, test-program.script fails with recent ECL 237af2e,
    but used to work quite fine earlier in 2013.
 
-* Find an easier way to bind variables around compilation and loading of files
-
 * Design & Implement some out-of-line configuration mechanism for various options?
   i.e. let configuration files override some variables around some actions.
-  * Could be used to override new backward-incompatible defaults
+** Could be used to override new backward-incompatible defaults
    (e.g. for operation propagation, deferred warnings, etc.)
-  * Use the above variable binding mechanism.
+** Use the above to bind variable around performing of actions.
 
-* Fix bugs on http://bugs.launchpad.net/asdf/+bugs
-** fix directory-files to not return directories on CCL, etc. Add tests.
+* Improve robustness
+** Fix bugs on http://bugs.launchpad.net/asdf/+bugs
+*** fix directory-files to not return directories on CCL, etc. Add tests.
+*** have a better defsystem form verifier - see lp#1007335
+*** have a function verify-strict-asd that can verify a asd is pure lp#541562
+   Then if it passes, use load-strict-asd.
+   If not, optionally issue a warning. Start migrating people toward that.
 
 * Learn to use cl-grid-test
 ** So we can easily make sure ASDF changes don't break stuff,
@@ -173,12 +185,6 @@
 
 * have a mode to explain WHY a component needs to be recompiled.
 
-* Improve robustness
-** have a better defsystem form verifier - see lp#1007335
-** have a function verify-strict-asd that can verify a asd is pure lp#541562
-  Then if it passes, use load-strict-asd.
-  If not, optionally issue a warning. Start migrating people toward that.
-
 * have with-input-file use the encodings mechanism?
 ** Import asdf-encodings into UIOP? Sounds a lot of code for no users.
 
@@ -191,8 +197,7 @@
 
 * Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
-    :centralize-lisp-binaries t :default-toplevel-directory
-   *fasl-dir*)
+   :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
 ** Or deprecate and remove ABL compatibility altogether?
    No one has been using ASDF1 for years.
    There is no ABL to be compatible with —
@@ -252,7 +257,7 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** cl-irc cliki-bot rss cl-syslog com.informatimago.clext
    com.informatimago.clisp com.informatimago.clmisc
    com.informatimago.common-lisp.arithmetic
-   om.informatimago.common-lisp.bank
+   com.informatimago.common-lisp.bank
    com.informatimago.common-lisp.cesarum
    com.informatimago.common-lisp com.informatimago.common-lisp.csv
    com.informatimago.common-lisp.cxx
@@ -321,10 +326,23 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 * See message from 2014-01-27 05:26:44 GMT for stuff to document.
    http://thread.gmane.org/gmane.lisp.asdf.devel/3675/focus=3695
 
-* deferred-warnings support probably needs to be redone better.
-  * implement deferred warnings support on lispworks
-  * turn undefined function style-warnings into full warnings(?)
-  * work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
-  * https://www.mail-archive.com/asdf-devel@common-lisp.net/msg03608.html
-  * czak@google.com rewrote part of deferred warnings support.
+* UIOP
+** deferred-warnings support probably needs to be redone better.
+*** implement deferred warnings support on lispworks
+*** turn undefined function style-warnings into full warnings(?)
+*** work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
+*** https://www.mail-archive.com/asdf-devel@common-lisp.net/msg03608.html
+*** czak@google.com rewrote part of deferred warnings support.
    Ask him for the code he implemented at Google.
+
+** define-package cannot deal with symbols moving "forward".
+*** document that THOU SHALT NOT USE :RECYCLE with packages previously
+   defined by define-package when building from scratch.
+*** Maybe add a check? But how to tell whether you're building from scratch?
+*** Add some :moved-to directive to define-package, such that
+   (:moved-to forward-package symbols...)
+   will declare symbols as moved forward: when the symbol already exists,
+   it is moved to the forward package if that package already exists,
+   after the package created if it doesn't exist yet (!)
+*** There again, a check that a forward-package is not backward
+   would be very nice.
