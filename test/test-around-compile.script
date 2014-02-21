@@ -10,7 +10,7 @@
   ;; :depends-on ((:version :asdf "2.017.18")) ; no :around-compile before that.
   :components ((:file "test")))
 (load-system 'test-around-compile :force t)
-(assert (= 3 (funcall 'add10 1))) ;; add10 must have been compiled in base 2
+(assert-equal 3 (funcall 'add10 1)) ;; add10 must have been compiled in base 2
 
 (fmakunbound 'add10)
 
@@ -21,4 +21,4 @@
                       (funcall thunk)))
   :components ((:file "test")))
 (load-system 'test-around-compile-lambda :force t)
-(assert (= 10 (funcall 'add10 1))) ;; add10 must have been compiled in base 16
+(assert-equal 10 (funcall 'add10 1)) ;; add10 must have been compiled in base 16
