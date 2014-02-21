@@ -345,8 +345,7 @@ is bound, write a message and exit on an error.  If
     (funcall thunk))
   #+allegro
   (excl:without-redefinition-warnings
-   (funcall thunk))
-  )
+   (funcall thunk)))
 
 (defun interactive-test (&optional files)
   (verbose t nil)

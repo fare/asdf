@@ -34,11 +34,9 @@
 
    ;; Internals we'd like to share with the ASDF package, especially for upgrade purposes
    #:name #:version #:description #:long-description #:author #:maintainer #:licence
-   #:components-by-name #:components
-   #:children #:children-by-name #:default-component-class
-   #:author #:maintainer #:licence #:source-file
-   ;; the following retained for backward compatibility.
-   #:defsystem-depends-on
+   #:components-by-name #:components #:children #:children-by-name
+   #:default-component-class #:source-file
+   #:defsystem-depends-on ; This symbol retained for backward compatibility.
    #:sideway-dependencies #:if-feature #:in-order-to #:inline-methods
    #:relative-pathname #:absolute-pathname #:operation-times #:around-compile
    #:%encoding #:properties #:component-properties #:parent))
