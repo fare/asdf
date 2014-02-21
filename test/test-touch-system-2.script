@@ -4,9 +4,7 @@
 ;;; system that canNOT be found using *system-definition-search-functions*
 
 (defun system-registered-time (name)
-  (let ((data (asdf::system-registered-p name)))
-    (when data
-      (car data))))
+  (car (asdf::system-registered-p name)))
 
 (defparameter test1.asd (nth-value 2 (locate-system :test1)))
 (assert-pathname-equal test1.asd (test-source "test1.asd"))
@@ -21,4 +19,4 @@
 (find-system :test1)
 (defparameter date2 (system-registered-time :test1))
 (assert date2)
-(assert (> date2 date1))
+(assert-compare (> date2 date1))

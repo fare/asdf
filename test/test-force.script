@@ -19,4 +19,4 @@
 
 ;; forced, it should be later
 (load-system 'test-force :force t)
-(assert (>= (get-file-stamp file1) file1-date))
+(assert-compare (>= (get-file-stamp file1) file1-date))

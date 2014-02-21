@@ -33,6 +33,5 @@
 
 ;; now rerun the load-op and check that no files are recompiled
 (load-system 'test-redundant-recompile)
-(assert (= file1-date (file-write-date file1)))
-(assert (= file2-date (file-write-date file2)))
-
+(assert-equal file1-date (file-write-date file1))
+(assert-equal file2-date (file-write-date file2))

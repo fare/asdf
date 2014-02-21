@@ -13,7 +13,8 @@
 (assert-pathname-equal file2.fasl (test-fasl "file2"))
 (assert-pathname-equal file3.fasl (test-fasl "file3"))
 
-(assert (and file1-date file3-date))
+(assert file1-date)
+(assert file3-date)
 
 ;; and loaded
 (assert (asymval '#:*file1* :test-package))
@@ -27,6 +28,6 @@
 (touch-file file2.fasl :timestamp (- file3-date 30))
 (touch-file file3.fasl :timestamp (- file3-date 15))
 (load-system 'test-module-depend)
-(assert (>= (get-file-stamp file2.fasl) file3-date))
+(assert-compare (>= (get-file-stamp file2.fasl) file3-date))
 ;; does this properly go to the second level?
-(assert (>= (get-file-stamp file3.fasl) file3-date))
+(assert-compare (>= (get-file-stamp file3.fasl) file3-date))
