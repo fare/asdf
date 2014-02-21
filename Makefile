@@ -7,11 +7,23 @@ sourceDirectory := $(shell pwd)
 #### Common Lisp implementations available for testing.
 ## export ASDF_TEST_LISPS to override the default list of such implementations,
 ## or specify a lisps= argument at the make command-line
+defaultLisps = ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern gcl xcl
 ifdef ASDF_TEST_LISPS
 lisps ?= ${ASDF_TEST_LISPS}
 else
-lisps ?= ccl clisp sbcl ecl ecl_bytecodes cmucl abcl scl allegro lispworks allegromodern gcl xcl
+lisps ?= ${defaultLisps}
 endif
+ifdef ASDF_UPGRADE_TEST_LISPS
+  ulisps ?= ${ASDF_UPGRADE_TEST_LISPS}
+else
+  ifdef ASDF_TEST_LISPS
+    ulisps ?= ${ASDF_TEST_LISPS}
+  else
+    ulisps ?= ${defaultLisps}
+  endif
+endif
+
+
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests on some platforms
 ## NOT SUPPORTED BY OUR AUTOMATED TESTS:
 ##	cormancl genera lispworks-personal-edition mkcl rmcl
@@ -139,7 +151,7 @@ test-all-lisp:
 	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp || exit 1 ; done
 
 test-all-upgrade:
-	@for lisp in ${lisps} ; do ${MAKE} test-upgrade l=$$lisp || exit 1 ; done
+	@for lisp in ${ulisps} ; do ${MAKE} test-upgrade l=$$lisp || exit 1 ; done
 
 test-all-no-upgrade: doc test-load-systems test-all-clean-load test-all-lisp
 
@@ -149,7 +161,7 @@ test-all-lisp-no-stop:
 	@for lisp in ${lisps} ; do ${MAKE} test-lisp l=$$lisp ; done ; :
 
 test-all-upgrade-no-stop:
-	@for lisp in ${lisps} ; do ${MAKE} test-upgrade l=$$lisp ; done ; :
+	@for lisp in ${ulisps} ; do ${MAKE} test-upgrade l=$$lisp ; done ; :
 
 test-all-no-upgrade-no-stop: doc test-load-systems test-all-clean-load test-all-lisp-no-stop
 	make --quiet check-all-test-results
