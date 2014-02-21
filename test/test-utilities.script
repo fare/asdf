@@ -95,7 +95,7 @@
     asdf/component:default-component-class
     ;; the following is here only for backward compatibility; should be in
     ;; asdf/system. [2014/02/20:rpg]
-    asdf/component:defsystem-depends-on    
+    asdf/component:defsystem-depends-on
     asdf/component:description
     asdf/component:%encoding
     asdf/component:if-feature

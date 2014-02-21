@@ -66,8 +66,7 @@
                            :initform nil)
      ;; these two are specially set in parse-component-form, so have no :INITARGs.
      (depends-on :reader system-depends-on :initform nil)
-     (weakly-depends-on :reader system-weakly-depends-on :initform nil)
-     ))
+     (weakly-depends-on :reader system-weakly-depends-on :initform nil)))
 
   (defun reset-system (system &rest keys &key &allow-other-keys)
     (change-class (change-class system 'proto-system) 'system)
