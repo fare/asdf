@@ -212,7 +212,7 @@ permits this."
         (setf pattern (make-pathname-logical pattern (pathname-host dir))))
       (let* ((pat (merge-pathnames* pattern dir))
              (entries (append (ignore-errors (directory* pat))
-                              #+clisp
+                              #+(or clisp gcl)
                               (when (equal :wild (pathname-type pattern))
                                 (ignore-errors (directory* (make-pathname :type nil :defaults pat)))))))
         (remove-if 'directory-pathname-p

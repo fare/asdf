@@ -152,6 +152,7 @@
    which suggests brokenness in handler-bind and/or error.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
+*** (DIRECTORY #p"*.*") fails to match files with pathname type NIL.
 
 ** ABCL has a few bugs.
 *** ABCL fails the timestamp propagation test.
