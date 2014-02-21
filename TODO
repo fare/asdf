@@ -120,6 +120,10 @@
       :name nil :type nil) fails to handle the logical-pathname-ness of ASDFTEST.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
+*** XCL recognizes :unspecific for a pathname type,
+   but prints the namestring with a dot separator!
+   (make-pathname :name "foo" :type :unspecific) ==> #P"foo."
+    If bug is ever fixed, upgrade *unspecific-pathname-type* in uiop/pathname.
 
 ** GCL is almost working again; but implementation bugs remain.
    See November 2013 discussion on gcl-devel.
@@ -148,6 +152,7 @@
    which suggests brokenness in handler-bind and/or error.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
+*** (DIRECTORY #p"*.*") fails to match files with pathname type NIL.
 
 ** ABCL has a few bugs.
 *** ABCL fails the timestamp propagation test.

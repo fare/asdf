@@ -91,8 +91,8 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   ;; See CLHS make-pathname and 19.2.2.2.3.
   ;; This will be :unspecific if supported, or NIL if not.
   (defparameter *unspecific-pathname-type*
-    #+(or abcl allegro clozure cmu genera lispworks mkcl sbcl scl xcl) :unspecific
-    #+(or clisp ecl gcl #|These haven't been tested:|# cormanlisp mcl) nil
+    #+(or abcl allegro clozure cmu genera lispworks mkcl sbcl scl) :unspecific
+    #+(or clisp ecl gcl xcl #|These haven't been tested:|# cormanlisp mcl) nil
     "Unspecific type component to use with the underlying implementation's MAKE-PATHNAME")
 
   (defun make-pathname* (&rest keys &key (directory nil)

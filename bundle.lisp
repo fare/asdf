@@ -184,6 +184,7 @@ itself.")) ;; operation on a system and its dependencies
                              (operation-original-initargs instance))))
 
   (defmethod bundle-op-build-args :around ((o no-ld-flags-op))
+    #+xcl (declare (ignorable o))
     (let ((args (call-next-method)))
       (remf args :ld-flags)
       args))
@@ -418,9 +419,10 @@ itself.")) ;; operation on a system and its dependencies
     (perform-lisp-load-fasl o s))
 
   (defmethod component-depends-on ((o load-fasl-op) (s precompiled-system))
+    #+xcl (declare (ignorable o))
     `((load-op ,s) ,@(call-next-method))))
 
-  #| ;; Example use:
+#| ;; Example use:
 (asdf:defsystem :precompiled-asdf-utils :class asdf::precompiled-system :fasl (asdf:apply-output-translations (asdf:system-relative-pathname :asdf-utils "asdf-utils.system.fasl")))
 (asdf:load-system :precompiled-asdf-utils)
 |#

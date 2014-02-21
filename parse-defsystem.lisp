@@ -170,8 +170,8 @@
             (apply 'reinitialize-instance component args)
             (setf component (apply 'make-instance class args)))
         (component-pathname component) ; eagerly compute the absolute pathname
-        ;; cache information for introspection
         (when (typep component 'system)
+          ;; cache information for introspection
           (setf (slot-value component 'depends-on) depends-on
                 (slot-value component 'weakly-depends-on) weakly-depends-on))
         (let ((sysfile (system-source-file (component-system component)))) ;; requires the previous

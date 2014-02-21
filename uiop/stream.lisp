@@ -557,6 +557,7 @@ THUNK is only CALL-FUNCTION'ed after the stream is closed, with the pathname as 
 Upon exit of THUNK, the AFTER thunk if defined is CALL-FUNCTION'ed with the pathname as argument.
 If AFTER is defined, its results are returned, otherwise, the results of THUNK are returned.
 Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'ed returns true."
+    #+xcl (declare (ignorable typep))
     (check-type direction (member :output :io))
     (assert (or want-stream-p want-pathname-p))
     (loop
