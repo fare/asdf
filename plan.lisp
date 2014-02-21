@@ -384,7 +384,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (when (action-planned-p new-status)
       (push (cons o c) (plan-actions-r p)))))
 
-
 ;;;; high-level interface: traverse, perform-plan, plan-operates-on-p
 (with-upgradability ()
   (defgeneric make-plan (plan-class operation component &key &allow-other-keys)
@@ -405,6 +404,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
       plan))
 
   (defmethod perform-plan :around ((plan t) &key)
+    #+xcl (declare (ignorable plan))
     (let ((*package* *package*)
           (*readtable* *readtable*))
       (with-compilation-unit () ;; backward-compatibility.
