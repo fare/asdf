@@ -738,6 +738,8 @@ It returns a process-info plist with possible keys:
              (if (os-unix-p) (cons "exec" command) command)))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
+    (when (and directory (not (os-unix-p)))
+      (error "Can't change directory in run-program on non-Unix systems with system() backend"))
     (flet ((redirect (spec operator)
              (let ((pathname
                      (typecase spec
