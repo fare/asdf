@@ -133,6 +133,30 @@
 
 ;;; Main parsing function
 (with-upgradability ()
+  (defun* parse-dependency-def (dd)
+    (if (listp dd)
+        (case (first dd)
+          (:feature
+           (unless (= (length dd) 3)
+             (sysdef-error "Ill-formed feature dependency: ~s" dd))
+           (let ((embedded (parse-dependency-def (third dd))))
+             `(:feature ,(second dd) ,embedded)))
+          (:require
+           (unless (= (length dd) 2)
+             (sysdef-error "Ill-formed require dependency: ~s" dd))
+           dd)
+          (:version
+           (unless (= (length dd) 3)
+             (sysdef-error "Ill-formed version dependency: ~s" dd))
+           `(:version ,(coerce-name (second dd)) ,(third dd)))
+          (otherwise (sysdef-error "Ill-formed dependency: ~s" dd)))
+      (coerce-name dd)))
+
+  (defun* parse-dependency-defs (dd-list)
+    "Parse the dependency defs in DD-LIST into canonical form by translating all
+system names contained using COERCE-NAME. Return the result."
+    (mapcar 'parse-dependency-def dd-list))
+
   (defun* (parse-component-form) (parent options &key previous-serial-component)
     (destructuring-bind
         (type name &rest rest &key
@@ -172,8 +196,11 @@
         (component-pathname component) ; eagerly compute the absolute pathname
         (when (typep component 'system)
           ;; cache information for introspection
-          (setf (slot-value component 'depends-on) depends-on
-                (slot-value component 'weakly-depends-on) weakly-depends-on))
+          (setf (slot-value component 'depends-on)
+                (parse-dependency-defs depends-on)
+                (slot-value component 'weakly-depends-on)
+                ;; these must be a list of systems, cannot be features or versioned systems
+                (mapcar 'coerce-name weakly-depends-on)))
         (let ((sysfile (system-source-file (component-system component)))) ;; requires the previous
           (when (and (typep component 'system) (not bspp))
             (setf (builtin-system-p component) (lisp-implementation-pathname-p sysfile)))
@@ -227,9 +254,15 @@
                                (make-instance 'system :name name :source-file source-file))))
              (system (reset-system (cdr registered!)
                                    :name name :source-file source-file))
-             (component-options (remove-plist-key :class options))
+             (component-options
+              (remove-plist-keys '(:defsystem-depends-on :class) options))
              (defsystem-dependencies (loop :for spec :in defsystem-depends-on :collect
                                            (resolve-dependency-spec nil spec))))
+        ;; cache defsystem-depends-on in canonical form
+        (when defsystem-depends-on
+          (setf component-options
+                (append `(:defsystem-depends-on ,(parse-dependency-defs defsystem-depends-on))
+                        component-options)))
         (setf (gethash name *systems-being-defined*) system)
         (load-systems* defsystem-dependencies)
         ;; We change-class AFTER we loaded the defsystem-depends-on
