@@ -202,7 +202,10 @@
         (setf (component-sideway-dependencies component) depends-on)
         (%refresh-component-inline-methods component rest)
         (when if-component-dep-fails
-          (%resolve-if-component-dep-fails if-component-dep-fails component))
+          (error "The system definition for ~S uses deprecated ~
+            ASDF option :IF-COMPONENT-DEP-FAILS. ~
+            Starting with ASDF 3, please use :IF-FEATURE instead"
+           (coerce-name (component-system component))))
         component)))
 
   (defun register-system-definition

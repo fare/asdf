@@ -122,12 +122,6 @@ You can put together sentences using this phrase."))
         a component name or a component object.  Also note that, the degenerate
         case of (<operation>) is a no-op.]
 
-      or
-
-      (FEATURE <feature>), which means that the component depends
-        on the <feature> expression satisfying FEATUREP.
-        (This is DEPRECATED -- use :IF-FEATURE instead.)
-
     Methods specialized on subclasses of existing component types
     should usually append the results of CALL-NEXT-METHOD to the list."))
   (define-convenience-action-methods component-depends-on (operation component))

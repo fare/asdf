@@ -7,7 +7,8 @@
   (:export
    #:operation
    #:operation-original-initargs #:original-initargs ;; backward-compatibility only. DO NOT USE.
-   #:*operations* #:make-operation #:find-operation #:feature))
+   #:*operations* #:make-operation #:find-operation
+   #:feature)) ;; TODO: stop exporting the deprecated FEATURE feature.
 (in-package :asdf/operation)
 
 ;;; Operation Classes
@@ -49,9 +50,7 @@
   (defmethod find-operation ((context t) (spec operation))
     spec)
   (defmethod find-operation (context (spec symbol))
-    (unless (member spec '(nil feature))
-      ;; NIL designates itself, i.e. absence of operation
-      ;; FEATURE is the ASDF1 misfeature that comes with IF-COMPONENT-DEP-FAILS
+    (when spec ;; NIL designates itself, i.e. absence of operation
       (apply 'make-operation spec (operation-original-initargs context))))
   (defmethod operation-original-initargs ((context symbol))
     (declare (ignorable context))
