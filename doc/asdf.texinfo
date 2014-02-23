@@ -2125,7 +2125,7 @@ when the implementation is SBCL, CMUCL or Scieneer CL on an x86 machine.
 You cannot write it as @code{:if-feature (and x86 (or sbcl cmu scl))}
 since the symbols would not be read as keywords.
 
-@xref{if-feature-option}
+@xref{if-feature-option}.
 
 @subsubsection Dependencies
 
@@ -4021,7 +4021,7 @@ leading to much confusion and greavance.
 
 ASDF 2 implements its own portable syntax for strings as pathname specifiers.
 Naming files within a system definition becomes easy and portable again.
-@xref{Miscellaneous additional functionality,asdf:system-relative-pathname},
+@xref{Miscellaneous additional functionality,system-relative-pathname},
 @code{merge-pathnames*},
 @code{coerce-pathname}.
 
