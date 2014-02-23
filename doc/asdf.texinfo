@@ -1011,6 +1011,7 @@ other-component-type := symbol-by-name (@pxref{The defsystem grammar,,Component 
 dependency-def := simple-component-name
                | ( :feature @var{feature-expression} dependency-def )
                | ( :version simple-component-name version-specifier )
+               | ( :require module-name )
 
 # ``dependency'' is used in :in-order-to, as opposed to
 # ``dependency-def''
@@ -1217,6 +1218,11 @@ major version, minor version and patch level,
 where significant API incompatibilities are signaled by an increased major number.
 
 @xref{Common attributes of components}.
+
+@subsection Require
+@cindex :require dependencies
+
+Use the implementation's own @code{require} to load the @var{module-name}.
 
 
 @subsection Using logical pathnames
