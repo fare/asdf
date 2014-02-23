@@ -9,7 +9,6 @@
   (:export ;; for internal use
    #:load-sysdef #:make-temporary-package
    #:%refresh-component-inline-methods
-   #:%resolve-if-component-dep-fails
    #:make-sub-operation
    #:load-sysdef #:make-temporary-package))
 (in-package :asdf/backward-internals)
@@ -48,27 +47,6 @@
     ;; clear methods, then add the new ones
     (%remove-component-inline-methods component)
     (%define-component-inline-methods component rest)))
-
-;;;; PARTIAL SUPPORT ONLY for the :if-component-dep-fails component attribute
-;; and the companion asdf:feature pseudo-dependency.
-;; This won't recurse into dependencies to accumulate feature conditions.
-;; Therefore it will accept the SB-ROTATE-BYTE of an old SBCL
-;; (older than 1.1.2.20-fe6da9f) but won't suffice to load an old nibbles.
-(with-upgradability ()
-  (defun %resolve-if-component-dep-fails (if-component-dep-fails component)
-    (asdf-message "The system definition for ~S uses deprecated ~
-                  ASDF option :IF-COMPONENT-DEP-FAILS. ~
-                  Starting with ASDF 3, please use :IF-FEATURE instead"
-                  (coerce-name (component-system component)))
-    ;; This only supports the pattern of use of the "feature" seen in the wild
-    (check-type component parent-component)
-    (check-type if-component-dep-fails (member :fail :ignore :try-next))
-    (unless (eq if-component-dep-fails :fail)
-      (loop :with o = (make-operation 'compile-op)
-            :for c :in (component-children component) :do
-              (loop* :for (feature? feature) :in (component-depends-on o c)
-                     :when (eq feature? 'feature) :do
-                     (setf (component-if-feature c) feature))))))
 
 (when-upgrading (:when (fboundp 'make-sub-operation))
   (defun make-sub-operation (c o dep-c dep-o)

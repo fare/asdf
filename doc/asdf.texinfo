@@ -999,14 +999,13 @@ other-component-type := symbol-by-name (@pxref{The defsystem grammar,,Component 
 # This is used in :depends-on, as opposed to ``dependency,''
 # which is used in :in-order-to
 dependency-def := simple-component-name
-               | (feature @var{feature-name})
-               | ( :version simple-component-name version-specifier)
+               | ( :feature @var{feature-expression} dependency-def )
+               | ( :version simple-component-name version-specifier )
 
 # ``dependency'' is used in :in-order-to, as opposed to
 # ``dependency-def''
 dependency := (dependent-op @var{requirement}+)
 requirement := (required-op @var{required-component}+)
-             | (:feature @var{feature-name})
 dependent-op := operation-name
 required-op := operation-name
 
@@ -1337,20 +1336,35 @@ from within an editor without clobbering its source location)
 @end itemize
 
 @subsection if-feature option
+@cindex :if-feature component option
+@anchor{if-feature-option}      @c redo if this ever becomes a node in
+@c its own right...
+
 This option allows you to specify a feature expression to be evaluated
 as if by @code{#+} to conditionally include a component in your build.
 If the expression is false, the component is dropped
 as well as any dependency pointing to it.
 As compared to using @code{#+} which is expanded at read-time,
 this allows you to have an object in your component hierarchy
-that can be used for manipulations beside building your project.
-This option was added in ASDF 3.
+that can be used for manipulations beside building your project, and
+that is accessible to outside code that wishes to reason about system
+structure.
+
+This option was added in ASDF 3.  For more information,
+@xref{required-features, Required features}.
 
 @subsection if-component-dep-fails option
 This option was removed in ASDF 3.
 Its semantics was limited in purpose and dubious to explain,
 and its implementation was breaking a hole into the ASDF object model.
 Please use the @code{if-feature} option instead.
+
+@subsection feature requirement
+This requirement was removed in ASDF 3.1.
+It used to ensure a chain of component dependencies will raise an error,
+which in conjunction with if-component-dep-fails would offer
+a roundabout way to express conditional compilation.
+
 
 @node Other code in .asd files, The package-system extension, The defsystem grammar, Defining systems with defsystem
 @section Other code in .asd files
@@ -2079,18 +2093,27 @@ Presumably it is much less useful within a given system,
 wherein the library author is responsible to keep the various files in synch.
 
 @subsubsection Required features
+@anchor{required-features}
 
 Traditionally defsystem users have used @code{#+} reader conditionals
 to include or exclude specific per-implementation files.
-This means that any single implementation cannot read the entire system,
-which becomes a problem if it doesn't wish to compile it,
-but instead for example to create an archive file containing all the sources,
-as it will omit to process the system-dependent sources for other systems.
+For example, CFFI, the portable C foreign function interface contained
+lines like:
+@lisp
+     #+sbcl       (:file "cffi-sbcl")
+@end lisp
+An unfortunate side effect of this approach is tnoat no single
+implementation can read the entire system.
+This causes problems if, for example, one wished to design an @code{archive-op}
+that would create an archive file containing all the sources, since 
+for example the file @code{cffi-sbcl.lisp} above would be invisible when
+running the @code{archive-op} on any implementation other than SBCL.
 
-Each component in an asdf system may therefore specify using @code{:if-feature}
-a feature expression using the same syntax as @code{#+} does,
-such that any reference to the component will be ignored
-during compilation, loading and/or linking if the expression evaluates to false.
+ASDF components may therefore have an @code{:if-feature} option.
+The value of this option should be
+a feature expression using the same syntax as @code{#+} does.
+If that feature expression evaluates to false, any reference to the component will be ignored
+during compilation, loading and/or linking.
 Since the expression is read by the normal reader,
 you must explicitly prefix your symbols with @code{:} so they be read as keywords;
 this is as contrasted with the @code{#+} syntax
@@ -2099,8 +2122,10 @@ that implicitly reads symbols in the keyword package by default.
 For instance, @code{:if-feature (:and :x86 (:or :sbcl :cmu :scl))} specifies that
 the given component is only to be compiled and loaded
 when the implementation is SBCL, CMUCL or Scieneer CL on an x86 machine.
-You can not write it as @code{:if-feature (and x86 (or sbcl cmu scl))}
-since the symbols would presumably fail to be read as keywords.
+You cannot write it as @code{:if-feature (and x86 (or sbcl cmu scl))}
+since the symbols would not be read as keywords.
+
+@xref{if-feature-option}
 
 @subsubsection Dependencies
 
@@ -2271,7 +2296,7 @@ are inferred to be of this type.
 @item
 @code{:if-component-dep-fails}
 This attribute was removed in ASDF 3. Do not use it.
-Use @code{:if-feature} instead.
+Use @code{:if-feature} instead (@pxref{required-features}, and @pxref{if-feature-option}).
 
 @item
 @code{:serial} When this attribute is set,
@@ -2907,7 +2932,7 @@ But so are good design ideas and elegant implementation tricks.
 @node Controlling where ASDF saves compiled files, Error handling, Controlling where ASDF searches for systems, Top
 @comment  node-name,  next,  previous,  up
 @chapter Controlling where ASDF saves compiled files
-@cindex asdf-output-translations
+@cindex asdf-output-translations   
 @vindex ASDF_OUTPUT_TRANSLATIONS
 
 Each Common Lisp implementation has its own format

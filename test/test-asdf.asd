@@ -45,11 +45,8 @@
      (:module "file3mod"
       :pathname ""
       :components
-      ((:file "file3"
-        :in-order-to ((compile-op (feature :common-lisp))))
-       (:file "does-not-exist"
-        :in-order-to ((compile-op (feature (:not :common-lisp))))))
-      :if-component-dep-fails :ignore)))))
+      ((:file "file3" :if-feature :common-lisp)
+       (:file "does-not-exist" :if-feature (:not :common-lisp))))))))
 
 
 (defsystem :test-asdf/test9-2
