@@ -244,6 +244,7 @@ If that implementation is still actively maintained,
 you may also send a bug report to your Lisp vendor and complain
 about their failing to provide ASDF.
 
+@c FIXME: Move to footnote.
 NB: all implementations except clisp also accept
 @code{(require "ASDF")}, @code{(require 'asdf)} and @code{(require :asdf)}.
 For portability's sake, you probably want to use @code{(require "asdf")}.
@@ -294,14 +295,18 @@ before you contact us and raise an issue.
 
 
 @section Upgrading ASDF
+@c FIXME: tighten this up a bit -- there's a lot of stuff here that
+@c doesn't matter to almost anyone.  Move discussion of updating antique
+@c versions of ASDF down, or encapsulate it.
 
 If your implementation provides ASDF 3 or later,
 you only need to @code{(require "asdf")}:
 ASDF will automatically look whether an updated version of itself is available
 amongst the regularly configured systems, before it compiles anything else.
-See @pxref{Configuring ASDF} below.
+@xref{Configuring ASDF}, below.
 
-If your implementation does provide ASDF 2 or later,
+@c FIXME: this refers to "as above", but there's no description above.
+If your implementation does provides ASDF 2 (or later),
 but not ASDF 3 or later,
 and you want to upgrade to a more recent version,
 you need to install and configure your ASDF as above,
@@ -356,8 +361,9 @@ this self-upgrade will be automatically attempted as the first step
 to any system operation, to avoid any possibility of
 a catastrophic attempt to self-upgrade in midflight.
 
+@c FIXME: Fix grammar below.
 @item
-For this an many other reasons,
+For this and many other reasons,
 it important reason to load, configure and upgrade ASDF (if needed)
 as one of the very first things done by your build and startup scripts.
 Until all implementations provide ASDF 3 or later,
@@ -462,6 +468,7 @@ to be recursively scanned for @file{.asd} files, instead use:
 Note that your Operating System distribution or your system administrator
 may already have configured system-managed libraries for you.
 
+@c FIXME: clarify.
 The required @file{.conf} extension allows you to have disabled files
 or editor backups (ending in @file{~}), and works portably
 (for instance, it is a pain to allow both empty and non-empty extension on CLISP).
@@ -476,6 +483,9 @@ You can reset the source-registry configuration with:
 @lisp
 (asdf:clear-source-registry)
 @end lisp
+
+@c FIXME: too specific.  Push this down to discussion of dumping an
+@c image?
 
 And you probably should do so before you dump your Lisp image,
 if the configuration may change
