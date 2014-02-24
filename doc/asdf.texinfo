@@ -184,6 +184,10 @@ For this reason, we have stopped supporting ASDF 1 and ASDF 2.
 If you are using ASDF 1 or ASDF 2 and are experiencing any kind of issues or limitations,
 we recommend you upgrade to ASDF 3
 --- and we explain how to do that. @xref{Loading ASDF}.
+(In the context of compatibility requirements,
+ASDF 2.27, released on Feb 1st 2013, and further 2.x releases up to 2.33,
+count as pre-releases of ASDF 3, and define the :asdf3 feature;
+still, please use the latest release).
 
 Also note that ASDF is not to be confused with ASDF-Install.
 ASDF-Install is not part of ASDF, but a separate piece of software.
@@ -214,7 +218,8 @@ so you may more easily modify it, we recommend clbuild.
 
 @section Loading a pre-installed ASDF
 
-Most recent Lisp implementations include a copy of ASDF 2, and soon ASDF 3.
+Most recent Lisp implementations include a copy of ASDF 3,
+or at least ASDF 2.
 You can usually load this copy using Common Lisp's @code{require} function:
 
 @lisp
@@ -222,8 +227,10 @@ You can usually load this copy using Common Lisp's @code{require} function:
 @end lisp
 
 As of the writing of this manual,
-the following implementations provide ASDF 2 this way:
-abcl allegro ccl clisp cmucl ecl lispworks mkcl sbcl xcl.
+the following implementations provide ASDF 3 this way:
+abcl allegro ccl clisp cmucl ecl mkcl sbcl.
+The following implementation only provide ASDF 2:
+lispworks mkcl mocl xcl.
 The following implementation doesn't provide it yet but will in an upcoming release:
 scl.
 The following implementations are obsolete, not actively maintained,
@@ -335,15 +342,18 @@ see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
 Note that there are some limitations to upgrading ASDF:
 @itemize
 @item
-Previously loaded ASDF extension becomes invalid, and will need to be reloaded.
+Previously loaded ASDF extensions become invalid, and will need to be reloaded.
 This applies to e.g. CFFI-Grovel, or to hacks used by ironclad, etc.
 Since it isn't possible to automatically detect what extensions are present
 that need to be invalidated,
 ASDF will actually invalidate all previously loaded systems
-when it is loaded on top of a different ASDF version,
-starting with ASDF 2.014.8 (as far as releases go, 2.015);
-and it will automatically attempt this self-upgrade as its very first step
-starting with ASDF 3.
+when it is loaded on top of a forward-incompatible ASDF version
+(as per @code{asdf/upgrade::*oldest-forward-compatible-asdf-version*}
+which is 2.33 at the time of this writing).
+Furthermore, starting with ASDF 3 (2.27 or later),
+this self-upgrade will be automatically attempted as the first step
+to any system operation, to avoid any possibility of
+a catastrophic attempt to self-upgrade in midflight.
 
 @item
 For this an many other reasons,
@@ -1361,7 +1371,7 @@ Please use the @code{if-feature} option instead.
 
 @subsection feature requirement
 This requirement was removed in ASDF 3.1.
-It used to ensure a chain of component dependencies will raise an error,
+It used to ensure that a chain of component dependencies will raise an error,
 which in conjunction with if-component-dep-fails would offer
 a roundabout way to express conditional compilation.
 
@@ -2102,14 +2112,15 @@ lines like:
 @lisp
      #+sbcl       (:file "cffi-sbcl")
 @end lisp
-An unfortunate side effect of this approach is tnoat no single
+An unfortunate side effect of this approach is that no single
 implementation can read the entire system.
 This causes problems if, for example, one wished to design an @code{archive-op}
-that would create an archive file containing all the sources, since 
+that would create an archive file containing all the sources, since
 for example the file @code{cffi-sbcl.lisp} above would be invisible when
 running the @code{archive-op} on any implementation other than SBCL.
 
-ASDF components may therefore have an @code{:if-feature} option.
+Starting with ASDF 3,
+components may therefore have an @code{:if-feature} option.
 The value of this option should be
 a feature expression using the same syntax as @code{#+} does.
 If that feature expression evaluates to false, any reference to the component will be ignored
@@ -2932,7 +2943,7 @@ But so are good design ideas and elegant implementation tricks.
 @node Controlling where ASDF saves compiled files, Error handling, Controlling where ASDF searches for systems, Top
 @comment  node-name,  next,  previous,  up
 @chapter Controlling where ASDF saves compiled files
-@cindex asdf-output-translations   
+@cindex asdf-output-translations
 @vindex ASDF_OUTPUT_TRANSLATIONS
 
 Each Common Lisp implementation has its own format
