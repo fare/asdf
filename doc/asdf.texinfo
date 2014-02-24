@@ -2915,7 +2915,7 @@ analyses.
 @defun system-weakly-depends-on system
 Returns a list of names of systems that are weakly depended on by
 @var{system}.  Weakly depended on systems are optionally loaded only if
-ASDF can find them; failure to find such systems does @em{not} cause an
+ASDF can find them; failure to find such systems does @emph{not} cause an
 error in loading.
 
 Note that the return value for @code{system-weakly-depends-on} is simpler
