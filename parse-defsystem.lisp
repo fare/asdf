@@ -141,6 +141,8 @@
              (sysdef-error "Ill-formed feature dependency: ~s" dd))
            (let ((embedded (parse-dependency-def (third dd))))
              `(:feature ,(second dd) ,embedded)))
+          (feature
+           (sysdef-error "`feature' has been removed from the dependency spec language of ASDF. Use :feature instead in ~s." dd))
           (:require
            (unless (= (length dd) 2)
              (sysdef-error "Ill-formed require dependency: ~s" dd))

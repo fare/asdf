@@ -38,6 +38,9 @@
                  (:file "file4" :if-feature (:not :common-lisp))))))
 
 
+
+
+
 (DBG "The weakly-depends-on information is properly cached")
 (assert (equal '("file3-only") (system-weakly-depends-on (find-system "test-weakly-depends-on"))))
 (assert (null (system-weakly-depends-on (find-system "test-no-weakly-depends-on"))))
@@ -55,3 +58,18 @@
 (assert (equalp
           '((:version "test-asdf/2" "2.1") "file3-only" (:feature :foo (:require "blort")))
           (system-depends-on (find-system :test-structured-depends))))
+
+(DBG "Test removal of non-orthogonal feature syntax.")
+(assert (typep
+         (catch 'error
+          (handler-bind ((system-definition-error
+                           #'(lambda (e) 
+                               (throw 'error e))))
+            (def-test-system :test-structured-depends-with-obsolete-feature-syntax
+              :depends-on ((:version test-asdf/2 "2.1") :file3-only (feature :foo (:require "blort")))
+              :components
+              ((:file "file2" :depends-on ("foo"))
+               (:module "foo" :pathname ""
+                :components ((:file "file1")
+                             (:file "file4" :if-feature (:not :common-lisp))))))))
+         'system-definition-error))
