@@ -227,15 +227,16 @@ You can usually load this copy using Common Lisp's @code{require} function:
 @end lisp
 
 As of the writing of this manual,
+<<<<<<< HEAD
 the following implementations provide ASDF 3 this way:
-abcl allegro ccl clisp cmucl ecl mkcl sbcl.
-The following implementation only provide ASDF 2:
-lispworks mkcl mocl xcl.
-The following implementation doesn't provide it yet but will in an upcoming release:
-scl.
+ABCL, ALLEGRO, CCL, clisp, CMUCL, ECL, Lispworks, mkcl, SBCL, XCL.
+The following implementations only provide ASDF 2:
+lispworks, mkcl, mocl, xcl.
+The following implementation doesn't provide ASDF yet but will in an upcoming release:
+SCL.
 The following implementations are obsolete, not actively maintained,
-and most probably will never bundle it:
-cormanlisp gcl genera mcl.
+and most probably will never bundle ASDF:
+cormanlisp, gcl, genera, mcl.
 
 If the implementation you are using doesn't provide ASDF 2 or ASDF 3,
 see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
@@ -2888,6 +2889,8 @@ or maybe simply to @code{clear-source-registry} (or @code{clear-configuration})
 which will cause the initialization to happen next time around.
 
 @section Introspection
+
+@subsection *source-registry-parameter* variable
 @vindex *source-registry-parameter*
 
 We have made available the variable @code{*source-registry-parameter*}
@@ -2896,6 +2899,29 @@ configuration of ASDF's source registry.  @strong{This variable should
 never be set!}  It will be set as a side-effect of calling
 @code{initialize-source-registry}; user code should treat it as
 read-only.
+
+@subsection Information about system dependencies
+
+ASDF makes available three functions to read system interdependencies.
+These are intended to aid programmers who wish to perform dependency
+analyses.
+
+@defun system-defsystem-depends-on system
+@end defun
+
+@defun system-depends-on system
+@end defun
+
+@defun system-weakly-depends-on system
+Returns a list of names of systems that are weakly depended on by
+@var{system}.  Weakly depended on systems are optionally loaded only if
+ASDF can find them; failure to find such systems does @em{not} cause an
+error in loading.
+
+Note that the return value for @code{system-weakly-depends-on} is simpler
+than the return values of the other two system dependency introspection
+functions.
+@end defun
 
 @section Status
 
