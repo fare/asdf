@@ -156,7 +156,9 @@ for how to load or compile stuff")
   (defvar *modules-being-required* nil)
 
   (defclass require-system (system)
-    ((module :initarg :module :initform nil :accessor required-module)))
+    ((module :initarg :module :initform nil :accessor required-module))
+    (:documentation "A SYSTEM subclass whose processing is handled by
+the implementation's REQUIRE rather than by internal ASDF mechanisms."))
 
   (defmethod perform ((o compile-op) (c require-system))
     nil)
