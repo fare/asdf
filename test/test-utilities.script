@@ -261,7 +261,8 @@
   (assert (not (base-string-p (strcat (basify "ab") #\c *last-char* (unbasify "d")))))
   (assert (base-string-p (strcat (basify "ab") #\c #\d))))
 
-(assert-pathname-equal *test-directory* (getcwd))
+(or #+os-windows (equalp *test-directory* (getcwd)) ;; Avoid C:\Users vs C:\users on SBCL.
+    (assert-pathname-equal *test-directory* (getcwd)))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
 (assert-equal +lf+ (map 'string 'code-char '(10)))
