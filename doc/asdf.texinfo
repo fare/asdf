@@ -198,7 +198,7 @@ If you want to download software from version control instead of tarballs,
 so you may more easily modify it, we recommend clbuild.
 
 
-@node Loading ASDF, Configuring ASDF, Introduction, Top
+@node Loading ASDF, Using ASDF, Introduction, Top
 @comment  node-name,  next,  previous,  up
 @chapter Loading ASDF
 @vindex *central-registry*
@@ -430,32 +430,67 @@ for example by loading it from the startup script or dumping a custom core
 
 @chapter Configuring ASDF
 
+For standard use cases, ASDF should work pretty much out of the box.  We
+recommend you skim the sections on configuring ASDF to find your systems
+to choose the method of installing Lisp software that works best for
+you.  Then skip directly to @xref{Using ASDF}; that will probably be
+enough.  You are unlikely to have to worry about the way ASDF stores
+object files, and resetting the ASDF configuration is usually only
+needed in corner cases.
+
+
+@menu
+* Configuring ASDF to find your systems ::
+* Configuring ASDF to find your systems --- old style :: 
+* Configuring where ASDF stores object files :: 
+* Resetting the ASDF configuration :: 
+@end menu
+
+@node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Loading ASDF, Loading ASDF
 @section Configuring ASDF to find your systems
 
-So it may compile and load your systems, ASDF must be configured to find
+In order to compile and load your systems, ASDF must be configured to find
 the @file{.asd} files that contain system definitions.
 
-Since ASDF 2, the preferred way to configure where ASDF finds your systems is
-the @code{source-registry} facility,
-fully described in its own chapter of this manual.
-@xref{Controlling where ASDF searches for systems}.
+There are a number of different techniques for setting yourself up with
+ASDF, starting from easiest to the most complex:
 
-The default location for a user to install Common Lisp software is under
+@itemize @bullet
+
+@item 
+Put all of your systems in subdirectories of 
 @file{~/.local/share/common-lisp/source/}.
 If you install software there (it can be a symlink),
 you don't need further configuration.
-If you're installing software yourself at a location that isn't standard,
-you have to tell ASDF where you installed it. See below.
+
+@item 
 If you're using some tool to install software (e.g. Quicklisp),
 the authors of that tool should already have configured ASDF.
+
+@item 
+If you have more specific desires about how to lay out your software on
+disk, the preferred way to configure where ASDF finds your systems is
+the @code{source-registry} facility,
+fully described in its own chapter of this manual.
+@xref{Controlling where ASDF searches for systems}.  Here is a quick
+recipe for getting started:
 
 The simplest way to add a path to your search path,
 say @file{/home/luser/.asd-link-farm/}
 is to create the directory
 @file{~/.config/common-lisp/source-registry.conf.d/}
 and there create a file with any name of your choice,
-and with the type @file{conf},
-for instance @file{42-asd-link-farm.conf}
+and with the type @file{conf}@footnote{By requiring the @file{.conf}
+extension, and ignoring other files, ASDF allows you to have disabled files,
+editor backups, etc. in the same directory with your active
+configuration files.
+
+ASDF will also ignore files whose names start with a @file{.} character.
+
+It is customary to start the filename with two digits, to control the
+sorting of the @code{conf} files in the source registry directory, and
+thus the order in which the directories will be scanned.},
+for instance @file{42-asd-link-farm.conf},
 containing the line:
 
 @kbd{(:directory "/home/luser/.asd-link-farm/")}
@@ -465,20 +500,9 @@ to be recursively scanned for @file{.asd} files, instead use:
 
 @kbd{(:tree "/home/luser/lisp/")}
 
-Note that your Operating System distribution or your system administrator
-may already have configured system-managed libraries for you.
-
-@c FIXME: clarify.
-The required @file{.conf} extension allows you to have disabled files
-or editor backups (ending in @file{~}), and works portably
-(for instance, it is a pain to allow both empty and non-empty extension on CLISP).
-Excluded are files the name of which start with a @file{.} character.
-It is customary to start the filename with two digits
-that specify the order in which the directories will be scanned.
-
 ASDF will automatically read your configuration
 the first time you try to find a system.
-You can reset the source-registry configuration with:
+If necessary, you can reset the source-registry configuration with:
 
 @lisp
 (asdf:clear-source-registry)
@@ -487,14 +511,28 @@ You can reset the source-registry configuration with:
 @c FIXME: too specific.  Push this down to discussion of dumping an
 @c image?
 
-And you probably should do so before you dump your Lisp image,
-if the configuration may change
-between the machine where you save it at the time you save it
-and the machine you resume it at the time you resume it.
-Actually, you should use @code{(asdf:clear-configuration)}
-before you dump your Lisp image, which includes the above.
+@c And you probably should do so before you dump your Lisp image,
+@c if the configuration may change
+@c between the machine where you save it at the time you save it
+@c and the machine you resume it at the time you resume it.
+@c Actually, you should use @code{(asdf:clear-configuration)}
+@c before you dump your Lisp image, which includes the above.
+
+@item
+In earlier versions of ASDF, the system source registry was configured
+using a global variable, @code{asdf:*central-registry*}.  For more
+details about this, see the following section, @ref{Configuring ASDF to
+find your systems --- old style}.  Unless you need to understand this,
+skip directly to @ref{Configuring where ASDF stores object files}.
+
+@end itemize
+
+Note that your Operating System distribution or your system administrator
+may already have configured system-managed libraries for you.
 
 
+
+@node Configuring ASDF to find your systems --- old style, Configuring where ASDF stores object files, Configuring ASDF to find your systems, Loading ASDF
 @section Configuring ASDF to find your systems --- old style
 
 The old way to configure ASDF to find your systems is by
@@ -580,6 +618,7 @@ but it is supported for old users, and for users who want to programmatically
 control what directories are added to the ASDF search path.
 
 
+@node Configuring where ASDF stores object files, Resetting the ASDF configuration, Configuring ASDF to find your systems --- old style, Loading ASDF
 @section Configuring where ASDF stores object files
 @findex clear-output-translations
 
@@ -659,11 +698,11 @@ ASDF-Binary-Locations is now not needed anymore and should not be used.
 cl-launch 3.000 and common-lisp-controller 7.2 have been updated
 to just delegate this functionality to ASDF.
 
-@node Using ASDF, Defining systems with defsystem, Configuring ASDF, Top
+@node Using ASDF, Resetting the ASDF configuration, Configuring where ASDF stores object files, Loading ASDF
 @comment  node-name,  next,  previous,  up
 
-
-@section Resetting Configuration
+@node Resetting the ASDF configuration,  , Configuring where ASDF stores object files, Loading ASDF
+@section Resetting the ASDF configuration
 
 When you dump and restore an image, or when you tweak your configuration,
 you may want to reset the ASDF configuration.
@@ -688,7 +727,7 @@ For compatibility with all Lisp implementations, however,
 you might want instead your build script to explicitly call
 @code{(asdf:clear-configuration)} at an appropriate moment before dumping.
 
-
+@node  Using ASDF, Defining systems with defsystem, Loading ASDF, Top
 @chapter Using ASDF
 
 @section Loading a system
@@ -1490,7 +1529,7 @@ and has many options that prove useful in this context,
 such as @code{:use-reexport} and @code{:mix-reexport}
 that allow for ``inheritance'' of symbols being exported.
 
-@node The object model of ASDF, Operations, Defining systems with defsystem, Top
+@node The object model of ASDF, Controlling where ASDF searches for systems, Defining systems with defsystem, Top
 @comment  node-name,  next,  previous,  up
 @chapter The object model of ASDF
 
@@ -1582,7 +1621,7 @@ but instead do something global on the system.
 * Functions::
 @end menu
 
-@node  Operations, Predefined operations of ASDF, The object model of ASDF, The object model of ASDF
+@node  Operations, Components, The object model of ASDF, The object model of ASDF
 @comment  node-name,  next,  previous,  up
 @section Operations
 @cindex operation
