@@ -198,24 +198,18 @@ If you want to download software from version control instead of tarballs,
 so you may more easily modify it, we recommend clbuild.
 
 
-@node Loading ASDF, Using ASDF, Introduction, Top
+@node Loading ASDF, Configuring ASDF, Introduction, Top
 @comment  node-name,  next,  previous,  up
 @chapter Loading ASDF
-@vindex *central-registry*
-@cindex link farm
-@findex load-system
-@findex require-system
-@findex compile-system
-@findex test-system
-@cindex system directory designator
-@findex operate
-@findex oos
 
-@c @menu
-@c * Installing ASDF::
-@c @end menu
+@menu
+* Loading a pre-installed ASDF::
+* Checking whether ASDF is loaded::
+* Upgrading ASDF::
+* Loading an otherwise installed ASDF::
+@end menu
 
-
+@node  Loading a pre-installed ASDF, Checking whether ASDF is loaded, Loading ASDF, Loading ASDF
 @section Loading a pre-installed ASDF
 
 Most recent Lisp implementations include a copy of ASDF 3,
@@ -227,7 +221,6 @@ You can usually load this copy using Common Lisp's @code{require} function:
 @end lisp
 
 As of the writing of this manual,
-<<<<<<< HEAD
 the following implementations provide ASDF 3 this way:
 ABCL, ALLEGRO, CCL, clisp, CMUCL, ECL, Lispworks, mkcl, SBCL, XCL.
 The following implementations only provide ASDF 2:
@@ -249,7 +242,7 @@ NB: all implementations except clisp also accept
 @code{(require "ASDF")}, @code{(require 'asdf)} and @code{(require :asdf)}.
 For portability's sake, you probably want to use @code{(require "asdf")}.
 
-
+@node Checking whether ASDF is loaded, Upgrading ASDF, Loading a pre-installed ASDF, Loading ASDF
 @section Checking whether ASDF is loaded
 
 To check whether ASDF is properly loaded in your current Lisp image,
@@ -293,7 +286,7 @@ please try upgrading to the latest released version,
 using the method below,
 before you contact us and raise an issue.
 
-
+@node  Upgrading ASDF, Loading an otherwise installed ASDF, Checking whether ASDF is loaded, Loading ASDF
 @section Upgrading ASDF
 @c FIXME: tighten this up a bit -- there's a lot of stuff here that
 @c doesn't matter to almost anyone.  Move discussion of updating antique
@@ -398,7 +391,7 @@ system-depends-on asdf, or transitively does,
 you should also do as well.
 @end itemize
 
-
+@node Loading an otherwise installed ASDF,  , Upgrading ASDF, Loading ASDF
 @section Loading an otherwise installed ASDF
 
 If your implementation doesn't include ASDF,
@@ -427,7 +420,6 @@ for example by loading it from the startup script or dumping a custom core
 
 @node Configuring ASDF, Using ASDF, Loading ASDF, Top
 @comment  node-name,  next,  previous,  up
-
 @chapter Configuring ASDF
 
 For standard use cases, ASDF should work pretty much out of the box.  We
@@ -446,7 +438,7 @@ needed in corner cases.
 * Resetting the ASDF configuration :: 
 @end menu
 
-@node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Loading ASDF, Loading ASDF
+@node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Configuring ASDF, Configuring ASDF
 @section Configuring ASDF to find your systems
 
 In order to compile and load your systems, ASDF must be configured to find
@@ -532,7 +524,7 @@ may already have configured system-managed libraries for you.
 
 
 
-@node Configuring ASDF to find your systems --- old style, Configuring where ASDF stores object files, Configuring ASDF to find your systems, Loading ASDF
+@node Configuring ASDF to find your systems --- old style, Configuring where ASDF stores object files, Configuring ASDF to find your systems, Configuring ASDF
 @section Configuring ASDF to find your systems --- old style
 
 The old way to configure ASDF to find your systems is by
@@ -618,7 +610,7 @@ but it is supported for old users, and for users who want to programmatically
 control what directories are added to the ASDF search path.
 
 
-@node Configuring where ASDF stores object files, Resetting the ASDF configuration, Configuring ASDF to find your systems --- old style, Loading ASDF
+@node Configuring where ASDF stores object files, Resetting the ASDF configuration, Configuring ASDF to find your systems --- old style, Configuring ASDF
 @section Configuring where ASDF stores object files
 @findex clear-output-translations
 
@@ -698,10 +690,7 @@ ASDF-Binary-Locations is now not needed anymore and should not be used.
 cl-launch 3.000 and common-lisp-controller 7.2 have been updated
 to just delegate this functionality to ASDF.
 
-@node Using ASDF, Resetting the ASDF configuration, Configuring where ASDF stores object files, Loading ASDF
-@comment  node-name,  next,  previous,  up
-
-@node Resetting the ASDF configuration,  , Configuring where ASDF stores object files, Loading ASDF
+@node Resetting the ASDF configuration,  , Configuring where ASDF stores object files, Configuring ASDF
 @section Resetting the ASDF configuration
 
 When you dump and restore an image, or when you tweak your configuration,
@@ -727,7 +716,7 @@ For compatibility with all Lisp implementations, however,
 you might want instead your build script to explicitly call
 @code{(asdf:clear-configuration)} at an appropriate moment before dumping.
 
-@node  Using ASDF, Defining systems with defsystem, Loading ASDF, Top
+@node  Using ASDF, Defining systems with defsystem, Configuring ASDF, Top
 @chapter Using ASDF
 
 @section Loading a system
