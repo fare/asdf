@@ -104,7 +104,7 @@
                (warn (compatfmt "~@<Invalid :version specifier ~S~@[ for component ~S~]~@[ in ~S~]~@[ from file ~S~]~@[, ~A~]~@:>")
                      form component parent pathname continuation))
              (invalid-parse (control &rest args)
-               (unless (builtin-system-p (find-component parent component))
+               (unless (if-let (target (find-component parent component)) (builtin-system-p target))
                  (apply 'warn control args)
                  (invalid))))
       (if-let (v (typecase form
