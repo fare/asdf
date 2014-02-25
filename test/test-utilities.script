@@ -36,6 +36,7 @@
   (simple-warning (c)
     (assert (search "Requested version ~S but ~S has no version" (simple-condition-format-control c))))
   (:no-error (x)
+    (declare (ignore x))
     (error "version-satisfies must warn when given component without version")))
 (assert (version<= "2.0" (asdf-version)))
 (assert (not (version-satisfies (asdf-version) "666")))
@@ -261,7 +262,8 @@
   (assert (not (base-string-p (strcat (basify "ab") #\c *last-char* (unbasify "d")))))
   (assert (base-string-p (strcat (basify "ab") #\c #\d))))
 
-(or #+os-windows (equalp *test-directory* (getcwd)) ;; Avoid C:\Users vs C:\users on SBCL.
+(or #+os-windows ;; Avoid C:\Users vs C:\users on SBCL.
+    (equalp (namestring *test-directory*) (namestring (getcwd)))
     (assert-pathname-equal *test-directory* (getcwd)))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
