@@ -70,6 +70,7 @@ install: archive
 
 bump: bump-version
 	git commit -a -m "Bump version to $$(eval a=$$(cat version.lisp-expr) ; echo $$a)"
+	temp=$(cat version.lisp-expr); temp="${temp%\"}"; temp="${temp#\"}"; git tag $temp
 
 bump-version: build/asdf.lisp
 	./bin/asdf-builder bump-version ${v}
