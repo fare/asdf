@@ -1,0 +1,40 @@
+;;; -*- Mode: common-lisp; package: ASDF-TEST; -*-
+
+(DBG "Testing to make sure we reject system names with underscores.")
+;; underscores are not permitted....
+(assert (multiple-value-bind (val err)
+            (ignore-errors (def-test-system "bad_system_name"
+                             :components
+                             ((:file "file2" :depends-on ("foo"))
+                              (:module "foo" :pathname ""
+                               :components ((:file "file1")
+                                            (:file "file4" :if-feature (:not :common-lisp)))))))
+          (and (null val)
+               (typep err 'system-definition-error))))
+(DBG "Testing to make sure we reject system names with CamelCase.")                           
+(assert (multiple-value-bind (val err)
+            (ignore-errors (def-test-system "CamelCaseBadSystemName"
+                             :components
+                             ((:file "file2" :depends-on ("foo"))
+                              (:module "foo" :pathname ""
+                               :components ((:file "file1")
+                                            (:file "file4" :if-feature (:not :common-lisp)))))))
+          (and (null val)
+               (typep err 'system-definition-error))))
+
+(DBG "Testing to make sure we revise system names with CamelCase.")                           
+(assert-equal
+ (progn
+   (handler-bind
+            ((system-definition-error #'(lambda (e)
+                                          (continue e))))
+          (def-test-system "CamelCaseBadSystemName"
+                             :components
+                             ((:file "file2" :depends-on ("foo"))
+                              (:module "foo" :pathname ""
+                               :components ((:file "file1")
+                                            (:file "file4" :if-feature (:not :common-lisp)))))))
+   (component-name (find-system :camelcasebadsystemname)))
+ "camelcasebadsystemname")
+
+
