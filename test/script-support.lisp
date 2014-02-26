@@ -592,8 +592,15 @@ is bound, write a message and exit on an error.  If
 (setf *package* (find-package :asdf-test))
 
 (defmacro def-test-system (name &rest rest)
-  `(apply (asym :register-system-definition) ',name :pathname ,*test-directory*
-          :source-file nil ',rest))
+  (etypecase name
+    (symbol
+     `(apply (asym :register-system-definition) ',name
+             :pathname ,*test-directory*
+             :source-file nil ',rest))
+    (string
+     `(apply (asym :register-system-definition) ,name
+             :pathname ,*test-directory*
+             :source-file nil ',rest))))
 
 (defun in-plan-p (plan x) (member x (acall :plan-actions plan) :key (asym :action-path) :test 'equal))
 
