@@ -247,7 +247,7 @@ system names contained using COERCE-NAME. Return the result."
     ;; that is registered to a different location to find-system,
     ;; we also need to remember it in a special variable *systems-being-defined*.
     (with-system-definitions ()
-      (let* ((name (string-downcase (coerce-name name)))
+      (let* ((name (coerce-name name))
              (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
              (registered (system-registered-p name))
              (registered! (if registered

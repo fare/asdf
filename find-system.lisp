@@ -77,24 +77,10 @@ of which is a system object.")
     (loop :for registered :being :the :hash-values :of *defined-systems*
           :collect (coerce-name (cdr registered))))
 
-  (defun check-acceptable-system-name (name)
-    (flet ((acceptable-char-p (c)
-                              (or
-                               ;; these two are acceptable characters for logical pathnames
-                               (alphanumericp c)
-                               (eql c #\-)
-                               ;; forward slash has a special meaning to ASDF
-                               (eql c #\/))))
-      (let ((unacceptable (find-if-not #'acceptable-char-p name)))
-        (when unacceptable
-          (sysdef-error (compatfmt "~@<Bad character for system name: ~c in ~3i~_~A~@:>") unacceptable name)))
-      t))
-
   (defun register-system (system)
     (check-type system system)
     (let ((name (component-name system)))
       (check-type name string)
-      (check-acceptable-system-name name)
       (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
       (unless (eq system (cdr (gethash name *defined-systems*)))
         (setf (gethash name *defined-systems*)
