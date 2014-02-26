@@ -116,7 +116,7 @@ or the original (parsed) pathname if it is false (the default)."
                                  (cond
                                    (truename foundtrue)
                                    (foundtrue p)))))
-                       (let* ((fs (find-symbol* '#:file-stat :posix nil))
+                       (let* ((fs (or #-os-windows (find-symbol* '#:file-stat :posix nil)))
                               (pp (find-symbol* '#:probe-pathname :ext nil))
                               (resolve (if pp
                                            `(ignore-errors (,pp p))

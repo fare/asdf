@@ -410,7 +410,7 @@ It returns a process-info plist with possible keys:
     ;; NB: these implementations have unix vs windows set at compile-time.
     (declare (ignorable if-input-does-not-exist if-output-exists if-error-output-exists))
     (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
+    #-(or allegro clisp clozure cmu (and lispworks os-unix) sbcl scl)
     (progn command keys directory
            (error "run-program not available"))
     #+(or allegro clisp clozure cmu (and lispworks os-unix) sbcl scl)
@@ -435,10 +435,10 @@ It returns a process-info plist with possible keys:
              #-allegro
              (with-current-directory (#-sbcl directory)
                #+clisp
-               (flet ((run (f &rest args)
+               (flet ((run (f x &rest args)
                         (multiple-value-list
-                         (apply f :input %input :output %output
-                                  :allow-other-keys t `(,@args ,@keys)))))
+                         (apply f x :input %input :output %output
+                                    :allow-other-keys t `(,@args ,@keys)))))
                  (assert (eq %error-output :terminal))
                  ;;; since we now always return a code, we can't use this code path, anyway!
                  (etypecase %command
@@ -769,14 +769,17 @@ It returns a process-info plist with possible keys:
     #+(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
     (%wait-process-result
      (apply '%run-program (%normalize-system-command command) :wait t keys))
-    #+(or abcl clisp cormanlisp ecl gcl (and lispworks os-windows) mkcl xcl)
+    #+(or abcl cormanlisp clisp ecl gcl (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
-      #-(and lispworks os-windows)
+      #+clisp
+      (%wait-process-result
+       (apply '%run-program %command :wait t
+              :input :interactive :output :interactive :error-output :interactive keys))
+      #-(or clisp (and lispworks os-windows))
       (with-current-directory ((unless (os-unix-p) directory))
         #+abcl (ext:run-shell-command %command)
-        #+clisp (clisp-exit-code (ext:shell %command))
         #+cormanlisp (win32:system %command)
         #+ecl (let ((*standard-input* *stdin*)
                     (*standard-output* *stdout*)
