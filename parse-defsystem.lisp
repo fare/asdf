@@ -247,13 +247,7 @@ system names contained using COERCE-NAME. Return the result."
     ;; that is registered to a different location to find-system,
     ;; we also need to remember it in a special variable *systems-being-defined*.
     (with-system-definitions ()
-      (let* ((name (let ((rawname (coerce-name name)))
-                     (unless (equal (string-downcase rawname) rawname)
-                       (cerror "Continue, using downcased system name."
-                               'formatted-system-definition-error
-                               :format-control
-                               "Error, systems must have lowercase names."))
-                     (string-downcase rawname)))
+      (let* ((name (string-downcase (coerce-name name)))
              (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
              (registered (system-registered-p name))
              (registered! (if registered
