@@ -3314,11 +3314,6 @@ specifications from the next configuration.
 @code{:user-cache} uses the contents of variable @code{asdf::*user-cache*}
 which by default is the same as using
 @code{(:home ".cache" "common-lisp" :implementation)}.
-@item
-@code{:system-cache} uses the contents of variable @code{asdf::*system-cache*}
-which by default is the same as using
-@code{("/var/cache/common-lisp" :uid :implementation-type)}
-(on Unix and cygwin), or something semi-sensible on Windows.
 @end itemize
 
 
