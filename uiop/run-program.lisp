@@ -4,7 +4,8 @@
 (uiop/package:define-package :uiop/run-program
   (:nicknames :asdf/run-program)
   (:recycle :uiop/run-program :asdf/run-program :xcvb-driver)
-  (:use :uiop/common-lisp :uiop/utility :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility
+   :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream)
   (:export
    ;;; Escaping the command invocation madness
    #:easy-sh-character-p #:escape-sh-token #:escape-sh-command
