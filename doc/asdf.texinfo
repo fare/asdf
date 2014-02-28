@@ -81,11 +81,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @ifnottex
 
 @node Top, Introduction, (dir), (dir)
-@top asdf: another system definition facility
+@top ASDF: Another System Definition Facility
 
 @insertcopying
 
 @menu
+* Quick start summary::
 * Introduction::
 * Loading ASDF::
 * Configuring ASDF::
@@ -200,24 +201,24 @@ so you may more easily modify it, we recommend clbuild.
 @node  Quick start summary, Loading ASDF, Introduction, Top
 @chapter Quick start summary
 
-@itemize 
+@itemize
 
 @item To load an ASDF system:
 
 @itemize
 @item
 Load ASDF itself into your Lisp image, either through
-@code{(require "asdf")} (if it's supplied by your lisp implementation) 
+@code{(require "asdf")} (if it's supplied by your lisp implementation)
 or else through
 @code{(load "/path/to/asdf.lisp")}.  For more details, @xref{Loading ASDF}.
 
 @item
 Make sure ASDF can find system definitions
-through proper source-registry configuration.  For more details,
-@xref{Configuring ASDF to find your systems}.
+through proper source-registry configuration.
+For more details, @xref{Configuring ASDF to find your systems}.
 The simplest way is simply to put all your lisp code in subdirectories of
-@file{~/.local/share/common-lisp/source/}.  Such code will automatically
-be found.
+@file{~/.local/share/common-lisp/source/}.
+Such code will automatically be found.
 
 @item
 Load a system with @code{(asdf:load-system :system)}. @xref{Using ASDF}.
@@ -235,14 +236,15 @@ Make a new directory for your system, @code{my-system/} in a location
 where ASDF can find it (@pxref{Configuring ASDF to find your systems}).
 
 @item
-Create an ASDF system definition listing the dependencies of your
-system, its components, and their interdependencies, and put it in
-@file{my-system.asd}.  This file must have the same name as your
-system.  @xref{Defining systems with defsystem}.
+Create an ASDF system definition listing the dependencies of
+your system, its components, and their interdependencies,
+and put it in @file{my-system.asd}.
+This file must have the same name as your system.
+@xref{Defining systems with defsystem}.
 
 @item
-Use @code{(asdf:load-system :my-system)} to make sure it's all working
-properly. @xref{Using ASDF}.
+Use @code{(asdf:load-system :my-system)}
+to make sure it's all working properly. @xref{Using ASDF}.
 
 @end itemize
 @end itemize
@@ -268,7 +270,11 @@ properly. @xref{Using ASDF}.
 
 Most recent Lisp implementations include a copy of ASDF 3,
 or at least ASDF 2.
-You can usually load this copy using Common Lisp's @code{require} function:
+You can usually load this copy using Common Lisp's @code{require} function@footnote{
+NB: all implementations except GNU CLISP also accept
+@code{(require "ASDF")}, @code{(require 'asdf)} and @code{(require :asdf)}.
+For portability's sake, you probably want to use @code{(require "asdf")}.
+}
 
 @lisp
 (require "asdf")
@@ -276,25 +282,20 @@ You can usually load this copy using Common Lisp's @code{require} function:
 
 As of the writing of this manual,
 the following implementations provide ASDF 3 this way:
-ABCL, ALLEGRO, CCL, clisp, CMUCL, ECL, Lispworks, mkcl, SBCL, XCL.
+ABCL, Allegro CL, Clozure CL, CMUCL, ECL, GNU CLISP, mkcl, SBCL.
 The following implementations only provide ASDF 2:
-lispworks, mkcl, mocl, xcl.
+LispWorks, mocl, XCL.
 The following implementation doesn't provide ASDF yet but will in an upcoming release:
 SCL.
 The following implementations are obsolete, not actively maintained,
 and most probably will never bundle ASDF:
-cormanlisp, gcl, genera, mcl.
+Corman CL, GCL, Genera, MCL.
 
 If the implementation you are using doesn't provide ASDF 2 or ASDF 3,
 see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
 If that implementation is still actively maintained,
 you may also send a bug report to your Lisp vendor and complain
 about their failing to provide ASDF.
-
-@c FIXME: Move to footnote.
-NB: all implementations except clisp also accept
-@code{(require "ASDF")}, @code{(require 'asdf)} and @code{(require :asdf)}.
-For portability's sake, you probably want to use @code{(require "asdf")}.
 
 @node Checking whether ASDF is loaded, Upgrading ASDF, Loading a pre-installed ASDF, Loading ASDF
 @section Checking whether ASDF is loaded
@@ -352,12 +353,14 @@ ASDF will automatically look whether an updated version of itself is available
 amongst the regularly configured systems, before it compiles anything else.
 @xref{Configuring ASDF}, below.
 
+
 @c FIXME: this refers to "as above", but there's no description above.
 If your implementation does provides ASDF 2 (or later),
 but not ASDF 3 or later,
 and you want to upgrade to a more recent version,
-you need to install and configure your ASDF as above,
-and additionally, you need to explicitly tell ASDF to load itself,
+you need to install and configure your ASDF just like any other system:
+@xref{Configuring ASDF to find your systems}.
+Additionally, you need to explicitly tell ASDF to load itself,
 right after you require your implementation's old ASDF 2:
 
 @lisp
@@ -428,7 +431,7 @@ since the new one might shadow the old one while the old one is running,
 and the running old one will be confused
 when extensions are loaded into the new one.
 In the meantime, we recommend that your systems should @emph{not} specify
-@code{:depends-on (:asdf)}, or @code{:depends-on ((:version :asdf "2.010"))},
+@code{:depends-on (:asdf)}, or @code{:depends-on ((:version :asdf "3.0.1"))},
 but instead that they check that a recent enough ASDF is installed,
 with such code as:
 @example
@@ -476,23 +479,22 @@ for example by loading it from the startup script or dumping a custom core
 @comment  node-name,  next,  previous,  up
 @chapter Configuring ASDF
 
-For standard use cases, ASDF should work pretty much out of the box.  We
-recommend you skim the sections on configuring ASDF to find your systems
-and choose the method of installing Lisp software that works best for
-you.  Then skip directly to @xref{Using ASDF}; that will probably be
-enough.  You are unlikely to have to worry about the way ASDF stores
-object files, and resetting the ASDF configuration is usually only
-needed in corner cases.
+For standard use cases, ASDF should work pretty much out of the box.
+We recommend you skim the sections on configuring ASDF to find your systems
+and choose the method of installing Lisp software that works best for you.
+Then skip directly to @xref{Using ASDF}. That will probably be enough.
+You are unlikely to have to worry about the way ASDF stores object files,
+and resetting the ASDF configuration is usually only needed in corner cases.
 
 
 @menu
 * Configuring ASDF to find your systems ::
-* Configuring ASDF to find your systems --- old style :: 
-* Configuring where ASDF stores object files :: 
-* Resetting the ASDF configuration :: 
+* Configuring ASDF to find your systems --- old style ::
+* Configuring where ASDF stores object files ::
+* Resetting the ASDF configuration ::
 @end menu
 
-@node Configuring ASDF to find your systems, Configuring where ASDF stores object files, Configuring ASDF, Configuring ASDF
+@node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Configuring ASDF, Configuring ASDF
 @section Configuring ASDF to find your systems
 
 In order to compile and load your systems, ASDF must be configured to find
@@ -503,17 +505,17 @@ ASDF, starting from easiest to the most complex:
 
 @itemize @bullet
 
-@item 
-Put all of your systems in subdirectories of 
+@item
+Put all of your systems in subdirectories of
 @file{~/.local/share/common-lisp/source/}.
 If you install software there (it can be a symlink),
 you don't need further configuration.
 
-@item 
+@item
 If you're using some tool to install software (e.g. Quicklisp),
 the authors of that tool should already have configured ASDF.
 
-@item 
+@item
 If you have more specific desires about how to lay out your software on
 disk, the preferred way to configure where ASDF finds your systems is
 the @code{source-registry} facility,
@@ -566,9 +568,10 @@ If necessary, you can reset the source-registry configuration with:
 
 @item
 In earlier versions of ASDF, the system source registry was configured
-using a global variable, @code{asdf:*central-registry*}.  For more
-details about this, see the following section, @ref{Configuring ASDF to
-find your systems --- old style}.  Unless you need to understand this,
+using a global variable, @code{asdf:*central-registry*}.
+For more details about this, see the following section,
+@ref{Configuring ASDF to find your systems --- old style}.
+Unless you need to understand this,
 skip directly to @ref{Configuring where ASDF stores object files}.
 
 @end itemize
@@ -655,7 +658,7 @@ to the actual location of the systems.@footnote{
 On Windows, you can use Windows shortcuts instead of POSIX symlinks.
 if you try aliases under MacOS, we are curious to hear about your experience.}
 
-For example, if @code{#p"/home/me/cl/systems/"} 
+For example, if @code{#p"/home/me/cl/systems/"}
 is an element of @code{*central-registry*}, you could set up the
 system @var{foo} as follows:
 
@@ -669,7 +672,7 @@ but it is supported for old users, and for users who want to programmatically
 control what directories are added to the ASDF search path.
 
 
-@node Configuring where ASDF stores object files,  , Configuring ASDF to find your systems, Configuring ASDF
+@node Configuring where ASDF stores object files, Resetting the ASDF configuration, Configuring ASDF to find your systems --- old style, Configuring ASDF
 @section Configuring where ASDF stores object files
 @findex clear-output-translations
 
