@@ -210,7 +210,7 @@ so you may more easily modify it, we recommend clbuild.
 Load ASDF itself into your Lisp image, either through
 @code{(require "asdf")} (if it's supplied by your lisp implementation)
 or else through
-@code{(load "/path/to/asdf.lisp")}.  For more details, @xref{Loading ASDF}.
+@code{(load "/path/to/asdf.lisp")}.  For more details, @ref{Loading ASDF}.
 
 @item
 Make sure ASDF can find system definitions
@@ -270,10 +270,10 @@ to make sure it's all working properly. @xref{Using ASDF}.
 
 Most recent Lisp implementations include a copy of ASDF 3,
 or at least ASDF 2.
-You can usually load this copy using Common Lisp's @code{require} function@footnote{
+You can usually load this copy using Common Lisp's @code{require} function.@footnote{
 NB: all implementations except GNU CLISP also accept
 @code{(require "ASDF")}, @code{(require 'asdf)} and @code{(require :asdf)}.
-For portability's sake, you probably want to use @code{(require "asdf")}.
+For portability's sake, you should use @code{(require "asdf")}.
 }
 
 @lisp
@@ -355,23 +355,26 @@ amongst the regularly configured systems, before it compiles anything else.
 
 
 @c FIXME: this refers to "as above", but there's no description above.
-If your implementation does provides ASDF 2 (or later),
-but not ASDF 3 or later,
-and you want to upgrade to a more recent version,
-you need to install and configure your ASDF just like any other system:
-@xref{Configuring ASDF to find your systems}.
-Additionally, you need to explicitly tell ASDF to load itself,
-right after you require your implementation's old ASDF 2:
+If you want to upgrade to a more recent ASDF version,
+you need to install and configure your ASDF just like any other system 
+(@pxref{Configuring ASDF to find your systems}):
 
 @lisp
 (require "asdf")
 (asdf:load-system :asdf)
 @end lisp
 
+This will work as long as your 
+implementation provides ASDF 2 (or later).
+
 If on the other hand, your implementation only provides an old ASDF,
 you will require a special configuration step and an old-style loading.
-Take special attention to not omit the trailing directory separator
-@code{/} at the end of your pathname:
+Note that to our knowledge all implementations that provide ASDF
+provide ASDF 2 in their latest release, so
+you may want to simply upgrade your implementation rather than load ASDF
+into an old implementation.  We provide the following details only for
+users handling corner cases such as maintaining legacy software.
+
 
 @lisp
 (require "asdf")
@@ -379,34 +382,47 @@ Take special attention to not omit the trailing directory separator
 (asdf:oos 'asdf:load-op :asdf)
 @end lisp
 
-Note that ASDF 1 won't redirect its output files,
-or at least won't do it according to your usual ASDF 2 configuration.
-You therefore need write access on the directory
-where you install the new ASDF,
-and make sure you're not using it
-for multiple mutually incompatible implementations.
-At worst, you may have to have multiple copies of the new ASDF,
-e.g. one per implementation installation, to avoid clashes.
-Note that to our knowledge all implementations that provide ASDF
-provide ASDF 2 in their latest release, so
-you may want to upgrade your implementation rather than go through that hoop.
+Take special attention not to omit the trailing directory separator
+@code{/} at the end of your pathname!
+
+
+@subsection Notes about ASDF 1
+
+ASDF 1 won't redirect its output files, 
+so to install a new version of ASDF on top of ASDF 1,
+you must have write access on the directory
+where you install the new ASDF.
+This is required so that ASDF 1 can write @file{asdf.fasl} there.
+
+Because ASDF 1 doesn't redirect its output files, you cannot share a
+single copy of @file{asdf.lisp} among multiple mutually incompatible
+Common Lisp implementations.
+It will be safest to 
+to have multiple copies of the new ASDF,
+one per CL implementation, to avoid clashes between object files.
 
 Finally, if you are using an unmaintained implementation
 that does not provide ASDF at all,
 see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
 
+@subsection Issues with upgrading ASDF
+
 Note that there are some limitations to upgrading ASDF:
 @itemize
 @item
 Previously loaded ASDF extensions become invalid, and will need to be reloaded.
-This applies to e.g. CFFI-Grovel, or to hacks used by ironclad, etc.
-Since it isn't possible to automatically detect what extensions are present
-that need to be invalidated,
-ASDF will actually invalidate all previously loaded systems
-when it is loaded on top of a forward-incompatible ASDF version
-(as per @code{asdf/upgrade::*oldest-forward-compatible-asdf-version*}
-which is 2.33 at the time of this writing).
-Furthermore, starting with ASDF 3 (2.27 or later),
+Examples include CFFI-Grovel, hacks used by ironclad, etc.
+Since it isn't possible to automatically detect what extensions 
+need to be invalidated,
+ASDF will invalidate @emph{all} previously loaded systems
+when it is loaded on top of a forward-incompatible ASDF version.
+@footnote{
+@vindex *oldest-forward-compatible-asdf-version*
+Forward incompatibility can be determined using the variable
+@code{asdf/upgrade::*oldest-forward-compatible-asdf-version*},
+which is 2.33 at the time of this writing.}
+
+Starting with ASDF 3 (2.27 or later),
 this self-upgrade will be automatically attempted as the first step
 to any system operation, to avoid any possibility of
 a catastrophic attempt to self-upgrade in midflight.
@@ -414,14 +430,11 @@ a catastrophic attempt to self-upgrade in midflight.
 @c FIXME: Fix grammar below.
 @item
 For this and many other reasons,
-it important reason to load, configure and upgrade ASDF (if needed)
+you should load, configure and upgrade ASDF 
 as one of the very first things done by your build and startup scripts.
-Until all implementations provide ASDF 3 or later,
-it is safer if you upgrade ASDF and its extensions as a special step
+It is safer if you upgrade ASDF and its extensions as a special step
 at the very beginning of whatever script you are running,
-before you start using ASDF to load anything else;
-even afterwards, it is still a good idea, to avoid having to
-load and reload code twice as it gets invalidated.
+before you start using ASDF to load anything else.
 
 @item
 Until all implementations provide ASDF 3 or later,
