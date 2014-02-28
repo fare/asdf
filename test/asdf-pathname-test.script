@@ -426,20 +426,16 @@
 ;; we're testing with unix or some emulation, are we not?
 
 (assert-pathname-equal (resolve-location '(:home)) (truename (user-homedir-pathname)))
-(assert-pathname-equal (resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz")
-(assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t) #p"/foo/bar/baz/")
-(assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t :wilden t) (wilden #p"/foo/bar/baz/"))
-(assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory nil :wilden t) (wilden #p"/foo/bar/"))
-(assert-pathname-equal (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :ensure-directory nil :wilden t) #p"/foo/bar/**/baz/*.*")
+#-os-windows
+(progn
+  (assert-pathname-equal (resolve-location '("/foo" "bar" "baz")) #p"/foo/bar/baz")
+  (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t) #p"/foo/bar/baz/")
+  (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory t :wilden t) (wilden #p"/foo/bar/baz/"))
+  (assert-pathname-equal (resolve-location '("/foo" "bar" "baz") :ensure-directory nil :wilden t) (wilden #p"/foo/bar/"))
+  (assert-pathname-equal (resolve-location '("/foo" "bar" :**/ "baz" #p"*.*") :ensure-directory nil :wilden t) #p"/foo/bar/**/baz/*.*"))
 
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-1))))
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-2))))
 
 #-gcl
 (assert (test-component-pathnames :delete-host t :support-string-pathnames nil))
-
-#|
-(load "LIBRARY:de;setf;utility;asdf;cp-test.lisp")
-(logical-pathname-translations "ASDFTEST")
-(gethash "test-system" asdf::*defined-systems*)
-|#
