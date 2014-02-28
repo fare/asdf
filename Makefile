@@ -70,7 +70,7 @@ install: archive
 
 bump: bump-version
 	git commit -a -m "Bump version to $$(eval a=$$(cat version.lisp-expr) ; echo $$a)"
-	temp=$(cat version.lisp-expr); temp="${temp%\"}"; temp="${temp#\"}"; git tag $temp
+	temp=$$(cat version.lisp-expr); temp="$${temp%\"}"; temp="$${temp#\"}"; git tag $$temp
 
 bump-version: build/asdf.lisp
 	./bin/asdf-builder bump-version ${v}
@@ -216,7 +216,7 @@ replace-sbcl-asdf: build/asdf.lisp
 replace-ccl-asdf: build/asdf.lisp
 	${CCL} --eval '(progn(compile-file "$<" :output-file (compile-file-pathname (format nil "~Atools/asdf.lisp" (ccl::ccl-directory))))(quit))'
 
-WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE # It's not 1.37, it's 1.85! 1.37 is for the README.
+WRONGFUL_TAGS := 1.37 1.1720 README RELEASE STABLE emp # It's not 1.37, it's 1.85! 1.37 is for the README.
 # Delete wrongful tags from local repository
 fix-local-git-tags:
 	for i in ${WRONGFUL_TAGS} ; do git tag -d $$i ; done
