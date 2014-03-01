@@ -11,31 +11,32 @@
 
 (defparameter *good-classes*
   '(build-op
-    prepare-source-op
-    prepare-op
-    prepare-fasl-op
-    load-op
-    monolithic-load-compiled-concatenated-source-op
-    prepare-fasl-op
-    load-source-op
+    compile-concatenated-source-op
+    compile-op
+    concatenate-source-op
+    deliver-asd-op
+    dll-op
+    fasl-op
+    image-op
+    lib-op
     load-compiled-concatenated-source-op
-    monolithic-load-concatenated-source-op
     load-concatenated-source-op
     load-fasl-op
-    compile-op
-    compile-concatenated-source-op
-    test-op
-    fasl-op
-    program-op
+    load-op
+    load-source-op
     monolithic-compile-concatenated-source-op
-    monolithic-dll-op
-    monolithic-binary-op
-    monolithic-fasl-op
-    dll-op
-    concatenate-source-op
-    monolithic-lib-op
     monolithic-concatenate-source-op
-    lib-op)
+    monolithic-deliver-asd-op
+    monolithic-dll-op
+    monolithic-fasl-op
+    monolithic-lib-op
+    monolithic-load-compiled-concatenated-source-op
+    monolithic-load-concatenated-source-op
+    prepare-fasl-op
+    prepare-op
+    prepare-source-op
+    program-op
+    test-op)
   "All of these classes should be instantiable without error.")
 
 (defclass my-unupdated-operation (operation)

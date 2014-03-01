@@ -40,8 +40,8 @@
    #:bundle-op #:monolithic-bundle-op #:precompiled-system #:compiled-file #:bundle-system
    #+ecl #:make-build
    #:basic-fasl-op #:prepare-fasl-op #:fasl-op #:load-fasl-op #:monolithic-fasl-op
-   #:lib-op #:dll-op #:binary-op #:program-op
-   #:monolithic-lib-op #:monolithic-dll-op #:monolithic-binary-op
+   #:lib-op #:dll-op #:deliver-asd-op #:program-op #:image-op
+   #:monolithic-lib-op #:monolithic-dll-op #:monolithic-deliver-asd-op
    #:concatenate-source-op
    #:load-concatenated-source-op
    #:compile-concatenated-source-op

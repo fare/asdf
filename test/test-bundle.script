@@ -29,7 +29,6 @@
   (when (version< version-nums "1.2.0")
     (leave-test "Your old ABCL is known to fail this test script, so skipping it." 0)))
 
-
 (defparameter *bundle-1* (output-file 'fasl-op :test-asdf/bundle-1))
 (defparameter *bundle-2* (output-file 'fasl-op :test-asdf/bundle-2))
 (defparameter *mono-bundle-2* (output-file 'monolithic-fasl-op :test-asdf/bundle-2))

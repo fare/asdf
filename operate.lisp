@@ -58,6 +58,7 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
            (operation-name (reify-symbol (etypecase operation
                                            (operation (type-of operation))
                                            (symbol operation))))
+           (operation-initargs (operation-original-initargs operation))
            (component-path (typecase component
                              (component (component-find-path component))
                              (t component))))
@@ -69,7 +70,9 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
           ;; its function may have been redefined, its symbol uninterned, its package deleted.
           (return-from operate
             (apply (find-symbol* 'operate :asdf)
-                   (unreify-symbol operation-name)
+                   (apply (find-symbol* 'make-operation :asdf)
+                          (unreify-symbol operation-name)
+                          :original-initargs operation-initargs operation-initargs)
                    component-path keys))))
       ;; Setup proper bindings around any operate call.
       (with-system-definitions ()

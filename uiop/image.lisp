@@ -243,7 +243,10 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
 Assume the calling conventions of a generated script that uses --
 if we are not called from a directly executable image."
     #+abcl arguments
-    #-abcl
+    ;; LispWorks command-line processing isn't transparent to the user, and
+    ;; we need to rely on cl-launch or some other script to set it for us.
+    #+lispworks *command-line-arguments*
+    #-(or abcl lispworks)
     (let* (#-(or sbcl allegro)
            (arguments
              (if (eq *image-dumped-p* :executable)
@@ -377,21 +380,29 @@ by setting appropriate variables, running various hooks, and calling any specifi
     ;; and otherwise simulate dump-image, including quitting at the end.
     #-ecl (error "~S not implemented for your implementation (yet)" 'create-image)
     #+ecl
-    (progn
-      (check-type kind (member :binary :dll :lib :static-library :program :object :fasl :program))
+    (let ((epilogue-forms
+            (append
+             (when epilogue-code `(,epilogue-code))
+             (when postludep `((setf *image-postlude* ',postlude)))
+             (when preludep `((setf *image-prelude* ',prelude)))
+             (when entry-point-p `((setf *image-entry-point* ',entry-point)))
+             (case kind
+               ((:image)
+                (setf kind :program) ;; to ECL, it's just another program.
+                `((setf *image-dumped-p* t)
+                  ;; fall through should be equivalent to: (si::top-level t) (quit)
+                  ))
+               ((:program)
+                `((setf *image-dumped-p* :executable)
+                  (shell-boolean-exit
+                   (restore-image))))))))
+      (check-type kind (member :dll :lib :static-library :program :object :fasl :program))
       (apply 'c::builder
              kind (pathname destination)
              :lisp-files object-files
              :init-name (c::compute-init-name (or output-name destination) :kind kind)
              :prologue-code prologue-code
-             :epilogue-code
-             `(progn
-                ,epilogue-code
-                ,@(when (eq kind :program)
-                    `((setf *image-dumped-p* :executable)
-                      (restore-image ;; default behavior would be (si::top-level)
-                       ,@(when preludep `(:prelude ',prelude))
-                       ,@(when entry-point-p `(:entry-point ',entry-point))))))
+             :epilogue-code (when epilogue-forms `(progn ,@epilogue-forms))
              build-args))))
 
 
