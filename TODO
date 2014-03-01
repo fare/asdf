@@ -188,7 +188,15 @@
   A run of quicklisp is necessary, with an eye also for warnings
   from .asd's that might be overriding definitions in UIOP(!)
 
-* have a mode to explain WHY a component needs to be recompiled.
+* Diagnostics
+** have a mode to explain WHY a component needs to be recompiled.
+** A ``dry run'' of an operation can be made with the following form:
+     (let ((asdf:*verbose-out* *standard-output*))
+       (loop :for (op . comp) :in
+         (asdf/plan:plan-actions
+          (asdf/plan:make-plan nil '<operation-name> '<system-name> :force t))
+         :do (asdf:explain op comp)))
+   What would be a nice interface for this functionality?
 
 * have with-input-file use the encodings mechanism?
 ** Import asdf-encodings into UIOP? Sounds a lot of code for no users.
@@ -328,8 +336,10 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 
 * ASDF4: search for this tag, rename things (incompatibly, thus) and cleanup code.
 
-* See message from 2014-01-27 05:26:44 GMT for stuff to document.
+* Documentation
+** See message from 2014-01-27 05:26:44 GMT for stuff to document.
    http://thread.gmane.org/gmane.lisp.asdf.devel/3675/focus=3695
+** style guide for .asd files
 
 * UIOP
 ** deferred-warnings support probably needs to be redone better.

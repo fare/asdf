@@ -99,8 +99,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Miscellaneous additional functionality::
 * Getting the latest version::
 * FAQ::
-* TODO list::
-* Inspiration::
+* Ongoing Work::
+* Bibliography::
 * Concept Index::
 * Function and Class Index::
 * Variable Index::
@@ -4127,7 +4127,7 @@ mailing list
 @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel}
 
 
-@node FAQ, TODO list, Getting the latest version, Top
+@node FAQ, Ongoing Work, Getting the latest version, Top
 @comment  node-name,  next,  previous,  up
 @chapter FAQ
 
@@ -4495,7 +4495,7 @@ You may consult with the maintainer for which specific version they recommend,
 but the latest @code{release} should be correct.
 Though we do try to test ASDF releases against all implementations that we can,
 we may not be testing against all variants of your implementation,
-and we may not be running enough tetst;
+and we may not be running enough tests;
 we trust you to thoroughly test it with your own implementation
 before you release it.
 If there are any issues with the current release,
@@ -4678,11 +4678,8 @@ discussion.
 
 @subsection ``How can I cater for documentation generation in my system?''
 
-The ASDF developers are currently working to add a @code{doc-op}
-to the set of predefined ASDF operations.
-@xref{Predefined operations of ASDF}.
+Various ASDF extensions provide some kind of @code{doc-op} operation.
 See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
-
 
 
 @subsection ``How can I maintain non-Lisp (e.g. C) source files?''
@@ -4841,156 +4838,60 @@ Here's the procedure for experimenting with tests in a REPL:
 
 @comment FIXME: Add a FAQ about how to use a new system class...
 
-
-@node  TODO list, Inspiration, FAQ, Top
 @comment  node-name,  next,  previous,  up
-@chapter TODO list
+@node  Ongoing Work, Bibliography, FAQ, Top
+@unnumbered Ongoing Work
+For an active list of things to be done,
+see the @file{TODO} file in the source repository.
 
-Here is an old list of things to do,
-in addition to the bugs that are now tracked on launchpad:
+Also, bugs that are now tracked on launchpad:
 @url{https://launchpad.net/asdf}.
 
-@section Outstanding spec questions, things to add
-
-** packaging systems
-
-*** manual page component?
-
-** style guide for .asd files
-
-You should either use keywords or be careful
-with the package that you evaluate defsystem forms in.
-Otherwise @code{(defsystem partition ...)}
-being read in the @code{cl-user} package
-will intern a @code{cl-user:partition} symbol,
-which will then collide with the @code{partition:partition} symbol.
-
-Actually there's a hairier packages problem to think about too.
-@code{in-order-to} is not a keyword:
-if you read @code{defsystem} forms in a package that doesn't use ASDF,
-odd things might happen.
-
-
-** extending defsystem with new options
-
-You might not want to write a whole parser,
-but just to add options to the existing syntax.
-Reinstate @code{parse-option} or something akin.
-
-
-** Diagnostics
-
-A ``dry run'' of an operation can be made with the following form:
-
-@lisp
-(let ((asdf::*verbose-out* *standard-output*))
-  (loop :for (op . comp) :in
-    (asdf::traverse (make-instance '<operation-name> :force t)
-                    (asdf:find-system <system-name>))
-    :do (asdf:explain op comp)))
-@end lisp
-
-This uses unexported symbols.
-What would be a nice interface for this functionality?
-
-@section Missing bits in implementation
-
-** reuse the same scratch package whenever a system is reloaded from disk
-
-Have a package ASDF-USER instead of all these temporary packages?
-
-** proclamations probably aren't
-
-** A revert function
-
-Other possible interface: have a ``revert'' function akin to @code{make clean}.
-
-@lisp
-(asdf:revert 'asdf:compile-op 'araneida)
-@end lisp
-
-would delete any files produced by @code{(compile-system :araneida)}.
-Of course, it wouldn't be able to do much about stuff in the image itself.
-
-How would this work?
-
-@code{traverse}
-
-There's a difference between a module's dependencies (peers)
-and its components (children).
-Perhaps there's a similar difference in operations?
-For example, @code{(load "use") depends-on (load "macros")} is a peer,
-whereas @code{(load "use") depends-on (compile "use")}
-is more of a ``subservient'' relationship.
-
-@node  Inspiration, Concept Index, TODO list, Top
-@comment  node-name,  next,  previous,  up
-@chapter Inspiration
-
-@section mk-defsystem (defsystem-3.x)
-
-We aim to solve basically the same problems as @code{mk-defsystem} does.
-However, our architecture for extensibility
-better exploits CL language features (and is documented),
-and we intend to be portable rather than just widely-ported.
-No slight on the @code{mk-defsystem} authors and maintainers is intended here;
-that implementation has the unenviable task
-of supporting pre-ANSI implementations, which is no longer necessary.
-
-The surface defsystem syntax of asdf is more-or-less compatible with
-@code{mk-defsystem}, except that we do not support
-the @code{source-foo} and @code{binary-foo} prefixes
-for separating source and binary files, and
-we advise the removal of all options to specify pathnames.
-
-The @code{mk-defsystem} code for topologically sorting
-a module's dependency list was very useful.
-
-@section defsystem-4 proposal
-
-Marco and Peter's proposal for defsystem 4 served as the driver for
-many of the features in here.  Notable differences are:
+@node Bibliography, Concept Index, Ongoing Work, Top
+@unnumbered Bibliography
 
 @itemize
-@item
-We don't specify output files or output file extensions
-as part of the system.
-
-If you want to find out what files an operation would create,
-ask the operation.
-
-@item
-We don't deal with CL packages
-
-If you want to compile in a particular package, use an @code{in-package} form
-in that file (ilisp / SLIME will like you more if you do this anyway)
-
-@item
-There is no proposal here that @code{defsystem} does version control.
-
-A system has a given version which can be used to check dependencies,
-but that's all.
+@item Zach Beane:
+  ``Quicklisp'', 2011.
+  The Quicklisp blog and Xach's livejournal contain information on Quicklisp.
+  @url{http://blog.quicklisp.org/}
+  @url{http://xach.livejournal.com/}
+@item Francois-Rene Rideau and Robert Goldman:
+  ``Evolving ASDF: More Cooperation, Less Coordination'', 2010.
+  This article describes the main issues solved by ASDF 2.
+  @url{http://common-lisp.net/project/asdf/doc/ilc2010draft.pdf}
+  @url{http://www.common-lisp.org/gitweb?p=projects/asdf/ilc2010.git}
+@item Francois-Rene Rideau and Spencer Brody:
+  ``XCVB: an eXtensible Component Verifier and Builder for Common Lisp'', 2009.
+  This article describes XCVB, a proposed competitor for ASDF,
+  many ideas of which have been incorporated into ASDF 2 and 3,
+  though many other of which still haven't.
+  @url{http://common-lisp.net/projects/xcvb/}
+@item Dan Barlow: ``ASDF Manual'', 2004
+  Older versions of this document from the days of ASDF 1;
+  they include ideas laid down by Dan Barlow,
+  and comparisons with older defsystems (@code{mk-defsystem})
+  and defsystem (@code{defsystem-4}, kmp's Memo 801).
+@item Marco Antoniotti and Peter Van Eynde:
+ ``@code{DEFSYSTEM}: A @code{make} for Common Lisp, A Thoughtful Re-Implementation of an Old Idea'', 2002.
+  The @file{defsystem-4} proposal available in the CLOCC repository.
+@item Mark Kantrovitz: ``Defsystem: A Portable Make Facility for Common Lisp'', 1990.
+  The classic @file{mk-defsystem}, later variants of which
+  are available in the CLOCC repository as @code{defsystem-3.x}.
+@item Richard Elliot Robbins:
+  ``BUILD: A Tool for Maintaining Consistency in Modular Systems'', MIT AI TR 874, 1985.
+  @url{ftp://publications.ai.mit.edu/ai-publications/pdf/AITR-874.pdf}
+@item Kent M. Pitman (kmp): ``The Description of Large Systems'', MIT AI Memo 801, 1984.
+  Available in updated-for-CL form on the web at
+  @url{http://nhplace.com/kent/Papers/Large-Systems.html}
+@item Dan Weinreb and David Moon:
+  ``Lisp Machine Manual'', MIT, 1981.
+  The famous CHINE NUAL describes one of the earliest variants of DEFSYSTEM.
+  @url{https://bitsavers.trailing-edge.com/pdf/mit/cadr/chinual_4thEd_Jul81.pdf}
 @end itemize
 
-The defsystem 4 proposal tends to look more at the external features,
-whereas this one centres on a protocol for system introspection.
 
-@section kmp's ``The Description of Large Systems'', MIT AI Memo 801
-
-Available in updated-for-CL form on the web at
-@url{http://nhplace.com/kent/Papers/Large-Systems.html}
-
-In our implementation we borrow kmp's overall @code{PROCESS-OPTIONS}
-and concept to deal with creating component trees
-from @code{defsystem} surface syntax.
-[ this is not true right now, though it used to be and
-probably will be again soon ]
-
-
-@c -------------------
-
-
-@node Concept Index, Function and Class Index, Inspiration, Top
+@node Concept Index, Function and Class Index, Bibliography, Top
 @unnumbered Concept Index
 
 @printindex cp
