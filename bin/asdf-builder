@@ -12,10 +12,13 @@
   (when (find-package :asdf)
     (or (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
                           (find-symbol (string :*asdf-revision*) :asdf)))
-        (string :1.x))))
-#-asdf2 (load (merge-pathnames "../build/asdf.lisp" *load-pathname*))
-#-asdf2 (error "Not ASDF2, you lose!")
-)
+        (string :1.x)))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (unless (member :asdf2 *features*)
+    (load (merge-pathnames "../build/asdf.lisp" *load-pathname*))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (unless (member :asdf2 *features*)
+    (error "Not ASDF2, you lose!")))
 
 (in-package :asdf)
 
@@ -35,7 +38,10 @@
   (format t "Now loading some dependencies... ~%")
   (load-systems :cl-ppcre :fare-utils :inferior-shell))
 
-(format t "There we are!~%")
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (format t "There we are!~%")
+  (in-package :asdf))
+
 (unless (featurep :cl-launch) (restore-image))
 
 (defpackage :asdf-builder
@@ -53,7 +59,7 @@
 
 ;;; ASDF directory
 (defvar *asdf-dir*
-  (ensure-pathname (system-relative-pathname :asdf ())
+  (ensure-pathname (system-relative-pathname :asdf/defsystem ())
                    :want-physical t :want-absolute t
                    :want-existing t :truename t))
 (defparameter /asdf-dir/
