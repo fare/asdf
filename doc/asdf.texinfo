@@ -180,7 +180,8 @@ in all actively maintained CL implementations that used to bundle ASDF 1,
 plus some implementations that didn't use to,
 and has been made to work with all actively used CL implementations and a few more.
 @xref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
-Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 or ASDF 3 on the fly.
+Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 or ASDF 3 on the fly
+(though we recommend instead upgrading your implementation or its ASDF module).
 For this reason, we have stopped supporting ASDF 1 and ASDF 2.
 If you are using ASDF 1 or ASDF 2 and are experiencing any kind of issues or limitations,
 we recommend you upgrade to ASDF 3
@@ -347,63 +348,48 @@ before you contact us and raise an issue.
 @c doesn't matter to almost anyone.  Move discussion of updating antique
 @c versions of ASDF down, or encapsulate it.
 
+If you want to upgrade to a more recent ASDF version,
+you need to install and configure your ASDF just like any other system
+(@pxref{Configuring ASDF to find your systems}).
+
 If your implementation provides ASDF 3 or later,
 you only need to @code{(require "asdf")}:
 ASDF will automatically look whether an updated version of itself is available
 amongst the regularly configured systems, before it compiles anything else.
-@xref{Configuring ASDF}, below.
 
+@subsection Notes about ASDF 1 and ASDF 2
 
-@c FIXME: this refers to "as above", but there's no description above.
-If you want to upgrade to a more recent ASDF version,
-you need to install and configure your ASDF just like any other system 
-(@pxref{Configuring ASDF to find your systems}):
+Most implementations provide ASDF 3 in their latest release,
+and we recommend upgrading your implementation rather than using ASDF 1 or 2.
+A few implementations only provide ASDF 2,
+that can be overridden by installing a fasl (see below).
+A few implementations don't provide ASDF,
+but a fasl can be installed to provide it.
+GCL so far is still lacking a usable @code{require} interface.
+
+If your implementation has no suitable upgrade available (yet),
+or somehow upgrading is not an option,
+we assume you're an expert deliberately using a legacy implementation,
+and are proficient enough to install this fasl.
+Still, the ASDF source repository contains a script
+@file{bin/install-asdf-as-module} that can help you do that.
+It relies on cl-launch 4 for command-line invocation,
+which may depend on ASDF being checked out in @file{~/cl/asdf/}
+if your implementation doesn't even have an ASDF 2;
+but you can run the code it manually if needs be.
+
+Finally, if your implementation only provides ASDF 2,
+and you can't or won't upgrade it or override its ASDF module,
+you may simply configure ASDF to find a proper upgrade;
+however, to avoid issues with a self-upgrade in mid-build,
+you @emph{must} make sure to upgrade ASDF immediately
+after requiring the builtin ASDF 2:
 
 @lisp
 (require "asdf")
+;; <--- insert programmatic configuration here if needed
 (asdf:load-system :asdf)
 @end lisp
-
-This will work as long as your 
-implementation provides ASDF 2 (or later).
-
-If on the other hand, your implementation only provides an old ASDF,
-you will require a special configuration step and an old-style loading.
-Note that to our knowledge all implementations that provide ASDF
-provide ASDF 2 in their latest release, so
-you may want to simply upgrade your implementation rather than load ASDF
-into an old implementation.  We provide the following details only for
-users handling corner cases such as maintaining legacy software.
-
-
-@lisp
-(require "asdf")
-(push #p"@var{/path/to/new/asdf/}" asdf:*central-registry*)
-(asdf:oos 'asdf:load-op :asdf)
-@end lisp
-
-Take special attention not to omit the trailing directory separator
-@code{/} at the end of your pathname!
-
-
-@subsection Notes about ASDF 1
-
-ASDF 1 won't redirect its output files, 
-so to install a new version of ASDF on top of ASDF 1,
-you must have write access on the directory
-where you install the new ASDF.
-This is required so that ASDF 1 can write @file{asdf.fasl} there.
-
-Because ASDF 1 doesn't redirect its output files, you cannot share a
-single copy of @file{asdf.lisp} among multiple mutually incompatible
-Common Lisp implementations.
-It will be safest to 
-to have multiple copies of the new ASDF,
-one per CL implementation, to avoid clashes between object files.
-
-Finally, if you are using an unmaintained implementation
-that does not provide ASDF at all,
-see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
 
 @subsection Issues with upgrading ASDF
 
@@ -412,7 +398,7 @@ Note that there are some limitations to upgrading ASDF:
 @item
 Previously loaded ASDF extensions become invalid, and will need to be reloaded.
 Examples include CFFI-Grovel, hacks used by ironclad, etc.
-Since it isn't possible to automatically detect what extensions 
+Since it isn't possible to automatically detect what extensions
 need to be invalidated,
 ASDF will invalidate @emph{all} previously loaded systems
 when it is loaded on top of a forward-incompatible ASDF version.
@@ -425,12 +411,12 @@ which is 2.33 at the time of this writing.}
 Starting with ASDF 3 (2.27 or later),
 this self-upgrade will be automatically attempted as the first step
 to any system operation, to avoid any possibility of
-a catastrophic attempt to self-upgrade in midflight.
+a catastrophic attempt to self-upgrade in mid-build.
 
 @c FIXME: Fix grammar below.
 @item
 For this and many other reasons,
-you should load, configure and upgrade ASDF 
+you should load, configure and upgrade ASDF
 as one of the very first things done by your build and startup scripts.
 It is safer if you upgrade ASDF and its extensions as a special step
 at the very beginning of whatever script you are running,
@@ -4155,28 +4141,39 @@ use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-dev
 
 @section ``What has changed between ASDF 1 and ASDF 2?''
 
-@subsection What are ASDF 1 and ASDF 2?
+@subsection What are ASDF 1, ASDF 2 and ASDF 3?
 
-On May 31st 2010, we have released ASDF 2.
-ASDF 2 refers to release 2.000 and later.
-(Releases between 1.656 and 1.728 were development releases for ASDF 2.)
-ASDF 1 to any release earlier than 1.369 or so.
-If your ASDF doesn't sport a version, it's an old ASDF 1.
+ASDF 1 refers to any release earlier than 1.369 or so (from August 2001 to October 2009),
+and to any development revision earlier than 2.000 (May 2010).
+If your copy of ASDF doesn't even contain version information, it's an old ASDF 1.
+Revisions between 1.656 and 1.728 may count as development releases for ASDF 2.
 
-ASDF 2 and its release candidates push
-@code{:asdf2} onto @code{*features*} so that if you are writing
-ASDF-dependent code you may check for this feature
-to see if the new API is present.
-@emph{All} versions of ASDF should have the @code{:asdf} feature.
+ASDF 2 refers to releases from 2.000 (May 31st 2010) to 2.26 (Oct 30 2012),
+and any development revision newer than ASDF 1 and older than 2.27 (Feb 1 2013).
 
-Additionally, all versions of ASDF 2
-define a function @code{(asdf:asdf-version)} you may use to query the version;
-and the source code of recent versions of ASDF 2 features the version number
-prominently on the second line of its source code.
+ASDF 3 refers to releases from 2.27 (Feb 1 2013) to 2.33 and 3.0.0 onward (May 15 2013).
+2.27 to 2.33 count as pre-releases to ASDF 3.
 
-If you are experiencing problems or limitations of any sort with ASDF 1,
-we recommend that you should upgrade to ASDF 2,
-or whatever is the latest release.
+All releases of ASDF
+push @code{:asdf} onto @code{*features*}.
+Releases starting with ASDF 2
+ push @code{:asdf2} onto @code{*features*}.
+Releases starting with ASDF 3 (including 2.27 and later pre-releases)
+push @code{:asdf3} onto @code{*features*}.
+Furthermore, releases starting with ASDF 3.1 (March 2014),
+though they count as ASDF 3, includes enough progress that they
+push @code{:asdf3.1} onto @code{*features*}.
+You may depend on the presence or absence of these features
+to write code that takes advantage of recent ASDF functionality
+but still works on older versions, or at least detects the old version and signals an error.
+
+Additionally, all releases starting with ASDF 2
+define a function @code{(asdf:asdf-version)} you may use to query the version.
+All releases starting with 2.013 display the version number prominently
+on the second line of the @file{asdf.lisp} source file.
+
+If you are experiencing problems or limitations of any sort with ASDF 1 or ASDF 2,
+we recommend that you should upgrade to the latest release, be it ASDF 3 or other.
 
 
 @subsection ASDF can portably name files in subdirectories
@@ -4556,10 +4553,11 @@ while magic systems are at the front.
 
 @item
 Since ASDF 3, the library UIOP comes transcluded in ASDF.
-But for extra brownies, you may package UIOP separately,
-so that one may @code{(require "uiop")} and not pull ASDF,
+But if you want to be nice to users who care for UIOP but not for ASDF,
+you may package UIOP separately,
+so that one may @code{(require "uiop")} and not load ASDF,
 or one may @code{(require "asdf")}
-and that would implicitly require the former.
+which would implicitly require and load the former.
 
 @item
 Please send us upstream any patches you make to ASDF itself,
