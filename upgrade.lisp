@@ -48,9 +48,11 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
   (defvar *post-upgrade-cleanup-hook* ())
   (defvar *post-upgrade-restart-hook* ())
-  (defun upgrading-p ()
-    (and *previous-asdf-versions* (not (equal *asdf-version* (first *previous-asdf-versions*)))))
-  (defmacro when-upgrading ((&key (upgrading-p '(upgrading-p)) when) &body body)
+  (defun upgrading-p (&optional (oldest-compatible-version *oldest-forward-compatible-asdf-version*))
+    (and *previous-asdf-versions*
+         (version< (first *previous-asdf-versions*) oldest-compatible-version)))
+  (defmacro when-upgrading ((&key (version *oldest-forward-compatible-asdf-version*)
+                               (upgrading-p `(upgrading-p ,version)) when) &body body)
     "A wrapper macro for code that should only be run when upgrading a
 previously-loaded version of ASDF."
     `(with-upgradability ()
@@ -94,19 +96,23 @@ previously-loaded version of ASDF."
              #:trivial-system-p ;; bundle
              ;; NB: it's too late to do anything about uiop functions!
              ))
-         (uninterned-symbols
-           '(#:*asdf-revision* #:around #:asdf-method-combination
-             #:split #:make-collector #:do-dep #:do-one-dep
-             #:component-self-dependencies
-             #:resolve-relative-location-component #:resolve-absolute-location-component
-             #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
+        #+sbcl
+        (redefined-classes
+          ;; redefining causes interim circularities with the old ASDF during upgrade, and SBCL borks
+          '(#:bundle-op))
+        (uninterned-symbols
+          '(#:*asdf-revision* #:around #:asdf-method-combination
+            #:split #:make-collector #:do-dep #:do-one-dep
+            #:component-self-dependencies
+            #:resolve-relative-location-component #:resolve-absolute-location-component
+            #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
     (loop :for name :in redefined-functions
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
               ;; On CLISP we seem to be unable to fmakunbound and define a function in the same fasl. Sigh.
               #-clisp (fmakunbound sym)))
     (loop :with asdf = (find-package :asdf)
-          :for name :in uninterned-symbols
+          :for name :in (append #+sbcl redefined-classes uninterned-symbols)
           :for sym = (find-symbol* name :asdf nil)
           :for base-pkg = (and sym (symbol-package sym)) :do
             (when sym
