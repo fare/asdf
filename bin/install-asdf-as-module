@@ -59,5 +59,4 @@ It notably doesn't work on:
     (ensure-directories-exist (translate-logical-pathname fasl))
     (compile-file (subpathname *asdf-dir* "build/asdf.lisp") :output-file fasl)))
 
-(trace compile-file*)
-(install-asdf-as-module)
+(uiop:writeln (multiple-value-list (install-asdf-as-module)))

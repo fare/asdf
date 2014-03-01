@@ -58,8 +58,9 @@
    'parse-unix-namestring
    (remove-if 'emptyp
               (split-string ;; NB: assumes GNU make
-               (run-program `("make" "--quiet" "--no-print-directory" ,target)
-                            :output :string :error-output t :directory *asdf-directory*)
+               (run-program `("make" "-C" ,(native-namestring *asdf-directory*)
+				     "--quiet" "--no-print-directory" ,target)
+                            :output :string :error-output t)
                :separator #(#\space #\newline #\return #\tab)))))
 
 (defmacro compare-files (system target)

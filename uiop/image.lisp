@@ -7,7 +7,7 @@
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/pathname :uiop/stream :uiop/os)
   (:export
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
-   #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments
+   #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments #:argv0
    #:*lisp-interaction*
    #:*fatal-conditions* #:fatal-condition-p #:handle-fatal-condition
    #:call-with-fatal-condition-handler #:with-fatal-condition-handler
@@ -242,18 +242,26 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     "Extract user arguments from command-line invocation of current process.
 Assume the calling conventions of a generated script that uses --
 if we are not called from a directly executable image."
-    (declare (ignorable arguments))
-    #+abcl arguments
-    ;; LispWorks command-line processing isn't transparent to the user, and
-    ;; we need to rely on cl-launch or some other script to set it for us.
-    #+lispworks *command-line-arguments*
-    #-(or abcl lispworks)
-    (let* (#-(or sbcl allegro)
-           (arguments
-             (if (eq *image-dumped-p* :executable)
-                 arguments
-                 (member "--" arguments :test 'string-equal))))
+    (block nil
+      #+abcl (return arguments)
+      ;; SBCL and Allegro already separate user arguments from implementation arguments.
+      #-(or sbcl allegro)
+      (unless (eq *image-dumped-p* :executable)
+	;; LispWorks command-line processing isn't transparent to the user
+	;; unless you create a standalone executable; in that case,
+	;; we rely on cl-launch or some other script to set the arguments for us.
+	#+lispworks (return *command-line-arguments*)
+	;; On other implementations, on non-standalone executables,
+	;; we trust cl-launch or whichever script starts the program
+	;; to use -- as a delimiter between implementation arguments and user arguments.
+	#-lispworks (setf arguments (member "--" arguments :test 'string-equal)))
       (rest arguments)))
+
+  (defun argv0 ()
+    ;; Not available on ABCL, Genera, MCL.
+    (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
+	(first (raw-command-line-arguments))
+	#+ecl (si:argv 0)))
 
   (defun setup-command-line-arguments ()
     (setf *command-line-arguments* (command-line-arguments)))

@@ -106,6 +106,10 @@
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 
+** SCL has bugs:
+*** it doesn't like run-program from a modified directory?
+*** it somehow pushes :non-base-chars-exist-p even though +non-base-chars-exist-p+ is NIL???
+
 ** XCL has bad bugs:
 *** make-pathname doesn't handle :type nil properly and
     has massive lossage in logical-pathname support.

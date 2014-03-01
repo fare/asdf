@@ -240,7 +240,7 @@
 
 #-non-base-chars-exist-p
 (progn
-  (assert (base-string-p (make-string 10 :element-type 'character)))
+  (assert (base-string-p (make-string 10 :element-type 'character :initial-element *last-char*)))
   (assert (typep *last-char* 'base-char)))
 
 (defun basify (s) (coerce s 'base-string))
