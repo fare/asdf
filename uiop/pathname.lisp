@@ -307,7 +307,7 @@ actually-existing directory."
       ;; ill-formed. [2014/02/10:rpg]
       (let ((pathname (pathname pathname)))
         (flet ((check-one (x)
-                 (member x '(nil :unspecific "") :test 'equal)))
+                 (member x '(nil :unspecific) :test 'equal)))
           (and (not (wild-pathname-p pathname))
                (check-one (pathname-name pathname))
                (check-one (pathname-type pathname))
@@ -483,13 +483,14 @@ or if it is a PATHNAME but some of its components are not recognized."
       ((or null string) pathname)
       (pathname
        (with-output-to-string (s)
-         (flet ((err () (error "Not a valid unix-namestring ~S" pathname)))
+         (flet ((err () #+lispworks (describe pathname) (error "Not a valid unix-namestring ~S" pathname)))
            (let* ((dir (normalize-pathname-directory-component (pathname-directory pathname)))
                   (name (pathname-name pathname))
+                  (name (and (not (eq name :unspecific)) name))
                   (type (pathname-type pathname))
                   (type (and (not (eq type :unspecific)) type)))
              (cond
-               ((eq dir ()))
+               ((member dir '(nil :unspecific)))
                ((eq dir '(:relative)) (princ "./" s))
                ((consp dir)
                 (destructuring-bind (relabs &rest dirs) dir
@@ -505,7 +506,7 @@ or if it is a PATHNAME but some of its components are not recognized."
                (t (err)))
              (cond
                (name
-                (or (and (stringp name) (or (null type) (stringp type))) (err))
+                (unless (and (stringp name) (or (null type) (stringp type))) (err))
                 (format s "~A~@[.~A~]" name type))
                (t
                 (or (null type) (err)))))))))))

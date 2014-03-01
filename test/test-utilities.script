@@ -3,13 +3,10 @@
 (assert
  (every #'directory-pathname-p
   (list
-   (make-pathname* :name nil :type "" :directory '(:absolute "tmp"))
-   (make-pathname* :name "" :directory '(:absolute "tmp"))
-   (make-pathname* :type "" :directory '(:absolute "tmp"))
-;; CLHS 19.2.2.2.3 says we can't portably specify :unspecific here,
-;; and some implementations will enforce it.
+   (make-pathname* :name nil :type nil :directory '(:absolute "tmp"))
+   ;; CLHS 19.2.2.2.3 says we can't portably specify :unspecific here,
+   ;; and some implementations will enforce it.
    (make-pathname* :type *unspecific-pathname-type* :directory '(:absolute "tmp"))
-   (make-pathname* :name *unspecific-pathname-type* :directory '(:absolute "tmp"))
    (make-pathname* :name *unspecific-pathname-type* :directory '(:absolute "tmp")))))
 (assert
  (every (complement #'directory-pathname-p)
@@ -17,6 +14,8 @@
    (make-pathname* :name "foo" :type nil :directory '(:absolute "tmp"))
    (make-pathname* :name nil :type "bar" :directory '(:absolute "tmp")))))
 ;; These are funky and non portable, omit from tests:
+;; (make-pathname* :name "" :type nil :directory '(:absolute "tmp"))
+;; (make-pathname* :name nil :type "" :directory '(:absolute "tmp"))
 ;; (make-pathname* :name "." :type nil :directory '(:absolute "tmp"))
 ;; (make-pathname* :name "." :type "" :directory '(:absolute "tmp"))
 (macrolet ((ts (x y)
