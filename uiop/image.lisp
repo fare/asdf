@@ -242,6 +242,7 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     "Extract user arguments from command-line invocation of current process.
 Assume the calling conventions of a generated script that uses --
 if we are not called from a directly executable image."
+    (declare (ignorable arguments))
     #+abcl arguments
     ;; LispWorks command-line processing isn't transparent to the user, and
     ;; we need to rely on cl-launch or some other script to set it for us.

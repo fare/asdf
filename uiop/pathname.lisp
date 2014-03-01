@@ -544,40 +544,6 @@ then it is merged with the PATHNAME-DIRECTORY-PATHNAME of PATHNAME."
                     ;; scheme-specific parts: port username password, not others:
                     . #.(or #+scl '(:parameters nil :query nil :fragment nil))))
 
-  (defun subpathp (maybe-subpath base-pathname)
-    "if MAYBE-SUBPATH is a pathname that is under BASE-PATHNAME, return a pathname object that
-when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPATH."
-    (and (pathnamep maybe-subpath) (pathnamep base-pathname)
-         (absolute-pathname-p maybe-subpath) (absolute-pathname-p base-pathname)
-         (directory-pathname-p base-pathname) (not (wild-pathname-p base-pathname))
-         (pathname-equal (pathname-root maybe-subpath) (pathname-root base-pathname))
-         (with-pathname-defaults ()
-           (let ((enough (enough-namestring maybe-subpath base-pathname)))
-             (and (relative-pathname-p enough) (pathname enough))))))
-
-  (defun enough-pathname (maybe-subpath base-pathname)
-    "if MAYBE-SUBPATH is a pathname that is under BASE-PATHNAME, return a pathname object that
-when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPATH."
-    (check-type maybe-subpath (or null pathname))
-    (check-type base-pathname (or null pathname))
-    (when (pathnamep base-pathname) (assert (absolute-pathname-p base-pathname)))
-    (or (and base-pathname (subpathp maybe-subpath base-pathname))
-        maybe-subpath))
-
-  (defun call-with-enough-pathname (maybe-subpath defaults-pathname thunk)
-    "In a context where *DEFAULT-PATHNAME-DEFAULTS* is bound to DEFAULTS-PATHNAME (if not null,
-or else to its current value), call THUNK with ENOUGH-PATHNAME for MAYBE-SUBPATH
-given DEFAULTS-PATHNAME as a base pathname."
-    (let ((enough (enough-pathname maybe-subpath defaults-pathname))
-          (*default-pathname-defaults* (or defaults-pathname *default-pathname-defaults*)))
-      (funcall thunk enough)))
-
-  (defmacro with-enough-pathname ((pathname-var &key (pathname pathname-var)
-                                                  (defaults *default-pathname-defaults*))
-                                  &body body)
-    "Shorthand syntax for CALL-WITH-ENOUGH-PATHNAME"
-    `(call-with-enough-pathname ,pathname ,defaults #'(lambda (,pathname-var) ,@body)))
-
   (defun ensure-absolute-pathname (path &optional defaults (on-error 'error))
     "Given a pathname designator PATH, return an absolute pathname as specified by PATH
 considering the DEFAULTS, or, if not possible, use CALL-FUNCTION on the specified ON-ERROR behavior,
@@ -595,7 +561,39 @@ with a format control-string and other arguments as arguments"
                             path default-pathname))))
       (t (call-function on-error
                         "Cannot ensure ~S is evaluated as an absolute pathname with defaults ~S"
-                        path defaults)))))
+                        path defaults))))
+
+  (defun subpathp (maybe-subpath base-pathname)
+    "if MAYBE-SUBPATH is a pathname that is under BASE-PATHNAME, return a pathname object that
+when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPATH."
+    (and (pathnamep maybe-subpath) (pathnamep base-pathname)
+         (absolute-pathname-p maybe-subpath) (absolute-pathname-p base-pathname)
+         (directory-pathname-p base-pathname) (not (wild-pathname-p base-pathname))
+         (pathname-equal (pathname-root maybe-subpath) (pathname-root base-pathname))
+         (with-pathname-defaults ()
+           (let ((enough (enough-namestring maybe-subpath base-pathname)))
+             (and (relative-pathname-p enough) (pathname enough))))))
+
+  (defun enough-pathname (maybe-subpath base-pathname)
+    "if MAYBE-SUBPATH is a pathname that is under BASE-PATHNAME, return a pathname object that
+when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPATH."
+    (let ((sub (when maybe-subpath (pathname maybe-subpath)))
+	  (base (when base-pathname (ensure-absolute-pathname (pathname base-pathname)))))
+      (or (and base (subpathp sub base)) sub)))
+
+  (defun call-with-enough-pathname (maybe-subpath defaults-pathname thunk)
+    "In a context where *DEFAULT-PATHNAME-DEFAULTS* is bound to DEFAULTS-PATHNAME (if not null,
+or else to its current value), call THUNK with ENOUGH-PATHNAME for MAYBE-SUBPATH
+given DEFAULTS-PATHNAME as a base pathname."
+    (let ((enough (enough-pathname maybe-subpath defaults-pathname))
+          (*default-pathname-defaults* (or defaults-pathname *default-pathname-defaults*)))
+      (funcall thunk enough)))
+
+  (defmacro with-enough-pathname ((pathname-var &key (pathname pathname-var)
+                                                  (defaults *default-pathname-defaults*))
+                                  &body body)
+    "Shorthand syntax for CALL-WITH-ENOUGH-PATHNAME"
+    `(call-with-enough-pathname ,pathname ,defaults #'(lambda (,pathname-var) ,@body))))
 
 
 ;;; Wildcard pathnames

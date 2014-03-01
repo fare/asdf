@@ -57,8 +57,7 @@ It notably doesn't work on:
 (defun install-asdf-as-module ()
   (let ((fasl (asdf-module-fasl)))
     (ensure-directories-exist (translate-logical-pathname fasl))
-    (handler-bind ((warning #'muffle-warning))
-      (compile-file* (subpathname *asdf-dir* "build/asdf.lisp") :output-file fasl))))
+    (compile-file (subpathname *asdf-dir* "build/asdf.lisp") :output-file fasl)))
 
 (trace compile-file*)
 (install-asdf-as-module)
