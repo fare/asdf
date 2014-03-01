@@ -571,7 +571,7 @@ in an atomic way if the implementation allows."
            (symbol-call :posix :copy-file source target :method :rename))
     #-clisp
     (rename-file source target
-                 #+clozure :if-exists #+clozure :rename-and-delete))
+                 #+(or clozure ecl) :if-exists #+clozure :rename-and-delete #+ecl t))
 
   (defun delete-file-if-exists (x)
     "Delete a file X if it already exists"
