@@ -106,41 +106,55 @@
           as it is an older similar piece of software that is both unmaintained and obsolete.
         </p><p>
           If you're unsatisfied with ASDF,
-          other somewhat actively maintained build systems for Common-Lisp
-          that may or may not satisfy you include:
-          Fran&ccedil;ois-Ren&eacute; Rideau's
-          <a href="http://common-lisp.net/project/xcvb/"><tt>XCVB</tt></a>
-          (trying to build object and image files deterministically and in parallel,
-          has fallen behind ASDF since 2012),
-          or its polar opposite,
-          Drew McDermott's
-          <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
-          (trying to maintain coherence of the current Lisp image at a fine grain),
-          Dmitriy Ivanov's
-          <a href="http://lisp.ystok.ru/asdlite/"><tt>ASDlite</tt></a>
-          (a somewhat improved incompatible variant of ASDF 1, less featureful than ASDF 3),
-          or Alastair Bridgewater's one-package-per-file
-          <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a>
-          (similar to <tt>faslpath</tt> below,
-          also reimplemented as the ASDF extension <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-package-system.git"><tt>asdf-package-system</tt></a>).
-          Older systems that are not maintained anymore include
-          Mark Kantrowitz's
-          <a href="http://www.cliki.net/mk-defsystem"><tt>mk-defsystem</tt></a>
-          (free software successor of the old proprietary DEFSYSTEM's
-          and predecessor of ASDF, obsolete),
-          Sean Ross's
-          <a href="http://sean-ross.blogspot.com/search/label/mudballs"><tt>mudballs</tt></a>
-          (an attempt at making things cleaner than in ASDF, aborted),
-          Peter von Etter's
-          <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
-          (a much simpler system establishing a mapping between packages and files)
-          Alexander Kahl's
-          <a href="http://www.cliki.net/evol"><tt>evol</tt></a>
-          (a reimplementation of the GNU autotools stack in Lisp, abandoned),
-          and probably more.
-          However, none of these systems seems to ever have had the traction of ASDF.
+          beside helping with our
+          <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=TODO">TODO list</a>,
+          you might be interested in other build systems for Common-Lisp:
+          <ul>
+            <li>Alastair Bridgewater's small and simpler one-package-per-file
+              <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a>
+              (similar to <tt>faslpath</tt> below,
+              also reimplemented as the ASDF extension
+              <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-package-system.git"
+                 ><tt>asdf-package-system</tt></a>).
+            </li>
+            <li>Fran&ccedil;ois-Ren&eacute; Rideau's
+              <a href="http://common-lisp.net/project/xcvb/"><tt>XCVB</tt></a>
+              (trying to build object and image files deterministically and in parallel,
+              but not actively maintained since 2012).
+            </li>
+            <li>Drew McDermott's
+              <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
+              (the polar opposite, trying to maintain coherence
+              of the current Lisp image at a fine grain).
+            </li>
+            <li>Dmitriy Ivanov's
+              <a href="http://lisp.ystok.ru/asdlite/"><tt>ASDlite</tt></a>
+              (a somewhat improved incompatible variant of ASDF 1, less featureful than ASDF 3),
+            </li>
+            <li>Mark Kantrowitz's
+              <a href="http://www.cliki.net/mk-defsystem"><tt>mk-defsystem</tt></a>
+              (free software successor of the old proprietary DEFSYSTEM's
+              and predecessor of ASDF, obsolete),
+            </li>
+            <li>Sean Ross's
+              <a href="http://sean-ross.blogspot.com/search/label/mudballs"><tt>mudballs</tt></a>
+              (an attempt at making things cleaner than in ASDF 2, aborted),
+            </li>
+            <li>Peter von Etter's
+              <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
+              (a much simpler system establishing a mapping between packages and files,
+              abandonned but see <tt>asdf-package-system</tt> and <tt>quick-build</tt> above).
+            </li>
+            <li>Alexander Kahl's
+              <a href="http://www.cliki.net/evol"><tt>evol</tt></a>
+              (a reimplementation in Lisp of the GNU autotools stack, abandoned),
+            </li>
+          </ul>
+          There are probably more.
+          However, none of these systems seems to ever have had the traction of ASDF,
+          probably because none was technically superior enough (when at all)
+          to compensate for the first mover advantage.
         </p>
-        <a id="implementations"></a>
         <h3>Supported Implementations</h3>
         <p>ASDF 3 now supports all CL implementations
           that seem to have any current user base, and then some.
@@ -181,10 +195,11 @@
           we provide a script that can install ASDF 3
           where your implementation goes looking for it
           when you <tt>require</tt> it.
-          Alternatively, if the implementation provides ASDF 2 or 3,
+          Alternatively, if the implementation provides ASDF 2 or an older ASDF 3,
           you can download, install and configure a more recent ASDF 3,
           and use <tt>(asdf:load-system :asdf)</tt> to upgrade it.
-          You should always upgrade immediately after the <tt>require</tt>,
+          Beware: when upgrading from ASDF 2, you should always do it
+          immediately after the <tt>require</tt>,
           and before you use ASDF for anything else
           (ASDF 3 does that automatically).
         </p>
@@ -397,7 +412,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
             and publishes ASDF 3, pre-released as 2.27 in February 2013,
             and released as 3.0.1 in May 2013.
             It now includes both the traditional <tt>asdf/defsystem</tt>
-            and a formalized portability library <tt>uiop</tt> (née <tt>asdf/driver</tt>).
+            and a formalized portability library <tt>uiop</tt> (n&eacute;e <tt>asdf/driver</tt>).
             <tt>asdf/defsystem</tt> is a backward-compatible reimplementation of ASDF
             with correct timestamp propagation based on a consistent dependency model,
             and featuring support for bundle output, deferred warnings check, and more.
