@@ -163,79 +163,8 @@ It must never be modified, though only good implementations will even enforce th
     (with-safe-io-syntax (:package package)
       (read-from-string string eof-error-p eof-value :start start :end end :preserve-whitespace preserve-whitespace))))
 
-;;; Output to a stream or string, FORMAT-style
+;;; Output helpers
 (with-upgradability ()
-  (defun call-with-output (output function)
-    "Calls FUNCTION with an actual stream argument,
-behaving like FORMAT with respect to how stream designators are interpreted:
-If OUTPUT is a stream, use it as the stream.
-If OUTPUT is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
-If OUTPUT is T, use *STANDARD-OUTPUT* as the stream.
-If OUTPUT is a string with a fill-pointer, use it as a string-output-stream.
-Otherwise, signal an error."
-    (etypecase output
-      (null
-       (with-output-to-string (stream) (funcall function stream)))
-      ((eql t)
-       (funcall function *standard-output*))
-      (stream
-       (funcall function output))
-      (string
-       (assert (fill-pointer output))
-       (with-output-to-string (stream output) (funcall function stream)))))
-
-  (defmacro with-output ((output-var &optional (value output-var)) &body body)
-    "Bind OUTPUT-VAR to an output stream, coercing VALUE (default: previous binding of OUTPUT-VAR)
-as per FORMAT, and evaluate BODY within the scope of this binding."
-    `(call-with-output ,value #'(lambda (,output-var) ,@body)))
-
-  (defun output-string (string &optional output)
-    "If the desired OUTPUT is not NIL, print the string to the output; otherwise return the string"
-    (if output
-        (with-output (output) (princ string output))
-        string)))
-
-
-;;; Input helpers
-(with-upgradability ()
-  (defun call-with-input (input function)
-    "Calls FUNCTION with an actual stream argument, interpreting
-stream designators like READ, but also coercing strings to STRING-INPUT-STREAM.
-If INPUT is a STREAM, use it as the stream.
-If INPUT is NIL, use a *STANDARD-INPUT* as the stream.
-If INPUT is T, use *TERMINAL-IO* as the stream.
-As an extension, if INPUT is a string, use it as a string-input-stream.
-Otherwise, signal an error."
-    (etypecase input
-      (null (funcall function *standard-input*))
-      ((eql t) (funcall function *terminal-io*))
-      (stream (funcall function input))
-      (string (with-input-from-string (stream input) (funcall function stream)))))
-
-  (defmacro with-input ((input-var &optional (value input-var)) &body body)
-    "Bind INPUT-VAR to an input stream, coercing VALUE (default: previous binding of INPUT-VAR)
-as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
-    `(call-with-input ,value #'(lambda (,input-var) ,@body)))
-
-  (defun call-with-input-file (pathname thunk
-                               &key
-                                 (element-type *default-stream-element-type*)
-                                 (external-format *utf-8-external-format*)
-                                 (if-does-not-exist :error))
-    "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
-Other keys are accepted but discarded."
-    (with-open-file (s pathname :direction :input
-                                :element-type element-type
-                                :external-format external-format
-                                :if-does-not-exist if-does-not-exist)
-      (funcall thunk s)))
-
-  (defmacro with-input-file ((var pathname &rest keys
-                              &key element-type external-format if-does-not-exist)
-                             &body body)
-    (declare (ignore element-type external-format if-does-not-exist))
-    `(call-with-input-file ,pathname #'(lambda (,var) ,@body) ,@keys))
-
   (defun call-with-output-file (pathname thunk
                                 &key
                                   (element-type *default-stream-element-type*)
@@ -255,7 +184,87 @@ Other keys are accepted but discarded."
                                &key element-type external-format if-exists if-does-not-exist)
                               &body body)
     (declare (ignore element-type external-format if-exists if-does-not-exist))
-    `(call-with-output-file ,pathname #'(lambda (,var) ,@body) ,@keys)))
+    `(call-with-output-file ,pathname #'(lambda (,var) ,@body) ,@keys))
+
+  (defun call-with-output (output function &key keys)
+    "Calls FUNCTION with an actual stream argument,
+behaving like FORMAT with respect to how stream designators are interpreted:
+If OUTPUT is a STREAM, use it as the stream.
+If OUTPUT is NIL, use a STRING-OUTPUT-STREAM as the stream, and return the resulting string.
+If OUTPUT is T, use *STANDARD-OUTPUT* as the stream.
+If OUTPUT is a STRING with a fill-pointer, use it as a string-output-stream.
+If OUTPUT is a PATHNAME, open the file and write to it, passing KEYS to WITH-OUTPUT-FILE
+-- this latter as an extension since ASDF 3.1.
+Otherwise, signal an error."
+    (etypecase output
+      (null
+       (with-output-to-string (stream) (funcall function stream)))
+      ((eql t)
+       (funcall function *standard-output*))
+      (stream
+       (funcall function output))
+      (string
+       (assert (fill-pointer output))
+       (with-output-to-string (stream output) (funcall function stream)))
+      (pathname
+       (apply 'call-with-output-file output function keys))))
+
+  (defmacro with-output ((output-var &optional (value output-var)) &body body)
+    "Bind OUTPUT-VAR to an output stream, coercing VALUE (default: previous binding of OUTPUT-VAR)
+as per FORMAT, and evaluate BODY within the scope of this binding."
+    `(call-with-output ,value #'(lambda (,output-var) ,@body)))
+
+  (defun output-string (string &optional output)
+    "If the desired OUTPUT is not NIL, print the string to the output; otherwise return the string"
+    (if output
+        (with-output (output) (princ string output))
+        string)))
+
+
+;;; Input helpers
+(with-upgradability ()
+  (defun call-with-input-file (pathname thunk
+                               &key
+                                 (element-type *default-stream-element-type*)
+                                 (external-format *utf-8-external-format*)
+                                 (if-does-not-exist :error))
+    "Open FILE for input with given recognizes options, call THUNK with the resulting stream.
+Other keys are accepted but discarded."
+    (with-open-file (s pathname :direction :input
+                                :element-type element-type
+                                :external-format external-format
+                                :if-does-not-exist if-does-not-exist)
+      (funcall thunk s)))
+
+  (defmacro with-input-file ((var pathname &rest keys
+                              &key element-type external-format if-does-not-exist)
+                             &body body)
+    (declare (ignore element-type external-format if-does-not-exist))
+    `(call-with-input-file ,pathname #'(lambda (,var) ,@body) ,@keys))
+
+  (defun call-with-input (input function &key keys)
+    "Calls FUNCTION with an actual stream argument, interpreting
+stream designators like READ, but also coercing strings to STRING-INPUT-STREAM,
+and PATHNAME to FILE-STREAM.
+If INPUT is a STREAM, use it as the stream.
+If INPUT is NIL, use a *STANDARD-INPUT* as the stream.
+If INPUT is T, use *TERMINAL-IO* as the stream.
+If INPUT is a STRING, use it as a string-input-stream.
+If INPUT is a PATHNAME, open it, passing KEYS to WITH-INPUT-FILE
+-- the latter is an extension since ASDF 3.1.
+Otherwise, signal an error."
+    (etypecase input
+      (null (funcall function *standard-input*))
+      ((eql t) (funcall function *terminal-io*))
+      (stream (funcall function input))
+      (string (with-input-from-string (stream input) (funcall function stream)))
+      (pathname (apply 'call-with-input-file input function keys))))
+
+  (defmacro with-input ((input-var &optional (value input-var)) &body body)
+    "Bind INPUT-VAR to an input stream, coercing VALUE (default: previous binding of INPUT-VAR)
+as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
+    `(call-with-input ,value #'(lambda (,input-var) ,@body))))
+
 
 ;;; Null device
 (with-upgradability ()
