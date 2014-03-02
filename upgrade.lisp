@@ -80,50 +80,38 @@ previously-loaded version of ASDF."
 
 (when-upgrading ()
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
+	  ;; NB: it's too late to do anything about functions in UIOP!
+	  ;; If you introduce some critically incompatibility there, you must change name.
           '(#:component-relative-pathname #:component-parent-pathname ;; component
             #:source-file-type
             #:find-system #:system-source-file #:system-relative-pathname ;; system
-             #:find-component ;; find-component
-             #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
-             #:component-depends-on #:operation-done-p #:component-depends-on
-             #:traverse ;; backward-interface
-             #:operate  ;; operate
-             #:parse-component-form ;; defsystem
-             #:apply-output-translations ;; output-translations
-             #:process-output-translations-directive
-             #:inherit-source-registry #:process-source-registry ;; source-registry
-             #:process-source-registry-directive
-             #:trivial-system-p ;; bundle
-             ;; NB: it's too late to do anything about uiop functions!
-             ))
-        #+sbcl
-        (redefined-classes
-          ;; redefining causes interim circularities with the old ASDF during upgrade, and SBCL borks
-          '(#:bundle-op))
-        (uninterned-symbols
-          '(#:*asdf-revision* #:around #:asdf-method-combination
-            #:split #:make-collector #:do-dep #:do-one-dep
-            #:component-self-dependencies
-            #:resolve-relative-location-component #:resolve-absolute-location-component
-            #:output-files-for-system-and-operation))) ; obsolete ASDF-BINARY-LOCATION function
+	    #:find-component ;; find-component
+	    #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
+	    #:component-depends-on #:operation-done-p #:component-depends-on
+	    #:traverse ;; backward-interface
+	    #:operate  ;; operate
+	    #:parse-component-form ;; defsystem
+	    #:apply-output-translations ;; output-translations
+	    #:process-output-translations-directive
+	    #:inherit-source-registry #:process-source-registry ;; source-registry
+	    #:process-source-registry-directive
+	    #:trivial-system-p)) ;; bundle
+	(redefined-classes
+          ;; redefining the classes causes interim circularities
+	  ;; with the old ASDF during upgrade, and many implementations bork
+          '((#:compile-concatenated-source-op (#:operation) ()))))
     (loop :for name :in redefined-functions
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
               ;; On CLISP we seem to be unable to fmakunbound and define a function in the same fasl. Sigh.
               #-clisp (fmakunbound sym)))
-    (loop :with asdf = (find-package :asdf)
-          :for name :in (append #+sbcl redefined-classes uninterned-symbols)
-          :for sym = (find-symbol* name :asdf nil)
-          :for base-pkg = (and sym (symbol-package sym)) :do
-            (when sym
-              (cond
-                ((or (eq base-pkg asdf) (not base-pkg))
-                 (unintern* sym asdf)
-                 (intern* sym asdf))
-                (t
-                 (unintern* sym base-pkg)
-                 (let ((new (intern* sym base-pkg)))
-                   (shadowing-import new asdf))))))))
+    (labels ((asym (x) (multiple-value-bind (s p) (if (consp x) (values (car x) (cadr x)) (values x :asdf))
+			 (find-symbol* s p nil)))
+	     (asyms (l) (mapcar #'asym l)))
+      (loop* :for (name superclasses slots) :in redefined-classes
+	     :for sym = (find-symbol* name :asdf nil)
+	     :when (and sym (find-class sym))
+	     :do (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))))))
 
 
 ;;; Self-upgrade functions
