@@ -258,7 +258,9 @@ if we are not called from a directly executable image."
       (rest arguments)))
 
   (defun argv0 ()
-    ;; Not available on ABCL, Genera, MCL.
+    "On supported implementations (most that matter), return a string that for the name with which
+the program was invoked, i.e. argv[0] in C. On other implementations, return NIL."
+    ;; NB: not currently available on ABCL, Corman, Genera, MCL, MKCL
     (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
 	(first (raw-command-line-arguments))
 	#+ecl (si:argv 0)))

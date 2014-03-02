@@ -9,14 +9,17 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
     subclasses of OPERATION implicitly propagate DOWNWARD and SIDEWAY.
     Failure to explicitly inherit from own of the explicitly propagating
     or non-propagating classes will result in a WARNING for now.
-  * portability: much improved support for the latest GCL.
-    Fixes for ABCL, CLISP, ECL, LispWorks, SBCL/Windows, XCL.
+  * portability is much improved, with support for the latest GCL, and
+    fixes for ABCL, CLISP, ECL, LispWorks, SBCL, XCL, etc.
+  * bundle support was refactored; ECL support is fixed;
+    image-op added to create heap images for use with e.g. cl-launch.
   * robustness: Test improvements. Added missing dependencies in asdf.asd(!).
     Fixes to version-satisfies (thanks to stassats), to the file-stamp cache.
     Fixes regression from 3.0.2.12 whereby ASDF failed to avoid downgrading.
     Many cleanups. Many explanatory updates to source code comments.
-  * run-program tweaked again on Windows;
-    punting on trying to ensure no final space is ever echo'ed by CMD.EXE " ".
+  * run-program tweaked again, notably on Windows, on CLISP, and
+    on implementations without a native run-program. On Windows, we
+    punt on trying to ensure no final space is ever echo'ed by CMD.EXE " ".
   * provide both "asdf" and "ASDF" to play nicer with various Lisps.
   * upgrading from a sufficiently forward-compatible version (currently: 2.33)
     will be less disruptive of ASDF uses and enhancements in the current image:
@@ -30,7 +33,7 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
     in over a year since initial ASDF 3.0 pre-release (i.e. version 2.27).
   * Documentation updated. TODO updated.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Fri, 28 Feb 2014 22:01:06 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 02 Mar 2014 01:09:06 -0500
 
 cl-asdf (2:3.0.3-1) unstable; urgency=low
 

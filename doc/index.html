@@ -149,17 +149,9 @@
           and you can simply <tt>(require "asdf")</tt>.
           (All of them but CLISP also accept
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
-          All of these implementations provide at least ASDF 2,
-          and a few of them aready provide ASDF 3
-          (<tt>abcl</tt>, <tt>allegro</tt>, <tt>ccl</tt>, <tt>clisp</tt>, <tt>cmucl</tt>,
-          <tt>ecl</tt>, <tt>sbcl</tt>).
-          Hopefully soon all will follow suit;
-          but in the meantime, you can download ASDF 3,
-          and use <tt>(asdf:load-system :asdf)</tt>
-          to upgrade to the latest ASDF from a properly configured ASDF 2,
-          which you should do before you use ASDF for anything else.
-        </p><p>
-          A few implementations don't provide ASDF yet,
+          Most of these implementations provide ASDF3,
+          a few only provide ASDF2.
+          Some implementations don't provide ASDF yet,
           but have announced they will in their next release.
           As for remaining implementations,
           they are obsolete and/or mostly unmaintained;
@@ -184,6 +176,18 @@
             <td align="left"><tt>scl</tt></td>
             <td align="left"><tt>cormanlisp genera</tt></td></tr>
         </table>
+        <p>
+          To deal with an implementation that doesn't yet provide ASDF 3,
+          we provide a script that can install ASDF 3
+          where your implementation goes looking for it
+          when you <tt>require</tt> it.
+          Alternatively, if the implementation provides ASDF 2 or 3,
+          you can download, install and configure a more recent ASDF 3,
+          and use <tt>(asdf:load-system :asdf)</tt> to upgrade it.
+          You should always upgrade immediately after the <tt>require</tt>,
+          and before you use ASDF for anything else
+          (ASDF 3 does that automatically).
+        </p>
         <!-- Note to self:
              The maintainers of the following implementations follow asdf-announce:
              clisp	(sds)
@@ -383,7 +387,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
           </dd>
           <dt>Since July 2013</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau has resigned as maintainer
-            after releasing ASDF 3.0.1.
+            after releasing ASDF 3.0.1, but remains an active developer.
             Robert P. Goldman is interim maintainer until someone more gifted,
             charming, dedicated, and better-looking can be secured to fill the role.
           </dd>
@@ -440,9 +444,9 @@ Peter Graves <gnooth@gmail.com> (XCL).
         <a class="nav" href="http://www.catb.org/hacker-emblem/" title="hacker"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/hacker.png" width="80" height="15" title="hacker emblem" alt="hacker button" /></a>
         <a class="nav" href="http://www.lisp.org/" title="Association of Lisp Users"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lambda-lisp.png" width="80" height="15" title="ALU emblem" alt="ALU button" /></a>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
-        <p><span class="copyright"Copyright &copy; 2001-2013 Daniel Barlow and contributors</span></p>
+        <p><span class="copyright"Copyright &copy; 2001-2014 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2013-10-22</div>
+        <div id="timestamp">Last updated 2014-03-02</div>
     </div>
   </body>
 </html>
