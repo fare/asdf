@@ -260,10 +260,15 @@ if we are not called from a directly executable image."
   (defun argv0 ()
     "On supported implementations (most that matter), return a string that for the name with which
 the program was invoked, i.e. argv[0] in C. On other implementations, return NIL."
-    ;; NB: not currently available on ABCL, Corman, Genera, MCL, MKCL
-    (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
-	(first (raw-command-line-arguments))
-	#+ecl (si:argv 0)))
+    (cond
+      ((eq *image-dumped-p* :executable) ; yes, this ARGV0 is our argv0 !
+       ;; NB: not currently available on ABCL, Corman, Genera, MCL, MKCL
+       (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
+           (first (raw-command-line-arguments))
+           #+ecl (si:argv 0)))
+      (t ;; argv[0] is the name of the interpreter.
+       ;; The wrapper script can export __CL_ARGV0. cl-launch does as of 4.0.1.8.
+       (getenvp "__CL_ARGV0"))))
 
   (defun setup-command-line-arguments ()
     (setf *command-line-arguments* (command-line-arguments)))

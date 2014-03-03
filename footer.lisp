@@ -7,9 +7,8 @@
 (in-package :asdf/footer)
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
-
+#+(or abcl clisp clozure cmu ecl mkcl sbcl)
 (with-upgradability ()
-  #+(or abcl clisp clozure cmu ecl mkcl sbcl)
   (if-let (x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom nil)))
     (eval `(pushnew 'module-provide-asdf
                     #+abcl sys::*module-provider-functions*
@@ -37,7 +36,7 @@
                           (and (first l) (register-pre-built-system (coerce-name name)))
                           (values-list l))))))))
 
-#+cmu
+#+cmu ;; Hook into the CMUCL herald.
 (with-upgradability ()
   (defun herald-asdf (stream)
     (format stream "    ASDF ~A" (asdf-version)))
@@ -52,7 +51,8 @@
 
   (dolist (f '(:asdf :asdf2 :asdf3 :asdf3.1 :asdf-package-system)) (pushnew f *features*))
 
-  (provide "asdf") (provide "ASDF") ;; do it both ways to satisfy more people.
+  ;; Provide both lowercase and uppercase, to satisfy more people, especially LispWorks users.
+  (provide "asdf") (provide "ASDF")
 
   (cleanup-upgraded-asdf))
 
