@@ -511,11 +511,11 @@ If a string, repeatedly read and evaluate from it, returning the last values."
 (with-upgradability ()
   (defun println (x &optional (stream *standard-output*))
     "Variant of PRINC that also calls TERPRI afterwards"
-    (princ x stream) (terpri stream) (values))
+    (princ x stream) (terpri stream) (finish-output stream) (values))
 
   (defun writeln (x &rest keys &key (stream *standard-output*) &allow-other-keys)
     "Variant of WRITE that also calls TERPRI afterwards"
-    (apply 'write x keys) (terpri stream) (values)))
+    (apply 'write x keys) (terpri stream) (finish-output stream) (values)))
 
 
 ;;; Using temporary files
