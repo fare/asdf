@@ -258,8 +258,9 @@ if we are not called from a directly executable image."
       (rest arguments)))
 
   (defun argv0 ()
-    "On supported implementations (most that matter), return a string that for the name with which
-the program was invoked, i.e. argv[0] in C. On other implementations, return NIL."
+    "On supported implementations (most that matter), or when invoked by a proper wrapper script,
+return a string that for the name with which the program was invoked, i.e. argv[0] in C.
+Otherwise, return NIL."
     (cond
       ((eq *image-dumped-p* :executable) ; yes, this ARGV0 is our argv0 !
        ;; NB: not currently available on ABCL, Corman, Genera, MCL, MKCL
@@ -280,7 +281,29 @@ the program was invoked, i.e. argv[0] in C. On other implementations, return NIL
                           (entry-point *image-entry-point*)
                           (if-already-restored '(cerror "RUN RESTORE-IMAGE ANYWAY")))
     "From a freshly restarted Lisp image, restore the saved Lisp environment
-by setting appropriate variables, running various hooks, and calling any specified entry point."
+by setting appropriate variables, running various hooks, and calling any specified entry point.
+
+If the image has already been restored or is already being restored, as per *IMAGE-RESTORED-P*,
+call the IF-ALREADY-RESTORED error handler (by default, a continuable error), and do return
+immediately to the surrounding restore process if allowed to continue.
+
+Then, comes the restore process itself:
+First, call each function in the RESTORE-HOOK,
+in the order they were registered with REGISTER-RESTORE-HOOK.
+Second, evaluate the prelude, which is often Lisp text that is read,
+as per EVAL-INPUT.
+Third, call the ENTRY-POINT function, if any is specified, with no argument.
+
+The restore process happens in a WITH-FATAL-CONDITION-HANDLER, so that if LISP-INTERACTION is NIL,
+any unhandled error leads to a backtrace and an exit with an error status.
+If LISP-INTERACTION is NIL, the process also exits when no error occurs:
+if neither restart nor entry function is provided, the program will exit with status 0 (success);
+if a function was provided, the program will exit after the function returns (if it returns),
+with status 0 if and only if the primary return value of result is generalized boolean true,
+and with status 1 if this value is NIL.
+
+If LISP-INTERACTION is true, unhandled errors will take you to the debugger, and the result
+of the function will be returned rather than interpreted as a boolean designating an exit code."
     (when *image-restored-p*
       (if if-already-restored
           (call-function if-already-restored "Image already ~:[being ~;~]restored"
@@ -312,7 +335,15 @@ by setting appropriate variables, running various hooks, and calling any specifi
                                 #+clozure prepend-symbols #+clozure (purify t)
                                 #+sbcl compression
                                 #+(and sbcl windows) application-type)
-    "Dump an image of the current Lisp environment at pathname FILENAME, with various options"
+    "Dump an image of the current Lisp environment at pathname FILENAME, with various options.
+
+First, finalize the image, by evaluating the POSTLUDE as per EVAL-INPUT, then calling each of
+ the functions in DUMP-HOOK, in reverse order of registration by REGISTER-DUMP-HOOK.
+
+If EXECUTABLE is true, create an standalone executable program that calls RESTORE-IMAGE on startup.
+
+Pass various implementation-defined options, such as PREPEND-SYMBOLS and PURITY on CCL,
+or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     ;; Note: at least SBCL saves only global values of variables in the heap image,
     ;; so make sure things you want to dump are NOT just local bindings shadowing the global values.
     (declare (ignorable filename output-name executable))
