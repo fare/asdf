@@ -102,7 +102,7 @@
                (system-source-directory sys)
                :want-absolute t :want-directory t))
          (components
-           (asdf::required-components
+           (required-components
             sys :other-systems nil
             :goal-operation 'load-op
             :keep-operation 'load-op
