@@ -454,6 +454,8 @@ itself.")) ;; operation on a system and its dependencies
 
 #+ecl
 (with-upgradability ()
+  (setf *load-system-operation* 'load-fasl-op)
+
   (defmethod perform ((o link-op) (c system))
     (let* ((object-files (input-files o c))
            (output (output-files o c))
