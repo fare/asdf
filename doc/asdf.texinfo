@@ -1728,8 +1728,9 @@ is forced not to be recompiled even if modified since last compilation,
 but other systems are not affected.
 If @var{force-not} is a list, then it specifies a list of systems that
 are forced not to be recompiled even if modified since last compilation.
-@var{force} takes precedences over @var{force-not};
-both of them apply to systems that are dependencies and were already compiled.
+@var{force-not} takes precedences over @var{force},
+as it should, really, but unhappily only since 3.1.1.
+Both apply to systems that are dependencies and were already compiled.
 
 To see what @code{operate} would do, you can use:
 @example

@@ -122,11 +122,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
                  (not (eq system (plan-system plan))))))))
 
   (defmethod action-forced-not-p (plan operation component)
-    (and
-     ;; Did the user ask us to not re-perform the action?
-     (action-override-p plan operation component 'plan-forced-not)
-     ;; Force takes precedence over force-not
-     (not (action-forced-p plan operation component))))
+    ;; Did the user ask us to not re-perform the action?
+    ;; NB: force-not takes precedence over force, as it should
+    (action-override-p plan operation component 'plan-forced-not))
 
   (defmethod action-forced-p ((plan null) (operation operation) (component component))
     nil)

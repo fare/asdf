@@ -10,6 +10,11 @@
 (assert file1)
 (assert file1-date)
 
+;; Check that force has some effect, but force-not takes precedence.
+(assert (traverse 'load-op 'test-force :force t))
+(assert (null (traverse 'load-op 'test-force :force-not t)))
+(assert (null (traverse 'load-op 'test-force :force t :force-not t)))
+
 ;; unforced, date should stay same
 (touch-file "test-force.asd" :timestamp date1)
 (touch-file "file1.lisp" :timestamp date1)
