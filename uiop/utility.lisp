@@ -380,6 +380,7 @@ and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
+      (hash-table (lambda (x) (gethash x fun)))
       (symbol (fdefinition fun))
       (cons (if (eq 'lambda (car fun))
                 (eval fun)

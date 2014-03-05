@@ -278,7 +278,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
           #+genera (setf *default-pathname-defaults* x)
           #+lispworks (hcl:change-directory x)
           #+mkcl (mk-ext:chdir x)
-          #+sbcl (symbol-call :sb-posix :chdir (sb-ext:native-namestring x))
+          #+sbcl (progn (require :sb-posix) (symbol-call :sb-posix :chdir (sb-ext:native-namestring x)))
           (error "chdir not supported on your implementation")))))
 
 
