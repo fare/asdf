@@ -19,6 +19,7 @@
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
    #:clear-defined-systems #:*defined-systems*
+   #:*immutable-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
 (in-package :asdf/find-system)
@@ -140,6 +141,7 @@ called with an object of type asdf:system."
     (let ((name (coerce-name system)))
       (flet ((try (f) (if-let ((x (funcall f name))) (return-from search-for-system-definition x))))
         (try 'find-system-if-being-defined)
+        (try 'sysdef-immutable-system-search)
         (map () #'try *system-definition-search-functions*)
         (try 'sysdef-preloaded-system-search))))
 
@@ -343,6 +345,25 @@ Going forward, we recommend new users should be using the source-registry.
                          old-version old-pathname version pathname))))
              nil))))) ;; only issue the warning the first time, but always return nil
 
+  (defvar *immutable-systems* nil
+    "An hash-set (equal hash-table mapping keys to T) of systems that are immutable,
+i.e. already loaded in memory and not to be refreshed from the filesystem.
+They will be treated specially by find-system, and passed as :force-not argument to make-plan.
+
+If you deliver an image with many systems precompiled, *and* do not want to check the filesystem
+for them every time a user loads an extension, what more risk a problematic upgrade or catastrophic
+downgrade, before you dump an image, use:
+   (setf asdf::*immutable-systems* (uiop:list-to-hash-set (asdf:already-loaded-systems)))")
+
+  (defun sysdef-immutable-system-search (requested)
+    (let ((name (coerce-name requested)))
+      (when (and *immutable-systems* (gethash name *immutable-systems*))
+        (or (cdr (system-registered-p requested))
+            (error 'formatted-system-definition-error
+                   :format-control "Requested system ~A is in the *immutable-systems* set, ~
+but not loaded in memory"
+                   :format-arguments (list name))))))
+
   (defun locate-system (name)
     "Given a system NAME designator, try to locate where to load the system from.
 Returns five values: FOUNDP FOUND-SYSTEM PATHNAME PREVIOUS PREVIOUS-TIME
@@ -386,6 +407,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
         (restart-case
             (multiple-value-bind (foundp found-system pathname previous previous-time)
                 (locate-system name)
+              (when (and found-system (eq found-system previous)
+                         (or (gethash name *systems-being-defined*)
+                             (and *immutable-systems* (gethash name *immutable-systems*))))
+                (return found-system))
               (assert (eq foundp (and (or found-system pathname previous) t)))
               (let ((previous-pathname (and previous (system-source-file previous)))
                     (system (or previous found-system)))

@@ -68,3 +68,9 @@
 (defsystem :test-asdf/bundle-2
   :depends-on (:test-asdf/bundle-1) :components ((:file "file2")))
 
+(defsystem :test-asdf/force
+  :depends-on (:test-asdf/force1)
+  :components ((:file "file3")))
+
+(defsystem :test-asdf/force1
+  :components ((:file "file1")))

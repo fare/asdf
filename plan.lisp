@@ -99,17 +99,26 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
   (defun normalize-forced-systems (x system)
     (etypecase x
-      ((member nil :all) x)
+      ((or (member nil :all) hash-table function) x)
       (cons (list-to-hash-set (mapcar #'coerce-name x)))
       ((eql t) (when system (list-to-hash-set (list (coerce-name system)))))))
 
+  (defun normalize-forced-not-systems (x system)
+    (let ((requested
+            (etypecase x
+              ((or (member nil :all) hash-table function) x)
+              (cons (list-to-hash-set (mapcar #'coerce-name x)))
+              ((eql t) (if system (let ((name (coerce-name system)))
+                                    #'(lambda (x) (not (equal x name))))
+                           t)))))
+      (if (and *immutable-systems* requested)
+          #'(lambda (x) (or (call-function requested x) (call-function *immutable-systems* x)))
+          (or *immutable-systems* requested))))
+
   (defun action-override-p (plan operation component override-accessor)
     (declare (ignore operation))
-    (let* ((override (funcall override-accessor plan)))
-      (and override
-           (if (typep override 'hash-table)
-               (gethash (coerce-name (component-system (find-component () component))) override)
-               t))))
+    (call-function (funcall override-accessor plan)
+                   (coerce-name (component-system (find-component () component)))))
 
   (defmethod action-forced-p (plan operation component)
     (and
@@ -260,11 +269,11 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (:documentation "Detect circular dependencies"))
 
   (defmethod initialize-instance :after ((plan plan-traversal)
-                                         &key (force () fp) (force-not () fnp) system
+                                         &key force force-not system
                                          &allow-other-keys)
     (with-slots (forced forced-not) plan
-      (when fp (setf forced (normalize-forced-systems force system)))
-      (when fnp (setf forced-not (normalize-forced-systems force-not system)))))
+      (setf forced (normalize-forced-systems force system))
+      (setf forced-not (normalize-forced-not-systems force-not system))))
 
   (defmethod (setf plan-action-status) (new-status (plan plan-traversal) (o operation) (c component))
     (setf (gethash (node-for o c) (plan-visited-actions plan)) new-status))
@@ -436,12 +445,12 @@ the action of OPERATION on COMPONENT in the PLAN"))
      (keep-component :initform t :initarg :keep-component :reader plan-keep-component)))
 
   (defmethod initialize-instance :after ((plan filtered-sequential-plan)
-                                         &key (force () fp) (force-not () fnp)
+                                         &key force force-not
                                            other-systems)
     (declare (ignore force force-not))
     (with-slots (forced forced-not action-filter system) plan
-      (unless fp (setf forced (normalize-forced-systems (if other-systems :all t) system)))
-      (unless fnp (setf forced-not (normalize-forced-systems (if other-systems nil :all) system)))
+      (setf forced (normalize-forced-systems (if other-systems :all t) system))
+      (setf forced-not (normalize-forced-not-systems (if other-systems nil t) system))
       (setf action-filter (ensure-function action-filter))))
 
   (defmethod action-valid-p ((plan filtered-sequential-plan) o c)

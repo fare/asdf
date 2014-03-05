@@ -1723,14 +1723,18 @@ If @var{force} is a list, then it specifies a list of systems that
 are forced to be recompiled even if not modified since last compilation.
 If @var{force-not} is @code{:all}, then all systems
 are forced not to be recompiled even if modified since last compilation.
-If @var{force-not} is @code{t}, then only the system being loaded
-is forced not to be recompiled even if modified since last compilation,
-but other systems are not affected.
+If @var{force-not} is @code{t}, then all systems but the system being loaded
+are forced not to be recompiled even if modified since last compilation
+(note: this was changed in ASDF 3.1.1).
 If @var{force-not} is a list, then it specifies a list of systems that
 are forced not to be recompiled even if modified since last compilation.
+
+Both @var{force} and @{force-not} apply to systems that are dependencies and were already compiled.
 @var{force-not} takes precedences over @var{force},
-as it should, really, but unhappily only since 3.1.1.
-Both apply to systems that are dependencies and were already compiled.
+as it should, really, but unhappily only since ASDF 3.1.1.
+Moreover, systems the name of which is member of the set @var{*immutable-systems*}
+(represented as an equal hash-table) are always considered @var{forced-not}, and
+even their @file{.asd} is not refreshed from the filesystem.
 
 To see what @code{operate} would do, you can use:
 @example
@@ -4290,8 +4294,8 @@ with fundamental issues in the original model being fixed.
 Timestamps were not propagated at all, and now are.
 The internal model of how actions depend on each other
 is now both consistent and complete.
-The :version and
-the :force (system1 .. systemN) feature have been fixed.
+The @code{:version} and
+the @code{:force (system1 .. systemN)} feature have been fixed.
 
 @item
 Performance has been notably improved for large systems

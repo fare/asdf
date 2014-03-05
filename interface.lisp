@@ -103,7 +103,7 @@
    #:*compile-file-warnings-behaviour*
    #:*compile-file-failure-behaviour*
    #:*resolve-symlinks*
-   #:*load-system-operation*
+   #:*load-system-operation* #:*immutable-systems*
    #:*asdf-verbose* ;; unused. For backward-compatibility only.
    #:*verbose-out*
 

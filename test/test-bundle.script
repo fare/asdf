@@ -5,9 +5,9 @@
 ;;; Check to see if the bundle functionality is doing something.
 ;;;---------------------------------------------------------------------------
 
-(asdf:initialize-source-registry '(:source-registry :ignore-inherited-configuration))
-(asdf:clear-system :test-asdf/bundle-1)
-(asdf:clear-system :test-asdf/bundle-2)
+(initialize-source-registry '(:source-registry :ignore-inherited-configuration))
+(clear-system :test-asdf/bundle-1)
+(clear-system :test-asdf/bundle-2)
 (when (find-package :test-package) (delete-package :test-package))
 
 #+(and darwin ecl)
