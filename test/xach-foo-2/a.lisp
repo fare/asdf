@@ -7,6 +7,3 @@
 (in-package :second-version)
 
 (defparameter loaded t)
-
-
-

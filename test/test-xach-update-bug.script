@@ -40,6 +40,11 @@
  (subpathname *test-directory* "xach-foo-2/b.lisp")
  (component-pathname (find-component foo2 "b")))
 (DBG "load foo yet again. It should see the pathname has changed and load it anew")
-(load-system foo)
+;;; ECL bug: this fails if we use load-fasl-op instead of load-op:
+;;; the test-asdf-location-change.fasb is linked and loaded,
+;;; but that fails to create the :second-version package;
+;;; loading the same .fasb in another ecl works fine, and defined (second-version:wtf). WTF?
+;;; Test it by replacing load-op below by load-fasl-op, and trace load* and other functions.
+(operate 'load-op foo)
 (assert (symbol-value (find-symbol* :loaded :second-version)))
 (assert-equal 42 (symbol-call :second-version :wtf))

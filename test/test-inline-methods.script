@@ -7,13 +7,15 @@
   ((:file "file1"
     :perform (load-op :before (o c)
                       (incf *a*)
-                      (format t "Method run before ~A~%" (action-description o c))))
+                      (format t "Method run before ~A - *a* = ~S~%~%" (action-description o c) *a*)))
    (:file "file2" :depends-on ("file1")
     :perform (load-op (o c)
                       (incf *a*)
-                      (format t "Method run for ~A~%" (action-description o c))
+                      (format t "Method run for ~A - *a* = ~S~%" (action-description o c) *a*)
                       (call-next-method)))))
 
-(load-system :foo)
+;;; Note: not calling load-system, because on ECL that would be a load-fasl-op,
+;;; and at most the file load-op happen, whereas the second .o is linked and never loaded.
+(operate 'load-op :foo)
 
 (assert-equal *a* 2)
