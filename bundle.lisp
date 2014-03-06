@@ -454,8 +454,10 @@ itself.")) ;; operation on a system and its dependencies
 
 #+ecl
 (with-upgradability ()
-  (unless (use-ecl-byte-compiler-p)
-    (setf *load-system-operation* 'load-fasl-op))
+  ;; I think that Juanjo intended for this to be,
+  ;; but it breaks 4 tests in what looks like to be a compiler bug, so I'll punt for now.
+  ;;(unless (use-ecl-byte-compiler-p)
+  ;;  (setf *load-system-operation* 'load-fasl-op))
 
   (defmethod perform ((o link-op) (c system))
     (let* ((object-files (input-files o c))
