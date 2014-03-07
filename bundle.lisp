@@ -240,9 +240,9 @@ itself.")) ;; operation on a system and its dependencies
     ;; your component-depends-on method better gathered the correct dependencies in the correct order.
     (while-collecting (collect)
       (map-direct-dependencies
-       o c #'(lambda (sub-o sub-c)
-               (loop :for f :in (funcall key sub-o sub-c)
-                     :when (funcall test f) :do (collect f))))))
+       t o c #'(lambda (sub-o sub-c)
+                 (loop :for f :in (funcall key sub-o sub-c)
+                       :when (funcall test f) :do (collect f))))))
 
   (defmethod input-files ((o gather-op) (c system))
     (unless (eq (bundle-type o) :no-output-file)
@@ -368,7 +368,7 @@ itself.")) ;; operation on a system and its dependencies
                                                        :keep-operation 'load-op))
                  (while-collecting (x) ;; resolve the sideway-dependencies of s
                    (map-direct-dependencies
-                    'load-op s
+                    t 'load-op s
                     #'(lambda (o c)
                         (when (and (typep o 'load-op) (typep c 'system))
                           (x c)))))))

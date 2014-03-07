@@ -89,6 +89,7 @@ previously-loaded version of ASDF."
 	    #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
 	    #:component-depends-on #:operation-done-p #:component-depends-on
 	    #:traverse ;; backward-interface
+            #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies ;; plan
 	    #:operate  ;; operate
 	    #:parse-component-form ;; defsystem
 	    #:apply-output-translations ;; output-translations

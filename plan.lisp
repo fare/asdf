@@ -9,7 +9,7 @@
    :asdf/operation :asdf/action :asdf/lisp-action)
   (:export
    #:component-operation-time #:mark-operation-done
-   #:plan-traversal #:sequential-plan #:*default-plan-class*
+   #:plan #:plan-traversal #:sequential-plan #:*default-plan-class*
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions
    #:node-for #:needed-in-image-p
@@ -17,7 +17,7 @@
    #:plan-record-dependency
    #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
    #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies
-   #:visit-dependencies #:compute-action-stamp #:traverse-action
+   #:compute-action-stamp #:traverse-action
    #:circular-dependency #:circular-dependency-actions
    #:call-while-visiting-action #:while-visiting-action
    #:make-plan #:plan-actions #:perform-plan #:plan-operates-on-p
@@ -32,7 +32,8 @@
 
 ;;;; Generic plan traversal class
 (with-upgradability ()
-  (defclass plan-traversal ()
+  (defclass plan () ())
+  (defclass plan-traversal (plan)
     ((system :initform nil :initarg :system :accessor plan-system)
      (forced :initform nil :initarg :force :accessor plan-forced)
      (forced-not :initform nil :initarg :force-not :accessor plan-forced-not)
@@ -146,12 +147,11 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (with-upgradability ()
   (defgeneric action-valid-p (plan operation component)
     (:documentation "Is this action valid to include amongst dependencies?"))
-  (defmethod action-valid-p ((plan plan-traversal) (o operation) (c component))
+  (defmethod action-valid-p ((plan t) (o operation) (c component))
     (if-let (it (component-if-feature c)) (featurep it) t))
   (defmethod action-valid-p ((plan t) (o null) (c t)) nil)
   (defmethod action-valid-p ((plan t) (o t) (c null)) nil)
   (defmethod action-valid-p ((plan null) (o operation) (c component)) t))
-
 
 ;;;; Is the action needed in this image?
 (with-upgradability ()
@@ -169,38 +169,30 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
 ;;;; Visiting dependencies of an action and computing action stamps
 (with-upgradability ()
-  (defun map-direct-dependencies (operation component fun)
+  (defun (map-direct-dependencies) (plan operation component fun)
     (loop* :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
            :for dep-o = (find-operation operation dep-o-spec)
            :when dep-o
            :do (loop :for dep-c-spec :in dep-c-specs
                      :for dep-c = (and dep-c-spec (resolve-dependency-spec component dep-c-spec))
-                     :when dep-c
+                     :when (and dep-c (action-valid-p plan dep-o dep-c))
                        :do (funcall fun dep-o dep-c))))
 
-  (defun reduce-direct-dependencies (operation component combinator seed)
+  (defun (reduce-direct-dependencies) (plan operation component combinator seed)
     (map-direct-dependencies
-     operation component
+     plan operation component
      #'(lambda (dep-o dep-c)
          (setf seed (funcall combinator dep-o dep-c seed))))
     seed)
 
-  (defun direct-dependencies (operation component)
-    (reduce-direct-dependencies operation component #'acons nil))
+  (defun (direct-dependencies) (plan operation component)
+    (reduce-direct-dependencies plan operation component #'acons nil))
 
   ;; In a distant future, get-file-stamp, component-operation-time and latest-stamp
   ;; shall also be parametrized by the plan, or by a second model object,
   ;; so they need not refer to the state of the filesystem,
   ;; and the stamps could be cryptographic checksums rather than timestamps.
-  ;; Such a change remarkably would only affect VISIT-DEPENDENCIES and COMPUTE-ACTION-STAMP.
-
-  (defun visit-dependencies (plan operation component dependency-stamper &aux stamp)
-    (map-direct-dependencies
-     operation component
-     #'(lambda (dep-o dep-c)
-         (when (action-valid-p plan dep-o dep-c)
-           (latest-stamp-f stamp (funcall dependency-stamper dep-o dep-c)))))
-    stamp)
+  ;; Such a change remarkably would only affect COMPUTE-ACTION-STAMP.
 
   (defmethod compute-action-stamp (plan (o operation) (c component) &key just-done)
     ;; Given an action, figure out at what time in the past it has been done,
@@ -216,10 +208,13 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (nest
      (block ())
      (let ((dep-stamp ; collect timestamp from dependencies (or T if forced or out-of-date)
-             (visit-dependencies plan o c #'(lambda (o c)
-                                              (if-let (it (plan-action-status plan o c))
-                                                (action-stamp it)
-                                                t)))))
+             (reduce-direct-dependencies
+              plan o c
+              #'(lambda (o c stamp)
+                  (if-let (it (plan-action-status plan o c))
+                    (latest-stamp stamp (action-stamp it))
+                    t))
+              nil)))
        ;; out-of-date dependency: don't bother expensively querying the filesystem
        (when (and (eq dep-stamp t) (not just-done)) (return (values t nil))))
      ;; collect timestamps from inputs, and exit early if any is missing
@@ -352,8 +347,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
         (when (and status (or (action-done-p status) (action-planned-p status) (not eniip)))
           (return (action-stamp status))) ; Already visited with sufficient need-in-image level!
         (labels ((visit-action (niip) ; We may visit the action twice, once with niip NIL, then T
-                   (visit-dependencies plan operation component ; recursively traverse dependencies
-                                       #'(lambda (o c) (traverse-action plan o c niip)))
+                   (map-direct-dependencies ; recursively traverse dependencies
+                    plan operation component #'(lambda (o c) (traverse-action plan o c niip)))
                    (multiple-value-bind (stamp done-p) ; AFTER dependencies have been traversed,
                        (compute-action-stamp plan operation component) ; compute action stamp
                      (let ((add-to-plan-p (or (eql stamp t) (and niip (not done-p)))))
@@ -398,7 +393,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (when (action-planned-p new-status)
       (push (cons o c) (plan-actions-r p)))))
 
-;;;; high-level interface: traverse, perform-plan, plan-operates-on-p
+;;;; High-level interface: traverse, perform-plan, plan-operates-on-p
 (with-upgradability ()
   (defgeneric make-plan (plan-class operation component &key &allow-other-keys)
     (:documentation
@@ -411,8 +406,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defvar *default-plan-class* 'sequential-plan)
 
   (defmethod make-plan (plan-class (o operation) (c component) &rest keys &key &allow-other-keys)
-    (let ((plan (apply 'make-instance
-                       (or plan-class *default-plan-class*)
+    (let ((plan (apply 'make-instance (or plan-class *default-plan-class*)
                        :system (component-system c) keys)))
       (traverse-action plan o c t)
       plan))
@@ -471,8 +465,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
       plan))
 
   (define-convenience-action-methods traverse-sub-actions (operation component &key))
-  (defmethod traverse-sub-actions ((operation operation) (component component) &rest keys &key &allow-other-keys)
-    (apply 'traverse-actions (direct-dependencies operation component)
+  (defmethod traverse-sub-actions ((operation operation) (component component)
+                                   &rest keys &key &allow-other-keys)
+    (apply 'traverse-actions (direct-dependencies t operation component)
            :system (component-system component) keys))
 
   (defmethod plan-actions ((plan filtered-sequential-plan))
