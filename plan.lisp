@@ -213,52 +213,59 @@ the action of OPERATION on COMPONENT in the PLAN"))
     ;; Note that if e.g. LOAD-OP only depends on up-to-date files, but
     ;; hasn't been done in the current image yet, then it can have a non-T timestamp,
     ;; yet a NIL done-in-image-p flag.
-    (let* ((stamp-lookup #'(lambda (o c)
-                             (if-let (it (plan-action-status plan o c)) (action-stamp it) t)))
-           (out-files (output-files o c))
-           (in-files (input-files o c))
-           ;; Three kinds of actions:
-           (out-op (and out-files t)) ; those that create files on the filesystem
-           ;;(image-op (and in-files (null out-files))) ; those that load stuff into the image
-           ;;(null-op (and (null out-files) (null in-files))) ; placeholders that do nothing
-           ;; When was the thing last actually done? (Now, or ask.)
-           (op-time (or just-done (component-operation-time o c)))
-           ;; Accumulated timestamp from dependencies (or T if forced or out-of-date)
-           (dep-stamp (visit-dependencies plan o c stamp-lookup))
-           ;; Time stamps from the files at hand, and whether any is missing
-           (out-stamps (mapcar (if just-done 'register-file-stamp 'get-file-stamp) out-files))
-           (in-stamps (mapcar #'get-file-stamp in-files))
-           (missing-in
-             (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
-           (missing-out
-             (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
-           (all-present (not (or missing-in missing-out)))
-           ;; Has any input changed since we last generated the files?
-           (earliest-out (stamps-earliest out-stamps))
-           (latest-in (stamps-latest (cons dep-stamp in-stamps)))
-           (up-to-date-p (stamp<= latest-in earliest-out))
-           ;; If everything is up to date, the latest of inputs and outputs is our stamp
-           (done-stamp (stamps-latest (cons latest-in out-stamps))))
-      ;; Warn if some files are missing:
-      ;; either our model is wrong or some other process is messing with our files.
-      (when (and just-done (not all-present))
-        (warn "~A completed without ~:[~*~;~*its input file~:p~2:*~{ ~S~}~*~]~
-             ~:[~; or ~]~:[~*~;~*its output file~:p~2:*~{ ~S~}~*~]"
-              (action-description o c)
-              missing-in (length missing-in) (and missing-in missing-out)
-              missing-out (length missing-out)))
-      ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
-      ;; Any race condition is intrinsic to the limited timestamp resolution.
-      (if (or just-done ;; The done-stamp is valid: if we're just done, or
-              ;; if all filesystem effects are up-to-date and there's no invalidating reason.
-              (and all-present up-to-date-p (operation-done-p o c) (not (action-forced-p plan o c))))
-          (values done-stamp ;; return the hard-earned timestamp
-                  (or just-done
-                      out-op ;; a file-creating op is done when all files are up to date
-                      ;; a image-effecting a placeholder op is done when it was actually run,
-                      (and op-time (eql op-time done-stamp)))) ;; with the matching stamp
-          ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
-          (values t nil)))))
+    (nest
+     (block ())
+     (let ((dep-stamp ; collect timestamp from dependencies (or T if forced or out-of-date)
+             (visit-dependencies plan o c #'(lambda (o c)
+                                              (if-let (it (plan-action-status plan o c))
+                                                (action-stamp it)
+                                                t)))))
+       ;; out-of-date dependency: don't bother expensively querying the filesystem
+       (when (and (eq dep-stamp t) (not just-done)) (return (values t nil))))
+     ;; collect timestamps from inputs, and exit early if any is missing
+     (let* ((in-files (input-files o c))
+            (in-stamps (mapcar #'get-file-stamp in-files))
+            (missing-in (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
+            (latest-in (stamps-latest (cons dep-stamp in-stamps))))
+       (when (and missing-in (not just-done)) (return (values t nil))))
+     ;; collect timestamps from outputs, and exit early if any is missing
+     (let* ((out-files (output-files o c))
+            (out-stamps (mapcar (if just-done 'register-file-stamp 'get-file-stamp) out-files))
+            (missing-out (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
+            (earliest-out (stamps-earliest out-stamps)))
+       (when (and missing-out (not just-done)) (return (values t nil))))
+     (let* (;; There are three kinds of actions:
+            (out-op (and out-files t)) ; those that create files on the filesystem
+            ;;(image-op (and in-files (null out-files))) ; those that load stuff into the image
+            ;;(null-op (and (null out-files) (null in-files))) ; placeholders that do nothing
+            ;; When was the thing last actually done? (Now, or ask.)
+            (op-time (or just-done (component-operation-time o c)))
+            ;; Time stamps from the files at hand, and whether any is missing
+            (all-present (not (or missing-in missing-out)))
+            ;; Has any input changed since we last generated the files?
+            (up-to-date-p (stamp<= latest-in earliest-out))
+            ;; If everything is up to date, the latest of inputs and outputs is our stamp
+            (done-stamp (stamps-latest (cons latest-in out-stamps))))
+       ;; Warn if some files are missing:
+       ;; either our model is wrong or some other process is messing with our files.
+       (when (and just-done (not all-present))
+         (warn "~A completed without ~:[~*~;~*its input file~:p~2:*~{ ~S~}~*~]~
+                ~:[~; or ~]~:[~*~;~*its output file~:p~2:*~{ ~S~}~*~]"
+               (action-description o c)
+               missing-in (length missing-in) (and missing-in missing-out)
+               missing-out (length missing-out))))
+     ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
+     ;; Any race condition is intrinsic to the limited timestamp resolution.
+     (if (or just-done ;; The done-stamp is valid: if we're just done, or
+             ;; if all filesystem effects are up-to-date and there's no invalidating reason.
+             (and all-present up-to-date-p (operation-done-p o c) (not (action-forced-p plan o c))))
+         (values done-stamp ;; return the hard-earned timestamp
+                 (or just-done
+                     out-op ;; a file-creating op is done when all files are up to date
+                     ;; a image-effecting a placeholder op is done when it was actually run,
+                     (and op-time (eql op-time done-stamp)))) ;; with the matching stamp
+         ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
+         (values t nil)))))
 
 
 ;;;; Generic support for plan-traversal
