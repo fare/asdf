@@ -1255,12 +1255,12 @@ Programmers are cautioned not
 to use this component option except at the @code{defsystem} level, as
 this anomalous behavior may be removed without warning.
 
-Finally, you might look into the @code{asdf-system-connections} extension,
-that will let you define additional code to be loaded
-when two systems are simultaneously loaded.
-It may or may not be considered good style, but at least it can be used
-in a way that has deterministic behavior independent of load order,
-unlike @code{weakly-depends-on}.
+@c Finally, you might look into the @code{asdf-system-connections} extension,
+@c that will let you define additional code to be loaded
+@c when two systems are simultaneously loaded.
+@c It may or may not be considered good style, but at least it can be used
+@c in a way that has deterministic behavior independent of load order,
+@c unlike @code{weakly-depends-on}.
 
 
 @subsection Pathname specifiers
@@ -1513,10 +1513,20 @@ that can be used for manipulations beside building your project, and
 that is accessible to outside code that wishes to reason about system
 structure.
 
+Programmers should be careful to consider @strong{when} the
+@code{:if-feature} is evaluated.  Recall that ASDF first computes a
+build plan, and then executes that plan.  ASDF will check to see whether
+or not a feature is present @strong{at planning time}, not during the
+build.  It follows that one cannot use @code{:if-feature} to check
+features that are set during the course of the build.  It can only be
+used to check the state of features before any build operations have
+been performed.
+
 This option was added in ASDF 3.  For more information,
 @xref{required-features, Required features}.
 
 @subsection if-component-dep-fails option
+@cindex :if-component-dep-fails component option
 This option was removed in ASDF 3.
 Its semantics was limited in purpose and dubious to explain,
 and its implementation was breaking a hole into the ASDF object model.
