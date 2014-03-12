@@ -308,6 +308,8 @@ to make sure it's all working properly. @xref{Using ASDF}.
 @end itemize
 @end itemize
 
+@c FIXME: (1) add a sample project that the user can cut and paste to
+@c get started.  (2) discuss the option of starting with Quicklisp.
 
 
 
