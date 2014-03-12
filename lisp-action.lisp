@@ -33,7 +33,14 @@
   (defclass basic-load-op (operation) ())
   (defclass basic-compile-op (operation)
     ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
-     (flags :initarg :flags :accessor compile-op-flags :initform nil))))
+     (flags :initarg :flags :accessor compile-op-flags :initform nil)))
+
+  (defclass cl-reading-op (operation) ())) ;; operations that read CL source
+  (defmethod perform :around ((o cl-reading-op) (c cl-source-file))
+    (with-standard-io-syntax
+      (let ((*package* (find-package :asdf-user))
+            (*print-readably* nil))
+        (call-next-method))))
 
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
@@ -44,12 +51,12 @@
     ;; NB: even though compile-op depends on prepare-op it is not needed-in-image-p,
     ;; so we need to directly depend on prepare-op for its side-effects in the current image.
     ((selfward-operation :initform '(prepare-op compile-op) :allocation :class)))
-  (defclass compile-op (basic-compile-op downward-operation selfward-operation)
+  (defclass compile-op (basic-compile-op cl-reading-op downward-operation selfward-operation)
     ((selfward-operation :initform 'prepare-op :allocation :class)))
 
   (defclass prepare-source-op (upward-operation sideway-operation)
     ((sideway-operation :initform 'load-source-op :allocation :class)))
-  (defclass load-source-op (basic-load-op downward-operation selfward-operation)
+  (defclass load-source-op (basic-load-op cl-reading-op downward-operation selfward-operation)
     ((selfward-operation :initform 'prepare-source-op :allocation :class)))
 
   (defclass test-op (selfward-operation)

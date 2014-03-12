@@ -11,6 +11,7 @@
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*
+   #:*standard-readtable* #:*standard-print-pprint-dispatch*
    #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file #:with-output-file #:call-with-output-file
@@ -144,6 +145,10 @@ going through all the proper hooks."
 (with-upgradability ()
   (defvar *standard-readtable* (with-standard-io-syntax *readtable*)
     "The standard readtable, implementing the syntax specified by the CLHS.
+It must never be modified, though only good implementations will even enforce that.")
+
+  (defvar *standard-print-pprint-dispatch* (with-standard-io-syntax *print-pprint-dispatch*)
+    "The standard pprint dispatch table, implementing the syntax specified by the CLHS.
 It must never be modified, though only good implementations will even enforce that.")
 
   (defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
