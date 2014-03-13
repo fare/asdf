@@ -18,7 +18,6 @@
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
    #:action-path #:find-action #:stamp #:done-p
    #:operation-definition-warning #:operation-definition-error ;; condition
-   #:build-op ;; THE generic operation
    ))
 (in-package :asdf/action)
 
@@ -57,6 +56,7 @@
            (component 'component)
            (opix (position operation formals))
            (coix (position component formals))
+
            (prefix (subseq formals 0 opix))
            (suffix (subseq formals (1+ coix) len))
            (more-args (when keyp `(&rest ,rest &key &allow-other-keys))))
@@ -222,7 +222,6 @@ dependencies.")))
     (:documentation "Error condition related to definition of incorrect OPERATION objects."))
 
   (defmethod initialize-instance :before ((o operation) &key)
-    ;; build-op is a special case.
     (unless (typep o '(or downward-operation upward-operation sideway-operation
                           selfward-operation non-propagating-operation))
       (warn 'operation-definition-warning
@@ -399,15 +398,3 @@ in some previous image, or T if it needs to be done.")
                     (action-description operation component)))
           (mark-operation-done operation component)
           (return))))))
-
-;;; Generic build operation
-(with-upgradability ()
-  ;; BUILD-OP was intended to be the default "master" operation to invoke on a system in ASDF3
-  ;; (LOAD-OP typically serves that function now).
-  ;; This feature has not yet been fully implemented yet, and is not used by anyone yet.
-  ;; This is a path forward, and its default below is to backward compatibly depend on LOAD-OP.
-  ;; [2014/01/26:rpg]
-  (defclass build-op (non-propagating-operation) ())
-  (defmethod component-depends-on ((o build-op) (c component))
-    `((,(or (component-build-operation c) 'load-op) ,c))))
-

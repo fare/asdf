@@ -9,7 +9,7 @@
   (:export
    #:operate #:oos
    #:*systems-being-operated*
-   #:build-system
+   #:build-op #:build #:build-system
    #:load-system #:load-systems #:load-systems*
    #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
@@ -106,16 +106,34 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
 (with-upgradability ()
   (defvar *load-system-operation* 'load-op
     "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
-You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle,
+You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle (recommended on ECL?)
 or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 
-This may change in the future as we will implement component-based strategy
+This may change in the future if we implement component-directed strategy
 for how to load or compile stuff")
 
-  (defun build-system (system &rest keys)
-    "Shorthand for `(operate 'asdf:build-op system)`."
+  (defclass build-op (non-propagating-operation) ()
+    (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
+to operate by default on a system or component.
+Its meaning is configurable via the :BUILD-OPERATION option of a component,
+which is typically the name of a specific operation to which to delegate the build,
+and may be NIL, which designates the *LOAD-SYSTEM-OPERATION*
+that will load the system in the current image, and its typically LOAD-OP."))
+  (defmethod component-depends-on ((o build-op) (c component))
+    `((,(or (component-build-operation c) *load-system-operation*) ,c)))
+
+
+  (defun build (system &rest keys)
+    "The recommended way to interact with ASDF3.1 is via (ASDF:BUILD :FOO).
+It will build system FOO using the operation BUILD-OP,
+the meaning of which is configurable by the system, and
+defaults to *LOAD-SYSTEM-OPERATION*, usually LOAD-OP, to load it in current image."
     (apply 'operate 'build-op system keys)
     t)
+
+  (defun build-system (system &rest keys)
+    "Alias for function BUILD"
+    (apply 'build system keys))
 
   (defun load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
     "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
