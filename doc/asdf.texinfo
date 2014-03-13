@@ -5033,6 +5033,9 @@ Also, bugs that are now tracked on launchpad:
   ``Lisp Machine Manual'', MIT, 1981.
   The famous CHINE NUAL describes one of the earliest variants of DEFSYSTEM.
   @url{https://bitsavers.trailing-edge.com/pdf/mit/cadr/chinual_4thEd_Jul81.pdf}
+@item Drew McDermott: ``A Framework for Maintaining the Coherence of a
+  Running Lisp,'' International Lisp Conference, 2005, available in
+  pre-print form at @url{http://www.cs.yale.edu/homes/dvm/papers/lisp05.pdf}.
 @end itemize
 
 
