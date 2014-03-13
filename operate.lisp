@@ -106,19 +106,20 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
 (with-upgradability ()
   (defvar *load-system-operation* 'load-op
     "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
-You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle (recommended on ECL?)
+You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle
 or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 
-This may change in the future if we implement component-directed strategy
-for how to load or compile stuff")
+The default operation may change in the future if we implement a
+component-directed strategy for how to load or compile systems.")
 
   (defclass build-op (non-propagating-operation) ()
-    (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
-to operate by default on a system or component.
-Its meaning is configurable via the :BUILD-OPERATION option of a component,
-which is typically the name of a specific operation to which to delegate the build,
-and may be NIL, which designates the *LOAD-SYSTEM-OPERATION*
-that will load the system in the current image, and its typically LOAD-OP."))
+    (:documentation "BUILD-OP is the recommended 'master' operation,
+performing the default operation on a system or component.
+The meaning of BUILD-OP is configurable via the :BUILD-OPERATION option of a component,
+which is typically the name of a specific operation to which to delegate the build.
+:BUILD-OPERATION may be NIL, in which case BUILD-OP will be interpreted as
+*LOAD-SYSTEM-OPERATION*.  Currently *LOAD-SYSTEM-OPERATION* will load the system in
+the current image, using LOAD-OP."))
   (defmethod component-depends-on ((o build-op) (c component))
     `((,(or (component-build-operation c) *load-system-operation*) ,c)))
 
@@ -127,7 +128,8 @@ that will load the system in the current image, and its typically LOAD-OP."))
     "The recommended way to interact with ASDF3.1 is via (ASDF:BUILD :FOO).
 It will build system FOO using the operation BUILD-OP,
 the meaning of which is configurable by the system, and
-defaults to *LOAD-SYSTEM-OPERATION*, usually LOAD-OP, to load it in current image."
+defaults to *LOAD-SYSTEM-OPERATION*, usually LOAD-OP,
+to load it in current image."
     (apply 'operate 'build-op system keys)
     t)
 
