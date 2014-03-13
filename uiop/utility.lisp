@@ -24,7 +24,7 @@
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
    #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
-   #:find-class* ;; CLOS
+   #:coerce-class ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
@@ -333,10 +333,30 @@ the two results passed to STRCAT always reconstitute the original string"
 
 ;;; CLOS
 (with-upgradability ()
-  (defun find-class* (x &optional (errorp t) environment)
-    (etypecase x
-      ((or standard-class built-in-class) x)
-      (symbol (find-class x errorp environment)))))
+  (defun coerce-class (class &key (package :cl) (super t) (error 'error))
+    "Coerce CLASS to a class that is subclass of SUPER if specified,
+or invoke ERROR handler as per CALL-FUNCTION.
+
+A keyword designates the name a symbol, which when found in PACKAGE, designates a class.
+A string is read as a symbol while in PACKAGE, the symbol designates a class.
+
+A class object designates itself.
+NIL designates itself (no class).
+A symbol otherwise designates a class by name."
+    (let* ((normalized
+             (typecase class
+              (keyword (find-symbol* class package nil))
+              (string (symbol-call :uiop :safe-read-from-string class :package package))
+              (t class)))
+           (found
+             (etypecase normalized
+               ((or standard-class built-in-class) normalized)
+               ((or null keyword) nil)
+               (symbol (find-class normalized nil nil)))))
+      (or (and found
+               (or (eq super t) (#-cormanlisp subtypep #+cormanlisp cl::subclassp found super))
+               found)
+          (call-function error "Can't coerce ~S to a ~@[class~;subclass of ~:*~S]" class super)))))
 
 
 ;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity

@@ -66,7 +66,10 @@
                    `(apply ',function ,@prefix ,o ,c ,@suffix ,rest)
                    `(,function ,@prefix ,o ,c ,@suffix))))
         `(progn
-           (defmethod ,function (,@prefix (,operation symbol) component ,@suffix ,@more-args)
+           (defmethod ,function (,@prefix (,operation string) ,component ,@suffix ,@more-args)
+             (let ((,component (find-component () ,component))) ;; do it first, for defsystem-depends-on
+               ,(next-method `(safe-read-from-string ,operation :package :asdf/interface) component)))
+           (defmethod ,function (,@prefix (,operation symbol) ,component ,@suffix ,@more-args)
              (if ,operation
                  ,(next-method
                    (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.

@@ -48,22 +48,14 @@
   (defvar *default-component-class* 'cl-source-file)
 
   (defun class-for-type (parent type)
-    (or (loop :for symbol :in (list
-                               type
-                               (find-symbol* type *package* nil)
-                               (find-symbol* type :asdf/interface nil)
-                               (and (stringp type) (safe-read-from-string type :package :asdf/interface)))
-              :for class = (and symbol (symbolp symbol) (find-class* symbol nil))
-              :when (and class
-                         (#-cormanlisp subtypep #+cormanlisp cl::subclassp
-                          class (find-class* 'component)))
-                :return class)
-        (and (eq type :file)
-             (find-class*
-              (or (loop :for p = parent :then (component-parent p) :while p
-                        :thereis (module-default-component-class p))
-                  *default-component-class*) nil))
-        (sysdef-error "don't recognize component type ~A" type))))
+      (or (coerce-class type :package :asdf/interface :super 'component :error nil)
+          (and (eq type :file)
+               (coerce-class
+                (or (loop :for p = parent :then (component-parent p) :while p
+                            :thereis (module-default-component-class p))
+                    *default-component-class*)
+                :package :asdf/interface :super 'component :error nil))
+          (sysdef-error "don't recognize component type ~S" type))))
 
 
 ;;; Check inputs

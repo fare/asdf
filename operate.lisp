@@ -55,11 +55,13 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
                                 (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
     (let* ((systems-being-operated *systems-being-operated*)
            (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
-           (operation-name (reify-symbol (etypecase operation
-                                           (operation (type-of operation))
-                                           (symbol operation))))
-           (operation-initargs (operation-original-initargs operation))
-           (component-path (typecase component
+           (operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
+             (etypecase operation
+               (operation (let ((name (type-of operation))
+                                (initargs (operation-original-initargs operation)))
+                            #'(lambda () (make-operation name :original-initargs initargs initargs))))
+               ((or symbol string) (constantly operation))))
+           (component-path (typecase component ;; to remake the component after ASDF upgrade
                              (component (component-find-path component))
                              (t component))))
       ;; Before we operate on any system, make sure ASDF is up-to-date,
@@ -69,11 +71,7 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
           ;; If we were upgraded, restart OPERATE the hardest of ways, for
           ;; its function may have been redefined, its symbol uninterned, its package deleted.
           (return-from operate
-            (apply (find-symbol* 'operate :asdf)
-                   (apply (find-symbol* 'make-operation :asdf)
-                          (unreify-symbol operation-name)
-                          :original-initargs operation-initargs operation-initargs)
-                   component-path keys))))
+            (apply 'operate (funcall operation-remaker) component-path keys))))
       ;; Setup proper bindings around any operate call.
       (with-system-definitions ()
         (let* ((*verbose-out* (and verbose *standard-output*))
@@ -113,16 +111,15 @@ The default operation may change in the future if we implement a
 component-directed strategy for how to load or compile systems.")
 
   (defclass build-op (non-propagating-operation) ()
-    (:documentation "BUILD-OP is the recommended 'master' operation,
-performing the default operation on a system or component.
-The meaning of BUILD-OP is configurable via the :BUILD-OPERATION option of a component,
-which is typically the name of a specific operation to which to delegate the build.
-:BUILD-OPERATION may be NIL, in which case BUILD-OP will be interpreted as
-*LOAD-SYSTEM-OPERATION*.  Currently *LOAD-SYSTEM-OPERATION* will load the system in
-the current image, using LOAD-OP."))
+    (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
+to operate by default on a system or component, via the function BUILD.
+Its meaning is configurable via the :BUILD-OPERATION option of a component.
+which typically specifies the name of a specific operation to which to delegate the build,
+as a symbol or as a string later read as a symbol (after loading the defsystem-depends-on);
+if NIL is specified (the default), BUILD-OP falls back to the *LOAD-SYSTEM-OPERATION*
+that will load the system in the current image, and its typically LOAD-OP."))
   (defmethod component-depends-on ((o build-op) (c component))
     `((,(or (component-build-operation c) *load-system-operation*) ,c)))
-
 
   (defun build (system &rest keys)
     "The recommended way to interact with ASDF3.1 is via (ASDF:BUILD :FOO).
