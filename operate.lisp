@@ -9,7 +9,7 @@
   (:export
    #:operate #:oos
    #:*systems-being-operated*
-   #:build-op #:build #:build-system
+   #:build-op #:build
    #:load-system #:load-systems #:load-systems*
    #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
@@ -129,10 +129,6 @@ defaults to *LOAD-SYSTEM-OPERATION*, usually LOAD-OP,
 to load it in current image."
     (apply 'operate 'build-op system keys)
     t)
-
-  (defun build-system (system &rest keys)
-    "Alias for function BUILD"
-    (apply 'build system keys))
 
   (defun load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
     "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
