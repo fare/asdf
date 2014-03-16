@@ -9,6 +9,7 @@
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:locate-system #:load-asd #:with-system-definitions
+   #:call-with-asdf-syntax #:with-asdf-syntax
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
@@ -277,17 +278,25 @@ Going forward, we recommend new users should be using the source-registry.
   (defmacro with-system-definitions ((&optional) &body body)
     `(call-with-system-definitions #'(lambda () ,@body)))
 
-  (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))) &aux (readtable *standard-readtable*) (print-pprint-dispatch *standard-print-pprint-dispatch*))
+  (defun call-with-asdf-syntax (thunk)
+    (with-standard-io-syntax
+      (let ((*package* (find-package :asdf-user))
+            (*print-readably* nil))
+        (funcall thunk))))
+  (defmacro with-asdf-syntax ((&optional) &body body)
+    `(call-with-asdf-syntax #'(lambda () ,@body)))
+
+  (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))))
     ;; Tries to load system definition with canonical NAME from PATHNAME.
     (with-system-definitions ()
-      (with-standard-io-syntax
+      (with-asdf-syntax ()
         (let ((*package* (find-package :asdf-user))
               ;; Note that our backward-compatible *readtable* is
               ;; a global readtable that gets globally side-effected. Ouch.
               ;; Same for the *print-pprint-dispatch* table.
               ;; We should do something about that for ASDF3 if possible, or else ASDF4.
-              (*readtable* readtable)
-              (*print-pprint-dispatch* print-pprint-dispatch)
+              (*readtable* (copy-readtable nil))
+              (*print-pprint-dispatch* (copy-pprint-dispatch nil))
               (*print-readably* nil)
               (*default-pathname-defaults*
                 ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.

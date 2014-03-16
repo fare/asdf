@@ -15,6 +15,7 @@
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
+   #:with-action-context #:call-with-action-context
    #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
    #:action-path #:find-action #:stamp #:done-p
    #:operation-definition-warning #:operation-definition-error ;; condition
@@ -66,7 +67,7 @@
                    `(apply ',function ,@prefix ,o ,c ,@suffix ,rest)
                    `(,function ,@prefix ,o ,c ,@suffix))))
         `(progn
-           (defmethod ,function (,@prefix (,operation symbol) component ,@suffix ,@more-args)
+           (defmethod ,function (,@prefix (,operation symbol) ,component ,@suffix ,@more-args)
              (if ,operation
                  ,(next-method
                    (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.
@@ -378,11 +379,20 @@ in some previous image, or T if it needs to be done.")
        (compatfmt "~@<Required method ~S not implemented for ~/asdf-action:format-action/~@:>")
        'perform (cons o c))))
 
+  (defgeneric call-with-action-context (operation component thunk))
+  (define-convenience-action-methods call-with-action-context (operation component thunk))
+  (defmethod call-with-action-context ((o operation) (c component) thunk)
+    (with-updated-system-variables ((component-system c))
+      (funcall thunk)))
+  (defmacro with-action-context ((operation component) &body body)
+    `(call-with-action-context ,operation ,component #'(lambda () ,@body)))
+
   (defmethod perform-with-restarts (operation component)
     ;; TOO verbose, especially as the default. Add your own :before method
     ;; to perform-with-restart or perform if you want that:
     #|(explain operation component)|#
-    (perform operation component))
+    (with-action-context (operation component)
+      (perform operation component)))
   (defmethod perform-with-restarts :around (operation component)
     (loop
       (restart-case

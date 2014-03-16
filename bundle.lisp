@@ -76,7 +76,7 @@ itself.")) ;; operation on a system and its dependencies
   (defclass basic-fasl-op (bundle-op)
     ((bundle-type :initform :fasl)))
 
-  (defclass prepare-fasl-op (sideway-operation)
+  (defclass prepare-fasl-op (basic-prepare-op sideway-operation)
     ((sideway-operation :initform #+ecl 'load-fasl-op #-ecl 'load-op :allocation :class)))
 
   (defclass lib-op (link-op gather-op non-propagating-operation)
@@ -87,7 +87,7 @@ itself.")) ;; operation on a system and its dependencies
     ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op) :allocation :class)))
 
   (defclass load-fasl-op (basic-load-op selfward-operation)
-    ((selfward-operation :initform '(prepare-op fasl-op) :allocation :class)))
+    ((selfward-operation :initform '(prepare-fasl-op fasl-op) :allocation :class)))
 
   ;; NB: since the monolithic-op's can't be sideway-operation's,
   ;; if we wanted lib-op, dll-op, deliver-asd-op to be sideway-operation's,

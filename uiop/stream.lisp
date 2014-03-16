@@ -24,6 +24,7 @@
    #:read-file-string #:read-file-line #:read-file-lines #:safe-read-file-line
    #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
+   #:ensure-variable #:variable-value
    #:println #:writeln
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
@@ -151,19 +152,19 @@ It must never be modified, though only good implementations will even enforce th
     "The standard pprint dispatch table, implementing the syntax specified by the CLHS.
 It must never be modified, though only good implementations will even enforce that.")
 
-  (defmacro with-safe-io-syntax ((&key (package :cl)) &body body)
+  (defmacro with-safe-io-syntax ((&key package) &body body)
     "Establish safe CL reader options around the evaluation of BODY"
-    `(call-with-safe-io-syntax #'(lambda () (let ((*package* (find-package ,package))) ,@body))))
+    `(call-with-safe-io-syntax #'(lambda () ,@body) :package ,package))
 
-  (defun call-with-safe-io-syntax (thunk &key (package :cl))
+  (defun call-with-safe-io-syntax (thunk &key package)
     (with-standard-io-syntax
-      (let ((*package* (find-package package))
+      (let ((*package* (find-package (or package :common-lisp)))
             (*read-default-float-format* 'double-float)
             (*print-readably* nil)
             (*read-eval* nil))
         (funcall thunk))))
 
-  (defun safe-read-from-string (string &key (package :cl) (eof-error-p t) eof-value (start 0) end preserve-whitespace)
+  (defun safe-read-from-string (string &key package (eof-error-p t) eof-value (start 0) end preserve-whitespace)
     "Read from STRING using a safe syntax, as per WITH-SAFE-IO-SYNTAX"
     (with-safe-io-syntax (:package package)
       (read-from-string string eof-error-p eof-value :start start :end end :preserve-whitespace preserve-whitespace))))
@@ -513,6 +514,29 @@ If a string, repeatedly read and evaluate from it, returning the last values."
         (let ((*read-eval* t))
           (eval-thunk thunk))))))
 
+;;; Late-binding variables
+(with-upgradability ()
+  (defun ensure-variable (name &key package (when-undefined 'error))
+    (etypecase name
+      (symbol name)
+      (string (or (ignore-errors
+                   (let ((s (safe-read-from-string name :package package)))
+                     (and (symbolp s) s)))
+                  (call-function when-undefined
+                                 "Cannot read non-nil symbol from ~S" name)))))
+
+  (defun variable-value (name &key package (when-undefined 'error))
+    (let ((var (ensure-variable name :package package :when-undefined when-undefined)))
+      (if (boundp var)
+          (symbol-value var)
+          (call-function when-undefined "Symbol ~S unbound" name))))
+
+  (defun (setf variable-value) (value name &key package (when-undefined 'error))
+    (if-let (var (ensure-variable name :package package :when-undefined when-undefined))
+      (setf (symbol-value var) value)
+      value)))
+
+;;; Printers
 (with-upgradability ()
   (defun println (x &optional (stream *standard-output*))
     "Variant of PRINC that also calls TERPRI afterwards"

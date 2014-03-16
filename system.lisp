@@ -11,6 +11,10 @@
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
    #:system-defsystem-depends-on #:system-depends-on #:system-weakly-depends-on
+   #:compute-system-variables #:configure-system-variables #:configure-system-variable
+   #:with-updated-system-variables
+   #:use-system-variables #:initialize-system-variables #:update-system-variables
+   #:system-variable-specs #:system-variable-names #:system-variable-values #:system-variable-initializers
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
    #:homepage #:system-homepage
@@ -31,9 +35,7 @@
   (defmethod component-entry-point ((c component))
     nil))
 
-
 ;;;; The system class
-
 (with-upgradability ()
   (defclass proto-system () ; slots to keep when resetting a system
     ;; To preserve identity for all objects, we'd need keep the components slots
@@ -66,7 +68,94 @@
                            :initform nil)
      ;; these two are specially set in parse-component-form, so have no :INITARGs.
      (depends-on :reader system-depends-on :initform nil)
-     (weakly-depends-on :reader system-weakly-depends-on :initform nil)))
+     (weakly-depends-on :reader system-weakly-depends-on :initform nil)
+     ;; System variables
+     (variable-specs :initform nil :initarg :variables :reader system-variable-specs)
+     (variable-names :accessor system-variable-names)
+     (variable-values :accessor system-variable-values)
+     (variable-initializers :accessor system-variable-initializers)))
+
+  (defgeneric configure-system-variable (system variable &key))
+  (defmethod configure-system-variable ((system system) variable &key (initializer nil initp))
+    ;; You should configure system variables only during the call to compute-system-variables.
+    ;; During configuration, the initializer hash-table ensures each variable appears only once,
+    ;; modulo the fact that you can designate a variable using multiple names, in which case you lose.
+    ;; The heuristics should be simple, though: if it's a CL or ASDF variable, just use it;
+    ;; otherwise, use a string that has : if and only if the variable is exported,
+    ;; which it should be if you're not the author of the system.
+    ;; Beware that initializers will be called in the order the variables were declared,
+    ;; which, if you override a variable's initializer,
+    ;; will be earlier than other variables you're initializing.
+    (let ((value (variable-value variable :package :asdf :when-undefined nil))
+          (previousp (nth-value 1 (gethash variable (system-variable-initializers system)))))
+      (unless previousp
+        (push variable (system-variable-names system))
+        (push value (system-variable-values system)))
+      (when (or initp (not previousp))
+        (setf (gethash variable (system-variable-initializers system))
+              (if initp initializer (constantly value)))))
+    nil)
+
+  (defgeneric configure-system-variables (system variable-specs))
+  (defmethod configure-system-variables ((system system) variable-specs)
+    (dolist (spec variable-specs)
+      (multiple-value-bind (variable keys)
+          (if (consp spec)
+              (values (first spec) (when (consp (cdr spec)) (list :initializer (second spec))))
+              (values spec nil))
+        (apply 'configure-system-variable system variable keys))))
+
+  (defgeneric use-system-variables (system))
+  (defmethod use-system-variables ((system system))
+    (loop :for variable :in (system-variable-names system)
+          :for value :in (system-variable-values system) :do
+            (setf (variable-value variable :package :asdf :when-undefined nil) value)))
+
+  (defgeneric update-system-variables (system))
+  (defmethod update-system-variables ((system system))
+    (setf (system-variable-values system)
+          (loop :for variable :in (system-variable-names system)
+                :collect (variable-value variable :package :asdf :when-undefined nil))))
+
+  (defgeneric initialize-system-variables (system))
+  (defmethod initialize-system-variables ((system system))
+    (loop :for variable :in (system-variable-names system)
+          :for initializer = (gethash variable (system-variable-initializers system))
+          :for var = (ensure-variable variable :package :asdf :when-undefined nil)
+          :when var :do (setf (symbol-value var) (call-function initializer))))
+
+  (defmacro with-updated-system-variables ((component) &body body)
+    `(call-with-updated-system-variables ,component #'(lambda () ,@body)))
+
+  (defun call-with-updated-system-variables (component thunk)
+    (loop :with system = (component-system component)
+          :for name :in (system-variable-names system)
+          :for value :in (system-variable-values system)
+          :for variable = (ensure-variable name :package :asdf :when-undefined nil)
+          :when variable
+            :collect variable :into vars
+            :and :collect value :into vals
+          :finally
+             (progv vars vals
+               (prog1
+                   (funcall thunk)
+                 (update-system-variables system)))))
+
+  (defgeneric compute-system-variables (system))
+  (defmethod compute-system-variables ((system system))
+    (configure-system-variables system '(*readtable* *print-pprint-dispatch*))
+    (configure-system-variables system (system-variable-specs system))
+    ;; TODO: insert an out-of-band system configuration facility <here>, or in an :after method.
+    nil)
+
+  (defmethod shared-initialize :after ((system system) slot-names &key)
+    (declare (ignore slot-names))
+    (setf (system-variable-names system) nil
+          (system-variable-values system) nil
+          (system-variable-initializers system) (make-hash-table :test 'equal))
+    (compute-system-variables system)
+    (setf (system-variable-names system) (reverse (system-variable-names system))
+          (system-variable-values system) (reverse (system-variable-values system))))
 
   (defun reset-system (system &rest keys &key &allow-other-keys)
     (change-class (change-class system 'proto-system) 'system)

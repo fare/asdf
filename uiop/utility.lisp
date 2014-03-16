@@ -365,7 +365,7 @@ the two results passed to STRCAT always reconstitute the original string"
 
 ;;; Function designators
 (with-upgradability ()
-  (defun ensure-function (fun &key (package :cl))
+  (defun ensure-function (fun &key package)
     "Coerce the object FUN into a function.
 
 If FUN is a FUNCTION, return it.
@@ -386,7 +386,7 @@ and EVAL that in a (FUNCTION ...) context."
                 (eval fun)
                 #'(lambda (&rest args) (apply (car fun) (append (cdr fun) args)))))
       (string (eval `(function ,(with-standard-io-syntax
-                                  (let ((*package* (find-package package)))
+                                  (let ((*package* (find-package (or package :common-lisp))))
                                     (read-from-string fun))))))))
 
   (defun access-at (object at)

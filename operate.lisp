@@ -76,10 +76,11 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
                    component-path keys))))
       ;; Setup proper bindings around any operate call.
       (with-system-definitions ()
-        (let* ((*verbose-out* (and verbose *standard-output*))
-               (*compile-file-warnings-behaviour* on-warnings)
-               (*compile-file-failure-behaviour* on-failure))
-          (call-next-method)))))
+        (with-asdf-syntax ()
+          (let* ((*verbose-out* (and verbose *standard-output*))
+                 (*compile-file-warnings-behaviour* on-warnings)
+                 (*compile-file-failure-behaviour* on-failure))
+            (call-next-method))))))
 
   (defmethod operate :before ((operation operation) (component component)
                               &key version &allow-other-keys)

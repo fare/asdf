@@ -11,6 +11,7 @@
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:basic-load-op #:basic-compile-op #:compile-op-flags #:compile-op-proclamations
+   #:basic-prepare-op #:cl-reading-op
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
    #:call-with-around-compile-hook
    #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source
@@ -35,16 +36,18 @@
     ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
      (flags :initarg :flags :accessor compile-op-flags :initform nil)))
 
+  (defclass basic-prepare-op (operation) ())
+  (defmethod perform ((operation basic-prepare-op) (system system))
+    (initialize-system-variables system))
+
   (defclass cl-reading-op (operation) ())) ;; operations that read CL source
-  (defmethod perform :around ((o cl-reading-op) (c cl-source-file))
-    (with-standard-io-syntax
-      (let ((*package* (find-package :asdf-user))
-            (*print-readably* nil))
-        (call-next-method))))
+  (defmethod call-with-action-context ((o cl-reading-op) (c cl-source-file) thunk)
+    (call-next-method
+     o c #'(lambda () (call-with-asdf-syntax thunk))))
 
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
-  (defclass prepare-op (upward-operation sideway-operation)
+  (defclass prepare-op (basic-prepare-op upward-operation sideway-operation)
     ((sideway-operation :initform 'load-op :allocation :class))
     (:documentation "Load dependencies necessary for COMPILE-OP or LOAD-OP of a given COMPONENT."))
   (defclass load-op (basic-load-op downward-operation selfward-operation)
@@ -54,7 +57,7 @@
   (defclass compile-op (basic-compile-op cl-reading-op downward-operation selfward-operation)
     ((selfward-operation :initform 'prepare-op :allocation :class)))
 
-  (defclass prepare-source-op (upward-operation sideway-operation)
+  (defclass prepare-source-op (basic-prepare-op upward-operation sideway-operation)
     ((sideway-operation :initform 'load-source-op :allocation :class)))
   (defclass load-source-op (basic-load-op cl-reading-op downward-operation selfward-operation)
     ((selfward-operation :initform 'prepare-source-op :allocation :class)))
