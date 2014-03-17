@@ -5,7 +5,7 @@
   (:recycle :asdf/bundle :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
-   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)
+   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/defsystem)
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type
    #:bundle-system #:bundle-pathname-type #:bundlable-file-p #:direct-dependency-files
@@ -47,8 +47,7 @@ itself.")) ;; operation on a system and its dependencies
 
   #+mkcl
   (defclass program (bundle-system)
-    (
-     (prologue-code :initarg :prologue-code :initform nil :accessor prologue-code)
+    ((prologue-code :initarg :prologue-code :initform nil :accessor prologue-code)
      (epilogue-code :initarg :epilogue-code :initform nil :accessor epilogue-code)
      (prefix-lisp-object-files :initarg :prefix-lisp-object-files
                                :initform nil :accessor program-prefix-lisp-object-files)
@@ -205,12 +204,12 @@ itself.")) ;; operation on a system and its dependencies
             (unless (typep instance 'program-op)
               (if (operation-monolithic-p instance) "--all-systems" #-(or ecl mkcl) "--system")))) ; . no good for Logical Pathnames
     (when (typep instance 'monolithic-bundle-op)
-      (destructuring-bind (&key #-mkcl lisp-files prologue-code epilogue-code
+      (destructuring-bind (&key lisp-files prologue-code epilogue-code
                            &allow-other-keys)
           (operation-original-initargs instance)
         (setf (prologue-code instance) prologue-code
               (epilogue-code instance) epilogue-code)
-        #-(or ecl mkcl) (assert (null (or lisp-files epilogue-code prologue-code)))
+        #-ecl (assert (null (or lisp-files #-mkcl epilogue-code #-mkcl prologue-code)))
         #+ecl (setf (bundle-op-lisp-files instance) lisp-files)))
     (setf (bundle-op-build-args instance)
           (remove-plist-keys
@@ -357,20 +356,19 @@ itself.")) ;; operation on a system and its dependencies
     nil)
 
   (defmethod perform ((o basic-fasl-op) (c prebuilt-system))
-    nil))
+    nil)
 
   (defmethod perform ((o lib-op) (c prebuilt-system))
     nil)
 
   (defmethod perform ((o dll-op) (c prebuilt-system))
-    nil))
+    nil)
 
   (defmethod component-depends-on ((o gather-op) (c prebuilt-system))
     nil)
 
   (defmethod output-files ((o lib-op) (c prebuilt-system))
-    (values (list (prebuilt-system-static-library c)) t))
-
+    (values (list (prebuilt-system-static-library c)) t)))
 
 
 ;;;
@@ -415,7 +413,7 @@ itself.")) ;; operation on a system and its dependencies
                 (machine-type)
                 (software-version))
         (let ((*package* (find-package :asdf-user)))
-          (pprint `(asdf/defsystem:defsystem ,name
+          (pprint `(defsystem ,name
                      :class prebuilt-system
                      :version ,version
                      :depends-on ,depends-on

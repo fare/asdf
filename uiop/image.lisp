@@ -264,7 +264,7 @@ return a string that for the name with which the program was invoked, i.e. argv[
 Otherwise, return NIL."
     (cond
       ((eq *image-dumped-p* :executable) ; yes, this ARGV0 is our argv0 !
-       ;; NB: not currently available on ABCL, Corman, Genera, MCL, MKCL
+       ;; NB: not currently available on ABCL, Corman, Genera, MCL
        (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
            (first (raw-command-line-arguments))
            #+ecl (si:argv 0) #+mkcl (mkcl:argv 0)))

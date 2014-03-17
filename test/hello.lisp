@@ -12,5 +12,4 @@
   t)
 
 (defun entry-point ()
-  (apply 'main *command-line-arguments*)
-  #+mkcl (quit))
+  (apply 'main *command-line-arguments*))
