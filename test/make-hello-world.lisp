@@ -10,9 +10,6 @@
 
 (asdf-test::frob-packages)
 
-(dolist (s '(:asdf :uiop :asdf/defsystem :uiop))
-  (assert (asdf::builtin-system-p (find-system s)) () "System ~A not builtin(!)" s))
-
 (defun make-hello-image ()
   (operate 'load-fasl-op :hello-world-example)
   (operate 'image-op :hello-world-example))

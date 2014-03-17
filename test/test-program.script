@@ -8,8 +8,6 @@
 
 (assert (find-system :hello-world-example))
 
-#-mkcl
-(progn
 ;; Try to load lisp-invocation from xcvb
 (setf *central-registry*
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
@@ -24,8 +22,6 @@
 (load-system :lisp-invocation)
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
-
-(trace run-program)
 
 (DBG "test image-op")
 (defparameter img (output-file (make-operation 'image-op) (find-system :hello-world-example)))
