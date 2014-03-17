@@ -49,7 +49,7 @@ keywords explicitly."
   (defun os-windows-p ()
     "Is the underlying operating system Microsoft Windows?"
     (or #+abcl (featurep :windows)
-        #+(and (not (or abcl unix cygwin darwin)) (or win32 windows mswindows mingw32)) t))
+        #+(and (not (or abcl unix cygwin darwin)) (or win32 windows mswindows mingw32 mingw64)) t))
 
   (defun os-genera-p ()
     "Is the underlying operating system Genera (running on a Symbolics Lisp Machine)?"

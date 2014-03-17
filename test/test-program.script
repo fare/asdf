@@ -2,7 +2,7 @@
 
 (DBG :foo (current-lisp-file-pathname))
 
-(unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks sbcl) t
+(unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl) t
             #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
             #+clisp (version-satisfies
                      (first (split-string (lisp-implementation-version) :separator " "))
@@ -13,6 +13,8 @@
 (defparameter exe (output-file (make-operation 'program-op) (find-system :hello-world-example)))
 (assert (absolute-pathname-p exe))
 
+#-mkcl
+(progn
 ;; Try to load lisp-invocation from xcvb
 (setf *central-registry*
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
@@ -35,7 +37,23 @@
    (symbol-call :lisp-invocation :lisp-invocation-arglist
                 :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp")))
    :output t :error-output :output :input nil))
- 0)
+ 0))
+
+#+mkcl
+(progn
+  (operate 'program-op :hello-world-example)
+  #+windows
+  (let*
+      ((dll-orig (merge-pathnames (make-pathname :name (mkcl:str+ "mkcl_" (lisp-implementation-version)) :type "dll")
+				  (si::self-truename)))
+       (exe (car (asdf::output-files 'program-op :hello-world-example)))
+       (exe-dir (make-pathname :name nil :type nil :defaults exe))
+       (dll-dest (merge-pathnames exe-dir dll-orig)))
+    ;; make sure mkcl-X.X.X.dll is the same directory as the executable
+    (copy-file dll-orig dll-dest)))
+
+
+
 (assert (probe-file* exe))
 
 (assert-equal (run-program `(,(native-namestring exe)) :output :lines)

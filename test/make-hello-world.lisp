@@ -2,7 +2,7 @@
 #+lispworks (lispworks:load-all-patches)
 (load (make-pathname :name "script-support" :defaults *load-pathname*))
 (load-asdf)
-#+ecl (require :cmp)
+#+(or ecl mkcl) (require :cmp)
 
 (asdf-test::register-directory asdf-test::*asdf-directory*) ;; we need UIOP, and ECL can dump.
 (asdf-test::register-directory asdf-test::*uiop-directory*)

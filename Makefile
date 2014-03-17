@@ -60,7 +60,9 @@ all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 # Making ASDF itself should be our first, default, target:
 build/asdf.lisp: $(all_lisp)
 	mkdir -p build
+	rm -f $@
 	cat $(all_lisp) > $@
+	chmod -w $@ # try to prevent accidental editing.
 
 # This quickly locates such mistakes as unbalanced parentheses:
 load: build/asdf.lisp
@@ -120,6 +122,7 @@ clean:
 	     fi; \
 	done
 	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example asdf.lisp
+	rm -rf test/hello-world-example.exe test/mkcl_*.dll # needed only on MS-Windows
 	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 	${MAKE} -C doc clean
 

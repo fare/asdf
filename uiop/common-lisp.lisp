@@ -30,7 +30,7 @@
 
 ;;;; Early meta-level tweaks
 
-#+(or abcl allegro clisp cmu ecl mkcl clozure lispworks sbcl scl)
+#+(or abcl allegro clisp cmu ecl mkcl clozure lispworks mkcl sbcl scl)
 (eval-when (:load-toplevel :compile-toplevel :execute)
   ;; Check for unicode at runtime, so that a hypothetical FASL compiled with unicode
   ;; but loaded in a non-unicode setting (e.g. on Allegro) won't tell a lie.

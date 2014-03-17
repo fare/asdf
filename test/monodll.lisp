@@ -9,3 +9,13 @@ int always_42()
 	return 6*always_7();
 }
 ")
+
+#+mkcl
+(ffi:clines "
+extern MKCL_DLLEXPORT int always_42(void);
+
+int always_42(void)
+{
+	return 6*always_7();
+}
+")

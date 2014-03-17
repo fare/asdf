@@ -61,3 +61,23 @@
   (si:load-foreign-module (first (output-files 'monolithic-dll-op :test-asdf/monodll)))
   (operate 'load-op :test-asdf/monodll-user)
   (assert-equal (test-package::always-42) 42))
+
+;;; Test DLL-op and monolithic-dll-op on MKCL.
+#+mkcl
+(progn
+  (require 'sockets) ;; Test the pre-compiled system feature
+  (operate 'dll-op :test-asdf/dll-test)
+  (let ((dll (first (output-files 'dll-op :test-asdf/dll-test))))
+    (si:load-foreign-module dll)
+    (let* ( #+windows (compiler::*builder-default-libraries* (list (namestring dll))))
+      (operate 'load-op :test-asdf/dll-user)))
+  (assert (= (test-package::sample-function) 42))
+  (let* #+windows ((lib (first (output-files (operate 'lib-op :test-asdf/monodll-1) :test-asdf/monodll-1)))
+		   (compiler::*builder-default-libraries* (list (namestring lib))))
+	#-windows ()
+      (operate 'monolithic-dll-op :test-asdf/monodll))
+  (let ((dll (first (output-files 'monolithic-dll-op :test-asdf/monodll))))
+    (si:load-foreign-module dll)
+    (let* ( #+windows (compiler::*builder-default-libraries* (list (namestring dll))))
+      (operate 'load-op :test-asdf/monodll-user)))
+  (assert-equal (test-package::always-42) 42))

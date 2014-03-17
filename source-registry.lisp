@@ -155,8 +155,8 @@ system names to pathnames of .asd files")
   (defun wrapping-source-registry ()
     `(:source-registry
       #+(or ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
-      #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
       :inherit-configuration
+      #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
       #+cmu (:tree #p"modules:")
       #+scl (:tree #p"file://modules/")))
   (defun default-source-registry ()

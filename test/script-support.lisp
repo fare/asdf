@@ -142,6 +142,9 @@ Some constraints:
   (cond
     ((equal x y)
      (format t "~S and~% ~S both evaluate to same path:~%  ~S~%" qx qy x))
+    #+mkcl
+    ((acall :pathname-equal x y)
+     (format t "~S and ~S evaluate to functionaly equivalent paths, respectively:~%  ~S~%and~%  ~S~%" qx qy x y))
     ((acall :pathname-equal x y)
      (warn "These two expressions yield pathname-equal yet not equal path~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
