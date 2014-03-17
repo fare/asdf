@@ -353,22 +353,24 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod trivial-system-p ((s prebuilt-system))
     t)
 
+  (defmethod perform ((o link-op) (c prebuilt-system))
+    nil)
+
+  (defmethod perform ((o basic-fasl-op) (c prebuilt-system))
+    nil))
+
   (defmethod perform ((o lib-op) (c prebuilt-system))
     nil)
 
-  (defmethod component-depends-on ((o lib-op) (c prebuilt-system))
+  (defmethod perform ((o dll-op) (c prebuilt-system))
+    nil))
+
+  (defmethod component-depends-on ((o gather-op) (c prebuilt-system))
     nil)
 
-  (defmethod component-depends-on ((o monolithic-lib-op) (c prebuilt-system))
-    nil)
-
-  #+mkcl
-  (defmethod perform ((o fasl-op) (c prebuilt-system))
-    nil)
-
-  #+mkcl
   (defmethod output-files ((o lib-op) (c prebuilt-system))
-    (list (prebuilt-system-static-library c))))
+    (values (list (prebuilt-system-static-library c)) t))
+
 
 
 ;;;
