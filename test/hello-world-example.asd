@@ -2,7 +2,7 @@
 
 #-mkcl
 (defsystem :hello-world-example
-  :build-operation program-op
+  ;; :build-operation program-op ; this would cause the executable output in same directory :-/
   :entry-point "hello:entry-point"
   :depends-on (:uiop)
   :components ((:file "hello")))

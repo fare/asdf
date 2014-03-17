@@ -49,35 +49,27 @@
 (operate 'monolithic-fasl-op :test-asdf/bundle-2)
 (assert (probe-file *mono-bundle-2*))
 
-;;; Test dll-op and monolithic-dll-op on ECL.
-#+ecl
-(progn
-  (require 'sockets) ;; Test the pre-compiled system feature
-  (operate 'dll-op :test-asdf/dll-test)
-  (si:load-foreign-module (first (output-files 'dll-op :test-asdf/dll-test)))
-  (operate 'load-op :test-asdf/dll-user)
-  (assert-equal (test-package::sample-function) 42)
-  (operate 'monolithic-dll-op :test-asdf/monodll)
-  (si:load-foreign-module (first (output-files 'monolithic-dll-op :test-asdf/monodll)))
-  (operate 'load-op :test-asdf/monodll-user)
-  (assert-equal (test-package::always-42) 42))
-
-;;; Test DLL-op and monolithic-dll-op on MKCL.
-#+mkcl
+;;; Test dll-op and monolithic-dll-op on ECL and MKCL
+#+(or ecl mkcl)
 (progn
   (require 'sockets) ;; Test the pre-compiled system feature
   (operate 'dll-op :test-asdf/dll-test)
   (let ((dll (first (output-files 'dll-op :test-asdf/dll-test))))
     (si:load-foreign-module dll)
-    (let* ( #+windows (compiler::*builder-default-libraries* (list (namestring dll))))
+    (let* (#+(and mkcl windows) (compiler::*builder-default-libraries* (list (namestring dll))))
       (operate 'load-op :test-asdf/dll-user)))
-  (assert (= (test-package::sample-function) 42))
-  (let* #+windows ((lib (first (output-files (operate 'lib-op :test-asdf/monodll-1) :test-asdf/monodll-1)))
-		   (compiler::*builder-default-libraries* (list (namestring lib))))
-	#-windows ()
-      (operate 'monolithic-dll-op :test-asdf/monodll))
+  (assert-equal (test-package::sample-function) 42)
+
+  (nest
+   #+(and mkcl windows)
+   (let* ((lib (first (output-files (operate 'lib-op :test-asdf/monodll-1) :test-asdf/monodll-1)))
+          (compiler::*builder-default-libraries* (list (namestring lib)))))
+   (operate 'monolithic-dll-op :test-asdf/monodll))
+
   (let ((dll (first (output-files 'monolithic-dll-op :test-asdf/monodll))))
     (si:load-foreign-module dll)
-    (let* ( #+windows (compiler::*builder-default-libraries* (list (namestring dll))))
+    (let* (#+(and mkcl windows) (compiler::*builder-default-libraries* (list (namestring dll))))
       (operate 'load-op :test-asdf/monodll-user)))
   (assert-equal (test-package::always-42) 42))
+
+;;; TODO: test prebuilt-system.

@@ -10,8 +10,20 @@
 
 (asdf-test::frob-packages)
 
-(with-test ()
-  ;;(dolist (s '(:asdf :uiop :asdf/defsystem :uiop)) (DBG :foo s (asdf::builtin-system-p (find-system s))))
-  ;;(trace perform-plan perform)
+(dolist (s '(:asdf :uiop :asdf/defsystem :uiop))
+  (assert (asdf::builtin-system-p (find-system s)) () "System ~A not builtin(!)" s))
+
+(defun make-hello-image ()
   (operate 'load-fasl-op :hello-world-example)
-  (operate 'program-op :hello-world-example))
+  (operate 'image-op :hello-world-example))
+
+(defun make-hello-program ()
+  (operate 'load-fasl-op :hello-world-example)
+  (operate 'program-op :hello-world-example)
+  #+(and mkcl windows) ;; make sure mkcl-X.X.X.dll is the same directory as the executable
+  (let* ((dll-orig (subpathname (si::self-truename)
+                                (strcat "mkcl_" (lisp-implementation-version) ".dll")))
+         (exe (asdf::output-file 'program-op :hello-world-example))
+         (dll-dest (subpathname exe dll-orig)))
+    (copy-file dll-orig dll-dest)))
+

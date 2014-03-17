@@ -170,10 +170,11 @@ itself.")) ;; operation on a system and its dependencies
     (bundle-output-files o c))
 
   #-(or ecl mkcl)
-  (defmethod perform ((o program-op) (c system))
-    (let ((output-file (output-file o c)))
-      (setf *image-entry-point* (ensure-function (component-entry-point c)))
-      (dump-image output-file :executable t)))
+  (progn
+    (defmethod perform ((o image-op) (c system))
+      (dump-image (output-file o c) :executable (typep o 'program-op)))
+    (defmethod perform :before ((o program-op) (c system))
+      (setf *image-entry-point* (ensure-function (component-entry-point c)))))
 
   (defclass compiled-file (file-component)
     ((type :initform #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")))

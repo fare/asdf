@@ -24,6 +24,8 @@ Some constraints:
    #:load-asdf-system #:clean-load-asdf-system
    #:register-directory #:load-test-system
    #:with-test #:test-asdf #:debug-asdf
+   #:run-test-script #:interactive-test
+   #:verbose #:exit-lisp
    #:assert-compare
    #:assert-equal
    #:leave-test #:def-test-system
@@ -356,6 +358,12 @@ is bound, write a message and exit on an error.  If
     (load (string-downcase file)))
   (setf *package* (some 'find-package '(:asdf :uiop :asdf/utility :asdf/package :asdf-test)))
   (load "contrib/debug.lisp"))
+
+(defun run-test-script (file)
+  (with-test ()
+    (let ((name (string file)))
+      (format t "Running ~A with ~A~%" name (acall :implementation-identifier))
+      (load name))))
 
 (defun load-asdf-lisp (&optional tag)
   (quietly (load (asdf-lisp tag) :verbose *load-verbose* :print *load-print*)))
