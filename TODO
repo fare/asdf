@@ -128,6 +128,7 @@
    but prints the namestring with a dot separator!
    (make-pathname :name "foo" :type :unspecific) ==> #P"foo."
     If bug is ever fixed, upgrade *unspecific-pathname-type* in uiop/pathname.
+*** XCL doesn't properly process files the name of which contains a *
 
 ** GCL is almost working again; but implementation bugs remain.
    See November 2013 discussion on gcl-devel.
@@ -157,6 +158,7 @@
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 *** (DIRECTORY #p"*.*") fails to match files with pathname type NIL.
+*** GCL doesn't properly process files the name of which contains a *
 *** Require is useless, because there is no system search path,
    and so you can't put ASDF (or anything) there.
 *** Low-level compiler bug:
@@ -166,11 +168,13 @@
 *** ABCL fails the timestamp propagation test.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
    rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
+*** ABCL doesn't properly process files the name of which contains a *
 
 ** ECL has issues with its bundles.
    On MacOS X, test-bundle.script fails.
    On Linux, test-program.script fails with recent ECL 237af2e,
    but used to work quite fine earlier in 2013.
+*** ECL doesn't properly process files the name of which contains a *
 
 * Design & Implement some out-of-line configuration mechanism for various options?
   i.e. let configuration files override some variables around some actions.

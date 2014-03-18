@@ -41,14 +41,14 @@
 (assert-equal (run-program
                (symbol-call :lisp-invocation :lisp-invocation-arglist
                 :image-path (native-namestring img)
-                :eval "(uiop:restore-image :entry-point 'hello:entry-point)")
+                :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
                :output :lines)
               '("hello, world"))
 
 (assert-equal (run-program
                (symbol-call :lisp-invocation :lisp-invocation-arglist
                 :image-path (native-namestring img)
-                :eval "(uiop:restore-image :entry-point 'hello:entry-point)"
+                :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
                 :arguments '("a" "b c" "d"))
                :output :lines)
               '("hello, world"
