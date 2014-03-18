@@ -553,7 +553,7 @@ and resetting the ASDF configuration is usually only needed in corner cases.
 * Resetting the ASDF configuration::
 @end menu
 
-@node Configuring ASDF to find your systems, Configuring where ASDF stores object files, Configuring ASDF, Configuring ASDF
+@node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Configuring ASDF, Configuring ASDF
 @section Configuring ASDF to find your systems
 
 In order to compile and load your systems, ASDF must be configured to find
@@ -731,7 +731,7 @@ but it is supported for old users, and for users who want to programmatically
 control what directories are added to the ASDF search path.
 
 
-@node Configuring where ASDF stores object files,  , Configuring ASDF to find your systems, Configuring ASDF
+@node Configuring where ASDF stores object files, Resetting the ASDF configuration, Configuring ASDF to find your systems --- old style, Configuring ASDF
 @section Configuring where ASDF stores object files
 @findex clear-output-translations
 
