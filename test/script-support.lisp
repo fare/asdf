@@ -24,7 +24,7 @@ Some constraints:
    #:load-asdf-system #:clean-load-asdf-system
    #:register-directory #:load-test-system
    #:with-test #:test-asdf #:debug-asdf
-   #:run-test-script #:interactive-test
+   #:run-test-script #:interactive-test #:test-load-systems
    #:verbose #:exit-lisp
    #:assert-compare
    #:assert-equal
