@@ -18,7 +18,7 @@
   (:export
    #:defsystem #:find-system #:locate-system #:coerce-name #:primary-system-name
    #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
-   #:system-definition-pathname #:with-system-definitions
+   #:system-definition-pathname
    #:search-for-system-definition #:find-component #:component-find-path
    #:compile-system #:load-system #:load-systems #:load-systems*
    #:require-system #:test-system #:clear-system

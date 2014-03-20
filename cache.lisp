@@ -4,7 +4,7 @@
 (uiop/package:define-package :asdf/cache
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
-           #:consult-asdf-cache #:do-asdf-cache #:normalize-namestring
+           #:set-asdf-cache-entry #:consult-asdf-cache #:do-asdf-cache #:normalize-namestring
            #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*))
 (in-package :asdf/cache)
 
@@ -33,14 +33,15 @@
   (defmacro do-asdf-cache (key &body body)
     `(consult-asdf-cache ,key #'(lambda () ,@body)))
 
-  (defun call-with-asdf-cache (thunk &key override)
-    (if (and *asdf-cache* (not override))
-        (funcall thunk)
-        (let ((*asdf-cache* (make-hash-table :test 'equal)))
-          (funcall thunk))))
+  (defun call-with-asdf-cache (thunk &key override key)
+    (let ((fun (if key #'(lambda () (consult-asdf-cache key thunk)) thunk)))
+      (if (and *asdf-cache* (not override))
+          (funcall fun)
+          (let ((*asdf-cache* (make-hash-table :test 'equal)))
+            (funcall fun)))))
 
-  (defmacro with-asdf-cache ((&key override) &body body)
-    `(call-with-asdf-cache #'(lambda () ,@body) :override ,override))
+  (defmacro with-asdf-cache ((&key key override) &body body)
+    `(call-with-asdf-cache #'(lambda () ,@body) :override ,override :key ,key))
 
   (defun normalize-namestring (pathname)
     (let ((resolved (resolve-symlinks*

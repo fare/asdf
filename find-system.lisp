@@ -4,18 +4,18 @@
 (uiop/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/component :asdf/system :asdf/cache)
+    :asdf/cache :asdf/component :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename
-   #:find-system #:locate-system #:load-asd #:with-system-definitions
+   #:find-system #:locate-system #:load-asd
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition
    #:*system-definition-search-functions* #:search-for-system-definition
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
-   #:find-system-if-being-defined #:*systems-being-defined*
+   #:find-system-if-being-defined
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
    #:clear-defined-systems #:*defined-systems*
@@ -254,32 +254,13 @@ Going forward, we recommend new users should be using the source-registry.
   (defmethod find-system (name &optional (error-p t))
     (find-system (coerce-name name) error-p))
 
-  (defvar *systems-being-defined* nil
-    "A hash-table of systems currently being defined keyed by name, or NIL")
-
   (defun find-system-if-being-defined (name)
-    (when *systems-being-defined*
-      ;; notable side effect: mark the system as being defined, to avoid infinite loops
-      (ensure-gethash (coerce-name name) *systems-being-defined* nil)))
-
-  (defun call-with-system-definitions (thunk)
-    (if *systems-being-defined*
-        (call-with-asdf-cache thunk)
-        (let ((*systems-being-defined* (make-hash-table :test 'equal)))
-          (call-with-asdf-cache thunk))))
-
-  (defun clear-systems-being-defined ()
-    (when *systems-being-defined*
-      (clrhash *systems-being-defined*)))
-
-  (register-hook-function '*post-upgrade-cleanup-hook* 'clear-systems-being-defined)
-
-  (defmacro with-system-definitions ((&optional) &body body)
-    `(call-with-system-definitions #'(lambda () ,@body)))
+    ;; notable side effect: mark the system as being defined, to avoid infinite loops
+    (values (gethash `(find-system ,(coerce-name name)) *asdf-cache*)))
 
   (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))) &aux (readtable *readtable*) (print-pprint-dispatch *print-pprint-dispatch*))
     ;; Tries to load system definition with canonical NAME from PATHNAME.
-    (with-system-definitions ()
+    (with-asdf-cache ()
       (with-standard-io-syntax
         (let ((*package* (find-package :asdf-user))
               ;; Note that our backward-compatible *readtable* is
@@ -374,41 +355,41 @@ PATHNAME when not null is a path from where to load the system,
 either associated with FOUND-SYSTEM, or with the PREVIOUS system.
 PREVIOUS when not null is a previously loaded SYSTEM object of same name.
 PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded."
-    (let* ((name (coerce-name name))
-           (in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
-           (previous (cdr in-memory))
-           (previous (and (typep previous 'system) previous))
-           (previous-time (car in-memory))
-           (found (search-for-system-definition name))
-           (found-system (and (typep found 'system) found))
-           (pathname (ensure-pathname
-                      (or (and (typep found '(or pathname string)) (pathname found))
-                          (and found-system (system-source-file found-system))
-                          (and previous (system-source-file previous)))
-                     :want-absolute t :resolve-symlinks *resolve-symlinks*))
-           (foundp (and (or found-system pathname previous) t)))
-      (check-type found (or null pathname system))
-      (unless (check-not-old-asdf-system name pathname)
-        (cond
-          (previous (setf found nil pathname nil))
-          (t
-           (setf found (sysdef-preloaded-system-search "asdf"))
-           (assert (typep found 'system))
-           (setf found-system found pathname nil))))
-      (values foundp found-system pathname previous previous-time)))
+    (with-asdf-cache (:key `(locate-system ,name))
+      (let* ((name (coerce-name name))
+             (in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
+             (previous (cdr in-memory))
+             (previous (and (typep previous 'system) previous))
+             (previous-time (car in-memory))
+             (found (search-for-system-definition name))
+             (found-system (and (typep found 'system) found))
+             (pathname (ensure-pathname
+                        (or (and (typep found '(or pathname string)) (pathname found))
+                            (and found-system (system-source-file found-system))
+                            (and previous (system-source-file previous)))
+                        :want-absolute t :resolve-symlinks *resolve-symlinks*))
+             (foundp (and (or found-system pathname previous) t)))
+        (check-type found (or null pathname system))
+        (unless (check-not-old-asdf-system name pathname)
+          (cond
+            (previous (setf found nil pathname nil))
+            (t
+             (setf found (sysdef-preloaded-system-search "asdf"))
+             (assert (typep found 'system))
+             (setf found-system found pathname nil))))
+        (values foundp found-system pathname previous previous-time))))
 
   (defmethod find-system ((name string) &optional (error-p t))
-    (with-system-definitions ()
+    (with-asdf-cache (:key `(find-system ,name))
       (let ((primary-name (primary-system-name name)))
-        (unless (or (equal name primary-name)
-                    (nth-value 1 (gethash primary-name *systems-being-defined*)))
+        (unless (equal name primary-name)
           (find-system primary-name nil)))
       (loop
         (restart-case
             (multiple-value-bind (foundp found-system pathname previous previous-time)
                 (locate-system name)
               (when (and found-system (eq found-system previous)
-                         (or (gethash name *systems-being-defined*)
+                         (or (gethash `(find-system ,name) *asdf-cache*)
                              (and *immutable-systems* (gethash name *immutable-systems*))))
                 (return found-system))
               (assert (eq foundp (and (or found-system pathname previous) t)))
