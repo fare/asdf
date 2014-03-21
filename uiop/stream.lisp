@@ -645,7 +645,7 @@ Upon success, the KEEP form is evaluated and the file is is deleted unless it ev
           ,@(when directory `(:directory ,directory))
           ,@(when prefix `(:prefix ,prefix))
           ,@(when suffix `(:suffix ,suffix))
-          ,@(when type `(:suffix ,type))
+          ,@(when type `(:type ,type))
           ,@(when keep `(:keep ,keep))
           ,@(when after `(:after `#',afterf))
           ,@(when element-type `(:element-type ,element-type))
