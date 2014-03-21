@@ -2,7 +2,7 @@
 
 (DBG :foo (current-lisp-file-pathname))
 
-(unless (or #+(or allegro clisp clozure cmu (and ecl (not ecl-bytecmp)) gcl lispworks mkcl sbcl scl) t)
+(unless (or #+(or allegro clisp clozure cmu (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
 
@@ -38,24 +38,29 @@
  0)
 (assert (probe-file* img) () "Can't find image file ~S" img)
 
-(assert-equal (run-program
-               (symbol-call :lisp-invocation :lisp-invocation-arglist
-                :image-path (native-namestring img)
-                :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
-               :output :lines)
-              '("hello, world"))
+(assert-equal
+ (nest
+  #+lispworks (last)
+  (run-program
+   (symbol-call :lisp-invocation :lisp-invocation-arglist
+		:image-path (native-namestring img)
+		:eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
+   :output :lines :error-output t))
+ '("hello, world"))
 
-(assert-equal (run-program
-               (symbol-call :lisp-invocation :lisp-invocation-arglist
-                :image-path (native-namestring img)
-                :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
-                :arguments '("a" "b c" "d"))
-               :output :lines)
-              '("hello, world"
-                "You passed 3 arguments:"
-                "  \"a\""
-                "  \"b c\""
-                "  \"d\""))
+#-(or lispworks scl) ;; These can't be passed arguments the normal way
+(assert-equal
+ (run-program
+  (symbol-call :lisp-invocation :lisp-invocation-arglist
+	       :image-path (native-namestring img)
+	       :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
+	       :arguments '("a" "b c" "d"))
+  :output :lines :error-output t)
+ '("hello, world"
+   "You passed 3 arguments:"
+   "  \"a\""
+   "  \"b c\""
+   "  \"d\""))
 
 (DBG "test program-op")
 (unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl) t
@@ -80,10 +85,10 @@
 
 (assert (probe-file* exe) () "Can't find executable file ~S" exe)
 
-(assert-equal (run-program `(,(native-namestring exe)) :output :lines)
+(assert-equal (run-program `(,(native-namestring exe)) :output :lines :error-output t)
               '("hello, world"))
 
-(assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines)
+(assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines :error-output t)
               '("hello, world"
                 "You passed 3 arguments:"
                 "  \"a\""

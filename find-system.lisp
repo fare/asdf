@@ -18,7 +18,7 @@
    #:find-system-if-being-defined
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
-   #:clear-defined-systems #:*defined-systems*
+   #:clear-defined-system #:clear-defined-systems #:*defined-systems*
    #:*immutable-systems*
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
@@ -89,15 +89,18 @@ of which is a system object.")
                       (get-file-stamp file))
                     system)))))
 
+  (defun clear-defined-system (system)
+    (let ((name (coerce-name system)))
+      (remhash name *defined-systems*)
+      (unset-asdf-cache-entry `(locate-system ,name))
+      (unset-asdf-cache-entry `(find-system ,name))
+      nil))
+
   (defun clear-defined-systems ()
     ;; Invalidate all systems but ASDF itself, if registered.
-    (let ((asdf (cdr (system-registered-p :asdf))))
-      (setf *defined-systems* (make-hash-table :test 'equal))
-      (when asdf
-        (setf (component-version asdf) *asdf-version*)
-        (setf (builtin-system-p asdf) t)
-        (register-system asdf)))
-    (values))
+    (loop :for name :being :the :hash-keys :of *defined-systems*
+	  :unless (equal name "asdf")
+	    :do (clear-defined-system name)))
 
   (register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
 
@@ -256,7 +259,7 @@ Going forward, we recommend new users should be using the source-registry.
 
   (defun find-system-if-being-defined (name)
     ;; notable side effect: mark the system as being defined, to avoid infinite loops
-    (values (gethash `(find-system ,(coerce-name name)) *asdf-cache*)))
+    (first (gethash `(find-system ,(coerce-name name)) *asdf-cache*)))
 
   (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))) &aux (readtable *readtable*) (print-pprint-dispatch *print-pprint-dispatch*))
     ;; Tries to load system definition with canonical NAME from PATHNAME.
@@ -389,7 +392,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
             (multiple-value-bind (foundp found-system pathname previous previous-time)
                 (locate-system name)
               (when (and found-system (eq found-system previous)
-                         (or (gethash `(find-system ,name) *asdf-cache*)
+                         (or (first (gethash `(find-system ,name) *asdf-cache*))
                              (and *immutable-systems* (gethash name *immutable-systems*))))
                 (return found-system))
               (assert (eq foundp (and (or found-system pathname previous) t)))
@@ -423,5 +426,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (reinitialize-source-registry-and-retry ()
             :report (lambda (s)
                       (format s (compatfmt "~@<Retry finding system ~A after reinitializing the source-registry.~@:>") name))
+	    (unset-asdf-cache-entry `(locate-system ,name))
             (initialize-source-registry)))))))
 

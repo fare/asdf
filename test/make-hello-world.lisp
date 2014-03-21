@@ -23,4 +23,3 @@
          (exe (asdf::output-file 'program-op :hello-world-example))
          (dll-dest (subpathname exe dll-orig)))
     (copy-file dll-orig dll-dest)))
-

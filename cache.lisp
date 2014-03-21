@@ -4,7 +4,8 @@
 (uiop/package:define-package :asdf/cache
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
-           #:set-asdf-cache-entry #:consult-asdf-cache #:do-asdf-cache #:normalize-namestring
+           #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
+	   #:do-asdf-cache #:normalize-namestring
            #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*))
 (in-package :asdf/cache)
 
@@ -21,6 +22,10 @@
            (if *asdf-cache*
                (setf (gethash key *asdf-cache*) value-list)
                value-list)))
+
+  (defun unset-asdf-cache-entry (key)
+    (when *asdf-cache*
+      (remhash key *asdf-cache*)))
 
   (defun consult-asdf-cache (key &optional thunk)
     (if *asdf-cache*
