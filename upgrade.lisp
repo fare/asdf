@@ -34,15 +34,6 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defvar *asdf-version* nil)
   ;; We need to clear systems from versions yet older than the below:
   (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.
-  (defmacro defparameter* (var value &optional docstring)
-    (let* ((name (string-trim "*" var))
-           (valfun (intern (format nil "%~A-~A-~A" :compute name :value)))
-           (clearfun (intern (format nil "%~A-~A" :clear name))))
-      `(progn
-         (defun ,valfun () ,value)
-         (defvar ,var (,valfun) ,@(ensure-list docstring))
-         (defun ,clearfun () (setf ,var (,valfun)))
-         (register-hook-function '*post-upgrade-cleanup-hook* ',clearfun))))
   (defvar *verbose-out* nil)
   (defun asdf-message (format-string &rest format-args)
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
@@ -51,6 +42,14 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defun upgrading-p (&optional (oldest-compatible-version *oldest-forward-compatible-asdf-version*))
     (and *previous-asdf-versions*
          (version< (first *previous-asdf-versions*) oldest-compatible-version)))
+  (defmacro defparameter* (var value &optional docstring (version *oldest-forward-compatible-asdf-version*))
+    (let* ((name (string-trim "*" var))
+           (valfun (intern (format nil "%~A-~A-~A" :compute name :value))))
+      `(progn
+         (defun ,valfun () ,value)
+         (defvar ,var (,valfun) ,@(ensure-list docstring))
+         (when (upgrading-p ,version)
+           (setf ,var (,valfun))))))
   (defmacro when-upgrading ((&key (version *oldest-forward-compatible-asdf-version*)
                                (upgrading-p `(upgrading-p ,version)) when) &body body)
     "A wrapper macro for code that should only be run when upgrading a
