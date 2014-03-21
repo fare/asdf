@@ -492,16 +492,16 @@ itself.")) ;; operation on a system and its dependencies
     (let* ((object-files (input-files o c))
            (output (output-files o c))
            (bundle (first output))
-           (targetp (eq (type-of o) (component-build-operation c)))
+           (programp (typep o 'program-op))
            (kind (bundle-type o)))
       (when output
         (apply 'create-image
                bundle (append object-files (bundle-op-lisp-files o))
                :kind kind
-               :prologue-code (or (prologue-code o) (when targetp (prologue-code c)))
-               :epilogue-code (or (epilogue-code o) (when targetp (epilogue-code c)))
+               :prologue-code (or (prologue-code o) (when programp (prologue-code c)))
+               :epilogue-code (or (epilogue-code o) (when programp (epilogue-code c)))
                :build-args (bundle-op-build-args o)
-               (when targetp `(:entry-point ,(component-entry-point c))))))))
+               (when programp `(:entry-point ,(component-entry-point c))))))))
 
 #+mkcl
 (with-upgradability ()

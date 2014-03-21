@@ -438,8 +438,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                ((:image)
                 (setf kind :program) ;; to ECL, it's just another program.
                 `((setf *image-dumped-p* t)
-                  ;; fall through should be equivalent to: (si::top-level t) (quit)
-                  ))
+                  (si::top-level t) (quit)))
                ((:program)
                 `((setf *image-dumped-p* :executable)
                   (shell-boolean-exit

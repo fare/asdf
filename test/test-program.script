@@ -1,5 +1,4 @@
 ;;; -*- Lisp -*-
-
 (DBG :foo (current-lisp-file-pathname))
 
 (unless (or #+(or allegro clisp clozure cmu (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
@@ -7,6 +6,10 @@
   (leave-test "Skipping test" 0))
 
 (assert (find-system :hello-world-example))
+
+#+allegro
+(defparameter *lisp*
+  (truename (subpathname #p"sys:" (first (raw-command-line-arguments)))))
 
 ;; Try to load lisp-invocation from xcvb
 (setf *central-registry*
@@ -26,32 +29,37 @@
 (DBG "test image-op")
 (defparameter img (output-file (make-operation 'image-op) (find-system :hello-world-example)))
 (assert (absolute-pathname-p img))
-
 (delete-file-if-exists img)
+(DBG "- first create an executable image")
 (assert-equal
  (nth-value 2
   (run-program
    (symbol-call :lisp-invocation :lisp-invocation-arglist
+                #+allegro :lisp-path #+allegro *lisp*
                 :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
                 :eval "(asdf-test::make-hello-image)")
    :output t :error-output :output :input nil))
  0)
 (assert (probe-file* img) () "Can't find image file ~S" img)
 
+(DBG "- then, use it")
 (assert-equal
  (nest
   #+lispworks (last)
   (run-program
    (symbol-call :lisp-invocation :lisp-invocation-arglist
+                #+allegro :lisp-path #+allegro *lisp*
 		:image-path (native-namestring img)
 		:eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
    :output :lines :error-output t))
  '("hello, world"))
 
+(DBG "- now, use it with arguments")
 #-(or lispworks scl) ;; These can't be passed arguments the normal way
 (assert-equal
  (run-program
   (symbol-call :lisp-invocation :lisp-invocation-arglist
+               #+allegro :lisp-path #+allegro *lisp*
 	       :image-path (native-namestring img)
 	       :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
 	       :arguments '("a" "b c" "d"))
@@ -74,10 +82,12 @@
 (defparameter exe (output-file (make-operation 'program-op) (find-system :hello-world-example)))
 (assert (absolute-pathname-p exe))
 (delete-file-if-exists exe)
+(DBG "- first, create the standalone program")
 (assert-equal
  (nth-value 2
   (run-program
    (symbol-call :lisp-invocation :lisp-invocation-arglist
+                #+allegro :lisp-path #+allegro *lisp*
                 :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
                 :eval "(asdf-test::make-hello-program)")
    :output t :error-output :output :input nil))
@@ -85,9 +95,11 @@
 
 (assert (probe-file* exe) () "Can't find executable file ~S" exe)
 
+(DBG "- use that")
 (assert-equal (run-program `(,(native-namestring exe)) :output :lines :error-output t)
               '("hello, world"))
 
+(DBG "- use that with arguments")
 (assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines :error-output t)
               '("hello, world"
                 "You passed 3 arguments:"
