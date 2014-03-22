@@ -36,7 +36,9 @@
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:bundle-op #:monolithic-bundle-op #:precompiled-system #:compiled-file #:bundle-system
    #+ecl #:make-build
-   #:basic-fasl-op #:prepare-fasl-op #:fasl-op #:load-fasl-op #:monolithic-fasl-op
+   #:fasl-op #:load-fasl-op #:monolithic-fasl-op #:binary-op #:monolithic-binary-op
+   #:basic-compile-bundle-op #:prepare-bundle-op
+   #:compile-bundle-op #:load-bundle-op #:monolithic-compile-bundle-op #:monolithic-load-bundle-op
    #:lib-op #:dll-op #:deliver-asd-op #:program-op #:image-op
    #:monolithic-lib-op #:monolithic-dll-op #:monolithic-deliver-asd-op
    #:concatenate-source-op

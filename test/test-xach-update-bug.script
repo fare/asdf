@@ -44,7 +44,7 @@
 ;;; the test-asdf-location-change.fasb is linked and loaded,
 ;;; but that fails to create the :second-version package;
 ;;; loading the same .fasb in another ecl works fine, and defined (second-version:wtf). WTF?
-;;; Test it by replacing load-op below by load-fasl-op, and trace load* and other functions.
+;;; Test it by replacing load-op below by load-bundle-op, and trace load* and other functions.
 (operate 'load-op foo)
 (assert (symbol-value (find-symbol* :loaded :second-version)))
 (assert-equal 42 (symbol-call :second-version :wtf))
