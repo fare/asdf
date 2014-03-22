@@ -184,8 +184,8 @@
             <th align="left">Will provide it</th>
             <th align="left">Obsolete</th></tr>
           <tr><th align="left">Free</th>
-            <td align="left"><tt>abcl ccl clisp cmucl ecl sbcl</tt></td>
-            <td align="left"><tt>mkcl xcl</tt></td>
+            <td align="left"><tt>abcl ccl clisp cmucl ecl mkcl sbcl</tt></td>
+            <td align="left"><tt>xcl</tt></td>
             <td> </td>
             <td align="left"><tt>gcl mcl</tt></td></tr>
           <tr><th align="left">Proprietary</th>
@@ -196,7 +196,7 @@
         </table>
         <p>
           To deal with an implementation that doesn't yet provide ASDF 3,
-          we provide a script that can install ASDF 3
+          we provide <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=bin/install-asdf-as-module">a script</a> that can install ASDF 3
           where your implementation goes looking for it
           when you <tt>require</tt> it.
           Alternatively, if the implementation provides ASDF 2 or an older ASDF 3,
