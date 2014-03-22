@@ -4,6 +4,7 @@
     <title>ASDF - Another System Definition Facility</title>
     <link type='text/css' href='style.css' rel='stylesheet' />
     <meta name="author" content="the ASDF group"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
   </head>
   <body>
     <div class="header">
@@ -105,22 +106,25 @@
           We recommend you should <em>not</em> use <tt>asdf-install</tt> anymore,
           as it is an older similar piece of software that is both unmaintained and obsolete.
         </p><p>
+          ASDF is also not a tool to build or run Common Lisp software from the Unix command-line.
+          For that, you want <a href="http://cliki.net/cl-launch">cl-launch</a>,
+          or perhaps <a href="http://www.xach.com/lisp/buildapp/">buildapp</a>.
+        </p><p>
           If you're unsatisfied with ASDF,
           beside helping with our
           <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=TODO">TODO list</a>,
           you might be interested in other build systems for Common-Lisp:
           <ul>
-            <li>Alastair Bridgewater's small and simpler one-package-per-file
+            <li>Alastair Bridgewater's small and simple one-package-per-file
               <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a>
-              (similar to <tt>faslpath</tt> below,
-              also reimplemented as the ASDF extension
+              (also reimplemented as the ASDF extension
               <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf-package-system.git"
-                 ><tt>asdf-package-system</tt></a>).
+                 ><tt>asdf-package-system</tt></a>; similar to <tt>faslpath</tt> below).
             </li>
             <li>Fran&ccedil;ois-Ren&eacute; Rideau's
               <a href="http://common-lisp.net/project/xcvb/"><tt>XCVB</tt></a>
               (trying to build object and image files deterministically and in parallel,
-              but not actively maintained since 2012).
+              but not actively maintained since 2012; ASDF could be modified ).
             </li>
             <li>Drew McDermott's
               <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
@@ -325,14 +329,15 @@ Peter Graves <gnooth@gmail.com> (XCL).
             that also determines dependencies, in the style of
             <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a> or
             <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
-            (this functionality is built into recent ASDF releases,
+            (this functionality is built into recent versions of ASDF 3.1 and later,
             but this package exists for backward compatibility with earlier versions of ASDF 3).
         </ul>
         <p>Former extensions, now superseded, include:</p>
         <ul>
 	  <li><tt>asdf-binary-locations</tt> allowed one to redirect where ASDF creates its output files,
             so they don't clash between implementations and don't pollute source directories.
-            It is superseded by <tt>asdf/defsystem</tt> builtin <tt>asdf-output-translations</tt> mechanism;
+            It is superseded by <tt>asdf/defsystem</tt>'s builtin
+            <tt>asdf-output-translations</tt> mechanism;
             a limited compatibility mode is available to easily convert
             your former ABL configuration into an AOT configuration.
             <tt>common-lisp-controller</tt> and <tt>cl-launch</tt> used to provide similar mechanisms,
@@ -343,7 +348,8 @@ Peter Graves <gnooth@gmail.com> (XCL).
             for easier delivery.
             It is now a builtin part of <tt>asdf/defsystem</tt>,
             and allows to deliver a single FASL for a system,
-            or (on supported implementations), a standalone executable program.
+            or (on supported implementations), a standalone executable program,
+            or an image containing part of your software precompiled.
           </li>
 	  <li><tt>asdf-utils</tt> was a collection of utilities that originated with ASDF.
             It is now superseded by <tt>uiop</tt>, aka <tt>asdf/driver</tt>,
@@ -461,7 +467,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2014 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2014-03-02</div>
+        <div id="timestamp">Last updated 2014-03-22</div>
     </div>
   </body>
 </html>
