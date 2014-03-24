@@ -18,7 +18,7 @@
 
 (assert-equal 0 l-operation:*x*)
 
-(build :test-defsystem-depends-on-2)
+(make :test-defsystem-depends-on-2)
 
 (assert-equal 2 l-operation:*x*) ;; perform called twice, on file and on system.
 
@@ -27,4 +27,4 @@
   :build-operation "does-not-exist"
   :components ((:file "file3")))
 
-(signals asdf::formatted-system-definition-error (build :test-defsystem-depends-on-3))
+(signals asdf::formatted-system-definition-error (make :test-defsystem-depends-on-3))

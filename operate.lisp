@@ -9,7 +9,7 @@
   (:export
    #:operate #:oos
    #:*systems-being-operated*
-   #:build-op #:build
+   #:build-op #:make
    #:load-system #:load-systems #:load-systems*
    #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
@@ -110,6 +110,9 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 The default operation may change in the future if we implement a
 component-directed strategy for how to load or compile systems.")
 
+  (defmethod perform ((o prepare-op) (s system))
+    `((,*load-system-operation* ,@(component-sideway-dependencies s))))
+
   (defclass build-op (non-propagating-operation) ()
     (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
 to operate by default on a system or component, via the function BUILD.
@@ -121,8 +124,8 @@ that will load the system in the current image, and its typically LOAD-OP."))
   (defmethod component-depends-on ((o build-op) (c component))
     `((,(or (component-build-operation c) *load-system-operation*) ,c)))
 
-  (defun build (system &rest keys)
-    "The recommended way to interact with ASDF3.1 is via (ASDF:BUILD :FOO).
+  (defun make (system &rest keys)
+    "The recommended way to interact with ASDF3.1 is via (ASDF:MAKE :FOO).
 It will build system FOO using the operation BUILD-OP,
 the meaning of which is configurable by the system, and
 defaults to *LOAD-SYSTEM-OPERATION*, usually LOAD-OP,

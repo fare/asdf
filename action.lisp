@@ -180,9 +180,7 @@ depends on each of (S . D) where D is a declared dependency of C.
 E.g. in order for a COMPONENT to be prepared for loading or compiling with PREPARE-OP,
 each of its declared dependencies must first be loaded as by LOAD-OP."))
   (defun sideway-operation-depends-on (o c)
-    `((,(or (sideway-operation o) o)
-       ,@(loop :for dep :in (component-sideway-dependencies c)
-               :collect (resolve-dependency-spec c dep)))))
+    `((,(or (sideway-operation o) o) ,@(component-sideway-dependencies c))))
   (defmethod component-depends-on ((o sideway-operation) (c component))
     `(,@(sideway-operation-depends-on o c) ,@(call-next-method)))
 
