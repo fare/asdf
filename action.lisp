@@ -57,7 +57,6 @@
            (component 'component)
            (opix (position operation formals))
            (coix (position component formals))
-
            (prefix (subseq formals 0 opix))
            (suffix (subseq formals (1+ coix) len))
            (more-args (when keyp `(&rest ,rest &key &allow-other-keys))))
