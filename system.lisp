@@ -143,7 +143,6 @@
 
   (defgeneric compute-system-variables (system))
   (defmethod compute-system-variables ((system system))
-    (configure-system-variables system '(*readtable* *print-pprint-dispatch*))
     (configure-system-variables system (system-variable-specs system))
     ;; TODO: insert an out-of-band system configuration facility <here>, or in an :after method.
     nil)

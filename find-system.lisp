@@ -4,12 +4,11 @@
 (uiop/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-    :asdf/cache :asdf/component :asdf/system)
+    :asdf/cache :asdf/component :asdf/system :asdf/syntax)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:locate-system #:load-asd
-   #:call-with-asdf-syntax #:with-asdf-syntax
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
@@ -262,27 +261,11 @@ Going forward, we recommend new users should be using the source-registry.
     ;; notable side effect: mark the system as being defined, to avoid infinite loops
     (first (gethash `(find-system ,(coerce-name name)) *asdf-cache*)))
 
-  (defun call-with-asdf-syntax (thunk &key package)
-    (with-standard-io-syntax
-      (let ((*package* (find-package (or package :asdf-user)))
-            (*print-readably* nil))
-        (funcall thunk))))
-  (defmacro with-asdf-syntax ((&key package) &body body)
-    `(call-with-asdf-syntax #'(lambda () ,@body) :package ,package))
-
   (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))))
     ;; Tries to load system definition with canonical NAME from PATHNAME.
     (with-asdf-cache ()
-      (with-asdf-syntax ()
-        (let ((*package* (find-package :asdf-user))
-              ;; Note that our backward-compatible *readtable* is
-              ;; a global readtable that gets globally side-effected. Ouch.
-              ;; Same for the *print-pprint-dispatch* table.
-              ;; We should do something about that for ASDF3 if possible, or else ASDF4.
-              (*readtable* (copy-readtable nil))
-              (*print-pprint-dispatch* (copy-pprint-dispatch nil))
-              (*print-readably* nil)
-              (*default-pathname-defaults*
+      (with-asdf-syntax (:package :asdf-user)
+        (let ((*default-pathname-defaults*
                 ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
                 (pathname-directory-pathname (physicalize-pathname pathname))))
           (handler-bind

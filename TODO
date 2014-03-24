@@ -378,3 +378,81 @@ It looks like SWANK can be fixed soon, though, so we'll see.
    after the package created if it doesn't exist yet (!)
 *** There again, a check that a forward-package is not backward
    would be very nice.
+
+* Syntax Control: implement and document this plan
+1- ASDF maintains an asdf:*shared-readtable*, which is the *readtable*
+ object at the time it was loaded.
+
+2- This *shared-readtable* is subject to the current restrictions:
+  A- no modifying any standard character,
+  B- no two dependencies assigning different meaning to the same
+non-standard character.
+  C- libraries need to document any change to the readtable
+  D- free software libraries will register these changes on the page on cliki.
+
+3- Unhappily, there is no cheap way to enforce these restrictions, but
+that's no regression with respect to the current situation.
+
+4- ASDF wraps any compile-op and load-source-op in this
+asdf:*shared-readtable*, but probably not load-op, to preserve
+combine-fasl linking semantics.
+
+5- Systems that want to do crazier things with the readtable that may
+violate (2) must arrange to use their own private readtable, but can
+otherwise do it safely. It is an error (unhappily not enforceable) to
+modify the current readtable in these ways.
+
+6A- ASDF binds *read-table* to the *shared-readtable* at the start of
+every system's compilation (and loading?), and around the entire
+asdf:operate, leaving the *readtable* unchanged at the end.
+
+This easily supports systems that "modify the current readtable data structure".
+
+However, that doesn't systems that "bind *readtable* to a new value",
+because the changes they make will shadow the changes that other
+systems following this style make and depend on. To allow such, an
+idiom, we must also do the following:
+
+6B- ASDF binds *read-table* to a proper "entry readtable" at the start
+of every system's compilation, and record an "exit readtable" at the
+end of the system's loading.
+
+7- maintain a partial order on these readtable objects, assuming that
+each system's exit readtable supersedes the entry readtable. The least
+readtable is the *shared-readtable*. It's enough to store for each new
+exit readtable, identified by the name of system that created it, the
+set of its inferior readtables, as a list or eq-hash-table, or an
+equal hash-table, with each readtable being identified by the name of
+the system that created it.
+
+8- before a system is compiled or loaded, compute the maximum
+readtable of all the exit readtables of its dependencies. If this
+maximum is unique, then it will be the entry readtable of the system.
+If there is not a unique readtable that is more than all the other
+ones, that's an error, and we refuse to load the system.
+
+9- after a system is loaded, check its exit readtable, if it already
+exists, check that this doesn't create a cycle or issue an error; it
+it doesn't already exist, add it to the set of all known exit
+readtables.
+
+10- ASDF either
+ A- binds the *read-table* to the *shared-readtable* around the entire
+asdf:operate, leaving the *readtable* unchanged at the end, or
+ B- always side-effects the *read-table* to correspond to the exit
+readtable of the loaded system, or
+ C- operate does the binding around thing, but load-system does the
+side-effect after it's done operate'ing.
+
+Does that strike you as complex? Because it is. That's the price of
+*safely* supporting this "systems can bind a new value to *readtable*"
+style. Unhappily some of the constraints are not enforceable (2A and
+2B), but that's the very same as now.
+
+So my next question is: do you want to safely support these
+conventions? Do your systems modify the current *readtable* structure,
+or do they bind *readtable* to a new value?
+
+PS: thank you for making me come up with better solutions. I care
+about enough hygiene to use readtables safely, and I also care about
+supporting legacy systems if possible.

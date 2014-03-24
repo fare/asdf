@@ -5,7 +5,7 @@
   (:recycle :asdf/lisp-action :asdf)
   (:intern #:proclamations #:flags)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
-   :asdf/component :asdf/system :asdf/find-component :asdf/find-system
+   :asdf/component :asdf/system :asdf/syntax :asdf/find-component :asdf/find-system
    :asdf/operation :asdf/action)
   (:export
    #:try-recompiling
