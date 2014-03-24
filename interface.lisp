@@ -5,22 +5,20 @@
   (:nicknames :asdf :asdf-utilities)
   (:recycle :asdf/interface :asdf)
   (:unintern
-   #:*asdf-revision* #:around #:asdf-method-combination
-   #:do-traverse #:do-dep #:do-one-dep #:visit-action #:component-visited-p
-   #:split #:make-collector
    #:loaded-systems ; makes for annoying SLIME completion
-   #:output-files-for-system-and-operation) ; obsolete ASDF-BINARY-LOCATION function
+   #:output-files-for-system-and-operation) ; ASDF-BINARY-LOCATION function we use to detect ABL
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry
    :asdf/plan :asdf/operate :asdf/parse-defsystem :asdf/bundle :asdf/concatenate-source
    :asdf/backward-internals :asdf/backward-interface :asdf/package-system)
-  ;; TODO: automatically generate interface with reexport?
+  ;; Note: (1) we are NOT automatically reexporting everything from previous packages.
+  ;; (2) we only reexport UIOP functionality when backward-compatibility requires it.
   (:export
    #:defsystem #:find-system #:locate-system #:coerce-name #:primary-system-name
    #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
-   #:system-definition-pathname #:with-system-definitions
+   #:system-definition-pathname
    #:search-for-system-definition #:find-component #:component-find-path
    #:compile-system #:load-system #:load-systems #:load-systems*
    #:require-system #:test-system #:clear-system
@@ -32,10 +30,9 @@
    #:prepare-source-op #:load-source-op #:test-op
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
-   #:input-files #:output-files #:output-file #:perform
+   #:input-files #:output-files #:output-file #:perform #:perform-with-restarts
    #:operation-done-p #:explain #:action-description #:component-sideway-dependencies
    #:needed-in-image-p
-   ;; #:run-program ; we can't export it, because SB-GROVEL :use's both ASDF and SB-EXT.
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:bundle-op #:monolithic-bundle-op #:precompiled-system #:compiled-file #:bundle-system
    #+ecl #:make-build

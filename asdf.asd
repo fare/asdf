@@ -58,7 +58,7 @@
    (:file "source-registry" :depends-on ("find-system"))
    (:file "backward-internals" :depends-on ("lisp-action" "operate"))
    (:file "parse-defsystem" :depends-on ("backward-internals" "cache" "system"))
-   (:file "bundle" :depends-on ("lisp-action" "operate"))
+   (:file "bundle" :depends-on ("lisp-action" "operate" "parse-defsystem"))
    (:file "concatenate-source" :depends-on ("plan" "parse-defsystem" "bundle"))
    (:file "backward-interface" :depends-on ("operate" "output-translations"))
    (:file "package-system" :depends-on ("system" "find-system" "parse-defsystem"))
@@ -75,7 +75,7 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "3.1.0.94" ;; to be automatically updated by make bump-version
+  :version "3.1.0.102" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
   :class #.(if (find-class 'package-system nil) 'package-system 'system)

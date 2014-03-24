@@ -16,7 +16,12 @@ It notably doesn't work on:
 * mocl, that doesn't support ASDF 3 yet.
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 |#
-(require :asdf)
+(ignore-errors (funcall 'require "asdf")) ;; Load the implementation-provided ASDF
+#-asdf2 (load (merge-pathnames ;; Fall back to loading ASDF manually
+                (make-pathname :name "asdf" :type "lisp" :version nil
+                 :directory '(:relative :back "build") :defaults *load-pathname*)
+                *load-pathname*))
+(asdf:load-system :asdf) ;; Upgrade to the latest ASDF3 (assumes you have it configured properly)
 
 (in-package :asdf)
 

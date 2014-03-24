@@ -118,7 +118,7 @@ This is designed to abstract away the implementation specific quit forms."
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
       (debug:backtrace (or count most-positive-fixnum) stream))
-    #+ecl
+    #+(or ecl mkcl)
     (let* ((top (si:ihs-top))
 	   (repeats (if count (min top count) top))
 	   (backtrace (loop :for ihs :from 0 :below top
@@ -233,9 +233,10 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     #+gcl si:*command-args*
     #+(or genera mcl) nil
     #+lispworks sys:*line-arguments-list*
+    #+mkcl (loop :for i :from 0 :below (mkcl:argc) :collect (mkcl:argv i))
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
-    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl sbcl scl xcl)
+    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
     (error "raw-command-line-arguments not implemented yet"))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
@@ -263,10 +264,10 @@ return a string that for the name with which the program was invoked, i.e. argv[
 Otherwise, return NIL."
     (cond
       ((eq *image-dumped-p* :executable) ; yes, this ARGV0 is our argv0 !
-       ;; NB: not currently available on ABCL, Corman, Genera, MCL, MKCL
+       ;; NB: not currently available on ABCL, Corman, Genera, MCL
        (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
            (first (raw-command-line-arguments))
-           #+ecl (si:argv 0)))
+           #+ecl (si:argv 0) #+mkcl (mkcl:argv 0)))
       (t ;; argv[0] is the name of the interpreter.
        ;; The wrapper script can export __CL_ARGV0. cl-launch does as of 4.0.1.8.
        (getenvp "__CL_ARGV0"))))
@@ -437,8 +438,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                ((:image)
                 (setf kind :program) ;; to ECL, it's just another program.
                 `((setf *image-dumped-p* t)
-                  ;; fall through should be equivalent to: (si::top-level t) (quit)
-                  ))
+                  (si::top-level t) (quit)))
                ((:program)
                 `((setf *image-dumped-p* :executable)
                   (shell-boolean-exit

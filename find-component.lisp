@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/find-component
   (:recycle :asdf/find-component :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
    :asdf/component :asdf/system :asdf/find-system)
   (:export
    #:find-component
@@ -106,7 +106,12 @@
             (or (null c)
                 (and (typep c 'missing-dependency)
                      (eq (missing-required-by c) component)
-                     (equal (missing-requires c) name))))))))
+                     (equal (missing-requires c) name))))
+	  (unless (component-parent component)
+	    (let ((name (coerce-name name)))
+	      (unset-asdf-cache-entry `(find-system ,name))
+	      (unset-asdf-cache-entry `(locate-system ,name))))))))
+
 
   (defun resolve-dependency-spec (component dep-spec)
     (let ((component (find-component () component)))

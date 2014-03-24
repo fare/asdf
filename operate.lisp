@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
    :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export
@@ -75,12 +75,11 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
                           :original-initargs operation-initargs operation-initargs)
                    component-path keys))))
       ;; Setup proper bindings around any operate call.
-      (with-system-definitions ()
-        (with-asdf-syntax ()
-          (let* ((*verbose-out* (and verbose *standard-output*))
-                 (*compile-file-warnings-behaviour* on-warnings)
-                 (*compile-file-failure-behaviour* on-failure))
-            (call-next-method))))))
+      (with-asdf-cache ()
+        (let* ((*verbose-out* (and verbose *standard-output*))
+               (*compile-file-warnings-behaviour* on-warnings)
+               (*compile-file-failure-behaviour* on-failure))
+          (call-next-method)))))
 
   (defmethod operate :before ((operation operation) (component component)
                               &key version &allow-other-keys)
@@ -210,11 +209,11 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
 (with-upgradability ()
   (defun restart-upgraded-asdf ()
     ;; If we're in the middle of something, restart it.
-    (when *systems-being-defined*
-      (let ((l (loop :for name :being :the :hash-keys :of *systems-being-defined* :collect name)))
-        (clrhash *systems-being-defined*)
+    (when *asdf-cache*
+      (let ((l (loop* :for (x y) :being :the hash-keys :of *asdf-cache*
+                      :when (eq x 'find-system) :collect y)))
+        (clrhash *asdf-cache*)
         (dolist (s l) (find-system s nil)))))
-
   (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf))
 
 

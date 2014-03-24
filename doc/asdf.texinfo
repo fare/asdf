@@ -86,8 +86,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 @insertcopying
 
 @menu
-* Quick start summary::
 * Introduction::
+* Quick start summary::
 * Loading ASDF::
 * Configuring ASDF::
 * Using ASDF::
@@ -103,41 +103,99 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Bibliography::
 * Concept Index::
 * Function and Class Index::
-* Variable Index::
+* Variable Index::              @c @detailmenu
+@c 
 
-@c @detailmenu
-@c  --- The Detailed Node Listing ---
+@detailmenu
+ --- The Detailed Node Listing ---
 
-@c Defining systems with defsystem
+Loading ASDF
 
-@c * The defsystem form::
-@c * A more involved example::
-@c * The defsystem grammar::
-@c * Other code in .asd files::
+* Loading a pre-installed ASDF::
+* Checking whether ASDF is loaded::
+* Upgrading ASDF::
+* Loading an otherwise installed ASDF::
 
-@c The object model of ASDF
+Configuring ASDF
 
-@c * Operations::
-@c * Components::
-@c * Functions::
+* Configuring ASDF to find your systems::
+* Configuring where ASDF stores object files::
 
-@c Operations
+Defining systems with defsystem
 
-@c * Predefined operations of ASDF::
-@c * Creating new operations::
+* The defsystem form::
+* A more involved example::
+* The defsystem grammar::
+* Other code in .asd files::
+* The package-system extension::
 
-@c Components
+The object model of ASDF
 
-@c * Common attributes of components::
-@c * Pre-defined subclasses of component::
-@c * Creating new component types::
+* Operations::
+* Components::
+* Functions::
 
-@c properties
+Operations
 
-@c * Pre-defined subclasses of component::
-@c * Creating new component types::
+* Predefined operations of ASDF::
+* Creating new operations::
 
-@c @end detailmenu
+Components
+
+* Common attributes of components::
+* Pre-defined subclasses of component::
+* Creating new component types::
+
+properties
+
+* Pre-defined subclasses of component::
+* Creating new component types::
+
+FAQ
+
+* Where do I report a bug?::
+* What has changed between ASDF 1 and ASDF 2?::
+* Issues with installing the proper version of ASDF::
+* Issues with configuring ASDF::
+* Issues with using and extending ASDF to define systems::
+* ASDF development FAQs::
+
+``What has changed between ASDF 1 and ASDF 2?''
+
+* What are ASDF 1 2 3?::
+* ASDF can portably name files in subdirectories::
+* Output translations::
+* Source Registry Configuration::
+* Usual operations are made easier to the user::
+* Many bugs have been fixed::
+* ASDF itself is versioned::
+* ASDF can be upgraded::
+* Decoupled release cycle::
+* Pitfalls of the transition to ASDF 2::
+
+Issues with installing the proper version of ASDF
+
+* My Common Lisp implementation comes with an outdated version of ASDF. What to do?::
+* I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?::
+
+Issues with configuring ASDF
+
+* How can I customize where fasl files are stored?::
+* How can I wholly disable the compiler output cache?::
+
+Issues with using and extending ASDF to define systems
+
+* How can I cater for unit-testing in my system?::
+* How can I cater for documentation generation in my system?::
+* How can I maintain non-Lisp (e.g. C) source files?::
+* I want to put my module's files at the top level.  How do I do this?::
+* How do I create a system definition where all the source files have a .cl extension?::
+
+ASDF development FAQs
+
+* How do run the tests interactively in a REPL?::
+
+@end detailmenu
 @end menu
 
 @end ifnottex
@@ -188,8 +246,9 @@ we recommend you upgrade to ASDF 3
 --- and we explain how to do that. @xref{Loading ASDF}.
 (In the context of compatibility requirements,
 ASDF 2.27, released on Feb 1st 2013, and further 2.x releases up to 2.33,
-count as pre-releases of ASDF 3, and define the :asdf3 feature;
+count as pre-releases of ASDF 3, and define the @code{:asdf3} feature;
 still, please use the latest release).
+Release ASDF 3.1.1 and later also define the @code{:asdf3.1} feature.
 
 Also note that ASDF is not to be confused with ASDF-Install.
 ASDF-Install is not part of ASDF, but a separate piece of software.
@@ -198,6 +257,9 @@ We recommend you use Quicklisp instead,
 which works great and is being actively maintained.
 If you want to download software from version control instead of tarballs,
 so you may more easily modify it, we recommend clbuild.
+We recommend @file{~/common-lisp/}
+as a place into which to install Common Lisp software;
+starting with ASDF 3.1.1, it is included in the default source-registry configuration.
 
 @node  Quick start summary, Loading ASDF, Introduction, Top
 @chapter Quick start summary
@@ -218,7 +280,9 @@ Make sure ASDF can find system definitions
 through proper source-registry configuration.
 For more details, @xref{Configuring ASDF to find your systems}.
 The simplest way is simply to put all your lisp code in subdirectories of
-@file{~/.local/share/common-lisp/source/}.
+@file{~/common-lisp/} (starting with ASDF 3.1.1),
+or @file{~/.local/share/common-lisp/source/}
+(for ASDF 2 and later, or if you want to keep source in a hidden directory).
 Such code will automatically be found.
 
 @item
@@ -250,6 +314,8 @@ to make sure it's all working properly. @xref{Using ASDF}.
 @end itemize
 @end itemize
 
+@c FIXME: (1) add a sample project that the user can cut and paste to
+@c get started.  (2) discuss the option of starting with Quicklisp.
 
 
 
@@ -373,10 +439,12 @@ we assume you're an expert deliberately using a legacy implementation,
 and are proficient enough to install this fasl.
 Still, the ASDF source repository contains a script
 @file{bin/install-asdf-as-module} that can help you do that.
-It relies on cl-launch 4 for command-line invocation,
+It relies on @file{cl-launch} 4 for command-line invocation,
 which may depend on ASDF being checked out in @file{~/cl/asdf/}
 if your implementation doesn't even have an ASDF 2;
-but you can run the code it manually if needs be.
+but if you don't have @file{cl-launch},
+you can instead @code{(load "bin/install-asdf-as-module")}
+from your implementation's REPL.
 
 Finally, if your implementation only provides ASDF 2,
 and you can't or won't upgrade it or override its ASDF module,
@@ -487,10 +555,10 @@ and resetting the ASDF configuration is usually only needed in corner cases.
 
 
 @menu
-* Configuring ASDF to find your systems ::
-* Configuring ASDF to find your systems --- old style ::
-* Configuring where ASDF stores object files ::
-* Resetting the ASDF configuration ::
+* Configuring ASDF to find your systems::
+* Configuring ASDF to find your systems --- old style::
+* Configuring where ASDF stores object files::
+* Resetting the ASDF configuration::
 @end menu
 
 @node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Configuring ASDF, Configuring ASDF
@@ -506,9 +574,11 @@ ASDF, starting from easiest to the most complex:
 
 @item
 Put all of your systems in subdirectories of
+@file{~/common-lisp/} or
 @file{~/.local/share/common-lisp/source/}.
-If you install software there (it can be a symlink),
-you don't need further configuration.
+If you install software there, you don't need further configuration.
+(NB: @file{~/common-lisp/} is only included in the default configuration
+starting with ASDF 3.1.1 or later)
 
 @item
 If you're using some tool to install software (e.g. Quicklisp),
@@ -554,16 +624,6 @@ If necessary, you can reset the source-registry configuration with:
 @lisp
 (asdf:clear-source-registry)
 @end lisp
-
-@c FIXME: too specific.  Push this down to discussion of dumping an
-@c image?
-
-@c And you probably should do so before you dump your Lisp image,
-@c if the configuration may change
-@c between the machine where you save it at the time you save it
-@c and the machine you resume it at the time you resume it.
-@c Actually, you should use @code{(asdf:clear-configuration)}
-@c before you dump your Lisp image, which includes the above.
 
 @item
 In earlier versions of ASDF, the system source registry was configured
@@ -768,19 +828,15 @@ For that you may use the following function:
    regarding source-registry or output-translations.
 @end defun
 
-If you use SBCL, CMUCL or SCL, you may use this snippet
-so that the ASDF configuration be cleared automatically as you dump an image:
-
-@example
-#+(or cmu sbcl scl)
-(pushnew 'clear-configuration
-         #+(or cmu scl) ext:*before-save-initializations*
-         #+sbcl sb-ext:*save-hooks*)
-@end example
-
-For compatibility with all Lisp implementations, however,
-you might want instead your build script to explicitly call
-@code{(asdf:clear-configuration)} at an appropriate moment before dumping.
+This function is pushed onto the @code{uiop:*image-dump-hook*} by default,
+which means that if you save an image using @code{uiop:dump-image},
+or via @code{asdf:image-op} and @code{asdf:program-op},
+it will be automatically called to clear your configuration.
+If for some reason you prefer to call your implementation's underlying functionality,
+be sure to call @code{clear-configuration} manually,
+or push it into your implementation's equivalent of @code{uiop:*image-dump-hook*},
+e.g. @code{sb-ext:*save-hooks*} on SBCL, or @code{ext:*before-save-initializations*}
+on CMUCL and SCL, etc.
 
 @node  Using ASDF, Defining systems with defsystem, Configuring ASDF, Top
 @chapter Using ASDF
@@ -1197,12 +1253,12 @@ Programmers are cautioned not
 to use this component option except at the @code{defsystem} level, as
 this anomalous behavior may be removed without warning.
 
-Finally, you might look into the @code{asdf-system-connections} extension,
-that will let you define additional code to be loaded
-when two systems are simultaneously loaded.
-It may or may not be considered good style, but at least it can be used
-in a way that has deterministic behavior independent of load order,
-unlike @code{weakly-depends-on}.
+@c Finally, you might look into the @code{asdf-system-connections} extension,
+@c that will let you define additional code to be loaded
+@c when two systems are simultaneously loaded.
+@c It may or may not be considered good style, but at least it can be used
+@c in a way that has deterministic behavior independent of load order,
+@c unlike @code{weakly-depends-on}.
 
 
 @subsection Pathname specifiers
@@ -1455,10 +1511,20 @@ that can be used for manipulations beside building your project, and
 that is accessible to outside code that wishes to reason about system
 structure.
 
+Programmers should be careful to consider @strong{when} the
+@code{:if-feature} is evaluated.  Recall that ASDF first computes a
+build plan, and then executes that plan.  ASDF will check to see whether
+or not a feature is present @strong{at planning time}, not during the
+build.  It follows that one cannot use @code{:if-feature} to check
+features that are set during the course of the build.  It can only be
+used to check the state of features before any build operations have
+been performed.
+
 This option was added in ASDF 3.  For more information,
 @xref{required-features, Required features}.
 
 @subsection if-component-dep-fails option
+@cindex :if-component-dep-fails component option
 This option was removed in ASDF 3.
 Its semantics was limited in purpose and dubious to explain,
 and its implementation was breaking a hole into the ASDF object model.
@@ -4136,6 +4202,16 @@ mailing list
 @comment  node-name,  next,  previous,  up
 @chapter FAQ
 
+@menu
+* Where do I report a bug?::
+* What has changed between ASDF 1 and ASDF 2?::
+* Issues with installing the proper version of ASDF::
+* Issues with configuring ASDF::
+* Issues with using and extending ASDF to define systems::
+* ASDF development FAQs::
+@end menu
+
+@node Where do I report a bug?, What has changed between ASDF 1 and ASDF 2?, FAQ, FAQ
 @section  ``Where do I report a bug?''
 
 ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
@@ -4144,8 +4220,23 @@ If you're unsure about whether something is a bug, or for general discussion,
 use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
 
 
+@node What has changed between ASDF 1 and ASDF 2?, Issues with installing the proper version of ASDF, Where do I report a bug?, FAQ
 @section ``What has changed between ASDF 1 and ASDF 2?''
 
+@menu
+* What are ASDF 1 2 3?::
+* ASDF can portably name files in subdirectories::
+* Output translations::
+* Source Registry Configuration::
+* Usual operations are made easier to the user::
+* Many bugs have been fixed::
+* ASDF itself is versioned::
+* ASDF can be upgraded::
+* Decoupled release cycle::
+* Pitfalls of the transition to ASDF 2::
+@end menu
+
+@node What are ASDF 1 2 3?, ASDF can portably name files in subdirectories, What has changed between ASDF 1 and ASDF 2?, What has changed between ASDF 1 and ASDF 2?
 @subsection What are ASDF 1, ASDF 2 and ASDF 3?
 
 ASDF 1 refers to any release earlier than 1.369 or so (from August 2001 to October 2009),
@@ -4181,6 +4272,7 @@ If you are experiencing problems or limitations of any sort with ASDF 1 or ASDF 
 we recommend that you should upgrade to the latest release, be it ASDF 3 or other.
 
 
+@node ASDF can portably name files in subdirectories, Output translations, What are ASDF 1 2 3?, What has changed between ASDF 1 and ASDF 2?
 @subsection ASDF can portably name files in subdirectories
 
 Common Lisp namestrings are not portable,
@@ -4211,6 +4303,7 @@ must now be written with the @code{#p} syntax:
 @xref{The defsystem grammar,,Pathname specifiers}.
 
 
+@node Output translations, Source Registry Configuration, ASDF can portably name files in subdirectories, What has changed between ASDF 1 and ASDF 2?
 @subsection Output translations
 
 A popular feature added to ASDF was output pathname translation:
@@ -4232,6 +4325,7 @@ and support for non-Unix platforms.
 
 @xref{Controlling where ASDF saves compiled files}.
 
+@node Source Registry Configuration, Usual operations are made easier to the user, Output translations, What has changed between ASDF 1 and ASDF 2?
 @subsection Source Registry Configuration
 
 Configuring ASDF used to require special magic
@@ -4266,6 +4360,7 @@ and also allows for new magic, simpler and more powerful magic.
 @xref{Controlling where ASDF searches for systems}.
 
 
+@node Usual operations are made easier to the user, Many bugs have been fixed, Source Registry Configuration, What has changed between ASDF 1 and ASDF 2?
 @subsection Usual operations are made easier to the user
 
 In ASDF 1, you had to use the awkward syntax
@@ -4278,6 +4373,7 @@ In ASDF 2, you can use shortcuts for the usual operations:
 similarly for @code{compile-system}, @code{test-system}.
 
 
+@node Many bugs have been fixed, ASDF itself is versioned, Usual operations are made easier to the user, What has changed between ASDF 1 and ASDF 2?
 @subsection Many bugs have been fixed
 
 The following issues and many others have been fixed:
@@ -4326,6 +4422,7 @@ The documentation was grossly out of date.
 @end itemize
 
 
+@node ASDF itself is versioned, ASDF can be upgraded, Many bugs have been fixed, What has changed between ASDF 1 and ASDF 2?
 @subsection ASDF itself is versioned
 
 Between new features, old bugs fixed, and new bugs introduced,
@@ -4342,6 +4439,7 @@ Use @code{#+asdf2} to detect presence of ASDF 2,
 to check the availability of a version no earlier than required.
 
 
+@node ASDF can be upgraded, Decoupled release cycle, ASDF itself is versioned, What has changed between ASDF 1 and ASDF 2?
 @subsection ASDF can be upgraded
 
 When an old version of ASDF was loaded,
@@ -4366,6 +4464,7 @@ There are still limitations on upgrade, though,
 most notably the fact that after you upgrade ASDF,
 you must also reload or upgrade all ASDF extensions.
 
+@node Decoupled release cycle, Pitfalls of the transition to ASDF 2, ASDF can be upgraded, What has changed between ASDF 1 and ASDF 2?
 @subsection Decoupled release cycle
 
 When vendors were releasing their Lisp implementations with ASDF,
@@ -4384,6 +4483,7 @@ the practical consequence of which will mean faster convergence
 towards the latest version for everyone.
 
 
+@node Pitfalls of the transition to ASDF 2,  , Decoupled release cycle, What has changed between ASDF 1 and ASDF 2?
 @subsection Pitfalls of the transition to ASDF 2
 
 The main pitfalls in upgrading to ASDF 2 seem to be related
@@ -4479,8 +4579,15 @@ as detailed in a @pxref{FAQ,How do I create a system definition where all the so
 @end itemize
 
 
+@node Issues with installing the proper version of ASDF, Issues with configuring ASDF, What has changed between ASDF 1 and ASDF 2?, FAQ
 @section Issues with installing the proper version of ASDF
 
+@menu
+* My Common Lisp implementation comes with an outdated version of ASDF. What to do?::
+* I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?::
+@end menu
+
+@node My Common Lisp implementation comes with an outdated version of ASDF. What to do?, I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?, Issues with installing the proper version of ASDF, Issues with installing the proper version of ASDF
 @subsection ``My Common Lisp implementation comes with an outdated version of ASDF. What to do?''
 
 We recommend you upgrade ASDF.
@@ -4492,6 +4599,7 @@ In the meantime, you can load @file{asdf.lisp} directly.
 @xref{Loading ASDF,Loading an otherwise installed ASDF}.
 
 
+@node I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?,  , My Common Lisp implementation comes with an outdated version of ASDF. What to do?, Issues with installing the proper version of ASDF
 @subsection ``I'm a Common Lisp implementation vendor. When and how should I upgrade ASDF?''
 
 Since ASDF 2,
@@ -4573,8 +4681,15 @@ when they upgrade to the upstream version.
 
 
 
+@node Issues with configuring ASDF, Issues with using and extending ASDF to define systems, Issues with installing the proper version of ASDF, FAQ
 @section Issues with configuring ASDF
 
+@menu
+* How can I customize where fasl files are stored?::
+* How can I wholly disable the compiler output cache?::
+@end menu
+
+@node How can I customize where fasl files are stored?, How can I wholly disable the compiler output cache?, Issues with configuring ASDF, Issues with configuring ASDF
 @subsection ``How can I customize where fasl files are stored?''
 
 @xref{Controlling where ASDF saves compiled files}.
@@ -4595,6 +4710,7 @@ in the source directory of some system, and
 use @code{asdf:apply-output-translations} to locate a file
 whose pathname has been translated by the facility.
 
+@node How can I wholly disable the compiler output cache?,  , How can I customize where fasl files are stored?, Issues with configuring ASDF
 @subsection ``How can I wholly disable the compiler output cache?''
 
 To permanently disable the compiler output cache
@@ -4626,8 +4742,18 @@ use (after loading ASDF but before using it):
 (asdf:disable-output-translations)
 @end example
 
+@node Issues with using and extending ASDF to define systems, ASDF development FAQs, Issues with configuring ASDF, FAQ
 @section Issues with using and extending ASDF to define systems
 
+@menu
+* How can I cater for unit-testing in my system?::
+* How can I cater for documentation generation in my system?::
+* How can I maintain non-Lisp (e.g. C) source files?::
+* I want to put my module's files at the top level.  How do I do this?::
+* How do I create a system definition where all the source files have a .cl extension?::
+@end menu
+
+@node How can I cater for unit-testing in my system?, How can I cater for documentation generation in my system?, Issues with using and extending ASDF to define systems, Issues with using and extending ASDF to define systems
 @subsection ``How can I cater for unit-testing in my system?''
 
 ASDF provides a predefined test operation, @code{test-op}.
@@ -4681,12 +4807,14 @@ has passed, or which tests have failed.  The user must simply read the
 console output.  This limitation has been the subject of much
 discussion.
 
+@node How can I cater for documentation generation in my system?, How can I maintain non-Lisp (e.g. C) source files?, How can I cater for unit-testing in my system?, Issues with using and extending ASDF to define systems
 @subsection ``How can I cater for documentation generation in my system?''
 
 Various ASDF extensions provide some kind of @code{doc-op} operation.
 See also @url{https://bugs.launchpad.net/asdf/+bug/479470}.
 
 
+@node How can I maintain non-Lisp (e.g. C) source files?, I want to put my module's files at the top level.  How do I do this?, How can I cater for documentation generation in my system?, Issues with using and extending ASDF to define systems
 @subsection ``How can I maintain non-Lisp (e.g. C) source files?''
 
 See @code{cffi}'s @code{cffi-grovel}.
@@ -4694,6 +4822,7 @@ See @code{cffi}'s @code{cffi-grovel}.
 @anchor{report-bugs}
 
 
+@node I want to put my module's files at the top level.  How do I do this?, How do I create a system definition where all the source files have a .cl extension?, How can I maintain non-Lisp (e.g. C) source files?, Issues with using and extending ASDF to define systems
 @subsection ``I want to put my module's files at the top level.  How do I do this?''
 
 By default, the files contained in an asdf module go
@@ -4756,6 +4885,7 @@ either as the name component of a pathname
 or as a name component plus optional dot-separated type component
 (if the component class doesn't specifies a pathname type).
 
+@node How do I create a system definition where all the source files have a .cl extension?,  , I want to put my module's files at the top level.  How do I do this?, Issues with using and extending ASDF to define systems
 @subsection How do I create a system definition where all the source files have a .cl extension?
 
 Starting with ASDF 2.014.14, you may just pass
@@ -4824,8 +4954,14 @@ you also define the following method:
   "lis")
 @end lisp
 
+@node ASDF development FAQs,  , Issues with using and extending ASDF to define systems, FAQ
 @section ASDF development FAQs
 
+@menu
+* How do run the tests interactively in a REPL?::
+@end menu
+
+@node How do run the tests interactively in a REPL?,  , ASDF development FAQs, ASDF development FAQs
 @subsection How do run the tests interactively in a REPL?
 
 This not-so-frequently asked question is primarily for ASDF developers,
@@ -4893,6 +5029,9 @@ Also, bugs that are now tracked on launchpad:
   ``Lisp Machine Manual'', MIT, 1981.
   The famous CHINE NUAL describes one of the earliest variants of DEFSYSTEM.
   @url{https://bitsavers.trailing-edge.com/pdf/mit/cadr/chinual_4thEd_Jul81.pdf}
+@item Drew McDermott: ``A Framework for Maintaining the Coherence of a
+  Running Lisp,'' International Lisp Conference, 2005, available in
+  pre-print form at @url{http://www.cs.yale.edu/homes/dvm/papers/lisp05.pdf}.
 @end itemize
 
 
