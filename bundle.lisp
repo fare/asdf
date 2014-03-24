@@ -5,7 +5,7 @@
   (:recycle :asdf/bundle :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
-   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate)
+   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/defsystem)
   (:export
    #:bundle-op #:bundle-op-build-args #:bundle-type
    #:bundle-system #:bundle-pathname-type #:bundlable-file-p #:direct-dependency-files
@@ -26,9 +26,7 @@
     ((build-args :initarg :args :initform nil :accessor bundle-op-build-args)
      (name-suffix :initarg :name-suffix :initform nil)
      (bundle-type :initform :no-output-file :reader bundle-type)
-     #+ecl (lisp-files :initform nil :accessor bundle-op-lisp-files)
-     #+mkcl (do-fasb :initarg :do-fasb :initform t :reader bundle-op-do-fasb-p)
-     #+mkcl (do-static-library :initarg :do-static-library :initform t :reader bundle-op-do-static-library-p)))
+     #+ecl (lisp-files :initform nil :accessor bundle-op-lisp-files)))
 
   (defclass monolithic-op (operation) ()
     (:documentation "A MONOLITHIC operation operates on a system *and all of its
@@ -46,6 +44,19 @@ itself.")) ;; operation on a system and its dependencies
     ;; New style (ASDF3.1) way of specifying prologue and epilogue on ECL: in the system
     ((prologue-code :accessor prologue-code)
      (epilogue-code :accessor epilogue-code)))
+
+  #+mkcl
+  (defclass program (bundle-system)
+    ((prologue-code :initarg :prologue-code :initform nil :accessor prologue-code)
+     (epilogue-code :initarg :epilogue-code :initform nil :accessor epilogue-code)
+     (prefix-lisp-object-files :initarg :prefix-lisp-object-files
+                               :initform nil :accessor program-prefix-lisp-object-files)
+     (postfix-lisp-object-files :initarg :postfix-lisp-object-files
+                                :initform nil :accessor program-postfix-lisp-object-files)
+     (object-files :initarg :object-files
+                   :initform nil :accessor program-object-files)
+     (extra-build-args :initarg :extra-build-args
+                       :initform nil :accessor program-extra-build-args)))
 
   (defmethod prologue-code ((x t)) nil)
   (defmethod epilogue-code ((x t)) nil)
@@ -77,7 +88,7 @@ itself.")) ;; operation on a system and its dependencies
     ((bundle-type :initform :fasl)))
 
   (defclass prepare-fasl-op (sideway-operation)
-    ((sideway-operation :initform #+ecl 'load-fasl-op #-ecl 'load-op :allocation :class)))
+    ((sideway-operation :initform #+(or ecl mkcl) 'load-fasl-op #-(or ecl mkcl) 'load-op :allocation :class)))
 
   (defclass lib-op (link-op gather-op non-propagating-operation)
     ((bundle-type :initform :lib))
@@ -87,7 +98,7 @@ itself.")) ;; operation on a system and its dependencies
     ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op) :allocation :class)))
 
   (defclass load-fasl-op (basic-load-op selfward-operation)
-    ((selfward-operation :initform '(prepare-op fasl-op) :allocation :class)))
+    ((selfward-operation :initform '(prepare-fasl-op fasl-op) :allocation :class)))
 
   ;; NB: since the monolithic-op's can't be sideway-operation's,
   ;; if we wanted lib-op, dll-op, deliver-asd-op to be sideway-operation's,
@@ -123,7 +134,7 @@ itself.")) ;; operation on a system and its dependencies
   (defclass image-op (monolithic-bundle-op selfward-operation
                       #+ecl link-op #+(or ecl mkcl) gather-op)
     ((bundle-type :initform :image)
-     (selfward-operation :initform '(#-ecl load-op) :allocation :class))
+     (selfward-operation :initform '(#-(or ecl mkcl) load-op) :allocation :class))
     (:documentation "create an image file from the system and its dependencies"))
 
   (defclass program-op (image-op)
@@ -139,8 +150,9 @@ itself.")) ;; operation on a system and its dependencies
       ((member :dll :lib :shared-library :static-library :program :object :program)
        (compile-file-type :type bundle-type))
       ((member :image) "image")
-      ((eql :dll) (cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
-      ((member :lib :static-library) (cond ((os-unix-p) "a") ((os-windows-p) "lib")))
+      ((member :dll :shared-library) (cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
+      ((member :lib :static-library) (cond ((os-unix-p) "a")
+					   ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "a" "lib"))))
       ((eql :program) (cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
 
   (defun bundle-output-files (o c)
@@ -157,10 +169,11 @@ itself.")) ;; operation on a system and its dependencies
     (bundle-output-files o c))
 
   #-(or ecl mkcl)
-  (defmethod perform ((o program-op) (c system))
-    (let ((output-file (output-file o c)))
-      (setf *image-entry-point* (ensure-function (component-entry-point c)))
-      (dump-image output-file :executable t)))
+  (progn
+    (defmethod perform ((o image-op) (c system))
+      (dump-image (output-file o c) :executable (typep o 'program-op)))
+    (defmethod perform :before ((o program-op) (c system))
+      (setf *image-entry-point* (ensure-function (component-entry-point c)))))
 
   (defclass compiled-file (file-component)
     ((type :initform #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")))
@@ -189,14 +202,14 @@ itself.")) ;; operation on a system and its dependencies
     (unless name-suffix-p
       (setf (slot-value instance 'name-suffix)
             (unless (typep instance 'program-op)
-              (if (operation-monolithic-p instance) "--all-systems" #-ecl "--system")))) ; . no good for Logical Pathnames
+              (if (operation-monolithic-p instance) "--all-systems" #-(or ecl mkcl) "--system")))) ; . no good for Logical Pathnames
     (when (typep instance 'monolithic-bundle-op)
       (destructuring-bind (&key lisp-files prologue-code epilogue-code
                            &allow-other-keys)
           (operation-original-initargs instance)
         (setf (prologue-code instance) prologue-code
               (epilogue-code instance) epilogue-code)
-        #-ecl (assert (null (or lisp-files epilogue-code prologue-code)))
+        #-ecl (assert (null (or lisp-files #-mkcl epilogue-code #-mkcl prologue-code)))
         #+ecl (setf (bundle-op-lisp-files instance) lisp-files)))
     (setf (bundle-op-build-args instance)
           (remove-plist-keys
@@ -208,7 +221,9 @@ itself.")) ;; operation on a system and its dependencies
       (declare (ignorable type))
       (or #+ecl (or (equalp type (compile-file-type :type :object))
                     (equalp type (compile-file-type :type :static-library)))
-          #+mkcl (equalp type (compile-file-type :fasl-p nil))
+          #+mkcl (or (equalp type (compile-file-type :fasl-p nil))
+                     #+(or unix mingw32 mingw64) (equalp type "a") ;; valid on Unix and MinGW
+                     #+(and windows (not (or mingw32 mingw64))) (equalp type "lib"))
           #+(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl) (equalp type (compile-file-type)))))
 
   (defgeneric* (trivial-system-p) (component))
@@ -337,14 +352,23 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod trivial-system-p ((s prebuilt-system))
     t)
 
+  (defmethod perform ((o link-op) (c prebuilt-system))
+    nil)
+
+  (defmethod perform ((o basic-fasl-op) (c prebuilt-system))
+    nil)
+
   (defmethod perform ((o lib-op) (c prebuilt-system))
     nil)
 
-  (defmethod component-depends-on ((o lib-op) (c prebuilt-system))
+  (defmethod perform ((o dll-op) (c prebuilt-system))
     nil)
 
-  (defmethod component-depends-on ((o monolithic-lib-op) (c prebuilt-system))
-    nil))
+  (defmethod component-depends-on ((o gather-op) (c prebuilt-system))
+    nil)
+
+  (defmethod output-files ((o lib-op) (c prebuilt-system))
+    (values (list (prebuilt-system-static-library c)) t)))
 
 
 ;;;
@@ -361,6 +385,7 @@ itself.")) ;; operation on a system and its dependencies
            (library (second inputs))
            (asd (first (output-files o s)))
            (name (if (and fasl asd) (pathname-name asd) (return-from perform)))
+           (version (component-version s))
            (dependencies
              (if (operation-monolithic-p o)
                  (remove-if-not 'builtin-system-p
@@ -390,6 +415,7 @@ itself.")) ;; operation on a system and its dependencies
         (let ((*package* (find-package :asdf-user)))
           (pprint `(defsystem ,name
                      :class prebuilt-system
+                     :version ,version
                      :depends-on ,depends-on
                      :components ((:compiled-file ,(pathname-name fasl)))
                      ,@(when library `(:lib ,(file-namestring library))))
@@ -430,7 +456,7 @@ itself.")) ;; operation on a system and its dependencies
 (asdf:load-system :precompiled-asdf-utils)
 |#
 
-#+(or ecl mkcl)
+#+ecl
 (with-upgradability ()
   (defun uiop-library-file ()
     (or (and (find-system :uiop nil)
@@ -447,8 +473,10 @@ itself.")) ;; operation on a system and its dependencies
                   (and (system-source-directory :asdf)
                        (plan-operates-on-p plan '("asdf"))))
         (pushnew (uiop-library-file) files :test 'pathname-equal))
-      files))
+      files)))
 
+#+(or ecl mkcl)
+(with-upgradability ()
   (defun register-pre-built-system (name)
     (register-system (make-instance 'system :name (coerce-name name) :source-file nil))))
 
@@ -464,26 +492,40 @@ itself.")) ;; operation on a system and its dependencies
     (let* ((object-files (input-files o c))
            (output (output-files o c))
            (bundle (first output))
-           (targetp (eq (type-of o) (component-build-operation c)))
+           (programp (typep o 'program-op))
            (kind (bundle-type o)))
       (when output
         (apply 'create-image
                bundle (append object-files (bundle-op-lisp-files o))
                :kind kind
-               :prologue-code (or (prologue-code o) (when targetp (prologue-code c)))
-               :epilogue-code (or (epilogue-code o) (when targetp (epilogue-code c)))
+               :prologue-code (or (prologue-code o) (when programp (prologue-code c)))
+               :epilogue-code (or (epilogue-code o) (when programp (epilogue-code c)))
                :build-args (bundle-op-build-args o)
-               (when targetp `(:entry-point ,(component-entry-point c))))))))
+               (when programp `(:entry-point ,(component-entry-point c))))))))
 
 #+mkcl
 (with-upgradability ()
+  (defmethod perform ((o dll-op) (s system))
+    (apply #'compiler::build-shared-library (output-file o s)
+           :lisp-object-files (input-files o s) (bundle-op-build-args o)))
+
   (defmethod perform ((o lib-op) (s system))
-    (apply #'compiler::build-static-library (output-file o c)
+    (apply #'compiler::build-static-library (output-file o s)
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
 
   (defmethod perform ((o basic-fasl-op) (s system))
-    (apply #'compiler::build-bundle (output-file o c) ;; second???
+    (apply #'compiler::build-bundle (output-file o s)
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
+
+  (defmethod perform ((o program-op) (s system))
+    (apply #'compiler::build-program (output-file o s)
+           :lisp-object-files (append (program-prefix-lisp-object-files s)
+                                      (input-files o s)
+                                      (program-postfix-lisp-object-files s))
+           :object-files (program-object-files s)
+           :prologue-code (prologue-code s)
+           :epilogue-code (epilogue-code s)
+           (program-extra-build-args s)))
 
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))

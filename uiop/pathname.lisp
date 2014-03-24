@@ -91,8 +91,8 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   ;; See CLHS make-pathname and 19.2.2.2.3.
   ;; This will be :unspecific if supported, or NIL if not.
   (defparameter *unspecific-pathname-type*
-    #+(or abcl allegro clozure cmu genera lispworks mkcl sbcl scl) :unspecific
-    #+(or clisp ecl gcl xcl #|These haven't been tested:|# cormanlisp mcl) nil
+    #+(or abcl allegro clozure cmu genera lispworks sbcl scl) :unspecific
+    #+(or clisp ecl mkcl gcl xcl #|These haven't been tested:|# cormanlisp mcl) nil
     "Unspecific type component to use with the underlying implementation's MAKE-PATHNAME")
 
   (defun make-pathname* (&rest keys &key (directory nil)
@@ -190,8 +190,9 @@ when merging, making or parsing pathnames"
     ;; But CMUCL decides to die on NIL.
     ;; MCL has issues with make-pathname, nil and defaulting
     (declare (ignorable defaults))
-    #.`(make-pathname* :directory nil :name nil :type nil :version nil :device nil
-                       :host (or #+cmu lisp::*unix-host*)
+    #.`(make-pathname* :directory nil :name nil :type nil :version nil
+                       :device (or #+(and mkcl unix) :unspecific)
+                       :host (or #+cmu lisp::*unix-host* #+(and mkcl unix) "localhost")
                        #+scl ,@'(:scheme nil :scheme-specific-part nil
                                  :username nil :password nil :parameters nil :query nil :fragment nil)
                        ;; the default shouldn't matter, but we really want something physical
@@ -224,11 +225,11 @@ when merging, making or parsing pathnames"
         (or (and (null p1) (null p2))
             (and (pathnamep p1) (pathnamep p2)
                  (and (=? pathname-host)
-                      (=? pathname-device)
+                      #-(and mkcl unix) (=? pathname-device)
                       (=? normalize-pathname-directory-component pathname-directory)
                       (=? pathname-name)
                       (=? pathname-type)
-                      (=? pathname-version)))))))
+                      #-mkcl (=? pathname-version)))))))
 
   (defun absolute-pathname-p (pathspec)
     "If PATHSPEC is a pathname or namestring object that parses as a pathname

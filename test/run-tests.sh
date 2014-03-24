@@ -144,7 +144,7 @@ do_tests () {
       echo "Testing: $i" >&2
       test_count=`expr "$test_count" + 1`
       rm -f ~/.cache/common-lisp/"`pwd`"/* || true
-      if DO $bcmd $eval "'(#.(load(string'|script-support.lisp|))#.(asdf-test::load-asdf)#.(asdf-test::frob-packages)#.(asdf-test::with-test()(load(string'|$i|))))" ; then
+      if DO $bcmd $eval "'(#.(load(string'|script-support.lisp|))#.(asdf-test::load-asdf)#.(asdf-test::frob-packages)#.(asdf-test:run-test-script'|$i|))" ; then
         echo "Using $command, $i passed" >&2
 	test_pass=`expr "$test_pass" + 1`
       else
@@ -476,10 +476,10 @@ test_clean_load () {
     nop=build/results/${lisp}-nop.text
     load=build/results/${lisp}-load.text
     $bcmd $eval \
-      "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test::exit-lisp'0))" \
+      "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:exit-lisp'0))" \
       > $nop 2>&1
     $bcmd $eval \
-      "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test::verbose())#.(load(string'|build/asdf.lisp|):verbose())#.(asdf/image:quit'0))" \
+      "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:verbose())#.(load(string'|build/asdf.lisp|):verbose())#.(asdf/image:quit'0))" \
       > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
@@ -492,13 +492,13 @@ test_load_systems () {
     mkdir -p build/results/
     echo "Loading all these systems: $*"
     $bcmd $eval \
-      "(or #.(load(string'|test/script-support.lisp|))#.(asdf-test::with-test()(asdf-test::test-load-systems $*)))" \
+      "(or #.(load(string'|test/script-support.lisp|))#.(asdf-test:with-test()(asdf-test:test-load-systems $*)))" \
         2>&1 | tee build/results/${lisp}-systems.text
 }
 test_interactively () {
     cd ${ASDFDIR}
     mkdir -p build/results/
-    rlwrap $icmd $eval "(or'#.(load(string'|test/script-support.lisp|))#.(asdf-test::interactive-test'($*)))"
+    rlwrap $icmd $eval "(or'#.(load(string'|test/script-support.lisp|))#.(asdf-test:interactive-test'($*)))"
 }
 
 if [ -z "$command" ] ; then

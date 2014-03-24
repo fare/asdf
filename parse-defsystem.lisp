@@ -5,7 +5,7 @@
   (:recycle :asdf/parse-defsystem :asdf/defsystem :asdf)
   (:nicknames :asdf/defsystem) ;; previous name, to be compatible with, in case anyone cares
   (:use :uiop/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/component :asdf/system :asdf/cache
+   :asdf/cache :asdf/component :asdf/system
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/operate
    :asdf/backward-internals)
   (:import-from :asdf/system #:depends-on #:weakly-depends-on)
@@ -237,8 +237,8 @@ system names contained using COERCE-NAME. Return the result."
     ;; of the same name to reuse options (e.g. pathname) from.
     ;; To avoid infinite recursion in cases where you defsystem a system
     ;; that is registered to a different location to find-system,
-    ;; we also need to remember it in a special variable *systems-being-defined*.
-    (with-system-definitions ()
+    ;; we also need to remember it in the asdf-cache.
+    (with-asdf-cache ()
       (let* ((name (coerce-name name))
              (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
              (registered (system-registered-p name))
@@ -257,7 +257,7 @@ system names contained using COERCE-NAME. Return the result."
           (setf component-options
                 (append `(:defsystem-depends-on ,(parse-dependency-defs defsystem-depends-on))
                         component-options)))
-        (setf (gethash name *systems-being-defined*) system)
+        (set-asdf-cache-entry `(find-system ,name) (list system))
         (load-systems* defsystem-dependencies)
         ;; We change-class AFTER we loaded the defsystem-depends-on
         ;; since the class might be defined as part of those.

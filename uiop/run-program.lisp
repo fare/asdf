@@ -341,6 +341,7 @@ for the implementation's underlying run-program function"
       #+os-unix (list command)
       #+os-windows
       (string
+       #+mkcl (list "cmd" '#:/c command)
        ;; NB: We do NOT add cmd /c here. You might want to.
        #+(or allegro clisp) command
        ;; On ClozureCL for Windows, we assume you are using
@@ -350,7 +351,7 @@ for the implementation's underlying run-program function"
        ;; NB: On other Windows implementations, this is utterly bogus
        ;; except in the most trivial cases where no quoting is needed.
        ;; Use at your own risk.
-       #-(or allegro clisp clozure) (list "cmd" "/c" command))
+       #-(or allegro clisp clozure mkcl) (list "cmd" "/c" command))
       #+os-windows
       (list
        #+allegro (escape-windows-command command)
@@ -377,8 +378,8 @@ argument to pass to the internal RUN-PROGRAM"
       ((eql :interactive)
        #+allegro nil
        #+clisp :terminal
-       #+(or clozure cmu ecl sbcl scl) t)
-      #+(or allegro clozure cmu ecl lispworks sbcl scl)
+       #+(or clozure cmu ecl mkcl sbcl scl) t)
+      #+(or allegro clozure cmu ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
            :output
@@ -409,12 +410,12 @@ to be normalized by %NORMALIZE-IO-SPECIFIER.
 It returns a process-info plist with possible keys:
      PROCESS, EXIT-CODE, INPUT-STREAM, OUTPUT-STREAM, BIDIR-STREAM, ERROR-STREAM."
     ;; NB: these implementations have unix vs windows set at compile-time.
-    (declare (ignorable if-input-does-not-exist if-output-exists if-error-output-exists))
+    (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
     (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clisp clozure cmu (and lispworks os-unix) sbcl scl)
+    #-(or allegro clisp clozure cmu (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys directory
            (error "run-program not available"))
-    #+(or allegro clisp clozure cmu (and lispworks os-unix) sbcl scl)
+    #+(or allegro clisp clozure cmu (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%input (%normalize-io-specifier input :input))
            (%output (%normalize-io-specifier output :output))
@@ -434,7 +435,7 @@ It returns a process-info plist with possible keys:
                #+os-windows :show-window #+os-windows (if interactive nil :hide)
                :allow-other-keys t keys))
              #-allegro
-             (with-current-directory (#-sbcl directory)
+             (with-current-directory (#-(or sbcl mkcl) directory)
                #+clisp
                (flet ((run (f x &rest args)
                         (multiple-value-list
@@ -446,11 +447,11 @@ It returns a process-info plist with possible keys:
                    #+os-windows (string (run 'ext:run-shell-command %command))
                    (list (run 'ext:run-program (car %command)
                               :arguments (cdr %command)))))
-               #+(or clozure cmu ecl sbcl scl)
-               (#-ecl progn #+ecl multiple-value-list
+               #+(or clozure cmu ecl mkcl sbcl scl)
+               (#-(or ecl mkcl) progn #+(or ecl mkcl) multiple-value-list
                 (apply
                  '#+(or cmu ecl scl) ext:run-program
-                 #+clozure ccl:run-program #+sbcl sb-ext:run-program
+                 #+clozure ccl:run-program #+sbcl sb-ext:run-program #+mkcl mk-ext:run-program
                  (car %command) (cdr %command)
                  :input %input
                  :output %output
@@ -458,7 +459,7 @@ It returns a process-info plist with possible keys:
                  :wait wait
                  :allow-other-keys t
                  (append
-                  #+(or clozure cmu sbcl scl)
+                  #+(or clozure cmu mkcl sbcl scl)
                   `(:if-input-does-not-exist ,if-input-does-not-exist
                     :if-output-exists ,if-output-exists
                     :if-error-exists ,if-error-output-exists)
@@ -525,8 +526,8 @@ It returns a process-info plist with possible keys:
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmu scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
-        #+ecl
-        (destructuring-bind (stream code process) process*
+        #+(or ecl mkcl)
+        (destructuring-bind #+ecl (stream code process) #+mkcl (stream process code) process*
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
             (cond
               ((zerop mode))
@@ -553,8 +554,9 @@ It returns a process-info plist with possible keys:
       #+clozure (ccl::external-process-pid process)
       #+ecl (si:external-process-pid process)
       #+(or cmu scl) (ext:process-pid process)
+      #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
-      #-(or allegro cmu sbcl scl) (error "~S not implemented" '%process-info-pid)))
+      #-(or allegro cmu mkcl sbcl scl) (error "~S not implemented" '%process-info-pid)))
 
   (defun %wait-process-result (process-info)
     (or (getf process-info :exit-code)
@@ -578,7 +580,8 @@ It returns a process-info plist with possible keys:
               (system:pipe-exit-status stream :wait t)
               (if-let ((f (find-symbol* :pid-exit-status :system nil)))
                 (funcall f process :wait t)))
-            #+sbcl (sb-ext:process-exit-code process)))))
+            #+sbcl (sb-ext:process-exit-code process)
+            #+mkcl (mkcl:join-process process)))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
     (unless ignore-error-status
@@ -678,7 +681,7 @@ It returns a process-info plist with possible keys:
   (defun %use-run-program (command &rest keys
                            &key input output error-output ignore-error-status &allow-other-keys)
     ;; helper for RUN-PROGRAM when using %run-program
-    #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl mkcl xcl)
+    #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl)
     (progn
       command keys input output error-output ignore-error-status ;; ignore
       (error "Not implemented on this platform"))
@@ -788,11 +791,7 @@ It returns a process-info plist with possible keys:
                 (ext:system %command))
         #+gcl (system:system %command)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
-        #+mkcl ;; PROBABLY BOGUS -- ask jcb
-        (multiple-value-bind (io process exit-code)
-            (mkcl:run-program #+windows %command #+windows ()
-                              #-windows "/bin/sh" #-windows (list "-c" %command)
-                              :input t :output t))
+        #+mkcl (mkcl:system %command)
         #+xcl (system:%run-shell-command %command))))
 
   (defun %use-system (command &rest keys
@@ -871,7 +870,7 @@ RUN-PROGRAM returns 3 values:
 2- either 0 if the subprocess exited with success status,
 or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
-    #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl sbcl scl xcl)
+    #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
     (error "RUN-PROGRAM not implemented for this Lisp")
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
@@ -879,7 +878,7 @@ or an indication of failure via the EXIT-CODE of the process"
                      #+clisp (eq error-output :interactive)
                      #+(or abcl clisp) (eq :error-output :output)
                      #+(and lispworks os-unix) (%interactivep input output error-output)
-                     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl mkcl xcl) t)
+                     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)
              command
              :input (default input inputp output)

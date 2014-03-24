@@ -16,7 +16,8 @@
    #:collect-asds-in-directory #:collect-sub*directories-asd-files
    #:validate-source-registry-directive #:validate-source-registry-form
    #:validate-source-registry-file #:validate-source-registry-directory
-   #:parse-source-registry-string #:wrapping-source-registry #:default-source-registry
+   #:parse-source-registry-string #:wrapping-source-registry
+   #:default-user-source-registry #:default-system-source-registry
    #:user-source-registry #:system-source-registry
    #:user-source-registry-directory #:system-source-registry-directory
    #:environment-source-registry #:process-source-registry
@@ -145,9 +146,11 @@ system names to pathnames of .asd files")
     '(environment-source-registry
       user-source-registry
       user-source-registry-directory
+      default-user-source-registry
       system-source-registry
       system-source-registry-directory
-      default-source-registry))
+      default-system-source-registry)
+    "List of default source registries" "3.1.0.102")
 
   (defparameter *source-registry-file* (parse-unix-namestring "source-registry.conf"))
   (defparameter *source-registry-directory* (parse-unix-namestring "source-registry.conf.d/"))
@@ -155,21 +158,31 @@ system names to pathnames of .asd files")
   (defun wrapping-source-registry ()
     `(:source-registry
       #+(or ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
-      #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
       :inherit-configuration
+      #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
       #+cmu (:tree #p"modules:")
       #+scl (:tree #p"file://modules/")))
-  (defun default-source-registry ()
+  (defun default-user-source-registry ()
     `(:source-registry
-      #+sbcl (:directory ,(subpathname (user-homedir-pathname) ".sbcl/systems/"))
+      (:tree (:home "common-lisp/"))
+      #+sbcl (:directory (:home ".sbcl/systems/"))
       ,@(loop :for dir :in
               `(,@(when (os-unix-p)
                     `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
-                           (subpathname (user-homedir-pathname) ".local/share/"))
-                      ,@(or (getenv-absolute-directories "XDG_DATA_DIRS")
-                            '("/usr/local/share" "/usr/share"))))
+                           (subpathname (user-homedir-pathname) ".local/share/"))))
                 ,@(when (os-windows-p)
-                    (mapcar 'get-folder-path '(:local-appdata :appdata :common-appdata))))
+                    (mapcar 'get-folder-path '(:local-appdata :appdata))))
+              :collect `(:directory ,(subpathname* dir "common-lisp/systems/"))
+              :collect `(:tree ,(subpathname* dir "common-lisp/source/")))
+      :inherit-configuration))
+  (defun default-system-source-registry ()
+    `(:source-registry
+      ,@(loop :for dir :in
+              `(,@(when (os-unix-p)
+                    (or (getenv-absolute-directories "XDG_DATA_DIRS")
+                        '("/usr/local/share" "/usr/share")))
+                ,@(when (os-windows-p)
+                    (list (get-folder-path :common-appdata))))
               :collect `(:directory ,(subpathname* dir "common-lisp/systems/"))
               :collect `(:tree ,(subpathname* dir "common-lisp/source/")))
       :inherit-configuration))

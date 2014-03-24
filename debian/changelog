@@ -1,6 +1,8 @@
 cl-asdf (2:3.1.1-1) unstable; urgency=low
 
   New release:
+  * ~/common-lisp/ is now present by default in the source-registry, so
+    you don't need to configure anything if you put source code there.
   * asdf-package-system combines the one-file, one-package, one-system paradigm
     of quick-build and faslpath with the portability and robustness of ASDF 3.
   * non-propagating-operation replaces OPERATION for operations as a base class
@@ -13,9 +15,12 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
     set (represented as an equal hash-table) *immutable-systems* are always
     forced-not, and even their .asd is not refreshed from the filesystem.
   * portability is much improved, with support for the latest GCL, and
-    fixes for ABCL, CLISP, ECL, LispWorks, SBCL, XCL, etc.
+    fixes for ABCL, CLISP, ECL, LispWorks, MKCL, SBCL, XCL, etc.
   * bundle support was refactored; ECL support is fixed;
-    image-op added to create heap images for use with e.g. cl-launch.
+    image-op was added to create heap images for use with e.g. cl-launch.
+    load-fasl-op was renamed to load-bundle-op, fasl-op to compile-bundle-op,
+    binary-op to deliver-asd-op, and so forth for the monolithic- variants;
+    previous names remain available for backward compatibility.
   * robustness: Test improvements. Added missing dependencies in asdf.asd(!).
     Fixes to version-satisfies (thanks to stassats), to the file-stamp cache.
     Fixes regression from 3.0.2.12 whereby ASDF failed to avoid downgrading.
@@ -29,14 +34,14 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
     previously loaded systems will not be cleared anymore,
     variables defined with defparameter* will not be reset.
     Punting on upgrades from ASDF 1 for more robust behavior.
-  * uiop much improved so as to be used with Google's build system:
+  * uiop much improved so as to be used with Google's build system blaze:
     with-temporary-file, dump-image / restore-image, ensure-pathname,
     compile-file*, with-saved-deferred-warnings.
   * asdf3.1 feature pushed, to signal the slew of significant improvements
     in over a year since initial ASDF 3.0 pre-release (i.e. version 2.27).
   * Documentation updated. TODO updated.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Sun, 02 Mar 2014 01:09:06 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 23 Mar 2014 19:00:06 -0400
 
 cl-asdf (2:3.0.3-1) unstable; urgency=low
 

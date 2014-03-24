@@ -4,10 +4,11 @@
 
 (defvar *caught-error* nil)
 (delete-file-if-exists "try-reloading-dependency.asd")
-(asdf::clear-defined-systems)
+(with-asdf-cache (:override t)
 (handler-bind
     ((error #'(lambda (c)
                 (format t "~&Caught error ~s" c)
+		(assert (not *caught-error*) () "Déjà vu")
                 (setf *caught-error* t)
                 (concatenate-files '("try-reloading-dependency.hidden") "try-reloading-dependency.asd")
                 (DBG "trlc1 5")
@@ -17,4 +18,4 @@
                     (assert restart)
                     (when restart (invoke-restart restart)))))))
   (load-system 'try-reloading-1))
-(assert *caught-error*)
+(assert *caught-error*))
