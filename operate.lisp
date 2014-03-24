@@ -110,7 +110,7 @@ or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 The default operation may change in the future if we implement a
 component-directed strategy for how to load or compile systems.")
 
-  (defmethod perform ((o prepare-op) (s system))
+  (defmethod component-depends-on ((o prepare-op) (s system))
     `((,*load-system-operation* ,@(component-sideway-dependencies s))))
 
   (defclass build-op (non-propagating-operation) ()
