@@ -156,10 +156,10 @@ itself.")) ;; operation on a system and its dependencies
       #+ecl
       ((member :dll :lib :shared-library :static-library :program :object :program)
        (compile-file-type :type bundle-type))
-      ((member :image) "image")
+      ((member :image) #-allegro "image" #+allegro "dxl")
       ((member :dll :shared-library) (cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
       ((member :lib :static-library) (cond ((os-unix-p) "a")
-					   ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "a" "lib"))))
+                                           ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "a" "lib"))))
       ((eql :program) (cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
 
   (defun bundle-output-files (o c)
