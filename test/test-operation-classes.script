@@ -11,6 +11,7 @@
 
 (defparameter *good-classes*
   '(build-op
+    compile-bundle-op
     compile-concatenated-source-op
     compile-op
     concatenate-source-op
@@ -19,6 +20,7 @@
     fasl-op
     image-op
     lib-op
+    load-bundle-op
     load-compiled-concatenated-source-op
     load-concatenated-source-op
     load-fasl-op
@@ -32,7 +34,7 @@
     monolithic-lib-op
     monolithic-load-compiled-concatenated-source-op
     monolithic-load-concatenated-source-op
-    prepare-fasl-op
+    prepare-bundle-op
     prepare-op
     prepare-source-op
     program-op
