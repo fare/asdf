@@ -10,7 +10,9 @@
    #:bundle-op #:bundle-op-build-args #:bundle-type
    #:bundle-system #:bundle-pathname-type #:bundlable-file-p #:direct-dependency-files
    #:monolithic-op #:monolithic-bundle-op #:operation-monolithic-p
-   #:basic-fasl-op #:prepare-fasl-op #:fasl-op #:load-fasl-op #:monolithic-fasl-op
+   #:fasl-op #:load-fasl-op #:monolithic-fasl-op #:binary-op #:monolithic-binary-op
+   #:basic-compile-bundle-op #:prepare-bundle-op
+   #:compile-bundle-op #:load-bundle-op #:monolithic-compile-bundle-op #:monolithic-load-bundle-op
    #:lib-op #:monolithic-lib-op
    #:dll-op #:monolithic-dll-op
    #:deliver-asd-op #:monolithic-deliver-asd-op
@@ -84,44 +86,45 @@ itself.")) ;; operation on a system and its dependencies
         ,@(call-next-method))))
 
   ;; create a single fasl for the entire library
-  (defclass basic-fasl-op (bundle-op)
+  (defclass basic-compile-bundle-op (bundle-op)
     ((bundle-type :initform :fasl)))
 
-  (defclass prepare-fasl-op (basic-prepare-op sideway-operation)
-    ((sideway-operation :initform #+(or ecl mkcl) 'load-fasl-op #-(or ecl mkcl) 'load-op :allocation :class)))
+  (defclass prepare-bundle-op (sideway-operation)
+    ((sideway-operation :initform #+(or ecl mkcl) 'load-bundle-op #-(or ecl mkcl) 'load-op
+                        :allocation :class)))
 
   (defclass lib-op (link-op gather-op non-propagating-operation)
     ((bundle-type :initform :lib))
     (:documentation "compile the system and produce linkable (.a) library for it."))
 
-  (defclass fasl-op (basic-fasl-op selfward-operation #+ecl link-op #-ecl gather-op)
-    ((selfward-operation :initform '(prepare-fasl-op #+ecl lib-op) :allocation :class)))
+  (defclass compile-bundle-op (basic-compile-bundle-op selfward-operation #+ecl link-op #-ecl gather-op)
+    ((selfward-operation :initform '(prepare-bundle-op #+ecl lib-op) :allocation :class)))
 
-  (defclass load-fasl-op (basic-load-op selfward-operation)
-    ((selfward-operation :initform '(prepare-fasl-op fasl-op) :allocation :class)))
+  (defclass load-bundle-op (basic-load-op selfward-operation)
+    ((selfward-operation :initform '(prepare-bundle-op compile-bundle-op) :allocation :class)))
 
   ;; NB: since the monolithic-op's can't be sideway-operation's,
   ;; if we wanted lib-op, dll-op, deliver-asd-op to be sideway-operation's,
   ;; we'd have to have the monolithic-op not inherit from the main op,
-  ;; but instead inherit from a basic-FOO-op as with basic-fasl-op above.
+  ;; but instead inherit from a basic-FOO-op as with basic-compile-bundle-op above.
 
   (defclass dll-op (link-op gather-op non-propagating-operation)
     ((bundle-type :initform :dll))
     (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
 
   (defclass deliver-asd-op (basic-compile-op selfward-operation)
-    ((selfward-operation :initform '(fasl-op #+(or ecl mkcl) lib-op) :allocation :class))
+    ((selfward-operation :initform '(compile-bundle-op #+(or ecl mkcl) lib-op) :allocation :class))
     (:documentation "produce an asd file for delivering the system as a single fasl"))
 
 
   (defclass monolithic-deliver-asd-op (monolithic-bundle-op deliver-asd-op)
-    ((selfward-operation :initform '(monolithic-fasl-op #+(or ecl mkcl) monolithic-lib-op)
+    ((selfward-operation :initform '(monolithic-compile-bundle-op #+(or ecl mkcl) monolithic-lib-op)
                          :allocation :class))
     (:documentation "produce fasl and asd files for combined system and dependencies."))
 
-  (defclass monolithic-fasl-op (monolithic-bundle-op basic-fasl-op
+  (defclass monolithic-compile-bundle-op (monolithic-bundle-op basic-compile-bundle-op
                                 #+ecl link-op gather-op non-propagating-operation)
-    ((gather-op :initform #+(or ecl mkcl) 'lib-op #-(or ecl mkcl) 'fasl-op :allocation :class))
+    ((gather-op :initform #+(or ecl mkcl) 'lib-op #-(or ecl mkcl) 'compile-bundle-op :allocation :class))
     (:documentation "Create a single fasl for the system and its dependencies."))
 
   (defclass monolithic-lib-op (monolithic-bundle-op lib-op non-propagating-operation) ()
@@ -270,7 +273,7 @@ itself.")) ;; operation on a system and its dependencies
       ((:lib :static-library)
        (if monolithic 'monolithic-lib-op 'lib-op))
       ((:fasl)
-       (if monolithic 'monolithic-fasl-op 'fasl-op))
+       (if monolithic 'monolithic-compile-bundle-op 'compile-bundle-op))
       ((:image)
        'image-op)
       ((:program)
@@ -302,26 +305,26 @@ itself.")) ;; operation on a system and its dependencies
           files))))
 
 ;;;
-;;; LOAD-FASL-OP
+;;; LOAD-BUNDLE-OP
 ;;;
-;;; This is like ASDF's LOAD-OP, but using monolithic fasl files.
+;;; This is like ASDF's LOAD-OP, but using bundle fasl files.
 ;;;
 (with-upgradability ()
-  (defmethod component-depends-on ((o load-fasl-op) (c system))
+  (defmethod component-depends-on ((o load-bundle-op) (c system))
     `((,o ,@(loop :for dep :in (component-sideway-dependencies c)
                   :collect (resolve-dependency-spec c dep)))
-      (,(if (user-system-p c) 'fasl-op 'load-op) ,c)
+      (,(if (user-system-p c) 'compile-bundle-op 'load-op) ,c)
       ,@(call-next-method)))
 
-  (defmethod input-files ((o load-fasl-op) (c system))
+  (defmethod input-files ((o load-bundle-op) (c system))
     (when (user-system-p c)
-      (output-files (find-operation o 'fasl-op) c)))
+      (output-files (find-operation o 'compile-bundle-op) c)))
 
-  (defmethod perform ((o load-fasl-op) (c system))
+  (defmethod perform ((o load-bundle-op) (c system))
     (when (input-files o c)
       (perform-lisp-load-fasl o c)))
 
-  (defmethod mark-operation-done :after ((o load-fasl-op) (c system))
+  (defmethod mark-operation-done :after ((o load-bundle-op) (c system))
     (mark-operation-done (find-operation o 'load-op) c)))
 
 ;;;
@@ -340,8 +343,6 @@ itself.")) ;; operation on a system and its dependencies
     (perform-lisp-load-fasl o c))
   (defmethod perform ((o load-source-op) (c compiled-file))
     (perform (find-operation o 'load-op) c))
-  (defmethod perform ((o load-fasl-op) (c compiled-file))
-    (perform (find-operation o 'load-op) c))
   (defmethod perform ((o operation) (c compiled-file))
     nil))
 
@@ -355,7 +356,7 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod perform ((o link-op) (c prebuilt-system))
     nil)
 
-  (defmethod perform ((o basic-fasl-op) (c prebuilt-system))
+  (defmethod perform ((o basic-compile-bundle-op) (c prebuilt-system))
     nil)
 
   (defmethod perform ((o lib-op) (c prebuilt-system))
@@ -423,7 +424,7 @@ itself.")) ;; operation on a system and its dependencies
           (terpri s)))))
 
   #-(or ecl mkcl)
-  (defmethod perform ((o basic-fasl-op) (c system))
+  (defmethod perform ((o basic-compile-bundle-op) (c system))
     (let* ((input-files (input-files o c))
            (fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test-not #'equalp))
            (non-fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test #'equalp))
@@ -442,12 +443,12 @@ itself.")) ;; operation on a system and its dependencies
           (combine-fasls fasl-files output-file)))))
 
   (defmethod input-files ((o load-op) (s precompiled-system))
-    (bundle-output-files (find-operation o 'fasl-op) s))
+    (bundle-output-files (find-operation o 'compile-bundle-op) s))
 
   (defmethod perform ((o load-op) (s precompiled-system))
     (perform-lisp-load-fasl o s))
 
-  (defmethod component-depends-on ((o load-fasl-op) (s precompiled-system))
+  (defmethod component-depends-on ((o load-bundle-op) (s precompiled-system))
     #+xcl (declare (ignorable o))
     `((load-op ,s) ,@(call-next-method))))
 
@@ -486,7 +487,7 @@ itself.")) ;; operation on a system and its dependencies
   ;; But it might break systems with missing dependencies,
   ;; and there is a weird bug in test-xach-update-bug.script
   ;;(unless (use-ecl-byte-compiler-p)
-  ;;  (setf *load-system-operation* 'load-fasl-op))
+  ;;  (setf *load-system-operation* 'load-bundle-op))
 
   (defmethod perform ((o link-op) (c system))
     (let* ((object-files (input-files o c))
@@ -513,7 +514,7 @@ itself.")) ;; operation on a system and its dependencies
     (apply #'compiler::build-static-library (output-file o s)
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
 
-  (defmethod perform ((o basic-fasl-op) (s system))
+  (defmethod perform ((o basic-compile-bundle-op) (s system))
     (apply #'compiler::build-bundle (output-file o s)
            :lisp-object-files (input-files o s) (bundle-op-build-args o)))
 
@@ -534,9 +535,24 @@ itself.")) ;; operation on a system and its dependencies
 #+(and (not asdf-use-unsafe-mac-bundle-op)
        (or (and ecl darwin)
            (and abcl darwin (not abcl-bundle-op-supported))))
-(defmethod perform :before ((o basic-fasl-op) (c component))
+(defmethod perform :before ((o basic-compile-bundle-op) (c component))
   (unless (featurep :asdf-use-unsafe-mac-bundle-op)
     (cerror "Continue after modifying *FEATURES*."
-            "BASIC-FASL-OP bundle operations are not supported on Mac OS X for this lisp.~%~T~
+            "BASIC-COMPILE-BUNDLE-OP operations are not supported on Mac OS X for this lisp.~%~T~
 To continue, push :asdf-use-unsafe-mac-bundle-op onto *FEATURES*.~%~T~
 Please report to ASDF-DEVEL if this works for you.")))
+
+
+;;; Backward compatibility with pre-3.1.1 names
+(defclass fasl-op (selfward-operation)
+  ((selfward-operation :initform 'compile-bundle-op :allocation :class)))
+(defclass load-fasl-op (selfward-operation)
+  ((selfward-operation :initform 'load-bundle-op :allocation :class)))
+(defclass binary-op (selfward-operation)
+  ((selfward-operation :initform 'deliver-asd-op :allocation :class)))
+(defclass monolithic-fasl-op (selfward-operation)
+  ((selfward-operation :initform 'monolithic-compile-bundle-op :allocation :class)))
+(defclass monolithic-load-fasl-op (selfward-operation)
+  ((selfward-operation :initform 'monolithic-load-bundle-op :allocation :class)))
+(defclass monolithic-binary-op (selfward-operation)
+  ((selfward-operation :initform 'monolithic-deliver-asd-op :allocation :class)))
