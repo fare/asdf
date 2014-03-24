@@ -435,7 +435,8 @@ When CALL-NOW-P is true, also call the function immediately."
     "Coerce CLASS to a class that is subclass of SUPER if specified,
 or invoke ERROR handler as per CALL-FUNCTION.
 
-A keyword designates the name a symbol, which when found in PACKAGE, designates a class.
+A keyword designates the name a symbol, which when found in either PACKAGE, designates a class.
+-- for backward compatibility, *PACKAGE* is also accepted for now, but this may go in the future.
 A string is read as a symbol while in PACKAGE, the symbol designates a class.
 
 A class object designates itself.
@@ -443,7 +444,8 @@ NIL designates itself (no class).
 A symbol otherwise designates a class by name."
     (let* ((normalized
              (typecase class
-              (keyword (find-symbol* class package nil))
+              (keyword (or (find-symbol* class package nil)
+                           (find-symbol* class *package* nil)))
               (string (symbol-call :uiop :safe-read-from-string class :package package))
               (t class)))
            (found
