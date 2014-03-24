@@ -50,7 +50,7 @@
    (:file "cache" :depends-on ("upgrade"))
    (:file "find-system" :depends-on ("syntax" "cache"))
    (:file "find-component" :depends-on ("find-system"))
-   (:file "operation" :depends-on ("upgrade"))
+   (:file "operation" :depends-on ("find-system"))
    (:file "action" :depends-on ("find-component" "operation"))
    (:file "lisp-action" :depends-on ("action"))
    (:file "plan" :depends-on ("lisp-action"))

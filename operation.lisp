@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/operation
   (:recycle :asdf/operation :asdf/action :asdf) ;; asdf/action for FEATURE pre 2.31.5.
-  (:use :uiop/common-lisp :uiop :asdf/upgrade)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/find-system)
   (:export
    #:operation
    #:operation-original-initargs #:original-initargs ;; backward-compatibility only. DO NOT USE.
@@ -42,8 +42,10 @@
   (defparameter* *operations* (make-hash-table :test 'equal))
 
   (defun make-operation (operation-class &rest initargs)
-    (ensure-gethash (cons operation-class initargs) *operations*
-                    (list* 'make-instance operation-class initargs)))
+    (let ((class (coerce-class operation-class
+                               :package :asdf/interface :super 'operation :error 'sysdef-error)))
+      (ensure-gethash (cons class initargs) *operations*
+                      (list* 'make-instance class initargs))))
 
   (defgeneric find-operation (context spec)
     (:documentation "Find an operation by resolving the SPEC in the CONTEXT"))
@@ -52,6 +54,8 @@
   (defmethod find-operation (context (spec symbol))
     (when spec ;; NIL designates itself, i.e. absence of operation
       (apply 'make-operation spec (operation-original-initargs context))))
+  (defmethod find-operation (context (spec string))
+    (apply 'make-operation spec (operation-original-initargs context)))
   (defmethod operation-original-initargs ((context symbol))
     (declare (ignorable context))
     nil))
