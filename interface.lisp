@@ -136,6 +136,8 @@
    #:*default-encoding*
    #:*utf-8-external-format*
 
+   #:*shared-readtable* #:*shared-pprint-dispatch*
+
    #:clear-configuration
    #:*output-translations-parameter*
    #:initialize-output-translations

@@ -10,7 +10,7 @@
 (in-package :asdf/syntax)
 
 (with-upgradability ()
-  (defvar *shared-readtable* (copy-readtable nil)
+  (defvar *shared-readtable* *readtable*
     "This shared readtable allows legacy applications to keep modifying a global shared readtable
   while maintaining some hygiene for those who want to use their own readtable.
   It is subject to the following restrictions, which always existed but were previously implicit:
@@ -22,7 +22,7 @@
   D- free software libraries will register these changes on:
         http://www.cliki.net/Macro%20Characters
 ")
-  (defvar *shared-pprint-dispatch* (copy-pprint-dispatch nil)
+  (defvar *shared-pprint-dispatch* *print-pprint-dispatch*
     "*print-pprint-dispatch* table shared by all ASDF systems.
 It should match the extensions of *shared-readtable* -- see the latter variable's documentation.")
 
