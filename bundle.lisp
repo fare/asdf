@@ -127,6 +127,10 @@ itself.")) ;; operation on a system and its dependencies
     ((gather-op :initform #+(or ecl mkcl) 'lib-op #-(or ecl mkcl) 'compile-bundle-op :allocation :class))
     (:documentation "Create a single fasl for the system and its dependencies."))
 
+  (defclass monolithic-load-bundle-op (monolithic-bundle-op load-bundle-op)
+    ((selfward-operation :initform 'monolithic-compile-bundle-op :allocation :class))
+    (:documentation "Load a single fasl for the system and its dependencies."))
+
   (defclass monolithic-lib-op (monolithic-bundle-op lib-op non-propagating-operation) ()
     (:documentation "Create a single linkable library for the system and its dependencies."))
 
