@@ -15,7 +15,9 @@
 (DBG :logical
      (logical-pathname-translations "ASDF")
      (translate-logical-pathname "ASDF:test;test-logical-pathname.asd")
-     (truename "ASDF:test;test-logical-pathname.asd"))
+     (truename "ASDF:test;test-logical-pathname.asd")
+     (translate-logical-pathname "ASDF:test;test-logical-pathname.lisp")
+     (translate-logical-pathname "ASDF:test;test-logical-pathname.fasl"))
 
 #+(or gcl xcl) (leave-test "This implementation doesn't do Logical pathnames well enough" 0)
 

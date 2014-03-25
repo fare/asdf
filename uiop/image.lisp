@@ -416,18 +416,19 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
            'dump-image filename (nth-value 1 (implementation-type))))
 
-  (defun create-image (destination object-files
-                       &key kind output-name prologue-code epilogue-code
+  (defun create-image (destination lisp-object-files
+                       &key kind output-name prologue-code epilogue-code extra-object-files
                          (prelude () preludep) (postlude () postludep)
                          (entry-point () entry-point-p) build-args)
-    (declare (ignorable destination object-files kind output-name prologue-code epilogue-code
-                        prelude preludep postlude postludep entry-point entry-point-p build-args))
+    (declare (ignorable destination lisp-object-files extra-object-files kind output-name
+                        prologue-code epilogue-code prelude preludep postlude postludep
+                        entry-point entry-point-p build-args))
     "On ECL, create an executable at pathname DESTINATION from the specified OBJECT-FILES and options"
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,
     ;; and otherwise simulate dump-image, including quitting at the end.
-    #-ecl (error "~S not implemented for your implementation (yet)" 'create-image)
-    #+ecl
+    #-(or ecl mkcl) (error "~S not implemented for your implementation (yet)" 'create-image)
+    #+(or ecl mkcl)
     (let ((epilogue-forms
             (append
              (when epilogue-code `(,epilogue-code))
@@ -438,19 +439,26 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                ((:image)
                 (setf kind :program) ;; to ECL, it's just another program.
                 `((setf *image-dumped-p* t)
-                  (si::top-level t) (quit)))
+                  (si::top-level #+ecl t) (quit)))
                ((:program)
                 `((setf *image-dumped-p* :executable)
                   (shell-boolean-exit
                    (restore-image))))))))
-      (check-type kind (member :dll :lib :static-library :program :object :fasl :program))
-      (apply 'c::builder
-             kind (pathname destination)
-             :lisp-files object-files
-             :init-name (c::compute-init-name (or output-name destination) :kind kind)
-             :prologue-code prologue-code
-             :epilogue-code (when epilogue-forms `(progn ,@epilogue-forms))
-             build-args))))
+      #+ecl (check-type kind (member :dll :lib :static-library :program :object :fasl))
+      (apply #+ecl 'c::builder #+ecl kind
+             #+mkcl (ecase kind
+                      ((:dll) 'compiler::build-shared-library)
+                      ((:lib :static-library) 'compiler::build-static-library)
+                      ((:fasl) 'compiler::build-bundle)
+                      ((:program) 'compiler::build-program))
+             (pathname destination)
+             #+ecl :lisp-files #+mkcl :lisp-object-files (append lisp-object-files #+ecl extra-object-files)
+             #+ecl :init-name #+ecl (c::compute-init-name (or output-name destination) :kind kind)
+             (append
+              (when prologue-code `(:prologue-code ,prologue-code))
+              (when epilogue-forms `(:epilogue-code (progn ,@epilogue-forms)))
+              #+mkcl (when extra-object-files `(:object-files ,extra-object-files))
+              build-args)))))
 
 
 ;;; Some universal image restore hooks

@@ -52,6 +52,7 @@
 ;;; Test dll-op and monolithic-dll-op on ECL and MKCL
 #+(or ecl mkcl)
 (progn
+  #+ecl (trace c::builder)
   (require 'sockets) ;; Test the pre-compiled system feature
   (operate 'dll-op :test-asdf/dll-test)
   (let ((dll (first (output-files 'dll-op :test-asdf/dll-test))))
