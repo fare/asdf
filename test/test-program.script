@@ -9,9 +9,9 @@
 
 #+allegro
 (defparameter *lisp*
-  (if (absolute-pathname-p (first (raw-command-line-arguments)))
-      (first (raw-command-line-arguments))
-    (truename (subpathname #p"sys:" (first (raw-command-line-arguments))))))
+  (let ((argv0 (parse-native-namestring (first (raw-command-line-arguments)))))
+    (or (absolute-pathname-p argv0)
+        (truename (subpathname #p"sys:" argv0)))))
 
 ;; Try to load lisp-invocation from xcvb
 (setf *central-registry*
