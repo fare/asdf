@@ -25,7 +25,7 @@
    #:operation #:make-operation #:find-operation
    #:upward-operation #:downward-operation #:sideway-operation #:selfward-operation
                       #:non-propagating-operation
-   #:build-system #:build-op
+   #:build-op #:make
    #:load-op #:prepare-op #:compile-op
    #:prepare-source-op #:load-source-op #:test-op
    #:feature #:version #:version-satisfies #:upgrade-asdf
@@ -35,7 +35,7 @@
    #:needed-in-image-p
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:bundle-op #:monolithic-bundle-op #:precompiled-system #:compiled-file #:bundle-system
-   #+ecl #:make-build
+   #:program-system #:make-build
    #:fasl-op #:load-fasl-op #:monolithic-fasl-op #:binary-op #:monolithic-binary-op
    #:basic-compile-bundle-op #:prepare-bundle-op
    #:compile-bundle-op #:load-bundle-op #:monolithic-compile-bundle-op #:monolithic-load-bundle-op

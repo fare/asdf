@@ -9,7 +9,7 @@
   (:export
    #:operate #:oos
    #:*systems-being-operated*
-   #:build-system
+   #:build-op #:make
    #:load-system #:load-systems #:load-systems*
    #:compile-system #:test-system #:require-system
    #:*load-system-operation* #:module-provide-asdf
@@ -55,11 +55,13 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
                                 (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
     (let* ((systems-being-operated *systems-being-operated*)
            (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
-           (operation-name (reify-symbol (etypecase operation
-                                           (operation (type-of operation))
-                                           (symbol operation))))
-           (operation-initargs (operation-original-initargs operation))
-           (component-path (typecase component
+           (operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
+             (etypecase operation
+               (operation (let ((name (type-of operation))
+                                (initargs (operation-original-initargs operation)))
+                            #'(lambda () (make-operation name :original-initargs initargs initargs))))
+               ((or symbol string) (constantly operation))))
+           (component-path (typecase component ;; to remake the component after ASDF upgrade
                              (component (component-find-path component))
                              (t component))))
       ;; Before we operate on any system, make sure ASDF is up-to-date,
@@ -69,11 +71,7 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
           ;; If we were upgraded, restart OPERATE the hardest of ways, for
           ;; its function may have been redefined, its symbol uninterned, its package deleted.
           (return-from operate
-            (apply (find-symbol* 'operate :asdf)
-                   (apply (find-symbol* 'make-operation :asdf)
-                          (unreify-symbol operation-name)
-                          :original-initargs operation-initargs operation-initargs)
-                   component-path keys))))
+            (apply 'operate (funcall operation-remaker) component-path keys))))
       ;; Setup proper bindings around any operate call.
       (with-asdf-cache ()
         (let* ((*verbose-out* (and verbose *standard-output*))
@@ -106,14 +104,32 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
 (with-upgradability ()
   (defvar *load-system-operation* 'load-op
     "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
-You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle,
+You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle
 or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 
-This may change in the future as we will implement component-based strategy
-for how to load or compile stuff")
+The default operation may change in the future if we implement a
+component-directed strategy for how to load or compile systems.")
 
-  (defun build-system (system &rest keys)
-    "Shorthand for `(operate 'asdf:build-op system)`."
+  (defmethod component-depends-on ((o prepare-op) (s system))
+    `((,*load-system-operation* ,@(component-sideway-dependencies s))))
+
+  (defclass build-op (non-propagating-operation) ()
+    (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
+to operate by default on a system or component, via the function BUILD.
+Its meaning is configurable via the :BUILD-OPERATION option of a component.
+which typically specifies the name of a specific operation to which to delegate the build,
+as a symbol or as a string later read as a symbol (after loading the defsystem-depends-on);
+if NIL is specified (the default), BUILD-OP falls back to the *LOAD-SYSTEM-OPERATION*
+that will load the system in the current image, and its typically LOAD-OP."))
+  (defmethod component-depends-on ((o build-op) (c component))
+    `((,(or (component-build-operation c) *load-system-operation*) ,c)))
+
+  (defun make (system &rest keys)
+    "The recommended way to interact with ASDF3.1 is via (ASDF:MAKE :FOO).
+It will build system FOO using the operation BUILD-OP,
+the meaning of which is configurable by the system, and
+defaults to *LOAD-SYSTEM-OPERATION*, usually LOAD-OP,
+to load it in current image."
     (apply 'operate 'build-op system keys)
     t)
 

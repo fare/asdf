@@ -1,6 +1,9 @@
 ;;; -*- Lisp -*-
 (DBG :foo (current-lisp-file-pathname))
 
+#+mkcl (trace perform create-image component-depends-on) ;; compiler::build-shared-library compiler::build-static-library compiler::build-bundle compiler::build-program
+#+ecl (trace perform create-image c::builder component-depends-on)
+
 (unless (or #+(or allegro clisp clozure cmu (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))

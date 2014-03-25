@@ -10,16 +10,25 @@
 
 (asdf-test::frob-packages)
 
-(defun make-hello-image ()
+#+mkcl
+(defun add-mkcl-dll (pathname)
+  ;; make sure mkcl-X.X.X.dll is the same directory as the executable
+  (let* ((dll-orig (subpathname (si::self-truename)
+                                (strcat #-windows "../lib/"
+                                        "mkcl_" (lisp-implementation-version)
+                                        "." (asdf/bundle:bundle-pathname-type :shared-library))))
+         (dll-dest (subpathname pathname (strcat #-windows "../lib/" (file-namestring dll-orig)))))
+    (ensure-directories-exist dll-dest)
+    (copy-file dll-orig dll-dest)))
+
+
+(defun make-hello-bundle (operation)
   (operate 'load-fasl-op :hello-world-example)
-  (operate 'image-op :hello-world-example))
+  (operate operation :hello-world-example)
+  #+mkcl (add-mkcl-dll (asdf::output-file operation :hello-world-example)))
+
+(defun make-hello-image ()
+  (make-hello-bundle 'image-op))
 
 (defun make-hello-program ()
-  (operate 'load-fasl-op :hello-world-example)
-  (operate 'program-op :hello-world-example)
-  #+(and mkcl windows) ;; make sure mkcl-X.X.X.dll is the same directory as the executable
-  (let* ((dll-orig (subpathname (si::self-truename)
-                                (strcat "mkcl_" (lisp-implementation-version) ".dll")))
-         (exe (asdf::output-file 'program-op :hello-world-example))
-         (dll-dest (subpathname exe dll-orig)))
-    (copy-file dll-orig dll-dest)))
+  (make-hello-bundle 'program-op))
