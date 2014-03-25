@@ -1,4 +1,5 @@
-(load-system "test-asdf/test-module-depend")
+(with-asdf-cache (:override t)
+  (load-system "test-asdf/test-module-depend"))
 
 (defparameter *plan* (make-plan () 'load-op "test-asdf/test-module-depend"))
 (DBG :foo *plan*
