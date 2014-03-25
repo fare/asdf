@@ -1,9 +1,6 @@
 ;;; -*- Lisp -*-
 (DBG :foo (current-lisp-file-pathname))
 
-#+mkcl (trace perform create-image component-depends-on) ;; compiler::build-shared-library compiler::build-static-library compiler::build-bundle compiler::build-program
-#+ecl (trace perform create-image c::builder component-depends-on)
-
 (unless (or #+(or allegro clisp clozure cmu (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
@@ -111,5 +108,26 @@
                 "  \"a\""
                 "  \"b c\""
                 "  \"d\""))
+
+#+(or ecl mkcl)
+(progn
+  (DBG "Now create an program without UIOP")
+  (assert (probe-file (asdf/bundle::asdf-library-pathname)))
+  (assert (probe-file (asdf/bundle::compiler-library-pathname)))
+  (def-test-system hello-no-uiop
+    :class program-system
+    :no-uiop t
+    :components ((:file "file1"))
+    :epilogue-code
+    (progn
+      (format t "~:[Look ma, no UIOP~;Oops, UIOP~]!~%" (find-package :uiop))
+      (format t "~:[But no TEST-PACKAGE :-(~;But TEST-PACKAGE~]!~%" (find-package :test-package))
+      #+ecl (si:quit 0) #+mkcl (mk-ext:quit :exit-code 0)))
+  (operate 'program-op 'hello-no-uiop :force t)
+  (DBG :run (output-file 'program-op 'hello-no-uiop))
+  (assert-equal
+   (run-program `(,(native-namestring (output-file 'program-op 'hello-no-uiop)))
+                :output :lines :error-output t)
+   '("Look ma, no UIOP!" "But TEST-PACKAGE!")))
 
 ;;; TODO: include a regular system dependency and a prebuilt-system in the executable.

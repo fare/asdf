@@ -45,6 +45,7 @@ itself.")) ;; operation on a system and its dependencies
     ;; New style (ASDF3.1) way of specifying prologue and epilogue on ECL: in the system
     ((prologue-code :initform nil :initarg :prologue-code :reader prologue-code)
      (epilogue-code :initform nil :initarg :epilogue-code :reader epilogue-code)
+     (no-uiop :initform nil :initarg :no-uiop :reader no-uiop)
      (prefix-lisp-object-files :initarg :prefix-lisp-object-files
                                :initform nil :accessor prefix-lisp-object-files)
      (postfix-lisp-object-files :initarg :postfix-lisp-object-files
@@ -56,6 +57,7 @@ itself.")) ;; operation on a system and its dependencies
 
   (defmethod prologue-code ((x t)) nil)
   (defmethod epilogue-code ((x t)) nil)
+  (defmethod no-uiop ((x t)) nil)
   (defmethod prefix-lisp-object-files ((x t)) nil)
   (defmethod postfix-lisp-object-files ((x t)) nil)
   (defmethod extra-object-files ((x t)) nil)
@@ -219,7 +221,8 @@ itself.")) ;; operation on a system and its dependencies
         #+ecl (setf (extra-object-files instance) lisp-files)))
     (setf (extra-build-args instance)
           (remove-plist-keys
-           '(:type :monolithic :name-suffix :epilogue-code :prologue-code :lisp-files)
+           '(:type :monolithic :name-suffix :epilogue-code :prologue-code :lisp-files
+             :force :force-not :plan-class) ;; TODO: refactor so we don't mix plan and operation arguments
            (operation-original-initargs instance))))
 
   (defun bundlable-file-p (pathname)
@@ -469,25 +472,29 @@ itself.")) ;; operation on a system and its dependencies
   ;;  (setf *load-system-operation* 'load-bundle-op))
 
   (defun asdf-library-pathname ()
-    #+ecl (compile-file-pathname "sys:asdf" :type :lib)
+    #+ecl (compile-file-pathname "sys:asdf" :type :object)
     #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;asdf"))
 
+  (defun compiler-library-pathname ()
+    #+ecl (compile-file-pathname "sys:cmp" :type :lib)
+    #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:cmp"))
+
   (defun make-library-system (name pathname)
-    (make-instance 'prebuilt-system :name name :static-library (resolve-symlinks* pathname)))
+    (make-instance 'prebuilt-system
+                   :name (coerce-name name) :static-library (resolve-symlinks* pathname)))
 
   (defmethod component-depends-on :around ((o image-op) (c system))
     (destructuring-bind ((lib-op . deps)) (call-next-method)
       (flet ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name)))
         `((,lib-op
-           #+mkcl ,@(unless (has-it-p "cmp")
-                      `(,(make-library-system
-                          "cmp" (make-pathname :type (bundle-pathname-type :lib)
-                                               :defaults #p"sys:cmp"))))
-           ,@(unless (or (has-it-p "asdf") (has-it-p "uiop"))
+           ,@(unless (or (no-uiop c) (has-it-p "cmp"))
+               `(,(make-library-system
+                   "cmp" (compiler-library-pathname))))
+           ,@(unless (or (no-uiop c) (has-it-p "uiop") (has-it-p "asdf"))
                `(,(cond
                     ((system-source-directory :uiop) (find-system :uiop))
                     ((system-source-directory :asdf) (find-system :asdf))
-                    (t (make-fake-asdf-system "asdf" (asdf-library-pathname))))))
+                    (t (make-library-system "asdf" (asdf-library-pathname))))))
            ,@deps)))))
 
   (defmethod perform ((o link-op) (c system))
@@ -507,6 +514,7 @@ itself.")) ;; operation on a system and its dependencies
                :epilogue-code (or (epilogue-code o) (when programp (epilogue-code c)))
                :build-args (or (extra-build-args o) (when programp (extra-build-args c)))
                :extra-object-files (or (extra-object-files o) (when programp (extra-object-files c)))
+               :no-uiop (no-uiop c)
                (when programp `(:entry-point ,(component-entry-point c))))))))
 
 #+(and (not asdf-use-unsafe-mac-bundle-op)
