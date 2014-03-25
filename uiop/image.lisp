@@ -419,7 +419,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
   (defun create-image (destination lisp-object-files
                        &key kind output-name prologue-code epilogue-code extra-object-files
                          (prelude () preludep) (postlude () postludep)
-                         (entry-point () entry-point-p) build-args)
+                         (entry-point () entry-point-p) build-args no-uiop)
     (declare (ignorable destination lisp-object-files extra-object-files kind output-name
                         prologue-code epilogue-code prelude preludep postlude postludep
                         entry-point entry-point-p build-args))
@@ -429,21 +429,25 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     ;; and otherwise simulate dump-image, including quitting at the end.
     #-(or ecl mkcl) (error "~S not implemented for your implementation (yet)" 'create-image)
     #+(or ecl mkcl)
-    (let ((epilogue-forms
-            (append
-             (when epilogue-code `(,epilogue-code))
-             (when postludep `((setf *image-postlude* ',postlude)))
-             (when preludep `((setf *image-prelude* ',prelude)))
-             (when entry-point-p `((setf *image-entry-point* ',entry-point)))
-             (case kind
-               ((:image)
-                (setf kind :program) ;; to ECL, it's just another program.
-                `((setf *image-dumped-p* t)
-                  (si::top-level #+ecl t) (quit)))
-               ((:program)
-                `((setf *image-dumped-p* :executable)
-                  (shell-boolean-exit
-                   (restore-image))))))))
+    (let ((epilogue-code
+            (if no-uiop
+                epilogue-code
+                (let ((forms
+                        (append
+                         (when epilogue-code `(,epilogue-code))
+                         (when postludep `((setf *image-postlude* ',postlude)))
+                         (when preludep `((setf *image-prelude* ',prelude)))
+                         (when entry-point-p `((setf *image-entry-point* ',entry-point)))
+                         (case kind
+                           ((:image)
+                            (setf kind :program) ;; to ECL, it's just another program.
+                            `((setf *image-dumped-p* t)
+                              (si::top-level #+ecl t) (quit)))
+                           ((:program)
+                            `((setf *image-dumped-p* :executable)
+                              (shell-boolean-exit
+                               (restore-image))))))))
+                  (when forms `(progn ,@forms))))))
       #+ecl (check-type kind (member :dll :lib :static-library :program :object :fasl))
       (apply #+ecl 'c::builder #+ecl kind
              #+mkcl (ecase kind
@@ -456,7 +460,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
              #+ecl :init-name #+ecl (c::compute-init-name (or output-name destination) :kind kind)
              (append
               (when prologue-code `(:prologue-code ,prologue-code))
-              (when epilogue-forms `(:epilogue-code (progn ,@epilogue-forms)))
+              (when epilogue-code `(:epilogue-code ,epilogue-code))
               #+mkcl (when extra-object-files `(:object-files ,extra-object-files))
               build-args)))))
 
