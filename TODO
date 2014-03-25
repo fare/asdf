@@ -5,7 +5,7 @@
   (as provided by the first 2011 iteration of Quicklisp), and
   I (fare) am pushing for swank-asdf to not support anything older
   than 2.019 (still used by LispWorks 6.1).
-  Hopefully, sometime in 2014, everyone will have adopted ASDF 3.
+  Hopefully, sometime in 2014, everyone will have adopted ASDF 3, or even 3.1.1.
   Maybe remove old versions from upgrade tests; or maybe not:
   if we support old versions in any way,
   it should be for upgrade only, and "punt" is acceptable.
@@ -230,7 +230,7 @@
    is anyone still using the compatibility mode?
    Maybe issue a warning, then a cerror, before to remove the code?
 
-* Make load-op a generic operation that selects the proper strategy
+* Make load-op a generic operation that selects the proper strategy?
   for each system, module or file, according to component properties and user-configuration:
   compile the lisp file then load the fasl (load-fasl-op on a cl-source-file),
   load the lisp file without compiling (load-source-op),
@@ -379,6 +379,21 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** There again, a check that a forward-package is not backward
    would be very nice.
 
+* Migrate from component-depends-on to action-depends-on
+** I contend a future version of ASDF will replace
+   (component-depends-on operation component)
+   with (action-depends-on plan operation component).
+   This allows for different normalization strategies for dependencies
+   (including strategies that avoid resolving things to NIL),
+   a reified context for featurep checks, etc.
+** Easy but long backward-compatible transition:
+*** get all users to use the new gf and keep extending both new and old gf,
+   meanwhile the new gf has an around method that actually calls the old gf
+   except in testing mode and/or if we can check that they're using the new convention
+*** when everyone has migrated, remove the old mode and the short-circuit.
+** However, we cannot deprecate component-depends-on yet — not until we have
+   some transition in place to a better interface.
+
 * Syntax Control: implement and document this plan
 1- ASDF maintains an asdf:*shared-readtable*, which is the *readtable*
  object at the time it was loaded.
@@ -452,7 +467,3 @@ style. Unhappily some of the constraints are not enforceable (2A and
 So my next question is: do you want to safely support these
 conventions? Do your systems modify the current *readtable* structure,
 or do they bind *readtable* to a new value?
-
-PS: thank you for making me come up with better solutions. I care
-about enough hygiene to use readtables safely, and I also care about
-supporting legacy systems if possible.
