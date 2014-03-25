@@ -12,7 +12,9 @@
 
 #+allegro
 (defparameter *lisp*
-  (truename (subpathname #p"sys:" (first (raw-command-line-arguments)))))
+  (let ((argv0 (parse-native-namestring (first (raw-command-line-arguments)))))
+    (or (absolute-pathname-p argv0)
+        (truename (subpathname #p"sys:" argv0)))))
 
 ;; Try to load lisp-invocation from xcvb
 (setf *central-registry*
@@ -52,8 +54,8 @@
   (run-program
    (symbol-call :lisp-invocation :lisp-invocation-arglist
                 #+allegro :lisp-path #+allegro *lisp*
-		:image-path (native-namestring img)
-		:eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
+                :image-path (native-namestring img)
+                :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
    :output :lines :error-output t))
  '("hello, world"))
 
@@ -63,9 +65,9 @@
  (run-program
   (symbol-call :lisp-invocation :lisp-invocation-arglist
                #+allegro :lisp-path #+allegro *lisp*
-	       :image-path (native-namestring img)
-	       :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
-	       :arguments '("a" "b c" "d"))
+               :image-path (native-namestring img)
+               :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
+               :arguments '("a" "b c" "d"))
   :output :lines :error-output t)
  '("hello, world"
    "You passed 3 arguments:"
