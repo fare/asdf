@@ -215,15 +215,19 @@ ASDF development FAQs
 
 ASDF is Another System Definition Facility:
 a tool for specifying how systems of Common Lisp software
-are comprised of components (sub-systems and files),
+are made up of components (sub-systems and files),
 and how to operate on these components in the right order
 so that they can be compiled, loaded, tested, etc.
 
 ASDF presents three faces:
 one for users of Common Lisp software who want to reuse other people's code,
 one for writers of Common Lisp software who want to specify how to build their systems,
-one for implementers of Common Lisp extensions who want to extend the build system.
-@xref{Using ASDF,,Loading a system},
+and one for implementers of Common Lisp extensions who want to extend
+the build system.
+If you are new to ASDF, @pxref{Quick start summary,,the quick start
+guide}.  
+For more specifics, 
+@pxref{Using ASDF,,Loading a system},
 to learn how to use ASDF to load a system.
 @xref{Defining systems with defsystem},
 to learn how to define a system of your own.
@@ -231,12 +235,14 @@ to learn how to define a system of your own.
 the ASDF internals and how to extend ASDF.
 
 @emph{Nota Bene}:
-We have released ASDF 2.000 on May 31st 2010,
+We released ASDF 2.000 on May 31st 2010,
 and ASDF 3.0.0 on May 15th 2013.
 Releases of ASDF 2 and later have since then been included
 in all actively maintained CL implementations that used to bundle ASDF 1,
-plus some implementations that didn't use to,
-and has been made to work with all actively used CL implementations and a few more.
+plus some implementations that previously did not.
+ASDF has been made to work with all actively maintained CL
+implementations and even a few implementations that are @emph{not}
+actively maintained.
 @xref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
 Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 or ASDF 3 on the fly
 (though we recommend instead upgrading your implementation or its ASDF module).
