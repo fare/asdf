@@ -31,6 +31,7 @@ It should match the extensions of *shared-readtable* -- see the latter variable'
       (let ((*readtable* *shared-readtable*)
             (*print-pprint-dispatch* *shared-pprint-dispatch*)
             (*package* (find-package (or package :asdf-user)))
+            (*read-default-float-format* 'double-float)
             (*print-readably* nil))
         (funcall thunk))))
   (defmacro with-asdf-syntax ((&key package) &body body)
