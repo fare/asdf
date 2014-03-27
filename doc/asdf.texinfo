@@ -234,6 +234,8 @@ to learn how to define a system of your own.
 @xref{The object model of ASDF}, for a description of
 the ASDF internals and how to extend ASDF.
 
+@c FIXME: Are the following two too much information?  They extend the
+@c introduction perhaps more than we might like...
 @emph{Nota Bene}:
 We released ASDF 2.000 on May 31st 2010,
 and ASDF 3.0.0 on May 15th 2013.
