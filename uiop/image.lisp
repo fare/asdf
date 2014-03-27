@@ -422,7 +422,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                          (entry-point () entry-point-p) build-args no-uiop)
     (declare (ignorable destination lisp-object-files extra-object-files kind output-name
                         prologue-code epilogue-code prelude preludep postlude postludep
-                        entry-point entry-point-p build-args))
+                        entry-point entry-point-p build-args no-uiop))
     "On ECL, create an executable at pathname DESTINATION from the specified OBJECT-FILES and options"
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,

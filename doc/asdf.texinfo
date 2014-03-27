@@ -4992,6 +4992,13 @@ Also, bugs that are now tracked on launchpad:
 @unnumbered Bibliography
 
 @itemize
+@item Francois-Rene Rideau:
+  ``ASDF 3, or Why Lisp is Now an Acceptable Scripting Language'', 2014.
+  This article describes the innovations in ASDF 3 and 3.1,
+  as well as historical information on previous versions.
+  @url{http://fare.tunes.org/files/asdf3/asdf3-2014.html}
+  @url{http://github.com/fare/asdf3-2013}
+
 @item Zach Beane:
   ``Quicklisp'', 2011.
   The Quicklisp blog and Xach's livejournal contain information on Quicklisp.

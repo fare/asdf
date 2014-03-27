@@ -12,28 +12,36 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
     Failure to explicitly inherit from own of the explicitly propagating
     or non-propagating classes will result in a WARNING for now.
   * force-not now takes precedence over force, and systems named in the
-    set (represented as an equal hash-table) *immutable-systems* are always
+    *immutable-systems* set (represented as an equal hash-table) are always
     forced-not, and even their .asd is not refreshed from the filesystem.
   * portability is much improved, with support for the latest GCL, and
     fixes for ABCL, CLISP, ECL, LispWorks, MKCL, SBCL, XCL, etc.
-  * bundle support was refactored; ECL support is fixed;
+  * bundle support was refactored, with many fixes to previously uncommon cases.
+    ECL support is fixed, MKCL added, with a common extension to build programs
+    without pulling in UIOP and with it the compiler.
     image-op was added to create heap images for use with e.g. cl-launch.
     load-fasl-op was renamed to load-bundle-op, fasl-op to compile-bundle-op,
     binary-op to deliver-asd-op, and so forth for the monolithic- variants;
     previous names remain available for backward compatibility.
-  * robustness: Test improvements. Added missing dependencies in asdf.asd(!).
+  * robustness: Test improvements and new tests.
+    Added missing dependencies in asdf.asd itself(!).
     Fixes to version-satisfies (thanks to stassats), to the file-stamp cache.
-    Fixes regression from 3.0.2.12 whereby ASDF failed to avoid downgrading.
+    Fix to regression from 3.0.2.12 whereby ASDF failed to avoid downgrading.
     Many cleanups. Many explanatory updates to source code comments.
   * run-program tweaked again, notably on Windows, on CLISP, and
     on implementations without a native run-program. On Windows, we
     punt on trying to ensure no final space is ever echo'ed by CMD.EXE " ".
   * provide both "asdf" and "ASDF" to play nicer with various Lisps.
   * upgrading from a sufficiently forward-compatible version (currently: 2.33)
-    will be less disruptive of ASDF uses and enhancements in the current image:
+    will be less disruptive of ASDF data and enhancements in the current image:
     previously loaded systems will not be cleared anymore,
     variables defined with defparameter* will not be reset.
     Punting on upgrades from ASDF 1 for more robust behavior.
+  * make is the new name for build-system, as an experimental alternative
+    interface to building software with ASDF — it operates with build-op,
+    which itself delegates to *load-system-operation* by default.
+    Prepare-op also delegates to *load-system-operation* on systems.
+    You might bind that variable to load-bundle-op instead of load-op.
   * uiop much improved so as to be used with Google's build system blaze:
     with-temporary-file, dump-image / restore-image, ensure-pathname,
     compile-file*, with-saved-deferred-warnings.
