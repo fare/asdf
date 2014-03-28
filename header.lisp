@@ -60,8 +60,13 @@
                (second (third (sys::arglist 'directory))))
     (push :abcl-bundle-op-supported *features*)))
 
-;; Punt on hard package upgrade: from ASDF1 always, and even from ASDF2 on most implementations.
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  ;; New default since ASDF 3.1: enforced via with-asdf-syntax for programs,
+  ;; it is set here so that the REPL matches this expectation by default.
+  ;; Before that, programs just couldn't trust it having any value,
+  ;; and the initial value 'single-float was relatively lossy.
+  (setf *read-default-float-format* 'double-float)
+  ;; Punt on hard package upgrade: from ASDF1 always, and even from ASDF2 on most implementations.
   (unless (member :asdf3 *features*)
     (let* ((existing-version
              (when (find-package :asdf)
