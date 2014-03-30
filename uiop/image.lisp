@@ -4,7 +4,8 @@
 (uiop/package:define-package :uiop/image
   (:nicknames :asdf/image)
   (:recycle :uiop/image :asdf/image :xcvb-driver)
-  (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/pathname :uiop/stream :uiop/os)
+  (:use :uiop/common-lisp :uiop/package :uiop/utility
+   :uiop/os :uiop/pathname :uiop/stream :uiop/eval)
   (:export
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments #:argv0
@@ -17,8 +18,7 @@
    #:shell-boolean-exit
    #:register-image-restore-hook #:register-image-dump-hook
    #:call-image-restore-hook #:call-image-dump-hook
-   #:restore-image #:dump-image #:create-image
-))
+   #:restore-image #:dump-image #:create-image))
 (in-package :uiop/image)
 
 (with-upgradability ()

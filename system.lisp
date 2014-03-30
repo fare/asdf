@@ -11,9 +11,11 @@
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
    #:system-defsystem-depends-on #:system-depends-on #:system-weakly-depends-on
+   #:*default-system-variables* #:*asdf-syntax-variables*
    #:compute-system-variables #:configure-system-variables #:configure-system-variable
    #:with-updated-system-variables
-   #:use-system-variables #:initialize-system-variables #:update-system-variables
+   #:use-initial-system-variables #:use-current-system-variables
+   #:initialize-system-variables #:update-system-variables
    #:system-variable-specs #:system-variable-names #:system-variable-values #:system-variable-initializers
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
@@ -75,6 +77,17 @@
      (variable-values :accessor system-variable-values)
      (variable-initializers :accessor system-variable-initializers)))
 
+  (defun ensure-system-variable (variable &key when-undefined)
+    (ensure-variable variable :package :asdf :when-undefined when-undefined))
+
+  (defvar *asdf-syntax-variables*
+    `(,@*standard-syntax-variables*
+      (*readtable* . ,*shared-readtable*)
+      (*print-pprint-dispatch* . ,*shared-print-pprint-dispatch*)
+      (*package* . (find-package :asdf-user))))
+
+  (defvar *default-system-variables* '()) ;; make it *asdf-syntax-variables* for safety
+
   (defgeneric configure-system-variable (system variable &key))
   (defmethod configure-system-variable ((system system) variable &key (initializer nil initp))
     ;; You should configure system variables only during the call to compute-system-variables.
@@ -105,41 +118,34 @@
               (values spec nil))
         (apply 'configure-system-variable system variable keys))))
 
-  (defgeneric use-system-variables (system))
-  (defmethod use-system-variables ((system system))
-    (loop :for variable :in (system-variable-names system)
-          :for value :in (system-variable-values system) :do
-            (setf (variable-value variable :package :asdf :when-undefined nil) value)))
-
   (defgeneric update-system-variables (system))
   (defmethod update-system-variables ((system system))
     (setf (system-variable-values system)
           (loop :for variable :in (system-variable-names system)
                 :collect (variable-value variable :package :asdf :when-undefined nil))))
 
-  (defgeneric initialize-system-variables (system))
-  (defmethod initialize-system-variables ((system system))
-    (loop :for variable :in (system-variable-names system)
-          :for initializer = (gethash variable (system-variable-initializers system))
-          :for var = (ensure-variable variable :package :asdf :when-undefined nil)
-          :when var :do (setf (symbol-value var) (call-function initializer))))
+  (defgeneric system-variable-initializer-list (system))
+  (defmethod system-variable-initializer-list ((system system))
+    (loop :for var :in (system-variable-names system)
+          :collect (gethash var (system-variable-initializers system))))
+
+  (defun use-initial-system-variables (system)
+    (set-variables (system-variable-names system) (system-variable-initializer-list system)
+                   :name #'ensure-system-variable :value #'call-function))
+
+  (defun use-current-system-variables (system)
+    (set-variables (system-variable-names system) (system-variable-values system)
+                   :name #'ensure-system-variable))
 
   (defmacro with-updated-system-variables ((component) &body body)
     `(call-with-updated-system-variables ,component #'(lambda () ,@body)))
 
   (defun call-with-updated-system-variables (component thunk)
-    (loop :with system = (component-system component)
-          :for name :in (system-variable-names system)
-          :for value :in (system-variable-values system)
-          :for variable = (ensure-variable name :package :asdf :when-undefined nil)
-          :when variable
-            :collect variable :into vars
-            :and :collect value :into vals
-          :finally
-             (progv vars vals
-               (prog1
-                   (funcall thunk)
-                 (update-system-variables system)))))
+    (let ((system (component-system component)))
+      (with-variables ((system-variable-names system) (system-variable-values system)
+                       :name #'ensure-system-variable)
+        (multiple-value-prog1 (call-function thunk)
+          (update-system-variables system)))))
 
   (defgeneric compute-system-variables (system))
   (defmethod compute-system-variables ((system system))
@@ -147,14 +153,17 @@
     ;; TODO: insert an out-of-band system configuration facility <here>, or in an :after method.
     nil)
 
-  (defmethod shared-initialize :after ((system system) slot-names &key)
-    (declare (ignore slot-names))
+  (defun initialize-system-variables (system)
     (setf (system-variable-names system) nil
           (system-variable-values system) nil
           (system-variable-initializers system) (make-hash-table :test 'equal))
     (compute-system-variables system)
     (setf (system-variable-names system) (reverse (system-variable-names system))
           (system-variable-values system) (reverse (system-variable-values system))))
+
+  (defmethod shared-initialize :after ((system system) slot-names &key)
+    (declare (ignore slot-names))
+    (initialize-system-variables system))
 
   (defun reset-system (system &rest keys &key &allow-other-keys)
     (change-class (change-class system 'proto-system) 'system)

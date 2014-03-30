@@ -10,7 +10,7 @@
    ;; or :use (closer-common-lisp uiop), etc.
   (:use-reexport
    :uiop/package :uiop/utility
-   :uiop/os :uiop/pathname :uiop/stream :uiop/filesystem :uiop/image
+   :uiop/os :uiop/pathname :uiop/stream :uiop/filesystem :uiop/eval :uiop/image
    :uiop/run-program :uiop/lisp-build
    :uiop/configuration :uiop/backward-driver))
 

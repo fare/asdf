@@ -11,7 +11,6 @@
    #:detect-encoding #:*encoding-detection-hook* #:always-default-encoding
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*
-   #:*standard-readtable* #:*standard-print-pprint-dispatch*
    #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
    #:with-output #:output-string #:with-input
    #:with-input-file #:call-with-input-file #:with-output-file #:call-with-output-file
@@ -23,8 +22,6 @@
    #:slurp-stream-forms #:slurp-stream-form
    #:read-file-string #:read-file-line #:read-file-lines #:safe-read-file-line
    #:read-file-forms #:read-file-form #:safe-read-file-form
-   #:eval-input #:eval-thunk #:standard-eval-thunk
-   #:ensure-variable #:variable-value
    #:println #:writeln
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
@@ -141,28 +138,18 @@ from non-default encodings to and implementation-defined external-format's")
 going through all the proper hooks."
     (funcall *encoding-external-format-hook* (or encoding *default-encoding*))))
 
-
-;;; Safe syntax
+;;; Safe I/O
 (with-upgradability ()
-  (defvar *standard-readtable* (with-standard-io-syntax *readtable*)
-    "The standard readtable, implementing the syntax specified by the CLHS.
-It must never be modified, though only good implementations will even enforce that.")
-
-  (defvar *standard-print-pprint-dispatch* (with-standard-io-syntax *print-pprint-dispatch*)
-    "The standard pprint dispatch table, implementing the syntax specified by the CLHS.
-It must never be modified, though only good implementations will even enforce that.")
-
   (defmacro with-safe-io-syntax ((&key package) &body body)
     "Establish safe CL reader options around the evaluation of BODY"
     `(call-with-safe-io-syntax #'(lambda () ,@body) :package ,package))
 
-  (defun call-with-safe-io-syntax (thunk &key package)
+  (defun call-with-safe-io-syntax (function &key package)
     (with-standard-io-syntax
       (let ((*package* (find-package (or package :common-lisp)))
-            (*read-default-float-format* 'double-float)
             (*print-readably* nil)
             (*read-eval* nil))
-        (funcall thunk))))
+        (call-function function))))
 
   (defun safe-read-from-string (string &key package (eof-error-p t) eof-value (start 0) end preserve-whitespace)
     "Read from STRING using a safe syntax, as per WITH-SAFE-IO-SYNTAX"
@@ -483,58 +470,8 @@ within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
 Extracts the form using READ-FILE-FORM,
 within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
     (with-safe-io-syntax (:package package)
-      (apply 'read-file-form pathname (remove-plist-key :package keys))))
+      (apply 'read-file-form pathname (remove-plist-key :package keys)))))
 
-  (defun eval-input (input)
-    "Portably read and evaluate forms from INPUT, return the last values."
-    (with-input (input)
-      (loop :with results :with eof ='#:eof
-            :for form = (read input nil eof)
-            :until (eq form eof)
-            :do (setf results (multiple-value-list (eval form)))
-            :finally (return (apply 'values results)))))
-
-  (defun eval-thunk (thunk)
-    "Evaluate a THUNK of code:
-If a function, FUNCALL it without arguments.
-If a constant literal and not a sequence, return it.
-If a cons or a symbol, EVAL it.
-If a string, repeatedly read and evaluate from it, returning the last values."
-    (etypecase thunk
-      ((or boolean keyword number character pathname) thunk)
-      ((or cons symbol) (eval thunk))
-      (function (funcall thunk))
-      (string (eval-input thunk))))
-
-  (defun standard-eval-thunk (thunk &key (package :cl))
-    "Like EVAL-THUNK, but in a more standardized evaluation context."
-    ;; Note: it's "standard-" not "safe-", because evaluation is never safe.
-    (when thunk
-      (with-safe-io-syntax (:package package)
-        (let ((*read-eval* t))
-          (eval-thunk thunk))))))
-
-;;; Late-binding variables
-(with-upgradability ()
-  (defun ensure-variable (name &key package (when-undefined 'error))
-    (etypecase name
-      (symbol name)
-      (string (or (ignore-errors
-                   (let ((s (safe-read-from-string name :package package)))
-                     (and (symbolp s) s)))
-                  (call-function when-undefined
-                                 "Cannot read non-nil symbol from ~S" name)))))
-
-  (defun variable-value (name &key package (when-undefined 'error))
-    (let ((var (ensure-variable name :package package :when-undefined when-undefined)))
-      (if (boundp var)
-          (symbol-value var)
-          (call-function when-undefined "Symbol ~S unbound" name))))
-
-  (defun (setf variable-value) (value name &key package (when-undefined 'error))
-    (if-let (var (ensure-variable name :package package :when-undefined when-undefined))
-      (setf (symbol-value var) value)
-      value)))
 
 ;;; Printers
 (with-upgradability ()

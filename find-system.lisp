@@ -4,11 +4,12 @@
 (uiop/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-    :asdf/cache :asdf/component :asdf/system :asdf/syntax)
+    :asdf/cache :asdf/component :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:locate-system #:load-asd
+   #:call-with-asdf-syntax #:with-asdf-syntax
    #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
    #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
@@ -260,6 +261,17 @@ Going forward, we recommend new users should be using the source-registry.
   (defun find-system-if-being-defined (name)
     ;; notable side effect: mark the system as being defined, to avoid infinite loops
     (first (gethash `(find-system ,(coerce-name name)) *asdf-cache*)))
+
+  (defun call-with-asdf-syntax (function &key package)
+    (with-standard-io-syntax
+      (let ((*readtable* *shared-readtable*)
+            (*print-pprint-dispatch* *shared-print-pprint-dispatch*)
+            (*package* (find-package (or package :asdf-user)))
+            (*print-readably* nil))
+        (call-function function))))
+
+  (defmacro with-asdf-syntax ((&key package) &body body)
+    `(call-with-asdf-syntax #'(lambda () ,@body) :package ,package))
 
   (defun load-asd (pathname &key name (external-format (encoding-external-format (detect-encoding pathname))))
     ;; Tries to load system definition with canonical NAME from PATHNAME.

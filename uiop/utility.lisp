@@ -28,13 +28,15 @@
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
    #:later-stamp #:stamps-latest #:latest-stamp #:latest-stamp-f
-   #:list-to-hash-set #:ensure-gethash ;; hash-table
+   #:list-to-hash-set #:ensure-gethash #:table-alist ;; hash-table
    #:ensure-function #:access-at #:access-at-count ;; functions
-   #:call-function #:call-functions #:register-hook-function
+   #:call-function #:call-functions #:fwrap #:register-hook-function
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
    #:lexicographic< #:lexicographic<=
-   #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p)) ;; version
+   #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p ;; version
+   #:call-with-variables #:with-variables #:set-variables ;; variables
+   #:call-with-alist-variables #:with-alist-variables #:set-alist-variables))
 (in-package :uiop/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
@@ -422,6 +424,13 @@ with the given ARGUMENTS"
     "For each function in the list FUNCTION-SPECS, in order, call the function as per CALL-FUNCTION"
     (map () 'call-function function-specs))
 
+  (defun fwrap (&rest functions)
+    (when functions
+      (destructuring-bind (first . rest) functions
+        (if rest
+            (call-function first #'(lambda () (apply 'fwrap rest)))
+            (call-function first)))))
+
   (defun register-hook-function (variable hook &optional call-now-p)
     "Push the HOOK function (a designator as per ENSURE-FUNCTION) onto the hook VARIABLE.
 When CALL-NOW-P is true, also call the function immediately."
@@ -476,7 +485,14 @@ Return two values: the entry after its optional computation, and whether it was 
   (defun list-to-hash-set (list &aux (h (make-hash-table :test 'equal)))
     "Convert a LIST into hash-table that has the same elements when viewed as a set,
 up to the given equality TEST"
-    (dolist (x list h) (setf (gethash x h) t))))
+    (dolist (x list h) (setf (gethash x h) t)))
+
+  (defgeneric table-alist (table))
+  (defmethod table-alist ((table hash-table))
+    (loop :for k :being :the :hash-keys :of table :using (:hash-value v)
+          :collect (cons k v))))
+  (defmethod table-alist ((table cons))
+    table)
 
 
 ;;; Version handling
@@ -583,4 +599,41 @@ or a string describing the format-control of a simple-condition."
   (defmacro with-muffled-conditions ((conditions) &body body)
     "Shorthand syntax for CALL-WITH-MUFFLED-CONDITIONS"
     `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
+
+;;; Variables
+
+(with-upgradability ()
+  (defun call-with-variables (variables bindings thunk &key (name #'identity) (value #'identity))
+    (loop :for variable :in variables
+          :for binding :in bindings
+          :for var = (call-function name variable)
+          :when var
+            :collect var :into vars
+            :and :collect (call-function value binding) :into vals
+          :finally (progv vars vals (call-function thunk))))
+
+  (defmacro with-variables ((variables initializers &rest keys &key name value) &body body)
+    (declare (ignore name value))
+    `(call-with-variables ,variables ,initializers #'(lambda () ,@body) ,@keys))
+
+  (defun set-variables (variables bindings &key (name #'identity) (value #'identity))
+    (loop :for variable :in variables
+          :for binding :in bindings
+          :for var = (call-function name variable)
+          :when var
+            :collect var :into vars
+            :and :collect (call-function value binding) :into vals
+          :finally (map () #'set vars vals)))
+
+  (defun call-with-alist-variables (alist thunk &rest keys &key name value)
+    (declare (ignore name value))
+    (apply 'call-with-variables (mapcar #'car alist) (mapcar #'cdr alist) thunk keys))
+
+  (defmacro with-alist-variables ((alist &rest keys &key name value) &body body)
+    (declare (ignore name value))
+    `(call-with-alist-variables ,alist #'(lambda () ,@body) ,@keys))
+
+  (defun set-alist-variables (alist &rest keys &key name value)
+    (declare (ignore name value))
+    (apply 'set-variables (mapcar #'car alist) (mapcar #'cdr alist) keys)))
 
