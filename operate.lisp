@@ -74,9 +74,9 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
             (apply 'operate (funcall operation-remaker) component-path keys))))
       ;; Setup proper bindings around any operate call.
       (with-asdf-cache ()
-        (let* ((*verbose-out* (and verbose *standard-output*))
-               (*compile-file-warnings-behaviour* on-warnings)
-               (*compile-file-failure-behaviour* on-failure))
+        (let ((*verbose-out* (and verbose *standard-output*))
+              (*compile-file-warnings-behaviour* on-warnings)
+              (*compile-file-failure-behaviour* on-failure))
           (call-next-method)))))
 
   (defmethod operate :before ((operation operation) (component component)

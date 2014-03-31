@@ -8,6 +8,7 @@
    #:*standard-readtable* #:*standard-print-pprint-dispatch*
    #:*shared-readtable* #:*shared-print-pprint-dispatch*
    #:*standard-syntax-variables*
+   #:call-with-shared-readtable #:call-with-standard-io-syntax
    #:eval-input #:eval-thunk #:standard-eval-thunk
    #:ensure-variable #:variable-value))
 (in-package :uiop/eval)
@@ -64,6 +65,9 @@ It should match the extensions of *shared-readtable* -- see the latter variable'
 (with-upgradability ()
   (defun call-with-standard-io-syntax (function)
     (with-standard-io-syntax (call-function function)))
+
+  (defun call-with-shared-readtable (thunk)
+    (let ((*readtable* *shared-readtable*)) (call-function thunk)))
 
   (defun eval-input (input)
     "Portably read and evaluate forms from INPUT, return the last values."

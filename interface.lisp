@@ -26,8 +26,10 @@
    #:upward-operation #:downward-operation #:sideway-operation #:selfward-operation
                       #:non-propagating-operation
    #:build-op #:make
+   #:basic-load-op #:basic-prepare-op #:basic-compile-op
    #:load-op #:prepare-op #:compile-op
    #:prepare-source-op #:load-source-op #:test-op
+   #:cl-reading-op #:*cl-reading-hook*
    #:feature #:version #:version-satisfies #:upgrade-asdf
    #:implementation-identifier #:implementation-type #:hostname
    #:input-files #:output-files #:output-file #:perform #:perform-with-restarts

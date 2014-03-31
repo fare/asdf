@@ -382,7 +382,7 @@ in some previous image, or T if it needs to be done.")
   (define-convenience-action-methods call-with-action-context (operation component thunk))
   (defmethod call-with-action-context ((o operation) (c component) thunk)
     (with-updated-system-variables ((component-system c))
-      (funcall thunk)))
+      (call-function thunk)))
   (defmacro with-action-context ((operation component) &body body)
     `(call-with-action-context ,operation ,component #'(lambda () ,@body)))
 

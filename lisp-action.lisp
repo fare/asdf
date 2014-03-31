@@ -11,7 +11,7 @@
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:basic-load-op #:basic-compile-op #:compile-op-flags #:compile-op-proclamations
-   #:basic-prepare-op #:cl-reading-op
+   #:basic-prepare-op #:cl-reading-op #:*cl-reading-hook*
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
    #:call-with-around-compile-hook
    #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source
@@ -38,12 +38,19 @@
 
   (defclass basic-prepare-op (operation) ())
   (defmethod perform ((operation basic-prepare-op) (system system))
-    (initialize-system-variables system))
+    (initialize-system-variables system)
+    (use-initial-system-variables system))
+
+  (defvar *cl-reading-hook* 'call-function
+    "Hook to call around operations that read CL code (since ASDF 3.1).
+To make it a NOP, set it to UIOP:CALL-FUNCTION.
+To make it bind just *READTABLE*, set it to UIOP:CALL-WITH-SHARED-READTABLE (the default).
+To bind all syntax variables to predictable portable values, set it to ASDF:CALL-WITH-ASDF-SYNTAX.
+For stricter values, set it to UIOP:CALL-WITH-STANDARD-IO-SYNTAX.")
 
   (defclass cl-reading-op (operation) ())) ;; operations that read CL source
   (defmethod call-with-action-context ((o cl-reading-op) (c cl-source-file) thunk)
-    (call-next-method
-     o c #'(lambda () (call-with-asdf-syntax thunk))))
+    (call-next-method o c #'(lambda () (call-function *cl-reading-hook* thunk))))
 
 ;;; Our default operations: loading into the current lisp image
 (with-upgradability ()
