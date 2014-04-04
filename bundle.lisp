@@ -472,7 +472,8 @@ itself.")) ;; operation on a system and its dependencies
   ;;  (setf *load-system-operation* 'load-bundle-op))
 
   (defun asdf-library-pathname ()
-    #+ecl (compile-file-pathname "sys:asdf" :type :object)
+    #+ecl (or (probe-file* (compile-file-pathname "sys:asdf" :type :lib)) ;; new style
+              (probe-file* (compile-file-pathname "sys:asdf" :type :object))) ;; old style
     #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;asdf"))
 
   (defun compiler-library-pathname ()

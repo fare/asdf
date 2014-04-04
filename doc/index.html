@@ -167,8 +167,8 @@
           and you can simply <tt>(require "asdf")</tt>.
           (All of them but CLISP also accept
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
-          Most of these implementations provide ASDF3,
-          a few only provide ASDF2.
+          Most of these implementations provide ASDF 3,
+          a few only provide ASDF 2.
           Some implementations don't provide ASDF yet,
           but have announced they will in their next release.
           As for remaining implementations,
@@ -247,16 +247,28 @@ Peter Graves <gnooth@gmail.com> (XCL).
           <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=doc/asdf.texinfo">as texinfo source</a></li>
         </ul>
         <p>Regarding the internal design of ASDF in general,
-          and the work we did on ASDF 2,
+          and the work we did on ASDF 3,
+          see the extended version (25 pages) of our paper
+          <cite><a href="http://fare.tunes.org/files/asdf3/asdf3-2014.html"
+                   >ASDF3, or Why Lisp is Now an Acceptable Scripting Language</a></cite>
+          (<a href="http://fare.tunes.org/files/asdf3/asdf3-2014.pdf">PDF</a>,
+          <a href="http://github.com/fare/asdf3-2013">git</a>).
+          the shorter version (8 pages) submitted to
+          <a href="http://www.european-lisp-symposium.org/">ELS 2014</a>,
+          focuses on ASDF 3 and misses historical and technical information
+          (<a href="http://fare.tunes.org/files/asdf3/asdf3-els2014.pdf">PDF</a>,
+          <a href="http://fare.tunes.org/files/asdf3/asdf3-2014.html">HTML</a>).
+          Regarding ASDF 3, see also the slides of the
+          <a href="https://github.com/fare/asdf3-2013/blob/master/els-slides.org"
+             >ASDF3 tutorial</a> presented at ELS 2013,
+          and for an introduction to the source code, this video:
+          <a href="https://www.youtube.com/watch?v=Qqqbc31ZZ-U">ASDF 3.1 walkthrough</a>.
+          For more details about our work on ASDF 2,
           see the last draft version of our paper for
           <a href="http://www.international-lisp-conference.org/2010/index">ILC 2010</a>,
           <cite><a href="ilc2010draft.pdf"
-                   >Evolving ASDF: More Cooperation, Less Coordination</a></cite>,
-          or the slides of the
-          <a href="https://github.com/fare/asdf3-2013/blob/master/els-slides.org"
-             >ASDF 3 tutorial</a> presented at ELS 2013.
-          For an introduction to the source code, see also this video:
-          <a href="https://www.youtube.com/watch?v=Qqqbc31ZZ-U">ASDF3.1 walkthrough</a>.
+                   >Evolving ASDF: More Cooperation, Less Coordination</a></cite>
+          (<a href="http://common-lisp.net/gitweb?p=projects/asdf/ilc2010.git">git</a>).
         </p>
         <p>Finally, while the manual covers all the basics,
           some advanced or new features remain underdocumented.
@@ -467,7 +479,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2014 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2014-03-22</div>
+        <div id="timestamp">Last updated 2014-03-27</div>
     </div>
   </body>
 </html>

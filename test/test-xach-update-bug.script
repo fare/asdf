@@ -1,6 +1,7 @@
 ;;; -*- Lisp -*-
 
 (setf asdf/cache:*asdf-cache* nil) ;; disable cache between those two very different compilations.
+;;(setf asdf::*load-system-operation* 'load-bundle-op) ;; This triggers a bug on ECL. See below.
 
 (defparameter foo :test-asdf-location-change)
 
@@ -40,11 +41,12 @@
  (subpathname *test-directory* "xach-foo-2/b.lisp")
  (component-pathname (find-component foo2 "b")))
 (DBG "load foo yet again. It should see the pathname has changed and load it anew")
-;;; ECL bug: this fails if we use load-fasl-op instead of load-op:
-;;; the test-asdf-location-change.fasb is linked and loaded,
-;;; but that fails to create the :second-version package;
-;;; loading the same .fasb in another ecl works fine, and defined (second-version:wtf). WTF?
-;;; Test it by replacing load-op below by load-bundle-op, and trace load* and other functions.
-(operate 'load-op foo)
+;;; ECL bug: this fails if we use load-bundle-op instead of load-op as *load-system-operation*
+;;; in bundle.lisp. The test-asdf-location-change.fasb is linked and loaded, but that fails to
+;;; create the :second-version package; loading the same .fasb in another ecl works fine, and
+;;; defines (second-version:wtf). WTF? You can test this bug by uncommenting the
+;;; (setf asdf::*load-system-operation* 'load-bundle-op) line at the beginning of this file.
+;;; NB: works on MKCL.
+(load-system foo)
 (assert (symbol-value (find-symbol* :loaded :second-version)))
 (assert-equal 42 (symbol-call :second-version :wtf))
