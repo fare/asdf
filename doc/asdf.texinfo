@@ -218,14 +218,14 @@ a tool for specifying how systems of Common Lisp software
 are made up of components (sub-systems and files),
 and how to operate on these components in the right order
 so that they can be compiled, loaded, tested, etc.
+If you are new to ASDF, @pxref{Quick start summary,,the quick start
+guide}.  
 
 ASDF presents three faces:
 one for users of Common Lisp software who want to reuse other people's code,
 one for writers of Common Lisp software who want to specify how to build their systems,
 and one for implementers of Common Lisp extensions who want to extend
 the build system.
-If you are new to ASDF, @pxref{Quick start summary,,the quick start
-guide}.  
 For more specifics, 
 @pxref{Using ASDF,,Loading a system},
 to learn how to use ASDF to load a system.
@@ -234,37 +234,18 @@ to learn how to define a system of your own.
 @xref{The object model of ASDF}, for a description of
 the ASDF internals and how to extend ASDF.
 
-@c FIXME: Are the following two too much information?  They extend the
-@c introduction perhaps more than we might like...
-@emph{Nota Bene}:
-We released ASDF 2.000 on May 31st 2010,
-and ASDF 3.0.0 on May 15th 2013.
-Releases of ASDF 2 and later have since then been included
-in all actively maintained CL implementations that used to bundle ASDF 1,
-plus some implementations that previously did not.
-ASDF has been made to work with all actively maintained CL
-implementations and even a few implementations that are @emph{not}
-actively maintained.
-@xref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
-Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 or ASDF 3 on the fly
-(though we recommend instead upgrading your implementation or its ASDF module).
-For this reason, we have stopped supporting ASDF 1 and ASDF 2.
-If you are using ASDF 1 or ASDF 2 and are experiencing any kind of issues or limitations,
-we recommend you upgrade to ASDF 3
---- and we explain how to do that. @xref{Loading ASDF}.
-(In the context of compatibility requirements,
-ASDF 2.27, released on Feb 1st 2013, and further 2.x releases up to 2.33,
-count as pre-releases of ASDF 3, and define the @code{:asdf3} feature;
-still, please use the latest release).
-Release ASDF 3.1.1 and later also define the @code{:asdf3.1} feature.
-
-Also note that ASDF is not to be confused with ASDF-Install.
-ASDF-Install is not part of ASDF, but a separate piece of software.
+Note that 
+ASDF is @emph{not} a tool for library and system @emph{installation}; it
+plays a role like @t{make} or @t{ant}, not like a package manager.
+In particular, ASDF should not to be confused with ASDF-Install, which attempts to find and
+download ASDF systems for you.
+Despite the name, ASDF-Install is not part of ASDF, but a separate piece of software.
 ASDF-Install is also unmaintained and obsolete.
-We recommend you use Quicklisp instead,
-which works great and is being actively maintained.
+We recommend you use Quicklisp
+(@uref{http://www.quicklisp.org}) instead,
+a Common Lisp package manager which works well and is being actively maintained.
 If you want to download software from version control instead of tarballs,
-so you may more easily modify it, we recommend clbuild.
+so you may more easily modify it, we recommend clbuild (@uref{http://common-lisp.net/project/clbuild/}).
 We recommend @file{~/common-lisp/}
 as a place into which to install Common Lisp software;
 starting with ASDF 3.1.1, it is included in the default source-registry configuration.
@@ -569,7 +550,7 @@ and resetting the ASDF configuration is usually only needed in corner cases.
 * Resetting the ASDF configuration::
 @end menu
 
-@node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Configuring ASDF, Configuring ASDF
+@node Configuring ASDF to find your systems, Configuring where ASDF stores object files, Configuring ASDF, Configuring ASDF
 @section Configuring ASDF to find your systems
 
 In order to compile and load your systems, ASDF must be configured to find
@@ -739,7 +720,7 @@ but it is supported for old users, and for users who want to programmatically
 control what directories are added to the ASDF search path.
 
 
-@node Configuring where ASDF stores object files, Resetting the ASDF configuration, Configuring ASDF to find your systems --- old style, Configuring ASDF
+@node Configuring where ASDF stores object files,  , Configuring ASDF to find your systems, Configuring ASDF
 @section Configuring where ASDF stores object files
 @findex clear-output-translations
 
@@ -4229,7 +4210,29 @@ use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-dev
 
 
 @node What has changed between ASDF 1 and ASDF 2?, Issues with installing the proper version of ASDF, Where do I report a bug?, FAQ
-@section ``What has changed between ASDF 1 and ASDF 2?''
+@section ``What has changed between ASDF 1, ASDF 2 and ASDF 3?''
+
+We released ASDF 2.000 on May 31st 2010,
+and ASDF 3.0.0 on May 15th 2013.
+Releases of ASDF 2 and later have since then been included
+in all actively maintained CL implementations that used to bundle ASDF 1,
+plus some implementations that previously did not.
+ASDF has been made to work with all actively maintained CL
+implementations and even a few implementations that are @emph{not}
+actively maintained.
+@xref{FAQ,,``What has changed between ASDF 1 and ASDF 2?''}.
+Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 or ASDF 3 on the fly
+(though we recommend instead upgrading your implementation or its ASDF module).
+For this reason, we have stopped supporting ASDF 1 and ASDF 2.
+If you are using ASDF 1 or ASDF 2 and are experiencing any kind of issues or limitations,
+we recommend you upgrade to ASDF 3
+--- and we explain how to do that. @xref{Loading ASDF}.
+(In the context of compatibility requirements,
+ASDF 2.27, released on Feb 1st 2013, and further 2.x releases up to 2.33,
+count as pre-releases of ASDF 3, and define the @code{:asdf3} feature;
+still, please use the latest release).
+Release ASDF 3.1.1 and later also define the @code{:asdf3.1} feature.
+
 
 @menu
 * What are ASDF 1 2 3?::
@@ -4244,8 +4247,8 @@ use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-dev
 * Pitfalls of the transition to ASDF 2::
 @end menu
 
-@node What are ASDF 1 2 3?, ASDF can portably name files in subdirectories, What has changed between ASDF 1 and ASDF 2?, What has changed between ASDF 1 and ASDF 2?
-@subsection What are ASDF 1, ASDF 2 and ASDF 3?
+@node What are ASDF 1 2 3?, , What has changed between ASDF 1 and ASDF 2?, What has changed between ASDF 1 and ASDF 2?
+@subsection What are ASDF 1, ASDF 2, and ASDF 3?
 
 ASDF 1 refers to any release earlier than 1.369 or so (from August 2001 to October 2009),
 and to any development revision earlier than 2.000 (May 2010).
@@ -4257,6 +4260,11 @@ and any development revision newer than ASDF 1 and older than 2.27 (Feb 1 2013).
 
 ASDF 3 refers to releases from 2.27 (Feb 1 2013) to 2.33 and 3.0.0 onward (May 15 2013).
 2.27 to 2.33 count as pre-releases to ASDF 3.
+
+@node How do I detect the ASDF version?, ASDF can portably name files in subdirectories, What are ASDF 1 2 3?, What has changed between ASDF 1 and ASDF 2?
+@subsection How do I detect the ASDF version?
+@findex asdf-version
+@cindex *features*
 
 All releases of ASDF
 push @code{:asdf} onto @code{*features*}.
@@ -4280,7 +4288,7 @@ If you are experiencing problems or limitations of any sort with ASDF 1 or ASDF 
 we recommend that you should upgrade to the latest release, be it ASDF 3 or other.
 
 
-@node ASDF can portably name files in subdirectories, Output translations, What are ASDF 1 2 3?, What has changed between ASDF 1 and ASDF 2?
+@node ASDF can portably name files in subdirectories, Output translations, How do I detect the ASDF version?, What has changed between ASDF 1 and ASDF 2?
 @subsection ASDF can portably name files in subdirectories
 
 Common Lisp namestrings are not portable,
