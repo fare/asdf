@@ -413,6 +413,7 @@ you only need to @code{(require "asdf")}:
 ASDF will automatically look whether an updated version of itself is available
 amongst the regularly configured systems, before it compiles anything else.
 
+@node Notes about ASDF 1 and ASDF 2, Issues with upgrading ASDF, Upgrading ASDF, Upgrading ASDF
 @subsection Notes about ASDF 1 and ASDF 2
 
 Most implementations provide ASDF 3 in their latest release,
@@ -449,6 +450,7 @@ after requiring the builtin ASDF 2:
 (asdf:load-system :asdf)
 @end lisp
 
+@node Issues with upgrading ASDF,  , Notes about ASDF 1 and ASDF 2, Upgrading ASDF
 @subsection Issues with upgrading ASDF
 
 Note that there are some limitations to upgrading ASDF:
@@ -829,6 +831,13 @@ on CMUCL and SCL, etc.
 @node  Using ASDF, Defining systems with defsystem, Configuring ASDF, Top
 @chapter Using ASDF
 
+@menu
+* Loading a system::
+* Other Operations::
+* Moving on::
+@end menu
+
+@node Loading a system, Other Operations, Using ASDF, Using ASDF
 @section Loading a system
 
 The system @var{foo} is loaded (and compiled, if necessary)
@@ -868,7 +877,7 @@ or silently convert lowercase to uppercase (lpns).
 @c so this makes more sense than attempting to use @code{:case :common},
 @c which is reported not to work on some implementations
 
-
+@node Other Operations, Moving on, Loading a system, Using ASDF
 @section Other Operations
 
 ASDF provides three commands for the most common system operations:
@@ -905,6 +914,7 @@ with keyword arguments @code{:force-not (already-loaded-systems)}.
 the system, and any provided keyword arguments.
 
 
+@node Moving on,  , Other Operations, Using ASDF
 @section Moving on
 
 That's all you need to know to use ASDF to load systems written by others.
@@ -2585,6 +2595,27 @@ as well as an inclusive lower bound.
 @comment  node-name,  next,  previous,  up
 @chapter Controlling where ASDF searches for systems
 
+
+
+@menu
+* Configurations::
+* Truenames and other dangers::
+* XDG base directory::
+* Backward Compatibility::
+* Configuration DSL::
+* Configuration Directories::
+* Shell-friendly syntax for configuration::
+* Search Algorithm::
+* Caching Results::
+* Configuration API::
+* Introspection::
+* Status::
+* Rejected ideas::
+* TODO::
+* Credits for the source-registry::
+@end menu
+
+@node  Configurations, Truenames and other dangers, Controlling where ASDF searches for systems, Controlling where ASDF searches for systems
 @section Configurations
 
 Configurations specify paths where to find system files.
@@ -2663,7 +2694,7 @@ Additionally, some implementation-specific directories
 may be automatically prepended to whatever directories are specified
 in configuration files, no matter if the last one inherits or not.
 
-
+@node Truenames and other dangers, XDG base directory, Configurations, Controlling where ASDF searches for systems
 @section Truenames and other dangers
 
 One great innovation of the original ASDF was its ability to leverage
@@ -2686,7 +2717,7 @@ by setting the variable @var{asdf:*resolve-symlinks*} to @code{nil}.
 PS: Yes, if you haven't read Vernor Vinge's short but great classic
 ``True Names... and Other Dangers'' then you're in for a treat.
 
-
+@node XDG base directory, Backward Compatibility, Truenames and other dangers, Controlling where ASDF searches for systems
 @section XDG base directory
 
 Note that we purport to respect the XDG base directory specification
@@ -2708,6 +2739,7 @@ Since support for querying the Windows registry
 is not possible to do in reasonable amounts of portable Common Lisp code,
 ASDF 3 relies on the environment variables that Windows usually exports.
 
+@node Backward Compatibility, Configuration DSL, XDG base directory, Controlling where ASDF searches for systems
 @section Backward Compatibility
 
 For backward compatibility as well as to provide a practical backdoor for hackers,
@@ -2722,6 +2754,7 @@ By default, @code{asdf:*central-registry*} will be empty.
 This old mechanism will therefore not affect you if you don't use it,
 but will take precedence over the new mechanism if you do use it.
 
+@node Configuration DSL, Configuration Directories, Backward Compatibility, Controlling where ASDF searches for systems
 @section Configuration DSL
 @cindex :inherit-configuration source config directive
 @cindex inherit-configuration source config directive
@@ -2842,6 +2875,7 @@ which is the default place ASDF looks for this configuration, once contained:
   :inherit-configuration)
 @end example
 
+@node Configuration Directories, Shell-friendly syntax for configuration, Configuration DSL, Controlling where ASDF searches for systems
 @section Configuration Directories
 
 Configuration directories consist in files each containing
@@ -2878,6 +2912,7 @@ alone in its directory with the following contents:
 (:tree "/home/fare/cl/")
 @end example
 
+@node The :here directive,  , Configuration Directories, Configuration Directories
 @subsection The :here directive
 
 The @code{:here} directive is an absolute pathname designator that
@@ -2923,6 +2958,7 @@ form containing that s-expression.  ASDF will find the .conf file that X
 has provided, and then set up source locations within the working
 directory according to X's (relative) instructions.
 
+@node Shell-friendly syntax for configuration, Search Algorithm, Configuration Directories, Controlling where ASDF searches for systems
 @section Shell-friendly syntax for configuration
 
 When considering environment variable @code{CL_SOURCE_REGISTRY}
@@ -2946,7 +2982,7 @@ list of paths, where
     then it indicates that the inherited configuration should be
     spliced there.
 
-
+@node Search Algorithm, Caching Results, Shell-friendly syntax for configuration, Controlling where ASDF searches for systems
 @section Search Algorithm
 @vindex *default-source-registry-exclusions*
 
@@ -2982,6 +3018,7 @@ specifications from the next configuration
 (@pxref{Controlling where ASDF searches for systems,,Configurations} above).
 
 
+@node Caching Results, Configuration API, Search Algorithm, Controlling where ASDF searches for systems
 @section Caching Results
 
 The implementation is allowed to either eagerly compute the information
@@ -2989,7 +3026,7 @@ from the configurations and file system, or to lazily re-compute it
 every time, or to cache any part of it as it goes.
 To explicitly flush any information cached by the system, use the API below.
 
-
+@node Configuration API, Introspection, Caching Results, Controlling where ASDF searches for systems
 @section Configuration API
 
 The specified functions are exported from your build system's package.
@@ -3035,8 +3072,15 @@ you need to explicitly @code{initialize-source-registry} again,
 or maybe simply to @code{clear-source-registry} (or @code{clear-configuration})
 which will cause the initialization to happen next time around.
 
+@node Introspection, Status, Configuration API, Controlling where ASDF searches for systems
 @section Introspection
 
+@menu
+* *source-registry-parameter* variable::
+* Information about system dependencies::
+@end menu
+
+@node *source-registry-parameter* variable, Information about system dependencies, Introspection, Introspection
 @subsection *source-registry-parameter* variable
 @vindex *source-registry-parameter*
 
@@ -3047,6 +3091,7 @@ never be set!}  It will be set as a side-effect of calling
 @code{initialize-source-registry}; user code should treat it as
 read-only.
 
+@node Information about system dependencies,  , *source-registry-parameter* variable, Introspection
 @subsection Information about system dependencies
 
 ASDF makes available three functions to read system interdependencies.
@@ -3070,6 +3115,7 @@ than the return values of the other two system dependency introspection
 functions.
 @end defun
 
+@node Status, Rejected ideas, Introspection, Controlling where ASDF searches for systems
 @section Status
 
 This mechanism is vastly successful, and we have declared
@@ -3079,7 +3125,7 @@ All hooks into implementation-specific search mechanisms
 have been integrated in the @code{wrapping-source-registry}
 that everyone uses implicitly.
 
-
+@node Rejected ideas, TODO, Status, Controlling where ASDF searches for systems
 @section Rejected ideas
 
 Alternatives I considered and rejected included:
@@ -3133,13 +3179,14 @@ for the sake of keeping ASDF no more complex than strictly necessary.
   It isn't that Lisp friendly either.
 @end itemize
 
+@node TODO, Credits for the source-registry, Rejected ideas, Controlling where ASDF searches for systems
 @section TODO
 
 @itemize
 @item Add examples
 @end itemize
 
-
+@node Credits for the source-registry,  , TODO, Controlling where ASDF searches for systems
 @section Credits for the source-registry
 
 Thanks a lot to Stelian Ionescu for the initial idea.
@@ -3173,6 +3220,19 @@ as you switch from one implementation to the next.
 Since ASDF 2, ASDF includes the @code{asdf-output-translations} facility
 to mitigate the problem.
 
+@menu
+* Configurations::
+* Backward Compatibility::
+* Configuration DSL::
+* Configuration Directories::
+* Shell-friendly syntax for configuration::
+* Semantics of Output Translations::
+* Caching Results::
+* Output location API::
+* Credits for output translations::
+@end menu
+
+@node Configurations, Backward Compatibility, Controlling where ASDF saves compiled files, Controlling where ASDF saves compiled files
 @section Configurations
 
 Configurations specify mappings from input locations to output locations.
@@ -3245,6 +3305,7 @@ at the expense of taking a small toll when developers have to clean up
 output files and find they need to get familiar with output-translations first.
 
 
+@node Backward Compatibility, Configuration DSL, Configurations, Controlling where ASDF saves compiled files
 @section Backward Compatibility
 @cindex ASDF-BINARY-LOCATIONS compatibility
 
@@ -3300,6 +3361,7 @@ Also, note that output translation is enabled by default.
 To disable it, use @code{(asdf:disable-output-translations)}.
 
 
+@node Configuration DSL, Configuration Directories, Backward Compatibility, Controlling where ASDF saves compiled files
 @section Configuration DSL
 
 Here is the grammar of the SEXP DSL
@@ -3426,6 +3488,7 @@ which by default is the same as using
 @end itemize
 
 
+@node Configuration Directories, Shell-friendly syntax for configuration, Configuration DSL, Controlling where ASDF saves compiled files
 @section Configuration Directories
 
 Configuration directories consist in files each contains
@@ -3452,6 +3515,7 @@ or namestring in an @code{:include} directive, e.g.:
 	(:include "/foo/bar/")
 @end verbatim
 
+@node Shell-friendly syntax for configuration, Semantics of Output Translations, Configuration Directories, Controlling where ASDF saves compiled files
 @section Shell-friendly syntax for configuration
 
 When considering environment variable @code{ASDF_OUTPUT_TRANSLATIONS}
@@ -3472,6 +3536,7 @@ it indicates that the directory specified first is to be left untranslated
 (which has the same effect as if the directory had been repeated).
 
 
+@node Semantics of Output Translations, Caching Results, Shell-friendly syntax for configuration, Controlling where ASDF saves compiled files
 @section Semantics of Output Translations
 
 From the specified configuration,
@@ -3501,6 +3566,7 @@ If no match is found, return the source pathname.
 may ensure that there will always be a match,
 with same fall-through semantics).
 
+@node Caching Results, Output location API, Semantics of Output Translations, Controlling where ASDF saves compiled files
 @section Caching Results
 
 The implementation is allowed to either eagerly compute the information
@@ -3509,6 +3575,7 @@ every time, or to cache any part of it as it goes.
 To explicitly flush any information cached by the system, use the API below.
 
 
+@node Output location API, Credits for output translations, Caching Results, Controlling where ASDF saves compiled files
 @section Output location API
 
 The specified functions are exported from package ASDF.
@@ -3565,6 +3632,7 @@ or maybe @code{clear-output-translations} (or @code{clear-configuration}),
 which will cause the initialization to happen next time around.
 
 
+@node Credits for output translations,  , Output location API, Controlling where ASDF saves compiled files
 @section Credits for output translations
 
 Thanks a lot to Bjorn Lindberg and Gary King for @code{ASDF-Binary-Locations},
@@ -3635,6 +3703,12 @@ The valid values for these variables are
 ASDF includes several additional features that are generally
 useful for system definition and development.
 
+@menu
+* Controlling file compilation::
+* Some Utility Functions::
+@end menu
+
+@node Controlling file compilation, , Miscellaneous additional functionality, Miscellaneous additional functionality
 @section Controlling file compilation
 @cindex :around-compile
 @cindex around-compile keyword
@@ -3947,6 +4021,7 @@ while others (like SBCL) will make an attempt at invoking a POSIX shell
 (and fail if it is not present).
 @end defun
 
+@node Some Utility Functions,  , Controlling file compilation, Miscellaneous additional functionality
 @section Some Utility Functions
 
 The below functions are not exported by ASDF itself, but by UIOP, available since ASDF 3.
