@@ -114,7 +114,7 @@ Loading ASDF
 * Loading a pre-installed ASDF::
 * Checking whether ASDF is loaded::
 * Upgrading ASDF::
-* Loading an otherwise installed ASDF::
+* Loading ASDF from source::
 
 Configuring ASDF
 
@@ -160,9 +160,10 @@ FAQ
 * Issues with using and extending ASDF to define systems::
 * ASDF development FAQs::
 
-``What has changed between ASDF 1 and ASDF 2?''
+``What has changed between ASDF 1, ASDF 2 and ASDF 3?''
 
 * What are ASDF 1 2 3?::
+* How do I detect the ASDF version?::
 * ASDF can portably name files in subdirectories::
 * Output translations::
 * Source Registry Configuration::
@@ -318,7 +319,7 @@ to make sure it's all working properly. @xref{Using ASDF}.
 * Loading a pre-installed ASDF::
 * Checking whether ASDF is loaded::
 * Upgrading ASDF::
-* Loading an otherwise installed ASDF::
+* Loading ASDF from source::
 @end menu
 
 @node  Loading a pre-installed ASDF, Checking whether ASDF is loaded, Loading ASDF, Loading ASDF
@@ -348,7 +349,7 @@ and most probably will never bundle ASDF:
 Corman CL, GCL, Genera, MCL.
 
 If the implementation you are using doesn't provide ASDF 2 or ASDF 3,
-see @pxref{Loading ASDF,,Loading an otherwise installed ASDF} below.
+see @pxref{Loading ASDF,,Loading ASDF from source} below.
 If that implementation is still actively maintained,
 you may also send a bug report to your Lisp vendor and complain
 about their failing to provide ASDF.
@@ -397,7 +398,7 @@ please try upgrading to the latest released version,
 using the method below,
 before you contact us and raise an issue.
 
-@node  Upgrading ASDF, Loading an otherwise installed ASDF, Checking whether ASDF is loaded, Loading ASDF
+@node  Upgrading ASDF, Loading ASDF from source, Checking whether ASDF is loaded, Loading ASDF
 @section Upgrading ASDF
 @c FIXME: tighten this up a bit -- there's a lot of stuff here that
 @c doesn't matter to almost anyone.  Move discussion of updating antique
@@ -504,8 +505,8 @@ system-depends-on asdf, or transitively does,
 you should also do as well.
 @end itemize
 
-@node Loading an otherwise installed ASDF,  , Upgrading ASDF, Loading ASDF
-@section Loading an otherwise installed ASDF
+@node Loading ASDF from source,  , Upgrading ASDF, Loading ASDF
+@section Loading ASDF from source
 
 If your implementation doesn't include ASDF,
 if for some reason the upgrade somehow fails,
@@ -545,9 +546,7 @@ and resetting the ASDF configuration is usually only needed in corner cases.
 
 @menu
 * Configuring ASDF to find your systems::
-* Configuring ASDF to find your systems --- old style::
 * Configuring where ASDF stores object files::
-* Resetting the ASDF configuration::
 @end menu
 
 @node Configuring ASDF to find your systems, Configuring where ASDF stores object files, Configuring ASDF, Configuring ASDF
@@ -4236,6 +4235,7 @@ Release ASDF 3.1.1 and later also define the @code{:asdf3.1} feature.
 
 @menu
 * What are ASDF 1 2 3?::
+* How do I detect the ASDF version?::
 * ASDF can portably name files in subdirectories::
 * Output translations::
 * Source Registry Configuration::
@@ -4247,7 +4247,7 @@ Release ASDF 3.1.1 and later also define the @code{:asdf3.1} feature.
 * Pitfalls of the transition to ASDF 2::
 @end menu
 
-@node What are ASDF 1 2 3?, , What has changed between ASDF 1 and ASDF 2?, What has changed between ASDF 1 and ASDF 2?
+@node What are ASDF 1 2 3?, How do I detect the ASDF version?, What has changed between ASDF 1 and ASDF 2?, What has changed between ASDF 1 and ASDF 2?
 @subsection What are ASDF 1, ASDF 2, and ASDF 3?
 
 ASDF 1 refers to any release earlier than 1.369 or so (from August 2001 to October 2009),
