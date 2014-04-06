@@ -1863,6 +1863,8 @@ To see what @code{operate} would do, you can use:
 @node Predefined operations of ASDF, Creating new operations, Operations, Operations
 @comment  node-name,  next,  previous,  up
 @subsection Predefined operations of ASDF
+@c FIXME: All these deffn's should be replaced with deftyp.  Also, we
+@c should set up an appropriate index.
 
 All the operations described in this section are in the @code{asdf} package.
 They are invoked via the @code{operate} generic function.
@@ -1912,7 +1914,7 @@ may be performed on a given component.
 @deffn Operation @code{load-source-op}, @code{prepare-source-op}
 
 @code{load-source-op} will load the source for the files in a module
-rather than they compiled fasl output.
+rather than the compiled fasl output.
 It has a @code{prepare-source-op} analog to @code{prepare-op},
 that ensures the dependencies are themselves loaded via @code{load-source-op}.
 
@@ -1945,28 +1947,34 @@ The results of this operation are not defined by ASDF.
 It has proven difficult to define how the test operation
 should signal its results to the user
 in a way that is compatible with all of the various test libraries
-and test techniques in use in the community.
+and test techniques in use in the community, and 
+given the fact that ASDF operations do not return a value indicating
+success or failure.
+For those willing to go to the effort, we suggest defining conditions to
+signal when a @code{test-op} fails, and storing in those conditions
+information that describes which tests fail.
 
-People typically define @code{test-op} methods like thus:
-@example
+People typically define a separate test @emph{system} to hold the tests.
+Doing this avoids unnecessarily adding a test framework as a dependency
+on a library.  For example, one might have
+@lisp 
+(defsystem foo
+  :in-order-to ((test-op (test-op "foo/test")))
+ ...)
+
+(defsystem foo/test
+  :depends-on (foo fiveam) ; fiveam is a test framework library
+  ...)
+@end lisp
+
+Then one defines @code{perform} methods on 
+@code{test-op} such as the following:
+@lisp
 (defmethod perform ((o asdf:test-op)
-                    (s (eql (asdf:find-system @var{:my-system}))))
-  (asdf:load-system @var{:my-system-test})
-  (funcall (read-from-string "my-system-test:test-suite")))
-@end example
-
-Using @code{load-system} in the perform method
-rather than an @code{:in-order-to} dependency,
-is sometimes necessary for backward compatibility with ASDF 2 and older,
-to avoid circular dependencies that could arise
-because of the way these old versions propagate dependencies.
-
-If you don't care for compatibility with ASDF 2,
-you could use the following options in your @code{defsystem} form:
-@example
-  :in-order-to ((test-op (load-op :my-system-test)))
-  :perform (test-op (o c) (symbol-call :my-system-test :test-suite))
-@end example
+                    (s (eql (asdf:find-system @var{:foo/test}))))
+  (funcall (intern (symbol-name '#:run!) :fiveam)
+              (intern (symbol-name '#:foo-test-suite) :foo-tests)))
+@end lisp
 @end deffn
 
 @deffn Operation @code{fasl-op}, @code{monolithic-fasl-op}, @code{load-fasl-op}, @code{binary-op}, @code{monolithic-binary-op}, @code{lib-op}, @code{monolithic-lib-op}, @code{dll-op}, @code{monolithic-dll-op}, @code{program-op}
