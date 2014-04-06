@@ -192,13 +192,13 @@ Introspection
 
 Controlling where ASDF saves compiled files
 
-* Configurations::
-* Backward Compatibility::
-* Configuration DSL::
-* Configuration Directories::
-* Shell-friendly syntax for configuration::
+* Output Configurations::
+* Output Backward Compatibility::
+* Output Configuration DSL::
+* Output Configuration Directories::
+* Output Shell-friendly syntax for configuration::
 * Semantics of Output Translations::
-* Caching Results::
+* Output Caching Results::
 * Output location API::
 * Credits for output translations::
 
@@ -3364,18 +3364,18 @@ Since ASDF 2, ASDF includes the @code{asdf-output-translations} facility
 to mitigate the problem.
 
 @menu
-* Configurations::
-* Backward Compatibility::
-* Configuration DSL::
-* Configuration Directories::
-* Shell-friendly syntax for configuration::
+* Output Configurations::
+* Output Backward Compatibility::
+* Output Configuration DSL::
+* Output Configuration Directories::
+* Output Shell-friendly syntax for configuration::
 * Semantics of Output Translations::
-* Caching Results::
+* Output Caching Results::
 * Output location API::
 * Credits for output translations::
 @end menu
 
-@node Configurations, Backward Compatibility, Controlling where ASDF saves compiled files, Controlling where ASDF saves compiled files
+@node Output Configurations, Output Backward Compatibility, Controlling where ASDF saves compiled files, Controlling where ASDF saves compiled files
 @section Configurations
 
 @c FIXME: Explain how configurations work: can't expect reader will have
@@ -3454,7 +3454,7 @@ output files and find they need to get familiar with output-translations
 first.@footnote{A @code{CLEAN-OP} would be a partial solution to this problem.}
 
 
-@node Backward Compatibility, Configuration DSL, Configurations, Controlling where ASDF saves compiled files
+@node Output Backward Compatibility, Output Configuration DSL, Output Configurations, Controlling where ASDF saves compiled files
 @section Backward Compatibility
 @cindex ASDF-BINARY-LOCATIONS compatibility
 @c FIXME: Demote this section -- the typical reader doesn't care about
@@ -3511,7 +3511,7 @@ Also, note that output translation is enabled by default.
 To disable it, use @code{(asdf:disable-output-translations)}.
 
 
-@node Configuration DSL, Configuration Directories, Backward Compatibility, Controlling where ASDF saves compiled files
+@node Output Configuration DSL, Output Configuration Directories, Output Backward Compatibility, Controlling where ASDF saves compiled files
 @section Configuration DSL
 
 Here is the grammar of the SEXP DSL
@@ -3642,7 +3642,7 @@ which by default is the same as using
 @end itemize
 
 
-@node Configuration Directories, Shell-friendly syntax for configuration, Configuration DSL, Controlling where ASDF saves compiled files
+@node Output Configuration Directories, Output Shell-friendly syntax for configuration, Output Configuration DSL, Controlling where ASDF saves compiled files
 @section Configuration Directories
 
 Configuration directories consist of files, each of which contains
@@ -3676,7 +3676,7 @@ or namestring in an @code{:include} directive, e.g.:
 	(:include "/foo/bar/")
 @end verbatim
 
-@node Shell-friendly syntax for configuration, Semantics of Output Translations, Configuration Directories, Controlling where ASDF saves compiled files
+@node Output Shell-friendly syntax for configuration, Semantics of Output Translations, Output Configuration Directories, Controlling where ASDF saves compiled files
 @section Shell-friendly syntax for configuration
 
 When considering environment variable @code{ASDF_OUTPUT_TRANSLATIONS}
@@ -3698,7 +3698,7 @@ it indicates that the directory specified first is to be left untranslated
 (which has the same effect as if the directory had been repeated).
 
 
-@node Semantics of Output Translations, Caching Results, Shell-friendly syntax for configuration, Controlling where ASDF saves compiled files
+@node Semantics of Output Translations, Output Caching Results, Output Shell-friendly syntax for configuration, Controlling where ASDF saves compiled files
 @section Semantics of Output Translations
 
 From the specified configuration,
@@ -3728,7 +3728,7 @@ If no match is found, return the source pathname.
 may ensure that there will always be a match,
 with same fall-through semantics).
 
-@node Caching Results, Output location API, Semantics of Output Translations, Controlling where ASDF saves compiled files
+@node Output Caching Results, Output location API, Semantics of Output Translations, Controlling where ASDF saves compiled files
 @section Caching Results
 
 The implementation is allowed to either eagerly compute the information
@@ -3737,7 +3737,7 @@ every time, or to cache any part of it as it goes.
 To explicitly flush any information cached by the system, use the API below.
 
 
-@node Output location API, Credits for output translations, Caching Results, Controlling where ASDF saves compiled files
+@node Output location API, Credits for output translations, Output Caching Results, Controlling where ASDF saves compiled files
 @section Output location API
 
 The specified functions are exported from package ASDF.
@@ -3871,7 +3871,7 @@ useful for system definition and development.
 * Some Utility Functions::
 @end menu
 
-@node Controlling file compilation, , Miscellaneous additional functionality, Miscellaneous additional functionality
+@node Controlling file compilation, Controlling source file character encoding, Miscellaneous additional functionality, Miscellaneous additional functionality
 @section Controlling file compilation
 @cindex :around-compile
 @cindex around-compile keyword
