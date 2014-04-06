@@ -21,6 +21,9 @@
 @macro Abody
 &body
 @end macro
+@macro defcond
+@deftyp CONDITION 
+@end macro
 
 @c for install-info
 @dircategory Software development
@@ -2054,6 +2057,7 @@ for one or more of the following generic functions:
 
 @itemize
 
+@findex perform
 @item @code{perform}
 Unless your operation, like @code{prepare-op},
 is for dependency propagation only,
@@ -2071,6 +2075,7 @@ If one and only one output file is expected,
 it can call @code{output-file} that checks that this is the case
 and returns the first and only list element.
 
+@findex output-files
 @item @code{output-files}
 If your perform method has any output,
 you must define a method for this function.
@@ -2084,6 +2089,7 @@ in some implementation-dependent cache.
 If the boolean is @code{t} then the pathnames are marked
 not be translated by the enclosing @code{:around} method.
 
+@findex component-depends-on
 @item @code{component-depends-on}
 If the action of performing the operation on a component has dependencies,
 you must define a method on @code{component-depends-on}.
@@ -2112,6 +2118,7 @@ are common such names, denoting the respective operations.
 
 @c FIXME COERCE-NAME is referenced, but not defined.
 @findex coerce-name
+@findex find-component
 The rest of each entry is a list of component designators:
 either a component object designating itself,
 or an identifier to be used with @code{find-component}.
@@ -2129,6 +2136,7 @@ An operation @emph{may} provide methods for the following generic functions:
 @itemize
 
 @item @code{input-files}
+@findex input-files
 A method for this function is often not needed,
 since ASDF has a pretty clever default @code{input-files} mechanism.
 You only need create a method if there are multiple ultimate input files,
@@ -2136,6 +2144,7 @@ and/or the bottom one doesn't depend
 on the @code{component-pathname} of the component.
 
 @item @code{operation-done-p}
+@findex operation-done-p
 You only need to define a method on that function
 if you can detect conditions that invalidate previous runs of the operation,
 even though no filesystem timestamp has changed,
