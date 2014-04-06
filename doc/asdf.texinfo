@@ -436,12 +436,15 @@ or none at all:
 
 @lisp
 (when (find-package :asdf)
-  (let ((ver (symbol-value (or (find-symbol (string :*asdf-version*) :asdf)
-                               (find-symbol (string :*asdf-revision*) :asdf)))))
+  (let ((ver (symbol-value
+                   (or (find-symbol (string :*asdf-version*) :asdf)
+                       (find-symbol (string :*asdf-revision*) :asdf)))))
     (etypecase ver
       (string ver)
       (cons (with-output-to-string (s)
-              (loop for (n . m) on ver do (princ n s) (when m (princ "." s)))))
+              (loop for (n . m) on ver
+                    do (princ n s)
+                       (when m (princ "." s)))))
       (null "1.0"))))
 @end lisp
 
@@ -1226,7 +1229,8 @@ component-def  := ( component-type simple-component-name @var{option}* )
 
 component-type := :module | :file | :static-file | other-component-type
 
-other-component-type := symbol-by-name (@pxref{The defsystem grammar,,Component types})
+other-component-type := symbol-by-name 
+                        (@pxref{The defsystem grammar,,Component types})
 
 # This is used in :depends-on, as opposed to ``dependency,''
 # which is used in :in-order-to
@@ -1252,8 +1256,10 @@ qual := method qualifier
 
 component-dep-fail-option := :fail | :try-next | :ignore
 
-feature-expression := keyword | (:and @var{feature-expression}*)
-                      | (:or @var{feature-expression}*) | (:not @var{feature-expression})
+feature-expression := keyword 
+                      | (:and @var{feature-expression}*)
+                      | (:or @var{feature-expression}*)
+                      | (:not @var{feature-expression})
 @end example
 
 
@@ -1687,7 +1693,8 @@ For instance:
   :in-order-to ((test-op (load-op :my-lib/test/all)))
   :perform (test-op (o c) (symbol-call :my-lib/test/all :test-suite)))
 (register-system-packages :closer-mop
- '(:c2mop :closer-common-lisp :c2cl :closer-common-lisp-user :c2cl-user))
+ '(:c2mop :closer-common-lisp :c2cl
+   :closer-common-lisp-user :c2cl-user))
 @end example
 
 In the code above, the
@@ -2906,8 +2913,8 @@ configuration:
 @c FIXME: This is too wide for happy compilation into pdf.
 
 @example
-;; A configuration is a single SEXP starting with keyword :source-registry
-;; followed by a list of directives.
+;; A configuration is a single SEXP starting with the keyword 
+;; :source-registry followed by a list of directives.
 CONFIGURATION := (:source-registry DIRECTIVE ...)
 
 ;; A directive is one of the following:
@@ -2915,8 +2922,10 @@ DIRECTIVE :=
     ;; INHERITANCE DIRECTIVE:
     ;; Your configuration expression MUST contain
     ;; exactly one of either of these:
-    :inherit-configuration | ; splices inherited configuration (often specified last)
-    :ignore-inherited-configuration | ; drop inherited configuration (specified anywhere)
+    :inherit-configuration ; splices inherited configuration (often specified last)
+    | 
+    :ignore-inherited-configuration ; drop inherited configuration (specified anywhere)
+    |
 
     ;; forward compatibility directive (since ASDF 2.011.4), useful when
     ;; you want to use new configuration features but have to bootstrap a
