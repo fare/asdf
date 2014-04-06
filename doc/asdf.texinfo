@@ -205,6 +205,7 @@ Controlling where ASDF saves compiled files
 Miscellaneous additional functionality
 
 * Controlling file compilation::
+* Controlling source file character encoding::
 * Some Utility Functions::
 
 FAQ
@@ -1744,14 +1745,19 @@ definitions.
 
 When ordered to perform some operation on a system, ASDF will first compute a dependency
 graph.  
-ASDF will then @emph{traverse} the dependency graph to derive a @emph{plan} for the
-operation.  
-This plan is an ordered list of @emph{actions}.
+ASDF will then traverse the dependency graph, using @code{MAKE-PLAN} to derive a @emph{plan} for the
+operation.@footnote{Historically, the function that built a plan was
+called @code{TRAVERSE}; this was removed when the PLAN object was introduced..}
+The resulting plan object contains an ordered list of @emph{actions}.
 An action is a pair of an @code{operation} and a @code{component}, 
 representing  a particular build step to be @code{perform}ed.
 The ordering of the plan ensures that no action is performed before
 all its dependencies have been fulfilled.@footnote{The term @emph{action} 
-was used by Kent Pitman in his old article, @c FIXME: what article? cite.
+was used by Kent Pitman in his article, ``The Description of Large Systems,''
+(@pxref{Bibliography}).
+(@pxref{Bibliography}).
+(@pxref{Bibliography}).
+ @c FIXME: what article? cite.
 Although the term was only used by ASDF hackers starting with ASDF 2,
 the concept was there since the very beginning of ASDF 1,
 but not clearly articulated.}
@@ -1768,6 +1774,8 @@ We will also describe the many @emph{hooks} that can be configured to
 customize the behavior of existing @emph{functions}.
 
 @c FIXME: Swap operations and components.
+@c FIXME: Possibly add a description of the PLAN object.  Not critical,
+@c since the user isn't expected to interact with it.
 @menu
 * Operations::
 * Components::
@@ -1970,12 +1978,22 @@ on a library.  For example, one might have
 Then one defines @code{perform} methods on 
 @code{test-op} such as the following:
 @lisp
-(defmethod perform ((o asdf:test-op)
-                    (s (eql (asdf:find-system @var{:foo/test}))))
-  (funcall (intern (symbol-name '#:run!) :fiveam)
-              (intern (symbol-name '#:foo-test-suite) :foo-tests)))
+(defsystem foo/test
+  :depends-on (foo fiveam) ; fiveam is a test framework library
+  :perform (test-op (o s)
+                    (declare (ignorable o s))
+                    (funcall (intern (symbol-name '#:run!) :fiveam)
+                                 (intern (symbol-name '#:foo-test-suite)
+                                            :foo-tests)))
+  ...)
 @end lisp
+
+Note: the use of @code{symbol-name} above is in order to cater to lisps
+that have a case-sensitive mode.  If one does not feel the need to so
+cater, one can simply use intern with an upper-case string.
 @end deffn
+
+
 
 @deffn Operation @code{fasl-op}, @code{monolithic-fasl-op}, @code{load-fasl-op}, @code{binary-op}, @code{monolithic-binary-op}, @code{lib-op}, @code{monolithic-lib-op}, @code{dll-op}, @code{monolithic-dll-op}, @code{program-op}
 
@@ -1986,13 +2004,13 @@ or for the entire application.
 @code{fasl-op} will create a single fasl file for each of the systems needed,
 grouping all its many fasls in one,
 so you can deliver each system as a single fasl.
-@code{monolithic-fasl-op} will create a single fasl file for target system
+@code{monolithic-fasl-op} will create a single fasl file for the target system
 and all its dependencies,
 so you can deliver your entire application as a single fasl.
-@code{load-fasl-op} will load the output of @code{fasl-op}
-(though if it the output is not up-to-date,
-it will load the intermediate fasls indeed as part of building it);
-this matters a lot on ECL, where the dynamic linking involved in loading
+@code{load-fasl-op} will load the output of @code{fasl-op}.
+Note that if it the output is not up-to-date,
+@code{load-fasl-op} will load the intermediate fasls as a side-effect.
+Bundling fasls together matters a lot on ECL, where the dynamic linking involved in loading
 tens of individual fasls can be noticeably more expensive
 than loading a single one.
 
@@ -2059,19 +2077,19 @@ Maybe you have suggestions on how to better configure it?
 
 @deffn Operation @code{concatenate-source-op}, @code{monolithic-concatenate-source-op}, @code{load-concatenated-source-op}, @code{compile-concatenated-source-op}, @code{load-compiled-concatenated-source-op}, @code{monolithic-load-concatenated-source-op}, @code{monolithic-compile-concatenated-source-op}, @code{monolithic-load-compiled-concatenated-source-op}
 
-These operation, as their respective names indicate,
-consist in concatenating all @code{cl-source-file} source files in a system
+These operations, as their respective names indicate,
+will concatenate all the @code{cl-source-file} source files in a system
 (or in a system and all its dependencies, if monolithic),
 in the order defined by dependencies,
-then loading the result, or compiling then loading the result.
+then load the result, or compile and then load the result.
 
 These operations are useful to deliver a system or application
 as a single source file,
-and for testing that said file loads properly, or compiles then loads properly.
+and for testing that said file loads properly, or compiles and then loads properly.
 
-ASDF itself is notably delivered as a single source file this way
+ASDF itself is delivered as a single source file this way, 
 using @code{monolithic-concatenate-source-op},
-transcluding a prelude and the @code{uiop} library
+prepending a prelude and the @code{uiop} library
 before the @code{asdf/defsystem} system itself.
 @end deffn
 
@@ -3323,14 +3341,17 @@ But so are good design ideas and elegant implementation tricks.
 @vindex ASDF_OUTPUT_TRANSLATIONS
 
 Each Common Lisp implementation has its own format
-for compiled files (fasls for short, short for ``fast loading'').
+for compiled files or fasls.@footnote{``Fasl'' is short for ``fast loading.''}
 If you use multiple implementations
 (or multiple versions of the same implementation),
 you'll soon find your source directories
-littered with various @file{fasl}s, @file{dfsl}s, @file{cfsl}s and so on.
-Worse yet, some implementations use the same file extension
-while changing formats from version to version (or platform to platform)
-which means that you'll have to recompile binaries
+littered with various @file{fasl}s, @file{dfsl}s, @file{cfsl}s and so
+on.
+Worse yet, multiple implementations use the same file extension and 
+some implementations maintain the same file extension
+while changing formats from version to version (or platform to
+platform).
+This can lead to many errors and much confusion 
 as you switch from one implementation to the next.
 
 Since ASDF 2, ASDF includes the @code{asdf-output-translations} facility
@@ -3350,6 +3371,10 @@ to mitigate the problem.
 
 @node Configurations, Backward Compatibility, Controlling where ASDF saves compiled files, Controlling where ASDF saves compiled files
 @section Configurations
+
+@c FIXME: Explain how configurations work: can't expect reader will have
+@c looked at previous chapter. Probably cut and paste will do.
+
 
 Configurations specify mappings from input locations to output locations.
 Once again we rely on the XDG base directory specification for configuration.
@@ -3405,12 +3430,13 @@ if it exists.
 @end enumerate
 
 Each of these configurations is specified as a SEXP
-in a trival domain-specific language (defined below).
+in a trivial domain-specific language (@pxref{Configuration DSL}).
 Additionally, a more shell-friendly syntax is available
-for the environment variable (defined yet below).
+for the environment variable (@pxref{Shell-friendly syntax for configuration}).
 
-Each of these configurations is only used if the previous
-configuration explicitly or implicitly specifies that it
+When processing an entry in the above list of configuration methods,
+ASDF will stop unless that entry 
+explicitly or implicitly specifies that it
 includes its inherited configuration.
 
 Note that by default, a per-user cache is used for output files.
@@ -3418,25 +3444,27 @@ This allows the seamless use of shared installations of software
 between several users, and takes files out of the way of the developers
 when they browse source code,
 at the expense of taking a small toll when developers have to clean up
-output files and find they need to get familiar with output-translations first.
+output files and find they need to get familiar with output-translations
+first.@footnote{A @code{CLEAN-OP} would be a partial solution to this problem.}
 
 
 @node Backward Compatibility, Configuration DSL, Configurations, Controlling where ASDF saves compiled files
 @section Backward Compatibility
 @cindex ASDF-BINARY-LOCATIONS compatibility
+@c FIXME: Demote this section -- the typical reader doesn't care about
+@c backwards compatibility.
 
 
-We purposefully do NOT provide backward compatibility with earlier versions of
+We purposely do @emph{not} provide backward compatibility with earlier versions of
 @code{ASDF-Binary-Locations} (8 Sept 2009),
 @code{common-lisp-controller} (7.0) or
 @code{cl-launch} (2.35),
 each of which had similar general capabilities.
-The previous APIs of these programs were not designed
-for configuration by the end-user
-in an easy way with configuration files.
-Recent versions of same packages use
-the new @code{asdf-output-translations} API as defined below:
-@code{common-lisp-controller} (7.2) and @code{cl-launch} (3.000).
+The APIs of these programs were not designed
+for easy user configuration 
+through configuration files.
+Recent versions of @code{common-lisp-controller} (7.2) and @code{cl-launch} (3.000)
+use the new @code{asdf-output-translations} API as defined below.
 @code{ASDF-Binary-Locations} is fully superseded and not to be used anymore.
 
 This incompatibility shouldn't inconvenience many people.
@@ -3531,6 +3559,9 @@ TRANSLATION-FUNCTION :=
 Relative components better be either relative
 or subdirectories of the path before them, or bust.
 
+@c FIXME: the following assumes that the reader is familiar with the use
+@c of this pattern in logical pathnames, which may not be a reasonable
+@c assumption.  Expand.
 The last component, if not a pathname, is notionally completed by @file{/**/*.*}.
 You can specify more fine-grained patterns
 by using a pathname object as the last component
@@ -3586,12 +3617,13 @@ either a symbol which designates a function or a lambda expression.
 The function designated by the second argument must take two arguments,
 the first being the pathname of the source file,
 the second being the wildcard that was matched.
-The result of the function invocation should be the translated pathname.
+When invoked, the function should return the translated pathname.
 
-An @code{:inherit-configuration} statement cause the search to recurse with the path
-specifications from the next configuration.
+An @code{:inherit-configuration} statement causes the search to recurse with the path
+specifications from the next configuration in the bulleted list.
 @xref{Controlling where ASDF saves compiled files,,Configurations}, above.
 
+@vindex @code{asdf::*user-cache*}
 @itemize
 @item
 @code{:enable-user-cache} is the same as @code{(t :user-cache)}.
@@ -3607,7 +3639,7 @@ which by default is the same as using
 @node Configuration Directories, Shell-friendly syntax for configuration, Configuration DSL, Controlling where ASDF saves compiled files
 @section Configuration Directories
 
-Configuration directories consist in files each contains
+Configuration directories consist of files, each of which contains
 a list of directives without any enclosing
 @code{(:output-translations ...)} form.
 The files will be sorted by namestring as if by @code{string<} and
@@ -3615,15 +3647,22 @@ the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
 at the @emph{end} of the list.
 
+@c FIXME: What's "this" here?
 This allows for packaging software that has file granularity
 (e.g. Debian's @command{dpkg} or some future version of @command{clbuild})
 to easily include configuration information about software being distributed.
 
-The convention is that, for sorting purposes,
-the names of files in such a directory begin with two digits
+Conventionally, for sorting purposes,
+the names of files in such a directory will begin with two digits
 that determine the order in which these entries will be read.
 Also, the type of these files is conventionally @code{"conf"}
-and as a limitation of some implementations, the type cannot be @code{nil}.
+and as a limitation of some implementations, the type cannot be
+@code{nil}.
+
+@c FIXME: In other places we have ignored files that don't end in .conf,
+@c but here we seem to process all of them.  Why this non-orthogonality?
+
+
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.:
@@ -3635,7 +3674,7 @@ or namestring in an @code{:include} directive, e.g.:
 @section Shell-friendly syntax for configuration
 
 When considering environment variable @code{ASDF_OUTPUT_TRANSLATIONS}
-ASDF will skip to next configuration if it's an empty string.
+ASDF will skip to the next configuration if it's an empty string.
 It will @code{READ} the string as an SEXP in the DSL
 if it begins with a paren @code{(}
 and it will be interpreted as a list of directories.
@@ -3644,6 +3683,7 @@ Entries are separated
 by a @code{:} (colon) on Unix platforms (including cygwin),
 by a @code{;} (semicolon) on other platforms (mainly, Windows).
 
+@c FIXME: this desperately needs an example.
 The magic empty entry,
 if it comes in what would otherwise be the first entry in a pair,
 indicates the splicing of inherited configuration.
@@ -3821,16 +3861,22 @@ useful for system definition and development.
 
 @menu
 * Controlling file compilation::
+* Controlling source file character encoding::
 * Some Utility Functions::
 @end menu
 
-@node Controlling file compilation, Some Utility Functions, Miscellaneous additional functionality, Miscellaneous additional functionality
+@node Controlling file compilation, , Miscellaneous additional functionality, Miscellaneous additional functionality
 @section Controlling file compilation
 @cindex :around-compile
 @cindex around-compile keyword
 @cindex compile-check keyword
 @cindex :compile-check
 @findex compile-file*
+
+@c FIXME: Needs rewrite.  Start with motivation -- why are we doing
+@c this?  (there is some, but it's buried).  Also, all of a sudden in
+@c the middle of the discussion we start talking about a "hook," which
+@c is confusing.
 
 When declaring a component (system, module, file),
 you can specify a keyword argument @code{:around-compile function}.
@@ -3839,7 +3885,7 @@ the value will be inherited from the parent component if any,
 or with a default of @code{nil}
 if no value is specified in any transitive parent.
 
-The argument must be a either @code{nil}, a fbound symbol,
+The argument must be a either @code{nil}, an fbound symbol,
 a lambda-expression (e.g. @code{(lambda (thunk) ...(funcall thunk ...) ...)})
 a function object (e.g. using @code{#.#'} but that's discouraged
 because it prevents the introspection done by e.g. asdf-dependency-grovel),
@@ -3897,6 +3943,7 @@ though it may at times require some creativity
 (see e.g. the @code{package-renaming} system).
 
 
+@node Controlling source file character encoding, Some Utility Functions, Controlling file compilation, Miscellaneous additional functionality
 @section Controlling source file character encoding
 
 Starting with ASDF 2.21, components accept a @code{:encoding} option
@@ -4013,12 +4060,15 @@ because user pressure as mentioned above will already have pushed
 library authors towards using UTF-8;
 but authors of end-user programs might care.
 
-When you use @code{asdf-encodings}, any further loaded @code{.asd} file
-will use the autodetection algorithm to determine its encoding;
-yet if you depend on this detection happening,
-you may want to explicitly load @code{asdf-encodings} early in your build,
-for by the time you can use @code{:defsystem-depends-on},
-it is already too late to load it.
+When you use @code{asdf-encodings}, any @code{.asd} file
+loaded 
+will use the autodetection algorithm to determine its encoding.
+If you depend on this detection happening,
+you should explicitly load @code{asdf-encodings} early in your build.
+Note that @code{:defsystem-depends-on} cannot be used here: by the time
+the @code{:defsystem-depends-on} is loaded, the enclosing
+@code{defsystem} form has already been read.
+
 In practice, this means that the @code{*default-encoding*}
 is usually used for @code{.asd} files.
 Currently, this defaults to @code{:default} for backwards compatibility,
@@ -4071,31 +4121,32 @@ The @var{system-designator} may be a string, symbol, or ASDF system object.
 @defun clear-system system-designator
 
 It is sometimes useful to force recompilation of a previously loaded system.
-In these cases, it may be useful to @code{(asdf:clear-system :foo)}
-to remove the system from the table of currently loaded systems;
+For these cases, @code{(asdf:clear-system :foo)}
+will remove the system from the table of currently loaded systems:
 the next time the system @code{foo} or one that depends on it is re-loaded,
-@code{foo} will then be loaded again.
-Alternatively, you could touch @code{foo.asd} or
-remove the corresponding fasls from the output file cache.
-(It was once conceived that one should provide
-a list of systems the recompilation of which to force
-as the @code{:force} keyword argument to @code{load-system};
-but this has never worked, and though the feature was fixed in ASDF 2.000,
-it remains @code{cerror}'ed out as nobody ever used it.)
+@code{foo} will be loaded again.\footnote{Alternatively, you could touch @code{foo.asd} or
+remove the corresponding fasls from the output file cache.}
 
-Note that this does not and cannot by itself undo the previous loading
+@c FIXME: Is the following correct?
+@c (It was once conceived that one should provide
+@c a list of systems the recompilation of which to force
+@c as the @code{:force} keyword argument to @code{load-system};
+@c but this has never worked, and though the feature was fixed in ASDF 2.000,
+@c it remains @code{cerror}'ed out as nobody ever used it.)
+
+Note that this does not and cannot undo the previous loading
 of the system. Common Lisp has no provision for such an operation,
-and its reliance on irreversible side-effects to global datastructures
+and its reliance on irreversible side-effects to global data structures
 makes such a thing impossible in the general case.
 If the software being re-loaded is not conceived with hot upgrade in mind,
-this re-loading may cause many errors, warnings or subtle silent problems,
+re-loading may cause many errors, warnings or subtle silent problems,
 as packages, generic function signatures, structures, types, macros, constants, etc.
 are being redefined incompatibly.
 It is up to the user to make sure that reloading is possible and has the desired effect.
 In some cases, extreme measures such as recursively deleting packages,
 unregistering symbols, defining methods on @code{update-instance-for-redefined-class}
 and much more are necessary for reloading to happen smoothly.
-ASDF itself goes through notable pains to make such a hot upgrade possible
+ASDF itself goes to extensive effort to make A hot upgrade possible
 with respect to its own code, and what it does is ridiculously complex;
 look at the beginning of @file{asdf.lisp} to see what it does.
 @end defun
@@ -4137,7 +4188,7 @@ while others (like SBCL) will make an attempt at invoking a POSIX shell
 (and fail if it is not present).
 @end defun
 
-@node Some Utility Functions,  , Controlling file compilation, Miscellaneous additional functionality
+@node Some Utility Functions,  , Controlling source file character encoding, Miscellaneous additional functionality
 @section Some Utility Functions
 
 The below functions are not exported by ASDF itself, but by UIOP, available since ASDF 3.
@@ -4151,8 +4202,8 @@ you read its README and sources for more information.
 Coerce NAME into a PATHNAME using standard Unix syntax.
 
 Unix syntax is used whether or not the underlying system is Unix;
-on such non-Unix systems it is only usable but for relative pathnames;
-but especially to manipulate relative pathnames portably, it is of crucial
+on non-Unix systems it is only usable for relative pathnames.
+In order to manipulate relative pathnames portably, it is crucial
 to possess a portable pathname syntax independent of the underlying OS.
 This is what @code{parse-unix-namestring} provides, and why we use it in ASDF.
 
@@ -4175,8 +4226,10 @@ Directory components with an empty name the name @code{.} are removed.
 Any directory named @code{..} is read as @var{dot-dot},
 which must be one of @code{:back} or @code{:up} and defaults to @code{:back}.
 
+@vindex *nil-pathname*
 @code{host}, @code{device} and @code{version} components are taken from @var{defaults},
-which itself defaults to @code{*nil-pathname*}, also used if @var{defaults} is @code{nil}.
+which itself defaults to @code{*nil-pathname*}.
+@code{*nil-pathname*} is also used if @var{defaults} is @code{nil}.
 No host or device can be specified in the string itself,
 which makes it unsuitable for absolute pathnames outside Unix.
 
@@ -4188,7 +4241,7 @@ Arbitrary keys are accepted, and the parse result is passed to @code{ensure-path
 with those keys, removing @var{type}, @var{defaults} and @var{dot-dot}.
 When you're manipulating pathnames that are supposed to make sense portably
 even though the OS may not be Unixish, we recommend you use @code{:want-relative t}
-to throw an error if the pathname is absolute
+so that @code{parse-unix-namestring} will throw an error if the pathname is absolute.
 @end defun
 
 @defun merge-pathnames* specified @Aoptional@  defaults
@@ -4221,9 +4274,9 @@ This function returns @code{nil} if the base @var{pathname} is @code{nil},
 otherwise acts like @code{subpathname}.
 @end defun
 
-@defun run-program command @Akey@  ignore-error-status force-shell input output error-output
-	if-input-does-not-exist if-output-exists if-error-output-exists
-	element-type external-format @AallowOtherKeys
+@defun run-program command @Akey@  ignore-error-status force-shell input output @
+error-output if-input-does-not-exist if-output-exists if-error-output-exists @
+element-type external-format @AallowOtherKeys
 
 @code{run-program} takes a @var{command} argument that is either
 a list of a program name or path and its arguments,
@@ -4304,50 +4357,52 @@ See the source code for more documentation.
 
 @defun slurp-input-stream processor input-stream @Akey@ 
 
-It's a generic function of two arguments, a target object and an input stream,
+@code{slurp-input-stream} is a generic function of two arguments, a target object and an input stream,
 and accepting keyword arguments.
-Predefined methods based on the target object are as follow:
+Predefined methods based on the target object are as follows:
 
+@itemize
+@item
 If the object is a function, the function is called with the stream as argument.
 
-If the object is a cons, its first element is applied to its rest appended by
+@item If the object is a cons, its first element is applied to its rest appended by
 a list of the input stream.
 
-If the object is an output stream, the contents of the input stream are copied to it.
+@item If the object is an output stream, the contents of the input stream are copied to it.
 If the @var{linewise} keyword argument is provided, copying happens line by line,
 and an optional @var{prefix} is printed before each line.
 Otherwise, copying happen based on a buffer of size @var{buffer-size},
 using the specified @var{element-type}.
 
-If the object is @code{'string} or @code{:string}, the content is captured into a string.
+@item If the object is @code{'string} or @code{:string}, the content is captured into a string.
 Accepted keywords include the @var{element-type} and a flag @var{stripped},
 which when true causes any single line ending to be removed as per @code{uiop:stripln}.
 
-If the object is @code{:lines}, the content is captured as a list of strings,
+@item If the object is @code{:lines}, the content is captured as a list of strings,
 one per line, without line ending. If the @var{count} keyword argument is provided,
 it is a maximum count of lines to be read.
 
-If the object is @code{:line}, the content is capture as with @code{:lines} above,
+@item If the object is @code{:line}, the content is captured as with @code{:lines} above,
 and then its sub-object is extracted with the @var{at} argument,
 which defaults to @code{0}, extracting the first line.
 A number will extract the corresponding line.
 See the documentation for @code{uiop:access-at}.
 
-If the object is @code{:forms}, the content is captured as a list of S-expressions,
+@item If the object is @code{:forms}, the content is captured as a list of S-expressions,
 as read by the Lisp reader.
 If the @var{count} argument is provided,
 it is a maximum count of lines to be read.
 We recommend you control the syntax with such macro as
 @code{uiop:with-safe-io-syntax}.
 
-If the object is @code{:form}, the content is capture as with @code{:forms} above,
+@item If the object is @code{:form}, the content is captured as with @code{:forms} above,
 and then its sub-object is extracted with the @var{at} argument,
 which defaults to @code{0}, extracting the first form.
 A number will extract the corresponding form.
 See the documentation for @code{uiop:access-at}.
 We recommend you control the syntax with such macro as
 @code{uiop:with-safe-io-syntax}.
-
+@end itemize
 @end defun
 
 
@@ -4962,6 +5017,7 @@ use (after loading ASDF but before using it):
 
 @node How can I cater for unit-testing in my system?, How can I cater for documentation generation in my system?, Issues with using and extending ASDF to define systems, Issues with using and extending ASDF to define systems
 @subsection ``How can I cater for unit-testing in my system?''
+@c FIXME: cross-reference the TEST-OP section.
 
 ASDF provides a predefined test operation, @code{test-op}.
 @xref{Predefined operations of ASDF, test-op}.
