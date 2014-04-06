@@ -1947,7 +1947,7 @@ The default method will do nothing.
 The default dependency is to require
 @code{load-op} to be performed on the module first.
 The default @code{operation-done-p} is that the operation is @emph{never} done
----
+--
 we assume that if you invoke the @code{test-op},
 you want to test the system, even if you have already done so.
 
@@ -1982,15 +1982,12 @@ Then one defines @code{perform} methods on
   :depends-on (foo fiveam) ; fiveam is a test framework library
   :perform (test-op (o s)
                     (declare (ignorable o s))
-                    (funcall (intern (symbol-name '#:run!) :fiveam)
-                                 (intern (symbol-name '#:foo-test-suite)
+                    (uiop:symbol-call :fiveam  '#:run!
+                       (uiop:find-symbol* '#:foo-test-suite
                                             :foo-tests)))
   ...)
 @end lisp
 
-Note: the use of @code{symbol-name} above is in order to cater to lisps
-that have a case-sensitive mode.  If one does not feel the need to so
-cater, one can simply use intern with an upper-case string.
 @end deffn
 
 
@@ -2719,7 +2716,7 @@ than the one specified as a second argument.
 If needs be, the @code{(:version ...)} syntax for specifying dependencies
 could be in the future extended to specify an exclusive upper bound for compatible versions
 as well as an inclusive lower bound.
-@end deffn
+@end defun
 
 @node Controlling where ASDF searches for systems, Controlling where ASDF saves compiled files, The object model of ASDF, Top
 @comment  node-name,  next,  previous,  up
