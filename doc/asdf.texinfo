@@ -880,10 +880,20 @@ or silently convert lowercase to uppercase (lpns).
 @node Other Operations, Moving on, Loading a system, Using ASDF
 @section Other Operations
 
+@findex load-system
+@findex compile-system
+@findex test-system
+@findex requrie-system
+
 ASDF provides three commands for the most common system operations:
-@code{load-system}, @code{compile-system} or @code{test-system}.
+@code{load-system}, @code{compile-system}, and @code{test-system}.
 It also provides @code{require-system}, a version of @code{load-system}
 that skips trying to update systems that are already loaded.
+
+@c FIXME: We seem to export @findex bundle-system also.
+
+@findex operate
+@findex oos
 
 Because ASDF is an extensible system
 for defining @emph{operations} on @emph{components},
@@ -903,8 +913,11 @@ should redirect all output from ASDF operations.
 
 @c FIXME: the following is too complicated for here, especially since
 @c :force hasn't been defined yet.  Move it. [2014/02/27:rpg]
-@findex already-loaded-systems
 
+@findex already-loaded-systems
+@findex require-system
+@findex load-system
+@vindex *load-system-operation*
 For advanced users, note that
 @code{require-system} calls @code{load-system}
 with keyword arguments @code{:force-not (already-loaded-systems)}.
@@ -942,6 +955,7 @@ software.
 @node  The defsystem form, A more involved example, Defining systems with defsystem, Defining systems with defsystem
 @comment  node-name,  next,  previous,  up
 @section The defsystem form
+@findex defsystem
 
 Systems can be constructed programmatically
 by instantiating components using @code{make-instance}.
@@ -1045,6 +1059,7 @@ by default the specifier is @code{0}, meaning the first form is returned.
 @node  A more involved example, The defsystem grammar, The defsystem form, Defining systems with defsystem
 @comment  node-name,  next,  previous,  up
 @section A more involved example
+@findex defsystem
 
 Let's illustrate some more involved uses of @code{defsystem} via a
 slightly convoluted example:
@@ -1110,6 +1125,8 @@ For more details on what these methods do, @pxref{Operations} in
 @node  The defsystem grammar, Other code in .asd files, A more involved example, Defining systems with defsystem
 @comment  node-name,  next,  previous,  up
 @section The defsystem grammar
+@findex defsystem
+@cindex DEFSYSTEM grammar
 
 @c FIXME: @var typesetting not consistently used here.  We should either expand
 @c its use to everywhere, or we should kill it everywhere.
@@ -2093,6 +2110,8 @@ a symbol that names an operation class
 For instance, @code{load-op}, @code{compile-op} and @code{prepare-op}
 are common such names, denoting the respective operations.
 
+@c FIXME COERCE-NAME is referenced, but not defined.
+@findex coerce-name
 The rest of each entry is a list of component designators:
 either a component object designating itself,
 or an identifier to be used with @code{find-component}.
@@ -2211,6 +2230,7 @@ starting from the @var{base}.
 If @var{path} is a component object, it designates itself,
 independently from the base.
 
+@findex coerce-name
 If @var{path} is a string, or symbol denoting a string via @code{coerce-name},
 then @var{base} is resolved to a component object,
 which must be a system or module,
