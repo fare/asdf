@@ -250,6 +250,7 @@ Issues with using and extending ASDF to define systems
 * How can I maintain non-Lisp (e.g. C) source files?::
 * I want to put my module's files at the top level.  How do I do this?::
 * How do I create a system definition where all the source files have a .cl extension?::
+* How do I mark a source file to be loaded only and not compiled?::
 
 ASDF development FAQs
 
@@ -1947,17 +1948,6 @@ rather than the compiled fasl output.
 It has a @code{prepare-source-op} analog to @code{prepare-op},
 that ensures the dependencies are themselves loaded via @code{load-source-op}.
 
-There is no provision in ASDF for ensuring that
-some components are always loaded as source, while others are always compiled.
-While this idea often comes up in discussions,
-it actually doesn't play well with either the linking model of ECL
-or with various bundle operations (see below), and is eventually not workable;
-also the dependency model of ASDF would have to be modified incompatibly
-to allow for such trick.
-If your code doesn't compile cleanly, fix it.
-If compilation makes it slow, use @code{declaim} or @code{eval-when}
-to adjust your compiler settings,
-or eschew compilation by @code{eval}uating a quoted source form at load-time.
 @end deffn
 
 @anchor{test-op}
@@ -5055,6 +5045,7 @@ use (after loading ASDF but before using it):
 * How can I maintain non-Lisp (e.g. C) source files?::
 * I want to put my module's files at the top level.  How do I do this?::
 * How do I create a system definition where all the source files have a .cl extension?::
+* How do I mark a source file to be loaded only and not compiled?::
 @end menu
 
 @node How can I cater for unit-testing in my system?, How can I cater for documentation generation in my system?, Issues with using and extending ASDF to define systems, Issues with using and extending ASDF to define systems
@@ -5191,7 +5182,7 @@ either as the name component of a pathname
 or as a name component plus optional dot-separated type component
 (if the component class doesn't specifies a pathname type).
 
-@node How do I create a system definition where all the source files have a .cl extension?,  , I want to put my module's files at the top level.  How do I do this?, Issues with using and extending ASDF to define systems
+@node How do I create a system definition where all the source files have a .cl extension?, How do I mark a source file to be loaded only and not compiled?, I want to put my module's files at the top level.  How do I do this?, Issues with using and extending ASDF to define systems
 @subsection How do I create a system definition where all the source files have a .cl extension?
 
 Starting with ASDF 2.014.14, you may just pass
@@ -5259,6 +5250,27 @@ you also define the following method:
   (declare (ignorable f s))
   "lis")
 @end lisp
+
+@node How do I mark a source file to be loaded only and not compiled?,  , How do I create a system definition where all the source files have a .cl extension?, Issues with using and extending ASDF to define systems
+@subsection How do I mark a source file to be loaded only and not compiled?
+
+There is no provision in ASDF for ensuring that
+some components are always loaded as source, while others are always
+compiled.
+There is @code{load-source-op} (@pxref{Predefined operations of
+ASDF,load-source-op}), but that is an operation to be applied to a
+system as a whole, not to one or another specific source files.
+While this idea often comes up in discussions,
+it doesn't play well with either the linking model of ECL
+or with various bundle operations.
+In addition, the dependency model of ASDF would have to be modified incompatibly
+to allow for such a trick.
+@c If your code doesn't compile cleanly, fix it.
+@c If compilation makes it slow, use @code{declaim} or @code{eval-when}
+@c to adjust your compiler settings,
+@c or eschew compilation by @code{eval}uating a quoted source form at load-time.
+
+
 
 @node ASDF development FAQs,  , Issues with using and extending ASDF to define systems, FAQ
 @section ASDF development FAQs
