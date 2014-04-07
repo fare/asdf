@@ -82,7 +82,7 @@ This can help you produce more deterministic output for FASLs."))
     (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
       #.`(loop :for x :in settings
                ,@(or #+(or abcl ecl gcl mkcl xcl) '(:for v :in +optimization-variables+))
-               :for y = (or #+clisp (gethash x system::*optimize*)
+               :for y = (or #+clisp (gethash x system::*optimize* 0)
                             #+(or abcl ecl mkcl xcl) (symbol-value v)
                             #+(or cmu scl) (slot-value c::*default-cookie*
                                                        (case x (compilation-speed 'c::cspeed)
@@ -97,6 +97,13 @@ This can help you produce more deterministic output for FASLs."))
       (unless (equal *previous-optimization-settings* settings)
         (setf *previous-optimization-settings* settings))))
   (defmacro with-optimization-settings ((&optional (settings *optimization-settings*)) &body body)
+    #+clisp
+    (let ((previous-settings (gensym "PREVIOUS-SETTINGS")))
+      `(let ((,previous-settings (get-optimization-settings)))
+         ,@(when settings `((proclaim `(optimize ,@,settings))))
+         (unwind-protect (progn ,@body)
+           (proclaim `(optimize ,@,previous-settings)))))
+    #-clisp
     `(let ,(loop :for v :in +optimization-variables+ :collect `(,v ,v))
        ,@(when settings `((proclaim `(optimize ,@,settings))))
        ,@body)))

@@ -315,9 +315,11 @@
 
 (DBG :optimization-settings)
 #-(or allegro ecl-bytecmp gcl mkcl)
-(loop :for i :from 0 :to 3 :do
-  (with-optimization-settings (`((speed ,i) (space ,i) (safety ,i) (debug ,i)))
-    (let ((s (get-optimization-settings)))
-      (loop :for q :in '(speed space safety debug) :do
-        #+mkcl (DBG :os i q s (assoc q s))
-        (assert-equal i (second (assoc q s)))))))
+(loop :with settings = (get-optimization-settings)
+      :for i :from 0 :to 3 :do
+        (with-optimization-settings (`((speed ,i) (space ,i) (safety ,i) (debug ,i)))
+          (let ((s (get-optimization-settings)))
+            (loop :for q :in '(speed space safety debug) :do
+                  #+mkcl (DBG :os i q s (assoc q s))
+                         (assert-equal i (second (assoc q s))))))
+        (assert-equal (get-optimization-settings) settings))
