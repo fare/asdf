@@ -4133,13 +4133,6 @@ the next time the system @code{foo} or one that depends on it is re-loaded,
 @code{foo} will be loaded again.\footnote{Alternatively, you could touch @code{foo.asd} or
 remove the corresponding fasls from the output file cache.}
 
-@c FIXME: Is the following correct?
-@c (It was once conceived that one should provide
-@c a list of systems the recompilation of which to force
-@c as the @code{:force} keyword argument to @code{load-system};
-@c but this has never worked, and though the feature was fixed in ASDF 2.000,
-@c it remains @code{cerror}'ed out as nobody ever used it.)
-
 Note that this does not and cannot undo the previous loading
 of the system. Common Lisp has no provision for such an operation,
 and its reliance on irreversible side-effects to global data structures
