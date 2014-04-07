@@ -312,3 +312,12 @@
   (assert-equal (multiple-value-list (ensure-gethash 3 h nil)) '(nil nil))
   (assert-equal (multiple-value-list (gethash 3 h 4)) '(nil t))
   (assert-equal (multiple-value-list (ensure-gethash 3 h 5)) '(nil t)))
+
+(DBG :optimization-settings)
+#-(or allegro ecl-bytecmp gcl mkcl)
+(loop :for i :from 0 :to 3 :do
+  (with-optimization-settings (`((speed ,i) (space ,i) (safety ,i) (debug ,i)))
+    (let ((s (get-optimization-settings)))
+      (loop :for q :in '(speed space safety debug) :do
+        #+mkcl (DBG :os i q s (assoc q s))
+        (assert-equal i (second (assoc q s)))))))
