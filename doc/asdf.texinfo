@@ -632,12 +632,18 @@ ASDF, starting from easiest to the most complex:
 @itemize @bullet
 
 @item
-Put all of your systems in subdirectories of
+Put all of your systems in one of the standard locations, subdirectories
+of
+@itemize
+@item 
 @file{~/common-lisp/} or
+@item 
 @file{~/.local/share/common-lisp/source/}.
-If you install software there, you don't need further configuration.
-(NB: @file{~/common-lisp/} is only included in the default configuration
-starting with ASDF 3.1.1 or later)
+@end itemize
+If you install software there, you don't need further 
+configuration.@footnote{@file{~/common-lisp/} is only included in 
+the default configuration
+starting with ASDF 3.1.1 or later.}
 
 @item
 If you're using some tool to install software (e.g. Quicklisp),
@@ -887,7 +893,7 @@ you may want to reset the ASDF configuration.
 For that you may use the following function:
 
 @defun clear-configuration
-   undoes any ASDF configuration,
+   Undoes any ASDF configuration
    regarding source-registry or output-translations.
 @end defun
 
@@ -2354,9 +2360,10 @@ All components, regardless of type, have the following attributes.
 All attributes except @code{name} are optional.
 
 @subsubsection Name
-
+@findex coerce-name
 A component name is a string or a symbol.
-If a symbol, its name is taken and lowercased.
+If a symbol, its name is taken and lowercased.  This translation is
+performed by the exported function @code{coerce-name}.
 
 Unless overridden by a @code{:pathname} attribute,
 the name will be interpreted as a pathname specifier according
@@ -2929,21 +2936,23 @@ CONFIGURATION := (:source-registry DIRECTIVE ...)
 DIRECTIVE :=
     ;; INHERITANCE DIRECTIVE:
     ;; Your configuration expression MUST contain
-    ;; exactly one of either of these:
-    :inherit-configuration ; splices inherited configuration (often specified last)
-    | 
-    :ignore-inherited-configuration ; drop inherited configuration (specified anywhere)
-    |
+    ;; exactly one of the following:
+    :inherit-configuration | 
+    ;; splices inherited configuration (often specified last) or
+    :ignore-inherited-configuration |
+    ;; drop inherited configuration (specified anywhere)
 
     ;; forward compatibility directive (since ASDF 2.011.4), useful when
-    ;; you want to use new configuration features but have to bootstrap a
-    ;; the newer required ASDF from an older release that doesn't sport said features:
-    :ignore-invalid-entries | ; drops subsequent invalid entries instead of erroring out
+    ;; you want to use new configuration features but have to bootstrap
+    ;; the newer required ASDF from an older release that doesn't
+    ;; support said features:
+    :ignore-invalid-entries | 
 
     ;; add a single directory to be scanned (no recursion)
     (:directory DIRECTORY-PATHNAME-DESIGNATOR) |
 
-    ;; add a directory hierarchy, recursing but excluding specified patterns
+    ;; add a directory hierarchy, recursing but
+    ;; excluding specified patterns
     (:tree DIRECTORY-PATHNAME-DESIGNATOR) |
 
     ;; override the defaults for exclusion patterns
@@ -2959,16 +2968,19 @@ DIRECTIVE :=
     ;; This directive specifies that some default must be spliced.
     :default-registry
 
-REGULAR-FILE-PATHNAME-DESIGNATOR := PATHNAME-DESIGNATOR ;; interpreted as a file
-DIRECTORY-PATHNAME-DESIGNATOR := PATHNAME-DESIGNATOR ;; interpreted as a directory name
+REGULAR-FILE-PATHNAME-DESIGNATOR 
+    := PATHNAME-DESIGNATOR ; interpreted as a file
+DIRECTORY-PATHNAME-DESIGNATOR
+    := PATHNAME-DESIGNATOR ; interpreted as a directory
 
 PATHNAME-DESIGNATOR :=
     NIL | ;; Special: skip this entry.
     ABSOLUTE-COMPONENT-DESIGNATOR ;; see pathname DSL
 
-EXCLUSION-PATTERN := a string without wildcards, that will be matched exactly
-	against the name of a any subdirectory in the directory component
-        of a path. e.g. @code{"_darcs"} will match @file{#p"/foo/bar/_darcs/src/bar.asd"}
+EXCLUSION-PATTERN := a string without wildcards, that will be matched 
+    exactly against the name of a any subdirectory in the directory 
+    component of a path. e.g. @code{"_darcs"} will match
+    @file{#p"/foo/bar/_darcs/src/bar.asd"}
 @end example
 
 Pathnames are designated using another DSL,
@@ -2979,36 +2991,50 @@ to be documented and exported at some point in the future.
 @example
 ABSOLUTE-COMPONENT-DESIGNATOR :=
     (ABSOLUTE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...) |
-    STRING | ;; namestring (better be absolute or bust, directory assumed where applicable).
-             ;; In output-translations, directory is assumed and **/*.*.* added if it's last.
-             ;; On MCL, a MacOSX-style POSIX namestring (for MacOS9 style, use #p"...");
-             ;; Note that none of the above applies to strings used in *central-registry*,
-             ;; which doesn't use this DSL: they are processed as normal namestrings.
-             ;; however, you can compute what you put in the *central-registry*
-             ;; based on the results of say (asdf::resolve-location "/Users/fare/cl/cl-foo/")
-    PATHNAME | ;; pathname (better be an absolute path, or bust)
-               ;; In output-translations, unless followed by relative components,
-               ;; it better have appropriate wildcards, as in **/*.*.*
-    :HOME | ;; designates the user-homedir-pathname ~/
-    :USER-CACHE | ;; designates the default location for the user cache
-    :HERE | ;; designates the location of the configuration file
-            ;; (or *default-pathname-defaults*, if invoked interactively)
-    :ROOT ;; magic, for output-translations source only: paths that are relative
-          ;; to the root of the source host and device
-    ;; Not valid anymore: :SYSTEM-CACHE (was a security hazard)
+    STRING |
+    ;; namestring (better be absolute or bust, directory assumed where
+    ;; applicable).  In output-translations, directory is assumed and
+    ;; **/*.*.* added if it's last.  On MCL, a MacOSX-style POSIX
+    ;; namestring (for MacOS9 style, use #p"..."); Note that none of the
+    ;; above applies to strings used in *central-registry*, which
+    ;; doesn't use this DSL: they are processed as normal namestrings.
+    ;; however, you can compute what you put in the *central-registry*
+    ;; based on the results of say
+    ;; (asdf::resolve-location "/Users/fare/cl/cl-foo/")
+    PATHNAME | 
+    ;; pathname (better be an absolute path, or bust)
+    ;; In output-translations, unless followed by relative components,
+    ;; it better have appropriate wildcards, as in **/*.*.*
+    :HOME | ; designates the user-homedir-pathname ~/
+    :USER-CACHE | ; designates the default location for the user cache
+    :HERE |
+    ;; designates the location of the configuration file
+    ;; (or *default-pathname-defaults*, if invoked interactively)
+    :ROOT
+    ;; magic, for output-translations source only: paths that are relative
+    ;; to the root of the source host and device
+    
+They keyword :SYSTEM-CACHE is not accepted in ASDF 3.1 and beyond: it
+was a security hazard.
 
 RELATIVE-COMPONENT-DESIGNATOR :=
     (RELATIVE-COMPONENT-DESIGNATOR RELATIVE-COMPONENT-DESIGNATOR ...) |
-    STRING | ;; relative directory pathname as interpreted by parse-unix-namestring.
-             ;; In output translations, if last component, **/*.*.* is added
-    PATHNAME | ;; pathname; unless last component, directory is assumed.
-    :IMPLEMENTATION | ;; directory based on implementation, e.g. sbcl-1.0.45-linux-x64
-    :IMPLEMENTATION-TYPE | ;; a directory based on lisp-implementation-type only, e.g. sbcl
-    :DEFAULT-DIRECTORY | ;; a relativized version of the default directory
+    STRING |
+      ;; relative directory pathname as interpreted by
+      ;; parse-unix-namestring.
+      ;; In output translations, if last component, **/*.*.* is added
+    PATHNAME | ; pathname; unless last component, directory is assumed.
+    :IMPLEMENTATION |
+       ;; directory based on implementation, e.g. sbcl-1.0.45-linux-x64
+    :IMPLEMENTATION-TYPE |
+       ;; a directory based on lisp-implementation-type only, e.g. sbcl
+    :DEFAULT-DIRECTORY |
+       ;; a relativized version of the default directory
     :*/ | ;; any direct subdirectory (since ASDF 2.011.4)
     :**/ | ;; any recursively inferior subdirectory (since ASDF 2.011.4)
     :*.*.* | ;; any file (since ASDF 2.011.4)
-    ;; Not supported (anymore): :UID and :USERNAME
+
+The keywords :UID and :USERNAME are no longer supported.
 @end example
 
 For instance, as a simple case, my @file{~/.config/common-lisp/source-registry.conf},
@@ -3535,18 +3561,22 @@ DIRECTIVE :=
     ;; INHERITANCE DIRECTIVE:
     ;; Your configuration expression MUST contain
     ;; exactly one of either of these:
-    :inherit-configuration | ; splices inherited configuration (often specified last)
-    :ignore-inherited-configuration | ; drop inherited configuration (specified anywhere)
+    :inherit-configuration |
+      ;; splices inherited configuration (often specified last)
+    :ignore-inherited-configuration |
+      ;; drop inherited configuration (specified anywhere)
 
     ;; forward compatibility directive (since ASDF 2.011.4), useful when
     ;; you want to use new configuration features but have to bootstrap a
-    ;; the newer required ASDF from an older release that doesn't sport said features:
-    :ignore-invalid-entries | ; drops subsequent invalid entries instead of erroring out
+    ;; the newer required ASDF from an older release that doesn't have
+    ;; said features:
+    :ignore-invalid-entries | 
 
     ;; include a configuration file or directory
     (:include PATHNAME-DESIGNATOR) |
 
-    ;; enable global cache in ~/.common-lisp/cache/sbcl-1.0.45-linux-amd64/ or something.
+    ;; enable global cache in ~/.common-lisp/cache/sbcl-1.0.45-linux-amd64/ 
+    ;; or something.
     :enable-user-cache |
     ;; Disable global cache. Map / to /
     :disable-cache |
@@ -3558,15 +3588,18 @@ DIRECTIVE :=
     (DIRECTORY-DESIGNATOR (:function TRANSLATION-FUNCTION))
 
 DIRECTORY-DESIGNATOR :=
-    NIL | ;; As source: skip this entry. As destination: same as source
-    T | ;; as source matches anything, as destination leaves pathname unmapped.
-    ABSOLUTE-COMPONENT-DESIGNATOR ;; same as in the source-registry language
+    NIL | ; As source: skip this entry. As destination: same as source
+    T | ; as source matches anything, as destination
+        ; maps pathname to itself.
+    ABSOLUTE-COMPONENT-DESIGNATOR ; same as in the source-registry language
 
 TRANSLATION-FUNCTION :=
-    SYMBOL | ;; symbol of a function that takes two arguments,
-             ;; the pathname to be translated and the matching DIRECTORY-DESIGNATOR
-    LAMBDA   ;; A form which evalutates to a function taking two arguments consisting of
-             ;; the pathname to be translated and the matching DIRECTORY-DESIGNATOR
+    SYMBOL | ;; symbol naming a function that takes two arguments:
+             ;; the pathname to be translated and the matching
+             ;; DIRECTORY-DESIGNATOR
+    LAMBDA   ;; A form which evalutates to a function taking two arguments:
+             ;; the pathname to be translated and the matching
+             ;; DIRECTORY-DESIGNATOR
 
 @end verbatim
 
@@ -3607,12 +3640,14 @@ in your configuration file,
 or you may use @code{enable-asdf-binary-locations-compatibility}
 with @code{:centralize-lisp-binaries nil}
 which will do the same thing internally for you:
-@verbatim
-  #.(let ((wild-subdir (make-pathname :directory '(:relative :wild-inferiors)))
-          (wild-file (make-pathname :name :wild :version :wild :type :wild)))
-     `((:root ,wild-subdir ,wild-file) ;; Or using the implicit wildcard, just :root
-       (:root ,wild-subdir :implementation ,wild-file)))
-@end verbatim
+@lisp
+#.(let ((wild-subdir
+          (make-pathname :directory '(:relative :wild-inferiors)))
+        (wild-file
+          (make-pathname :name :wild :version :wild :type :wild)))
+   `((:root ,wild-subdir ,wild-file)
+     (:root ,wild-subdir :implementation ,wild-file)))
+@end lisp
 Starting with ASDF 2.011.4, you can use the simpler:
 	@code{`(:root (:root :**/ :implementation :*.*.*))}
 
@@ -4153,7 +4188,7 @@ It is up to the user to make sure that reloading is possible and has the desired
 In some cases, extreme measures such as recursively deleting packages,
 unregistering symbols, defining methods on @code{update-instance-for-redefined-class}
 and much more are necessary for reloading to happen smoothly.
-ASDF itself goes to extensive effort to make A hot upgrade possible
+ASDF itself goes to extensive effort to make hot upgrade possible
 with respect to its own code, and what it does is ridiculously complex;
 look at the beginning of @file{asdf.lisp} to see what it does.
 @end defun
