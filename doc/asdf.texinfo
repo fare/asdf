@@ -104,7 +104,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 * Concept Index::
 * Function and Class Index::
 * Variable Index::              @c @detailmenu
-@c 
+@c
 
 @detailmenu
  --- The Detailed Node Listing ---
@@ -280,14 +280,14 @@ are made up of components (sub-systems and files),
 and how to operate on these components in the right order
 so that they can be compiled, loaded, tested, etc.
 If you are new to ASDF, @pxref{Quick start summary,,the quick start
-guide}.  
+guide}.
 
 ASDF presents three faces:
 one for users of Common Lisp software who want to reuse other people's code,
 one for writers of Common Lisp software who want to specify how to build their systems,
 and one for implementers of Common Lisp extensions who want to extend
 the build system.
-For more specifics, 
+For more specifics,
 @pxref{Using ASDF,,Loading a system},
 to learn how to use ASDF to load a system.
 @xref{Defining systems with defsystem},
@@ -295,7 +295,7 @@ to learn how to define a system of your own.
 @xref{The object model of ASDF}, for a description of
 the ASDF internals and how to extend ASDF.
 
-Note that 
+Note that
 ASDF is @emph{not} a tool for library and system @emph{installation}; it
 plays a role like @t{make} or @t{ant}, not like a package manager.
 In particular, ASDF should not to be confused with ASDF-Install, which attempts to find and
@@ -636,13 +636,13 @@ ASDF, starting from easiest to the most complex:
 Put all of your systems in one of the standard locations, subdirectories
 of
 @itemize
-@item 
+@item
 @file{~/common-lisp/} or
-@item 
+@item
 @file{~/.local/share/common-lisp/source/}.
 @end itemize
-If you install software there, you don't need further 
-configuration.@footnote{@file{~/common-lisp/} is only included in 
+If you install software there, you don't need further
+configuration.@footnote{@file{~/common-lisp/} is only included in
 the default configuration
 starting with ASDF 3.1.1 or later.}
 
@@ -1244,7 +1244,7 @@ component-def  := ( component-type simple-component-name @var{option}* )
 
 component-type := :module | :file | :static-file | other-component-type
 
-other-component-type := symbol-by-name 
+other-component-type := symbol-by-name
                         (@pxref{The defsystem grammar,,Component types})
 
 # This is used in :depends-on, as opposed to ``dependency,''
@@ -1271,7 +1271,7 @@ qual := method qualifier
 
 component-dep-fail-option := :fail | :try-next | :ignore
 
-feature-expression := keyword 
+feature-expression := keyword
                       | (:and @var{feature-expression}*)
                       | (:or @var{feature-expression}*)
                       | (:not @var{feature-expression})
@@ -1640,8 +1640,8 @@ an adequate substitute.
 
 The @code{feature} requirement used to ensure that a chain of component
 dependencies would fail when a key feature was absent.
-Used in conjunction with @code{:if-component-dep-fails} 
-this provided 
+Used in conjunction with @code{:if-component-dep-fails}
+this provided
 a roundabout way to express conditional compilation.
 
 
@@ -1766,15 +1766,18 @@ Components are related by @emph{dependencies}, specified in system
 definitions.
 
 When ordered to perform some operation on a system, ASDF will first compute a dependency
-graph.  
-ASDF will then traverse the dependency graph, using @code{MAKE-PLAN} to derive a @emph{plan} for the
+graph.
+ASDF will then traverse the dependency graph, using @code{make-plan} to derive a @emph{plan} for the
 operation.@footnote{Historically, the function that built a plan was
-called @code{TRAVERSE}; this was removed when the PLAN object was introduced..}
+called @code{traverse}, and returned a list of actions;
+it was deprecated in favor of @code{make-plan} (that returns a plan object)
+when the @code{plan} objects were introduced;
+it is kept for backward compatibility and debugging purposes only.}
 The resulting plan object contains an ordered list of @emph{actions}.
-An action is a pair of an @code{operation} and a @code{component}, 
+An action is a pair of an @code{operation} and a @code{component},
 representing  a particular build step to be @code{perform}ed.
 The ordering of the plan ensures that no action is performed before
-all its dependencies have been fulfilled.@footnote{The term @emph{action} 
+all its dependencies have been fulfilled.@footnote{The term @emph{action}
 was used by Kent Pitman in his article, ``The Description of Large Systems,''
 (@pxref{Bibliography}).
 (@pxref{Bibliography}).
@@ -1792,7 +1795,7 @@ this use of CLOS's multiple dispatch.
 We will describe the built-in component and operation classes, and
 explain how to extend the ASDF protocol by defining new classes and
 methods for ASDF's generic functions.
-We will also describe the many @emph{hooks} that can be configured to 
+We will also describe the many @emph{hooks} that can be configured to
 customize the behavior of existing @emph{functions}.
 
 @c FIXME: Swap operations and components.
@@ -1966,7 +1969,7 @@ The results of this operation are not defined by ASDF.
 It has proven difficult to define how the test operation
 should signal its results to the user
 in a way that is compatible with all of the various test libraries
-and test techniques in use in the community, and 
+and test techniques in use in the community, and
 given the fact that ASDF operations do not return a value indicating
 success or failure.
 For those willing to go to the effort, we suggest defining conditions to
@@ -1976,7 +1979,7 @@ information that describes which tests fail.
 People typically define a separate test @emph{system} to hold the tests.
 Doing this avoids unnecessarily adding a test framework as a dependency
 on a library.  For example, one might have
-@lisp 
+@lisp
 (defsystem foo
   :in-order-to ((test-op (test-op "foo/test")))
  ...)
@@ -1986,13 +1989,12 @@ on a library.  For example, one might have
   ...)
 @end lisp
 
-Then one defines @code{perform} methods on 
+Then one defines @code{perform} methods on
 @code{test-op} such as the following:
 @lisp
 (defsystem foo/test
   :depends-on (foo fiveam) ; fiveam is a test framework library
   :perform (test-op (o s)
-                    (declare (ignorable o s))
                     (uiop:symbol-call :fiveam  '#:run!
                        (uiop:find-symbol* '#:foo-test-suite
                                             :foo-tests)))
@@ -2003,26 +2005,31 @@ Then one defines @code{perform} methods on
 
 
 
-@deffn Operation @code{fasl-op}, @code{monolithic-fasl-op}, @code{load-fasl-op}, @code{binary-op}, @code{monolithic-binary-op}, @code{lib-op}, @code{monolithic-lib-op}, @code{dll-op}, @code{monolithic-dll-op}, @code{program-op}
+@deffn Operation @code{compile-bundle-op}, @code{monolithic-compile-bundle-op}, @code{load-bundle-op}, @code{monolithic-load-bundle-op}, @code{deliver-asd-op}, @code{monolithic-deliver-asd-op}, @code{lib-op}, @code{monolithic-lib-op}, @code{dll-op}, @code{monolithic-dll-op}, @code{image-op}, @code{program-op}
 
 These are ``bundle'' operations, that can create a single-file ``bundle''
 for all the contents of each system in an application,
 or for the entire application.
 
-@code{fasl-op} will create a single fasl file for each of the systems needed,
+@code{compile-bundle-op} will create a single fasl file for each of the systems needed,
 grouping all its many fasls in one,
-so you can deliver each system as a single fasl.
-@code{monolithic-fasl-op} will create a single fasl file for the target system
+so you can deliver each system as a single fasl
+@code{monolithic-compile-bundle-op} will create a single fasl file for the target system
 and all its dependencies,
 so you can deliver your entire application as a single fasl.
-@code{load-fasl-op} will load the output of @code{fasl-op}.
+@code{load-bundle-op} will load the output of @code{compile-bundle-op}.
 Note that if it the output is not up-to-date,
-@code{load-fasl-op} will load the intermediate fasls as a side-effect.
-Bundling fasls together matters a lot on ECL, where the dynamic linking involved in loading
-tens of individual fasls can be noticeably more expensive
-than loading a single one.
+@code{compile-bundle-op} may load the intermediate fasls as a side-effect.
+Bundling fasls together matters a lot on ECL,
+where the dynamic linking involved in loading tens of individual fasls
+can be noticeably more expensive than loading a single one.
 
-Once you have created a fasl with @code{fasl-op},
+NB: @code{compile-bundle-op}, @code{monolithic-compile-bundle-op}, @code{load-bundle-op}, @code{monolithic-load-bundle-op}, @code{deliver-asd-op}, @code{monolithic-deliver-asd-op} were respectively called
+@code{fasl-op}, @code{monolithic-fasl-op}, @code{load-fasl-op}, @code{monolithic-load-fasl-op}, @code{binary-op}, @code{monolithic-binary-op} before ASDF 3.1.
+The old names still exist for backward compatibility,
+though they poorly label what is going on.
+
+Once you have created a fasl with @code{compile-bundle-op},
 you can use @code{precompiled-system} to deliver it in a way
 that is compatible with clients having dependencies on your system,
 whether it is distributed as source or as a single binary;
@@ -2031,8 +2038,9 @@ the @file{.asd} file to be delivered with the fasl will look like this:
 (defsystem :mysystem :class :precompiled-system
     :fasl (some expression that will evaluate to a pathname))
 @end example
-Or you can use @code{binary-op} to let ASDF create such a system for you
-as well as the @code{fasl-op} output, or @code{monolithic-binary-op}.
+Or you can use @code{deliver-asd-op} to let ASDF create such a system for you
+as well as the @code{compile-bundle-op} output,
+or @code{monolithic-deliver-asd-op}.
 This allows you to deliver code for your systems or applications
 as a single file.
 Of course, if you want to test the result in the current image,
@@ -2055,6 +2063,11 @@ See the example in
 @file{test/hello-world-example.asd} and @file{test/hello.lisp},
 as built and tested by
 @file{test/test-program.script} and @file{test/make-hello-world.lisp}.
+@code{image-op} will dump an image that may not be standalone
+and does not start its own function,
+but follows the usual execution convention of the underlying Lisp,
+just with more code pre-loaded,
+for use as an intermediate build result or with a wrapper invocation script.
 
 There is also @code{lib-op}
 for building a linkable @file{.a} file (Windows: @file{.lib})
@@ -2095,7 +2108,7 @@ These operations are useful to deliver a system or application
 as a single source file,
 and for testing that said file loads properly, or compiles and then loads properly.
 
-ASDF itself is delivered as a single source file this way, 
+ASDF itself is delivered as a single source file this way,
 using @code{monolithic-concatenate-source-op},
 prepending a prelude and the @code{uiop} library
 before the @code{asdf/defsystem} system itself.
@@ -2236,19 +2249,14 @@ CL stream @code{*standard-output*}, as the Lisp compiler and loader do.
 @cindex component designator
 @vindex *system-definition-search-functions*
 
-@c FIXME: merge the following two redundant paragraphs.
 A @code{component} represents an individual source file or a group of source files,
 and the things that get transformed into.
-A @code{system} is a component at the top level of the component hierarchy.
+A @code{system} is a component at the top level of the component hierarchy,
+that can be found via @code{find-system}.
 A @code{source-file} is a component representing a single source-file
 and the successive output files into which it is transformed.
 A @code{module} is an intermediate component itself grouping several other components,
 themselves source-files or further modules.
-
-A @dfn{component} represents a source file or
-(recursively) a collection of components.
-A @dfn{system} is (roughly speaking) a top-level component
-that can be found via @code{find-system}.
 
 A @dfn{system designator} is a system itself,
 or a string or symbol that behaves just like any other component name
@@ -2689,7 +2697,7 @@ to perform the operation of preparing for compilation of a child component,
 you must perform the operation of preparing for compilation of its parent component, and so on,
 ensuring that all the parent's dependencies are (compiled and) loaded
 before the child component may be compiled and loaded.
-Yet other operations, such as @code{test-op} or @code{load-fasl-op}
+Yet other operations, such as @code{test-op} or @code{load-bundle-op}
 remain at the system level, and are not propagated along the hierarchy,
 but instead do something global on the system.
 
@@ -2698,7 +2706,7 @@ but instead do something global on the system.
 @comment  node-name,  next,  previous,  up
 @section Functions
 
-@c FIXME: this does not belong here.... 
+@c FIXME: this does not belong here....
 @defun version-satisfies @var{version} @var{version-spec}
 Does @var{version} satisfy the @var{version-spec}.  A generic function.
 ASDF provides built-in methods for @var{version} being a @code{component} or @code{string}.
@@ -2918,7 +2926,7 @@ configuration:
 @c FIXME: This is too wide for happy compilation into pdf.
 
 @example
-;; A configuration is a single SEXP starting with the keyword 
+;; A configuration is a single SEXP starting with the keyword
 ;; :source-registry followed by a list of directives.
 CONFIGURATION := (:source-registry DIRECTIVE ...)
 
@@ -2927,7 +2935,7 @@ DIRECTIVE :=
     ;; INHERITANCE DIRECTIVE:
     ;; Your configuration expression MUST contain
     ;; exactly one of the following:
-    :inherit-configuration | 
+    :inherit-configuration |
     ;; splices inherited configuration (often specified last) or
     :ignore-inherited-configuration |
     ;; drop inherited configuration (specified anywhere)
@@ -2936,7 +2944,7 @@ DIRECTIVE :=
     ;; you want to use new configuration features but have to bootstrap
     ;; the newer required ASDF from an older release that doesn't
     ;; support said features:
-    :ignore-invalid-entries | 
+    :ignore-invalid-entries |
 
     ;; add a single directory to be scanned (no recursion)
     (:directory DIRECTORY-PATHNAME-DESIGNATOR) |
@@ -2958,7 +2966,7 @@ DIRECTIVE :=
     ;; This directive specifies that some default must be spliced.
     :default-registry
 
-REGULAR-FILE-PATHNAME-DESIGNATOR 
+REGULAR-FILE-PATHNAME-DESIGNATOR
     := PATHNAME-DESIGNATOR ; interpreted as a file
 DIRECTORY-PATHNAME-DESIGNATOR
     := PATHNAME-DESIGNATOR ; interpreted as a directory
@@ -2967,8 +2975,8 @@ PATHNAME-DESIGNATOR :=
     NIL | ;; Special: skip this entry.
     ABSOLUTE-COMPONENT-DESIGNATOR ;; see pathname DSL
 
-EXCLUSION-PATTERN := a string without wildcards, that will be matched 
-    exactly against the name of a any subdirectory in the directory 
+EXCLUSION-PATTERN := a string without wildcards, that will be matched
+    exactly against the name of a any subdirectory in the directory
     component of a path. e.g. @code{"_darcs"} will match
     @file{#p"/foo/bar/_darcs/src/bar.asd"}
 @end example
@@ -2991,7 +2999,7 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
     ;; however, you can compute what you put in the *central-registry*
     ;; based on the results of say
     ;; (asdf::resolve-location "/Users/fare/cl/cl-foo/")
-    PATHNAME | 
+    PATHNAME |
     ;; pathname (better be an absolute path, or bust)
     ;; In output-translations, unless followed by relative components,
     ;; it better have appropriate wildcards, as in **/*.*.*
@@ -3003,7 +3011,7 @@ ABSOLUTE-COMPONENT-DESIGNATOR :=
     :ROOT
     ;; magic, for output-translations source only: paths that are relative
     ;; to the root of the source host and device
-    
+
 They keyword :SYSTEM-CACHE is not accepted in ASDF 3.1 and beyond: it
 was a security hazard.
 
@@ -3045,16 +3053,21 @@ the lists of directives of these files with be concatenated in order.
 An implicit @code{:inherit-configuration} will be included
 at the @emph{end} of the list.
 
-This allows for packaging software that has file granularity
-(e.g. Debian's @code{dpkg} or some future version of @code{clbuild})
-to easily include configuration information about distributed software.
+System-wide or per-user Common Lisp software distributions
+such as Debian packages or some future version of @code{clbuild}
+may then include files such as
+@file{/etc/common-lisp/source-registry.conf.d/10-foo.conf} or
+@file{~/.config/common-lisp/source-registry.conf.d/10-foo.conf}
+to easily and modularly register configuration information
+about software being distributed.
 
 The convention is that, for sorting purposes,
 the names of files in such a directory begin with two digits
 that determine the order in which these entries will be read.
-Also, the type of these files is conventionally @code{"conf"}
-and as a limitation to some implementations (e.g. GNU clisp),
-the type cannot be @code{nil}.
+Also, the type of these files must be @file{.conf},
+which not only simplifies the implementation by allowing
+for more portable techniques in finding those files,
+but also makes it trivial to disable a file, by renaming it to a different file type.
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.:
@@ -3377,11 +3390,11 @@ If you use multiple implementations
 you'll soon find your source directories
 littered with various @file{fasl}s, @file{dfsl}s, @file{cfsl}s and so
 on.
-Worse yet, multiple implementations use the same file extension and 
+Worse yet, multiple implementations use the same file extension and
 some implementations maintain the same file extension
 while changing formats from version to version (or platform to
 platform).
-This can lead to many errors and much confusion 
+This can lead to many errors and much confusion
 as you switch from one implementation to the next.
 
 Since ASDF 2, ASDF includes the @code{asdf-output-translations} facility
@@ -3465,7 +3478,7 @@ Additionally, a more shell-friendly syntax is available
 for the environment variable (@pxref{Shell-friendly syntax for configuration}).
 
 When processing an entry in the above list of configuration methods,
-ASDF will stop unless that entry 
+ASDF will stop unless that entry
 explicitly or implicitly specifies that it
 includes its inherited configuration.
 
@@ -3491,7 +3504,7 @@ We purposely do @emph{not} provide backward compatibility with earlier versions 
 @code{cl-launch} (2.35),
 each of which had similar general capabilities.
 The APIs of these programs were not designed
-for easy user configuration 
+for easy user configuration
 through configuration files.
 Recent versions of @code{common-lisp-controller} (7.2) and @code{cl-launch} (3.000)
 use the new @code{asdf-output-translations} API as defined below.
@@ -3560,12 +3573,12 @@ DIRECTIVE :=
     ;; you want to use new configuration features but have to bootstrap a
     ;; the newer required ASDF from an older release that doesn't have
     ;; said features:
-    :ignore-invalid-entries | 
+    :ignore-invalid-entries |
 
     ;; include a configuration file or directory
     (:include PATHNAME-DESIGNATOR) |
 
-    ;; enable global cache in ~/.common-lisp/cache/sbcl-1.0.45-linux-amd64/ 
+    ;; enable global cache in ~/.common-lisp/cache/sbcl-1.0.45-linux-amd64/
     ;; or something.
     :enable-user-cache |
     ;; Disable global cache. Map / to /
@@ -3694,14 +3707,10 @@ to easily include configuration information about software being distributed.
 Conventionally, for sorting purposes,
 the names of files in such a directory will begin with two digits
 that determine the order in which these entries will be read.
-Also, the type of these files is conventionally @code{"conf"}
-and as a limitation of some implementations, the type cannot be
-@code{nil}.
-
-@c FIXME: In other places we have ignored files that don't end in .conf,
-@c but here we seem to process all of them.  Why this non-orthogonality?
-
-
+Also, the type of these files must be @file{.conf}
+which not only simplifies the implementation by allowing
+for more portable techniques in finding those files,
+but also makes it trivial to disable a file, by renaming it to a different file type.
 
 Directories may be included by specifying a directory pathname
 or namestring in an @code{:include} directive, e.g.:
@@ -3722,14 +3731,17 @@ Entries are separated
 by a @code{:} (colon) on Unix platforms (including cygwin),
 by a @code{;} (semicolon) on other platforms (mainly, Windows).
 
-@c FIXME: this desperately needs an example.
 The magic empty entry,
 if it comes in what would otherwise be the first entry in a pair,
 indicates the splicing of inherited configuration.
 If it comes as the second entry in a pair,
 it indicates that the directory specified first is to be left untranslated
 (which has the same effect as if the directory had been repeated).
-
+Thus @code{"/foo:/bar::/baz:"} means that
+things under directory @file{/foo/}
+are translated to be under @file{/bar/},
+then include the inherited configuration,
+then specify that things under directory @file{/baz/} are not translated.
 
 @node Semantics of Output Translations, Output Caching Results, Output Shell-friendly syntax for configuration, Controlling where ASDF saves compiled files
 @section Semantics of Output Translations
@@ -3924,7 +3936,7 @@ the value will be inherited from the parent component if any,
 or with a default of @code{nil}
 if no value is specified in any transitive parent.
 
-The argument must be a either @code{nil}, an fbound symbol,
+The argument must be either @code{nil}, an fbound symbol,
 a lambda-expression (e.g. @code{(lambda (thunk) ...(funcall thunk ...) ...)})
 a function object (e.g. using @code{#.#'} but that's discouraged
 because it prevents the introspection done by e.g. asdf-dependency-grovel),
@@ -3991,35 +4003,57 @@ to read and evaluate their source code.
 When left unspecified, the encoding is inherited
 from the parent module or system;
 if no encoding is specified at any point,
-the default @code{:autodetect} is assumed.
-By default, only @code{:default}, @code{:utf-8}
-and @code{:autodetect} are accepted.
-@code{:autodetect}, the default, calls
-@code{*encoding-detection-hook*} which by default always returns
-@code{*default-encoding*} which itself defaults to @code{:default}.
+or if @code{nil} is explicitly specified,
+an extensible protocol described below is followed,
+that ultimately defaults to @code{:utf-8} since ASDF 3.
+
+The protocol to determine the encoding is
+to call the function @code{detect-encoding},
+which itself, if provided a valid file,
+calls the function specified by @var{*encoding-detection-hook*},
+or else defaults to the @var{*default-encoding*}.
+The @var{*encoding-detection-hook*} is by default bound
+to function @code{always-default-encoding},
+that always returns the contents of @var{*default-encoding*}.
+@var{*default-encoding*} is bound to @code{:utf-8} by default
+(before ASDF 3, the default was @code{:default}).
+
+Whichever encoding is returned must be a portable keyword,
+that will be translated to an implementation-specific external-format designator
+by function @code{encoding-external-format},
+which itself simply calls the function specified @var{*encoding-external-format-hook*};
+that function by default is @code{default-encoding-external-format},
+that only recognizes @code{:utf-8} and @code{:default},
+and translates the former to the implementation-dependent @var{*utf-8-external-format*},
+and the latter to itself (that itself is portable but has an implementation-dependent meaning).
 
 In other words, there now are plenty of extension hooks, but
-by default ASDF follows the backwards compatible behavior
-of using whichever @code{:default} encoding your implementation uses,
-which itself may or may not vary based on environment variables
-and other locale settings.
-In practice this means that only source code that only uses ASCII
-is guaranteed to be read the same on all implementations
-independently from any user setting.
+by default ASDF enforces the previous @emph{de facto} standard behavior
+of using @code{:utf-8}, independently from
+whatever configuration the user may be using.
+Thus, system authors can now rely on @code{:utf-8}
+being used while compiling their files,
+even if the user is currently using @code{:koi8-r} or @code{:euc-jp}
+as their interactive encoding.
+(Before ASDF 3, there was no such guarantee, @code{:default} was used,
+and only plain ASCII was safe to include in source code.)
 
-Additionally, for backward-compatibility with older versions of ASDF
-and/or with implementations that do not support unicode and its many encodings,
-you may want to use
-the reader conditionals @code{#+asdf-unicode #+asdf-unicode}
-to protect any @code{:encoding @emph{encoding}} statement
-as @code{:asdf-unicode} will be present in @code{*features*}
-only if you're using a recent ASDF
-on an implementation that supports unicode.
+Some legacy implementations only support 8-bit characters,
+and some implementations provide 8-bit only variants.
+On these implementations, the @var{*utf-8-external-format*}
+gracefully falls back to @code{:default},
+and Unicode characters will be read as multi-character mojibake.
+To detect such situations, UIOP will push the @code{:asdf-unicode} feature
+on implementations that support Unicode, and you can use reader-conditionalization
+to protect any @code{:encoding @emph{encoding}} statement, as in
+@code{#+asdf-unicode :encoding #+asdf-unicode :utf-8}.
 We recommend that you avoid using unprotected @code{:encoding} specifications
-until after ASDF 2.21 or later becomes widespread, hopefully by the end of 2012.
+until after ASDF 2.21 or later becomes widespread
+(in April 2014, only LispWorks lags with ASDF 2.019,
+and is scheduled to be updated later this year).
 
 While it offers plenty of hooks for extension,
-and one such extension is being developed (see below),
+and one such extension is available (see @code{asdf-encodings} below),
 ASDF itself only recognizes one encoding beside @code{:default},
 and that is @code{:utf-8}, which is the @emph{de facto} standard,
 already used by the vast majority of libraries that use more than ASCII.
@@ -4049,10 +4083,7 @@ non-UTF-8 is guaranteed to break for some users,
 whereas UTF-8 is pretty much guaranteed not to break anywhere
 (provided you do @emph{not} use a BOM),
 although it might be read incorrectly on some implementations.
-In the future, we intend to make @code{:utf-8}
-the default value of @code{*default-encoding*},
-to be enforced everywhere, so at least the code is guaranteed
-to be read correctly everywhere it can be.
+@code{:utf-8} has been the default value of @code{*default-encoding*} since ASDF 3.
 
 If you need non-standard character encodings for your source code,
 use the extension system @code{asdf-encodings}, by specifying
@@ -4065,42 +4096,22 @@ Using the @code{*encoding-detection-hook*} it will also
 eventually implement some autodetection of a file's encoding
 from an emacs-style @code{-*- mode: lisp ; coding: latin1 -*-} declaration,
 or otherwise based on an analysis of octet patterns in the file.
-At this point, asdf-encoding only supports the encodings
+At this point, @code{asdf-encoding} only supports the encodings
 that are supported as part of your implementation.
 Since the list varies depending on implementations,
-we once again recommend you use @code{:utf-8} everywhere,
-which is the most portable (next is @code{:latin1}).
+we still recommend you use @code{:utf-8} everywhere,
+which is the most portable (next to it is @code{:latin1}).
 
-If you're not using a version of Quicklisp that has it,
-you may get the source for @code{asdf-encodings} using git:
+Recent versions of Quicklisp include @code{asdf-encodings};
+if you're not using it, you may get this extension using git:
 @kbd{git clone git://common-lisp.net/projects/asdf/asdf-encodings.git}
 or
 @kbd{git clone ssh://common-lisp.net/project/asdf/git/asdf-encodings.git}.
 You can also browse the repository on
 @url{http://common-lisp.net/gitweb?p=projects/asdf/asdf-encodings.git}.
 
-In the future, we intend to change the default @code{*default-encoding*}
-to @code{:utf-8}, which is already the de facto standard
-for most libraries that use non-ASCII characters:
-utf-8 works everywhere and was backhandedly enforced by
-a lot of people using SBCL and utf-8 and sending reports to authors
-so they make their packages compatible.
-A survey showed only about a handful few libraries
-are incompatible with non-UTF-8, and then, only in comments,
-and we believe that authors will adopt UTF-8 when prompted.
-See the April 2012 discussion on the asdf-devel mailing-list.
-For backwards compatibility with users who insist on a non-UTF-8 encoding,
-but cannot immediately transition to using @code{asdf-encodings}
-(maybe because it isn't ready), it will still be possible to use
-the @code{:encoding :default} option in your @code{defsystem} form
-to restore the behavior of ASDF 2.20 and earlier.
-This shouldn't be required in libraries,
-because user pressure as mentioned above will already have pushed
-library authors towards using UTF-8;
-but authors of end-user programs might care.
-
-When you use @code{asdf-encodings}, any @code{.asd} file
-loaded 
+When you use @code{asdf-encodings},
+any @code{.asd} file loaded
 will use the autodetection algorithm to determine its encoding.
 If you depend on this detection happening,
 you should explicitly load @code{asdf-encodings} early in your build.
@@ -4110,16 +4121,12 @@ the @code{:defsystem-depends-on} is loaded, the enclosing
 
 In practice, this means that the @code{*default-encoding*}
 is usually used for @code{.asd} files.
-Currently, this defaults to @code{:default} for backwards compatibility,
-and that means that you shouldn't rely on non-ASCII characters in a .asd file.
-Since component (path)names are the only real data in these files,
-and non-ASCII characters are not very portable for file names,
-this isn't too much of an issue.
-We still encourage you to use either plain ASCII or UTF-8
-in @code{.asd} files,
-as we intend to make @code{:utf-8} the default encoding in the future.
+Currently, this defaults to @code{:utf-8}, and
+you should be safe using Unicode characters in those files.
 This might matter, for instance, in meta-data about author's names.
-
+Otherwise, the main data in these files is component (path)names,
+and we don't recommend using non-ASCII characters for these,
+for the result probably isn't very portable.
 
 @section Miscellaneous Functions
 
@@ -4166,8 +4173,9 @@ the next time the system @code{foo} or one that depends on it is re-loaded,
 @code{foo} will be loaded again.@footnote{Alternatively, you could touch @code{foo.asd} or
 remove the corresponding fasls from the output file cache.}
 
-Note that this does not and cannot undo the previous loading
-of the system. Common Lisp has no provision for such an operation,
+Note that this does not and cannot undo
+the previous loading of the system.
+Common Lisp has no provision for such an operation,
 and its reliance on irreversible side-effects to global data structures
 makes such a thing impossible in the general case.
 If the software being re-loaded is not conceived with hot upgrade in mind,
@@ -4178,9 +4186,12 @@ It is up to the user to make sure that reloading is possible and has the desired
 In some cases, extreme measures such as recursively deleting packages,
 unregistering symbols, defining methods on @code{update-instance-for-redefined-class}
 and much more are necessary for reloading to happen smoothly.
-ASDF itself goes to extensive effort to make hot upgrade possible
-with respect to its own code, and what it does is ridiculously complex;
-look at the beginning of @file{asdf.lisp} to see what it does.
+ASDF itself goes to extensive effort to make a hot upgrade possible
+with respect to its own code.
+If you want, you can reuse some of its utilities such as
+@code{uiop:define-package} and @code{uiop:with-upgradability},
+and get inspiration (or disinspiration)
+from what it does in @file{header.lisp} and @file{upgrade.lisp}.
 @end defun
 
 @defun register-preloaded-system name @Arest@  keys
@@ -4194,7 +4205,7 @@ it is considered as already provided,
 and ASDF will not raise a @code{missing-component} error.
 
 This function is particularly useful if you distribute your code
-as fasls with either @code{fasl-op} or @code{monolithic-fasl-op},
+as fasls with either @code{compile-bundle-op} or @code{monolithic-compile-bundle-op},
 and want to register systems so that dependencies will work uniformly
 whether you're using your software from source or from fasl.
 @end defun
@@ -4387,7 +4398,7 @@ See the source code for more documentation.
 
 @end defun
 
-@defun slurp-input-stream processor input-stream @Akey@ 
+@defun slurp-input-stream processor input-stream @Akey@
 
 @code{slurp-input-stream} is a generic function of two arguments, a target object and an input stream,
 and accepting keyword arguments.
@@ -4547,11 +4558,11 @@ ASDF 3 refers to releases from 2.27 (Feb 1 2013) to 2.33 and 3.0.0 onward (May 1
 All releases of ASDF
 push @code{:asdf} onto @code{*features*}.
 Releases starting with ASDF 2
- push @code{:asdf2} onto @code{*features*}.
+push @code{:asdf2} onto @code{*features*}.
 Releases starting with ASDF 3 (including 2.27 and later pre-releases)
 push @code{:asdf3} onto @code{*features*}.
-Furthermore, releases starting with ASDF 3.1 (March 2014),
-though they count as ASDF 3, includes enough progress that they
+Furthermore, releases starting with ASDF 3.1.1 (April 2014),
+though they count as ASDF 3, include enough progress that they
 push @code{:asdf3.1} onto @code{*features*}.
 You may depend on the presence or absence of these features
 to write code that takes advantage of recent ASDF functionality
@@ -4570,7 +4581,7 @@ we recommend that you should upgrade to the latest release, be it ASDF 3 or othe
 @subsection ASDF can portably name files in subdirectories
 
 Common Lisp namestrings are not portable,
-except maybe for logical pathnamestrings,
+except maybe for logical pathname namestrings,
 that themselves have various limitations and require a lot of setup
 that is itself ultimately non-portable.
 
@@ -4691,8 +4702,8 @@ the @code{:force (system1 .. systemN)} feature have been fixed.
 Performance has been notably improved for large systems
 (say with thousands of components) by using
 hash-tables instead of linear search,
-and linear-time list accumulation
-instead of quadratic-time recursive appends.
+and linear-time list accumulation instead of cubic time recursive append,
+for an overall @emph{O(n)} complexity vs @emph{O(n^4)}.
 
 @item
 Many features used to not be portable,
@@ -4703,7 +4714,7 @@ Windows support was notably quirky because of such non-portability.
 The internal test suite used to massively fail on many implementations.
 While still incomplete, it now fully passes
 on all implementations supported by the test suite,
-except for GCL (due to GCL bugs).
+though some tests are commented out on a few implementations.
 
 @item
 Support was lacking for some implementations.
