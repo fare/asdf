@@ -124,7 +124,9 @@ Upgrading ASDF
 Configuring ASDF
 
 * Configuring ASDF to find your systems::
+* Configuring ASDF to find your systems --- old style::
 * Configuring where ASDF stores object files::
+* Resetting the ASDF configuration::
 
 Using ASDF
 
@@ -183,7 +185,7 @@ Controlling where ASDF searches for systems
 
 Configuration Directories
 
-* The :here directive::
+* The here directive::
 
 Introspection
 
@@ -613,10 +615,12 @@ and resetting the ASDF configuration is usually only needed in corner cases.
 
 @menu
 * Configuring ASDF to find your systems::
+* Configuring ASDF to find your systems --- old style::
 * Configuring where ASDF stores object files::
+* Resetting the ASDF configuration::
 @end menu
 
-@node Configuring ASDF to find your systems, Configuring where ASDF stores object files, Configuring ASDF, Configuring ASDF
+@node Configuring ASDF to find your systems, Configuring ASDF to find your systems --- old style, Configuring ASDF, Configuring ASDF
 @section Configuring ASDF to find your systems
 
 In order to compile and load your systems, ASDF must be configured to find
@@ -696,10 +700,12 @@ may already have configured system-managed libraries for you.
 
 
 @node Configuring ASDF to find your systems --- old style, Configuring where ASDF stores object files, Configuring ASDF to find your systems, Configuring ASDF
+@section Configuring ASDF to find your systems --- old style
+
 
 @c FIXME: this section should be moved elsewhere.  The novice user
 @c should not be burdened with it. [2014/02/27:rpg]
-@section Configuring ASDF to find your systems --- old style
+
 
 The old way to configure ASDF to find your systems is by
 @code{push}ing directory pathnames onto the variable
@@ -786,7 +792,7 @@ but it is supported for old users, and for users who want to programmatically
 control what directories are added to the ASDF search path.
 
 
-@node Configuring where ASDF stores object files,  , Configuring ASDF to find your systems, Configuring ASDF
+@node Configuring where ASDF stores object files, Resetting the ASDF configuration, Configuring ASDF to find your systems --- old style, Configuring ASDF
 @section Configuring where ASDF stores object files
 @findex clear-output-translations
 
@@ -870,9 +876,11 @@ cl-launch 3.000 and common-lisp-controller 7.2 have been updated
 to delegate object file placement to ASDF.
 
 @node Resetting the ASDF configuration,  , Configuring where ASDF stores object files, Configuring ASDF
+@section Resetting the ASDF configuration
+
 @c FIXME: this should probably be moved out of the "quickstart" part of
 @c the manual. [2014/02/27:rpg]
-@section Resetting the ASDF configuration
+
 
 When you dump and restore an image, or when you tweak your configuration,
 you may want to reset the ASDF configuration.
@@ -3049,10 +3057,10 @@ alone in its directory with the following contents:
 @end example
 
 @menu
-* The :here directive::
+* The here directive::
 @end menu
 
-@node The :here directive,  , Configuration Directories, Configuration Directories
+@node The here directive,  , Configuration Directories, Configuration Directories
 @subsection The :here directive
 
 The @code{:here} directive is an absolute pathname designator that
@@ -4130,7 +4138,7 @@ It is sometimes useful to force recompilation of a previously loaded system.
 For these cases, @code{(asdf:clear-system :foo)}
 will remove the system from the table of currently loaded systems:
 the next time the system @code{foo} or one that depends on it is re-loaded,
-@code{foo} will be loaded again.\footnote{Alternatively, you could touch @code{foo.asd} or
+@code{foo} will be loaded again.@footnote{Alternatively, you could touch @code{foo.asd} or
 remove the corresponding fasls from the output file cache.}
 
 Note that this does not and cannot undo the previous loading
