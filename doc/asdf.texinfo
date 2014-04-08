@@ -349,6 +349,9 @@ As above, load and configure ASDF.
 @item
 Make a new directory for your system, @code{my-system/} in a location
 where ASDF can find it (@pxref{Configuring ASDF to find your systems}).
+All else being equal, the easiest location is probably
+@file{~/common-lisp/my-system/}.
+
 
 @item
 Create an ASDF system definition listing the dependencies of
