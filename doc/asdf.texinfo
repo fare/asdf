@@ -1040,23 +1040,23 @@ software.
 @section The defsystem form
 @findex defsystem
 
-Systems can be constructed programmatically
-by instantiating components using @code{make-instance}.
-Most of the time, however, it is much more practical to use
-a static @code{defsystem} form.
 This section begins with an example of a system definition,
 then gives the full grammar of @code{defsystem}.
 
 Let's look at a simple system.
 This is a complete file that would
-usually be saved as @file{hello-lisp.asd}:
+should be saved as @file{hello-lisp.asd} (in order that ASDF can find it
+when ordered to operate on the system named @code{"hello-lisp"}).
+
+@c FIXME: the first example should have an outside dependency, e.g.,
+@c CL-PPCRE.
 
 @lisp
-(in-package :asdf)
+(in-package :asdf-user)
 
 (defsystem "hello-lisp"
   :description "hello-lisp: a sample Lisp system."
-  :version "0.2.1"
+  :version "0.0.1"
   :author "Joe User <joe@@example.com>"
   :licence "Public Domain"
   :components ((:file "packages")
@@ -1070,10 +1070,13 @@ Some notes about this example:
 
 @item
 The file starts with an @code{in-package} form
-to use package @code{asdf}.
-You could instead start your definition by using
-a qualified name @code{asdf:defsystem}.
+for package @code{asdf-user}.
+If your file is loaded by ASDF, this is the context in which it will be
+read, so this line will ensure that the system definition is read the
+same interactively as within ASDF.
 
+@c FIXME: the following should probably be moved down to a more advanced
+@c bit of the manual.
 @item
 If in addition to simply using @code{defsystem},
 you are going to define functions,
@@ -1083,10 +1086,10 @@ you should create your own package for that purpose,
 for instance replacing the above @code{(in-package :asdf)} with:
 
 @lisp
-(defpackage :foo-system
+(defpackage :hello-lisp-system
   (:use :cl :asdf))
 
-(in-package :foo-system)
+(in-package :hello-lisp-system)
 @end lisp
 
 @item
@@ -1094,6 +1097,7 @@ The @code{defsystem} form defines a system named @code{hello-lisp}
 that contains three source files:
 @file{packages}, @file{macros} and @file{hello}.
 
+@c FIXME: The first example system should probably use just :serial T.
 @item
 The file @file{macros} depends on @file{packages}
 (presumably because the package it's in is defined in @file{packages}),
@@ -1115,6 +1119,8 @@ without having to edit the system definition.
 @c FIXME: Should have cross-reference to "Version specifiers" in the
 @c defsystem grammar, but the cross-referencing is so broken by
 @c insufficient node breakdown that I have not put one in.
+@c FIXME: this is way too detailed for the first example!  
+@c move it!
 @item
 Make sure you know how the @code{:version} numbers will be parsed!
 They are parsed as period-separated lists of integers.
