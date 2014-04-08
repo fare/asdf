@@ -1266,7 +1266,7 @@ simple-component-name := string
 
 pathname-specifier := pathname | string | symbol
 
-method-form := (operation-name qual lambda-list @Arest@  body)
+method-form := (operation-name qual lambda-list @Arest{} body)
 qual := method qualifier
 
 component-dep-fail-option := :fail | :try-next | :ignore
@@ -1846,8 +1846,8 @@ discuss these in turn below.
 
 Operations are invoked on systems via @code{operate}.
 @anchor{operate}
-@deffn {Generic function} @code{operate} @var{operation} @var{system} @Arest@  @var{initargs} @Akey@  @code{force} @code{force-not} @code{verbose} @AallowOtherKeys
-@deffnx {Generic function} @code{oos} @var{operation} @var{system} @Arest@  @var{initargs} @Akey@  @AallowOtherKeys
+@deffn {Generic function} @code{operate} @var{operation} @var{system} @Arest{} @var{initargs} @Akey{} @code{force} @code{force-not} @code{verbose} @AallowOtherKeys
+@deffnx {Generic function} @code{oos} @var{operation} @var{system} @Arest{} @var{initargs} @Akey{} @AallowOtherKeys{}
 @code{operate} invokes @var{operation} on @var{system}.
 @code{oos} is a synonym for @code{operate}.
 
@@ -2267,7 +2267,7 @@ is either a component itself,
 or a string or symbol,
 or a list of designators.
 
-@defun find-system system-designator @Aoptional@  (error-p t)
+@defun find-system system-designator @Aoptional{} (error-p t)
 
 Given a system designator, @code{find-system} finds and returns a system.
 If no system is found, an error of type
@@ -3210,7 +3210,7 @@ The specified functions are exported from your build system's package.
 Thus for ASDF the corresponding functions are in package ASDF,
 and for XCVB the corresponding functions are in package XCVB.
 
-@defun initialize-source-registry @Aoptional@  PARAMETER
+@defun initialize-source-registry @Aoptional{} PARAMETER
    will read the configuration and initialize all internal variables.
    You may extend or override configuration
    from the environment and configuration files
@@ -3235,7 +3235,7 @@ and for XCVB the corresponding functions are in package XCVB.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-source-registry @Aoptional@  PARAMETER
+@defun ensure-source-registry @Aoptional{} PARAMETER
    checks whether a source registry has been initialized.
    If not, initialize it with the given @var{PARAMETER}.
 @end defun
@@ -3523,7 +3523,7 @@ as configured by the system distributor, or by default.
 Nevertheless, if you are a fan of @code{ASDF-Binary-Locations},
 we provide a limited emulation mode:
 
-@defun enable-asdf-binary-locations-compatibility @Akey@  centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
+@defun enable-asdf-binary-locations-compatibility @Akey{} centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
 This function will initialize the new @code{asdf-output-translations} facility in a way
 that emulates the behavior of the old @code{ASDF-Binary-Locations} facility.
 Where you would previously set global variables
@@ -3787,7 +3787,7 @@ To explicitly flush any information cached by the system, use the API below.
 
 The specified functions are exported from package ASDF.
 
-@defun initialize-output-translations @Aoptional@  PARAMETER
+@defun initialize-output-translations @Aoptional{} PARAMETER
    will read the configuration and initialize all internal variables.
    You may extend or override configuration
    from the environment and configuration files
@@ -3818,7 +3818,7 @@ The specified functions are exported from package ASDF.
    where to look for systems not yet defined.
 @end defun
 
-@defun ensure-output-translations @Aoptional@  PARAMETER
+@defun ensure-output-translations @Aoptional{} PARAMETER
    checks whether output translations have been initialized.
    If not, initialize them with the given @var{PARAMETER}.
    This function will be called before any attempt to operate on a system.
@@ -4133,7 +4133,7 @@ for the result probably isn't very portable.
 These functions are exported by ASDF for your convenience.
 
 @anchor{system-relative-pathname}
-@defun system-relative-pathname system name @Akey@  type
+@defun system-relative-pathname system name @Akey{} type
 
 It's often handy to locate a file relative to some system.
 The @code{system-relative-pathname} function meets this need.
@@ -4194,7 +4194,7 @@ and get inspiration (or disinspiration)
 from what it does in @file{header.lisp} and @file{upgrade.lisp}.
 @end defun
 
-@defun register-preloaded-system name @Arest@  keys
+@defun register-preloaded-system name @Arest{} keys
 A system with name @var{name},
 created by @code{make-instance} with extra keys @var{keys}
 (e.g. @code{:version}),
@@ -4210,7 +4210,7 @@ and want to register systems so that dependencies will work uniformly
 whether you're using your software from source or from fasl.
 @end defun
 
-@defun run-shell-command control-string @Arest@  args
+@defun run-shell-command control-string @Arest{} args
 
 This function is obsolete and present only for the sake of backwards-compatibility:
 ``If it's not backwards, it's not compatible''. We @emph{strongly} discourage its use.
@@ -4241,7 +4241,7 @@ UIOP provides many, many more utility functions, and we recommend
 you read its README and sources for more information.
 
 
-@defun parse-unix-namestring name @Akey@  type defaults dot-dot ensure-directory @AallowOtherKeys
+@defun parse-unix-namestring name @Akey{} type defaults dot-dot ensure-directory @AallowOtherKeys
 Coerce NAME into a PATHNAME using standard Unix syntax.
 
 Unix syntax is used whether or not the underlying system is Unix;
@@ -4287,7 +4287,7 @@ even though the OS may not be Unixish, we recommend you use @code{:want-relative
 so that @code{parse-unix-namestring} will throw an error if the pathname is absolute.
 @end defun
 
-@defun merge-pathnames* specified @Aoptional@  defaults
+@defun merge-pathnames* specified @Aoptional{} defaults
 
 This function is a replacement for @code{merge-pathnames} that uses the host and device
 from the @var{defaults} rather than the @var{specified} pathname when the latter
@@ -4297,7 +4297,7 @@ of the absolute pathnames they are relative to.
 
 @end defun
 
-@defun subpathname pathname subpath @Akey@  type
+@defun subpathname pathname subpath @Akey{} type
 
 This function takes a @var{pathname} and a @var{subpath} and a @var{type}.
 If @var{subpath} is already a @code{pathname} object (not namestring),
@@ -4311,13 +4311,13 @@ We strongly encourage the use of this function
 for portably resolving relative pathnames in your code base.
 @end defun
 
-@defun subpathname* pathname subpath @Akey@  type
+@defun subpathname* pathname subpath @Akey{} type
 
 This function returns @code{nil} if the base @var{pathname} is @code{nil},
 otherwise acts like @code{subpathname}.
 @end defun
 
-@defun run-program command @Akey@  ignore-error-status force-shell input output @
+@defun run-program command @Akey{} ignore-error-status force-shell input output @
 error-output if-input-does-not-exist if-output-exists if-error-output-exists @
 element-type external-format @AallowOtherKeys
 
@@ -4398,7 +4398,7 @@ See the source code for more documentation.
 
 @end defun
 
-@defun slurp-input-stream processor input-stream @Akey@
+@defun slurp-input-stream processor input-stream @Akey{}
 
 @code{slurp-input-stream} is a generic function of two arguments, a target object and an input stream,
 and accepting keyword arguments.
