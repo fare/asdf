@@ -120,6 +120,7 @@ otherwise return a default system name computed from PACKAGE-NAME."
                                  :source-file nil
                                  :pathname ,dir
                                  :depends-on ,dependencies
+                                 :around-compile call-with-asdf-syntax
                                  :components ((cl-source-file "lisp" :pathname ,sub)))))))))))))))
 
 (with-upgradability ()
