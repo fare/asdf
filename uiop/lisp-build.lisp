@@ -5,7 +5,7 @@
   (:nicknames :asdf/lisp-build)
   (:recycle :uiop/lisp-build :asdf/lisp-build :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility
-   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image)
+   :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/eval :uiop/image)
   (:export
    ;; Variables
    #:*compile-file-warnings-behaviour* #:*compile-file-failure-behaviour*
