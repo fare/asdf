@@ -118,7 +118,7 @@ Loading ASDF
 
 Upgrading ASDF
 
-* Notes about ASDF 1 and ASDF 2::
+* Upgrading your implementation's ASDF::
 * Issues with upgrading ASDF::
 
 Configuring ASDF
@@ -480,33 +480,40 @@ ASDF will automatically look whether an updated version of itself is available
 amongst the regularly configured systems, before it compiles anything else.
 
 @menu
-* Notes about ASDF 1 and ASDF 2::
+* Upgrading your implementation's ASDF::
 * Issues with upgrading ASDF::
 @end menu
 
-@node Notes about ASDF 1 and ASDF 2, Issues with upgrading ASDF, Upgrading ASDF, Upgrading ASDF
-@subsection Notes about ASDF 1 and ASDF 2
+@node Upgrading your implementation's ASDF, Issues with upgrading ASDF, Upgrading ASDF, Upgrading ASDF
+@subsection Upgrading your implementation's ASDF
 
-Most implementations provide ASDF 3 in their latest release,
-and we recommend upgrading your implementation rather than using ASDF 1 or 2.
-A few implementations only provide ASDF 2,
-that can be overridden by installing a fasl (see below).
-A few implementations don't provide ASDF,
-but a fasl can be installed to provide it.
-GCL so far is still lacking a usable @code{require} interface.
+Most implementations provide a recent ASDF 3 in their latest release.
+If yours doesn't, we recommend upgrading your implementation.
+If the latest version of your implementation still doesn't provide ASDF,
+or provides an old version, we recommend installing a recent ASDF so your implementation provides it,
+as explained below.
+If all fails, we recommend you load ASDF from source
+@pxref{Loading ASDF,,Loading ASDF from source}.
 
-If your implementation has no suitable upgrade available (yet),
-or somehow upgrading is not an option,
-we assume you're an expert deliberately using a legacy implementation,
-and are proficient enough to install this fasl.
-Still, the ASDF source repository contains a script
-@file{bin/install-asdf-as-module} that can help you do that.
-It relies on @code{cl-launch} 4 for command-line invocation,
-which may depend on ASDF being checked out in @file{~/cl/asdf/}
-if your implementation doesn't even have an ASDF 2;
-but if you don't have @code{cl-launch},
+The ASDF source repository contains a script
+@file{bin/install-asdf-as-module} that can help you upgrade your implementation's ASDF.
+It works on
+Allegro CL, Clozure CL, CMU CL, ECL, GNU CLISP, LispWorks, MKCL, SBCL, SCL, XCL.
+That's all known implementations except ABCL, Corman CL, GCL, Genera, MCL, MOCL.
+Happily, ABCL is usually pretty up to date and shouldn't need that script.
+GCL would be supported, except that so far is still lacking usable support for @code{require}.
+Corman CL, Genera, MCL are obsolete anyway.
+MOCL is under development.
+On an old version of an implementation that does not provide ASDF,
+you may have to load ASDF 3 from source before you load that script.
+
+The script relies on @code{cl-launch} 4 for command-line invocation,
+which may depend on ASDF being checked out in @file{~/common-lisp/asdf/}
+(which we recommend anyway)
+if your implementation doesn't even have an ASDF 2.
+If you don't have @code{cl-launch},
 you can instead @code{(load "bin/install-asdf-as-module")}
-from your implementation's REPL.
+from your implementation's REPL after loading ASDF from source.
 
 Finally, if your implementation only provides ASDF 2,
 and you can't or won't upgrade it or override its ASDF module,
@@ -521,7 +528,7 @@ after requiring the builtin ASDF 2:
 (asdf:load-system :asdf)
 @end lisp
 
-@node Issues with upgrading ASDF,  , Notes about ASDF 1 and ASDF 2, Upgrading ASDF
+@node Issues with upgrading ASDF,  , Upgrading your implementation's ASDF, Upgrading ASDF
 @subsection Issues with upgrading ASDF
 
 Note that there are some limitations to upgrading ASDF:
@@ -1705,24 +1712,35 @@ of output from ASDF operations.
 @node The package-system extension,  , Other code in .asd files, Defining systems with defsystem
 @section The package-system extension
 
-Starting with ASDF 3.1.1,
+Starting with release 3.1.1,
 ASDF supports a one-package-per-file style of programming,
 whereby each file is its own system,
 and dependencies are deduced from the @code{defpackage} form.
 
-In this style, packages referring to a same-named system (downcased);
-and if a system is defined with @code{:class package-system},
+In this style, packages refer to a same-named system (downcased),
+unless specially registered.
+If a system is defined with @code{:class :package-system},
 then system names that start with that name
 (using the slash @code{/} separator)
 refer to files under the filesystem hierarchy where the system is defined.
 For instance, if system @code{my-lib} is defined in
-@file{/foo/bar/my-lib/my-lib.asd}, then system @code{my-lib/src/utility}
+@file{/foo/bar/my-lib/my-lib.asd}, then package @code{my-lib/src/utility}
 will be found in file @file{/foo/bar/my-lib/src/utility.lisp}.
 
-This style was made popular by @code{faslpath} and @code{quick-build} before,
-and at the cost of a stricter package discipline,
-seems to make for more maintainable code.
-It is used by ASDF itself (starting with ASDF 3) and by @code{lisp-interface-library}.
+This style was made popular
+by @code{faslpath} and @code{quick-build} before (@pxref{Bibliography}).
+It seems to make for more maintainable code,
+at the cost of a stricter package discipline:
+by imposing upon programmers a discipline of smaller namespaces,
+with explicit dependencies and especially explicit forward dependencies,
+the style encourages good factoring of the code into coherent units;
+by contrast, the traditional style of "everything in one package"
+has low overhead but doesn't scale very well.
+
+It is used by ASDF itself (starting with ASDF 3, aka 2.27)
+and by @code{lisp-interface-library},
+to the great satisfaction of the author (FRR).
+Others who have tried it before also expressed similar results.
 
 To use this style, choose a toplevel system name, e.g. @code{my-lib},
 and create a file @file{my-lib.asd}
@@ -1745,7 +1763,8 @@ In the code above, the
 @code{:defsystem-depends-on (:asdf-package-system)} is
 for compatibility with older versions of ASDF 3 (ASDF 2 not supported),
 and requires the @code{asdf-package-system} library to be present
-(it is implicitly provided by ASDF starting with ASDF 3.0.3).
+(it is implicitly provided by ASDF starting with release 3.1.1,
+which can be detected with the feature @code{:asdf3.1}).
 
 The function @code{register-system-packages} has to be called to register
 packages used or provided by your system and its components
@@ -3358,7 +3377,7 @@ that everyone uses implicitly.
 @node Rejected ideas, TODO, Status, Controlling where ASDF searches for systems
 @section Rejected ideas
 
-Alternatives I (Faré) considered and rejected while developing ASDF 2 included:
+Alternatives I (FRR) considered and rejected while developing ASDF 2 included:
 
 @enumerate
 @item Keep @code{asdf:*central-registry*} as the master with its current semantics,
@@ -5386,9 +5405,15 @@ Also, bugs that are now tracked on launchpad:
   ``ASDF 3, or Why Lisp is Now an Acceptable Scripting Language'', 2014.
   This article describes the innovations in ASDF 3 and 3.1,
   as well as historical information on previous versions.
-  @url{http://fare.tunes.org/files/asdf3/asdf3-2014.html}
   @url{http://github.com/fare/asdf3-2013}
-
+@item Alastair Bridgewater:
+  ``Quick-build'' (private communication), 2012.
+  @code{quick-build} is a simple and robust one file, one package build system,
+  similar to @code{faslpath}, in 182 lines of code
+  (117 of which are not blank, not comments, not docstrings).
+  Unhappily, it remains unpublished and its IP status is unclear as of April 2014.
+  @code{asdf/package-system} is mostly compatible with it,
+  modulo a different setup for toplevel hierarchies.
 @item Zach Beane:
   ``Quicklisp'', 2011.
   The Quicklisp blog and Xach's livejournal contain information on Quicklisp.
@@ -5405,7 +5430,12 @@ Also, bugs that are now tracked on launchpad:
   many ideas of which have been incorporated into ASDF 2 and 3,
   though many other of which still haven't.
   @url{http://common-lisp.net/projects/xcvb/}
-@item Dan Barlow: ``ASDF Manual'', 2004
+@item Peter von Etter: ``faslpath'', 2009.
+  @code{faslpath} is similar to the latter @code{quick-build}
+  and our letter @code{asdf/package-system} extension,
+  except that it uses the dot @code{.} rather than the slash @code{/} as a separator.
+  @url{https://code.google.com/p/faslpath/}
+@item Dan Barlow: ``ASDF Manual'', 2004.
   Older versions of this document from the days of ASDF 1;
   they include ideas laid down by Dan Barlow,
   and comparisons with older defsystems (@code{mk-defsystem})
