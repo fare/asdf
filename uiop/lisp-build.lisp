@@ -20,7 +20,7 @@
    ;; Types
    #+sbcl #:sb-grovel-unknown-constant-condition
    ;; Functions & Macros
-   #:get-optimization-settings #:proclaim-optimization-settings
+   #:get-optimization-settings #:proclaim-optimization-settings #:with-optimization-settings
    #:call-with-muffled-compiler-conditions #:with-muffled-compiler-conditions
    #:call-with-muffled-loader-conditions #:with-muffled-loader-conditions
    #:reify-simple-sexp #:unreify-simple-sexp
@@ -60,20 +60,37 @@ This can help you produce more deterministic output for FASLs."))
     "Optimization settings to be used by PROCLAIM-OPTIMIZATION-SETTINGS")
   (defvar *previous-optimization-settings* nil
     "Optimization settings saved by PROCLAIM-OPTIMIZATION-SETTINGS")
+  (defparameter +optimization-variables+
+    ;; TODO: allegro genera corman mcl
+    (or #+(or abcl xcl) '(system::*speed* system::*space* system::*safety* system::*debug*)
+        #+clisp '() ;; system::*optimize* is a constant hash-table! (with non-constant contents)
+        #+clozure '(ccl::*nx-speed* ccl::*nx-space* ccl::*nx-safety*
+                    ccl::*nx-debug* ccl::*nx-cspeed*)
+        #+(or cmu scl) '(c::*default-cookie*)
+        #+ecl (unless (use-ecl-byte-compiler-p) '(c::*speed* c::*space* c::*safety* c::*debug*))
+        #+gcl '(compiler::*speed* compiler::*space* compiler::*compiler-new-safety* compiler::*debug*)
+        #+lispworks '(compiler::*optimization-level*)
+        #+mkcl '(si::*speed* si::*space* si::*safety* si::*debug*)
+        #+sbcl '(sb-c::*policy*)))
   (defun get-optimization-settings ()
     "Get current compiler optimization settings, ready to PROCLAIM again"
-    #-(or clisp clozure cmu ecl mkcl sbcl scl)
-    (warn "~S does not support ~S. Please help me fix that." 'get-optimization-settings (implementation-type))
-    #+clozure (ccl:declaration-information 'optimize nil)
-    #+(or clisp cmu ecl mkcl sbcl scl)
+    #-(or abcl allegro clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
+    (warn "~S does not support ~S. Please help me fix that."
+          'get-optimization-settings (implementation-type))
+    #+(or abcl allegro clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
     (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
-      #.`(loop :for x :in settings
-               ,@(or #+ecl '(:for v :in '(c::*speed* c::*space* c::*safety* c::*debug*))
-                     #+mkcl '(:for v :in '(si::*speed* si::*space* si::*safety* si::*debug*))
-                     #+(or cmu scl) '(:for f :in '(c::cookie-speed c::cookie-space c::cookie-safety c::cookie-debug c::cookie-cspeed c::cookie-brevity)))
-               :for y = (or #+clisp (gethash x system::*optimize*)
-                            #+(or ecl mkcl) (symbol-value v)
-                            #+(or cmu scl) (funcall f c::*default-cookie*)
+      #.`(loop #+(or allegro clozure)
+               ,@'(:with info = #+allegro (sys:declaration-information 'optimize)
+                   #+clozure (ccl:declaration-information 'optimize nil))
+               :for x :in settings
+               ,@(or #+(or abcl ecl gcl mkcl xcl) '(:for v :in +optimization-variables+))
+               :for y = (or #+(or allegro clozure) (second (assoc x info)) ; normalize order
+                            #+clisp (gethash x system::*optimize* 1)
+                            #+(or abcl ecl mkcl xcl) (symbol-value v)
+                            #+(or cmu scl) (slot-value c::*default-cookie*
+                                                       (case x (compilation-speed 'c::cspeed)
+                                                             (otherwise x)))
+                            #+lispworks (slot-value compiler::*optimization-level* x)
                             #+sbcl (cdr (assoc x sb-c::*policy*)))
                :when y :collect (list x y))))
   (defun proclaim-optimization-settings ()
@@ -81,7 +98,18 @@ This can help you produce more deterministic output for FASLs."))
     (proclaim `(optimize ,@*optimization-settings*))
     (let ((settings (get-optimization-settings)))
       (unless (equal *previous-optimization-settings* settings)
-        (setf *previous-optimization-settings* settings)))))
+        (setf *previous-optimization-settings* settings))))
+  (defmacro with-optimization-settings ((&optional (settings *optimization-settings*)) &body body)
+    #+(or allegro clisp)
+    (let ((previous-settings (gensym "PREVIOUS-SETTINGS")))
+      `(let ((,previous-settings (get-optimization-settings)))
+         ,@(when settings `((proclaim `(optimize ,@,settings))))
+         (unwind-protect (progn ,@body)
+           (proclaim `(optimize ,@,previous-settings)))))
+    #-(or allegro clisp)
+    `(let ,(loop :for v :in +optimization-variables+ :collect `(,v ,v))
+       ,@(when settings `((proclaim `(optimize ,@,settings))))
+       ,@body)))
 
 
 ;;; Condition control
