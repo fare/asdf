@@ -31,8 +31,9 @@
          (member (car form) *defpackage-forms*)))
 
   (defun stream-defpackage-form (stream)
-    (loop :for form = (read stream nil nil) :while form
-          :when (defpackage-form-p form) :return form))
+    (with-asdf-syntax ()
+      (loop :for form = (read stream nil nil) :while form
+            :when (defpackage-form-p form) :return form)))
 
   (defun file-defpackage-form (file)
     "Return the first DEFPACKAGE form in FILE."
