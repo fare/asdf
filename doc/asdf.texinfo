@@ -1715,7 +1715,8 @@ of output from ASDF operations.
 Starting with release 3.1.1,
 ASDF supports a one-package-per-file style of programming,
 whereby each file is its own system,
-and dependencies are deduced from the @code{defpackage} form.
+and dependencies are deduced from the @code{defpackage} form
+(or its variant @code{uiop:define-package}).
 
 In this style, packages refer to a same-named system (downcased),
 unless specially registered.
@@ -1723,9 +1724,9 @@ If a system is defined with @code{:class :package-system},
 then system names that start with that name
 (using the slash @code{/} separator)
 refer to files under the filesystem hierarchy where the system is defined.
-For instance, if system @code{my-lib} is defined in
-@file{/foo/bar/my-lib/my-lib.asd}, then package @code{my-lib/src/utility}
-will be found in file @file{/foo/bar/my-lib/src/utility.lisp}.
+For instance, if system @code{lil} is defined in
+@file{/home/tunes/cl/lisp-interface-library/lil.asd}, then package @code{lil/interface/order}
+will be found in file @file{/home/tunes/cl/lisp-interface-library/interface/order.lisp}.
 
 This style was made popular
 by @code{faslpath} and @code{quick-build} before (@pxref{Bibliography}).
@@ -1742,26 +1743,40 @@ and by @code{lisp-interface-library},
 to the great satisfaction of the author (FRR).
 Others who have tried it before also expressed similar results.
 
-To use this style, choose a toplevel system name, e.g. @code{my-lib},
-and create a file @file{my-lib.asd}
-with the @code{:class :package-system} option in its @code{defsystem}.
-For instance:
+Thus, for instance, in @code{lisp-interface-library},
+the file @file{lil.asd} contains the following incantations (elided):
+
 @example
-#-asdf3 (error "my-lib requires ASDF 3")
-(defsystem my-lib
+#-asdf3 (error "LIL requires ASDF 3 or later. Please upgrade your ASDF.")
+
+(defsystem lil
+  :description "LIL: Lisp Interface Library" ...
   :class :package-system
   :defsystem-depends-on (:asdf-package-system)
-  :depends-on (:my-lib/src/all)
-  :in-order-to ((test-op (load-op :my-lib/test/all)))
-  :perform (test-op (o c) (symbol-call :my-lib/test/all :test-suite)))
-(register-system-packages :closer-mop
- '(:c2mop :closer-common-lisp :c2cl
-   :closer-common-lisp-user :c2cl-user))
+  :depends-on (:lil/interface/all
+               :lil/pure/all
+               :lil/stateful/all
+               :lil/transform/all)
+  :in-order-to ((test-op (load-op :lil/test/all)))
+  :perform (test-op (o c) (symbol-call :lil/test/all :test-suite)))
+
+(defsystem :lil/test :depends-on (:lil/test/all))
+
+(register-system-packages :lil/interface/all '(:interface))
+(register-system-packages :lil/pure/all '(:pure))
+(register-system-packages :lil/stateful/all '(:stateful))
+(register-system-packages :lil/transform/classy '(:classy))
+(register-system-packages :lil/transform/posh '(:posh))
+(register-system-packages :lil/test/all '(:lil/test))
+
+(register-system-packages
+ :closer-mop
+ '(:c2mop :closer-common-lisp :c2cl :closer-common-lisp-user :c2cl-user))
 @end example
 
 In the code above, the
 @code{:defsystem-depends-on (:asdf-package-system)} is
-for compatibility with older versions of ASDF 3 (ASDF 2 not supported),
+for compatibility with older versions of ASDF 3 (ASDF 2 is not supported),
 and requires the @code{asdf-package-system} library to be present
 (it is implicitly provided by ASDF starting with release 3.1.1,
 which can be detected with the feature @code{:asdf3.1}).
@@ -1771,20 +1786,38 @@ packages used or provided by your system and its components
 where the name of the system that provides the package
 is not the downcase of the package name.
 
-File @file{my-lib/src/utility.lisp} might start with:
+Then, file @file{interface/order.lisp} under the @code{lil} hierarchy,
+that defines abstract interfaces for order comparisons,
+starts with the following form,
+dependencies being trivially computed from the @code{:use} and @code{:mix} clauses:
 
 @example
-(defpackage :my-lib/src/utility
-  (:use :closer-common-lisp :my-lib/src/macros :my-lib/src/variables)
-  (:import-from :cl-ppcre #:register-groups-bind)
-  (:export #:foo #:bar))
+(uiop:define-package :lil/interface/order
+  (:use :closer-common-lisp
+   :lil/interface/definition
+   :lil/interface/base
+   :lil/interface/eq :lil/interface/group)
+  (:mix :fare-utils :uiop :alexandria)
+  (:export ...))
 @end example
 
-And from the @code{:use} and @code{:import-from} clauses,
-ASDF could tell that you depend on systems @code{closer-mop} (registered above),
-@code{cl-ppcre} (package and system names match), and
-@code{my-lib/src/macros} and @code{my-lib/src/variables}
+ASDF can tell that this file depends on system @code{closer-mop} (registered above),
+@code{lil/interface/definition}, @code{lil/interface/base},
+@code{lil/interface/eq}, and @code{lil/interface/group}
 (package and system names match, and they will be looked up hierarchically).
+
+ASDF also detects dependencies from @code{:import-from} clauses.
+To depend on a system without using a package or importing any symbol from it
+(because you'll fully qualify them when used),
+you may thus use an @code{:import-from} clause with an empty list of symbols, as in:
+
+@example
+(defpackage :foo/bar
+  (:use :cl)
+  (:import-from :foo/baz #:sym1 #:sym2)
+  (:import-from :foo/quux)
+  (:export ...))
+@end example
 
 The form @code{uiop:define-package} is supported as well as @code{defpackage},
 and has many options that prove useful in this context,
