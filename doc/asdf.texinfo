@@ -251,6 +251,7 @@ Issues with using and extending ASDF to define systems
 * I want to put my module's files at the top level.  How do I do this?::
 * How do I create a system definition where all the source files have a .cl extension?::
 * How do I mark a source file to be loaded only and not compiled?::
+* How do I work with readtables?::
 
 ASDF development FAQs
 
@@ -5170,6 +5171,7 @@ use (after loading ASDF but before using it):
 * I want to put my module's files at the top level.  How do I do this?::
 * How do I create a system definition where all the source files have a .cl extension?::
 * How do I mark a source file to be loaded only and not compiled?::
+* How do I work with readtables?::
 @end menu
 
 @node How can I cater for unit-testing in my system?, How can I cater for documentation generation in my system?, Issues with using and extending ASDF to define systems, Issues with using and extending ASDF to define systems
@@ -5375,7 +5377,7 @@ you also define the following method:
   "lis")
 @end lisp
 
-@node How do I mark a source file to be loaded only and not compiled?,  , How do I create a system definition where all the source files have a .cl extension?, Issues with using and extending ASDF to define systems
+@node How do I mark a source file to be loaded only and not compiled?, , How do I create a system definition where all the source files have a .cl extension?, Issues with using and extending ASDF to define systems
 @subsection How do I mark a source file to be loaded only and not compiled?
 
 There is no provision in ASDF for ensuring that
@@ -5394,6 +5396,20 @@ to allow for such a trick.
 @c to adjust your compiler settings,
 @c or eschew compilation by @code{eval}uating a quoted source form at load-time.
 
+@node How do I work with readtables?,  , How do I mark a source file to be loaded only and not compiled?, Issues with using and extending ASDF to define systems
+@subsection How do I work with readtables?
+
+@cindex readtables
+
+
+It is possible to configure the lisp syntax by modifying the
+currently-active readtable.  Unfortunately, CL has very limited support
+for controlling the readtable (e.g., there is no @code{IN-READTABLE} the
+way there is @code{IN-PACKAGE}).
+
+@subsubsection How should my system use a readtable exported by another system?
+
+@subsubsection How should my library make a readtable available to other systems?
 
 
 @node ASDF development FAQs,  , Issues with using and extending ASDF to define systems, FAQ
