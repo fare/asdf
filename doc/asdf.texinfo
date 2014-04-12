@@ -1084,7 +1084,7 @@ If your file is loaded by ASDF 3,
 this is the context in which it will be read;
 this line will thus ensure that the system definition is read the
 same as within ASDF when you load it interactively with @code{cl:load}.
-However, we recommend that you load @code{.asd} files
+However, we recommend that you load @file{.asd} files
 through function @code{asdf::load-asd} rather than through @code{cl:load},
 in which case you don't need this @code{in-package} form.
 Recent versions of SLIME (2013-02 and later) know to do just that.
@@ -1097,13 +1097,13 @@ from both package @code{asdf} and @code{common-lisp}
 to be readily available in the current package,
 most importantly including @code{defsystem} itself.
 Indeed, starting with ASDF 3.1,
-@code{.asd} files are read in the package @code{asdf-user}
+@file{.asd} files are read in the package @code{asdf-user}
 that uses @code{asdf}, @code{uiop} and @code{uiop/common-lisp}
 (a variant of @code{common-lisp}
 that has some portability fixes on old implementations).
 ASDF 3 releases before 3.1 also read in package @code{asdf-user}
 but that package don't use the full @code{uiop}, only @code{uiop/package}.
-ASDF 1 and ASDF 2 releases (up until 2.26) instead read @code{.asd} files
+ASDF 1 and ASDF 2 releases (up until 2.26) instead read @file{.asd} files
 in a temporary package @code{asdf@emph{N}}
 that uses @code{asdf} and @code{common-lisp}.
 You may thus have to package-qualify some symbols with @code{uiop:}
@@ -1692,7 +1692,7 @@ However, it is recommended to keep such forms to a minimal,
 and to instead define @code{defsystem} extensions
 that you use with @code{:defsystem-depends-on}.
 
-If however, you might insist on including code in the @code{.asd} file itself,
+If however, you might insist on including code in the @file{.asd} file itself,
 e.g., to examine and adjust the compile-time environment,
 possibly adding appropriate features to @code{*features*}.
 If so, here are some conventions we recommend you follow,
@@ -2996,7 +2996,7 @@ ASDF 3 relies on the environment variables that Windows usually exports.
 @section Backward Compatibility
 
 For backward compatibility as well as to provide a practical backdoor for hackers,
-ASDF will first search for @code{.asd} files in the directories specified in
+ASDF will first search for @file{.asd} files in the directories specified in
 @code{asdf:*central-registry*}
 before it searches in the source registry above.
 
@@ -3653,7 +3653,6 @@ or you might experience ``interesting'' issues.
 Also, note that output translation is enabled by default.
 To disable it, use @code{(asdf:disable-output-translations)}.
 
-
 @node Output Configuration DSL, Output Configuration Directories, Output Backward Compatibility, Controlling where ASDF saves compiled files
 @section Configuration DSL
 
@@ -3952,8 +3951,8 @@ which will cause the initialization to happen next time around.
 @node Credits for output translations,  , Output location API, Controlling where ASDF saves compiled files
 @section Credits for output translations
 
-Thanks a lot to Bjorn Lindberg and Gary King for @code{ASDF-Binary-Locations},
-and to Peter van Eynde for @code{Common Lisp Controller}.
+Thanks a lot to Peter van Eynde for @code{Common Lisp Controller}
+and to Bjorn Lindberg and Gary King for @code{ASDF-Binary-Locations}.
 
 All bad design ideas and implementation bugs are to mine, not theirs.
 But so are good design ideas and elegant implementation tricks.
@@ -4184,7 +4183,7 @@ See for instance @code{lambda-reader}.
 
 We invite you to embrace UTF-8
 as the encoding for non-ASCII characters starting today,
-even without any explicit specification in your @code{.asd} files.
+even without any explicit specification in your @file{.asd} files.
 Indeed, on some implementations and configurations,
 UTF-8 is already the @code{:default},
 and loading your code may cause errors if it is encoded in anything but UTF-8.
@@ -4201,7 +4200,7 @@ use the extension system @code{asdf-encodings}, by specifying
 This extension system will register support for more encodings using the
 @code{*encoding-external-format-hook*} facility,
 so you can explicitly specify @code{:encoding :latin1}
-in your @code{.asd} file.
+in your @file{.asd} file.
 Using the @code{*encoding-detection-hook*} it will also
 eventually implement some autodetection of a file's encoding
 from an emacs-style @code{-*- mode: lisp ; coding: latin1 -*-} declaration,
@@ -4221,7 +4220,7 @@ You can also browse the repository on
 @url{http://common-lisp.net/gitweb?p=projects/asdf/asdf-encodings.git}.
 
 When you use @code{asdf-encodings},
-any @code{.asd} file loaded
+any @file{.asd} file loaded
 will use the autodetection algorithm to determine its encoding.
 If you depend on this detection happening,
 you should explicitly load @code{asdf-encodings} early in your build.
@@ -4230,7 +4229,7 @@ the @code{:defsystem-depends-on} is loaded, the enclosing
 @code{defsystem} form has already been read.
 
 In practice, this means that the @code{*default-encoding*}
-is usually used for @code{.asd} files.
+is usually used for @file{.asd} files.
 Currently, this defaults to @code{:utf-8}, and
 you should be safe using Unicode characters in those files.
 This might matter, for instance, in meta-data about author's names.
@@ -5161,6 +5160,10 @@ use (after loading ASDF but before using it):
 (asdf:disable-output-translations)
 @end example
 
+Note that this does @emph{NOT} belong in a @file{.asd} file.
+Please do not tamper with ASDF configuration from a @file{.asd} file,
+and only do this from your personal configuration or build scripts.
+
 @node Issues with using and extending ASDF to define systems, ASDF development FAQs, Issues with configuring ASDF, FAQ
 @section Issues with using and extending ASDF to define systems
 
@@ -5377,7 +5380,7 @@ you also define the following method:
   "lis")
 @end lisp
 
-@node How do I mark a source file to be loaded only and not compiled?, , How do I create a system definition where all the source files have a .cl extension?, Issues with using and extending ASDF to define systems
+@node How do I mark a source file to be loaded only and not compiled?, How do I work with readtables?, How do I create a system definition where all the source files have a .cl extension?, Issues with using and extending ASDF to define systems
 @subsection How do I mark a source file to be loaded only and not compiled?
 
 There is no provision in ASDF for ensuring that
@@ -5427,26 +5430,38 @@ we are simply describing what they have always been.
 If you want to use readtable modifications that cannot abide by those restrictions,
 you @emph{must} create a different readtable object and set @var{*readtable*}
 to temporarily bind it to your new readtable (which will be undone after processing the file).
+
 For that, we recommend you use system @code{named-readtables}
 to define or combine such readtables using @code{named-readtables:defreadtable}
 and use them using @code{named-readtables:in-readtable}.
+Equivalently, you can use system @code{cl-syntax},
+that itself uses @code{named-readtables},
+but may someday do more with, e.g. @var{*print-pprint-dispatch*}.
 
 For even more advanced syntax modification beyond what a readtable can express,
-you may consider either
-(1) a perform method that compiles a constant file that contains a single form
+you may consider either:
+@itemize
+@item a @code{perform} method that compiles a constant file that contains a single form
   @code{#.*code-read-with-alternate-reader*} in an environment where this special variable
   was bound to the code read by your alternate reader, or
-(2) using the system @code{reader-interception}.
+@item using the system @code{reader-interception}.
+@end itemize
 
-Beware unless and until the @code{syntax-control} branch is merged,
-that it is unsafe to use ASDF from the REPL to compile or load systems
+Beware that @c unless and until the @code{syntax-control} branch is merged,
+it is unsafe to use ASDF from the REPL to compile or load systems
 while the readtable isn't the shared readtable previously used to build software.
-You @emph{must} undo any binding of @var{*readtable*} and restore the initial version
-whenever you call ASDF from a REPL that isn't canonical.
+You @emph{must} manually undo any binding of @var{*readtable*} at the REPL
+and restore its initial value whenever you call @code{operate}
+(via e.g. @code{load-system}, @code{test-system} or @code{require})
+from a REPL that is using a different readtable.
 
 @subsubsection How should my system use a readtable exported by another system?
 
 Use from the @code{named-readtables} system the macro @code{named-readtables:in-readtable}.
+
+If the other system fails to use @code{named-readtables}, fix it and send a patch upstream.
+In the day and age of Quicklisp and clbuild, there is little reason
+to eschew using such an important library anymore.
 
 @subsubsection How should my library make a readtable available to other systems?
 
@@ -5468,10 +5483,35 @@ interested, too.
 
 Here's the procedure for experimenting with tests in a REPL:
 @example
+;; BEWARE! Some tests expect you to be in the .../asdf/test directory
+;; If your REPL is not there yet, change your current directory:
+;; under SLIME, you may: ,change-directory ~/common-lisp/asdf/test/
+;; otherwise you may evaluate something like:
+(require "asdf") (asdf:upgrade-asdf) ;load UIOP & update asdf.lisp
+(uiop:chdir (asdf:system-relative-pathname :asdf "test/"))
+(setf *default-pathname-defaults* (uiop:getcwd))
+
+;; Load the test script support.
 (load "script-support.lisp")
-(in-package :asdf-test)
-(compile-load-asdf) ; there are a number of other functions to load ASDF
-;; experiment with test code from a .script file...
+
+;; Initialize the script support.
+;; This will also change your *package* to asdf-test.
+;; NB: this function is also available from package cl-user,
+;; and also available with the shorter name da in both packages.
+(asdf-test::debug-asdf)
+
+;; In case you modified ASDF since you last tested it,
+;; you need to update asdf.lisp itself by evaluating 'make' in a shell,
+;; or (require "asdf") (asdf:load-system :asdf) in another CL REPL,
+;; if not done in this REPL above.
+;; *Then*, in this REPL, you need to evaluate:
+;(asdf-test::compile-load-asdf)
+
+;; Now, you may experiment with test code from a .script file.
+;; See the instructions given at the end of your failing test
+;; to identify which form is needed, e.g.
+(frob-packages)
+(asdf::with-asdf-cache () (load "test-utilities.script"))
 @end example
 
 
@@ -5483,7 +5523,7 @@ Here's the procedure for experimenting with tests in a REPL:
 For an active list of things to be done,
 see the @file{TODO} file in the source repository.
 
-Also, bugs that are now tracked on launchpad:
+Also, bugs are now tracked on launchpad:
 @url{https://launchpad.net/asdf}.
 
 @node Bibliography, Concept Index, Ongoing Work, Top
@@ -5519,11 +5559,16 @@ Also, bugs that are now tracked on launchpad:
   many ideas of which have been incorporated into ASDF 2 and 3,
   though many other of which still haven't.
   @url{http://common-lisp.net/projects/xcvb/}
-@item Peter von Etter: ``faslpath'', 2009.
+@item Peter von Etter:
+  ``faslpath'', 2009.
   @code{faslpath} is similar to the latter @code{quick-build}
   and our letter @code{asdf/package-system} extension,
   except that it uses the dot @code{.} rather than the slash @code{/} as a separator.
   @url{https://code.google.com/p/faslpath/}
+@item Drew McDermott:
+  ``A Framework for Maintaining the Coherence of a Running Lisp,''
+  International Lisp Conference, 2005, available in pre-print form at
+  @url{http://www.cs.yale.edu/homes/dvm/papers/lisp05.pdf}
 @item Dan Barlow: ``ASDF Manual'', 2004.
   Older versions of this document from the days of ASDF 1;
   they include ideas laid down by Dan Barlow,
@@ -5545,9 +5590,6 @@ Also, bugs that are now tracked on launchpad:
   ``Lisp Machine Manual'', MIT, 1981.
   The famous CHINE NUAL describes one of the earliest variants of DEFSYSTEM.
   @url{https://bitsavers.trailing-edge.com/pdf/mit/cadr/chinual_4thEd_Jul81.pdf}
-@item Drew McDermott: ``A Framework for Maintaining the Coherence of a
-  Running Lisp,'' International Lisp Conference, 2005, available in
-  pre-print form at @url{http://www.cs.yale.edu/homes/dvm/papers/lisp05.pdf}.
 @end itemize
 
 
