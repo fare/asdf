@@ -5401,16 +5401,56 @@ to allow for such a trick.
 
 @cindex readtables
 
+It is possible to configure the lisp syntax by modifying the currently-active readtable.
+However, this same readtable is shared globally by all software being compiled by ASDF,
+especially since @code{load} and @code{compile-file} both bind @var{*readtable*},
+so that its value is the same across the build at the start of every file
+(unless overridden by some @code{perform :around} method),
+even if a file locally binds it to a different readtable during the build.
 
-It is possible to configure the lisp syntax by modifying the
-currently-active readtable.  Unfortunately, CL has very limited support
-for controlling the readtable (e.g., there is no @code{IN-READTABLE} the
-way there is @code{IN-PACKAGE}).
+Therefore, the following hygiene restrictions apply. If you don't abide by these restrictions,
+there will be situations where your output files will be corrupted during an incremental build.
+We are not trying to prescribe new restrictions for the sake of good style:
+these restrictions have always applied implicitly, and
+we are simply describing what they have always been.
+
+@itemize
+@item It is forbidden to modifying any standard character or standard macro dispatch defined in the CLHS.
+@item No two dependencies may assign different meanings to the same non-standard character.
+@item Using any non-standard character while expecting the implementation to treat some way
+    counts as such an assignment of meaning.
+@item libraries need to document these assignments of meaning to non-standard characters.
+@item free software libraries will register these changes on:
+        @url{http://www.cliki.net/Macro%20Characters}
+@end itemize
+
+If you want to use readtable modifications that cannot abide by those restrictions,
+you @emph{must} create a different readtable object and set @var{*readtable*}
+to temporarily bind it to your new readtable (which will be undone after processing the file).
+For that, we recommend you use system @code{named-readtables}
+to define or combine such readtables using @code{named-readtables:defreadtable}
+and use them using @code{named-readtables:in-readtable}.
+
+For even more advanced syntax modification beyond what a readtable can express,
+you may consider either
+(1) a perform method that compiles a constant file that contains a single form
+  @code{#.*code-read-with-alternate-reader*} in an environment where this special variable
+  was bound to the code read by your alternate reader, or
+(2) using the system @code{reader-interception}.
+
+Beware unless and until the @code{syntax-control} branch is merged,
+that it is unsafe to use ASDF from the REPL to compile or load systems
+while the readtable isn't the shared readtable previously used to build software.
+You @emph{must} undo any binding of @var{*readtable*} and restore the initial version
+whenever you call ASDF from a REPL that isn't canonical.
 
 @subsubsection How should my system use a readtable exported by another system?
 
+Use from the @code{named-readtables} system the macro @code{named-readtables:in-readtable}.
+
 @subsubsection How should my library make a readtable available to other systems?
 
+Use from the @code{named-readtables} system the macro @code{named-readtables:defreadtable}.
 
 @node ASDF development FAQs,  , Issues with using and extending ASDF to define systems, FAQ
 @section ASDF development FAQs
