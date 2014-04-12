@@ -951,7 +951,7 @@ In older versions of ASDF, you needed to use
 @code{(asdf:oos 'asdf:load-op :@var{foo})}.
 If your ASDF is too old to provide @code{asdf:load-system} though
 we recommend that you upgrade to ASDF 3.
-@xref{Loading ASDF,,Loading an otherwise installed ASDF}.
+@xref{Loading ASDF,,Loading ASDF from source}.
 
 Note the name of a system is specified as a string or a symbol.
 If a symbol (including a keyword), its name is taken and lowercased.
