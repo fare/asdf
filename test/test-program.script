@@ -40,7 +40,7 @@
                 #+allegro :lisp-path #+allegro *lisp*
                 :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
                 :eval "(asdf-test::make-hello-image)")
-   :output t :error-output :output :input nil))
+   :output :interactive :error-output :interactive :input nil))
  0)
 (assert (probe-file* img) () "Can't find image file ~S" img)
 
@@ -92,7 +92,7 @@
                 #+allegro :lisp-path #+allegro *lisp*
                 :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
                 :eval "(asdf-test::make-hello-program)")
-   :output t :error-output :output :input nil))
+   :output :interactive :error-output :interactive :input nil))
  0)
 
 (assert (probe-file* exe) () "Can't find executable file ~S" exe)
