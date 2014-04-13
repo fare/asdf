@@ -28,20 +28,26 @@
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
+(defun make-hello-world (kind)
+  (assert-equal
+   0
+   (nth-value 2
+    (run-program
+     (symbol-call
+      #+allegro :lisp-path #+allegro *lisp*
+      :lisp-invocation :lisp-invocation-arglist
+      :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
+      :eval (format nil "(asdf-test::make-hello-~a)" kind))
+     :input nil :ignore-error-status t
+     :output (list *standard-output* :linewise t :prefix "stdout: ")
+     :error-output (list *error-output* :linewise t :prefix "stderr: ")))))
+
 (DBG "test image-op")
 (defparameter img (output-file (make-operation 'image-op) (find-system :hello-world-example)))
 (assert (absolute-pathname-p img))
 (delete-file-if-exists img)
 (DBG "- first create an executable image")
-(assert-equal
- (nth-value 2
-  (run-program
-   (symbol-call :lisp-invocation :lisp-invocation-arglist
-                #+allegro :lisp-path #+allegro *lisp*
-                :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
-                :eval "(asdf-test::make-hello-image)")
-   :output :interactive :error-output :interactive :input nil))
- 0)
+(make-hello-world 'image)
 (assert (probe-file* img) () "Can't find image file ~S" img)
 
 (DBG "- then, use it")
@@ -85,16 +91,7 @@
 (assert (absolute-pathname-p exe))
 (delete-file-if-exists exe)
 (DBG "- first, create the standalone program")
-(assert-equal
- (nth-value 2
-  (run-program
-   (symbol-call :lisp-invocation :lisp-invocation-arglist
-                #+allegro :lisp-path #+allegro *lisp*
-                :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
-                :eval "(asdf-test::make-hello-program)")
-   :output :interactive :error-output :interactive :input nil))
- 0)
-
+(make-hello-world 'program)
 (assert (probe-file* exe) () "Can't find executable file ~S" exe)
 
 (DBG "- use that")
