@@ -34,15 +34,16 @@
    (nth-value 2
     (run-program
      (symbol-call
-      #+allegro :lisp-path #+allegro *lisp*
       :lisp-invocation :lisp-invocation-arglist
+      #+allegro :lisp-path #+allegro *lisp*
       :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
       :eval (format nil "(asdf-test::make-hello-~a)" kind))
      :input nil :ignore-error-status t
      :output (list *standard-output* :linewise t :prefix "stdout: ")
      :error-output (list *error-output* :linewise t :prefix "stderr: ")))))
 
-#-(and lispworks os-windows)
+#-(or (and lispworks os-macosx)
+      (and ecl os-macosx))
 (progn
   (DBG "test image-op")
   (defparameter img (output-file (make-operation 'image-op) (find-system :hello-world-example)))
@@ -58,8 +59,8 @@
     #+lispworks (last)
     (run-program
      (symbol-call
-      #+allegro :lisp-path #+allegro *lisp*
       :lisp-invocation :lisp-invocation-arglist
+      #+allegro :lisp-path #+allegro *lisp*
       :image-path (native-namestring img)
       :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
      :output :lines :error-output t))
@@ -70,8 +71,8 @@
   (assert-equal
    (run-program
     (symbol-call
-     #+allegro :lisp-path #+allegro *lisp*
      :lisp-invocation :lisp-invocation-arglist
+     #+allegro :lisp-path #+allegro *lisp*
      :image-path (native-namestring img)
      :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
      :arguments '("a" "b c" "d"))
@@ -82,6 +83,8 @@
      "  \"b c\""
      "  \"d\"")))
 
+#-(or (and lispworks os-macosx)
+      (and ecl os-macosx))
 (progn
   (DBG "test program-op")
   (unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl) t
