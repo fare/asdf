@@ -23,8 +23,10 @@
   ;; try harder by enabling the user's source-registry
   (initialize-source-registry ""))
 (unless (find-system :lisp-invocation nil)
-  (leave-test "Couldn't find lisp-invocation. Skipping the rest the test." 0))
+  (leave-test "Couldn't find lisp-invocation. Skipping the rest of the test." 0))
 (load-system :lisp-invocation)
+(unless (version-satisfies (find-system :lisp-invocation) "1")
+  (leave-test "Lisp-invocation library isn't new enough to test successfully. Skipping test-program." 0))
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
