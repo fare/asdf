@@ -276,7 +276,7 @@ children.")))
     (unless (and version (slot-boundp c 'version) (component-version c))
       (when version
         (warn "Requested version ~S but ~S has no version" version c))
-      (return-from version-satisfies t))
+      (return-from version-satisfies nil))
     (version-satisfies (component-version c) version))
 
   (defmethod version-satisfies ((cver string) version)
