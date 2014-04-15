@@ -272,6 +272,11 @@ children.")))
 
 ;;;; version-satisfies
 (with-upgradability ()
+  ;; short-circuit testing of null version specifications.
+  ;; this is an all-pass                  
+  (defmethod version-satisfies :around ((c t) (version null))
+    (declare (ignorable c version))
+    t)
   (defmethod version-satisfies ((c component) version)
     (unless (and version (slot-boundp c 'version) (component-version c))
       (when version
