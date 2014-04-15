@@ -218,6 +218,8 @@ case "$lisp" in
       allegromodern_64_s) command="${ALLEGROMODERN_64_S:-mlisp_64_s}" ;;
       allegromodern8_64_s) command="${ALLEGROMODERN8_64_S:-mlisp8_64_s}" ;;
     esac
+    # For the sake of the lisp-invocation library, re-export these
+    ALLEGRO=$command ; export ALLEGRO
     flags="-q"
     nodebug="-batch"
     if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then bcmd="$command +c $flags" ; fi
