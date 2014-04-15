@@ -36,6 +36,7 @@
      (symbol-call
       :lisp-invocation :lisp-invocation-arglist
       #+allegro :lisp-path #+allegro *lisp*
+      :cross-compile nil
       :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
       :eval (format nil "(asdf-test::make-hello-~a)" kind))
      :input nil :ignore-error-status t
@@ -61,6 +62,7 @@
      (symbol-call
       :lisp-invocation :lisp-invocation-arglist
       #+allegro :lisp-path #+allegro *lisp*
+      :cross-compile nil
       :image-path (native-namestring img)
       :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
      :output :lines :error-output t))
@@ -74,6 +76,7 @@
      :lisp-invocation :lisp-invocation-arglist
      #+allegro :lisp-path #+allegro *lisp*
      :image-path (native-namestring img)
+     :cross-compile nil
      :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
      :arguments '("a" "b c" "d"))
     :output :lines :error-output t)
