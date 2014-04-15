@@ -189,7 +189,9 @@
 *** have a function verify-strict-asd that can verify a asd is pure lp#541562
    Then if it passes, use load-strict-asd.
    If not, optionally issue a warning. Start migrating people toward that.
-*** Include tests for prebuilt-system in test-bundle and in test-program.
+** Include tests for prebuilt-system in test-bundle and in test-program.
+** Test that a package-system secondary system is properly superseded
+   when the primary system is redefined.
 
 * Learn to use cl-grid-test
 ** So we can easily make sure ASDF changes don't break stuff,
