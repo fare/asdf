@@ -13,6 +13,9 @@
 (DBG "Check that the fallback system bears the current asdf version")
 (assert-equal (asdf-version) (component-version *asdf*))
 
+(def-test-system :unversioned-system
+  :pathname #.*test-directory*)
+
 (def-test-system :versioned-system-1
   :pathname #.*test-directory*
   :version "1.0")
@@ -39,8 +42,19 @@
 (defun vtest (name v &optional (true t))
   (or (eq true (version-satisfies (find-system name) v))
       (error "no satisfaction: ~S version ~A not ~A" name v true)))
+
 (vtest :versioned-system-1 "1.0")
 (vtest :versioned-system-2 "1.0")
 (vtest :versioned-system-3 "2.0" nil)
 (vtest :versioned-system-file-form "1.0")
 (vtest :versioned-system-file-line "1.0")
+;; version UNmatching
+(vtest :unversioned-system "1" nil)
+(vtest :versioned-system-1 "1.1" nil)
+(vtest :versioned-system-2 "1.1" t)
+(vtest :versioned-system-2 "1.1.1" nil)
+(vtest :versioned-system-2 "1.2" nil)
+(vtest :versioned-system-3 "1.2")
+(vtest :versioned-system-3 "1.1")
+(vtest :versioned-system-3 "1.1.1")
+
