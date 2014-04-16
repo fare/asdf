@@ -411,8 +411,8 @@ valid_upgrade_test_p () {
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
         # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.1
         gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*) : ;;
-        # MKCL is only supported starting with 2.24, so skip earlier versions
-        mkcl:1.*|mkcl:2.0[01]*|mkcl:2.2[0-3]:*) : ;;
+        # MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
+        mkcl:[12]*|mkcl:3.0*) : ;;
         # XCL support starts with ASDF 2.014.2
         # — It also dies during upgrade trying to show the backtrace.
         xcl:1.*|xcl:2.00*|xcl:2.01[0-4]:*|xcl:*) : ;;
