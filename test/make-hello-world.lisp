@@ -10,6 +10,11 @@
 
 (asdf-test::frob-packages)
 
+(println "This is make-hello-world, testing its standard-output.") ; *standard-output*
+(println "This is make-hello-world, testing its error-output." *error-output*)
+(println "This is make-hello-world, testing its stdout." *stdout*)
+(println "This is make-hello-world, testing its stderr." *stderr*)
+
 #+mkcl
 (defun add-mkcl-dll (pathname)
   ;; make sure mkcl-X.X.X.dll is the same directory as the executable

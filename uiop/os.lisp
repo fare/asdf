@@ -63,10 +63,11 @@ keywords explicitly."
     "Detects the current operating system. Only needs be run at compile-time,
 except on ABCL where it might change between FASL compilation and runtime."
     (loop* :with o
-           :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-windows . os-windows-p)
-                                         (:os-macosx . os-macosx-p)
+           :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-macosx . os-macosx-p)
+                                         (:os-windows . os-windows-p)
                                          (:genera . os-genera-p) (:os-oldmac . os-oldmac-p))
-           :when (and (not o) (funcall detect)) :do (setf o feature) (pushnew o *features*)
+           :when (and (or (not o) (eq feature :os-macosx)) (funcall detect))
+           :do (setf o feature) (pushnew feature *features*)
            :else :do (setf *features* (remove feature *features*))
            :finally
            (return (or o (error "Congratulations for trying ASDF on an operating system~%~

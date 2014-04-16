@@ -30,7 +30,7 @@
 (assert (version-satisfies (asdf-version) (asdf-version)))
 (assert (version-satisfies (asdf-version) "3.0"))
 (assert (version-satisfies (asdf-version) "2.0"))
-(assert (version-satisfies (find-system :test-asdf) "666"))
+(assert (not (version-satisfies (find-system :test-asdf) "666")))
 (handler-case (version-satisfies (find-system :test-asdf) "666")
   (simple-warning (c)
     (assert (search "Requested version ~S but ~S has no version" (simple-condition-format-control c))))
@@ -39,19 +39,24 @@
     (error "version-satisfies must warn when given component without version")))
 (assert (version<= "2.0" (asdf-version)))
 (assert (not (version-satisfies (asdf-version) "666")))
+(DBG "First pathname test.")
 (assert-pathnames-equal
  (split-native-pathnames-string (join-namestrings '("foo" "bar")))
  '(#p"foo" #p"bar"))
+(DBG "Second pathname test.")
 (assert-pathnames-equal
  (split-native-pathnames-string (join-namestrings '("foo" "bar")) :ensure-directory t)
  '(#p"foo/" #p"bar/"))
+(DBG "Third pathname test.")
 (assert-pathnames-equal
  (split-native-pathnames-string (join-namestrings '("/foo" "/bar")) :want-absolute t)
  '(#p"/foo" #p"/bar"))
+(DBG "Fourth pathname test.")
 (assert-pathnames-equal
  (split-native-pathnames-string (join-namestrings '("/foo" "/bar"))
                                 :want-absolute t :ensure-directory t)
  '(#p"/foo/" #p"/bar/"))
+(DBG "Fifth pathname test.")
 (assert-equal
  (mapcar 'location-function-p
          '((:function f)
@@ -213,8 +218,8 @@
   (assert-pathnames-equal
    (sort directory-b #'string< :key #'(lambda (x) (car (last (pathname-directory x)))))
    (list (subpathname *build-directory* "deleteme/a/b/c/")
-	 (subpathname *build-directory* "deleteme/a/b/d/")
-	 (subpathname *build-directory* "deleteme/a/b/e/"))))
+         (subpathname *build-directory* "deleteme/a/b/d/")
+         (subpathname *build-directory* "deleteme/a/b/e/"))))
 (delete-empty-directory (subpathname *build-directory* "deleteme/a/b/e/"))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/"))))
 (delete-directory-tree (subpathname *build-directory* "deleteme/")

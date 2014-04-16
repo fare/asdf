@@ -23,91 +23,101 @@
   ;; try harder by enabling the user's source-registry
   (initialize-source-registry ""))
 (unless (find-system :lisp-invocation nil)
-  (leave-test "Couldn't find lisp-invocation. Skipping the rest the test." 0))
+  (leave-test "Couldn't find lisp-invocation. Skipping the rest of the test." 0))
 (load-system :lisp-invocation)
+(unless (version-satisfies (find-system :lisp-invocation) "1")
+  (leave-test "Lisp-invocation library isn't new enough to test successfully. Skipping test-program." 0))
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
-(DBG "test image-op")
-(defparameter img (output-file (make-operation 'image-op) (find-system :hello-world-example)))
-(assert (absolute-pathname-p img))
-(delete-file-if-exists img)
-(DBG "- first create an executable image")
-(assert-equal
- (nth-value 2
-  (run-program
-   (symbol-call :lisp-invocation :lisp-invocation-arglist
-                #+allegro :lisp-path #+allegro *lisp*
-                :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
-                :eval "(asdf-test::make-hello-image)")
-   :output t :error-output :output :input nil))
- 0)
-(assert (probe-file* img) () "Can't find image file ~S" img)
+(defun make-hello-world (kind)
+  (assert-equal
+   0
+   (nth-value 2
+    (run-program
+     (symbol-call
+      :lisp-invocation :lisp-invocation-arglist
+      #+allegro :lisp-path #+allegro *lisp*
+      :cross-compile nil
+      :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
+      :eval (format nil "(asdf-test::make-hello-~a)" kind))
+     :input nil :ignore-error-status t
+     :output (list *standard-output* :linewise t :prefix "stdout: ")
+     :error-output (list *error-output* :linewise t :prefix "stderr: ")))))
 
-(DBG "- then, use it")
-(assert-equal
- (nest
-  #+lispworks (last)
-  (run-program
-   (symbol-call :lisp-invocation :lisp-invocation-arglist
-                #+allegro :lisp-path #+allegro *lisp*
-                :image-path (native-namestring img)
-                :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
-   :output :lines :error-output t))
- '("hello, world"))
+#-(or (and lispworks os-macosx)
+      (and ecl os-macosx))
+(progn
+  (DBG "test image-op")
+  (defparameter img (output-file (make-operation 'image-op) (find-system :hello-world-example)))
+  (assert (absolute-pathname-p img))
+  (delete-file-if-exists img)
+  (DBG "- first create an executable image")
+  (make-hello-world 'image)
+  (assert (probe-file* img) () "Can't find image file ~S" img)
 
-(DBG "- now, use it with arguments")
-#-(or lispworks scl) ;; These can't be passed arguments the normal way
-(assert-equal
- (run-program
-  (symbol-call :lisp-invocation :lisp-invocation-arglist
-               #+allegro :lisp-path #+allegro *lisp*
-               :image-path (native-namestring img)
-               :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
-               :arguments '("a" "b c" "d"))
-  :output :lines :error-output t)
- '("hello, world"
-   "You passed 3 arguments:"
-   "  \"a\""
-   "  \"b c\""
-   "  \"d\""))
+  (DBG "- then, use it")
+  (assert-equal
+   (nest
+    #+lispworks (last)
+    (run-program
+     (symbol-call
+      :lisp-invocation :lisp-invocation-arglist
+      #+allegro :lisp-path #+allegro *lisp*
+      :cross-compile nil
+      :image-path (native-namestring img)
+      :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)")
+     :output :lines :error-output t))
+   '("hello, world"))
 
-(DBG "test program-op")
-(unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl) t
-            #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
-            #+clisp (version-satisfies
-                     (first (split-string (lisp-implementation-version) :separator " "))
-                     "2.48"))
-  (DBG "Creating standalone programs is not supported on your CL implementation")
-  (leave-test "Skipping test" 0))
+  (DBG "- now, use it with arguments")
+  #-(or lispworks scl) ;; These can't be passed arguments the normal way
+  (assert-equal
+   (run-program
+    (symbol-call
+     :lisp-invocation :lisp-invocation-arglist
+     #+allegro :lisp-path #+allegro *lisp*
+     :image-path (native-namestring img)
+     :cross-compile nil
+     :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
+     :arguments '("a" "b c" "d"))
+    :output :lines :error-output t)
+   '("hello, world"
+     "You passed 3 arguments:"
+     "  \"a\""
+     "  \"b c\""
+     "  \"d\"")))
 
-(defparameter exe (output-file (make-operation 'program-op) (find-system :hello-world-example)))
-(assert (absolute-pathname-p exe))
-(delete-file-if-exists exe)
-(DBG "- first, create the standalone program")
-(assert-equal
- (nth-value 2
-  (run-program
-   (symbol-call :lisp-invocation :lisp-invocation-arglist
-                #+allegro :lisp-path #+allegro *lisp*
-                :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
-                :eval "(asdf-test::make-hello-program)")
-   :output t :error-output :output :input nil))
- 0)
+#-(or (and lispworks os-macosx)
+      (and ecl os-macosx))
+(progn
+  (DBG "test program-op")
+  (unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl) t
+              #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
+              #+clisp (version-satisfies
+                       (first (split-string (lisp-implementation-version) :separator " "))
+                       "2.48"))
+    (DBG "Creating standalone programs is not supported on your CL implementation")
+    (leave-test "Skipping test" 0))
 
-(assert (probe-file* exe) () "Can't find executable file ~S" exe)
+  (defparameter exe (output-file (make-operation 'program-op) (find-system :hello-world-example)))
+  (assert (absolute-pathname-p exe))
+  (delete-file-if-exists exe)
+  (DBG "- first, create the standalone program")
+  (make-hello-world 'program)
+  (assert (probe-file* exe) () "Can't find executable file ~S" exe)
 
-(DBG "- use that")
-(assert-equal (run-program `(,(native-namestring exe)) :output :lines :error-output t)
-              '("hello, world"))
+  (DBG "- use that")
+  (assert-equal (run-program `(,(native-namestring exe)) :output :lines :error-output t)
+                '("hello, world"))
 
-(DBG "- use that with arguments")
-(assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines :error-output t)
-              '("hello, world"
-                "You passed 3 arguments:"
-                "  \"a\""
-                "  \"b c\""
-                "  \"d\""))
+  (DBG "- use that with arguments")
+  (assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines :error-output t)
+                '("hello, world"
+                  "You passed 3 arguments:"
+                  "  \"a\""
+                  "  \"b c\""
+                  "  \"d\"")))
 
 #+(or ecl mkcl)
 (progn

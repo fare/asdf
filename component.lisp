@@ -272,11 +272,15 @@ children.")))
 
 ;;;; version-satisfies
 (with-upgradability ()
+  ;; short-circuit testing of null version specifications.
+  ;; this is an all-pass, without warning
+  (defmethod version-satisfies :around ((c t) (version null))
+    t)
   (defmethod version-satisfies ((c component) version)
     (unless (and version (slot-boundp c 'version) (component-version c))
       (when version
         (warn "Requested version ~S but ~S has no version" version c))
-      (return-from version-satisfies t))
+      (return-from version-satisfies nil))
     (version-satisfies (component-version c) version))
 
   (defmethod version-satisfies ((cver string) version)
