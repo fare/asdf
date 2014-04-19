@@ -339,7 +339,7 @@ upgrade_tags () {
     #
     # The 3.1 series provides the 3.1 feature, meaning users can rely on
     # all the stabilization work done in 3.0 so far, plus extra developments
-    # in UIOP, package-system, and more robustification.
+    # in UIOP, package-inferred-system, and more robustification.
     #
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.

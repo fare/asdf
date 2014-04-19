@@ -127,7 +127,7 @@ Defining systems with defsystem
 * A more involved example::
 * The defsystem grammar::
 * Other code in .asd files::
-* The package-system extension::
+* The package-inferred-system extension::
 
 The object model of ASDF
 
@@ -938,7 +938,7 @@ software.
 * A more involved example::
 * The defsystem grammar::
 * Other code in .asd files::
-* The package-system extension::
+* The package-inferred-system extension::
 @end menu
 
 @node  The defsystem form, A more involved example, Defining systems with defsystem, Defining systems with defsystem
@@ -1537,7 +1537,7 @@ which in conjunction with if-component-dep-fails would offer
 a roundabout way to express conditional compilation.
 
 
-@node Other code in .asd files, The package-system extension, The defsystem grammar, Defining systems with defsystem
+@node Other code in .asd files, The package-inferred-system extension, The defsystem grammar, Defining systems with defsystem
 @section Other code in .asd files
 
 Files containing @code{defsystem} forms
@@ -1565,8 +1565,8 @@ of output from ASDF operations.
 @end itemize
 
 
-@node The package-system extension,  , Other code in .asd files, Defining systems with defsystem
-@section The package-system extension
+@node The package-inferred-system extension,  , Other code in .asd files, Defining systems with defsystem
+@section The package-inferred-system extension
 
 Starting with ASDF 3.0.3,
 ASDF supports a one-package-per-file style of programming,
@@ -1574,7 +1574,7 @@ whereby each file is its own system,
 and dependencies are deduced from the @code{defpackage} form.
 
 In this style, packages referring to a same-named system (downcased);
-and if a system is defined with @code{:class package-system},
+and if a system is defined with @code{:class package-inferred-system},
 then system names that start with that name
 (using the slash @code{/} separator)
 refer to files under the filesystem hierarchy where the system is defined.
@@ -1589,12 +1589,12 @@ It is used by ASDF itself (starting with ASDF 3) and by @code{lisp-interface-lib
 
 To use this style, choose a toplevel system name, e.g. @code{my-lib},
 and create a file @file{my-lib.asd}
-with the @code{:class :package-system} option in its @code{defsystem}.
+with the @code{:class :package-inferred-system} option in its @code{defsystem}.
 For instance:
 @example
 #-asdf (error "my-lib requires ASDF 3")
 (defsystem my-lib
-  :class :package-system
+  :class :package-inferred-system
   :defsystem-depends-on (:asdf-package-system)
   :depends-on (:my-lib/src/all)
   :in-order-to ((test-op (load-op :my-lib/test/all)))
@@ -1605,9 +1605,9 @@ For instance:
 
 In the code above, the
 @code{:defsystem-depends-on (:asdf-package-system)} is
-for compatibility with older versions of ASDF 3 (ASDF 2 not supported),
+for compatibility with older versions of ASDF 3 (ASDF 2 is not supported),
 and requires the @code{asdf-package-system} library to be present
-(it is implicitly provided by ASDF starting with ASDF 3.0.3).
+(it is implicitly provided by ASDF starting with ASDF 3.1.1).
 
 The function @code{register-system-packages} has to be called to register
 packages used or provided by your system and its components

@@ -1,30 +1,35 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Package systems in the style of quick-build or faslpath
 
-(uiop:define-package :asdf/package-system
-  (:recycle :asdf/package-system :asdf)
+(uiop:define-package :asdf/package-inferred-system
+  (:recycle :asdf/package-inferred-system :asdf/package-system :asdf)
   (:use :uiop/common-lisp :uiop
         :asdf/defsystem ;; Using the old name of :asdf/parse-defsystem for compatibility
         :asdf/upgrade :asdf/component :asdf/system :asdf/find-system :asdf/lisp-action)
   (:export
-   #:package-system #:register-system-packages #:sysdef-package-system-search
-   #:*defpackage-forms* #:*package-systems* #:package-system-missing-package-error))
-(in-package :asdf/package-system)
+   #:package-inferred-system #:sysdef-package-inferred-system-search
+   #:package-system ;; backward compatibility only. To be removed.
+   #:register-system-packages 
+   #:*defpackage-forms* #:*package-inferred-systems* #:package-inferred-system-missing-package-error))
+(in-package :asdf/package-inferred-system)
 
 (with-upgradability ()
   (defparameter *defpackage-forms* '(cl:defpackage uiop:define-package))
 
-  (defun initial-package-systems-table ()
+  (defun initial-package-inferred-systems-table ()
     (let ((h (make-hash-table :test 'equal)))
       (dolist (p (list-all-packages))
         (dolist (n (package-names p))
           (setf (gethash n h) t)))
       h))
 
-  (defvar *package-systems* (initial-package-systems-table))
+  (defvar *package-inferred-systems* (initial-package-inferred-systems-table))
 
-  (defclass package-system (system)
+  (defclass package-inferred-system (system)
     ())
+
+  ;; For backward compatibility only. To be removed in an upcoming release:
+  (defclass package-system (package-inferred-system) ())
 
   (defun defpackage-form-p (form)
     (and (consp form)
@@ -39,12 +44,12 @@
     (with-input-file (f file)
       (stream-defpackage-form f)))
 
-  (define-condition package-system-missing-package-error (system-definition-error)
+  (define-condition package-inferred-system-missing-package-error (system-definition-error)
     ((system :initarg :system :reader error-system)
      (pathname :initarg :pathname :reader error-pathname))
     (:report (lambda (c s)
                (format s (compatfmt "~@<No package form found while ~
-                                     trying to define package-system ~A from file ~A~>")
+                                     trying to define package-inferred-system ~A from file ~A~>")
                        (error-system c) (error-pathname c)))))
 
   (defun package-dependencies (defpackage-form)
@@ -73,23 +78,23 @@ the DEFPACKAGE-FORM uses it or imports a symbol from it."
     "Register SYSTEM as providing PACKAGES."
     (let ((name (or (eq system t) (coerce-name system))))
       (dolist (p (ensure-list packages))
-        (setf (gethash (package-designator-name p) *package-systems*) name))))
+        (setf (gethash (package-designator-name p) *package-inferred-systems*) name))))
 
   (defun package-name-system (package-name)
     "Return the name of the SYSTEM providing PACKAGE-NAME, if such exists,
 otherwise return a default system name computed from PACKAGE-NAME."
     (check-type package-name string)
-    (if-let ((system-name (gethash package-name *package-systems*)))
+    (if-let ((system-name (gethash package-name *package-inferred-systems*)))
       system-name
       (string-downcase package-name)))
 
-  (defun package-system-file-dependencies (file &optional system)
+  (defun package-inferred-system-file-dependencies (file &optional system)
     (if-let (defpackage-form (file-defpackage-form file))
       (remove t (mapcar 'package-name-system (package-dependencies defpackage-form)))
-      (error 'package-system-missing-package-error :system system :pathname file)))
+      (error 'package-inferred-system-missing-package-error :system system :pathname file)))
 
-  (defun same-package-system-p (system name directory subpath dependencies)
-    (and (eq (type-of system) 'package-system)
+  (defun same-package-inferred-system-p (system name directory subpath dependencies)
+    (and (eq (type-of system) 'package-inferred-system)
          (equal (component-name system) name)
          (pathname-equal directory (component-pathname system))
          (equal dependencies (component-sideway-dependencies system))
@@ -101,26 +106,29 @@ otherwise return a default system name computed from PACKAGE-NAME."
                        (and (slot-boundp child 'relative-pathname)
                             (equal (slot-value child 'relative-pathname) subpath))))))))
 
-  (defun sysdef-package-system-search (system)
+  (defun sysdef-package-inferred-system-search (system)
     (let ((primary (primary-system-name system)))
       (unless (equal primary system)
         (let ((top (find-system primary nil)))
-          (when (typep top 'package-system)
+          (when (typep top 'package-inferred-system)
             (if-let (dir (system-source-directory top))
               (let* ((sub (subseq system (1+ (length primary))))
                      (f (probe-file* (subpathname dir sub :type "lisp")
                                      :truename *resolve-symlinks*)))
                 (when (file-pathname-p f)
-                  (let ((dependencies (package-system-file-dependencies f system))
+                  (let ((dependencies (package-inferred-system-file-dependencies f system))
                         (previous (cdr (system-registered-p system))))
-                    (if (same-package-system-p previous system dir sub dependencies)
+                    (if (same-package-inferred-system-p previous system dir sub dependencies)
                         previous
                         (eval `(defsystem ,system
-                                 :class package-system
+                                 :class package-inferred-system
                                  :source-file nil
                                  :pathname ,dir
                                  :depends-on ,dependencies
                                  :components ((cl-source-file "lisp" :pathname ,sub)))))))))))))))
 
 (with-upgradability ()
-  (pushnew 'sysdef-package-system-search *system-definition-search-functions*))
+  (pushnew 'sysdef-package-inferred-system-search *system-definition-search-functions*)
+  (setf *system-definition-search-functions*
+        (remove (find-symbol* :sysdef-package-system-search :asdf/package-system nil)
+                *system-definition-search-functions*)))

@@ -1,4 +1,4 @@
-(defpackage :test-asdf/dll-user (:use)) ;; dummy, for package-system dependencies.
+(defpackage :test-asdf/dll-user (:use)) ;; dummy, for package-inferred-system dependencies.
 
 (in-package :test-package)
 
