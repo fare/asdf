@@ -1,4 +1,4 @@
-(defpackage :test-asdf/monodll-1 (:use)) ;; dummy, for package-system dependencies.
+(defpackage :test-asdf/monodll-1 (:use)) ;; dummy, for package-inferred-system dependencies.
 
 #+ecl
 (ffi:clines "

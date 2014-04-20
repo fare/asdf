@@ -2,7 +2,7 @@
   (:use :cl :asdf))
 (in-package :test-asdf-system)
 
-(defsystem :test-asdf :class package-system)
+(defsystem :test-asdf :class package-inferred-system)
 
 (defsystem :test-asdf/all
   :version "0"
