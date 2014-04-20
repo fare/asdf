@@ -9,7 +9,7 @@
   (:export
    #:package-inferred-system #:sysdef-package-inferred-system-search
    #:package-system ;; backward compatibility only. To be removed.
-   #:register-system-packages 
+   #:register-system-packages
    #:*defpackage-forms* #:*package-inferred-systems* #:package-inferred-system-missing-package-error))
 (in-package :asdf/package-inferred-system)
 
