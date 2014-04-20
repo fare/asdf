@@ -1568,7 +1568,7 @@ of output from ASDF operations.
 @node The package-inferred-system extension,  , Other code in .asd files, Defining systems with defsystem
 @section The package-inferred-system extension
 
-Starting with ASDF 3.0.3,
+Starting with ASDF 3.1.1,
 ASDF supports a one-package-per-file style of programming,
 whereby each file is its own system,
 and dependencies are deduced from the @code{defpackage} form.
