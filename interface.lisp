@@ -12,7 +12,7 @@
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry
    :asdf/plan :asdf/operate :asdf/parse-defsystem :asdf/bundle :asdf/concatenate-source
-   :asdf/backward-internals :asdf/backward-interface :asdf/package-system)
+   :asdf/backward-internals :asdf/backward-interface :asdf/package-inferred-system)
   ;; Note: (1) we are NOT automatically reexporting everything from previous packages.
   ;; (2) we only reexport UIOP functionality when backward-compatibility requires it.
   (:export
@@ -59,7 +59,8 @@
    #:static-file #:doc-file #:html-file
    #:file-type #:source-file-type
 
-   #:package-system #:register-system-packages
+   #:package-inferred-system #:register-system-packages
+   #:package-system ;; backward-compatibility during migration, to be removed in a further release.
 
    #:component-children          ; component accessors
    #:component-children-by-name
@@ -122,7 +123,7 @@
    #:missing-dependency-of-version
    #:circular-dependency        ; errors
    #:duplicate-names #:non-toplevel-system #:non-system-system
-   #:package-system-missing-package-error
+   #:package-inferred-system-missing-package-error
    #:operation-definition-warning #:operation-definition-error
 
    #:try-recompiling

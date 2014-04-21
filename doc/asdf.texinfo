@@ -140,7 +140,7 @@ Defining systems with defsystem
 * A more involved example::
 * The defsystem grammar::
 * Other code in .asd files::
-* The package-system extension::
+* The package-inferred-system extension::
 
 The Object model of ASDF
 
@@ -1040,7 +1040,7 @@ software.
 * A more involved example::
 * The defsystem grammar::
 * Other code in .asd files::
-* The package-system extension::
+* The package-inferred-system extension::
 @end menu
 
 @node  The defsystem form, A more involved example, Defining systems with defsystem, Defining systems with defsystem
@@ -1682,7 +1682,7 @@ this provided
 a roundabout way to express conditional compilation.
 
 
-@node Other code in .asd files, The package-system extension, The defsystem grammar, Defining systems with defsystem
+@node Other code in .asd files, The package-inferred-system extension, The defsystem grammar, Defining systems with defsystem
 @section Other code in .asd files
 
 Files containing @code{defsystem} forms
@@ -1710,8 +1710,8 @@ of output from ASDF operations.
 @end itemize
 
 
-@node The package-system extension,  , Other code in .asd files, Defining systems with defsystem
-@section The package-system extension
+@node The package-inferred-system extension,  , Other code in .asd files, Defining systems with defsystem
+@section The package-inferred-system extension
 
 Starting with release 3.1.1,
 ASDF supports a one-package-per-file style of programming,
@@ -1719,40 +1719,29 @@ whereby each file is its own system,
 and dependencies are deduced from the @code{defpackage} form
 (or its variant @code{uiop:define-package}).
 
-In this style, packages refer to a same-named system (downcased),
-unless specially registered.
-If a system is defined with @code{:class :package-system},
+
+In this style, packages refer to a system with the same name (downcased);
+and if a system is defined with @code{:class package-inferred-system},
 then system names that start with that name
 (using the slash @code{/} separator)
 refer to files under the filesystem hierarchy where the system is defined.
-For instance, if system @code{lil} is defined in
-@file{/home/tunes/cl/lisp-interface-library/lil.asd}, then package @code{lil/interface/order}
-will be found in file @file{/home/tunes/cl/lisp-interface-library/interface/order.lisp}.
+For instance, if system @code{my-lib} is defined in
+@file{/foo/bar/my-lib/my-lib.asd}, then system @code{my-lib/src/utility}
+will be found in file @file{/foo/bar/my-lib/src/utility.lisp}.
 
-This style was made popular
-by @code{faslpath} and @code{quick-build} before (@pxref{Bibliography}).
-It seems to make for more maintainable code,
-at the cost of a stricter package discipline:
-by imposing upon programmers a discipline of smaller namespaces,
-with explicit dependencies and especially explicit forward dependencies,
-the style encourages good factoring of the code into coherent units;
-by contrast, the traditional style of "everything in one package"
-has low overhead but doesn't scale very well.
+This style was made popular by @code{faslpath} and @code{quick-build} before,
+and at the cost of a stricter package discipline,
+seems to make for more maintainable code.
+It is used by ASDF itself (starting with ASDF 3) and by @code{lisp-interface-library}.
 
-It is used by ASDF itself (starting with ASDF 3, aka 2.27)
-and by @code{lisp-interface-library},
-to the great satisfaction of the author (FRR).
-Others who have tried it before also expressed similar results.
-
-Thus, for instance, in @code{lisp-interface-library},
-the file @file{lil.asd} contains the following incantations (elided):
-
+To use this style, choose a toplevel system name, e.g. @code{my-lib},
+and create a file @file{my-lib.asd}
+with the @code{:class :package-inferred-system} option in its @code{defsystem}.
+For instance:
 @example
-#-asdf3 (error "LIL requires ASDF 3 or later. Please upgrade your ASDF.")
-
-(defsystem lil
-  :description "LIL: Lisp Interface Library" ...
-  :class :package-system
+#-asdf (error "my-lib requires ASDF 3")
+(defsystem my-lib
+  :class :package-inferred-system
   :defsystem-depends-on (:asdf-package-system)
   :depends-on (:lil/interface/all
                :lil/pure/all

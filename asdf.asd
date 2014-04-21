@@ -3,7 +3,7 @@
 ;;;                                                                  ;;;
 ;;; Free Software available under an MIT-style license.              ;;;
 ;;;                                                                  ;;;
-;;; Copyright (c) 2001-2013 Daniel Barlow and contributors           ;;;
+;;; Copyright (c) 2001-2014 Daniel Barlow and contributors           ;;;
 ;;;                                                                  ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -61,11 +61,11 @@
    (:file "bundle" :depends-on ("lisp-action" "operate" "parse-defsystem"))
    (:file "concatenate-source" :depends-on ("plan" "parse-defsystem" "bundle"))
    (:file "backward-interface" :depends-on ("operate" "output-translations"))
-   (:file "package-system" :depends-on ("system" "find-system" "parse-defsystem"))
+   (:file "package-inferred-system" :depends-on ("system" "find-system" "parse-defsystem"))
    (:file "interface" :depends-on
           ("parse-defsystem" "concatenate-source"
            "backward-interface" "backward-internals"
-           "output-translations" "source-registry" "package-system"))
+           "output-translations" "source-registry" "package-inferred-system"))
    (:file "user" :depends-on ("interface"))
    (:file "footer" :depends-on ("user"))))
 
@@ -75,13 +75,13 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "3.1.0.113" ;; to be automatically updated by make bump-version
+  :version "3.1.0.116" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
-  :class #.(if (find-class 'package-system nil) 'package-system 'system)
+  :class #.(if (find-class 'package-inferred-system nil) 'package-inferred-system 'system)
   ;; For most purposes, asdf itself specially counts as a builtin system.
   ;; If you want to link it or do something forbidden to builtin systems,
-  ;; specify separate dependencies on UIOP (aka asdf-driver) and asdf/defsystem.
+  ;; specify separate dependencies on uiop (aka asdf-driver) and asdf/defsystem.
   #+asdf3 :builtin-system-p #+asdf3 t
   :components ((:module "build" :components ((:file "asdf"))))
   :in-order-to (#+asdf3 (prepare-op (monolithic-concatenate-source-op :asdf/defsystem))))

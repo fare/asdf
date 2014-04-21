@@ -1,5 +1,5 @@
 (defpackage :l-file
-  (:use :asdf :uiop :cl) ;; asdf/package-system dependencies
+  (:use :asdf :uiop :cl) ;; asdf/package-inferred-system dependencies
   (:export #:cl-source-file.l))
 
 (in-package :l-file)
