@@ -191,7 +191,10 @@ check-all-upgrade-results:
 	fi
 
 check-all-results:
-	@r=0 ; make check-all-test-results || r=1 ; make check-all-upgrade-results || r=1 ; exit $r
+	@r=0 ; \
+	make --quiet check-all-test-results || r=1 ; \
+	make --quiet check-all-upgrade-results || r=1 ; \
+	exit $r
 
 extract: extract-all-tagged-asdf
 extract-all-tagged-asdf: build/asdf.lisp
