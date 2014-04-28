@@ -593,7 +593,7 @@ Upon success, the KEEP form is evaluated and the file is is deleted unless it ev
     (check-type pathname symbol)
     (assert (or streamp pathnamep))
     (let* ((afterp (position :close-stream body))
-           (before (if afterp (subseq body 0 (1- afterp)) body))
+           (before (if afterp (subseq body 0 afterp) body))
            (after (when afterp (subseq body (1+ afterp))))
            (beforef (gensym "BEFORE"))
            (afterf (gensym "AFTER")))
@@ -613,7 +613,7 @@ Upon success, the KEEP form is evaluated and the file is is deleted unless it ev
           ,@(when suffix `(:suffix ,suffix))
           ,@(when type `(:type ,type))
           ,@(when keep `(:keep ,keep))
-          ,@(when after `(:after `#',afterf))
+          ,@(when after `(:after #',afterf))
           ,@(when element-type `(:element-type ,element-type))
           ,@(when external-format `(:external-format ,external-format))))))
 
