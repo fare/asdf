@@ -305,6 +305,18 @@
   (assert-equal (read-file-lines pn) '("Hello, World"))
   (delete-file pn))
 
+(assert
+ (not (probe-file
+       (let ((s 'outer-s))
+         (with-temporary-file (:stream s :pathname p :direction :io :prefix "LEP")
+           (assert (open-stream-p s))
+           (DBG :wsp s p (probe-file p))
+           (println "Same thing with :close-stream" s)
+           :close-stream
+           (assert-equal s 'outer-s) ;; the stream s (1) has been closed and (2) is no longer in scope.
+           (assert-equal (read-file-lines p) '("Same thing with :close-stream"))
+           p)))))
+
 (DBG :ensure-gethash)
 (let ((h (make-hash-table :test 'equal)))
   (assert-equal (multiple-value-list (gethash 1 h 2)) '(2 nil))
