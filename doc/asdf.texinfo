@@ -1047,6 +1047,8 @@ software.
 @comment  node-name,  next,  previous,  up
 @section The defsystem form
 @findex defsystem
+@cindex asdf-user
+@findex load-asd
 
 This section begins with an example of a system definition,
 then gives the full grammar of @code{defsystem}.
@@ -1078,53 +1080,44 @@ Some notes about this example:
 
 @item
 The file starts with an @code{in-package} form
-for package @code{asdf-user}.
-This is optional.
-If your file is loaded by ASDF 3,
-this is the context in which it will be read;
-this line will thus ensure that the system definition is read the
+for package @code{asdf-user}.  Quick summary: just do this, because it
+helps make interactive development of @code{defsystem} forms behave in
+the same was as when these forms are loaded by ASDF.  If that's enough
+for you, skip the rest of this item.  Otherwise read on for the gory details.
+
+If your file is loaded by ASDF 3, it will be loaded into the 
+@code{asdf-user} package.  The @code{in-package} form
+will ensure that the system definition is read the
 same as within ASDF when you load it interactively with @code{cl:load}.
 However, we recommend that you load @file{.asd} files
 through function @code{asdf::load-asd} rather than through @code{cl:load},
-in which case you don't need this @code{in-package} form.
-Recent versions of SLIME (2013-02 and later) know to do just that.
+in which case this form is unnecessary.
+Recent versions of SLIME (2013-02 and later) know to do that.
 
-@c FIXME: the following should probably be moved down to a more advanced
-@c bit of the manual.
 @item
 You can always rely on symbols
-from both package @code{asdf} and @code{common-lisp}
-to be readily available in the current package,
-most importantly including @code{defsystem} itself.
-Indeed, starting with ASDF 3.1,
-@file{.asd} files are read in the package @code{asdf-user}
-that uses @code{asdf}, @code{uiop} and @code{uiop/common-lisp}
-(a variant of @code{common-lisp}
-that has some portability fixes on old implementations).
-ASDF 3 releases before 3.1 also read in package @code{asdf-user}
-but that package don't use the full @code{uiop}, only @code{uiop/package}.
-ASDF 1 and ASDF 2 releases (up until 2.26) instead read @file{.asd} files
-in a temporary package @code{asdf@emph{N}}
-that uses @code{asdf} and @code{common-lisp}.
-You may thus have to package-qualify some symbols with @code{uiop:}
-to support older variants of ASDF 3,
-and/or package-qualify them with @code{asdf::}
-to be compatible with even older variants of ASDF 2
-(and then only use the few already available in ASDF 2).
+from both package @code{asdf} and @code{common-lisp} being available in
+@code{.asd} files -- 
+most importantly including @code{defsystem}.
 
-@item
-If in addition to simply using @code{defsystem},
-you are going to define functions,
-create ASDF extension, globally bind symbols, etc.,
-it is recommended that to avoid namespace pollution between systems,
-you should create your own package for that purpose, with:
+@c FIXME: the following should be inserted in a more advanced
+@c bit of the manual.  For now, it is simply elided.
+@c Starting with ASDF 3.1,
+@c @file{.asd} files are read in the package @code{asdf-user}
+@c that uses @code{asdf}, @code{uiop} and @code{uiop/common-lisp}
+@c (a variant of @code{common-lisp}
+@c that has some portability fixes on old implementations).
+@c ASDF 3 releases before 3.1 also read in package @code{asdf-user}
+@c but that package don't use the full @code{uiop}, only @code{uiop/package}.
+@c ASDF 1 and ASDF 2 releases (up until 2.26) instead read @file{.asd} files
+@c in a temporary package @code{asdf@emph{N}}
+@c that uses @code{asdf} and @code{common-lisp}.
+@c You may thus have to package-qualify some symbols with @code{uiop:}
+@c to support older variants of ASDF 3,
+@c and/or package-qualify them with @code{asdf::}
+@c to be compatible with even older variants of ASDF 2
+@c (and then only use the few already available in ASDF 2).
 
-@lisp
-(defpackage :hello-lisp-system
-  (:use :cl :asdf))
-
-(in-package :hello-lisp-system)
-@end lisp
 
 @item
 The @code{defsystem} form defines a system named @code{hello-lisp}
@@ -1141,14 +1134,16 @@ This means that ASDF will compile and load @file{packages} and @file{macros}
 before starting the compilation of file @file{hello}.
 
 @item
-The files are located in the same directory
-as the file with the system definition.
-ASDF resolves symbolic links (or Windows shortcuts)
-before loading the system definition file and
-stores its location in the resulting system@footnote{
-It is possible, though almost never necessary, to override this behaviour.}.
-This is a good thing because the user can move the system sources
-without having to edit the system definition.
+System source files should be located in the same directory
+as the @code{.asd} file with the system definition.
+@c FIXME: the following should live somewhere, but not in the quickstart
+@c page. [2014/05/03:rpg]
+@c ASDF resolves symbolic links (or Windows shortcuts)
+@c before loading the system definition file and
+@c stores its location in the resulting system@footnote{
+@c It is possible, though almost never necessary, to override this behaviour.}.
+@c This is a good thing because the user can move the system sources
+@c without having to edit the system definition.
 
 @c FIXME: Should have cross-reference to "Version specifiers" in the
 @c defsystem grammar, but the cross-referencing is so broken by
@@ -1172,6 +1167,8 @@ Let's illustrate some more involved uses of @code{defsystem} via a
 slightly convoluted example:
 
 @lisp
+(in-package :asdf-user)
+
 (defsystem "foo"
   :version "1.0.0"
   :components ((:module "mod"
@@ -1221,13 +1218,31 @@ grammar}.
 For more details on what these methods do, @pxref{Operations} in
 @ref{The object model of ASDF}.
 
-@c The following plunge into the weeds is not appropriate in this
+@c FIXME: The following plunge into detail weeds is not appropriate in this
 @c location. [2010/10/03:rpg]
 @c note that although this also supports @code{:before} methods,
 @c they may not do what you want them to ---
 @c a @code{:before} method on perform @code{((op compile-op) (c (eql ...)))}
 @c will run after all the dependencies and sub-components have been processed,
 @c but before the component in question has been compiled.
+
+
+@c FIXME: There should be YA example that shows definitions of functions
+@c and classes.  The following material should go there.
+@c @item
+@c If in addition to simply using @code{defsystem},
+@c you are going to define functions,
+@c create ASDF extension, globally bind symbols, etc.,
+@c it is recommended that to avoid namespace pollution between systems,
+@c you should create your own package for that purpose, with:
+
+@c @lisp
+@c (defpackage :hello-lisp-system
+@c   (:use :cl :asdf))
+
+@c (in-package :hello-lisp-system)
+@c @end lisp
+
 
 @node  The defsystem grammar, Other code in .asd files, A more involved example, Defining systems with defsystem
 @comment  node-name,  next,  previous,  up
