@@ -247,9 +247,9 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 
   (defun getcwd ()
     "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-    (or #+abcl (symbol-call :asdf/filesystem :parse-native-namestring
-                            (java:jstatic "getProperty" "java.lang.System" "user.dir")
-                                                     :ensure-directory t)
+    (or #+abcl (truename (symbol-call :asdf/filesystem :parse-native-namestring
+                          (java:jstatic "getProperty" "java.lang.System" "user.dir")
+                          :ensure-directory t))
         #+allegro (excl::current-directory)
         #+clisp (ext:default-directory)
         #+clozure (ccl:current-directory)
