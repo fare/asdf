@@ -181,9 +181,7 @@ check-all-test-results:
 	fi
 
 check-all-upgrade-results:
-	@A="$$(for i in build/results/*-upgrade.text ; do \
-		case "$$(tail -1 < $$i)" in "Upgrade test succeeded for "*) ;; \
-		*) echo $$i ; esac ; done)" ; \
+	@A="`grep -L 'Upgrade test succeeded for ' build/results/*-upgrade.text`" ; \
 	if [ -n "$$A" ] ; then \
 		echo "Unexpected upgrade failures on these implementations:" ; \
 		echo "$$A" ; \
