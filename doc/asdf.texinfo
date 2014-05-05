@@ -1054,8 +1054,8 @@ This section begins with an example of a system definition,
 then gives the full grammar of @code{defsystem}.
 
 Let's look at a simple system.
-This is a complete file that would
-should be saved as @file{hello-lisp.asd} (in order that ASDF can find it
+This is a complete file that should be saved as @file{hello-lisp.asd}
+(in order that ASDF can find it
 when ordered to operate on the system named @code{"hello-lisp"}).
 
 @c FIXME: the first example should have an outside dependency, e.g.,
@@ -1085,7 +1085,7 @@ helps make interactive development of @code{defsystem} forms behave in
 the same was as when these forms are loaded by ASDF.  If that's enough
 for you, skip the rest of this item.  Otherwise read on for the gory details.
 
-If your file is loaded by ASDF 3, it will be loaded into the 
+If your file is loaded by ASDF 3, it will be loaded into the
 @code{asdf-user} package.  The @code{in-package} form
 will ensure that the system definition is read the
 same as within ASDF when you load it interactively with @code{cl:load}.
@@ -1097,7 +1097,7 @@ Recent versions of SLIME (2013-02 and later) know to do that.
 @item
 You can always rely on symbols
 from both package @code{asdf} and @code{common-lisp} being available in
-@code{.asd} files -- 
+@code{.asd} files --
 most importantly including @code{defsystem}.
 
 @c FIXME: the following should be inserted in a more advanced
