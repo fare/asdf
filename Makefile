@@ -254,10 +254,10 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 # edit debian/changelog # RELEASE only...
 # git commit
 # git tag 3.0 # for example ...
+# make debian-package
 # git push
 # git push origin 3.0 # for example...
 # everything from here for RELEASE only
-# make debian-package
 # make release-push archive website debian-package
 # dput mentors ../*.changes
 # send debian mentors request
