@@ -12,8 +12,8 @@ cl-asdf (2:3.1.2-1) unstable; urgency=low
     Failure to explicitly inherit from one of the explicitly propagating
     or non-propagating classes will result in a WARNING for now.
   * Accept strings as operation class designators in DEFSYSTEM, which
-	provides better integration of ASDF extensions loaded using
-	DEFSYSTEM-DEPENDS-ON.
+    provides better integration of ASDF extensions loaded using
+    DEFSYSTEM-DEPENDS-ON.
   * force-not now takes precedence over force, and systems named in the
     *immutable-systems* set (represented as an equal hash-table) are always
     forced-not, and even their .asd is not refreshed from the filesystem.
@@ -56,7 +56,7 @@ cl-asdf (2:3.1.2-1) unstable; urgency=low
   * Substantially rewritten, updated, and expanded manual.
   * TODO updated.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Sun, 23 Mar 2014 19:00:06 -0400
+ -- Robert P Goldman <rpgoldman@sift.info>  Tue, 6 May 2014 10:54:29 -0500
 
 cl-asdf (2:3.0.3-1) unstable; urgency=low
 
