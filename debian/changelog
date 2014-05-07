@@ -1,16 +1,19 @@
-cl-asdf (2:3.1.1-1) unstable; urgency=low
+cl-asdf (2:3.1.2-1) unstable; urgency=low
 
   New release:
   * ~/common-lisp/ is now present by default in the source-registry, so
     you don't need to configure anything if you put source code there.
-  * asdf-package-system combines the one-file, one-package, one-system paradigm
+  * package-inferred-system combines the one-file, one-package, one-system paradigm
     of quick-build and faslpath with the portability and robustness of ASDF 3.
   * non-propagating-operation replaces OPERATION for operations as a base class
     to inherit from for operations that do not propagate,
     whereas for backward compatibility with ASDF 1 and 2,
-    subclasses of OPERATION implicitly propagate DOWNWARD and SIDEWAY.
-    Failure to explicitly inherit from own of the explicitly propagating
+    subclasses of OPERATION implicitly propagate DOWNWARD and SIDEWAYs.
+    Failure to explicitly inherit from one of the explicitly propagating
     or non-propagating classes will result in a WARNING for now.
+  * Accept strings as operation class designators in DEFSYSTEM, which
+    provides better integration of ASDF extensions loaded using
+    DEFSYSTEM-DEPENDS-ON.
   * force-not now takes precedence over force, and systems named in the
     *immutable-systems* set (represented as an equal hash-table) are always
     forced-not, and even their .asd is not refreshed from the filesystem.
@@ -45,11 +48,15 @@ cl-asdf (2:3.1.1-1) unstable; urgency=low
   * uiop much improved so as to be used with Google's build system blaze:
     with-temporary-file, dump-image / restore-image, ensure-pathname,
     compile-file*, with-saved-deferred-warnings.
+  * Added portable API to optimization settings.
+  * Refine detection of operating systems. os-macosx-p and os-unix-p no
+    longer mutually exclusive.
   * asdf3.1 feature pushed, to signal the slew of significant improvements
     in over a year since initial ASDF 3.0 pre-release (i.e. version 2.27).
-  * Documentation updated. TODO updated.
+  * Substantially rewritten, updated, and expanded manual.
+  * TODO updated.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Sun, 23 Mar 2014 19:00:06 -0400
+ -- Robert P Goldman <rpgoldman@sift.info>  Tue, 6 May 2014 10:54:29 -0500
 
 cl-asdf (2:3.0.3-1) unstable; urgency=low
 

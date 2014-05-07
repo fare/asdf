@@ -44,8 +44,7 @@
        :output (,*standard-output* :linewise t :prefix "stdout: ")
        :error-output (,*error-output* :linewise t :prefix "stderr: "))))))
 
-#-(or (and lispworks os-macosx)
-      (and ecl os-macosx))
+#-(and ecl os-macosx)
 (progn
   (DBG "test image-op")
   (defparameter img (output-file (make-operation 'image-op) (find-system :hello-world-example)))
@@ -83,8 +82,7 @@
      "  \"b c\""
      "  \"d\"")))
 
-#-(or (and lispworks os-macosx)
-      (and ecl os-macosx))
+#-(and ecl os-macosx)
 (progn
   (DBG "test program-op")
   (unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl) t

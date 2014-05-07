@@ -14,11 +14,11 @@
                           (find-symbol (string :*asdf-revision*) :asdf)))
         (string :1.x)))))
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (member :asdf2 *features*)
+  (unless (member :asdf3.1 *features*)
     (load (merge-pathnames "../build/asdf.lisp" *load-pathname*))))
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (member :asdf2 *features*)
-    (error "Not ASDF2, you lose!")))
+  (unless (member :asdf3.1 *features*)
+    (error "Not ASDF 3.1, you lose!")))
 
 (in-package :asdf)
 

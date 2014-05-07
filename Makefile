@@ -181,9 +181,7 @@ check-all-test-results:
 	fi
 
 check-all-upgrade-results:
-	@A="$$(for i in build/results/*-upgrade.text ; do \
-		case "$$(tail -1 < $$i)" in "Upgrade test succeeded for "*) ;; \
-		*) echo $$i ; esac ; done)" ; \
+	@A="`grep -L 'Upgrade test succeeded for ' build/results/*-upgrade.text`" ; \
 	if [ -n "$$A" ] ; then \
 		echo "Unexpected upgrade failures on these implementations:" ; \
 		echo "$$A" ; \
@@ -256,14 +254,15 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 # edit debian/changelog # RELEASE only...
 # git commit
 # git tag 3.0 # for example ...
+# make debian-package
 # git push
 # git push origin 3.0 # for example...
 # everything from here for RELEASE only
-# make debian-package
 # make release-push archive website debian-package
 # dput mentors ../*.changes
 # send debian mentors request
 # send announcement to asdf-announce, asdf-devel, etc.
+# Move all fixed bugs from Fix Committed -> Fix Released on launchpad
 #
 ## Users don't release as above, only maintainers do.
 ## Users, all you need to do is: make
