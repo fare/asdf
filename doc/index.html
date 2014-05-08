@@ -123,8 +123,10 @@
             </li>
             <li>Fran&ccedil;ois-Ren&eacute; Rideau's
               <a href="http://common-lisp.net/project/xcvb/"><tt>XCVB</tt></a>
-              (trying to build object and image files deterministically and in parallel,
-              but not actively maintained since 2012; ASDF could be modified ).
+              (building object and image files deterministically and in parallel,
+              but not actively maintained since 2012;
+              thanks to its new build model, ASDF 3 could conceivably be modified
+              to support these features).
             </li>
             <li>Drew McDermott's
               <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
@@ -147,7 +149,7 @@
             <li>Peter von Etter's
               <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
               (a much simpler system establishing a mapping between packages and files,
-              abandonned but see <tt>asdf-package-system</tt> and <tt>quick-build</tt> above).
+              abandoned but see <tt>asdf-package-system</tt> and <tt>quick-build</tt> above).
             </li>
             <li>Alexander Kahl's
               <a href="http://www.cliki.net/evol"><tt>evol</tt></a>
@@ -181,7 +183,7 @@
           <tr><th></th>
             <th align="left">Provide ASDF 3</th>
             <th align="left">Provide ASDF 2</th>
-            <th align="left">Will provide it</th>
+            <th align="left">Will provide ASDF(?)</th>
             <th align="left">Obsolete</th></tr>
           <tr><th align="left">Free</th>
             <td align="left"><tt>abcl ccl clisp cmucl ecl mkcl sbcl</tt></td>
@@ -215,7 +217,7 @@
              abcl ccl cmucl gcl lispworks sbcl mkcl scl xcl
 Armed Bear <armedbear-devel@common-lisp.net>,
 openmcl-devel@clozure.com,
-cmucl-imp@cons.org,
+cmucl-imp@cmucl.cons.org,
 gcl-devel@gnu.org,
 lisp-support@lispworks.com,
 bugs@franz.com, (allegro)
@@ -248,12 +250,12 @@ Peter Graves <gnooth@gmail.com> (XCL).
         </ul>
         <p>Regarding the internal design of ASDF in general,
           and the work we did on ASDF 3,
-          see the extended version (25 pages) of our paper
+          see the extended version (26 pages) of our paper
           <cite><a href="http://fare.tunes.org/files/asdf3/asdf3-2014.html"
                    >ASDF3, or Why Lisp is Now an Acceptable Scripting Language</a></cite>
           (<a href="http://fare.tunes.org/files/asdf3/asdf3-2014.pdf">PDF</a>,
           <a href="http://github.com/fare/asdf3-2013">git</a>).
-          the shorter version (8 pages) submitted to
+          The shorter version (8 pages), submitted to
           <a href="http://www.european-lisp-symposium.org/">ELS 2014</a>,
           focuses on ASDF 3 and misses historical and technical information
           (<a href="http://fare.tunes.org/files/asdf3/asdf3-els2014.pdf">PDF</a>,
@@ -342,7 +344,8 @@ Peter Graves <gnooth@gmail.com> (XCL).
             <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a> or
             <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
             (this functionality is built into recent versions of ASDF 3.1 and later,
-            but this package exists for backward compatibility with earlier versions of ASDF 3).
+            but this package exists for backward compatibility with earlier versions of ASDF 3;
+            search the manual for <tt>package-inferred-system</tt>).
         </ul>
         <p>Former extensions, now superseded, include:</p>
         <ul>
@@ -414,6 +417,11 @@ Peter Graves <gnooth@gmail.com> (XCL).
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>May 2014</dt>
+          <dd>Version 3.1.2 of ASDF 3 has been released.
+            In addition to many significant improvements and bug fixes,
+            it notably sports the <tt>package-inferred-system</tt> extension.
+          </dd>
           <dt>October 2013</dt>
           <dd>Version 3.0.3 of ASDF 3 has been released.
             It contains many bug fixes, including notably better Windows support.
