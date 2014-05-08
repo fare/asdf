@@ -12,9 +12,15 @@ This file requires cl-launch 4 and works on most implementations.
 It notably doesn't work on:
 * ABCL, that keeps ASDF in its jar, but that's OK because
  ABCL has a recent enough ASDF3 that is capable of upgrading itself.
+* On MKCL and ECL, more work is needed to take into account
+ the linkable variant of ASDF, that may be a .o or a .lib.
+ Also, MKCL now delivers UIOP separately from ASDF, which is great,
+ but requires support. Happily, both ECL and MKCL tend to sport
+ a recent ASDF 3, too.
 * GCL, that doesn't have a usable REQUIRE mechanism.
 * mocl, that doesn't support ASDF 3 yet.
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
+
 |#
 (ignore-errors (funcall 'require "asdf")) ;; Load the implementation-provided ASDF
 #-asdf2 (load (merge-pathnames ;; Fall back to loading ASDF manually
@@ -56,12 +62,16 @@ It notably doesn't work on:
                  #'> :key #'pathname-key)))
   #+(or clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
   (compile-file-pathname (subpathname (truename (asdf-module-directory)) "asdf.lisp"))
-  #-(or allegro clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
+  ;; ECL and MKCL not really supported at this point. See above.
+  #-(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
   (error "Not implemented on ~A" (implementation-type)))
 
 (defun install-asdf-as-module ()
-  (let ((fasl (asdf-module-fasl)))
+  (let* ((fasl (asdf-module-fasl))
+         (orig (add-pathname-suffix fasl "-orig")))
     (ensure-directories-exist (translate-logical-pathname fasl))
-    (compile-file (subpathname *asdf-dir* "build/asdf.lisp") :output-file fasl)))
+    (when (and (probe-file* fasl) (not (probe-file* orig)))
+      (rename-file-overwriting-target fasl orig))
+    (compile-file* (subpathname *asdf-dir* "build/asdf.lisp") :output-file fasl)))
 
 (uiop:writeln (multiple-value-list (install-asdf-as-module)))
