@@ -14,4 +14,5 @@
    :uiop/run-program :uiop/lisp-build
    :uiop/configuration :uiop/backward-driver))
 
-#+mkcl (provide :uiop)
+;; Provide both lowercase and uppercase, to satisfy more people.
+(provide "uiop") (provide "UIOP")
