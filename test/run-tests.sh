@@ -409,7 +409,7 @@ valid_upgrade_test_p () {
         cmucl:1.*|cmucl:2.*) : ;;
         # Skip many ECL tests, for various ASDF issues
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
-        # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.1
+        # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
         gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*) : ;;
         # MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
         mkcl:[12]*|mkcl:3.0*) : ;;
