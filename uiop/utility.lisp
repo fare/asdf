@@ -195,7 +195,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 ;;; Characters
 (with-upgradability () ;; base-char != character on ECL, LW, SBCL, Genera. LW also has SIMPLE-CHAR.
-  (defconstant +non-base-chars-exist-p+ (not (subtypep 'character 'base-char)))
+  (defconstant +non-base-chars-exist-p+ #.(not (subtypep 'character 'base-char)))
   #-scl ;; In SCL, all characters seem to be 16-bit base-char, but this flag gets set somehow???
   (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
 
@@ -372,7 +372,7 @@ and EVAL that in a (FUNCTION ...) context."
     (etypecase fun
       (function fun)
       ((or boolean keyword character number pathname) (constantly fun))
-      (hash-table (lambda (x) (gethash x fun)))
+      (hash-table #'(lambda (x) (gethash x fun)))
       (symbol (fdefinition fun))
       (cons (if (eq 'lambda (car fun))
                 (eval fun)

@@ -592,13 +592,14 @@ in an atomic way if the implementation allows."
                                     directory-pathname (unix:get-unix-error-msg errno))))
     #+cormanlisp (win32:delete-directory directory-pathname)
     #+ecl (si:rmdir directory-pathname)
+    #+genera (fs:delete-directory directory-pathname)
     #+lispworks (lw:delete-directory directory-pathname)
     #+mkcl (mkcl:rmdir directory-pathname)
     #+sbcl #.(if-let (dd (find-symbol* :delete-directory :sb-ext nil))
                `(,dd directory-pathname) ;; requires SBCL 1.0.44 or later
                `(progn (require :sb-posix) (symbol-call :sb-posix :rmdir directory-pathname)))
     #+xcl (symbol-call :uiop :run-program `("rmdir" ,(native-namestring directory-pathname)))
-    #-(or abcl allegro clisp clozure cmu cormanlisp digitool ecl gcl lispworks mkcl sbcl scl xcl)
+    #-(or abcl allegro clisp clozure cmu cormanlisp digitool ecl gcl genera lispworks mkcl sbcl scl xcl)
     (error "~S not implemented on ~S" 'delete-empty-directory (implementation-type))) ; genera
 
   (defun delete-directory-tree (directory-pathname &key (validate nil validatep) (if-does-not-exist :error))
@@ -632,7 +633,7 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
           (error "~S was asked to delete ~S but the directory does not exist"
               'delete-filesystem-tree directory-pathname))
          (:ignore nil)))
-      #-(or allegro cmu clozure sbcl scl)
+      #-(or allegro cmu clozure genera sbcl scl)
       ((os-unix-p) ;; On Unix, don't recursively walk the directory and delete everything in Lisp,
        ;; except on implementations where we can prevent DIRECTORY from following symlinks;
        ;; instead spawn a standard external program to do the dirty work.
@@ -642,7 +643,7 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
        #+allegro (symbol-call :excl.osi :delete-directory-and-files
                               directory-pathname :if-does-not-exist if-does-not-exist)
        #+clozure (ccl:delete-directory directory-pathname)
-       #+genera (error "~S not implemented on ~S" 'delete-directory-tree (implementation-type))
+       #+genera (fs:delete-directory directory-pathname :confirm nil)
        #+sbcl #.(if-let (dd (find-symbol* :delete-directory :sb-ext nil))
                   `(,dd directory-pathname :recursive t) ;; requires SBCL 1.0.44 or later
                   '(error "~S requires SBCL 1.0.44 or later" 'delete-directory-tree))
