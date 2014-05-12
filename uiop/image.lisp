@@ -71,7 +71,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+(or cmu scl) (unix:unix-exit code)
     #+ecl (si:quit code)
     #+gcl (system:quit code)
-    #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
+    #+genera (error "~S: You probably don't want to Halt Genera. (code: ~S)" 'quit code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
     #+mcl (progn code (ccl:quit)) ;; or should we use FFI to call libc's exit(3) ?
     #+mkcl (mk-ext:quit :exit-code code)
