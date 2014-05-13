@@ -331,19 +331,21 @@ upgrade_tags () {
     #
     # The 3.0 series is a stable release of ASDF 3
     # with Robert Goldman taking over maintainership at 3.0.2.
-    # 3.0.0 was 2.33.10 promoted, but version-satisfies meant it was suddenly
+    # 3.0.0 was just 2.33.10 promoted, but version-satisfies meant it was suddenly
     # not compatible with ASDF2 anymore, so we immediately released 3.0.1
     #   3.0.1 (2013-05-16) is the first stable ASDF 3 release
-    #   3.0.2 (2013-07-02) was the first ASDF 3 in SBCL
-    #   3.0.3 (2013-10-22) was the last in the ASDF 3.0 series
+    #   3.0.2 (2013-07-02) is the first ASDF 3 in SBCL
+    #   3.0.3 (2013-10-22) is the last in the ASDF 3.0 series
     #
     # The 3.1 series provides the 3.1 feature, meaning users can rely on
     # all the stabilization work done in 3.0 so far, plus extra developments
     # in UIOP, package-inferred-system, and more robustification.
+    #   3.1.2 (2014-05-06) is the first ASDF 3.1 release
     #
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.
     echo REQUIRE
+    echo 3.1.2
     echo 3.0.3 3.0.2 3.0.1
     echo 2.32 2.27
     echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
