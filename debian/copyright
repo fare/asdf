@@ -1,24 +1,27 @@
-This package was debianized by Kevin M. Rosenberg <kmr@debian.org> on
-Fri, 16 Aug 2002 23:14:49 -0600.
+This package was debianized by Robert P. Goldman <rpgoldman@sift.net> in May
+2014.
 
-It was downloaded from SourceForge CVS server with the below commands:
-   cvs -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan login
-     (no password: just press Enter)
-    cvs -z3 -d:pserver:anonymous@cvs.cclan.sourceforge.net:/cvsroot/cclan \
-         co asdf
+The source is available using git from common-lisp.net:
+   git clone git://common-lisp.net/projects/asdf/asdf.git
+The package should conform
 
 The debian related changes and files are licensed according to the GPL-v2, see
 /usr/share/common-licenses/GPL-2
 
 
-Upstream Authors: Dan Barlow <dan@telent.net> & Contributors
+Upstream Authors: Dan Barlow <dan@telent.net>, Francois-Rene Rideau
+(fare@tunes.org), Robert P. Goldman (rpgoldman@sift.net) & Contributors.
+
+The original Debian packaging was done by Kevin M. Rosenberg <kmr@debian.org>,
+in 2002.
 
 Copyright:
 
 (This is the MIT / X Consortium license as taken from 
  http://www.opensource.org/licenses/mit-license.html)
 
-Copyright (c) 2001-2007 Daniel Barlow and contributors
+Copyright (c) 2001-2014 Daniel Barlow, Francois-Rene Rideau, Robert P. Goldman,
+and contributors
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
