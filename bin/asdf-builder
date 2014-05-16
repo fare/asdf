@@ -2,6 +2,11 @@
 ;;;;; Really runs on any decent Common Lisp implementation
 ;;;;; Can also be invoked by cl-launch 4: cl-launch "$0" "$@"
 
+;;;; This file is conceptually in several parts:
+;;;; 1- a header that loads ASDF, even when the implementation might or might not provide it.
+;;;; 2- a body that defines various functions used to build and release ASDF
+;;;; 3- a footer that makes these Lisp functions available from the shell command-line
+
 ;;; The code below exemplifies how to load and configure ASDF
 ;;; as part of your own deterministic build.
 ;;; See "User-configurable parts" for where you'd customize it to suit your build.
@@ -13,7 +18,7 @@
 ;;; To use the user-configured ASDF rather than a deterministic self-contained project build,
 ;;; see instead how cl-launch 4.0.4 loads ASDF.
 
-(in-package :cl-user) ;; That's may be default, but let's make double sure and tell SLIME.
+(in-package :cl-user) ;; That may be default, but let's make double sure and tell SLIME.
 
 ;; Do everything in eval-when, so this works
 ;; whether this file is being loaded directly or compiled first.
@@ -87,10 +92,11 @@
                         ;;     :want-absolute t :ensure-directory t)
                         (subpath (here-directory) :directory '(:back)))
                       (source-registry
-                        `(:source-registry
-                          (:tree ,source-directory)
-                          ;; In a fully controlled build, you'd :ignore-inherited-configuration instead:
-                          :inherit-configuration))
+                        (or (asdf-call 'getenv "ASDF_DEVEL_SOURCE_REGISTRY")
+                            `(:source-registry
+                              (:tree ,source-directory)
+                              ;; In a fully controlled build, you'd :ignore-inherited-configuration instead:
+                              :inherit-configuration)))
                       (output-directory
                         ;; There again, you might want to use some getenv variant.
                         ;; Also, "fasls" might be redundant for your project.
@@ -120,26 +126,22 @@
       ;; Load and configure ASDF
       (load-and-configure-asdf))))
 
-(in-package :asdf)
-
+;;; ASDF3 is loaded, now use it!
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (load-systems :cl-ppcre :fare-utils :inferior-shell))
-
-(unless (featurep :cl-launch) (restore-image))
+  (unless (uiop:featurep :cl-launch) (uiop:restore-image))
+  (asdf:load-systems :cl-ppcre :fare-utils :inferior-shell))
 
 (defpackage :asdf-builder
-  (:use :cl :uiop :asdf/operate :asdf :fare-utils :inferior-shell)
-  (:shadow #:DBG))
+  (:use :cl :uiop :asdf :cl-ppcre :fare-utils :inferior-shell))
 
 (in-package :asdf-builder)
 
-(uiop-debug)
+;;(uiop-debug)
 
 (defun build-asdf ()
   "Make sure asdf.lisp is built"
   (load-system :asdf)
   (values))
-
 
 ;;; ASDF directory
 (defvar *asdf-dir*
@@ -151,148 +153,106 @@
 (defun nn (&rest x)
   (native-namestring (apply 'pn x)))
 
-;;; UIOP directory
-(defvar *uiop-dir* (pn "uiop/"))
+(defun call-with-asdf-dir (thunk &rest subs)
+  (with-current-directory ((apply 'pn subs))
+    (funcall thunk)))
 
-;;; build directory
-(defparameter *build-dir* (pn "build/"))
-(defparameter /build-dir/ (nn "build/"))
-(defun bpath (x &rest keys) (apply 'subpathname *build-dir* x keys))
+(defmacro with-asdf-dir ((&rest subs) &body body)
+  `(call-with-asdf-dir (lambda () ,@body) ,@subs))
 
-(defparameter *version-file*
-  (pn "version.lisp-expr"))
 
-(defparameter *version* (safe-read-file-form *version-file*))
+;;; Using git
+;; Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
+;; as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
 
-(defun enough-namestring! (base pathname)
-  (let ((e (enough-namestring base pathname)))
-    (assert (relative-pathname-p e))
-    e))
+(defun git (cmd &rest args)
+  (with-asdf-dir ()
+    (apply 'run (cons "git" cmd) args)))
 
-(defun enough-namestrings (base pathnames)
-  (loop :with b = (ensure-pathname base :want-absolute t :want-directory t)
-        :for p :in pathnames
-        :collect (enough-namestring! p b)))
-
-(defun system-source-files (system)
-  (let* ((sys (find-system system))
-         (dir (ensure-pathname
-               (system-source-directory sys)
-               :want-absolute t :want-directory t))
-         (components
-           (required-components
-            sys :other-systems nil
-            :goal-operation 'load-op
-            :keep-operation 'load-op
-            :keep-component 'file-component))
-         (pathnames (mapcar 'component-pathname components)))
-    (enough-namestrings dir pathnames)))
-
-(defun tarname (name) (strcat name ".tar.gz"))
-
-(defun make-tarball-under-build (name base files)
-  (check-type name string)
-  (ensure-pathname base :want-absolute t :want-existing t :want-directory t)
-  (dolist (f files)
-    (check-type f string))
-  (let* ((base
-           (ensure-pathname
-            base
-            :want-absolute t :want-directory t
-            :want-existing t :truename t))
-         (destination
-           (ensure-pathname
-            name
-            :defaults *build-dir*
-            :want-relative t :ensure-absolute t
-            :ensure-subpath t :ensure-directory t))
-         (tarball
-           (ensure-pathname
-            (tarname name)
-            :defaults *build-dir*
-            :want-relative t :ensure-absolute t
-            :ensure-subpath t :want-file t
-            :ensure-directories-exist t)))
-    (assert (< 6 (length (pathname-directory destination))))
-    (when (probe-file* destination)
-      (error "Destination ~S already exists, not taking chances - you can delete it yourself."
-             destination))
-    (ensure-directories-exist destination)
-    (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
-    (run `(tar "zcfC" ,tarball ,*build-dir* (,name /)) :show t)
-    (delete-directory-tree destination :validate (lambda (x) (equal x destination)))
-    (values)))
-
-(defun driver-files ()
-  (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
-(defun driver-name ()
-  (format nil "uiop-~A" *version*))
-(defun make-driver-tarball ()
-  (make-tarball-under-build (driver-name) *uiop-dir* (driver-files)))
-
-(defun asdf-defsystem-files ()
-  (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
-         (system-source-files :asdf/defsystem)))
-(defun asdf-defsystem-name ()
-  (format nil "asdf-defsystem-~A" *version*))
-(defun make-asdf-defsystem-tarball ()
-  (build-asdf)
-  (make-tarball-under-build (asdf-defsystem-name) *asdf-dir* (asdf-defsystem-files)))
-
-(defun asdf-git-name ()
-  (strcat "asdf-" *version*))
-(defun make-git-tarball ()
-  (build-asdf)
-  (with-current-directory ((pn))
-    (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") build/asdf.lisp ,@(run/lines '(git ls-files)))
-         (asdf-git-name)) :show t)
+(defun clean ()
+  (git '(clean -xfd))
   (values))
 
-(defun asdf-lisp-name ()
-  (format nil "asdf-~A.lisp" *version*))
+(defun %push ()
+  "Push git branches master and release to cl.net and master"
+  (with-asdf-dir ()
+    (dolist (x '((git status)
+                 (git push --tags cl.net release master)
+                 (git push --tags github release master)
+                 (git fetch)
+                 (git status)))
+      (run x))))
 
-(defun make-asdf-lisp ()
-  (build-asdf)
-  (concatenate-files (list (pn "build/asdf.lisp"))
-                     (pn "build/" (asdf-lisp-name))))
+(defun merge-master-into-release ()
+  "Merge master into release"
+  (with-asdf-dir ()
+    (dolist (x '((git checkout master)
+                 (git merge release)
+                 (git checkout release)
+                 (git merge master)
+                 (git checkout master)))
+      (run x))))
 
-(defun make-archive ()
-  (make-driver-tarball)
-  (make-asdf-defsystem-tarball)
-  (make-git-tarball)
-  (make-asdf-lisp)
-  (values))
+(defparameter *wrongful-tags*
+  '("1.37" ;; It's not asdf.lisp 1.37, it's asdf.lisp 1.85! 1.37 was the CVS version of the README.
+    "1.1720" ;; That was a typo for 1.720
+    "RELEASE" "STABLE" ;; These were misguided attempts for what should have been branches
+    "README" "emp")) ;; Mistakes
 
-(defvar *clnet* "common-lisp.net")
-(defvar *clnet-asdf-public* "/project/asdf/public_html/")
-(defun public-path (x) (strcat *clnet-asdf-public* x))
+(defun fix-local-git-tags ()
+  "Delete wrongful tags from local repository"
+  (dolist (tag *wrongful-tags*)
+    (git `(tag -d ,tag) :on-error t)))
 
-(defun publish-archive ()
-  (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
-    (run (format nil "cd ~S && rsync ~{~S ~}~S common-lisp.net:/project/asdf/public_html/archives/"
-                 /build-dir/ tarballs (asdf-lisp-name)) :show t))
-  (format t "~&To download the tarballs, point your browser at:~%
-        http://common-lisp.net/project/asdf/archives/
-~%")
-  (values))
+(defun fix-remote-git-tags (&optional (remote "origin"))
+  "Delete wrongful tags from remote repository"
+  (dolist (tag *wrongful-tags*)
+    (git `(push ,remote (:refs/tags/,tag)) :on-error t)))
 
-(defun link-archive ()
-  (run (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
-               (tarname (driver-name))
-               (public-path "archives/uiop.tar.gz")
-               (tarname (asdf-defsystem-name))
-               (public-path "archives/asdf-defsystem.tar.gz")
-               (tarname (asdf-git-name))
-               (public-path "archives/asdf.tar.gz")
-               (asdf-lisp-name)
-               (public-path "archives/asdf.lisp"))
-       :show t :host *clnet*)
-  (values))
+(defun git-all-committed-p ()
+  "Is your checkout clean, with all files committed?"
+  (null (git '(status -s) :output :lines)))
 
-(defun make-and-publish-archive ()
-  (make-archive)
-  (publish-archive)
-  (link-archive))
+(defun check-git-all-committed ()
+  (or (git-all-committed-p)
+      (die 2 "Your git checkout isn't clean and all committed:~%~A~%"
+           (git '(status) :output :string))))
+
+
+;;; Documentation
+(defun doc ()
+  (run '(make) :directory (pn "doc/")))
+
+(defun website ()
+  (run '(make website) :directory (pn "doc/")))
+
+
+;;; Extracting version information
+
+(defparameter *version-tag-glob* "[0-9][.][0-9]*")
+
+(defun version-from-tag (&optional commit)
+  (git `(describe --tags --match ,*version-tag-glob*)
+       :output :line :directory (pn)))
+
+(defun version-from-file (&optional commit)
+  (if commit
+      (git `(show (,commit":version.lisp-expr")) :output :form)
+      (safe-read-file-form (pn "version.lisp-expr"))))
+
+(defun debian-version-from-file (&optional commit)
+  (let ((line
+          (if commit
+              (git `(show (,commit":debian/changelog")) :output :line)
+              (read-file-line (pn "debian/changelog")))))
+    (cl-ppcre:register-groups-bind (ver) ("^cl-asdf [(]([0-9.:-]+)[)] " line)
+      ver)))
+
+(defparameter *version* (version-from-file))
+
+
+
+;;; Bumping the version of ASDF
 
 (defparameter *versioned-files*
   '(("version.lisp-expr" "\"" "\"")
@@ -311,9 +271,6 @@
     (unless (fourth pv) (appendf pv (list 0)))
     (incf (car (last pv)))
     (unparse-version pv)))
-
-(defun version-from-file ()
-  (safe-read-file-form *version-file*))
 
 (defun versions-from-args (&optional v1 v2)
   (labels ((check (old new)
@@ -380,36 +337,166 @@
   (apply 'test-transform-file new-version (first *versioned-files*)))
 
 (defun bump-version (&optional v1 v2)
-  (multiple-value-bind (old-version new-version)
-      (versions-from-args v1 v2)
-    (a "Bumping ASDF version from " old-version " to " new-version)
-    (transform-files new-version)
-    (a "Rebuilding ASDF with bumped version")
-    (build-asdf)))
+  (with-asdf-dir ()
+    (multiple-value-bind (old-version new-version)
+        (versions-from-args v1 v2)
+      (a "Bumping ASDF version from " old-version " to " new-version)
+      (transform-files new-version)
+      (a "Rebuilding ASDF with bumped version")
+      (build-asdf)
+      new-version)))
 
-(defparameter *version-tag-glob* "[0-9][.][0-9]*")
+(defun bump (&optional v1 v2)
+  (let ((v (bump-version v1 v2)))
+    (git `(commit -a -m ("Bump version to ",v)))
+    (git `(tag ,v))
+    v))
 
-(defun version-from-tag (&optional commit)
-  (first (run/lines `("git" "describe" "--tags" "--match" ,*version-tag-glob*) :show t)))
 
-(defun version-from-file (&optional commit)
-  (if commit
-      (run `("git" "show" (,commit":version.lisp-expr")) :output :form)
-      (read-file-form *version-file*)))
+;;; Getting a list of source files in a system
 
-(defun debian-version-from-file (&optional commit)
-  (let ((line
-          (if commit
-              (run `("git" "show" (,commit":debian/changelog")) :output :line)
-              (read-file-line "debian/changelog"))))
-    (cl-ppcre:register-groups-bind (ver) ("^cl-asdf [(]([0-9.:-]+)[)] " line)
-      ver)))
+(defun enough-namestring! (base pathname)
+  (let ((e (enough-namestring base pathname)))
+    (assert (relative-pathname-p e))
+    e))
 
-(defun clean ()
-  (with-current-directory ((pn))
-    (run '(git clean -xfd)))
+(defun enough-namestrings (base pathnames)
+  (loop :with b = (ensure-pathname base :want-absolute t :want-directory t)
+        :for p :in pathnames
+        :collect (enough-namestring! p b)))
+
+(defun system-source-files (system &key monolithic)
+  (let* ((sys (find-system system))
+         (components
+           (required-components system
+                                :other-systems monolithic
+                                :goal-operation 'load-op
+                                :keep-operation 'load-op
+                                :keep-component 'file-component))
+         (dir (ensure-pathname
+               (system-source-directory sys)
+               :want-absolute t :want-directory t))
+         (pathnames (mapcar 'component-pathname components)))
+    (enough-namestrings dir pathnames)))
+
+
+;;; Making release tarballs for asdf, asdf/defsystem, uiop.
+
+(defun tarname (name) (strcat name ".tar.gz"))
+
+(defun make-tarball-under-build (name base files)
+  (check-type name string)
+  (ensure-pathname base :want-absolute t :want-existing t :want-directory t)
+  (dolist (f files)
+    (check-type f string))
+  (let* ((base
+           (ensure-pathname
+            base
+            :want-absolute t :want-directory t
+            :want-existing t :truename t))
+         (destination
+           (ensure-pathname
+            name
+            :defaults (pn "build/")
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t :ensure-directory t))
+         (tarball
+           (ensure-pathname
+            (tarname name)
+            :defaults (pn "build/")
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t :want-file t
+            :ensure-directories-exist t)))
+    (assert (< 6 (length (pathname-directory destination))))
+    (when (probe-file* destination)
+      (error "Destination ~S already exists, not taking chances - you can delete it yourself."
+             destination))
+    (ensure-directories-exist destination)
+    (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
+    (run `(tar "zcfC" ,tarball ,(pn "build/") (,name /)) :show t)
+    (delete-directory-tree destination :validate (lambda (x) (equal x destination)))
+    (values)))
+
+(defun driver-files ()
+  (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
+(defun driver-name ()
+  (format nil "uiop-~A" *version*))
+(defun make-driver-tarball ()
+  (make-tarball-under-build (driver-name) (pn "uiop/") (driver-files)))
+
+(defun asdf-defsystem-files ()
+  (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
+         (system-source-files :asdf/defsystem)))
+(defun asdf-defsystem-name ()
+  (format nil "asdf-defsystem-~A" *version*))
+(defun make-asdf-defsystem-tarball ()
+  (build-asdf)
+  (make-tarball-under-build (asdf-defsystem-name) (pn) (asdf-defsystem-files)))
+
+(defun asdf-git-name ()
+  (strcat "asdf-" *version*))
+
+(defun make-git-tarball ()
+  (build-asdf)
+  (with-asdf-dir ()
+    (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") build/asdf.lisp ,@(run/lines '(git ls-files)))
+         (asdf-git-name)) :show t)
   (values))
 
+(defun asdf-lisp-name ()
+  (format nil "asdf-~A.lisp" *version*))
+
+(defun make-asdf-lisp ()
+  (build-asdf)
+  (concatenate-files (list (pn "build/asdf.lisp"))
+                     (pn "build/" (asdf-lisp-name))))
+
+(defun make-archive ()
+  (make-driver-tarball)
+  (make-asdf-defsystem-tarball)
+  (make-git-tarball)
+  (make-asdf-lisp)
+  (values))
+
+
+;;; Publishing tarballs onto the public repository
+
+(defvar *clnet* "common-lisp.net")
+(defvar *clnet-asdf-public* "/project/asdf/public_html/")
+(defun public-path (x) (strcat *clnet-asdf-public* x))
+
+(defun publish-archive ()
+  (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
+    (run `(rsync ,@tarballs ,(asdf-lisp-name) (,*clnet* ":" ,(public-path "archives/")))
+         :show t :directory (pn "build/")))
+  (format t "~&To download the tarballs, point your browser at:~%
+        http://common-lisp.net/project/asdf/archives/
+~%")
+  (values))
+
+(defun link-archive ()
+  (run (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
+               (tarname (driver-name))
+               (public-path "archives/uiop.tar.gz")
+               (tarname (asdf-defsystem-name))
+               (public-path "archives/asdf-defsystem.tar.gz")
+               (tarname (asdf-git-name))
+               (public-path "archives/asdf.tar.gz")
+               (asdf-lisp-name)
+               (public-path "archives/asdf.lisp"))
+       :show t :host *clnet*)
+  (values))
+
+(defun make-and-publish-archive ()
+  (make-archive)
+  (publish-archive)
+  (link-archive))
+
+(defun archive () "alias for make-and-publish-archive" (make-and-publish-archive))
+(defun install () "alias for make-and-publish-archive" (make-and-publish-archive))
+
+
+;;; Making a debian package
 (defun debian-package (&optional (release "release"))
   (let* ((debian-version (debian-version-from-file release))
          (version (version-from-file release)))
@@ -432,19 +519,309 @@
            --git-ignore-branch)
          :directory (pn) :show t)))
 
+(defun release ()
+  "Release the code (not implemented)"
+  #| RELEASE or PUSH checklist:
+make test-all
+make test-load-systems s=fare-all
+make bump v=3.0
+edit debian/changelog # RELEASE only...
+git commit
+git tag 3.0 # for example ...
+make debian-package
+git push
+git push origin 3.0 # for example...
+everything from here for RELEASE only
+make release-push archive website debian-package
+dput mentors ../*.changes
+send debian mentors request
+send announcement to asdf-announce, asdf-devel, etc.
+Move all fixed bugs from Fix Committed -> Fix Released on launchpad
+  |#
+  (die 42 "release is not implemented yet"))
+
+
+;;; Line counting
+(defun wc ()
+  (with-asdf-dir ()
+    (run `(pipe (wc ,@(driver-files)) (sort -n)))
+    (terpri)
+    (run `(pipe (wc header.lisp ,@(asdf-defsystem-files)) (sort -n)))
+    (terpri)
+    (run `(pipe (wc header.lisp ,@(driver-files) ,@(asdf-defsystem-files)) (tail -n 1)))))
+
+
+;;; Testing
+
+(defun ensure-keyword (x)
+  (etypecase x
+    ((or null keyword) x)
+    ((or string symbol) (intern (string-upcase x) :keyword))))
+
+(defun ensure-list-of-keywords (x)
+  (mapcar 'ensure-keyword
+          (remove nil
+                  (etypecase x
+                    (string (uiop:split-string (string-upcase x) :separator " "))
+                    (list x)))))
+
+(defparameter *default-test-lisps*
+  '(:ccl :clisp :sbcl :ecl :ecl_bytecodes :cmucl :abcl :scl :allegro
+    :lispworks :allegromodern :gcl :xcl :mkcl)
+  ;; NOT SUPPORTED BY OUR AUTOMATED TESTS:
+  ;; :cormancl :genera :lispworks-personal-edition :mcl
+  ;; Also, grep for #+/#- features in the test/ directory
+  ;; to see plenty of disabled tests on some platforms
+  "Default Lisp implementations for tests")
+
+(defparameter *test-lisps* *default-test-lisps*
+  "The list of lisp implementations to use for tests")
+
+(defparameter *upgrade-test-lisps* *default-test-lisps*
+  "The list of lisp implementations to use for upgrade tests")
+
+(defparameter *test-systems*
+  (ensure-list-of-keywords (getenvp "ASDF_TEST_SYSTEMS")))
+
+(defparameter *test-scripts* ()) ;; TODO: use :all instead of NIL (?)
+
+(defparameter *environment-variable-table* nil)
+
+(defparameter *environment-variable-specs*
+  '((*test-lisps* ensure-list-of-keywords *default-test-lisps*
+     "ASDF_TEST_LISPS" "l")
+    (*upgrade-test-lisps* ensure-list-of-keywords *default-test-lisps*
+     "ASDF_UPGRADE_TEST_LISPS" "u")
+    (*test-systems* ensure-list-of-keywords ()
+     "ASDF_TEST_SYSTEMS" "s")
+    (*test-scripts* ensure-list-of-keywords ()
+     "ASDF_TESTS" "t")))
+
+(defun initialize-environment ()
+  (let ((h (make-hash-table :test 'equal)))
+    (setf *environment-variable-table* h)
+    (loop :for (variable transformer defaults envvar short) :in *environment-variable-specs*
+          :for x = (list variable transformer)
+          :do (setf (symbol-value variable)
+                    (if-let (x (getenvp envvar)) (funcall transformer x) defaults))
+              (setf (gethash envvar h) x)
+              (setf (gethash short h) x))))
+
+(defparameter *extra-environment-definitions* ())
+
+(defun test-lisp/k () (first *test-lisps*))
+(defun test-lisp/s () (string-downcase (first *test-lisps*)))
+
+(defun test-definition (def)
+  (block ()
+    (cl-ppcre:register-groups-bind (var val) ("^([^=]+)=(.*)$" def)
+      (if-let (x (gethash var *environment-variable-table*))
+        (destructuring-bind (var transformer default) x
+          (declare (ignore default))
+          (setf (symbol-value var) (funcall transformer val))
+          (return))))
+    (push def *extra-environment-definitions*)))
+
+(defun test-environment (env)
+  (loop :for def :in env :do (test-definition def)))
+
+(defun run-tests (args)
+  (with-asdf-dir ()
+    (run `(./test/run-tests.sh ,@args) :output :interactive)))
+
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun decl-or-docstring-p (form)
+    (or (stringp form)
+        (and (consp form) (eq 'declare (car form)))))
+
+  (defun decl-and-body (decl-and-body)
+    (let ((p (position-if-not 'decl-or-docstring-p decl-and-body)))
+      (values (subseq decl-and-body 0 p)
+              (nthcdr p decl-and-body)))))
+
+(defmacro deftestcmd (name args &rest decl-and-body)
+  (let ((env (gensym "ENV")))
+    (multiple-value-bind (decl body) (decl-and-body decl-and-body)
+      `(defun ,name (,@args &rest ,env)
+         ,@decl
+         (test-environment ,env)
+         ,@body))))
+
+(deftestcmd %load () ;; load would be a clash, so use %load instead
+  "make load will start a Lisp and load ASDF from individual source files.
+This is great to quickly locate compilation errors and interactively debug ASDF."
+  ;; Try this instead?
+  '(with-asdf-dir ()
+    (run `(rlwrap ,@(lisp-invocation-arglist :implementation (test-lisp/k) :eval (format nil "(or'#.(load(string'|test/script-support.lisp|))#.(asdf-test:interactive-test'(~{~A~^ ~})))" (system-source-files :asdf/defsystem :monolithic t))))
+     :output :interactive))
+  (run-tests `(-t ,(test-lisp/s) ,@(system-source-files :asdf/defsystem :monolithic t))))
+
+(deftestcmd test-basic ()
+  "basic smoke test"
+  (doc)
+  (test-load-systems))
+
+(deftestcmd test-lisp ()
+  "run test scripts with the preferred lisp implementation"
+  (with-asdf-dir ("test/")
+    (run `("./run-tests.sh" ,(test-lisp/s) ,@*test-scripts*))))
+(deftestcmd %t () "alias for test-lisp" (test-lisp))
+
+(deftestcmd test-upgrade ()
+  "run upgrade tests with the preferred lisp implementation"
+  (run-tests `("-u" ,(test-lisp/s))))
+(deftestcmd u () "alias for test-upgrade" (test-upgrade))
+
+(deftestcmd test-clean-load ()
+  "test that the preferred lisp implementation can load asdf cleanly without any output message"
+  (run-tests `("-c" ,(test-lisp/s))))
+
+(deftestcmd test-load-systems ()
+  "test that the preferred lisp implementation can load your favorite systems without error"
+  (run-tests `(-l ,(test-lisp/s) ,@*test-systems*)))
+
+(deftestcmd %test ()
+  "run all normal tests (excluding upgrade tests) with the preferred lisp implementation"
+  (test-lisp)
+  (test-clean-load)
+  (test-basic))
+
+(defun call-with-all-lisps (thunk &optional (lisps *test-lisps*))
+  (dolist (lisp lisps)
+    (let ((*test-lisps* (list lisp)))
+      (funcall thunk))))
+
+(defmacro with-all-lisps ((&rest maybe-lisps) &body body)
+  `(call-with-all-lisps (lambda () ,@body) ,@maybe-lisps))
+
+(deftestcmd test-all-clean-load ()
+  "test that all lisp implementations can load asdf cleanly without any output message"
+  (with-all-lisps () (test-clean-load)))
+
+(deftestcmd test-all-lisp ()
+  "test that all lisp implementations pass all asdf test scripts"
+  (with-all-lisps () (test-lisp)))
+
+(deftestcmd test-all-no-upgrade ()
+  "test that all lisp implementations pass all normal asdf; also test-basic"
+  (test-basic)
+  (test-all-clean-load)
+  (test-all-lisp))
+
+(deftestcmd test-all-upgrade ()
+  "test that all lisp implementations pass all asdf upgrade tests"
+  (with-all-lisps (*upgrade-test-lisps*) (test-upgrade)))
+
+(deftestcmd test-all-lisps ()
+  "test that all lisp implementations pass all asdf tests"
+  (test-all-no-upgrade)
+  (test-all-upgrade))
+(deftestcmd test-all () "alias for test-all-lisps" (test-all-lisps))
+
+(deftestcmd test-all-lisp-no-stop ()
+  "test that all lisp implementations pass all asdf test scripts, but don't stop on error"
+  (with-all-lisps ()
+    (ignore-errors (test-lisp))))
+
+(deftestcmd test-all-upgrade-no-stop ()
+  "test that all lisp implementations pass all asdf upgrade tests, but don't stop on error"
+  (with-all-lisps (*upgrade-test-lisps*)
+    (ignore-errors (test-upgrade))))
+
+(deftestcmd test-all-no-upgrade-no-stop ()
+  "test that all lisp implementations pass all normal asdf tests (no upgrade), but don't stop on error."
+  (test-basic)
+  (test-all-clean-load)
+  (test-all-lisp-no-stop)
+  (check-all-test-results))
+
+(deftestcmd test-all-no-stop ()
+  "test that all lisp implementations pass all asdf tests (including upgrade), but don't stop on error."
+  (test-basic)
+  (test-all-clean-load)
+  (test-all-lisp-no-stop)
+  (test-all-upgrade-no-stop)
+  (check-all-results))
+
+(deftestcmd test-all-test-results ()
+  "were there errors in test scripts?"
+  (with-asdf-dir ()
+    (let ((a (run/lines
+              `(grep "-L" "[5-9][0-9] passing and 0 failing"
+                     ,(mapcar (lambda (l) (format nil "build/results/~(~A~)-test.text" l))
+                              *test-lisps*)))))
+      (or (null a)
+          (progn
+            (format! *error-output* "Unexpected test failures on these implementations:~%~{~A~%~}" a)
+            nil)))))
+
+(deftestcmd check-all-test-results ()
+  "check that there were no errors in test scripts"
+  (or (test-all-test-results) (die 1 "")))
+
+(deftestcmd test-all-upgrade-results ()
+  "were there upgrade tests failures?"
+  (with-asdf-dir ()
+    (let ((a (run/lines
+              `(grep "-L" "Upgrade test succeeded for "
+                     ,(mapcar (lambda (l) (format nil "build/results/~(~A~)-upgrade.text" l))
+                              *upgrade-test-lisps*)))))
+      (or (null a)
+          (progn
+            (format! *error-output* "Unexpected upgrade failures on these implementations:~%~{~A~%~}" a)
+            nil)))))
+
+(deftestcmd check-all-upgrade-results ()
+  "check that there were no errors in upgrade tests"
+  (or (test-all-upgrade-results) (die 1 "")))
+
+(deftestcmd check-all-results ()
+  "check that there were no errors in either test scripts or upgrade tests"
+  (or (and (test-all-test-results) (test-all-upgrade-results)) (die 1 "")))
+
+
+;;; Extract old asdf versions
+(defun extract-all-tagged-asdf ()
+  (with-asdf-dir () (run `(./test/run-tests.sh "-H"))))
+(defun extract () "alias for extract-all-tagged-asdf" (extract-all-tagged-asdf))
+
+
+;;;; Generic code to interface a Lisp script to the shell command-line.
+
+;;; Read-Eval function (the RE of REPL; the Print and Loop parts are not here)
 (defun re (arg)
   (eval (read-from-string arg)))
 
-;;;; Main entry point
+(defun find-command (x)
+  "Find the function for an asdf-builder command by name"
+  (block nil
+    (flet ((try (x)
+             (multiple-value-bind (sym foundp)
+                 (find-symbol* (string-upcase x) :asdf-builder nil)
+               (when (and sym (eq foundp :internal) (fboundp sym))
+                 (return (fdefinition sym))))))
+      (try x)
+      (try (strcat "%" x))))) ;; so that you may use load, t, etc., as targets
+
+;;; Main entry point.
+;;; NB: For access control, you could check that only exported symbols are used as entry points.
 (defun main (args)
   (block nil
     (unless args
       (format t "No command provided~%")
       (return))
-    (if-let (sym (find-symbol* (string-upcase (first args)) :asdf-builder nil))
-      (let ((results (multiple-value-list (apply sym (rest args)))))
+    (if-let ((fun (find-command (first args))))
+      (let ((results
+              (progn
+                (initialize-environment)
+                (multiple-value-list (apply fun (rest args))))))
         (when results
-          (format t "~&Results:~%~{  ~S~%~}" results)))
-      (format t "Command ~A not found~%" (first args)))))
+          (format t "~&Results:~%~{  ~S~%~}" results))
+        (return t)))
+    (format t "Command ~A not found~%" (first args))
+    (return)))
 
-(main *command-line-arguments*)
+;;; Actually run the stuff!
+(setf *lisp-interaction* nil)
+(uiop:with-fatal-condition-handler ()
+  (main *command-line-arguments*))
