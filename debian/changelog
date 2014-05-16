@@ -3,8 +3,8 @@ cl-asdf (2:3.1.2-1) unstable; urgency=low
   New release:
   * ~/common-lisp/ is now present by default in the source-registry, so
     you don't need to configure anything if you put source code there.
-  * package-inferred-system combines the one-file, one-package, one-system paradigm
-    of quick-build and faslpath with the portability and robustness of ASDF 3.
+  * package-inferred-system implements the one-file, one-package, one-system
+    paradigm of quick-build and faslpath as an extension to ASDF 3.
   * non-propagating-operation replaces OPERATION for operations as a base class
     to inherit from for operations that do not propagate,
     whereas for backward compatibility with ASDF 1 and 2,
@@ -56,7 +56,8 @@ cl-asdf (2:3.1.2-1) unstable; urgency=low
   * Substantially rewritten, updated, and expanded manual.
   * TODO updated.
 
- -- Robert P Goldman <rpgoldman@sift.info>  Tue, 6 May 2014 10:54:29 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Tue, 16 May 2014 07:04:29 +0200
+
 
 cl-asdf (2:3.0.3-1) unstable; urgency=low
 
