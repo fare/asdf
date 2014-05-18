@@ -628,7 +628,6 @@ is bound, write a message and exit on an error.  If
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
     (verbose t nil)
-    (setf tag (string tag))
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")
@@ -639,7 +638,7 @@ is bound, write a message and exit on an error.  If
              (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)
-         (funcall old-method tag))))
+         (acall (list old-method :asdf-test) tag))))
     (when (find-package :asdf)
       (configure-asdf))
     (when (and (null old-method) (eq 'load-asdf-fasl new-method) (not (probe-file (asdf-fasl))))
@@ -647,7 +646,7 @@ is bound, write a message and exit on an error.  If
           (leave-test "Your failed to compile ASDF before your run (test-upgrade ()'load-asdf-fasl ...)"  1)
           (leave-test "Your Lisp doesn't provide ASDF. Skipping (test-upgrade ()'load-asdf-fasl ...)"  0)))
     (format t "Now loading new asdf via method ~A~%" new-method)
-    (funcall new-method)
+    (acall (list new-method :asdf-test))
     (format t "Testing it~%")
     (register-directory *test-directory*)
     (load-test-system :test-asdf/all)

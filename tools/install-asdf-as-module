@@ -1,6 +1,6 @@
-":" ; exec cl-launch "$0" "$@"
-#| -*- Lisp -*-
-Usage: make && cl-launch -l lispworks bin/install-asdf-as-module
+":" ; exec cl-launch "$0" "$@" # -*- Lisp -*-
+#|
+Usage: ./tools/asdf-tools install-asdf-as-module l=lispworks
 
 This script will install the current version of ASDF
 as a module pre-compiled for your implementation,
@@ -22,12 +22,13 @@ It notably doesn't work on:
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 
 |#
-(ignore-errors (funcall 'require "asdf")) ;; Load the implementation-provided ASDF
-#-asdf2 (load (merge-pathnames ;; Fall back to loading ASDF manually
-                (make-pathname :name "asdf" :type "lisp" :version nil
-                 :directory '(:relative :back "build") :defaults *load-pathname*)
-                *load-pathname*))
-(asdf:load-system :asdf) ;; Upgrade to the latest ASDF3 (assumes you have it configured properly)
+;;; Ensure we load and configure this particular ASDF
+#-cl-launch
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (unless (member :cl-launch *features*) ;; (not necessary if we're invoked via cl-launch)
+    (load (make-pathname
+           :name "load-asdf" :type "lisp" :defaults
+           (or *compile-file-truename* *load-truename* (truename *default-pathname-defaults*))))))
 
 (in-package :asdf)
 

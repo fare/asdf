@@ -1,0 +1,19 @@
+":" ; exec sbcl --script "$0" "$@" ; exit # -*- Lisp -*-
+;;;;; Really runs on any decent Common Lisp implementation
+;;;;; Can also be invoked by cl-launch 4: cl-launch -sp asdf-tools -r restart -- "$@"
+
+(in-package :cl-user) ;; That may be default, but let's make double sure and tell SLIME.
+
+;;; Ensure we load and configure this particular ASDF
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (unless (member :cl-launch *features*) ;; (not necessary if we're invoked via cl-launch)
+    (load (make-pathname
+           :name "load-asdf" :type "lisp" :defaults
+           (or *compile-file-truename* *load-truename* (truename *default-pathname-defaults*))))))
+
+;;; ASDF3 is loaded, now use it!
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (asdf:load-system :asdf-tools))
+
+;;; Actually run the stuff!
+(uiop:restore-image :entry-point 'asdf-tools::entry-point)

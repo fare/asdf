@@ -1,0 +1,128 @@
+(in-package :asdf-tools)
+
+;;; Extracting version information
+
+(defparameter *version-tag-glob* "[0-9][.][0-9]*")
+
+(defun version-from-tag (&optional commit)
+  (git `(describe --tags --match ,*version-tag-glob* ,commit)
+       :output :line :directory (pn)))
+
+(defun version-from-file (&optional commit)
+  (if commit
+      (git `(show (,commit":version.lisp-expr")) :output :form)
+      (safe-read-file-form (pn "version.lisp-expr"))))
+
+(defun debian-version-from-file (&optional commit)
+  (let ((line
+          (if commit
+              (git `(show (,commit":debian/changelog")) :output :line)
+              (read-file-line (pn "debian/changelog")))))
+    (cl-ppcre:register-groups-bind (ver) ("^cl-asdf [(]([0-9.:-]+)[)] " line)
+      ver)))
+
+(defparameter *version* (version-from-file))
+
+;;; Bumping the version of ASDF
+
+(defparameter *versioned-files*
+  '(("version.lisp-expr" "\"" "\"")
+    ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by make bump-version")
+    ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
+    ("upgrade.lisp" "   (asdf-version \"" "\")")))
+
+(defparameter *old-version* :default)
+(defparameter *new-version* :default)
+
+(defun next-version (v)
+  (let ((pv (parse-version v 'error)))
+    (assert (first pv))
+    (assert (second pv))
+    (unless (third pv) (appendf pv (list 0)))
+    (unless (fourth pv) (appendf pv (list 0)))
+    (incf (car (last pv)))
+    (unparse-version pv)))
+
+(defun versions-from-args (&optional v1 v2)
+  (when (eq v1 :default) (setf v1 (version-from-file)))
+  (when (eq v2 :default) (setf v2 (next-version (or v1 (version-from-file)))))
+  (labels ((check (old new)
+             (parse-version old 'error)
+             (parse-version new 'error)
+             (values old new)))
+    (cond
+      ((and v1 v2) (check v1 v2))
+      (v1 (check (version-from-file) v1))
+      (t (let ((old (version-from-file)))
+           (check old (next-version old)))))))
+
+(deftype byte-vector () '(array (unsigned-byte 8) (*)))
+
+(defun maybe-replace-file (file transformer
+                           &key (reader 'read-file-string)
+                             (writer nil) (comparator 'equalp)
+                             (external-format *utf-8-external-format*))
+  (format t "Transforming file ~A... " (file-namestring file))
+  (let* ((old-contents (funcall reader file))
+         (new-contents (funcall transformer old-contents)))
+    (if (funcall comparator old-contents new-contents)
+        (format t "no changes needed!~%")
+        (let ((written-contents
+                (if writer
+                    (with-output (s ())
+                      (funcall writer s new-contents))
+                    new-contents)))
+          (check-type written-contents (or string (byte-vector)))
+          (clobber-file-with-vector file written-contents :external-format external-format)
+          (format t "done.~%")))))
+
+(defun version-transformer (new-version file prefix suffix &optional dont-warn)
+  (let* ((qprefix (cl-ppcre:quote-meta-chars prefix))
+         (versionrx "([0-9]+(\\.[0-9]+)+)")
+         (qsuffix (cl-ppcre:quote-meta-chars suffix))
+         (regex (strcat "(" qprefix ")(" versionrx ")(" qsuffix ")"))
+         (replacement
+           (constantly (strcat prefix new-version suffix))))
+    (lambda (text)
+      (multiple-value-bind (new-text foundp)
+          (cl-ppcre:regex-replace regex text replacement)
+        (unless (or foundp dont-warn)
+          (warn "Missing version in ~A" (file-namestring file)))
+        (values new-text foundp)))))
+
+(defun transform-file (new-version file prefix suffix)
+  (maybe-replace-file (pn file) (version-transformer new-version file prefix suffix)))
+
+(defun transform-files (new-version)
+  (loop :for f :in *versioned-files* :do (apply 'transform-file new-version f)))
+
+(defun test-transform-file (new-version file prefix suffix)
+  (let ((lines (read-file-lines (pn file))))
+    (dolist (l lines (progn (warn "Couldn't find a match in ~A" file) nil))
+      (multiple-value-bind (new-text foundp)
+          (funcall (version-transformer new-version file prefix suffix t) l)
+        (when foundp
+          (format t "Found a match:~%  ==> ~A~%Replacing with~%  ==> ~A~%~%"
+                  l new-text)
+          (return t))))))
+
+(defun test-transform (new-version)
+  (apply 'test-transform-file new-version (first *versioned-files*)))
+
+(defun bump-version (&key (from *old-version*) (to *new-version*))
+  (with-asdf-dir ()
+    (multiple-value-bind (old-version new-version)
+        (versions-from-args from to)
+      (format t "Bumping ASDF version from ~A to ~A~%" old-version new-version)
+      (transform-files new-version)
+      (println "Rebuilding ASDF with bumped version")
+      (build-asdf)
+      new-version)))
+
+(defun bump (&key (from *old-version*) (to *new-version*))
+  (let ((v (bump-version :from from :to to)))
+    (git `(commit -a -m ("Bump version to ",v)))
+    (git `(tag ,v))
+    v))
+
+(trace bump-version versions-from-args)

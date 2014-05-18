@@ -1,13 +1,13 @@
-# -*- Makefile -*- This minimal Makefile delegates most work to the meta-asdf script
-
-# Users, all you need to do is:
+# -*- Makefile -*- This minimal Makefile delegates most work to the asdf-tools script
+#
+# End-Users, all you need to do is:
 #   make
-# Other targets are for the maintainer to use.
 #
 # Vendors, you may want to test your implementation with:
 #   make test l=sbcl
 #
-
+# Other targets are for maintainer use only.
+#
 
 # Default action: bootstrap asdf.lisp
 # That's the only thing that we really need before we may invoke asdf-builder.
@@ -33,10 +33,13 @@ defsystem-files:
 
 ### exclude source files from fallback rule.
 %.lisp:
+	@:
 Makefile:
+	@:
 
-### Default fall back rule: delegate to asdf-builder.
+### Default fall back rule: delegate to asdf-tools.
 %: build/asdf.lisp
-	@echo "Delegating $@ to asdf-builder" ; ./bin/asdf-builder $@
+	@echo "Delegating $@ to asdf-tools" ; \
+	./tools/asdf-tools make-target $@ l="$l" L="$L" u="$u" U="$u" v="$v" s="$s" t="$t"
 
 .PHONY: all driver-files defsystem-files
