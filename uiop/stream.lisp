@@ -632,7 +632,9 @@ Upon success, the KEEP form is evaluated and the file is is deleted unless it ev
            (beforef (gensym "BEFORE"))
            (afterf (gensym "AFTER")))
       `(flet (,@(when before
-                  `((,beforef (,@(when streamp `(,stream)) ,@(when pathnamep `(,pathname))) ,@before)))
+                  `((,beforef (,@(when streamp `(,stream)) ,@(when pathnamep `(,pathname)))
+                       ,@(when after `((declare (ignorable ,pathname))))
+                       ,@before)))
               ,@(when after
                   (assert pathnamep)
                   `((,afterf (,pathname) ,@after))))
