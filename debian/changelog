@@ -1,4 +1,4 @@
-cl-asdf (2:3.1.2-1) unstable; urgency=low
+cl-asdf (2:3.1.2-2) unstable; urgency=low
 
   New release:
   * ~/common-lisp/ is now present by default in the source-registry, so
@@ -56,7 +56,7 @@ cl-asdf (2:3.1.2-1) unstable; urgency=low
   * Substantially rewritten, updated, and expanded manual.
   * TODO updated.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Tue, 16 May 2014 07:04:29 +0200
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 19 May 2014 20:07:40 -0400
 
 
 cl-asdf (2:3.0.3-1) unstable; urgency=low
