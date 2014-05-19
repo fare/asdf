@@ -8,7 +8,7 @@ website:=${userat}common-lisp.net:/project/asdf/public_html/
 output = asdf.html asdf asdf.pdf asdf.info
 webfiles = index.html .htaccess style.css cclan.png lisp-logo120x80.png favicon.ico ${output}
 intermediate = asdf.cps asdf.log asdf.vr asdf.aux asdf.fn asdf.toc asdf.vrs \
-	asdf.cp asdf.fns asdf.ky asdf.pg asdf.tp
+		asdf.cp asdf.fns asdf.ky asdf.pg asdf.tp asdf.tps
 
 all:	asdf.html asdf.info asdf.pdf manual-html
 

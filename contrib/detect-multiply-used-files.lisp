@@ -26,5 +26,6 @@
         :do (format t "~&~S =>~{ ~S~}~%" p l)))
 
 #| ;; Use it like that:
+(asdf:load-systems system1 system2 ...)
 (detect-multiply-used-files:find-fishy-components)
 |#
