@@ -51,12 +51,12 @@ This is great to quickly locate compilation errors and interactively debug ASDF.
            (return nil))))))
 
 ;;; BONUS: install asdf as module for your favorite Lisp implementation.
-(deftestcmd install-asdf-as-module (lisp)
+(deftestcmd install-asdf (lisp)
   (flet ((doit ()
            (with-asdf-dir ()
              (run-test-lisp
-              (format nil "Installing ASDF to be provided as a module on ~(~A~)" lisp)
-              '((load "tools/install-asdf-as-module")(uiop:quit))
+              (format nil "installing ASDF to be provided as a module on ~(~A~)" lisp)
+              '((load "tools/install-asdf.lisp")(uiop:quit))
               :lisp lisp))))
     (case lisp
       ((:allegro :allegromodern :ccl :clisp :cmucl :lispworks :sbcl :scl :xcl)

@@ -114,7 +114,8 @@
 
      ;; XCL support starts with ASDF 2.014.2
      ;; — It also dies during upgrade trying to show the backtrace.
-     ;; We recommend you replace XCL's asdf using the install-asdf-as-module script.
+     ;; We recommend you replace XCL's asdf using:
+     ;;     ./tools/asdf-tools install-asdf xcl
      ((:xcl) (version<= "2.15" tag))
 
      ;; all clear on these implementations

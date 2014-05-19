@@ -496,25 +496,19 @@ as explained below.
 If all fails, we recommend you load ASDF from source
 @pxref{Loading ASDF,,Loading ASDF from source}.
 
-The ASDF source repository contains a script
-@file{bin/install-asdf-as-module} that can help you upgrade your implementation's ASDF.
+The ASDF source repository contains a tool to help you upgrade your implementation's ASDF.
+You can invoke it from the shell command-line as
+@code{tools/asdf-tools install-asdf lispworks}
+(where you can replace @tt{lispworks} by the name of the relevant implementation),
+or you can @code{(load "tools/install-asdf.lisp")} from your Lisp REPL.
+
 It works on
-Allegro CL, Clozure CL, CMU CL, ECL, GNU CLISP, LispWorks, MKCL, SBCL, SCL, XCL.
-That's all known implementations except ABCL, Corman CL, GCL, Genera, MCL, MOCL.
-Happily, ABCL is usually pretty up to date and shouldn't need that script.
+Allegro CL, Clozure CL, CMU CL, GNU CLISP, LispWorks, SBCL, SCL, XCL.
+It doesn't work on ABCL, Corman CL, ECL, GCL, Genera, MCL, MKCL, MOCL.
+Happily, ABCL, ECL and MKCL are usually pretty up to date and shouldn't need that script.
 GCL would be supported, except that so far is still lacking usable support for @code{require}.
 Corman CL, Genera, MCL are obsolete anyway.
 MOCL is under development.
-On an old version of an implementation that does not provide ASDF,
-you may have to load ASDF 3 from source before you load that script.
-
-The script relies on @code{cl-launch} 4 for command-line invocation,
-which may depend on ASDF being checked out in @file{~/common-lisp/asdf/}
-(which we recommend anyway)
-if your implementation doesn't even have an ASDF 2.
-If you don't have @code{cl-launch},
-you can instead @code{(load "bin/install-asdf-as-module")}
-from your implementation's REPL after loading ASDF from source.
 
 Finally, if your implementation only provides ASDF 2,
 and you can't or won't upgrade it or override its ASDF module,
