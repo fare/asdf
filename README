@@ -85,4 +85,72 @@ significant changes in each release, and
 the git log for a detailed description of each commit.
 
 
-Last updated Wednesday, March 13th, 2014.
+How do I navigate this source directory?
+----------------------------------------
+
+asdf.asd
+	The system definition for building ASDF with ASDF.
+
+*.lisp
+	The source code files for asdf/defsystem.
+	See asdf.asd for the order in which they are loaded.
+
+uiop/
+	Utilities of Implementation- and OS- Portability,
+        the portability layer of ASDF. It has its own README,
+        and functions all have docstrings.
+
+Makefile
+	a minimal Makefile for bootstrapping purposes.
+        Most of the logic is in the asdf-tools system
+
+tools/
+	asdf-tools, a system to build, test and release ASDF. It includes:
+        asdf-tools -- a shell script to run it as a shell command.
+        load-asdf.lisp -- how to load ASDF in a self-contained project
+        asdf-tools.asd -- system definition for asdf-tools
+        *.lisp -- the source code for asdf-tools
+        install-asdf-as-module -- replace and update an implementation's ASDF
+
+build.xcvb
+	The system definition for building ASDF with XCVB.
+	It hasn't been tested or maintained for years and has bitrotten.
+
+version.lisp-expr
+        The current version. Bumped up every time the code changes, using
+		./tools/asdf-builder bump
+
+doc/
+	documentation for ASDF, including:
+        index.html -- the web page for http://common-lisp.net/project/asdf/
+        asdf.texinfo -- our manual
+        Makefile -- how to build the manual
+        cclan.png lisp-logo120x80.png style.css favicon.ico
+		-- auxiliaries of index.html
+
+test/
+	regression test scripts (and ancillary files) for developers to check
+        that they don't unintentionally break any of the functionality of ASDF.
+        Far from covering all of ASDF.
+
+contrib/
+	a few contributed files that show case how to use ASDF.
+
+debian/
+	files for packaging on debian, ubuntu, etc.
+
+build/
+	where the Makefile and asdf-tools store their output files, including
+        asdf.lisp -- the current one-file deliverable of ASDF
+        asdf-XXX.lisp -- for upgrade test purposes, old versions
+        results/ -- logs of tests that have been run
+        fasls/ -- output files while running tests.
+
+README
+	this file
+
+TODO
+	plenty of ideas for how to further improve ASDF.
+
+
+Last updated Wednesday, May 19th, 2014.
