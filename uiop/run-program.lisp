@@ -773,7 +773,7 @@ It returns a process-info plist with possible keys:
     #+(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
     (%wait-process-result
      (apply '%run-program (%normalize-system-command command) :wait t keys))
-    #+(or abcl cormanlisp clisp ecl gcl (and lispworks os-windows) mkcl xcl)
+    #+(or abcl cormanlisp clisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
@@ -790,6 +790,8 @@ It returns a process-info plist with possible keys:
                     (*error-output* *stderr*))
                 (ext:system %command))
         #+gcl (system:system %command)
+        #+genera (error "~S not supported on Genera, cannot run ~S"
+                        '%system %command)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
         #+mkcl (mkcl:system %command)
         #+xcl (system:%run-shell-command %command))))

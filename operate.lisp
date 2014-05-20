@@ -226,8 +226,8 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
   (defun restart-upgraded-asdf ()
     ;; If we're in the middle of something, restart it.
     (when *asdf-cache*
-      (let ((l (loop* :for (x y) :being :the hash-keys :of *asdf-cache*
-                      :when (eq x 'find-system) :collect y)))
+      (let ((l (loop :for k :being :the hash-keys :of *asdf-cache*
+                     :when (eq (first k) 'find-system) :collect (second k))))
         (clrhash *asdf-cache*)
         (dolist (s l) (find-system s nil)))))
   (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf))

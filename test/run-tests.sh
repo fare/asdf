@@ -331,19 +331,21 @@ upgrade_tags () {
     #
     # The 3.0 series is a stable release of ASDF 3
     # with Robert Goldman taking over maintainership at 3.0.2.
-    # 3.0.0 was 2.33.10 promoted, but version-satisfies meant it was suddenly
+    # 3.0.0 was just 2.33.10 promoted, but version-satisfies meant it was suddenly
     # not compatible with ASDF2 anymore, so we immediately released 3.0.1
     #   3.0.1 (2013-05-16) is the first stable ASDF 3 release
-    #   3.0.2 (2013-07-02) was the first ASDF 3 in SBCL
-    #   3.0.3 (2013-10-22) was the last in the ASDF 3.0 series
+    #   3.0.2 (2013-07-02) is the first ASDF 3 in SBCL
+    #   3.0.3 (2013-10-22) is the last in the ASDF 3.0 series
     #
     # The 3.1 series provides the 3.1 feature, meaning users can rely on
     # all the stabilization work done in 3.0 so far, plus extra developments
     # in UIOP, package-inferred-system, and more robustification.
+    #   3.1.2 (2014-05-06) is the first ASDF 3.1 release
     #
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.
     echo REQUIRE
+    echo 3.1.2
     echo 3.0.3 3.0.2 3.0.1
     echo 2.32 2.27
     echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
@@ -409,7 +411,7 @@ valid_upgrade_test_p () {
         cmucl:1.*|cmucl:2.*) : ;;
         # Skip many ECL tests, for various ASDF issues
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
-        # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.1
+        # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
         gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*) : ;;
         # MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
         mkcl:[12]*|mkcl:3.0*) : ;;
