@@ -1,8 +1,9 @@
 (in-package :asdf-tools)
 
 (deftestcmd %load (lisp) ;; load would be a clash, so use %load instead
-  "make load will start a Lisp and load ASDF from individual source files.
-This is great to quickly locate compilation errors and interactively debug ASDF."
+  "load asdf into an interactive Lisp for debugging
+load from individual source files, to make it easier to quickly locate
+compilation errors and to interactively debug ASDF."
   (with-asdf-dir ()
     (run-test-lisp
      (format nil "loading ASDF into an interactive ~(~A~)" lisp)
@@ -12,7 +13,8 @@ This is great to quickly locate compilation errors and interactively debug ASDF.
      :lisp lisp :debugger t :output :interactive)))
 
 (deftestcmd test-load-systems (lisp systems)
-  "test that the preferred lisp implementation can load your favorite systems without error"
+  "test loading of your favorite systems
+Use your preferred Lisp implementation"
   (with-asdf-dir ()
     (let* ((log (newlogfile "systems" lisp)))
       (log! log "Loading all these systems on ~(~A~):~{~%  ~A~}~%~%" lisp systems)
@@ -23,7 +25,8 @@ This is great to quickly locate compilation errors and interactively debug ASDF.
        :lisp lisp :log log))))
 
 (deftestcmd test-clean-load (lisp log)
-  "test that the preferred lisp implementation can load asdf cleanly without any output message"
+  "test that asdf load cleanly
+Use your preferred lisp implementation and check that asdf is loaded without any output message"
   (nest
    (block ()
      (case lisp ((:gcl :cmucl) (return t)))) ;; These are hopeless
@@ -52,6 +55,7 @@ This is great to quickly locate compilation errors and interactively debug ASDF.
 
 ;;; BONUS: install asdf as module for your favorite Lisp implementation.
 (deftestcmd install-asdf (lisp)
+  "install asdf as a module on specified Lisp"
   (flet ((doit ()
            (with-asdf-dir ()
              (run-test-lisp
@@ -73,7 +77,7 @@ If you care, go hack the implementation.~%" lisp))
            (error "Unknown implementation ~(~A~)" lisp))))))
 
 (deftestcmd test-basic (lisp systems)
-  "basic smoke test"
+  "basic test: doc, clean-load, load-systems"
   (doc)
   (test-clean-load lisp)
   (test-load-systems lisp systems))

@@ -14,11 +14,11 @@
     (apply 'run* (cons "git" cmd) keys)))
 
 (defun clean ()
-  (git '(clean -xfd))
-  t)
+  "clean the checkout with git clean -xfd"
+  (git '(clean -xfd)))
 
 (defun %push ()
-  "Push git branches master and release to cl.net and master"
+  "push git branches master and release upstream"
   (dolist (x '((status)
                (push --tags cl.net release master)
                (push --tags github release master)
@@ -27,7 +27,7 @@
     (apply 'git x)))
 
 (defun merge-master-into-release ()
-  "Merge master into release"
+  "merge git branch master into release"
   (dolist (x '((checkout master)
                (merge release)
                (checkout release)
@@ -42,20 +42,16 @@
     "README" "emp")) ;; Mistakes
 
 (defun fix-local-git-tags ()
-  "Delete wrongful tags from local repository"
+  "delete wrongful tags from local git repository"
   (dolist (tag *wrongful-tags*)
     (git `(tag -d ,tag) :on-error t)))
 
 (defun fix-remote-git-tags (&optional (remote "origin"))
-  "Delete wrongful tags from remote repository"
+  "delete wrongful tags from remote git repository"
   (dolist (tag *wrongful-tags*)
     (git `(push ,remote (:refs/tags/,tag)) :on-error t)))
 
 (defun git-all-committed-p ()
-  "Is your checkout clean, with all files committed?"
+  "is your checkout clean, with all files committed?"
   (null (git '(status -s) :output :lines)))
 
-(defun check-git-all-committed ()
-  (or (git-all-committed-p)
-      (die 2 "Your git checkout isn't clean and all committed:~%~A~%"
-           (git '(status) :output :string))))

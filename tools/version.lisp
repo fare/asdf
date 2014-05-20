@@ -117,7 +117,7 @@
   (apply 'test-transform-file new-version (first *versioned-files*)))
 
 (defun bump-version (&optional v1 v2)
-  "bump version of ASDF to specified version or next development version (do not commit)."
+  "bump asdf version, do not commit"
   (with-asdf-dir ()
     (multiple-value-bind (old-version new-version)
         (versions-from-args v1 v2)
@@ -128,7 +128,7 @@
       new-version)))
 
 (defun bump (&optional v1 v2)
-  "bump version of ASDF to specified version or next development version, then commit and tag."
+  "bump asdf version, then commit and tag"
   (let ((v (bump-version v1 v2)))
     (git `(commit -a -m ("Bump version to ",v)))
     (git `(tag ,v))

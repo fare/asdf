@@ -65,6 +65,7 @@
     (values)))
 
 (defun driver-files ()
+  "list files in uiop"
   (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
 (defun driver-name ()
   (format nil "uiop-~A" *version*))
@@ -72,6 +73,7 @@
   (make-tarball-under-build (driver-name) (pn "uiop/") (driver-files)))
 
 (defun asdf-defsystem-files ()
+  "list files in asdf/defsystem"
   (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
          (system-source-files :asdf/defsystem)))
 (defun asdf-defsystem-name ()
@@ -99,6 +101,7 @@
                      (pn "build/" (asdf-lisp-name))))
 
 (defun make-archive ()
+  "build tarballs for release"
   (make-driver-tarball)
   (make-asdf-defsystem-tarball)
   (make-git-tarball)
@@ -113,6 +116,7 @@
 (defun public-path (x) (strcat *clnet-asdf-public* x))
 
 (defun publish-archive ()
+  "publish tarballs to the website"
   (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
     (run `(rsync ,@tarballs ,(asdf-lisp-name) (,*clnet* ":" ,(public-path "archives/")))
          :show t :directory (pn "build/")))
@@ -122,6 +126,7 @@
   t)
 
 (defun link-archive ()
+  "symlink new tarballs on the website"
   (run (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
                (tarname (driver-name))
                (public-path "archives/uiop.tar.gz")
@@ -135,16 +140,18 @@
   t)
 
 (defun make-and-publish-archive ()
+  "make and publish tarballs"
   (make-archive)
   (publish-archive)
   (link-archive))
 
-(defun archive () "alias for make-and-publish-archive" (make-and-publish-archive))
-(defun install () "alias for make-and-publish-archive" (make-and-publish-archive))
+(defalias archive make-and-publish-archive)
+(defalias install make-and-publish-archive)
 
 
 ;;; Making a debian package
 (defun debian-package (&optional (release "release"))
+  "build a debian package"
   (let* ((debian-version (debian-version-from-file release))
          (version (version-from-file release)))
     (unless (equal version (parse-debian-version debian-version))
@@ -167,12 +174,13 @@
   (run/ss `(dpkg --print-architecture)))
 
 (defun publish-debian-package (&optional release)
+  "publish a debian package"
   (let ((changes (strcat "cl-asdf_" (debian-version-from-file release)
                          "_" (debian-architecture) ".changes")))
     (run* `(dput mentors ,(pn "../" changes)))))
 
 (deftestcmd release (new-version lisps scripts systems)
-  "Release the code (not implemented)"
+  "all steps to release the code (not implemented)"
   (break) ;; for each function, offer to do it or not (?)
   (with-asdf-dir ()
     (let ((log (newlogfile "release" "all"))
@@ -184,9 +192,10 @@
                    new-version)))
         (when (nth-value 1 (run '(parse-changelog debian/changelog) :output nil :error-output :lines))
           (error "Malformed debian/changelog entry")))
+      scripts ;; TODO: needs to be passed as argument!
       (and ;; need a better combinator, that tells us about progress, etc.
        (git-all-committed-p)
-       (test-all-no-stop) ;; NEED ARGUMENTS!
+       (test-all-no-stop) ;; TODO: NEED ARGUMENTS!
        (test-load-systems lisps systems)
        (bump new-version)
        (when releasep

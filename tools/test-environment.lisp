@@ -126,7 +126,9 @@
   (every 'identity tests))
 
 (defmacro defalias (name real)
-  `(defun ,name (&rest args) ,(format nil "alias for ~S" real) (apply ',real args)))
+  `(defun ,name (&rest args)
+     ,(format nil "alias for command ~A" (command-name real t))
+     (apply ',real args)))
 
 (deftestcmd interactive-command (lisp)
   (let* ((command (lisp-invocation-arglist :implementation-type lisp :debugger t)))
@@ -159,7 +161,7 @@
     (if-let (date (safe-file-write-date log))
       (rename-file-overwriting-target
        log (add-pathname-suffix log (strcat "-" (date-string date)))))
-    (with-output-file (s log)) ;; create the file
+    (with-output-file (s log) s) ;; create the file
     ;;(format t "Logging results to ~A" log)
     log))
 

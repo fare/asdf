@@ -48,7 +48,8 @@
   (if (eq x :default) *default-upgrade-test-tags* x))
 
 (defun extract-tagged-asdf (tag)
-  "Extract an ASDF version at a given tag from git under build/asdf-${tag}.lisp"
+  "extract an asdf version from git
+Use at a given tag, put it under build/asdf-${tag}.lisp"
   (with-asdf-dir ()
     (ensure-directories-exist (pn "build/"))
     (unless (string-equal tag "REQUIRE")
@@ -64,7 +65,9 @@
              (rename-file-overwriting-target (pn "build/old/build/asdf.lisp") file))))))))
 
 (deftestcmd extract-all-tagged-asdf (upgrade-tags)
+  "extract all asdf tags used for upgrade"
   (map () 'extract-tagged-asdf upgrade-tags))
+
 (defalias extract extract-all-tagged-asdf)
 
 (defparameter *upgrade-test-methods* :default)
@@ -123,7 +126,8 @@
      ((:allegro :lispworks :sbcl :scl) t))))
 
 (deftestcmd test-upgrade (lisp upgrade-tags upgrade-methods)
-  "run upgrade tests with the preferred lisp implementation"
+  "run upgrade tests
+Use the preferred lisp implementation"
   (nest
    (with-asdf-dir ())
    (let ((log (newlogfile "upgrade" lisp)))

@@ -9,48 +9,47 @@
   `(call-with-all-lisps (lambda () ,@body) ,@maybe-lisps))
 
 (deftestcmd test-all-clean-load ()
-  "test that all lisp implementations can load asdf cleanly without any output message"
+  "test-clean-load on all lisps"
   (with-all-lisps () (test-clean-load)))
 
-(deftestcmd test-all-lisp ()
-  "test that all lisp implementations pass all asdf test scripts"
+(deftestcmd test-all-scripts ()
+  "test-scripts on all lisps"
   (with-all-lisps () (test-scripts)))
 
 (deftestcmd test-all-no-upgrade ()
-  "test that all lisp implementations pass all normal asdf; also test-basic"
-  (all-pass (test-basic) (test-all-lisp)))
+  "test-basic, and test-all-script"
+  (all-pass (test-basic) (test-all-scripts)))
 
 (deftestcmd test-all-upgrade ()
-  "test that all lisp implementations pass all asdf upgrade tests"
+  "test-upgrade on all lisps"
   (with-all-lisps (*upgrade-test-lisps*) (test-upgrade)))
 
-(deftestcmd test-all-scripts ()
-  "test that all lisp implementations pass all asdf tests"
+(deftestcmd test-all ()
+  "all tests"
   (all-pass (test-all-no-upgrade) (test-all-upgrade)))
-(defalias test-all test-all-scripts)
 
 (deftestcmd test-all-scripts-no-stop ()
-  "test that all lisp implementations pass all asdf test scripts, but don't stop on error"
+  "test-scripts on all lisps, no stop"
   (with-all-lisps ()
     (ignore-errors (test-scripts))))
 
 (deftestcmd test-all-upgrade-no-stop ()
-  "test that all lisp implementations pass all asdf upgrade tests, but don't stop on error"
+  "test-upgrade on all lisps, no stop"
   (with-all-lisps (*upgrade-test-lisps*)
     (ignore-errors (test-upgrade))))
 
 (deftestcmd test-all-no-upgrade-no-stop ()
-  "test that all lisp implementations pass all normal asdf tests (no upgrade), but don't stop on error."
+  "all tests but upgrade on all lisps, no stop"
   (all-pass
-   (test-basic)
+   (doc) (test-load-systems)
    (test-all-clean-load)
    (test-all-scripts-no-stop)
    (check-all-scripts-results)))
 
 (deftestcmd test-all-no-stop () ;; TODO: pass arguments!
-  "test that all lisp implementations pass all asdf tests (including upgrade), but don't stop on error."
+  "all tests on all lisps, no stop"
   (all-pass
-   (test-basic)
+   (doc) (test-load-systems)
    (test-all-clean-load)
    (test-all-scripts-no-stop)
    (test-all-upgrade-no-stop)
@@ -69,7 +68,7 @@
             nil)))))
 
 (deftestcmd check-all-upgrade-results ()
-  "were there upgrade tests failures?"
+  "were there upgrade test failures?"
   (with-asdf-dir ()
     (let ((a (run/lines
               `(grep "-L" "Upgrade test succeeded for "
@@ -81,6 +80,6 @@
             nil)))))
 
 (deftestcmd check-all-results ()
-  "check that there were no errors in either test scripts or upgrade tests"
+  "were there failures in any scripts or upgrade?"
   (all-pass (check-all-scripts-results) (check-all-upgrade-results)))
 

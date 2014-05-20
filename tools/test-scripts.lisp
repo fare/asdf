@@ -26,7 +26,8 @@
 |#
 
 (deftestcmd test-scripts (lisp test-scripts)
-  "run test scripts with the preferred lisp implementation"
+  "run test scripts
+Use the preferred lisp implementation"
   (nest
    (with-asdf-dir ("test/"))
    (let* ((log (newlogfile "test" lisp))
@@ -78,7 +79,8 @@ Ran ~D tests, ~D passed, ~D failed
             (return okp)))))))
 
 (deftestcmd %test (lisp test-scripts)
-  "run all normal tests (excluding upgrade tests) with the preferred lisp implementation"
+  "run all normal tests but upgrade tests
+Use the preferred lisp implementation"
   (all-pass (test-scripts lisp test-scripts) (doc) (test-clean-load lisp)))
 
 (defalias %t %test)
