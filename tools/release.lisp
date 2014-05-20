@@ -88,7 +88,7 @@
   (with-asdf-dir ()
     (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") build/asdf.lisp ,@(run/lines '(git ls-files))
                (asdf-git-name)) :show t))
-  (values))
+  t)
 
 (defun asdf-lisp-name ()
   (format nil "asdf-~A.lisp" *version*))
@@ -103,7 +103,7 @@
   (make-asdf-defsystem-tarball)
   (make-git-tarball)
   (make-asdf-lisp)
-  (values))
+  t)
 
 
 ;;; Publishing tarballs onto the public repository
@@ -119,7 +119,7 @@
   (format t "~&To download the tarballs, point your browser at:~%
         http://common-lisp.net/project/asdf/archives/
 ~%")
-  (values))
+  t)
 
 (defun link-archive ()
   (run (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
@@ -132,7 +132,7 @@
                (asdf-lisp-name)
                (public-path "archives/asdf.lisp"))
        :show t :host *clnet*)
-  (values))
+  t)
 
 (defun make-and-publish-archive ()
   (make-archive)
@@ -147,10 +147,7 @@
 (defun debian-package (&optional (release "release"))
   (let* ((debian-version (debian-version-from-file release))
          (version (version-from-file release)))
-    (unless (cl-ppcre:register-groups-bind (x epoch ver rel)
-                ("^(([0-9]+):)?([0-9.]+)-([0-9]+)$" debian-version)
-              (declare (ignorable x epoch rel))
-              (equal ver version))
+    (unless (equal version (parse-debian-version debian-version))
       (error "Debian version ~A doesn't match asdf version ~A" debian-version version))
     (clean)
     (format t "building package version ~A~%" (debian-version-from-file))
@@ -166,24 +163,42 @@
            --git-ignore-branch)
          :directory (pn) :show t)))
 
-(defun release ()
-  "Release the code (not implemented)"
-  #| RELEASE or PUSH checklist:
-make test-all
-make test-load-systems s=fare-all
-make bump v=3.0
-edit debian/changelog # RELEASE only...
-git commit
-git tag 3.0 # for example ...
-make debian-package
-git push
-git push origin 3.0 # for example...
-everything from here for RELEASE only
-make release-push archive website debian-package
-dput mentors ../*.changes
-send debian mentors request
-send announcement to asdf-announce, asdf-devel, etc.
-Move all fixed bugs from Fix Committed -> Fix Released on launchpad
-  |#
-  (die 42 "release is not implemented yet"))
+(defun debian-architecture ()
+  (run/ss `(dpkg --print-architecture)))
 
+(defun publish-debian-package (&optional release)
+  (let ((changes (strcat "cl-asdf_" (debian-version-from-file release)
+                         "_" (debian-architecture) ".changes")))
+    (run* `(dput mentors ,(pn "../" changes)))))
+
+(deftestcmd release (new-version lisps scripts systems)
+  "Release the code (not implemented)"
+  (break) ;; for each function, offer to do it or not (?)
+  (with-asdf-dir ()
+    (let ((log (newlogfile "release" "all"))
+          (releasep (= (length (parse-version new-version)) 3)))
+      (when releasep
+        (let ((debian-version (debian-version-from-file)))
+          (unless (equal new-version (parse-debian-version debian-version))
+            (error "You're trying to release version ~A but the debian/changelog wasn't properly updated"
+                   new-version)))
+        (when (nth-value 1 (run '(parse-changelog debian/changelog) :output nil :error-output :lines))
+          (error "Malformed debian/changelog entry")))
+      (and ;; need a better combinator, that tells us about progress, etc.
+       (git-all-committed-p)
+       (test-all-no-stop) ;; NEED ARGUMENTS!
+       (test-load-systems lisps systems)
+       (bump new-version)
+       (when releasep
+         (and
+          (debian-package)
+          (publish-debian-package)
+          (merge-master-into-release)))
+       ;; SUCCESS! now publish more widely
+       (%push)
+       (archive)
+       (website)
+       (when releasep
+         (log! log t "Don't forget to send a debian mentors request!"))
+       (log! log "Don't forget to send announcement to asdf-announce, asdf-devel, etc.")
+       (log! log "Don't forget to move all fixed bugs from Fix Committed -> Fix Released on launchpad")))))

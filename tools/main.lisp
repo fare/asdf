@@ -3,19 +3,68 @@
 (in-package :asdf-tools)
 
 (defun re (arg)
-  ;;; Read-Eval function (the RE of REPL; the Print and Loop parts are not here)
+  "Read-Eval function (the RE of REPL; the Print and Loop parts are not here)"
   (eval (read-from-string arg)))
 
 (defun find-command (x)
-  "Find the function for an asdf-builder command by name"
+  "Find the function for an asdf-tools command by name"
   (block nil
     (flet ((try (x)
              (multiple-value-bind (sym foundp)
                  (find-symbol* (string-upcase x) :asdf-tools nil)
-               (when (and sym (eq foundp :internal) (fboundp sym))
-                 (return (fdefinition sym))))))
-      (try (strcat "%" x)) ;; so that you may use load, t, etc., as targets
+               (when (and sym foundp (fboundp sym))
+                 (return sym)))))
+      (try (strcat "%" (string x))) ;; so that you may use load, t, etc., as targets
       (try x))))
+
+(defun command-name (x)
+  (let ((c (find-command x)))
+    (when c
+      (let ((s (string-downcase c)))
+        (if (eql (first-char s) #\%) (subseq s 1) s)))))
+
+(defun short-function-description (x)
+  "Short function description for x"
+  (when (stringp x) (setf x (find-command x)))
+  (if-let ((doc (and x (documentation x 'function))))
+    (let* ((first-line (with-input (s doc) (read-line s)))
+           (len (length first-line)))
+      (if (>= len 50) (strcat (subseq first-line 0 49) "…") first-line))))
+
+(defun find-commands ()
+  ;;(loop :for x :being :the :external-symbols :of :asdf-tools
+  ;; :when (and (eq x (find-command x)) (documentation x 'function)) :collect x)
+  '(build-asdf doc website wc ;; build
+    clean %push merge-master-into-release fix-local-git-tags fix-remote-git-tags ;; git
+    git-all-committed-p
+    bump-version bump ;; version
+    test-load-systems test-clean-load test-basic %load install-asdf ;; test-basic
+    %test %t test-scripts ;; test-scripts
+    test-upgrade u extract-tagged-asdf extract-all-tagged-asdf extract ;; test-upgrade
+    test-all-clean-load test-all-lisp test-all-no-upgrade test-all-upgrade ;; test-all
+    test-all-scripts test-all test-all-scripts-no-stop test-all-upgrade-no-stop
+    test-all-no-upgrade-no-stop test-all-no-stop
+    check-all-scripts-results check-all-upgrade-results check-all-results
+    driver-files asdf-defsystem-files ;; release
+    make-archive publish-archive link-archive archive install
+    debian-package debian-architecture publish-debian-package
+    re help)) ;; main
+
+
+(defun help (&optional x)
+  "List available commands, or the docstring of a given command"
+  (cond
+    ((null x)
+     (loop :for x :in (sort (find-commands) 'string< :key 'find-command)
+           :do (format t "~(~27A~)~@[  ~A~]~%"
+                       (command-name x) (short-function-description x))))
+    (t
+     (let ((x (find-command x)))
+       (when x
+         (format t "~A~@[ ~A~]~%~@[~A~]~&"
+                 (command-name x)
+                 (or ()) ;; TODO: remember the arguments to deftestcmd, translate to v=, etc
+                 (documentation x 'function)))))))
 
 ;;; Main entry point.
 ;;; NB: For access control, you could check that only exported symbols are used as entry points.

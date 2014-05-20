@@ -24,12 +24,12 @@
   "test that all lisp implementations pass all asdf upgrade tests"
   (with-all-lisps (*upgrade-test-lisps*) (test-upgrade)))
 
-(deftestcmd test-all-lisps ()
+(deftestcmd test-all-scripts ()
   "test that all lisp implementations pass all asdf tests"
   (all-pass (test-all-no-upgrade) (test-all-upgrade)))
-(defalias test-all test-all-lisps)
+(defalias test-all test-all-scripts)
 
-(deftestcmd test-all-lisp-no-stop ()
+(deftestcmd test-all-scripts-no-stop ()
   "test that all lisp implementations pass all asdf test scripts, but don't stop on error"
   (with-all-lisps ()
     (ignore-errors (test-scripts))))
@@ -44,19 +44,19 @@
   (all-pass
    (test-basic)
    (test-all-clean-load)
-   (test-all-lisp-no-stop)
-   (check-all-test-results)))
+   (test-all-scripts-no-stop)
+   (check-all-scripts-results)))
 
-(deftestcmd test-all-no-stop ()
+(deftestcmd test-all-no-stop () ;; TODO: pass arguments!
   "test that all lisp implementations pass all asdf tests (including upgrade), but don't stop on error."
   (all-pass
    (test-basic)
    (test-all-clean-load)
-   (test-all-lisp-no-stop)
+   (test-all-scripts-no-stop)
    (test-all-upgrade-no-stop)
    (check-all-results)))
 
-(deftestcmd check-all-test-results ()
+(deftestcmd check-all-scripts-results ()
   "were there errors in test scripts?"
   (with-asdf-dir ()
     (let ((a (run/lines
@@ -82,5 +82,5 @@
 
 (deftestcmd check-all-results ()
   "check that there were no errors in either test scripts or upgrade tests"
-  (all-pass (check-all-test-results) (check-all-upgrade-results)))
+  (all-pass (check-all-scripts-results) (check-all-upgrade-results)))
 

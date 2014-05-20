@@ -4,13 +4,18 @@
 ;; Note that the debian git at git://git.debian.org/git/pkg-common-lisp/cl-asdf.git is stale,
 ;; as we currently build directly from upstream at git://common-lisp.net/projects/asdf/asdf.git
 
-(defun git (cmd &rest args)
+(defun run* (cmd &rest keys)
+  (multiple-value-bind (out err code)
+      (apply 'run cmd keys)
+    (values (eql 0 code) out err code)))
+
+(defun git (cmd &rest keys)
   (with-asdf-dir ()
-    (apply 'run (cons "git" cmd) args)))
+    (apply 'run* (cons "git" cmd) keys)))
 
 (defun clean ()
   (git '(clean -xfd))
-  (values))
+  t)
 
 (defun %push ()
   "Push git branches master and release to cl.net and master"

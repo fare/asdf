@@ -48,6 +48,7 @@
   (if (eq x :default) *default-upgrade-test-tags* x))
 
 (defun extract-tagged-asdf (tag)
+  "Extract an ASDF version at a given tag from git under build/asdf-${tag}.lisp"
   (with-asdf-dir ()
     (ensure-directories-exist (pn "build/"))
     (unless (string-equal tag "REQUIRE")

@@ -107,7 +107,9 @@
           (upgrade-tags ((upgrade-tags *upgrade-test-tags*))
            (setf upgrade-tags (get-upgrade-tags upgrade-tags)))
           (upgrade-methods ((upgrade-methods *upgrade-test-methods*))
-           (setf upgrade-methods (get-upgrade-methods upgrade-methods))))
+           (setf upgrade-methods (get-upgrade-methods upgrade-methods)))
+          (new-version (new-version)
+           (setf new-version (or new-version (next-version (version-from-file))))))
         :for arg :in args
         :for (found larg init) = (assoc arg argmap)
         :append (if found larg (list arg)) :into largs
@@ -157,7 +159,7 @@
     (if-let (date (safe-file-write-date log))
       (rename-file-overwriting-target
        log (add-pathname-suffix log (strcat "-" (date-string date)))))
-    (with-output-file (s log))
+    (with-output-file (s log)) ;; create the file
     ;;(format t "Logging results to ~A" log)
     log))
 
@@ -187,20 +189,20 @@
          (output (if (eq output t) *standard-output* output))
          (output (if (eq output *stdout*) :interactive output)))
     (log! log "~A" (print-process-spec command nil))
-    (multiple-value-bind (out err code)
-        (run `(pipe ((>& 2 1) ,@(when interactive '(rlwrap)) ,@command)
-                    ,@(when log `((tee -a ,log))))
-             :input interactive :output output :error-output (or interactive :output) :on-error nil)
+    (multiple-value-bind (okp out err code)
+        (run* `(pipe ((>& 2 1) ,@(when interactive '(rlwrap)) ,@command)
+                     ,@(when log `((tee -a ,log))))
+              :input interactive :output output :error-output (or interactive :output) :on-error nil)
       (unless interactive
-        (if (zerop code)
-            (log! log "SUCCEEDED at ~A." activity)
-            (log! log "FAILED at ~A.
+        (log! log (if okp
+                      "SUCCEEDED at ~A."
+                      "FAILED at ~A.
 You can retry ~A with:
     ~A
 or more interactively, start with:
     ~A~%(rlwrap is optional; don't use it when in emacs; skip if not installed.)
 then copy/paste:
-    ~A"
-                  activity activity (print-process-spec command nil)
-                  (interactive-command) (compose-copy-paste-string forms))))
-    (values (zerop code) out err code))))
+    ~A")
+              activity activity (print-process-spec command nil)
+              (interactive-command) (compose-copy-paste-string forms)))
+    (values okp out err code))))

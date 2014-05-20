@@ -21,6 +21,14 @@
     (cl-ppcre:register-groups-bind (ver) ("^cl-asdf [(]([0-9.:-]+)[)] " line)
       ver)))
 
+(defun parse-debian-version (&optional (debian-version (debian-version-from-file)))
+  (cl-ppcre:register-groups-bind (epoch ver rel)
+      ("^(?:([0-9]+):)?([0-9.]+)(?:-([0-9]+))$" debian-version)
+    ;; NB: (A) we return version first, not epoch, because it's the primary result!
+    ;; (B) epoch = nil is semantically same as epoch = 0
+    ;; (C) rel = nil is for debian-native packages, e.g. base-passwd or cowbuilder
+    (values ver epoch rel)))
+
 (defparameter *version* (version-from-file))
 
 ;;; Bumping the version of ASDF
@@ -44,8 +52,6 @@
     (unparse-version pv)))
 
 (defun versions-from-args (&optional v1 v2)
-  (when (eq v1 :default) (setf v1 (version-from-file)))
-  (when (eq v2 :default) (setf v2 (next-version (or v1 (version-from-file)))))
   (labels ((check (old new)
              (parse-version old 'error)
              (parse-version new 'error)
@@ -53,6 +59,7 @@
     (cond
       ((and v1 v2) (check v1 v2))
       (v1 (check (version-from-file) v1))
+      ((not (eq *new-version* :default)) *new-version*) ;; Ugly passing of argument from Makefile.
       (t (let ((old (version-from-file)))
            (check old (next-version old)))))))
 
@@ -109,20 +116,20 @@
 (defun test-transform (new-version)
   (apply 'test-transform-file new-version (first *versioned-files*)))
 
-(defun bump-version (&key (from *old-version*) (to *new-version*))
+(defun bump-version (&optional v1 v2)
+  "bump version of ASDF to specified version or next development version (do not commit)."
   (with-asdf-dir ()
     (multiple-value-bind (old-version new-version)
-        (versions-from-args from to)
+        (versions-from-args v1 v2)
       (format t "Bumping ASDF version from ~A to ~A~%" old-version new-version)
       (transform-files new-version)
       (println "Rebuilding ASDF with bumped version")
       (build-asdf)
       new-version)))
 
-(defun bump (&key (from *old-version*) (to *new-version*))
-  (let ((v (bump-version :from from :to to)))
+(defun bump (&optional v1 v2)
+  "bump version of ASDF to specified version or next development version, then commit and tag."
+  (let ((v (bump-version v1 v2)))
     (git `(commit -a -m ("Bump version to ",v)))
     (git `(tag ,v))
     v))
-
-(trace bump-version versions-from-args)
