@@ -3,7 +3,9 @@
 (defparameter *default-test-scripts* '("*.script"))
 
 (defun get-test-scripts (&optional (test-scripts *test-scripts*))
-  (if (eq test-scripts :default) (setf test-scripts *default-test-scripts*))
+  (typecase test-scripts
+    ((eql :default) (setf test-scripts *default-test-scripts*))
+    (string (setf test-scripts (ensure-list-of-strings test-scripts))))
   (with-asdf-dir ("test/")
     (sort
      (loop :for pattern :in test-scripts
@@ -30,21 +32,20 @@
 Use the preferred lisp implementation"
   (nest
    (with-asdf-dir ("test/"))
-   (let* ((log (newlogfile "test" lisp))
-          (scripts (get-test-scripts)))
+   (let* ((log (newlogfile "test" lisp)))
      (log! log "Running the following ~D ASDF test scripts on ~(~A~):~%~{  ~A~%~}"
-           (length scripts) lisp scripts)
+           (length test-scripts) lisp test-scripts)
     (and
      (run-test-lisp
       "compiling ASDF"
       '((load "script-support.lisp") (asdf-test::compile-asdf-script))
       :lisp lisp :log log)
      (loop
-       :with n-tests = (length scripts)
+       :with n-tests = (length test-scripts)
        :with test-pass = 0
        :with test-fail = 0
        :with failed-list = ()
-       :for i :in scripts
+       :for i :in test-scripts
        :for ni = (native-namestring i)
        :for test-count :from 0
        :do
