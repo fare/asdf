@@ -44,12 +44,12 @@
 (defun fix-local-git-tags ()
   "delete wrongful tags from local git repository"
   (dolist (tag *wrongful-tags*)
-    (git `(tag -d ,tag) :on-error t)))
+    (git `(tag -d ,tag) :on-error nil)))
 
 (defun fix-remote-git-tags (&optional (remote "origin"))
   "delete wrongful tags from remote git repository"
   (dolist (tag *wrongful-tags*)
-    (git `(push ,remote (:refs/tags/,tag)) :on-error t)))
+    (git `(push ,remote (:refs/tags/,tag)) :on-error nil)))
 
 (defun git-all-committed-p ()
   "is your checkout clean, with all files committed?"

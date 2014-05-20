@@ -1,5 +1,4 @@
 ;;;; Generic code to interface a Lisp script to the shell command-line.
-
 (in-package :asdf-tools)
 
 (defun re (arg)
@@ -58,7 +57,7 @@
      (loop :for x :in (sort (public-commands) 'string< :key 'command-name)
            :do (format t "~(~27A~)~@[  ~A~]~%"
                        (command-name x) (short-function-description x)))
-     t)
+     (values))
     (t
      (let ((x (find-command x)))
        (when x
@@ -66,7 +65,7 @@
                  (command-name x)
                  (or ()) ;; TODO: remember the arguments to deftestcmd, translate to v=, etc
                  (documentation x 'function))
-         t)))))
+         (values))))))
 
 ;;; Main entry point.
 ;;; NB: For access control, you could check that only exported symbols are used as entry points.
@@ -80,7 +79,7 @@
               (multiple-value-list (apply fun (rest args)))))
         (when results
           (format t "~&~{~S~%~}" results))
-        (return (first results))))
+        (return (or (null results) (first results))))) ;; Trick: (values) counts as T, not NIL.
     (format t "Command ~A not found~%" (first args))
     (return)))
 

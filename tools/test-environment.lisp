@@ -72,18 +72,22 @@
           (declare (ignore r))
           (unless (emptyp val)
             (setf (symbol-value sym) (funcall transformer val)))
-          (return))
+          (return t))
         (error "Unknown variable ~A" var)))
-    (error "Unrecognized argument ~A" def)))
+    nil))
 
 (defun show-environment ()
   (loop :for (v) :in *environment-variable-specs* :do
     (format t "~A = ~S~%" v (symbol-value v)))
   t)
 
-(defun make-target (target &rest env)
-  (map () 'test-definition env)
-  (shell-boolean-exit (main (list target))))
+(defun env (&rest env)
+  (loop :for (first . rest) :on env
+        :unless (test-definition first)
+          :return (if-let (c (find-command first))
+                    (apply c rest)
+                    (progn (format t "Command ~A not found~%" first) nil))
+        :finally (progn (format t "No command provided~%") (return))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun decl-or-docstring-p (form)

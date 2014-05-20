@@ -38,8 +38,26 @@ Makefile:
 	@:
 
 ### Default fall back rule: delegate to asdf-tools.
+# Note that the l= L= etc. are the only way I (Faré) have found to
+# pass arguments from the Makefile to the underlying script:
+# l= overrides $ASDF_TEST_LISPS to specify which lisp implementations to use
+# L= overrides $ASDF_UPGRADE_TEST_LISPS (defaults to the former) to lisps during upgrade
+# s= overrides $ASDF_TEST_SYSTEMS to specify systems with which to test ASDF
+# t= overrides $ASDF_TESTS to specify test script patterns to use (default to *.script)
+# u= overrides $ASDF_UPGRADE_TEST_TAGS to specify versions to upgrade from (e.g. 3.0.3 or REQUIRE)
+# U= overrides $ASDF_UPGRADE_TEST_METHODS to specify upgrade methods
+# v= overrides the default next version for bump-version or bump.
+# see in tools/test-environment.lisp for details.
+# To have a list of commands, see make help or ./tools/asdf-tools help
+# Note that when you call ./tools/asdf-tools directly,
+# you may have to use positional parameters instead (unless you use env as below), as in
+#   ./tools/asdf-tools bump 3.2.1
+# instead of
+#   make bump v=3.2.1
+# or
+#   ./tools/asdf-tools env v=3.2.1 bump
 %: build/asdf.lisp
 	@echo "Delegating $@ to asdf-tools" ; \
-	./tools/asdf-tools make-target $@ l="$l" L="$L" u="$u" U="$u" v="$v" s="$s" t="$t"
+	./tools/asdf-tools env l="$l" L="$L" u="$u" U="$u" v="$v" s="$s" t="$t" $@
 
 .PHONY: all driver-files defsystem-files
