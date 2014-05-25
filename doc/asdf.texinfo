@@ -499,7 +499,7 @@ If all fails, we recommend you load ASDF from source
 The ASDF source repository contains a tool to help you upgrade your implementation's ASDF.
 You can invoke it from the shell command-line as
 @code{tools/asdf-tools install-asdf lispworks}
-(where you can replace @tt{lispworks} by the name of the relevant implementation),
+(where you can replace @code{lispworks} by the name of the relevant implementation),
 or you can @code{(load "tools/install-asdf.lisp")} from your Lisp REPL.
 
 It works on

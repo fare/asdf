@@ -41,8 +41,9 @@ Use your preferred lisp implementation and check that asdf is loaded without any
      (run-test-lisp
       (format nil "Starting ~(~A~), loading the script support, loading ASDF from source, then exiting" lisp)
       `((load "test/script-support.lisp" :verbose nil :print nil)
+        (asdf-test::verbose nil)
         (load "build/asdf.lisp" :verbose nil :print nil)
-        "(uiop/image:quit 0)")
+        (uiop/image:quit 0))
       :lisp lisp :output load :log log)
      (if (nth-value 2 (run `(diff ,nop ,load)
                            :output :interactive :error-output :output :input nil))
