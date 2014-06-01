@@ -1,0 +1,121 @@
+* Syntax control: objective
+
+What is the problem that we are trying to fix?
+
+It seems like we are trying to fix uncontrolled, unintentional leaking of
+readtable side effects, without removing /intended/ leaking of readtable side
+effects.
+
+* Syntax Control: implement and document this plan
+
+1. ASDF maintains an =asdf:*shared-readtable*=, which is the =*readtable*=
+   object at the time it was loaded.
+
+  [RPG: What is the intended function of the *shared-readtable* as distinct from
+   the default readtable?]
+
+2. This *shared-readtable* is subject to the current restrictions: [RPG: what do
+   you mean by "current" in this sentence? I mean, in the current CL world, the
+   readtable is a mess; there are few, if any restrictions.  Is this a just a
+   typo for "the following restrictions"?]
+  
+  A. no modifying any standard character,
+  B. no two dependencies assigning different meaning to the same non-standard
+   character. [RPG: what is a "dependency" in this context?  Do you mean "no
+   system should be loaded on top of systems that assign different meanings to a
+   character in asdf:*shared-readtable*?]
+  C. libraries need to document any change to the readtable [RPG: should "the
+   readtable" be "asdf:*shared-readtable*"?]
+  D. free software libraries will register these changes on the page on cliki.
+
+3. Unhappily, there is no cheap way to enforce these restrictions, but that's no
+   regression with respect to the current situation.
+
+4. ASDF wraps any compile-op and load-source-op in this asdf:*shared-readtable*
+   [RPG: to be painfully explicit: "ASDF binds =*READTABLE*= to
+   =ASDF:*SHARED-READTABLE*= around any =PERFORM COMPILE-OP= and =PERFORM
+   LOAD-SOURCE-OP="?  Is that a correct reading?], but probably not =load-op=,
+   to preserve combine-fasl linking semantics.
+
+5. Systems that want to do crazier things with the readtable that may violate
+   (2) must arrange to use their own private readtable, but can otherwise do it
+   safely. It is an error (unhappily not enforceable) to modify the current
+   readtable in these ways.
+   
+   [RPG: I'm not at all sure I know what "the readtable" refers to in the
+   paragraph above.  Is it "the current value of =*READTABLE*=," "the value of
+   =ASDF:*SHARED-READTABLE*=," or something else?]
+
+6A. ASDF binds =*readtable*= to the =*shared-readtable*= at the start of every
+system's compilation (and loading?), and around the entire =ASDF:OPERATE=, leaving
+the *readtable* unchanged at the end. [RPG: Please clarify -- I don't see how we
+can wrap around the entire =OPERATE= while at the same time /not/ doing loading
+as well as compilation. What's the precise scope of the binding of
+=*READTABLE*=?]
+
+This easily supports systems that "modify the current readtable data structure".
+
+However, that doesn't handle systems that "bind *readtable* to a new value",
+because the changes they make will shadow the changes that other systems
+following this style make and depend on. [RPG: We need to clarify the preceding
+sentence. In particular, given the way CL works today, we can't actually /bind/
+=*READTABLE*= in a useful way: we always end up setting it. A simple example
+would help.] To allow such an idiom, we must also do the following:
+
+6B- ASDF binds =*readtable*= to a proper "entry readtable" at the start
+of every system's compilation, and records an "exit readtable" at the
+end of the system's loading. [RPG: 6B seems to directly contradict 4.]
+
+7. Maintain a partial order on these readtable objects, assuming that
+each system's exit readtable supersedes the entry readtable. The least
+readtable is the *shared-readtable*. It's enough to store for each new
+exit readtable, identified by the name of system that created it, the
+set of its inferior readtables, as a list or eq-hash-table, or an
+equal hash-table, with each readtable being identified by the name of
+the system that created it.
+
+8. before a system is compiled or loaded, compute the maximum readtable of all
+   the exit readtables of its dependencies. If this maximum is unique, then it
+   will be the entry readtable of the system. If there is not a unique readtable
+   that is more than all the other ones, that's an error, and we refuse to load
+   the system.
+
+   [RPG: I /think/ I follow this: the idea is to compute what the actual
+   readtable dependencies are, as a means of ensuring repeatability, as build
+   operations may be interleaved in different situations.]
+   
+   [RPG: Another point -- we aren't actually computing the maximum readtable as
+   a readtable object, are we?  Instead we are computing a dependency graph,
+   right?  And the nodes are readtable /designators/, rather than readtables,
+   right?]
+
+9. after a system is loaded, check its exit readtable, if it already exists,
+   check that this doesn't create a cycle or issue an error. If the exit
+   readtable doesn't already exist, add it to the set of all known exit
+   readtables.
+   
+10. ASDF either
+ a. binds the *readtable* to the *shared-readtable* around the entire
+    asdf:operate, leaving the *readtable* unchanged at the end, or
+
+ b. always side-effects the *readtable* to correspond to the exit readtable of
+    the loaded system, or
+
+ c. operate does the binding around thing, but load-system does the side-effect
+    after it's done operate'ing.
+
+Does that strike you as complex? Because it is. That's the price of
+*safely* supporting this "systems can bind a new value to *readtable*"
+style. Unhappily some of the constraints are not enforceable (2A and
+2B), but that's the very same as now.
+
+So my next question is: do you want to safely support these
+conventions? Do your systems modify the current *readtable* structure,
+or do they bind *readtable* to a new value?
+
+[RPG: So what is implemented in the syntax-control branch?]
+
+
+# Local Variables:
+# mode: org
+# End:
