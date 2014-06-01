@@ -8,7 +8,7 @@
 ;;;
 ;;; Everything is MUCH simpler if you can assume your implementation has a recent-enough ASDF 3:
 ;;; just (require "asdf"), then configure in a subsequent eval-when form,
-;;; so that you may use asdf: and uiop: prefix.
+;;; in which you may then use asdf: and uiop: prefix.
 ;;;
 ;;; To use the user-configured ASDF rather than a deterministic self-contained project build,
 ;;; see instead how cl-launch 4.0.4 loads ASDF.
@@ -146,29 +146,23 @@
   (ensure-pathname (system-relative-pathname :asdf/defsystem ())
                    :want-physical t :want-absolute t
                    :want-existing t :truename t))
-(defparameter /asdf-dir/
-  (native-namestring *asdf-dir*))
-(defun apath (x &rest keys) (apply 'subpathname *asdf-dir* x keys))
+(defun pn (&rest x)
+  (subpathname *asdf-dir* (and x (uiop:resolve-relative-location x))))
+(defun nn (&rest x)
+  (native-namestring (apply 'pn x)))
 
 ;;; UIOP directory
-(defvar *uiop-dir* (subpathname *asdf-dir* "uiop/"))
-(defparameter /uiop-dir/ (native-namestring *uiop-dir*))
-(defun upath (x &rest keys) (apply 'subpathname *uiop-dir* x keys))
-
+(defvar *uiop-dir* (pn "uiop/"))
 
 ;;; build directory
-(defparameter *build-dir*
-  (ensure-pathname
-   "build/" :defaults *asdf-dir*
-            :want-relative t :ensure-absolute t
-            :ensure-subpath t))
-(defparameter /build-dir/
-  (native-namestring *build-dir*))
+(defparameter *build-dir* (pn "build/"))
+(defparameter /build-dir/ (nn "build/"))
 (defun bpath (x &rest keys) (apply 'subpathname *build-dir* x keys))
 
-(defparameter *version*
-  (safe-read-file-form
-   (subpathname *asdf-dir* "version.lisp-expr")))
+(defparameter *version-file*
+  (pn "version.lisp-expr"))
+
+(defparameter *version* (safe-read-file-form *version-file*))
 
 (defun enough-namestring! (base pathname)
   (let ((e (enough-namestring base pathname)))
@@ -201,40 +195,32 @@
   (ensure-pathname base :want-absolute t :want-existing t :want-directory t)
   (dolist (f files)
     (check-type f string))
-  (let* ((/base/
-           (native-namestring
-            (ensure-pathname
-             base
-             :want-absolute t :want-directory t
-             :want-existing t :truename t)))
+  (let* ((base
+           (ensure-pathname
+            base
+            :want-absolute t :want-directory t
+            :want-existing t :truename t))
          (destination
            (ensure-pathname
             name
             :defaults *build-dir*
             :want-relative t :ensure-absolute t
             :ensure-subpath t :ensure-directory t))
-         (/destination/
-           (native-namestring destination))
-         (/tarball/
-           (native-namestring
-            (ensure-pathname
-             (tarname name)
-             :defaults *build-dir*
-             :want-relative t :ensure-absolute t
-             :ensure-subpath t :want-file t
-             :ensure-directories-exist t)))
-         (/files/
-           (mapcar 'native-namestring files)))
+         (tarball
+           (ensure-pathname
+            (tarname name)
+            :defaults *build-dir*
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t :want-file t
+            :ensure-directories-exist t)))
     (assert (< 6 (length (pathname-directory destination))))
     (when (probe-file* destination)
       (error "Destination ~S already exists, not taking chances - you can delete it yourself."
              destination))
     (ensure-directories-exist destination)
-    (run (format nil "cd ~S && cp -pHux --parents ~{~S ~} ~S"
-                 /base/ /files/ /destination/) :show t)
-    (run (format nil "tar zcfC ~S ~S ~S/"
-                 /tarball/ /build-dir/ name) :show t)
-    (delete-directory-tree destination :validate (lambda (x) (equal (native-namestring x) /destination/)))
+    (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
+    (run `(tar "zcfC" ,tarball ,*build-dir* (,name /)) :show t)
+    (delete-directory-tree destination :validate (lambda (x) (equal x destination)))
     (values)))
 
 (defun driver-files ()
@@ -254,11 +240,12 @@
   (make-tarball-under-build (asdf-defsystem-name) *asdf-dir* (asdf-defsystem-files)))
 
 (defun asdf-git-name ()
-  (format nil "asdf-~A" *version*))
+  (strcat "asdf-" *version*))
 (defun make-git-tarball ()
   (build-asdf)
-  (run (format nil "cd ~S && tar zcf build/~A.tar.gz build/asdf.lisp $(git ls-files)"
-               /asdf-dir/ (asdf-git-name)) :show t)
+  (with-current-directory ((pn))
+    (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") build/asdf.lisp ,@(run/lines '(git ls-files)))
+         (asdf-git-name)) :show t)
   (values))
 
 (defun asdf-lisp-name ()
@@ -266,8 +253,8 @@
 
 (defun make-asdf-lisp ()
   (build-asdf)
-  (concatenate-files (list (apath "build/asdf.lisp"))
-                     (bpath (asdf-lisp-name))))
+  (concatenate-files (list (pn "build/asdf.lisp"))
+                     (pn "build/" (asdf-lisp-name))))
 
 (defun make-archive ()
   (make-driver-tarball)
@@ -278,6 +265,7 @@
 
 (defvar *clnet* "common-lisp.net")
 (defvar *clnet-asdf-public* "/project/asdf/public_html/")
+(defun public-path (x) (strcat *clnet-asdf-public* x))
 
 (defun publish-archive ()
   (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
@@ -291,13 +279,13 @@
 (defun link-archive ()
   (run (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
                (tarname (driver-name))
-               (strcat *clnet-asdf-public* "archives/uiop.tar.gz")
+               (public-path "archives/uiop.tar.gz")
                (tarname (asdf-defsystem-name))
-               (strcat *clnet-asdf-public* "archives/asdf-defsystem.tar.gz")
+               (public-path "archives/asdf-defsystem.tar.gz")
                (tarname (asdf-git-name))
-               (strcat *clnet-asdf-public* "archives/asdf.tar.gz")
+               (public-path "archives/asdf.tar.gz")
                (asdf-lisp-name)
-               (strcat *clnet-asdf-public* "archives/asdf.lisp"))
+               (public-path "archives/asdf.lisp"))
        :show t :host *clnet*)
   (values))
 
@@ -311,9 +299,6 @@
     ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by make bump-version")
     ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
     ("upgrade.lisp" "   (asdf-version \"" "\")")))
-
-(defparameter *version-file*
-  (apath "version.lisp-expr"))
 
 (defparameter *old-version* nil)
 (defparameter *new-version* nil)
@@ -376,13 +361,13 @@
         (values new-text foundp)))))
 
 (defun transform-file (new-version file prefix suffix)
-  (maybe-replace-file (apath file) (version-transformer new-version file prefix suffix)))
+  (maybe-replace-file (pn file) (version-transformer new-version file prefix suffix)))
 
 (defun transform-files (new-version)
   (loop :for f :in *versioned-files* :do (apply 'transform-file new-version f)))
 
 (defun test-transform-file (new-version file prefix suffix)
-  (let ((lines (read-file-lines (apath file))))
+  (let ((lines (read-file-lines (pn file))))
     (dolist (l lines (progn (warn "Couldn't find a match in ~A" file) nil))
       (multiple-value-bind (new-text foundp)
           (funcall (version-transformer new-version file prefix suffix t) l)
@@ -402,9 +387,53 @@
     (a "Rebuilding ASDF with bumped version")
     (build-asdf)))
 
-(defun git-version ()
-  (first (run/lines '("git" "describe" "--tags" "--match" "[0-9].[0-9][0-9]") :show t)))
+(defparameter *version-tag-glob* "[0-9][.][0-9]*")
 
+(defun version-from-tag (&optional commit)
+  (first (run/lines `("git" "describe" "--tags" "--match" ,*version-tag-glob*) :show t)))
+
+(defun version-from-file (&optional commit)
+  (if commit
+      (run `("git" "show" (,commit":version.lisp-expr")) :output :form)
+      (read-file-form *version-file*)))
+
+(defun debian-version-from-file (&optional commit)
+  (let ((line
+          (if commit
+              (run `("git" "show" (,commit":debian/changelog")) :output :line)
+              (read-file-line "debian/changelog"))))
+    (cl-ppcre:register-groups-bind (ver) ("^cl-asdf [(]([0-9.:-]+)[)] " line)
+      ver)))
+
+(defun clean ()
+  (with-current-directory ((pn))
+    (run '(git clean -xfd)))
+  (values))
+
+(defun debian-package (&optional (release "release"))
+  (let* ((debian-version (debian-version-from-file release))
+         (version (version-from-file release)))
+    (unless (cl-ppcre:register-groups-bind (x epoch ver rel)
+                ("^(([0-9]+):)?([0-9.]+)-([0-9]+)$" debian-version)
+              (declare (ignorable x epoch rel))
+              (equal ver version))
+      (error "Debian version ~A doesn't match asdf version ~A" debian-version version))
+    (clean)
+    (format t "building package version ~A~%" (debian-version-from-file))
+    (run `(git-buildpackage
+           ;; --git-ignore-new ;; for testing purpose
+           (--git-debian-branch= ,release)
+           (--git-upstream-tag="%(version)s")
+           ;;--git-upstream-tree=tag ;; if the changelog says 3.1.2, looks at that tag
+           ;;(--git-upstream-branch= ,version) ;; if the changelog says 3.1.2, looks at that tag
+           --git-tag --git-retag
+           ;; --git-no-pristine-tar
+           --git-force-create
+           --git-ignore-branch)
+         :directory (pn) :show t)))
+
+(defun re (arg)
+  (eval (read-from-string arg)))
 
 ;;;; Main entry point
 (defun main (args)

@@ -8,8 +8,8 @@
 
 (uiop/package:define-package :uiop/common-lisp
   (:nicknames :uoip/cl :asdf/common-lisp :asdf/cl)
-  (:use #-genera :common-lisp #+genera :future-common-lisp :uiop/package)
-  (:reexport :common-lisp)
+  (:use :uiop/package)
+  (:use-reexport #-genera :common-lisp #+genera :future-common-lisp)
   (:recycle :uiop/common-lisp :uoip/cl :asdf/common-lisp :asdf/cl :asdf)
   #+allegro (:intern #:*acl-warn-save*)
   #+cormanlisp (:shadow #:user-homedir-pathname)
@@ -18,7 +18,7 @@
    #:logical-pathname #:translate-logical-pathname
    #:make-broadcast-stream #:file-namestring)
   #+genera (:shadowing-import-from :scl #:boolean)
-  #+genera (:export #:boolean #:ensure-directories-exist)
+  #+genera (:export #:boolean #:ensure-directories-exist #:read-sequence #:write-sequence)
   #+mcl (:shadow #:user-homedir-pathname))
 (in-package :uiop/common-lisp)
 
@@ -98,9 +98,20 @@
 
 #+genera
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  (unless (fboundp 'lambda)
+    (defmacro lambda (&whole form &rest bvl-decls-and-body)
+      (declare (ignore bvl-decls-and-body)(zwei::indentation 1 1))
+      `#',(cons 'lisp::lambda (cdr form))))
   (unless (fboundp 'ensure-directories-exist)
     (defun ensure-directories-exist (path)
-      (fs:create-directories-recursively (pathname path)))))
+      (fs:create-directories-recursively (pathname path))))
+  (unless (fboundp 'read-sequence)
+    (defun read-sequence (sequence stream &key (start 0) end)
+      (scl:send stream :string-in nil sequence start end)))
+  (unless (fboundp 'write-sequence)
+    (defun write-sequence (sequence stream &key (start 0) end)
+      (scl:send stream :string-out sequence start end)
+      sequence)))
 
 #.(or #+mcl ;; the #$ doesn't work on other lisps, even protected by #+mcl, so we use this trick
       (read-from-string

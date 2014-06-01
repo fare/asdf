@@ -529,7 +529,7 @@ To continue, push :asdf-use-unsafe-mac-bundle-op onto *FEATURES*.~%~T~
 Please report to ASDF-DEVEL if this works for you.")))
 
 
-;;; Backward compatibility with pre-3.1.1 names
+;;; Backward compatibility with pre-3.1.2 names
 (defclass fasl-op (selfward-operation)
   ((selfward-operation :initform 'compile-bundle-op :allocation :class)))
 (defclass load-fasl-op (selfward-operation)

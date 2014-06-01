@@ -36,9 +36,10 @@
         <p>ASDF 3 is the current successor to Daniel Barlow's ASDF.
           It was rewritten for improved portability, robustness, usability,
           extensibility, configurability, internal consistency,
-          and the ability to create standalone executables.
+          and the ability to deliver standalone executables.
           It was pre-released as 2.27 on February 1st 2013,
-          released as 3.0.0 on May 15th 2013, with further stable releases since.
+          released as 3.0.0 on May 15th 2013,
+          and again as 3.1.2 on May 6th 2014.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -210,22 +211,23 @@
           (ASDF 3 does that automatically).
         </p>
         <!-- Note to self:
-             The maintainers of the following implementations follow asdf-announce:
-             clisp	(sds)
+             asdf-announce may have been a casualty of some recent mailing-list reorganization. Check.
+sds, maintainer of CLISP, used to listen to it.
 
              The maintainers of the following implementations require direct notification:
-             abcl ccl cmucl gcl lispworks sbcl mkcl scl xcl
+             abcl allegro ccl clisp cmucl ecl gcl lispworks mkcl sbcl scl xcl
 Armed Bear <armedbear-devel@common-lisp.net>,
-openmcl-devel@clozure.com,
-cmucl-imp@cmucl.cons.org,
-gcl-devel@gnu.org,
-lisp-support@lispworks.com,
-bugs@franz.com, (allegro)
-ecls-list@lists.sourceforge.net
-SBCL Devel-list <sbcl-devel@lists.sourceforge.net>,
-Jean-Claude Beaudoin <jean.claude.beaudoin@gmail.com>, (MKCL)
-Douglas Crosher <dtc3@scieneer.com>, (Scieneer CL)
-Peter Graves <gnooth@gmail.com> (XCL).
+Allegro <bugs@franz.com>,
+Clozure CL <openmcl-devel@clozure.com>,
+GNU CLISP <clisp-list@lists.sourceforge.net> (sds)
+CMU CL <cmucl-imp@cmucl.cons.org>,
+ECL <ecls-list@lists.sourceforge.net>,
+GCL <gcl-devel@gnu.org>,
+LispWorks <lisp-support@lispworks.com>,
+MKCL <jean.claude.beaudoin@gmail.com>,
+SBCL <sbcl-devel@lists.sourceforge.net>,
+Scieneer CL (Douglas Crosher) <dtc3@scieneer.com>,
+XCL (Peter Graves) <gnooth@gmail.com>
         -->
         <p>
           If there is an old or new implementation that we are missing,
@@ -252,7 +254,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
           and the work we did on ASDF 3,
           see the extended version (26 pages) of our paper
           <cite><a href="http://fare.tunes.org/files/asdf3/asdf3-2014.html"
-                   >ASDF3, or Why Lisp is Now an Acceptable Scripting Language</a></cite>
+                   >ASDF 3, or Why Lisp is Now an Acceptable Scripting Language</a></cite>
           (<a href="http://fare.tunes.org/files/asdf3/asdf3-2014.pdf">PDF</a>,
           <a href="http://github.com/fare/asdf3-2013">git</a>).
           The shorter version (8 pages), submitted to
@@ -262,7 +264,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
           <a href="http://fare.tunes.org/files/asdf3/asdf3-2014.html">HTML</a>).
           Regarding ASDF 3, see also the slides of the
           <a href="https://github.com/fare/asdf3-2013/blob/master/els-slides.org"
-             >ASDF3 tutorial</a> presented at ELS 2013,
+             >ASDF 3 tutorial</a> presented at ELS 2013,
           and for an introduction to the source code, this video:
           <a href="https://www.youtube.com/watch?v=Qqqbc31ZZ-U">ASDF 3.1 walkthrough</a>.
           For more details about our work on ASDF 2,
@@ -417,20 +419,15 @@ Peter Graves <gnooth@gmail.com> (XCL).
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
-          <dt>May 2014</dt>
-          <dd>Version 3.1.2 of ASDF 3 has been released.
-            In addition to many significant improvements and bug fixes,
-            it notably sports the <tt>package-inferred-system</tt> extension.
-          </dd>
-          <dt>October 2013</dt>
-          <dd>Version 3.0.3 of ASDF 3 has been released.
-            It contains many bug fixes, including notably better Windows support.
-          </dd>
-          <dt>Since July 2013</dt>
+          <dt>July 2013 to May 2014</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau has resigned as maintainer
-            after releasing ASDF 3.0.1, but remains an active developer.
+            but remained an active developer.
             Robert P. Goldman is interim maintainer until someone more gifted,
             charming, dedicated, and better-looking can be secured to fill the role.
+            ASDF 3.0.2 was released in July 2013, 3.0.3 in October 2013, and 3.1.2 in May 2014.
+            In addition to significant improvements and bug fixes,
+            notably better Windows support,
+            ASDF 3.1.2 notably sports the <tt>package-inferred-system</tt> extension.
           </dd>
           <dt>November 2012 to June 2013</dt>
           <dd>
@@ -470,7 +467,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
           <dd>Christophe Rhodes is de facto maintainer,
             with notable contributions from
             Nikodemus Siivola, Peter Van Eynde, Edi Weitz, Kevin Rosenberg.
-            The system made more robust, a few more features.
+            The system made slightly more robust, a few more features.
             Last version: 1.97.
           </dd>
           <dt>August 2001 to May 2004</dt>
@@ -487,7 +484,7 @@ Peter Graves <gnooth@gmail.com> (XCL).
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2014 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2014-03-27</div>
+        <div id="timestamp">Last updated 2014-05-09</div>
     </div>
   </body>
 </html>

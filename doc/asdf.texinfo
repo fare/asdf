@@ -310,7 +310,7 @@ If you want to download software from version control instead of tarballs,
 so you may more easily modify it, we recommend clbuild (@uref{http://common-lisp.net/project/clbuild/}).
 We recommend @file{~/common-lisp/}
 as a place into which to install Common Lisp software;
-starting with ASDF 3.1.1, it is included in the default source-registry configuration.
+starting with ASDF 3.1.2, it is included in the default source-registry configuration.
 
 @node  Quick start summary, Loading ASDF, Introduction, Top
 @chapter Quick start summary
@@ -331,7 +331,7 @@ Make sure ASDF can find system definitions
 through proper source-registry configuration.
 For more details, @xref{Configuring ASDF to find your systems}.
 The simplest way is simply to put all your lisp code in subdirectories of
-@file{~/common-lisp/} (starting with ASDF 3.1.1),
+@file{~/common-lisp/} (starting with ASDF 3.1.2),
 or @file{~/.local/share/common-lisp/source/}
 (for ASDF 2 and later, or if you want to keep source in a hidden directory).
 Such code will automatically be found.
@@ -655,7 +655,7 @@ of
 If you install software there, you don't need further
 configuration.@footnote{@file{~/common-lisp/} is only included in
 the default configuration
-starting with ASDF 3.1.1 or later.}
+starting with ASDF 3.1.2 or later.}
 
 @item
 If you're using some tool to install software (e.g. Quicklisp),
@@ -1728,7 +1728,7 @@ of output from ASDF operations.
 @node The package-inferred-system extension,  , Other code in .asd files, Defining systems with defsystem
 @section The package-inferred-system extension
 
-Starting with release 3.1.1,
+Starting with release 3.1.2,
 ASDF supports a one-package-per-file style of programming,
 whereby each file is its own system,
 and dependencies are deduced from the @code{defpackage} form
@@ -1783,7 +1783,7 @@ In the code above, the
 @code{:defsystem-depends-on (:asdf-package-system)} is
 for compatibility with older versions of ASDF 3 (ASDF 2 is not supported),
 and requires the @code{asdf-package-system} library to be present
-(it is implicitly provided by ASDF starting with release 3.1.1,
+(it is implicitly provided by ASDF starting with release 3.1.2,
 which can be detected with the feature @code{:asdf3.1}).
 
 The function @code{register-system-packages} has to be called to register
@@ -1969,13 +1969,13 @@ If @var{force-not} is @code{:all}, then all systems
 are forced not to be recompiled even if modified since last compilation.
 If @var{force-not} is @code{t}, then all systems but the system being loaded
 are forced not to be recompiled even if modified since last compilation
-(note: this was changed in ASDF 3.1.1).
+(note: this was changed in ASDF 3.1.2).
 If @var{force-not} is a list, then it specifies a list of systems that
 are forced not to be recompiled even if modified since last compilation.
 
 Both @var{force} and @var{force-not} apply to systems that are dependencies and were already compiled.
 @var{force-not} takes precedences over @var{force},
-as it should, really, but unhappily only since ASDF 3.1.1.
+as it should, really, but unhappily only since ASDF 3.1.2.
 Moreover, systems the name of which is member of the set @var{*immutable-systems*}
 (represented as an equal hash-table) are always considered @var{forced-not}, and
 even their @file{.asd} is not refreshed from the filesystem.
@@ -2903,7 +2903,7 @@ if it exists.
 @item
 The source registry will be configured from
 default user configuration trees
-@file{~/common-lisp/} (since ASDF 3.1.1 only),
+@file{~/common-lisp/} (since ASDF 3.1.2 only),
 @file{~/.sbcl/systems/} (on SBCL only),
 @file{$XDG_DATA_HOME/common-lisp/systems/} (no recursion, link farm)
 @file{$XDG_DATA_HOME/common-lisp/source/}.
@@ -4632,7 +4632,7 @@ we recommend you upgrade to ASDF 3
 ASDF 2.27, released on Feb 1st 2013, and further 2.x releases up to 2.33,
 count as pre-releases of ASDF 3, and define the @code{:asdf3} feature;
 still, please use the latest release).
-Release ASDF 3.1.1 and later also define the @code{:asdf3.1} feature.
+Release ASDF 3.1.2 and later also define the @code{:asdf3.1} feature.
 
 
 @menu
@@ -4674,7 +4674,7 @@ Releases starting with ASDF 2
 push @code{:asdf2} onto @code{*features*}.
 Releases starting with ASDF 3 (including 2.27 and later pre-releases)
 push @code{:asdf3} onto @code{*features*}.
-Furthermore, releases starting with ASDF 3.1.1 (April 2014),
+Furthermore, releases starting with ASDF 3.1.2 (May 2014),
 though they count as ASDF 3, include enough progress that they
 push @code{:asdf3.1} onto @code{*features*}.
 You may depend on the presence or absence of these features

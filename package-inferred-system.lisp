@@ -14,7 +14,7 @@
 (in-package :asdf/package-inferred-system)
 
 (with-upgradability ()
-  (defparameter *defpackage-forms* '(cl:defpackage uiop:define-package))
+  (defparameter *defpackage-forms* '(defpackage define-package))
 
   (defun initial-package-inferred-systems-table ()
     (let ((h (make-hash-table :test 'equal)))
