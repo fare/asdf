@@ -34,12 +34,12 @@ Use your preferred lisp implementation and check that asdf is loaded without any
    (let ((nop (newlogfile "nop" lisp))
          (load (newlogfile "load" lisp)))
      (run-test-lisp
-      (format nil "Starting ~(~A~), loading the script support, and exiting without doing anything" lisp)
+      (format nil "starting ~(~A~), loading the script support, and exiting without doing anything" lisp)
       `((load "test/script-support.lisp" :verbose nil :print nil)
         (asdf-test::exit-lisp 0))
       :lisp lisp :output nop :log log)
      (run-test-lisp
-      (format nil "Starting ~(~A~), loading the script support, loading ASDF from source, then exiting" lisp)
+      (format nil "starting ~(~A~), loading the script support, loading ASDF from source, then exiting" lisp)
       `((load "test/script-support.lisp" :verbose nil :print nil)
         (asdf-test::verbose nil)
         (load "build/asdf.lisp" :verbose nil :print nil)

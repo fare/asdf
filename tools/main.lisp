@@ -47,16 +47,28 @@
     check-all-scripts-results check-all-upgrade-results check-all-results
     make-archive publish-archive link-archive archive install ;; release
     debian-package publish-debian-package
-    re help)) ;; main
+    re help show-commands makefile-targets)) ;; main
 
+(defun public-command-strings ()
+  (sort (mapcar 'command-name (public-commands)) 'string<))
+
+(defun show-commands ()
+  (format t "~{~A~^ ~}~%" (public-command-strings))
+  (values))
+
+(defun makefile-targets ()
+  (let ((c (public-command-strings)))
+    ;;(format t ".PHONY: ~{~A~^ ~}~%~%~{~A:~%~}~%" c c))
+    (format t "~{~A:~%~}~%" c))
+  (values))
 
 (defun help (&optional x)
   "help about a command, or list of commands"
   (cond
     ((null x)
-     (loop :for x :in (sort (public-commands) 'string< :key 'command-name)
+     (loop :for x :in (public-command-strings)
            :do (format t "~(~27A~)~@[  ~A~]~%"
-                       (command-name x) (short-function-description x)))
+                       x (short-function-description x)))
      (values))
     (t
      (let ((x (find-command x)))
