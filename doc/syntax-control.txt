@@ -166,6 +166,7 @@ or do they bind *readtable* to a new value?
 [RPG: So what is implemented in the syntax-control branch?]
 [FRR: The first simpler plan, 1-5, 6A is implemented.
 The more complex plan 1-5, 6B isn't.]
+[RPG: Got it.  And do we do 7.1, 7.2, or 7.3?]
 
 
 # Local Variables:
