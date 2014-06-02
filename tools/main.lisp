@@ -53,10 +53,14 @@
   (sort (mapcar 'command-name (public-commands)) 'string<))
 
 (defun show-commands ()
+  "print the (sorted list of) names of all the public commands of asdf-tools."
   (format t "~{~A~^ ~}~%" (public-command-strings))
   (values))
 
 (defun makefile-targets ()
+  "print declaration for the public commands of asdf-tools as as many Makefile targets
+so that, when included in the Makefile, they will enable shell completion
+based on a list of targets"
   (let ((c (public-command-strings)))
     ;;(format t ".PHONY: ~{~A~^ ~}~%~%~{~A:~%~}~%" c c))
     (format t "~{~A:~%~}~%" c))
