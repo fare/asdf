@@ -2,9 +2,10 @@
 
 What is the problem that we are trying to fix?
 
-It seems like we are trying to fix uncontrolled, unintentional leaking of
-readtable side effects, without removing /intended/ leaking of readtable side
-effects.
+We are trying to fix uncontrolled, unintentional leaking of
+readtable side effects to systems that depend on such effects not happening,
+without removing /intended/ leaking of readtable side effects
+to systems that do depend on such effects happening.
 
 * Syntax Control: implement and document this plan
 
@@ -13,19 +14,42 @@ effects.
 
   [RPG: What is the intended function of the *shared-readtable* as distinct from
    the default readtable?]
+  [FRR: this *is* the default readtable. There is no other way to get to the
+  /initial readtable/ as opposed to (a copy of) the /standard readtable/,
+  which could be different and contain extensions, though since it *initially*
+  shouldn't contain extensions, I suppose we could use (copy-readtable nil)]
 
-2. This *shared-readtable* is subject to the current restrictions: [RPG: what do
-   you mean by "current" in this sentence? I mean, in the current CL world, the
-   readtable is a mess; there are few, if any restrictions.  Is this a just a
-   typo for "the following restrictions"?]
+2. This *shared-readtable* is subject to the current restrictions:
+   [RPG: what do you mean by "current" in this sentence?
+   I mean, in the current CL world, the readtable is a mess; there are few,
+   if any restrictions.  Is this a just a typo for "the following restrictions"?]
+   [FRR: that means restrictions implicit in the CL standard, unconsciously
+   followed by the CL community and now explicit in the asdf manual, section
+   "How do I work with readtables?", which are indeed as follows.]
   
   A. no modifying any standard character,
   B. no two dependencies assigning different meaning to the same non-standard
-   character. [RPG: what is a "dependency" in this context?  Do you mean "no
-   system should be loaded on top of systems that assign different meanings to a
-   character in asdf:*shared-readtable*?]
-  C. libraries need to document any change to the readtable [RPG: should "the
-   readtable" be "asdf:*shared-readtable*"?]
+   character.
+   [RPG: what is a "dependency" in this context?
+   Do you mean "no system should be loaded on top of systems
+   that assign different meanings to a character in asdf:*shared-readtable*?]
+   [FRR: yes, though I would formulate it as:
+   no two systems loaded in the same image may assign different meanings
+   to a same character in the current readtable as bound to uiop:*shared-readtable*?]
+  C. libraries need to document any change to the readtable
+   [RPG: should "the readtable" be "asdf:*shared-readtable*"?]
+   [FRR: same difference: that's what is bound initially when your files are
+   loaded or compiled, and since it's bound by LOAD and COMPILE-FILE,
+   you cannot change that. Only ASDF gets to decide whether it controls it,
+   or whether the REPL gets to override it catastrophically —
+   it is by construction IMPOSSIBLE for the REPL to do anything but a catastrophe
+   by rebinding the readtable at the REPL; no system can possibly know what other
+   systems will or won't be loaded, and thus no system can create a readtable
+   that will have exactly what will be loaded and nothing else independently
+   from the set of systems that will be loaded, which they can't control.
+   They could use (copy-readtable t), and still this wouldn't be safe against
+   one of the other systems making new changes to the previous copy of the
+   readtable and expecting them to take effects.]
   D. free software libraries will register these changes on the page on cliki.
 
 3. Unhappily, there is no cheap way to enforce these restrictions, but that's no
@@ -36,6 +60,7 @@ effects.
    =ASDF:*SHARED-READTABLE*= around any =PERFORM COMPILE-OP= and =PERFORM
    LOAD-SOURCE-OP="?  Is that a correct reading?], but probably not =load-op=,
    to preserve combine-fasl linking semantics.
+   [FRR: correct.]
 
 5. Systems that want to do crazier things with the readtable that may violate
    (2) must arrange to use their own private readtable, but can otherwise do it
@@ -45,26 +70,54 @@ effects.
    [RPG: I'm not at all sure I know what "the readtable" refers to in the
    paragraph above.  Is it "the current value of =*READTABLE*=," "the value of
    =ASDF:*SHARED-READTABLE*=," or something else?]
+   [FRR: same difference. I suppose we need a good way to distinguish
+   "side effects to the data structure to which *readtable* is currently bound"
+   from "side effects to the value of the variable *readtable*".
+   Both are problematic, although the CLHS says the latter don't escape
+   LOAD or COMPILE-FILE, though they may critically escape from the REPL,
+   and that's why we need the syntax-control feature in ASDF.]
 
 6A. ASDF binds =*readtable*= to the =*shared-readtable*= at the start of every
-system's compilation (and loading?), and around the entire =ASDF:OPERATE=, leaving
-the *readtable* unchanged at the end. [RPG: Please clarify -- I don't see how we
-can wrap around the entire =OPERATE= while at the same time /not/ doing loading
-as well as compilation. What's the precise scope of the binding of
-=*READTABLE*=?]
+   system's compilation (and loading?), and around the entire =ASDF:OPERATE=,
+   leaving the *readtable* unchanged at the end.
+   [RPG: Please clarify -- I don't see how we can wrap around the entire
+   =OPERATE= while at the same time /not/ doing loading as well as compilation.
+   What's the precise scope of the binding of =*READTABLE*=?]
+   [FRR: we don't bind around individual LOAD-OP operations, so that
+   when loading a fasl as opposed to a lisp source file, load-time
+   side-effects to the *readtable* variable won't be cancelled around each
+   file by binding *readtable* to *shared-readtable*, though a strict reading
+   of the CLHS says this implicitly happens when loading, irrespective of
+   the loading being .fasl or .lisp. In case it isn't, though, we don't try,
+   because that doesn't happen when we concatenate fasls, and we want to
+   be as compatible with that as possible.]
 
 This easily supports systems that "modify the current readtable data structure".
 
 However, that doesn't handle systems that "bind *readtable* to a new value",
 because the changes they make will shadow the changes that other systems
-following this style make and depend on. [RPG: We need to clarify the preceding
-sentence. In particular, given the way CL works today, we can't actually /bind/
-=*READTABLE*= in a useful way: we always end up setting it. A simple example
-would help.] To allow such an idiom, we must also do the following:
+following this style make and depend on.
+[RPG: We need to clarify the preceding sentence. In particular, given the way
+CL works today, we can't actually /bind/ =*READTABLE*= in a useful way:
+we always end up setting it. A simple example would help.]
+[FRR: no system can currently do it in a regular LOAD-OP or COMPILE-OP,
+because the CLHS mandates the bind around LOAD and COMPILE-FILE;
+but they can conceivably do it in a perform method, and can indeed
+do it in an initialization function that the user calls with or without
+understanding the *READTABLE* change that occurs and its implications.]
+To allow such an idiom, we must also do the following:
 
 6B- ASDF binds =*readtable*= to a proper "entry readtable" at the start
 of every system's compilation, and records an "exit readtable" at the
 end of the system's loading. [RPG: 6B seems to directly contradict 4.]
+[FRR: yes, 6B, 7, 8, 9, 10 constitute a more elaborate *alternate plan*
+that wasn't implemented, and that I wrote before I realized the CLHS
+mandated that *READTABLE* be bound by LOAD and COMPILE-FILE, which
+make this plan quite overkill unless someone modifies the *READTABLE*
+variable in a magic perform method on prepare-op (and prepare-source-op)
+without restoring it at the end of compile-op (and load-source-op)
+and we want to support that. I suppose we should just do away with
+that alternate plan.]
 
 7. Maintain a partial order on these readtable objects, assuming that
 each system's exit readtable supersedes the entry readtable. The least
@@ -88,6 +141,15 @@ the system that created it.
    a readtable object, are we?  Instead we are computing a dependency graph,
    right?  And the nodes are readtable /designators/, rather than readtables,
    right?]
+
+   [FRR: yes, in that alternate plan, we don't (can't) merge objects,
+   but assume that the programs somehow do use copy-readtable followed by
+   modification of what then constitutes a tree of readtable objects,
+   and we ensure that *READTABLE* is bound to the correct readtable object
+   when loading a system. Once again, this is overkill
+   since LOAD and COMPILE-FILE do the readtable protection,
+   although if we wanted to extend that to other variables not protected
+   by the CLHS, notably the pprint-dispatch-table, then that would make more sense]
 
 9. after a system is loaded, check its exit readtable, if it already exists,
    check that this doesn't create a cycle or issue an error. If the exit
@@ -114,6 +176,8 @@ conventions? Do your systems modify the current *readtable* structure,
 or do they bind *readtable* to a new value?
 
 [RPG: So what is implemented in the syntax-control branch?]
+[FRR: The first simpler plan, 1-5, 6A is implemented.
+The more complex plan 1-5, 6B, 7-10 isn't.]
 
 
 # Local Variables:
