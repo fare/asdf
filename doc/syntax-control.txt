@@ -105,70 +105,59 @@ to systems that do depend on such effects happening.
    This easily supports systems that "modify the current readtable data
    structure".
 
-   However, that doesn't handle systems that "bind =*readtable*= to a new value",
-   because the changes they make will shadow the changes that other systems
-   following this style make and depend on.
+* ANSI spec description of binding of readtable
++ [[http://www.lispworks.com/documentation/HyperSpec/Issues/iss196_w.htm][ANSI spec issue "IN-SYNTAX"]]
++ [[http://www.lispworks.com/documentation/HyperSpec/Body/f_cmp_fi.htm]["compile-file binds =*readtable*= and =*package*= to the values they held before processing the file."]]
++ [[http://www.lispworks.com/documentation/HyperSpec/Body/f_load.htm]["load binds =*readtable*= and =*package*= to the values they held before /loading/ the file."]]
 
-   [RPG: We need to clarify the preceding sentence. In particular, given the way
-    CL works today, we can't actually /bind/ =*readtable*= in a useful way:
-    we always end up setting it. A simple example would help.]
-   [FRR: no system can currently do it in a regular LOAD-OP or COMPILE-OP,
-    because the CLHS mandates the bind around LOAD and COMPILE-FILE;
-    but they can conceivably do it in a perform method, and can indeed
-    do it in an initialization function that the user calls with or without
-    understanding the =*readtable*= change that occurs and its implications.]
 
-   To allow such an idiom, we must also do the following:
+* Alternative Plan
 
-   B. ASDF binds =*readtable*= to a proper "entry readtable" at the start of
-   every system's compilation, and records an "exit readtable" at the end of the
-   system's loading. [RPG: 6B seems to directly contradict 4.]
+The following describes an alternative approach, more ambitious and complicated,
+which was /not/ implemented.  It is provided here for comparison purposes and
+because of the light it sheds on design rationale.
 
-   [FRR: yes, 5B and the following constitute a more elaborate *alternate plan* that
-   wasn't implemented, and that I wrote before I realized the CLHS mandated that
-   =*readtable*= be bound by =load= and =compile-file=, which make this plan quite
-   overkill unless someone modifies the =*readtable*= variable in a magic =perform=
-   method on =prepare-op= (and =prepare-source-op=) without restoring it at the end
-   of =compile-op= (and =load-source-op=) and we want to support that.
-   I suppose we should just do away with that alternate plan.]
+The preceding, simpler approach does not handle systems that "bind =*readtable*=
+to a new value", because the changes they make will shadow the changes that
+other systems following this style make and depend on.
+No ASDF system can currently do this in a regular =LOAD-OP= or =COMPILE-OP=,
+because the CLHS mandates binding =*readtable*= around LOAD and COMPILE-FILE
+(see [[http://www.lispworks.com/documentation/HyperSpec/Issues/iss196_w.htm][ANSI spec issue "IN-SYNTAX"]]).  However, ASDF systems can conceivably do it
+in a =perform= method, and can indeed do it in an initialization function that
+the user calls with or without understanding the =*readtable*= change that
+occurs and its implications.
 
-   1. Maintain a partial order on these readtable objects, assuming that each
-      system's exit readtable supersedes the entry readtable. The least readtable
-      is the =*shared-readtable*=. It's enough to store for each new exit readtable,
-      identified by the name of system that created it, the set of its inferior
-      readtables, as a list or eq-hash-table, or an equal hash-table, with each
-      readtable being identified by the name of the system that created it.
+To allow such an idiom, ASDF could perform a much more ambitious computation,
+tracking the readtable through ASDF operations.  In the event, this is overkill
+since =load= and =compile-file= do the readtable protection 
+(see [[*ANSI spec description of binding of readtable]]) although if 
+we wanted to extend that to other variables not protected by the ANSI spec,
+notably the =*print-pprint-dispatch*=, that would make more sense.
 
-   2. Before a system is compiled or loaded, compute the maximum readtable of
-      all the exit readtables of its dependencies. If this maximum is unique,
-      then it will be the entry readtable of the system. If there is not a
-      unique readtable that is more than all the other ones, that's an error,
-      and we refuse to load the system.
+1. ASDF binds =*readtable*= to a proper "entry readtable" at the start of every
+   system's compilation, and records an "exit readtable" at the end of the
+   system's loading.
 
-     [RPG: I /think/ I follow this: the idea is to compute what the actual
-      readtable dependencies are, as a means of ensuring repeatability, as build
-      operations may be interleaved in different situations.]
+2. Maintain a partial order on these readtable objects, assuming that each
+   system's exit readtable supersedes the entry readtable. The least readtable
+   is the =*shared-readtable*=. It's enough to store for each new exit
+   readtable, identified by the name of system that created it, the set of its
+   inferior readtables, as a list or eq-hash-table, or an equal hash-table, with
+   each readtable being identified by the name of the system that created it.
 
-     [RPG: Another point -- we aren't actually computing the maximum readtable
-      as a readtable object, are we?  Instead we are computing a dependency
-      graph, right?  And the nodes are readtable /designators/, rather than
-      readtables, right?]
+3. Before a system is compiled or loaded, compute the a dependency graph of
+   readtables.  We effectively compute the maximum readtable of all the exit
+   readtables of the system's dependencies. If this maximum is unique, then it
+   will be the entry readtable of the system. If there is not a unique readtable
+   that is more than all the other ones, that's an error, and we refuse to load
+   the system.
 
-     [FRR: yes, in that alternate plan, we don't (can't) merge objects, but
-      assume that the programs somehow do use copy-readtable followed by
-      modification of what then constitutes a tree of readtable objects,
-      and we ensure that =*readtable*= is bound to the correct readtable object
-      when loading a system. Once again, this is overkill since =load= and
-      =compile-file= do the readtable protection, although if we wanted to
-      extend that to other variables not protected by the CLHS, notably the
-      =*print-pprint-dispatch*=, then that would make more sense.]
-
-   3. After a system is loaded, check its exit readtable, if it already exists,
+4. After a system is loaded, check its exit readtable, if it already exists,
    check that this doesn't create a cycle or issue an error. If the exit
    readtable doesn't already exist, add it to the set of all known exit
    readtables.
 
-7. ASDF either
+5. ASDF either
 
    1. binds the =*readtable*= to the =*shared-readtable*= around the entire
       =asdf:operate=, leaving the =*readtable*= unchanged at the end, or
@@ -181,20 +170,7 @@ to systems that do depend on such effects happening.
 
 Does that strike you as complex? Because it is. That's the price of
 *safely* supporting this "systems can bind a new value to =*readtable*="
-style. Unhappily some of the constraints are not enforceable (2A and
-2B), but that's the very same as now.
-
-So my next question is: do you want to safely support these
-conventions? Do your systems modify the current =*readtable*= structure,
-or do they bind =*readtable*= to a new value?
-
-[RPG: So what is implemented in the syntax-control branch?]
-[FRR: The first simpler plan, 1-5, 6A is implemented.
-The more complex plan 1-5, 6B isn't.]
-[RPG: Got it.  And do we do 7.1, 7.2, or 7.3?]
-[FRR: None, since 7 is part of plan B, which we don't implement,
-amd which seems overkill now that it's established that
-the CLHS mandates that =load= and =compile-file= bind =*readtable*=]
+style.
 
 # Local Variables:
 # mode: org
