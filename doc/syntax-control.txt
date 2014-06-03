@@ -15,60 +15,68 @@ to systems that do depend on such effects happening.
    The variable =*shared-readtable*= is not intended to be rebound
    after having been initialized; its value is an object of type =readtable=,
    hereafter known as the /shared readtable/.
+   
+   Points that need to be settled:
+   + Should =*shared-readtable*= be bound as the value of =cl:*readtable*= at
+     the time ASDF was loaded, or as the return value of =(copy-readtable nil)=?
+     On the one hand, the latter is portable and clean.  However, Fare reports
+     "my understanding is that several implementations provide extensions in the
+     /initial readtable/ that are *not* part of the /standard readtable/, such
+     as a #! ignorer sometimes, or importantly in CCL the =#$= and =#_= readers,
+     etc.  I understand that a strict reading of the CLHS might make this
+     non-conformant, but I suspect that many systems rely on it, as I believe
+     the ITA codebase for QRes did."
+     
+     This seems to me (rpg) to be an interesting, unresolved ASDF issue: should
+     an ASDF user be able to specify that his/her system is intended either to
+     be portable, or to be tied to a specific CL implementation (or set of
+     implementations)?  It seems like the above question could have more than
+     one answer: if you want portable code, you want =(copy-readtable nil)=; if
+     you want to exploit your implementation's extensions, you want the value of
+     =cl:*readtable*= at ASDF load time.
+     
+     Follow-up question: if the implementation bundles ASDF, is "the time ASDF
+     was loaded" well-defined?
 
-   [RPG: What is the intended function of the *shared-readtable* as distinct from
-    the default readtable?]
-   [FRR: this *is* the default readtable. There is no other way to get to the
-   /initial readtable/ as opposed to (a copy of) the /standard readtable/,
-   which could be different and contain extensions, though since it *initially*
-   shouldn't contain extensions, I suppose we could use =(copy-readtable nil)=]
-   [RPG: I think if it's sanitation we are hoping for, then
-   =(copy-readtable nil)= is The Right Thing.  It eliminates the potential for
-   getting unpredictable results by delaying load of ASDF.]
-   [FRR: I would have liked to agree, but my understanding is that several
-   implementations provide extensions in the /initial readtable/ that are *not*
-   part of the /standard readtable/, such as a #! ignorer sometimes, or
-   importantly in CCL the =#$= and =#_= readers, etc.
-   I understand that a strict
-   reading of the CLHS might make this non-conformant, but I suspect that
-   many systems rely on it, as I believe the ITA codebase for QRes did.]
-   [FRR: maybe the variable should be named =*initial-readtable*= then?]
-
-   [RPG: Proposed answer to my own question: the =*shared-readtable*= is
-   provided as a convenience for libraries that ...]
-   [FRR: missing text above]
+   + Should the variable should be named =*initial-readtable*=, instead?  I
+     (rpg) don't believe so.  Its value is the initial readtable, but it will
+     then be modified, so I think "shared" better covers the intended purpose.
 
 2. Modification of the readtable object to which =*shared-readtable*= is bound
    is subject to the the following restrictions (also discussed in
    the ASDF manual, in the section "How do I work with readtables?"):
 
-   [FRR: be sure to update the manual to match this document after it's settled.]
+   *NOTE:* be sure to update the manual to match this document after it's
+   settled.
 
   A. no modifying any standard character,
   B. No two systems loaded in the same image may assign different meanings
    to a same character in the =*shared-readtable*=.
-   [RPG: Spliced in FRR's admirably clear phrasing.  Pulled out the hedge "as
-   bound to," which I beleive to be unnecessary.]
    [RPG: Follow-up question: is this condition checkable?  I am not up to speed
    on portable facilities for access to =readtable='s.  If ASDF doesn't check
    this, I think it will be hard for the programmer to check it.]
    [FRR: I don't think this is checkable without implementation support,
    unless maybe you're ready to pay the price of walking 1 million records
    and compare your two readtables character by character, and potentially
-   square that because of =dispatch-macro-character=]
+   square that because of =dispatch-macro-character= ].
   C. libraries need to document any change to =*shared-readtable*=. Note that
    unqualified readtable modifications in the program will modify the object
    to which =*readtable*= is bound, which unless rebound will also be object
    to which =*shared-readtable*= is bound.
   D. free software libraries will register these changes on the page on cliki.net
 
-   It is an error (unhappily not enforceable) to modify the =*shared-readtable*=
-   in ways that violate these restrictions.
+   It is an error to modify the =*shared-readtable*= in ways that violate these
+   restrictions.
+   
+   [RPG: Question is the above error claim too restrictive?  Let's say I am
+   developing system C.  C depends on both A and B.  I /know/ that A and B both
+   modify the =*shared-readtable*= entry for character x.  I can't /fix/ this,
+   since I don't own either A or B.  But I can enforce an ordering that loads B
+   after A, giving me the value for character x that I want.  If I do this, why
+   should ASDF claim that system C is erroneous?]
 
 3. Unhappily, there is no cheap way to enforce these restrictions, but that's no
    regression with respect to the current situation.
-
-   [RPG: See above: can't we check 2B, at least?]
 
 4. ASDF binds =*readtable*= to =*shared-readtable*= around any
    =perform compile-op= and =perform load-source-op=
