@@ -9,13 +9,13 @@ to systems that do depend on such effects happening.
 
 * Syntax Control: implement and document this plan
 
-1. ASDF (actually UIOP) maintains a =uiop:*shared-readtable*=, which is bound
-   to the value of =cl:*readtable*= at the time ASDF was loaded,
+1. ASDF (actually UIOP) maintains a =uiop:*shared-readtable*=,
+   which is bound to the value of =cl:*readtable*= at the time ASDF was loaded,
    which is the /initial readtable/.
    The variable =*shared-readtable*= is not intended to be rebound
    after having been initialized; its value is an object of type =readtable=,
    hereafter known as the /shared readtable/.
-   
+
    Points that need to be settled:
    + Should =*shared-readtable*= be bound as the value of =cl:*readtable*= at
      the time ASDF was loaded, or as the return value of =(copy-readtable nil)=?
@@ -26,7 +26,7 @@ to systems that do depend on such effects happening.
      etc.  I understand that a strict reading of the CLHS might make this
      non-conformant, but I suspect that many systems rely on it, as I believe
      the ITA codebase for QRes did."
-     
+
      This seems to me (rpg) to be an interesting, unresolved ASDF issue: should
      an ASDF user be able to specify that his/her system is intended either to
      be portable, or to be tied to a specific CL implementation (or set of
@@ -34,7 +34,7 @@ to systems that do depend on such effects happening.
      one answer: if you want portable code, you want =(copy-readtable nil)=; if
      you want to exploit your implementation's extensions, you want the value of
      =cl:*readtable*= at ASDF load time.
-     
+
      Follow-up question: if the implementation bundles ASDF, is "the time ASDF
      was loaded" well-defined?
 
@@ -67,13 +67,25 @@ to systems that do depend on such effects happening.
 
    It is an error to modify the =*shared-readtable*= in ways that violate these
    restrictions.
-   
+
    [RPG: Question is the above error claim too restrictive?  Let's say I am
    developing system C.  C depends on both A and B.  I /know/ that A and B both
    modify the =*shared-readtable*= entry for character x.  I can't /fix/ this,
    since I don't own either A or B.  But I can enforce an ordering that loads B
    after A, giving me the value for character x that I want.  If I do this, why
    should ASDF claim that system C is erroneous?]
+
+   [FRR: if you list B after A, then it will be loaded second... but only on ASDF 3
+   (on ASDF 1 and ASDF 2 (up to 2.26?), the order is reverse(!)), and only when
+   you build from clean. If you do an incremental build and A is modified (or one
+   of its dependencies), that won't trigger rebuild of B, but that will trigger
+   the rebuild of the rest of your system, that will now see the x handler from A,
+   and fail to rebuild correctly. On the other hand, even if B depends on A,
+   if C depends on A's handler, which B overrides in an incompatible way, then
+   if C is modified but not A, A will not be reloaded, and C will be loaded with
+   the wrong x handler. Unless the character x is never actually used, there will
+   be incremental build scenarios that break. One "solution" of course is to
+   only ever build from clean, like we long did at ITA.]
 
 3. Unhappily, there is no cheap way to enforce these restrictions, but that's no
    regression with respect to the current situation.
@@ -137,8 +149,8 @@ occurs and its implications.
 
 To allow such an idiom, ASDF could perform a much more ambitious computation,
 tracking the readtable through ASDF operations.  In the event, this is overkill
-since =load= and =compile-file= do the readtable protection 
-(see [[*ANSI spec description of binding of readtable]]) although if 
+since =load= and =compile-file= do the readtable protection
+(see [[*ANSI spec description of binding of readtable]]) although if
 we wanted to extend that to other variables not protected by the ANSI spec,
 notably the =*print-pprint-dispatch*=, that would make more sense.
 
