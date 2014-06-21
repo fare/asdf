@@ -95,8 +95,8 @@ This is designed to abstract away the implementation specific quit forms."
     (declare (ignorable stream count condition))
     #+abcl
     (loop :for i :from 0
-	  :for frame :in (sys:backtrace (or count most-positive-fixnum)) :do
-	    (safe-format! stream "~&~D: ~A~%" i frame))
+          :for frame :in (sys:backtrace (or count most-positive-fixnum)) :do
+            (safe-format! stream "~&~D: ~A~%" i frame))
     #+allegro
     (let ((*terminal-io* stream)
           (*standard-output* stream)
@@ -120,20 +120,20 @@ This is designed to abstract away the implementation specific quit forms."
       (debug:backtrace (or count most-positive-fixnum) stream))
     #+(or ecl mkcl)
     (let* ((top (si:ihs-top))
-	   (repeats (if count (min top count) top))
-	   (backtrace (loop :for ihs :from 0 :below top
+           (repeats (if count (min top count) top))
+           (backtrace (loop :for ihs :from 0 :below top
                             :collect (list (si::ihs-fun ihs)
                                            (si::ihs-env ihs)))))
       (loop :for i :from 0 :below repeats
-	    :for frame :in (nreverse backtrace) :do
-	      (safe-format! stream "~&~D: ~S~%" i frame)))
+            :for frame :in (nreverse backtrace) :do
+              (safe-format! stream "~&~D: ~S~%" i frame)))
     #+gcl
     (let ((*debug-io* stream))
       (ignore-errors
        (with-safe-io-syntax ()
-	 (if condition
-	     (conditions::condition-backtrace condition)
-	     (system::simple-backtrace)))))
+         (if condition
+             (conditions::condition-backtrace condition)
+             (system::simple-backtrace)))))
     #+lispworks
     (let ((dbg::*debugger-stack*
             (dbg::grab-stack nil :how-many (or count most-positive-fixnum)))
@@ -147,8 +147,8 @@ This is designed to abstract away the implementation specific quit forms."
      stream)
     #+xcl
     (loop :for i :from 0 :below (or count most-positive-fixnum)
-	  :for frame :in (extensions:backtrace-as-list) :do
-	    (safe-format! stream "~&~D: ~S~%" i frame)))
+          :for frame :in (extensions:backtrace-as-list) :do
+            (safe-format! stream "~&~D: ~S~%" i frame)))
 
   (defun print-backtrace (&rest keys &key stream count condition)
     "Print a backtrace"
@@ -248,14 +248,14 @@ if we are not called from a directly executable image."
       ;; SBCL and Allegro already separate user arguments from implementation arguments.
       #-(or sbcl allegro)
       (unless (eq *image-dumped-p* :executable)
-	;; LispWorks command-line processing isn't transparent to the user
-	;; unless you create a standalone executable; in that case,
-	;; we rely on cl-launch or some other script to set the arguments for us.
-	#+lispworks (return *command-line-arguments*)
-	;; On other implementations, on non-standalone executables,
-	;; we trust cl-launch or whichever script starts the program
-	;; to use -- as a delimiter between implementation arguments and user arguments.
-	#-lispworks (setf arguments (member "--" arguments :test 'string-equal)))
+        ;; LispWorks command-line processing isn't transparent to the user
+        ;; unless you create a standalone executable; in that case,
+        ;; we rely on cl-launch or some other script to set the arguments for us.
+        #+lispworks (return *command-line-arguments*)
+        ;; On other implementations, on non-standalone executables,
+        ;; we trust cl-launch or whichever script starts the program
+        ;; to use -- as a delimiter between implementation arguments and user arguments.
+        #-lispworks (setf arguments (member "--" arguments :test 'string-equal)))
       (rest arguments)))
 
   (defun argv0 ()
@@ -290,7 +290,7 @@ immediately to the surrounding restore process if allowed to continue.
 
 Then, comes the restore process itself:
 First, call each function in the RESTORE-HOOK,
-in the order they were registered with REGISTER-RESTORE-HOOK.
+in the order they were registered with REGISTER-IMAGE-RESTORE-HOOK.
 Second, evaluate the prelude, which is often Lisp text that is read,
 as per EVAL-INPUT.
 Third, call the ENTRY-POINT function, if any is specified, with no argument.
