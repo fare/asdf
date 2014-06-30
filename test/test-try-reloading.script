@@ -1,0 +1,35 @@
+;;; -*- Lisp -*-
+
+;;; test retrying finding location of an ASDF system.
+
+
+(in-package asdf-test)
+(defparameter *old-registry* asdf:*central-registry*)
+;;(defparameter *search-table* (hash-table->alist asdf::*source-registry*))
+;;(pprint *search-table*)
+;;(terpri)
+(assert (asdf:find-system "test-asdf/force1"))
+
+(DBG "Clearing the caches and finding.")
+(setf asdf:*central-registry* nil)
+(asdf/find-system:clear-defined-system "test-asdf/force1")
+(assert (not (asdf:find-system "test-asdf/force1" nil)))
+(let (tried-once)
+  (handler-bind
+   ((asdf:missing-dependency-of-version
+     (lambda (c)
+       ;; Nothing Quicklisp can do to recover from this, so
+       ;; just resignal
+       (error c)))
+    (asdf:missing-dependency
+     (lambda (c)
+       (if (not tried-once)
+           (let ((missing (asdf::missing-requires c)))
+             (assert (equal missing "test-asdf/force1"))
+             (setf tried-once t)
+             (DBG "Trying to reset the central registry and retry.")
+             (setf asdf:*central-registry* *old-registry*)
+             (asdf:find-system missing))
+         ;; avoid infinite looping
+         (error c)))))
+ (asdf:find-system "test-asdf/force1")))
