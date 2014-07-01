@@ -2388,13 +2388,17 @@ the file's @code{last-modified} time exceeds the @code{last-modified} time
 of the system in memory
 @end itemize
 
+@cindex ASDF-USER package
 When system definitions are loaded from @file{.asd} files,
-a new scratch package is created for them to load into,
-so that different systems do not overwrite each others operations.
-The user may also wish to (and is recommended to)
+they are implicitly loaded into the @code{ASDF-USER} package, which uses
+@code{ASDF}.
+The programmer is also recommended to
 include @code{defpackage} and @code{in-package} forms
-in his system definition files, however,
-so that they can be loaded manually if need be.
+in his system definition files, however, so that they 
+will behave identically if loaded manually for development or debugging.
+One should define one's own package (typically using @code{ASDF} and
+@code{COMMON-LISP}) if adding new classes, methods, etc., in order that
+different systems do not overwrite each others' extensions.
 
 The default value of @code{*system-definition-search-functions*}
 is a list of two functions.
@@ -2407,6 +2411,25 @@ The second function does something similar,
 for the directories specified in the @code{source-registry}.
 Hence, it is strongly advised to define a system
 @var{foo} in the corresponding file @var{foo.asd}.
+@end defun
+
+@defun locate-system name
+
+This function should typically @emph{not} be invoked directly.  It is
+exported as part of the API only for programmers who wish to provide
+their own @code{*system-definition-search-functions*}.
+
+Given a system @var{name} designator, try to locate where to load the system from.
+Returns five values: @var{foundp}, @var{found-system}, @var{pathname},
+@var{previous}, and @var{previous-time}.
+@var{foundp} is true when a system was found,
+either a new as yet unregistered one, or a previously registered one.
+@var{found-system} when not null is a @code{system} object that may be @code{register-system}'ed.
+@var{pathname} when not null is a path from which to load the system,
+either associated with @var{found-system}, or with the @var{previous} system.
+@var{previous} when not null is a previously loaded @code{system} object
+of the same name.
+@var{previous-time} when not null is the time at which the @var{previous} system was loaded.
 @end defun
 
 @defun find-component base path

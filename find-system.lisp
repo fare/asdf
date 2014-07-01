@@ -99,8 +99,8 @@ of which is a system object.")
   (defun clear-defined-systems ()
     ;; Invalidate all systems but ASDF itself, if registered.
     (loop :for name :being :the :hash-keys :of *defined-systems*
-	  :unless (equal name "asdf")
-	    :do (clear-defined-system name)))
+          :unless (equal name "asdf")
+            :do (clear-defined-system name)))
 
   (register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
 
@@ -353,8 +353,8 @@ but not loaded in memory"
 Returns five values: FOUNDP FOUND-SYSTEM PATHNAME PREVIOUS PREVIOUS-TIME
 FOUNDP is true when a system was found,
 either a new unregistered one or a previously registered one.
-FOUND-SYSTEM when not null is a SYSTEM object that may be REGISTER-SYSTEM'ed as is
-PATHNAME when not null is a path from where to load the system,
+FOUND-SYSTEM when not null is a SYSTEM object that may be REGISTER-SYSTEM'ed.
+PATHNAME when not null is a path from which to load the system,
 either associated with FOUND-SYSTEM, or with the PREVIOUS system.
 PREVIOUS when not null is a previously loaded SYSTEM object of same name.
 PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded."
@@ -426,6 +426,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (reinitialize-source-registry-and-retry ()
             :report (lambda (s)
                       (format s (compatfmt "~@<Retry finding system ~A after reinitializing the source-registry.~@:>") name))
-	    (unset-asdf-cache-entry `(locate-system ,name))
+            (unset-asdf-cache-entry `(locate-system ,name))
             (initialize-source-registry)))))))
 
