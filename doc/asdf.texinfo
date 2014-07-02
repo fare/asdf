@@ -2390,27 +2390,69 @@ of the system in memory
 
 @cindex ASDF-USER package
 When system definitions are loaded from @file{.asd} files,
-they are implicitly loaded into the @code{ASDF-USER} package, which uses
-@code{ASDF}.
-The programmer is also recommended to
-include @code{defpackage} and @code{in-package} forms
-in his system definition files, however, so that they 
-will behave identically if loaded manually for development or debugging.
-One should define one's own package (typically using @code{ASDF} and
-@code{COMMON-LISP}) if adding new classes, methods, etc., in order that
-different systems do not overwrite each others' extensions.
+they are implicitly loaded into the @code{ASDF-USER} package,
+which uses @code{ASDF}, @code{UIOP} and @code{UIOP/COMMON-LISP}@footnote{
+Note that between releases 2.27 and 3.0.3, only @code{UIOP/PACKAGE},
+not all of @code{UIOP}, was used; if you want your code to work
+with releases earlier than 3.1.2, you may have to explicitly define a package
+that uses @code{UIOP}, or use proper package prefix to your symbols, as in
+@code{uiop:version<}.}
+Programmers who do anything non-trivial in a @file{.asd} file,
+such as defining new variables, functions or classes,
+should include @code{defpackage} and @code{in-package} forms in this file,
+so they will not overwrite each others' extensions.
+Such forms might also help the files behave identically
+if loaded manually with @code{cl:load} for development or debugging,
+though we recommend you use the function @code{asdf::load-asd} instead,
+which the @code{slime-asdf} contrib knows about.
 
 The default value of @code{*system-definition-search-functions*}
-is a list of two functions.
+is a list of three functions.
 The first function looks in each of the directories given
 by evaluating members of @code{*central-registry*}
-for a file whose name is the name of the system and whose type is @file{asd}.
-The first such file is returned,
+for a file whose name is the name of the system and whose type is @file{asd};
+the first such file is returned,
 whether or not it turns out to actually define the appropriate system.
 The second function does something similar,
-for the directories specified in the @code{source-registry}.
+for the directories specified in the @code{source-registry},
+but searches the filesystem only once and caches its results.
+The third function makes the @code{package-inferred-system} extension work,
+@pxref{The package-inferred-system extension}.
+
 Hence, it is strongly advised to define a system
-@var{foo} in the corresponding file @var{foo.asd}.
+@var{foo} in a corresponding file @file{foo.asd}
+that will be in a directory included
+in the central registry or source registry configuration.
+
+Because it is often useful to define multiple systems in a same file,
+but ASDF can only locate a system's definition file based on the system name,
+ASDF 3 also supports the convention whereby a file @file{foo.asd} can contain
+secondary systems named @var{foo/bar}, @var{foo/baz}, @var{foo/quux}, etc.,
+in addition to the primary system named @var{foo}.
+The first component of a system name
+when separated by slash characters @code{/}
+is called the primary name of a system,
+as extracted by function @code{asdf::primary-system-name};
+when ASDF 3 is told to find a system whose name has a slash,
+it will first attempt to load the corresponding primary system,
+and will thus see any such definitions, and/or any
+definition of a @code{package-inferred-system}.@footnote{
+ASDF 2.26 and earlier versions however
+do not actively support this primary system name convention,
+and you will have to explicitly load @file{foo.asd}
+before you can use system @var{foo/bar} defined therein,
+e.g. using @code{(asdf:find-system "foo")}.
+We do not support ASDF 2, and recommend that you should upgrade to ASDF 3.
+}
+If your file @file{foo.asd} also defines systems
+that do not follow this convention, e.g., a system named @var{foo-test},
+ASDF will not be able to automatically locate a definition for these systems,
+and will only see their definition
+if you explicitly find or load the primary system
+using e.g. @code{(asdf:find-system "foo")} before you try to use them.
+We strongly recommend against this practice,
+though it is currently supported for backward compatibility.
+
 @end defun
 
 @defun locate-system name
@@ -2419,17 +2461,20 @@ This function should typically @emph{not} be invoked directly.  It is
 exported as part of the API only for programmers who wish to provide
 their own @code{*system-definition-search-functions*}.
 
-Given a system @var{name} designator, try to locate where to load the system from.
+Given a system @var{name} designator,
+try to locate where to load the system from.
 Returns five values: @var{foundp}, @var{found-system}, @var{pathname},
 @var{previous}, and @var{previous-time}.
 @var{foundp} is true when a system was found,
 either a new as yet unregistered one, or a previously registered one.
-@var{found-system} when not null is a @code{system} object that may be @code{register-system}'ed.
+@var{found-system} when not null is
+a @code{system} object that may be @code{register-system}'ed.
 @var{pathname} when not null is a path from which to load the system,
 either associated with @var{found-system}, or with the @var{previous} system.
 @var{previous} when not null is a previously loaded @code{system} object
 of the same name.
-@var{previous-time} when not null is the time at which the @var{previous} system was loaded.
+@var{previous-time} when not null is
+the time at which the @var{previous} system was loaded.
 @end defun
 
 @defun find-component base path
