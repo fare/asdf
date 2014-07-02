@@ -5,7 +5,7 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
            #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
-	   #:do-asdf-cache #:normalize-namestring
+           #:do-asdf-cache #:normalize-namestring
            #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*))
 (in-package :asdf/cache)
 

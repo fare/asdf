@@ -6,7 +6,7 @@ extern int sample_function();
 
 int sample_function()
 {
-	return 42;
+        return 42;
 }
 ")
 
@@ -16,6 +16,6 @@ extern MKCL_DLLEXPORT int sample_function(void);
 
 int sample_function(void)
 {
-	return 42;
+        return 42;
 }
 ")
