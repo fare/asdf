@@ -2419,11 +2419,11 @@ but searches the filesystem only once and caches its results.
 The third function makes the @code{package-inferred-system} extension work,
 @pxref{The package-inferred-system extension}.
 
-Because of the way these search functions are defined, 
-you should put the definition for a system 
-@var{foo} in a file named @file{foo.asd}, 
+Because of the way these search functions are defined,
+you should put the definition for a system
+@var{foo} in a file named @file{foo.asd},
 in a directory that is
-in the central registry or 
+in the central registry or
 which can be found using the
 source registry configuration.
 
@@ -2436,22 +2436,22 @@ It is often useful to define multiple systems in a same file,
 but ASDF can only locate a system's definition file based on the system
 name.
 For this reason,
-ASDF 3's system search algorithm has been extended to 
+ASDF 3's system search algorithm has been extended to
 allow a file @file{foo.asd} to contain
 secondary systems named @var{foo/bar}, @var{foo/baz}, @var{foo/quux}, etc.,
 in addition to the primary system named @var{foo}.
 The first component of a system name,
 separated by the slash character, @code{/},
 is called the primary name of a system.
-The primary name may be 
+The primary name may be
 extracted by function @code{asdf::primary-system-name};
 when ASDF 3 is told to find a system whose name has a slash,
 it will first attempt to load the corresponding primary system,
 and will thus see any such definitions, and/or any
 definition of a @code{package-inferred-system}.@footnote{
-ASDF 2.26 and earlier versions 
+ASDF 2.26 and earlier versions
 do not support this primary system name convention.
-With these versions of ASDF 
+With these versions of ASDF
 you must explicitly load @file{foo.asd}
 before you can use system @var{foo/bar} defined therein,
 e.g. using @code{(asdf:find-system "foo")}.
@@ -2470,7 +2470,7 @@ though it is currently supported for backward compatibility.
 
 @defun primary-system-name name
 
-Internal (not exported) function, @code{asdf::primary-system-name}.  
+Internal (not exported) function, @code{asdf::primary-system-name}.
 Returns the primary system name (the portion before
 the slash, @code{/}, in a secondary system name) from @var{name}.
 
@@ -2483,7 +2483,12 @@ exported as part of the API only for programmers who wish to provide
 their own @code{*system-definition-search-functions*}.
 
 Given a system @var{name} designator,
-try to locate and load the system definition (but not the system itself).
+try to locate where to load the system definition from.
+(This does not include the loading of the system definition,
+which is done by @code{find-system},
+or the loading of the system itself, which is done by @code{load-system};
+however, for systems the definition of which has already been loaded,
+@code{locate-system} may return an object of class @code{system}.)
 Returns five values: @var{foundp}, @var{found-system}, @var{pathname},
 @var{previous}, and @var{previous-time}.
 @var{foundp} is true when a system was found,
