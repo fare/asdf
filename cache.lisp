@@ -6,7 +6,8 @@
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
            #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
            #:do-asdf-cache #:normalize-namestring
-           #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*))
+           #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*
+           #:clear-asdf-cache))
 (in-package :asdf/cache)
 
 ;;; This stamp cache is useful for:
@@ -22,6 +23,10 @@
            (if *asdf-cache*
                (setf (gethash key *asdf-cache*) value-list)
                value-list)))
+
+  (defun clear-asdf-cache ()
+    (when *asdf-cache*
+      (setf *asdf-cache* (make-hash-table :test 'equal))))
 
   (defun unset-asdf-cache-entry (key)
     (when *asdf-cache*
