@@ -21,7 +21,9 @@
    #:clear-defined-system #:clear-defined-systems #:*defined-systems*
    #:*immutable-systems*
    ;; defined in source-registry, but specially mentioned here:
-   #:initialize-source-registry #:sysdef-source-registry-search))
+   #:initialize-source-registry #:sysdef-source-registry-search
+   #:reinitialize-source-registry-and-retry
+   ))
 (in-package :asdf/find-system)
 
 (with-upgradability ()
@@ -426,6 +428,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (reinitialize-source-registry-and-retry ()
             :report (lambda (s)
                       (format s (compatfmt "~@<Retry finding system ~A after reinitializing the source-registry.~@:>") name))
-            (unset-asdf-cache-entry `(locate-system ,name))
-            (initialize-source-registry)))))))
+            ;; since you're reinitializing the source registry, an arbitrary
+            ;; amount of the ASDF cache is invalidated, not just the entry
+            ;; for the current NAME.
+            (clear-asdf-cache)
+            ;; (unset-asdf-cache-entry `(locate-system ,name))
+            (initialize-source-registry)
+            (find-system name error-p)))))))
 
