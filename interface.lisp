@@ -131,6 +131,8 @@
    #:accept                     ; restarts
    #:coerce-entry-to-directory
    #:remove-entry-from-registry
+   #:reinitialize-source-registry-and-retry
+
 
    #:*encoding-detection-hook*
    #:*encoding-external-format-hook*
@@ -166,5 +168,7 @@
    #:user-source-registry
    #:system-source-registry
    #:user-source-registry-directory
-   #:system-source-registry-directory))
+   #:system-source-registry-directory
+   #:clear-asdf-cache
+   ))
 
