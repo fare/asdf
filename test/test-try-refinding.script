@@ -41,7 +41,27 @@
 
 (DBG "Now trying LOAD-SYSTEM with refinding.")
 (clear-caches-and-search)
+(trace find-system)
+(trace find-component)
+(trace asdf::component-find-path)
+(trace operate)
 (let (tried-once)
+  (flet ((handle-missing (c)
+                         (if (not tried-once)
+           (let ((missing (asdf::missing-requires c)))
+             (assert (equal missing "test-asdf/force1"))
+             (setf tried-once t)
+             (DBG "Trying to reset the central registry and retry.")
+             (setf asdf:*central-registry* *old-registry*)
+             (unless (find-restart 'asdf:reinitialize-source-registry-and-retry)
+               (error "Expected REINITIALIZE-SOURCE-REGISTRY-AND-RETRY restart not found."))
+             (DBG "Before invoking restart, CENTRAL-REGISTRY is:~%~T~S"
+                  asdf:*central-registry*)
+             (invoke-restart 'asdf:reinitialize-source-registry-and-retry)
+             (DBG "After invoking restart, CENTRAL-REGISTRY is:~%~T~S"
+                  asdf:*central-registry*))
+         ;; avoid infinite looping
+         (error c))))
   (handler-bind
    ((asdf:missing-dependency-of-version
      (lambda (c)
@@ -50,13 +70,10 @@
        (error c)))
     (asdf:missing-dependency
      (lambda (c)
-       (if (not tried-once)
-           (let ((missing (asdf::missing-requires c)))
-             (assert (equal missing "test-asdf/force1"))
-             (setf tried-once t)
-             (DBG "Trying to reset the central registry and retry.")
-             (setf asdf:*central-registry* *old-registry*)
-             (asdf:load-system missing))
-         ;; avoid infinite looping
-         (error c)))))
- (asdf:load-system "test-asdf/force1")))
+       (DBG "Catching MISSING-DEPENDENCY condition:" tried-once)
+       (handle-missing c)))
+    (asdf:missing-component
+     (lambda (c)
+       (DBG "Catching MISSING-COMPONENT condition:" tried-once)
+       (handle-missing c))))
+ (asdf:load-system "test-asdf/force1"))))
