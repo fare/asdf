@@ -5,6 +5,7 @@
 (uiop/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/find-system)
+  (:import-from :asdf/cache #:initialize-source-registry)
   (:export
    #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry
