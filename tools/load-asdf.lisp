@@ -38,6 +38,8 @@
            (here-directory ()
              (subpath (or *compile-file-truename* *load-truename*
                           (truename *default-pathname-defaults*))))
+           (try-load (x)
+             (ignore-errors (and (probe-file x) (load x))))
            (load-and-configure-asdf ()
              ;; First, try to require ASDF from the implementation, if not already loaded.
              ;; Most implementations provide ASDF 3.0, LispWorks still lags with ASDF 2.019,
@@ -47,14 +49,19 @@
              ;; and not the keyword :asdf or symbol 'asdf; old CLISP versions that don't provide ASDF
              ;; may error at compile-time if we call (require "asdf") directly.
              (ignore-errors (funcall 'require "asdf"))
+             ;; If quicklisp is present, load it!
+             ;; Note that this form is not as portable as if we were somehow using uiop:subpathname
+             ;; but that's OK because quicklisp presumably doesn't work where this doesn't.
+             (let ((home (user-homedir-pathname)))
+               (or (try-load (merge-pathnames "quicklisp/setup.lisp" home))
+                   (try-load (merge-pathnames ".quicklisp/setup.lisp" home))))
              ;; If ASDF 2 isn't provided, load our ASDF from source.
              ;; ASDF 1 is not enough, because it won't heed our project's output-translations.
              ;; (Beside, no one serious provides ASDF 1 anymore.)
              (unless (member :asdf2 *features*)
-               (let ((asdf-lisp (asdf-lisp)))
-                   (if (probe-file asdf-lisp)
-                       (load asdf-lisp)
-                       (error "This Lisp implementation fails to provide ASDF 2 or later"))))
+               (or (and (try-load (asdf-lisp)) (member :asdf2 *features*))
+                   (error "This Lisp implementation fails to provide ASDF 2 or later. ~
+                           Please install it in ~A" (asdf-lisp)))
                ;; Configure ASDF
                (configure-asdf)
                (let ((provided-version (asdf-version)))
@@ -66,10 +73,10 @@
                    (configure-asdf)))
                (unless (asdf-call 'version-satisfies (asdf-version) (required-asdf-version))
                  (error "This program needs ASDF ~A but could only find ASDF ~A"
-                        (required-asdf-version) (asdf-version))))
+                        (required-asdf-version) (asdf-version)))))
            ;; User-configurable parts
            (required-asdf-version () "3.1.2") ;; In the end, we want at least ASDF 3.1.2
-             (asdf-lisp ()
+           (asdf-lisp ()
                ;; Here, define where your Lisp source code hierarchy stores its copy of ASDF.
                ;; In your project, that might be :directory '("libraries" "asdf" "build")
                ;; Or NIL, if you don't do use any fancy ASDF feature, and
