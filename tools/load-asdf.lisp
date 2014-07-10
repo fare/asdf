@@ -49,12 +49,6 @@
              ;; and not the keyword :asdf or symbol 'asdf; old CLISP versions that don't provide ASDF
              ;; may error at compile-time if we call (require "asdf") directly.
              (ignore-errors (funcall 'require "asdf"))
-             ;; If quicklisp is present, load it!
-             ;; Note that this form is not as portable as if we were somehow using uiop:subpathname
-             ;; but that's OK because quicklisp presumably doesn't work where this doesn't.
-             (let ((home (user-homedir-pathname)))
-               (or (try-load (merge-pathnames "quicklisp/setup.lisp" home))
-                   (try-load (merge-pathnames ".quicklisp/setup.lisp" home))))
              ;; If ASDF 2 isn't provided, load our ASDF from source.
              ;; ASDF 1 is not enough, because it won't heed our project's output-translations.
              ;; (Beside, no one serious provides ASDF 1 anymore.)
@@ -73,7 +67,14 @@
                    (configure-asdf)))
                (unless (asdf-call 'version-satisfies (asdf-version) (required-asdf-version))
                  (error "This program needs ASDF ~A but could only find ASDF ~A"
-                        (required-asdf-version) (asdf-version)))))
+                        (required-asdf-version) (asdf-version)))
+               ;; Here, we specifically want the ASDF in the current git checkout over
+               ;; whatever quicklisp is providing, so we load quicklisp last.
+               ;; If the checkout weren't providing ASDF and we wanted to rely on Quicklisp
+               ;; to provide a copy of ASDF that the implementation might be lacking,
+               ;; we'd move this form right below the (funcall 'require "asdf") above.
+               ;; See also notes in try-load-quicklisp.
+               (try-load-quicklisp)))
            ;; User-configurable parts
            (required-asdf-version () "3.1.2") ;; In the end, we want at least ASDF 3.1.2
            (asdf-lisp ()
@@ -82,6 +83,15 @@
                ;; Or NIL, if you don't do use any fancy ASDF feature, and
                ;; trust your implementation to provide a recent enough copy.
                (subpath (here-directory) :directory '(:back "build") :name "asdf" :type "lisp"))
+           (try-load-quicklisp ()
+             ;; In a controlled environment, either you'd use your own quicklisp
+             ;; instead of the one in the user's homedir, or you wouldn't use quicklisp at all.
+             ;; Edit this function as desired to reflect that and/or remove the call above.
+             ;; Also, if you rely on quicklisp to load a recent ASDF rather than provide it
+             ;; yourself in your code checkout (see above), you should be using the less portable
+             ;; (merge-pathnames "..." (user-homedir-pathname)) rather than subpathname.
+             (or (try-load (asdf-call 'subpathname (user-homedir-pathname) "quicklisp/setup.lisp"))
+                 (try-load (asdf-call 'subpathname (user-homedir-pathname) ".quicklisp/setup.lisp"))))
            (configure-asdf ()
              (let* ((source-directory
                       ;; Here, define the top of your Lisp source code hierarchy.
@@ -191,6 +201,10 @@
     (initialize-output-translations output-translations)
     ;; Upgrade to the latest configured version
     (upgrade-asdf)
+    ;; Load Quicklisp --- see remarks in uncommented version above
+    (if-let (x (or (probe-file (subpathname (user-homedir-pathname) "quicklisp/setup.lisp"))
+                   (probe-file (subpathname (user-homedir-pathname) ".quicklisp/setup.lisp"))))
+      (load x))
     ;; Check that we have a satisfactorily version
     (unless (version-satisfies (asdf-version) required-asdf-version)
       (error "Please install an ASDF ~A or later" required-asdf-version))))
