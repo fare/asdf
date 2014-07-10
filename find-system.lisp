@@ -358,8 +358,7 @@ PATHNAME when not null is a path from which to load the system,
 either associated with FOUND-SYSTEM, or with the PREVIOUS system.
 PREVIOUS when not null is a previously loaded SYSTEM object of same name.
 PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded."
-    (with-asdf-cache (:key `(locate-system ,name))
-      (let* ((name (coerce-name name))
+    (let* ((name (coerce-name name))
              (in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
              (previous (cdr in-memory))
              (previous (and (typep previous 'system) previous))
@@ -380,7 +379,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
              (setf found (sysdef-preloaded-system-search "asdf"))
              (assert (typep found 'system))
              (setf found-system found pathname nil))))
-        (values foundp found-system pathname previous previous-time))))
+        (values foundp found-system pathname previous previous-time)))
 
   (defmethod find-system ((name string) &optional (error-p t))
     (with-asdf-cache (:key `(find-system ,name))
@@ -423,6 +422,5 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                      (cdr in-memory))
                     (error-p
                      (error 'missing-component :requires name))
-                    (t ;; not found: don't keep negative cache, see lp#1335323
-                     (unset-asdf-cache-entry `(locate-system ,name))
+                    (t
                      (return-from find-system nil)))))))))))
