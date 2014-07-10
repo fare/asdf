@@ -7,11 +7,7 @@
            #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
            #:do-asdf-cache #:normalize-namestring
            #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*
-           #:clear-asdf-cache
-           #:reinitialize-source-registry-and-retry
-           ;; defined in source-registry, but specially mentioned here:
-           #:initialize-source-registry
-           ))
+           #:clear-configuration-and-retry #:retry))
 (in-package :asdf/cache)
 
 ;;; This stamp cache is useful for:
@@ -20,8 +16,6 @@
 ;; * the ability to test with fake timestamps, without touching files
 
 (with-upgradability ()
-  (declaim (ftype (function (&optional t) t) initialize-source-registry)) ; forward reference
-
   (defvar *asdf-cache* nil)
 
   (defun set-asdf-cache-entry (key value-list)
@@ -29,10 +23,6 @@
            (if *asdf-cache*
                (setf (gethash key *asdf-cache*) value-list)
                value-list)))
-
-  (defun clear-asdf-cache ()
-    (when *asdf-cache*
-      (setf *asdf-cache* (clrhash *asdf-cache*))))
 
   (defun unset-asdf-cache-entry (key)
     (when *asdf-cache*
@@ -53,21 +43,17 @@
     (let ((fun (if key #'(lambda () (consult-asdf-cache key thunk)) thunk)))
       (if (and *asdf-cache* (not override))
           (funcall fun)
-          (flet ((establish-cache-and-call ()
-                   (let ((*asdf-cache* (make-hash-table :test 'equal)))
-                     (funcall fun))))
+          (loop
             (restart-case
-                (establish-cache-and-call)
-              (reinitialize-source-registry-and-retry ()
+                (let ((*asdf-cache* (make-hash-table :test 'equal)))
+                  (return (funcall fun)))
+              (retry ()
                 :report (lambda (s)
-                          (format s (compatfmt "~@<Retry ASDF operation after reinitializing the source-registry.~@:>")))
-                ;; since you're reinitializing the source registry, an arbitrary
-                ;; amount of the ASDF cache is invalidated, not just the entry
-                ;; for the current NAME.
-                (clear-asdf-cache)
-                ;; (unset-asdf-cache-entry `(locate-system ,name))
-                (initialize-source-registry)
-                (establish-cache-and-call)))))))
+                          (format s (compatfmt "~@<Retry ASDF operation.~@:>"))))
+              (clear-configuration-and-retry ()
+                :report (lambda (s)
+                          (format s (compatfmt "~@<Retry ASDF operation after resetting the configuration.~@:>")))
+                (clear-configuration)))))))
 
   (defmacro with-asdf-cache ((&key key override) &body body)
     `(call-with-asdf-cache #'(lambda () ,@body) :override ,override :key ,key))

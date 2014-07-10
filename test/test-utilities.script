@@ -161,7 +161,7 @@
     asdf/find-system:contrib-sysdef-search
     asdf/find-system:sysdef-find-asdf
     ;; restart
-    asdf/cache:reinitialize-source-registry-and-retry
+    asdf/cache:clear-configuration-and-retry
     ))
 
 (defun defined-symbol-p (symbol)

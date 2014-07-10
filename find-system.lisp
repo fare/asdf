@@ -423,12 +423,6 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                      (cdr in-memory))
                     (error-p
                      (error 'missing-component :requires name))
-                    (t ;; not found: don't keep negative cache
+                    (t ;; not found: don't keep negative cache, see lp#1335323
                      (unset-asdf-cache-entry `(locate-system ,name))
-                     (return-from find-system nil))))))
-          (reinitialize-source-registry-and-retry ()
-            :report (lambda (s)
-                      (format s (compatfmt "~@<Retry finding system ~A after reinitializing the source-registry.~@:>") name))
-            (unset-asdf-cache-entry `(locate-system ,name))
-            (initialize-source-registry)))))))
-
+                     (return-from find-system nil)))))))))))
