@@ -386,38 +386,37 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (let ((primary-name (primary-system-name name)))
         (unless (equal name primary-name)
           (find-system primary-name nil)))
-      (if-let (x (and *immutable-systems* (gethash name *immutable-systems*)
-                      (cdr (system-registered-p name))))
-        x
-        (multiple-value-bind (foundp found-system pathname previous previous-time)
-            (locate-system name)
-          (assert (eq foundp (and (or found-system pathname previous) t)))
-          (let ((previous-pathname (and previous (system-source-file previous)))
-                (system (or previous found-system)))
-            (when (and found-system (not previous))
-              (register-system found-system))
-            (when (and system pathname)
-              (setf (system-source-file system) pathname))
-            (when (and pathname
-                       (let ((stamp (get-file-stamp pathname)))
-                         (and stamp
-                              (not (and previous
-                                        (or (pathname-equal pathname previous-pathname)
-                                            (and pathname previous-pathname
-                                                 (pathname-equal
-                                                  (physicalize-pathname pathname)
-                                                  (physicalize-pathname previous-pathname))))
-                                        (stamp<= stamp previous-time))))))
-              ;; only load when it's a pathname that is different or has newer content, and not an old asdf
-              (load-asd pathname :name name)))
-          (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
-            (cond
-              (in-memory
-               (when pathname
-                 (setf (car in-memory) (get-file-stamp pathname)))
-               (cdr in-memory))
-              (error-p
-               (error 'missing-component :requires name))
-              (t ;; not found: don't keep negative cache, see lp#1335323
-               (unset-asdf-cache-entry `(locate-system ,name))
-               (return-from find-system nil)))))))))
+      (or (and *immutable-systems* (gethash name *immutable-systems*)
+               (cdr (system-registered-p name)))
+          (multiple-value-bind (foundp found-system pathname previous previous-time)
+              (locate-system name)
+            (assert (eq foundp (and (or found-system pathname previous) t)))
+            (let ((previous-pathname (and previous (system-source-file previous)))
+                  (system (or previous found-system)))
+              (when (and found-system (not previous))
+                (register-system found-system))
+              (when (and system pathname)
+                (setf (system-source-file system) pathname))
+              (when (and pathname
+                         (let ((stamp (get-file-stamp pathname)))
+                           (and stamp
+                                (not (and previous
+                                          (or (pathname-equal pathname previous-pathname)
+                                              (and pathname previous-pathname
+                                                   (pathname-equal
+                                                    (physicalize-pathname pathname)
+                                                    (physicalize-pathname previous-pathname))))
+                                          (stamp<= stamp previous-time))))))
+                ;; only load when it's a pathname that is different or has newer content, and not an old asdf
+                (load-asd pathname :name name)))
+            (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
+              (cond
+                (in-memory
+                 (when pathname
+                   (setf (car in-memory) (get-file-stamp pathname)))
+                 (cdr in-memory))
+                (error-p
+                 (error 'missing-component :requires name))
+                (t ;; not found: don't keep negative cache, see lp#1335323
+                 (unset-asdf-cache-entry `(locate-system ,name))
+                 (return-from find-system nil)))))))))
