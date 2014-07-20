@@ -34,7 +34,7 @@
              (merge-pathnames (make-pathname :defaults parent
                                              :directory (cons :relative directory)
                                              :name name :type type :version version)
-                              parent))
+                              (make-pathname :name nil :type nil :version nil :defaults parent)))
            (here-directory ()
              (subpath (or *compile-file-truename* *load-truename*
                           (truename *default-pathname-defaults*))))
@@ -55,26 +55,26 @@
              (unless (member :asdf2 *features*)
                (or (and (try-load (asdf-lisp)) (member :asdf2 *features*))
                    (error "This Lisp implementation fails to provide ASDF 2 or later. ~
-                           Please install it in ~A" (asdf-lisp)))
-               ;; Configure ASDF
-               (configure-asdf)
-               (let ((provided-version (asdf-version)))
-                 ;; Upgrade ASDF to what we configured it to be.
-                 (asdf-call 'load-system :asdf)
-                 ;; If the implementation-provided version was too old,
-                 ;; we need to re-configure, because old configuration may have been moved away.
-                 (unless (asdf-call 'version-satisfies provided-version "2.27")
-                   (configure-asdf)))
-               (unless (asdf-call 'version-satisfies (asdf-version) (required-asdf-version))
-                 (error "This program needs ASDF ~A but could only find ASDF ~A"
-                        (required-asdf-version) (asdf-version)))
-               ;; Here, we specifically want the ASDF in the current git checkout over
-               ;; whatever quicklisp is providing, so we load quicklisp last.
-               ;; If the checkout weren't providing ASDF and we wanted to rely on Quicklisp
-               ;; to provide a copy of ASDF that the implementation might be lacking,
-               ;; we'd move this form right below the (funcall 'require "asdf") above.
-               ;; See also notes in try-load-quicklisp.
-               (try-load-quicklisp)))
+                           Please install it in ~A" (asdf-lisp))))
+             ;; Configure ASDF
+             (configure-asdf)
+             (let ((provided-version (asdf-version)))
+               ;; Upgrade ASDF to what we configured it to be.
+               (asdf-call 'load-system :asdf)
+               ;; If the implementation-provided version was too old,
+               ;; we need to re-configure, because old configuration may have been moved away.
+               (unless (asdf-call 'version-satisfies provided-version "2.27")
+                 (configure-asdf)))
+             (unless (asdf-call 'version-satisfies (asdf-version) (required-asdf-version))
+               (error "This program needs ASDF ~A but could only find ASDF ~A"
+                      (required-asdf-version) (asdf-version)))
+             ;; Here, we specifically want the ASDF in the current git checkout over
+             ;; whatever quicklisp is providing, so we load quicklisp last.
+             ;; If the checkout weren't providing ASDF and we wanted to rely on Quicklisp
+             ;; to provide a copy of ASDF that the implementation might be lacking,
+             ;; we'd move this form right below the (funcall 'require "asdf") above.
+             ;; See also notes in try-load-quicklisp.
+             (try-load-quicklisp))
            ;; User-configurable parts
            (required-asdf-version () "3.1.2") ;; In the end, we want at least ASDF 3.1.2
            (asdf-lisp ()

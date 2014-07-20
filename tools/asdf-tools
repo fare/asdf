@@ -13,7 +13,7 @@
 
 ;;; ASDF3 is loaded, now use it!
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (asdf:load-system :asdf-tools))
+  (#-quicklisp asdf:load-system #+quicklisp ql:quickload :asdf-tools))
 
 ;;; Actually run the stuff!
 (uiop:restore-image :entry-point 'asdf-tools::entry-point)
