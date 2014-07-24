@@ -33,7 +33,6 @@
 
 (defun make-tarball-under-build (name base files)
   (check-type name string)
-  (ensure-pathname base :want-absolute t :want-existing t :want-directory t)
   (dolist (f files)
     (check-type f string))
   (let* ((base
@@ -61,7 +60,7 @@
     (ensure-directories-exist destination)
     (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
     (run `(tar "zcfC" ,tarball ,(pn "build/") (,name /)) :show t)
-    (delete-directory-tree destination :validate (lambda (x) (equal x destination)))
+    (delete-directory-tree destination :validate (complement #'wild-pathname-p))
     (values)))
 
 (defun driver-files ()
@@ -87,10 +86,8 @@
 
 (defun make-git-tarball ()
   (build-asdf)
-  (with-asdf-dir ()
-    (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") build/asdf.lisp ,@(run/lines '(git ls-files))
-               (asdf-git-name)) :show t))
-  t)
+  (make-tarball-under-build (asdf-git-name) (pn)
+                            (cons "build/asdf.lisp" (run/lines '(git ls-files)))))
 
 (defun asdf-lisp-name ()
   (format nil "asdf-~A.lisp" *version*))
