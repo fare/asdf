@@ -60,7 +60,7 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
              (git `(show (,tag ":asdf.lisp") (> ,file))))
             (t
              (ensure-directories-exist (pn "build/old/build/"))
-             (run `(pipe (git archive ,tag) (tar "xfC" - (pn "build/old/"))))
+             (run `(pipe (git archive ,tag) (tar "xfC" - ,(pn "build/old/"))))
              (run `(make) :directory (pn "build/old/"))
              (rename-file-overwriting-target (pn "build/old/build/asdf.lisp") file))))))))
 
