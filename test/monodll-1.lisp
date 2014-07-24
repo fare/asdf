@@ -6,7 +6,7 @@ extern int always_7();
 
 int always_7()
 {
-	return 7;
+        return 7;
 }
 ")
 
@@ -16,6 +16,6 @@ extern MKCL_DLLEXPORT int always_7(void);
 
 int always_7(void)
 {
-	return 7;
+        return 7;
 }
 ")

@@ -67,7 +67,7 @@ previously-loaded version of ASDF."
          ;; "3.4.5.67" would be a development version in the official branch, on top of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "3.1.2.4")
+         (asdf-version "3.1.3")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -79,26 +79,26 @@ previously-loaded version of ASDF."
 
 (when-upgrading ()
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
-	  ;; NB: it's too late to do anything about functions in UIOP!
-	  ;; If you introduce some critically incompatibility there, you must change name.
+          ;; NB: it's too late to do anything about functions in UIOP!
+          ;; If you introduce some critically incompatibility there, you must change name.
           '(#:component-relative-pathname #:component-parent-pathname ;; component
             #:source-file-type
             #:find-system #:system-source-file #:system-relative-pathname ;; system
-	    #:find-component ;; find-component
-	    #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
-	    #:component-depends-on #:operation-done-p #:component-depends-on
-	    #:traverse ;; backward-interface
+            #:find-component ;; find-component
+            #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
+            #:component-depends-on #:operation-done-p #:component-depends-on
+            #:traverse ;; backward-interface
             #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies ;; plan
-	    #:operate  ;; operate
-	    #:parse-component-form ;; defsystem
-	    #:apply-output-translations ;; output-translations
-	    #:process-output-translations-directive
-	    #:inherit-source-registry #:process-source-registry ;; source-registry
-	    #:process-source-registry-directive
-	    #:trivial-system-p)) ;; bundle
-	(redefined-classes
+            #:operate  ;; operate
+            #:parse-component-form ;; defsystem
+            #:apply-output-translations ;; output-translations
+            #:process-output-translations-directive
+            #:inherit-source-registry #:process-source-registry ;; source-registry
+            #:process-source-registry-directive
+            #:trivial-system-p)) ;; bundle
+        (redefined-classes
           ;; redefining the classes causes interim circularities
-	  ;; with the old ASDF during upgrade, and many implementations bork
+          ;; with the old ASDF during upgrade, and many implementations bork
           '((#:compile-concatenated-source-op (#:operation) ()))))
     (loop :for name :in redefined-functions
           :for sym = (find-symbol* name :asdf nil) :do
@@ -106,12 +106,12 @@ previously-loaded version of ASDF."
               ;; On CLISP we seem to be unable to fmakunbound and define a function in the same fasl. Sigh.
               #-clisp (fmakunbound sym)))
     (labels ((asym (x) (multiple-value-bind (s p) (if (consp x) (values (car x) (cadr x)) (values x :asdf))
-			 (find-symbol* s p nil)))
-	     (asyms (l) (mapcar #'asym l)))
+                         (find-symbol* s p nil)))
+             (asyms (l) (mapcar #'asym l)))
       (loop* :for (name superclasses slots) :in redefined-classes
-	     :for sym = (find-symbol* name :asdf nil)
-	     :when (and sym (find-class sym))
-	     :do (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))))))
+             :for sym = (find-symbol* name :asdf nil)
+             :when (and sym (find-class sym))
+             :do (eval `(defclass ,sym ,(asyms superclasses) ,(asyms slots)))))))
 
 
 ;;; Self-upgrade functions

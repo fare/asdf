@@ -107,10 +107,10 @@
                 (and (typep c 'missing-dependency)
                      (eq (missing-required-by c) component)
                      (equal (missing-requires c) name))))
-	  (unless (component-parent component)
-	    (let ((name (coerce-name name)))
-	      (unset-asdf-cache-entry `(find-system ,name))
-	      (unset-asdf-cache-entry `(locate-system ,name))))))))
+          (unless (component-parent component)
+            (let ((name (coerce-name name)))
+              (unset-asdf-cache-entry `(find-system ,name))
+              (unset-asdf-cache-entry `(locate-system ,name))))))))
 
 
   (defun resolve-dependency-spec (component dep-spec)

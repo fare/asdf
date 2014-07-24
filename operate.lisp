@@ -111,7 +111,8 @@ The default operation may change in the future if we implement a
 component-directed strategy for how to load or compile systems.")
 
   (defmethod component-depends-on ((o prepare-op) (s system))
-    `((,*load-system-operation* ,@(component-sideway-dependencies s))))
+    (loop :for (o . cs) :in (call-next-method)
+          :collect (cons (if (eq o 'load-op) *load-system-operation* o) cs)))
 
   (defclass build-op (non-propagating-operation) ()
     (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
@@ -122,7 +123,8 @@ as a symbol or as a string later read as a symbol (after loading the defsystem-d
 if NIL is specified (the default), BUILD-OP falls back to the *LOAD-SYSTEM-OPERATION*
 that will load the system in the current image, and its typically LOAD-OP."))
   (defmethod component-depends-on ((o build-op) (c component))
-    `((,(or (component-build-operation c) *load-system-operation*) ,c)))
+    `((,(or (component-build-operation c) *load-system-operation*) ,c)
+      ,@(call-next-method)))
 
   (defun make (system &rest keys)
     "The recommended way to interact with ASDF3.1 is via (ASDF:MAKE :FOO).
