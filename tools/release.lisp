@@ -31,68 +31,18 @@
 
 (defun tarname (name) (strcat name ".tar.gz"))
 
-(defun make-tarball-under-build (name base files)
-  (check-type name string)
-  (dolist (f files)
-    (check-type f string))
-  (let* ((base
-           (ensure-pathname
-            base
-            :want-absolute t :want-directory t
-            :want-existing t :truename t))
-         (destination
-           (ensure-pathname
-            name
-            :defaults (pn "build/")
-            :want-relative t :ensure-absolute t
-            :ensure-subpath t :ensure-directory t))
-         (tarball
-           (ensure-pathname
-            (tarname name)
-            :defaults (pn "build/")
-            :want-relative t :ensure-absolute t
-            :ensure-subpath t :want-file t
-            :ensure-directories-exist t)))
-    (assert (< 6 (length (pathname-directory destination))))
-    (when (probe-file* destination)
-      (error "Destination ~S already exists, not taking chances - you can delete it yourself."
-             destination))
-    (ensure-directories-exist destination)
-    (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
-    (run `(env "COPYFILE_DISABLE=1" ;; tell MacOS X's BSD tar to behave.
-           tar "zcfC" ,tarball ,(pn "build/") (,name /)) :show t)
-    (delete-directory-tree destination :validate (complement #'wild-pathname-p))
-    (values)))
+(defun make-tarball-from-git (name base files &key (type "tar.gz"))
+  (with-asdf-dir (base)
+    (let ((tarball (strcat name "." type)))
+      (run `(git archive -o ,(pn "build" tarball)
+                 :prefix (,name /) ,*version* -- ,@files) :show t)))
+  (values))
 
-(defun driver-files ()
-  "list files in uiop"
-  (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
-(defun driver-name ()
-  (format nil "uiop-~A" *version*))
-(defun make-driver-tarball ()
-  (make-tarball-under-build (driver-name) (pn "uiop/") (driver-files)))
-
-(defun asdf-defsystem-files ()
-  "list files in asdf/defsystem"
-  (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
-         (system-source-files :asdf/defsystem)))
-(defun asdf-defsystem-name ()
-  (format nil "asdf-defsystem-~A" *version*))
-(defun make-asdf-defsystem-tarball ()
-  (build-asdf)
-  (make-tarball-under-build (asdf-defsystem-name) (pn) (asdf-defsystem-files)))
-
-(defun asdf-git-name ()
-  (strcat "asdf-" *version*))
-
-(defun make-git-tarball ()
-  (build-asdf)
-  (let* ((name (asdf-git-name))
-         (tarball (strcat name ".tar")))
-    (with-asdf-dir ()
-      (run `(git archive -o (build/ ,tarball)
-                 :prefix (,name /) ,*version*)
-           :show t))
+(defun make-tarball-from-git-plus (name base files)
+  ;; make a tarball, then add build/asdf.lisp to it
+  (make-tarball-from-git name base files :type "tar")
+  (let* ((tarball (strcat name ".tar")))
+    (build-asdf)
     (with-asdf-dir ("build/")
       (ensure-directories-exist (pn "build" name "build/"))
       (run `(cp -a asdf.lisp (,name /build/)))
@@ -105,6 +55,30 @@
       (run `(rmdir (,name /build/) (,name /)))
       (run `(gzip -f9 ,tarball) :show t)))
   (values))
+
+(defun driver-files ()
+  "list files in uiop"
+  (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
+(defun driver-name ()
+  (format nil "uiop-~A" *version*))
+(defun make-driver-tarball ()
+  (make-tarball-from-git (driver-name) "uiop/" (driver-files)))
+
+(defun asdf-defsystem-files ()
+  "list files in asdf/defsystem"
+  (list* "asdf.asd" "version.lisp-expr" "header.lisp"
+         (system-source-files :asdf/defsystem)))
+(defun asdf-defsystem-name ()
+  (format nil "asdf-defsystem-~A" *version*))
+(defun make-asdf-defsystem-tarball ()
+  (make-tarball-from-git-plus
+   (asdf-defsystem-name) "" (asdf-defsystem-files)))
+
+(defun asdf-git-name ()
+  (strcat "asdf-" *version*))
+
+(defun make-git-tarball ()
+  (make-tarball-from-git-plus (asdf-git-name) "" nil))
 
 (defun asdf-lisp-name ()
   (format nil "asdf-~A.lisp" *version*))
