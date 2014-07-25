@@ -59,7 +59,8 @@
              destination))
     (ensure-directories-exist destination)
     (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
-    (run `(tar "zcfC" ,tarball ,(pn "build/") (,name /)) :show t)
+    (run `(env "COPYFILE_DISABLE=1" ;; tell MacOS X's BSD tar to behave.
+           tar "zcfC" ,tarball ,(pn "build/") (,name /)) :show t)
     (delete-directory-tree destination :validate (complement #'wild-pathname-p))
     (values)))
 
@@ -86,8 +87,24 @@
 
 (defun make-git-tarball ()
   (build-asdf)
-  (make-tarball-under-build (asdf-git-name) (pn)
-                            (cons "build/asdf.lisp" (run/lines '(git ls-files)))))
+  (let* ((name (asdf-git-name))
+         (tarball (strcat name ".tar")))
+    (with-asdf-dir ()
+      (run `(git archive -o (build/ ,tarball)
+                 :prefix (,name /) ,*version*)
+           :show t))
+    (with-asdf-dir ("build/")
+      (ensure-directories-exist (pn "build" name "build/"))
+      (run `(cp -a asdf.lisp (,name /build/)))
+      ;; TODO: find which tar it is and tell --uid 0 --gid 0 to BSD tar
+      ;; and --owner root --group root to GNU tar,
+      ;; falling back to nothing. Sigh.
+      (run `(env "COPYFILE_DISABLE=1"
+                 tar "-rf" ,tarball (,name /build/asdf.lisp)) :show t)
+      (run `(rm -f (,name /build/asdf.lisp)))
+      (run `(rmdir (,name /build/) (,name /)))
+      (run `(gzip -f9 ,tarball) :show t)))
+  (values))
 
 (defun asdf-lisp-name ()
   (format nil "asdf-~A.lisp" *version*))
