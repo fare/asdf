@@ -24,7 +24,7 @@
                (push --tags github release master)
                (fetch)
                (status)))
-    (apply 'git x)))
+    (git x)))
 
 (defun merge-master-into-release ()
   "merge git branch master into release"
@@ -33,7 +33,7 @@
                (checkout release)
                (merge master)
                (checkout master)))
-    (apply 'git x)))
+    (git x)))
 
 (defparameter *wrongful-tags*
   '("1.37" ;; It's not asdf.lisp 1.37, it's asdf.lisp 1.85! 1.37 was the CVS version of the README.
