@@ -38,31 +38,44 @@
                  :prefix (,name /) ,*version* -- ,@files) :show t)))
   (values))
 
-(defun make-tarball-from-git-plus (name base files)
+(defun make-tarball-from-git-plus (name base files &key asdf-lisp version-file)
   ;; make a tarball, then add build/asdf.lisp to it
   (make-tarball-from-git name base files :type "tar")
   (let* ((tarball (strcat name ".tar")))
-    (build-asdf)
     (with-asdf-dir ("build/")
-      (ensure-directories-exist (pn "build" name "build/"))
-      (run `(cp -a asdf.lisp (,name /build/)))
-      ;; TODO: find which tar it is and tell --uid 0 --gid 0 to BSD tar
-      ;; and --owner root --group root to GNU tar,
-      ;; falling back to nothing. Sigh.
-      (run `(env "COPYFILE_DISABLE=1"
-                 tar "-rf" ,tarball (,name /build/asdf.lisp)) :show t)
-      (run `(rm -f (,name /build/asdf.lisp)))
-      (run `(rmdir (,name /build/) (,name /)))
+      (when asdf-lisp
+        (build-asdf)
+        (ensure-directories-exist (pn "build" name "build/"))
+        (run `(cp -a asdf.lisp (,name /build/)))
+        ;; TODO: find which tar it is and tell --uid 0 --gid 0 to BSD tar
+        ;; and --owner root --group root to GNU tar,
+        ;; falling back to nothing. Sigh.
+        (run `(env "COPYFILE_DISABLE=1"
+                   tar "-rf" ,tarball (,name /build/asdf.lisp)) :show t)
+        (run `(rm -f (,name /build/asdf.lisp)))
+        (delete-empty-directory (pn "build" name "build/")))
+      (when version-file
+        (ensure-directories-exist (pn "build" name ""))
+        (run `(cp -a ../version.lisp-expr (,name /)))
+        (run `(env "COPYFILE_DISABLE=1"
+                   tar "-rf" ,tarball (,name /version.lisp-expr)) :show t)
+        (run `(rm -f (,name /version.lisp-expr))))
+      (let ((dir (pn "build" name "")))
+        (when (directory-exists-p dir) (delete-empty-directory dir)))
       (run `(gzip -f9 ,tarball) :show t)))
   (values))
 
-(defun driver-files ()
+(defun uiop-files ()
   "list files in uiop"
   (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
 (defun driver-name ()
   (format nil "uiop-~A" *version*))
 (defun make-driver-tarball ()
-  (make-tarball-from-git (driver-name) "uiop/" (driver-files)))
+  (make-tarball-from-git-plus
+   (driver-name) "uiop/"
+   (remove "version.lisp-expr" (uiop-files) :test 'equal)
+   :version-file t))
+
 
 (defun asdf-defsystem-files ()
   "list files in asdf/defsystem"
