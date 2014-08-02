@@ -1,6 +1,6 @@
 ":" ; exec cl-launch "$0" "$@" # -*- Lisp -*-
 #|
-Usage: ./tools/asdf-tools install-asdf-as-module l=lispworks
+Usage: ./tools/asdf-tools install-asdf l=lispworks
 
 This script will install the current version of ASDF
 as a module pre-compiled for your implementation,
