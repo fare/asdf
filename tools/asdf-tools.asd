@@ -4,7 +4,8 @@
                (:version "inferior-shell" "2.0.0")
                (:version "cl-ppcre" "2.0.4")
                (:version "lisp-invocation" "1.0.2")
-               (:feature :sbcl "sb-introspect"))
+               (:feature :sbcl "sb-introspect")
+               "optima" "optima.ppcre")
   :components
   ((:file "package")
    (:file "main" :depends-on ("package"))
@@ -18,4 +19,5 @@
    (:file "test-scripts" :depends-on ("test-environment"))
    (:file "test-upgrade" :depends-on ("test-environment" "git"))
    (:file "test-all" :depends-on ("test-environment"))
+   (:file "installation" :depends-on ("test-environment"))
    (:file "release" :depends-on ("version" "test-environment"))))

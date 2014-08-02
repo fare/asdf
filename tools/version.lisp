@@ -14,12 +14,10 @@
       (safe-read-file-form (pn "version.lisp-expr"))))
 
 (defun debian-version-from-file (&optional commit)
-  (let ((line
-          (if commit
-              (git `(show (,commit":debian/changelog")) :output :line)
-              (read-file-line (pn "debian/changelog")))))
-    (cl-ppcre:register-groups-bind (ver) ("^cl-asdf [(]([0-9.:-]+)[)] " line)
-      ver)))
+  (match (if commit
+             (git `(show (,commit":debian/changelog")) :output :line)
+             (read-file-line (pn "debian/changelog")))
+    ((ppcre "^[^(]*\\(([-0-9.:-]+)\\)" ver) ver)))
 
 (defun parse-debian-version (&optional (debian-version (debian-version-from-file)))
   (cl-ppcre:register-groups-bind (epoch ver rel)
