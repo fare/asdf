@@ -17,20 +17,17 @@
     concatenate-source-op
     deliver-asd-op
     dll-op
-    fasl-op
     image-op
     lib-op
     load-bundle-op
     load-compiled-concatenated-source-op
     load-concatenated-source-op
-    load-fasl-op
     load-op
     load-source-op
     monolithic-compile-concatenated-source-op
     monolithic-concatenate-source-op
     monolithic-deliver-asd-op
     monolithic-dll-op
-    monolithic-fasl-op
     monolithic-lib-op
     monolithic-load-compiled-concatenated-source-op
     monolithic-load-concatenated-source-op
@@ -62,7 +59,7 @@
 (assert (make-instance 'my-good-operation))
 
 
-;; This test exercises the backward-compatibility mechanism of operation,
+;; This test exercises the backward-compatibiMlity mechanism of operation,
 ;; whereby traditional unqualified operations are implicitly downward and sideward
 (defclass trivial-operation (operation) ())
 
