@@ -59,7 +59,7 @@
 (assert (make-instance 'my-good-operation))
 
 
-;; This test exercises the backward-compatibiMlity mechanism of operation,
+;; This test exercises the backward-compatibility mechanism of operation,
 ;; whereby traditional unqualified operations are implicitly downward and sideward
 (defclass trivial-operation (operation) ())
 
@@ -73,3 +73,6 @@
    (trivial-operation "test-asdf/test-module-depend" "quux")))
 
 (operate 'trivial-operation 'test-asdf/test-module-depend)
+;;; this test intended to catch a bug in operate :around method in operate.lisp,
+;;; thanks to Jan Moringen [2014/08/10:rpg]
+(operate (make-instance 'trivial-operation) 'test-asdf/test-module-depend)
