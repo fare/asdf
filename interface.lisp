@@ -58,6 +58,8 @@
    #:static-file #:doc-file #:html-file
    #:file-type #:source-file-type
 
+   #:register-preloaded-system #:register-immutable-system
+
    #:package-inferred-system #:register-system-packages
    #:package-system ;; backward-compatibility during migration, to be removed in a further release.
 

@@ -24,7 +24,7 @@
 
 (defun clear-caches-and-search ()
   (setf asdf:*central-registry* nil)
-  (mapc #'asdf/find-system:clear-defined-system *all-systems*))
+  (mapc #'clear-system *all-systems*))
 
 (clear-caches-and-search)
 (assert (not (asdf:find-system "test-asdf/force1" nil)))
