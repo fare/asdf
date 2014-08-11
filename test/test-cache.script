@@ -2,8 +2,7 @@
 
 ;;; test to check that the cache doesn't upset error signaling from FIND-SYSTEM
 
-
-(in-package asdf-test)
+(in-package :asdf-test)
 
 (defparameter *all-systems*
   (list

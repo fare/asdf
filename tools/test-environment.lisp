@@ -187,7 +187,7 @@
 
 (defun run-test-lisp (activity forms &key (output t) log lisp debugger)
   ;; Activity is of the form "compiling ASDF", "running this test", etc.
-  (format t "~&Now ~A...~%" activity)
+  (format t "~&Now ~A...~@[ (log in ~A)~]~%" activity log)
   (let* ((eval (compose-eval-string forms))
          (command (lisp-invocation-arglist :implementation-type (get-lisp lisp)
                                            :eval eval :debugger debugger))
@@ -196,8 +196,8 @@
          (output (if (eq output *stdout*) :interactive output)))
     (log! log "~A" (print-process-spec command nil))
     (multiple-value-bind (okp out err code)
-        (run* `(pipe ((>& 2 1) ,@(when interactive '(rlwrap)) ,@command)
-                     ,@(when log `((tee -a ,log))))
+        (run* `((>& 2 1) ,@(when interactive '(rlwrap)) ,@command
+                ,@(when log `((>> ,log)))) ;; unhappily, | tee -a log eats error codes :-(
               :input interactive :output output :error-output (or interactive :output) :on-error nil)
       (unless interactive
         (log! log (if okp
@@ -208,7 +208,9 @@ You can retry ~A with:
 or more interactively, start with:
     ~A~%(rlwrap is optional; don't use it when in emacs; skip if not installed.)
 then copy/paste:
-    ~A")
-              activity activity (print-process-spec command nil)
-              (interactive-command) (compose-copy-paste-string forms)))
+~@<    ~@;~A~@:>~&")
+              activity activity
+              (print-process-spec command nil)
+              (print-process-spec (interactive-command) nil)
+              (compose-copy-paste-string forms)))
     (values okp out err code))))

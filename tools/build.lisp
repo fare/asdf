@@ -19,9 +19,12 @@
 (defun wc ()
   "count lines of lisp code in asdf and uiop"
   (with-asdf-dir ()
-    (run `(pipe (wc ,@(driver-files)) (sort -n)))
-    (terpri)
-    (run `(pipe (wc header.lisp ,@(asdf-defsystem-files)) (sort -n)))
-    (terpri)
-    (run `(pipe (wc header.lisp ,@(driver-files) ,@(asdf-defsystem-files)) (tail -n 1)))))
-
+    (flet ((lisp-only (x) (remove "lisp" x :test-not 'equal :key 'pathname-type)))
+      (let ((driver-files (mapcar #'(lambda (x) (subpathname "uiop/" x)) (lisp-only (uiop-files))))
+            (defsystem-files (lisp-only (asdf-defsystem-files))))
+        (run `(pipe (wc ,@driver-files) (sort -n)))
+        (terpri)
+        (run `(pipe (wc header.lisp ,@defsystem-files) (sort -n)))
+        (terpri)
+        (run `(pipe (wc header.lisp ,@driver-files ,@defsystem-files) (tail -n 1))))))
+  (values))

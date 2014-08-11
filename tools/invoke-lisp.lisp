@@ -216,7 +216,10 @@ a preformatted string, or a LIST that specifies a program."
     (string (output-string forms s))
     (list (format s "~{~A~%~}"
                   (with-standard-io-syntax
-                    (let ((*package* (find-package :cl)))
-                      (mapcar (lambda (x) (typecase x (string x) (t (write x :stream s :case :downcase))))
+                    (let ((*package* (find-package :cl))
+                          (*print-case* :downcase))
+                      (mapcar (lambda (x)
+                                (typecase x (string x)
+                                          (t (write-to-string x))))
                               forms)))))))
 

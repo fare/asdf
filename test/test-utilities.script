@@ -1,5 +1,10 @@
 ;;; -*- Lisp -*-
 
+(chdir *asdf-directory*)
+(assert (pathname-equal *asdf-directory* (getcwd)))
+(chdir *test-directory*)
+(assert (pathname-equal *test-directory* (getcwd)))
+
 (assert
  (every #'directory-pathname-p
   (list

@@ -31,53 +31,52 @@
   "run test scripts
 Use the preferred lisp implementation"
   (nest
-   (with-asdf-dir ("test/"))
    (let* ((log (newlogfile "test" lisp)))
      (log! log "Running the following ~D ASDF test scripts on ~(~A~):~%~{  ~A~%~}"
-           (length test-scripts) lisp test-scripts)
-    (and
-     (run-test-lisp
-      "compiling ASDF"
-      '((load "script-support.lisp") (asdf-test::compile-asdf-script))
-      :lisp lisp :log log)
-     (loop
-       :with n-tests = (length test-scripts)
-       :with test-pass = 0
-       :with test-fail = 0
-       :with failed-list = ()
-       :for i :in test-scripts
-       :for ni = (native-namestring i)
-       :for test-count :from 0
-       :do
-          ;; TODO: do we want to delete the output file cache?
-          ;; If so, we need to do it in the inferior lisp,
-          ;; because only it knows for sure its output configuration.
-          ;; Or we could do it in a more heavy handed way.
-          (if (run-test-lisp
-               (format nil "testing ~A on ~(~A~)" i lisp)
-               `((load "script-support.lisp")
-                 (asdf-test::load-asdf)
-                 (asdf-test::frob-packages)
-                 (asdf-test::run-test-script ,ni))
-               :lisp lisp :log log)
-              (incf test-pass)
-              (progn
-                (incf test-fail)
-                (push i failed-list)))
-       :finally
-          (let ((okp (zerop test-fail)))
-            (format t "~
+           (length test-scripts) lisp test-scripts))
+   (and
+    (run-test-lisp
+     "compiling ASDF"
+     '((load "test/script-support.lisp") (asdf-test::compile-asdf-script))
+     :lisp lisp :log log))
+   (loop
+     :with n-tests = (length test-scripts)
+     :with test-pass = 0
+     :with test-fail = 0
+     :with failed-list = ()
+     :for i :in test-scripts
+     :for ni = (native-namestring (subpathname "test/" i))
+     :for test-count :from 0
+     :do
+        ;; TODO: do we want to delete the output file cache?
+        ;; If so, we need to do it in the inferior lisp,
+        ;; because only it knows for sure its output configuration.
+        ;; Or we could do it in a more heavy handed way.
+        (if (run-test-lisp
+             (format nil "testing ~A on ~(~A~)" i lisp)
+             `((load "test/script-support.lisp")
+               (asdf-test::load-asdf)
+               (asdf-test::frob-packages)
+               (asdf-test::run-test-script ,ni))
+             :lisp lisp :log log)
+            (incf test-pass)
+            (progn
+              (incf test-fail)
+              (push i failed-list)))
+     :finally
+        (let ((okp (zerop test-fail)))
+          (log! log "~
 -#---------------------------------------
 Using ~A
-Ran ~D tests, ~D passed, ~D failed
-~:[All tests apparently successful.~;:~:*~{~%  ~A~}~]
+Ran ~D tests, ~D passed, ~D failed~
+~:[~%All tests apparently successful.~;:~:*~{~%  ~A~}~]
 -#---------------------------------------~%"
-                    lisp
-                    n-tests test-pass test-fail (reverse failed-list))
-            (unless okp
-              (log! log "To view full results and failures, try the following command:
+                  lisp
+                  n-tests test-pass test-fail (reverse failed-list))
+          (unless okp
+            (log! log "To view full results and failures, try the following command:
      less -p ABORTED ~A" (enough-namestring log (pn))))
-            (return okp)))))))
+          (return okp)))))
 
 (deftestcmd %test (lisp test-scripts)
   "run all normal tests but upgrade tests
