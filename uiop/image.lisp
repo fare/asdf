@@ -335,7 +335,7 @@ of the function will be returned rather than interpreted as a boolean designatin
                                 (dump-hook *image-dump-hook*)
                                 #+clozure prepend-symbols #+clozure (purify t)
                                 #+sbcl compression
-                                #+(and sbcl windows) application-type)
+                                #+(and sbcl os-windows) application-type)
     "Dump an image of the current Lisp environment at pathname FILENAME, with various options.
 
 First, finalize the image, by evaluating the POSTLUDE as per EVAL-INPUT, then calling each of
@@ -409,7 +409,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
               (when compression (list :compression compression))
               ;;--- only save runtime-options for standalone executables
               (when executable (list :toplevel #'restore-image :save-runtime-options t))
-              #+(and sbcl windows) ;; passing :application-type :gui will disable the console window.
+              #+(and sbcl os-windows) ;; passing :application-type :gui will disable the console window.
               ;; the default is :console - only works with SBCL 1.1.15 or later.
               (when application-type (list :application-type application-type)))))
     #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)

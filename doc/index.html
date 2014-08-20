@@ -39,7 +39,7 @@
           and the ability to deliver standalone executables.
           It was pre-released as 2.27 on February 1st 2013,
           released as 3.0.0 on May 15th 2013,
-          and again as 3.1.2 on May 6th 2014.
+          again as 3.1.2 on May 6th 2014, and as 3.1.3 on 24 July 2014.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -364,9 +364,9 @@ XCL (Peter Graves) <gnooth@gmail.com>
             allowed you to create a single-file bundle out of a system,
             for easier delivery.
             It is now a builtin part of <tt>asdf/defsystem</tt>,
-            and allows to deliver a single FASL for a system,
-            or (on supported implementations), a standalone executable program,
-            or an image containing part of your software precompiled.
+            and allows users to deliver a single FASL for a system,
+            a standalone executable program (on supported implementations),
+            or an image containing your system precompiled.
           </li>
 	  <li><tt>asdf-utils</tt> was a collection of utilities that originated with ASDF.
             It is now superseded by <tt>uiop</tt>, aka <tt>asdf/driver</tt>,
@@ -396,20 +396,24 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a id="mailing-lists"></a>
         <h3>Mailing Lists</h3>
         <ul>
-          <li><b>asdf-devel</b><!-- <a href="http://lists.common-lisp.net/mailman/listinfo/asdf-devel">asdf-devel</a> -->:
+          <li><b>asdf-devel</b>
             A list for questions, suggestions, bug reports, patches, and so on.
 	    It's for everyone and everything. Please join the conversation!
+          <a
+        href="http://mailman.common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel">asdf-devel
+        mailman site to subscribe</a>
 	  </li>
-          <li><b>asdf-announce</b><!-- <a href="http://lists.common-lisp.net/mailman/listinfo/asdf-announce">asdf-announce</a> -->:
+          <li><b>asdf-announce</b>
             A low-volume mailing-list for announcements only, mostly regarding new releases.
 	    Posting is restricted to project administrators and to important notices.
 	    Please subscribe to it if you're a Lisp implementation or distribution vendor,
 	    who needs to know when to upgrade the ASDF you distribute,
-	    but are otherwise not interested in day to day design and development.
+	    but are otherwise not interested in day to day design and
+        development.
+          <a
+        href="http://mailman.common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce">asdf-announce
+        mailman site to subscribe</a>
         </li></ul>
-        <p>To subscribe to these mailing lists, send an email to, e.g.,
-        asdf-devel+subscribe at common-lisp.net.  For more information about
-        mailing lists at common-lisp.net, see <a href="http://common-lisp.net/listinfo.html">here</a>.</p>
 
         <h3>Contributing</h3>
         <p>Join our mailing list, check the code out from git,
@@ -419,6 +423,15 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>August 2014</dt>
+          <dd>The ASDF mailing lists have been reestablished, in particular
+        asdf-announce, which should allow CL implementers better access to only
+        the information they want about ASDF development.</dd>
+          <dt>May 2014 to July 2014</dt>
+          <dd>ASDF bug fixing from 3.1.2 leads to release of 3.1.3, a major bug
+        fix release.  We strongly urge implementors that have shipped with 3.1.2
+        to upgrade to 3.1.3. There should be no incompatibilities, and some
+        very important bug fixes are provided. See the Changelog for more details.</dd>
           <dt>July 2013 to May 2014</dt>
           <dd>Fran&ccedil;ois-Ren&eacute; Rideau has resigned as maintainer
             but remained an active developer.

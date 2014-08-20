@@ -580,7 +580,7 @@ when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPA
     "if MAYBE-SUBPATH is a pathname that is under BASE-PATHNAME, return a pathname object that
 when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPATH."
     (let ((sub (when maybe-subpath (pathname maybe-subpath)))
-	  (base (when base-pathname (ensure-absolute-pathname (pathname base-pathname)))))
+          (base (when base-pathname (ensure-absolute-pathname (pathname base-pathname)))))
       (or (and base (subpathp sub base)) sub)))
 
   (defun call-with-enough-pathname (maybe-subpath defaults-pathname thunk)

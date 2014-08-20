@@ -38,7 +38,6 @@
    #:component-load-dependencies #:run-shell-command ; deprecated, do not use
    #:bundle-op #:monolithic-bundle-op #:precompiled-system #:compiled-file #:bundle-system
    #:program-system #:make-build
-   #:fasl-op #:load-fasl-op #:monolithic-fasl-op #:binary-op #:monolithic-binary-op
    #:basic-compile-bundle-op #:prepare-bundle-op
    #:compile-bundle-op #:load-bundle-op #:monolithic-compile-bundle-op #:monolithic-load-bundle-op
    #:lib-op #:dll-op #:deliver-asd-op #:program-op #:image-op
@@ -128,11 +127,13 @@
    #:package-inferred-system-missing-package-error
    #:operation-definition-warning #:operation-definition-error
 
-   #:try-recompiling
+   #:try-recompiling ; restarts
    #:retry
-   #:accept                     ; restarts
+   #:accept
    #:coerce-entry-to-directory
    #:remove-entry-from-registry
+   #:clear-configuration-and-retry
+
 
    #:*encoding-detection-hook*
    #:*encoding-external-format-hook*
@@ -170,5 +171,6 @@
    #:user-source-registry
    #:system-source-registry
    #:user-source-registry-directory
-   #:system-source-registry-directory))
+   #:system-source-registry-directory
+   ))
 

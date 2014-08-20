@@ -59,7 +59,7 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
              (etypecase operation
                (operation (let ((name (type-of operation))
                                 (initargs (operation-original-initargs operation)))
-                            #'(lambda () (make-operation name :original-initargs initargs initargs))))
+                            #'(lambda () (apply 'make-operation name :original-initargs initargs initargs))))
                ((or symbol string) (constantly operation))))
            (component-path (typecase component ;; to remake the component after ASDF upgrade
                              (component (component-find-path component))

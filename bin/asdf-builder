@@ -245,7 +245,7 @@
   (build-asdf)
   (with-current-directory ((pn))
     (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") build/asdf.lisp ,@(run/lines '(git ls-files)))
-         (asdf-git-name)) :show t)
+         :show t))
   (values))
 
 (defun asdf-lisp-name ()

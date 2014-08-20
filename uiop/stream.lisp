@@ -12,7 +12,7 @@
    #:encoding-external-format #:*encoding-external-format-hook* #:default-encoding-external-format
    #:*default-encoding* #:*utf-8-external-format*
    #:with-safe-io-syntax #:call-with-safe-io-syntax #:safe-read-from-string
-   #:with-output #:output-string #:with-input
+   #:with-output #:output-string #:with-input #:input-string
    #:with-input-file #:call-with-input-file #:with-output-file #:call-with-output-file
    #:null-device-pathname #:call-with-null-input #:with-null-input
    #:call-with-null-output #:with-null-output
@@ -256,8 +256,14 @@ Otherwise, signal an error."
   (defmacro with-input ((input-var &optional (value input-var)) &body body)
     "Bind INPUT-VAR to an input stream, coercing VALUE (default: previous binding of INPUT-VAR)
 as per CALL-WITH-INPUT, and evaluate BODY within the scope of this binding."
-    `(call-with-input ,value #'(lambda (,input-var) ,@body))))
+    `(call-with-input ,value #'(lambda (,input-var) ,@body)))
 
+  (defun input-string (&optional input)
+    "If the desired INPUT is a string, return that string; otherwise slurp the INPUT into a string
+and return that"
+    (if (stringp input)
+        input
+        (with-input (input) (funcall 'slurp-stream-string input)))))
 
 ;;; Null device
 (with-upgradability ()

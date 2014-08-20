@@ -10,7 +10,6 @@
    #:bundle-op #:bundle-type #:program-system
    #:bundle-system #:bundle-pathname-type #:bundlable-file-p #:direct-dependency-files
    #:monolithic-op #:monolithic-bundle-op #:operation-monolithic-p
-   #:fasl-op #:load-fasl-op #:monolithic-fasl-op #:binary-op #:monolithic-binary-op
    #:basic-compile-bundle-op #:prepare-bundle-op
    #:compile-bundle-op #:load-bundle-op #:monolithic-compile-bundle-op #:monolithic-load-bundle-op
    #:lib-op #:monolithic-lib-op
@@ -530,15 +529,15 @@ Please report to ASDF-DEVEL if this works for you.")))
 
 
 ;;; Backward compatibility with pre-3.1.2 names
-(defclass fasl-op (selfward-operation)
-  ((selfward-operation :initform 'compile-bundle-op :allocation :class)))
-(defclass load-fasl-op (selfward-operation)
-  ((selfward-operation :initform 'load-bundle-op :allocation :class)))
-(defclass binary-op (selfward-operation)
-  ((selfward-operation :initform 'deliver-asd-op :allocation :class)))
-(defclass monolithic-fasl-op (selfward-operation)
-  ((selfward-operation :initform 'monolithic-compile-bundle-op :allocation :class)))
-(defclass monolithic-load-fasl-op (selfward-operation)
-  ((selfward-operation :initform 'monolithic-load-bundle-op :allocation :class)))
-(defclass monolithic-binary-op (selfward-operation)
-  ((selfward-operation :initform 'monolithic-deliver-asd-op :allocation :class)))
+;; (defclass fasl-op (selfward-operation)
+;;   ((selfward-operation :initform 'compile-bundle-op :allocation :class)))
+;; (defclass load-fasl-op (selfward-operation)
+;;   ((selfward-operation :initform 'load-bundle-op :allocation :class)))
+;; (defclass binary-op (selfward-operation)
+;;   ((selfward-operation :initform 'deliver-asd-op :allocation :class)))
+;; (defclass monolithic-fasl-op (selfward-operation)
+;;   ((selfward-operation :initform 'monolithic-compile-bundle-op :allocation :class)))
+;; (defclass monolithic-load-fasl-op (selfward-operation)
+;;   ((selfward-operation :initform 'monolithic-load-bundle-op :allocation :class)))
+;; (defclass monolithic-binary-op (selfward-operation)
+;;   ((selfward-operation :initform 'monolithic-deliver-asd-op :allocation :class)))

@@ -262,7 +262,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
         #+ecl (ext:getcwd)
         #+gcl (let ((*default-pathname-defaults* #p"")) (truename #p""))
         #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
-        #+lispworks (system:current-directory)
+        #+lispworks (hcl:get-working-directory)
         #+mkcl (mk-ext:getcwd)
         #+sbcl (sb-ext:parse-native-namestring (sb-unix:posix-getcwd/))
         #+xcl (extensions:current-directory)
