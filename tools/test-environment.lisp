@@ -66,20 +66,21 @@
 
 (defun test-definition (def)
   (block ()
-    (cl-ppcre:register-groups-bind (var val) ("^([^=]+)=(.*)$" def)
-      (if-let (x (gethash var *environment-variable-table*))
-        (destructuring-bind (sym transformer &rest r) x
-          (declare (ignore r))
-          (unless (emptyp val)
-            (setf (symbol-value sym) (funcall transformer val)))
-          (return t))
-        (error "Unknown variable ~A" var)))
+    (match def
+      ((ppcre "^([^=]+)=(.*)$" var val)
+       (if-let (x (gethash var *environment-variable-table*))
+         (match x
+           ((list* sym transformer _)
+            (unless (emptyp val)
+              (setf (symbol-value sym) (funcall transformer val)))
+            (return t)))
+         (error "Unknown variable ~A" var))))
     nil))
 
 (defun show-environment ()
   (loop :for (v) :in *environment-variable-specs* :do
     (format t "~A = ~S~%" v (symbol-value v)))
-  t)
+  (values))
 
 (defun env (&rest env)
   (loop :for (first . rest) :on env
