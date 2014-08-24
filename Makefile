@@ -1,8 +1,17 @@
+# Configuring this Makefile for your personal use:
+# Set environment variable ASDF_TEST_LISPS to a space-separated list of values
+# (see "defaultlisps" below, for an example).
+# If you have a special way to find libraries that are used in the build and
+# test process, you may bind ASDF_DEVEL_SOURCE_REGISTRY to a source registry to
+# use (using the environment variable syntax), or bind it to "override" to use
+# your normal CL source registry. Otherwise, it will use local copies of
+# everything.
+
 system	 	:= "asdf"
 webhome_private := common-lisp.net:/project/asdf/public_html/
 webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
-sourceDirectory := $(shell pwd)
+sourceDirectory := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 #### Common Lisp implementations available for testing.
 ## export ASDF_TEST_LISPS to override the default list of such implementations,
@@ -33,7 +42,13 @@ s ?= ${ASDF_TEST_SYSTEMS}
 endif
 
 ifdef ASDF_DEVEL_SOURCE_REGISTRY
+ifeq ($(ASDF_DEVEL_SOURCE_REGISTRY), override)
+# do nothing... Use the user's CL_SOURCE_REGISTRY
+else
 export CL_SOURCE_REGISTRY = ${ASDF_DEVEL_SOURCE_REGISTRY}
+endif
+else # no ASDF_DEVEL_SOURCE_REGISTRY
+export CL_SOURCE_REGISTRY = ${sourceDirectory}/:${sourceDirectory}/uiop/:${sourceDirectory}/ext//:
 endif
 
 l ?= sbcl
@@ -244,6 +259,11 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
+	list-source-registry
+
+# debug the source registry that will be used to execute commands from this Makefile.
+list-source-registry:
+	${sourceDirectory}/bin/asdf-builder re '(uiop:writeln (sort (alexandria:hash-table-alist asdf::*source-registry*) `string< :key `car))'
 
 # RELEASE or PUSH checklist:
 # make test-all
