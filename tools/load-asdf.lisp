@@ -106,7 +106,10 @@
                     (source-registry
                       (or (asdf-call 'getenv "ASDF_DEVEL_SOURCE_REGISTRY")
                           `(:source-registry
-                            (:tree ,source-directory)
+                            (:directory ,source-directory)
+                            (:directory (,source-directory "uiop"))
+                            (:directory (,source-directory "tools"))
+                            (:tree (,source-directory "ext"))
                             ;; In a fully controlled build, you'd :ignore-inherited-configuration instead:
                             :inherit-configuration)))
                     (output-directory

@@ -2,6 +2,7 @@
 build
 asdf.lisp
 
+doc/cmucl/
 doc/asdf/
 doc/asdf.aux
 doc/asdf.cp
@@ -21,9 +22,13 @@ doc/asdf.tps
 doc/asdf.vr
 doc/asdf.vrs
 doc/asdf.t2d/
+doc/asdf.dvi
+*.tmp
 
 LICENSE
 tmp/
+man/
+lib/
 *.dribble
 *.fas[bcl]
 *.fas

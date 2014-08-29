@@ -28,3 +28,10 @@
         (terpri)
         (run `(pipe (wc header.lisp ,@driver-files ,@defsystem-files) (tail -n 1))))))
   (values))
+
+
+;;; debug the source registry that is being used to execute these tools.
+(defun list-source-registry ()
+  "Display the source-registry cache"
+  (writeln (sort (alexandria:hash-table-alist asdf::*source-registry*)
+                 'string< :key 'car)))

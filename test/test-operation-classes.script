@@ -17,20 +17,17 @@
     concatenate-source-op
     deliver-asd-op
     dll-op
-    fasl-op
     image-op
     lib-op
     load-bundle-op
     load-compiled-concatenated-source-op
     load-concatenated-source-op
-    load-fasl-op
     load-op
     load-source-op
     monolithic-compile-concatenated-source-op
     monolithic-concatenate-source-op
     monolithic-deliver-asd-op
     monolithic-dll-op
-    monolithic-fasl-op
     monolithic-lib-op
     monolithic-load-compiled-concatenated-source-op
     monolithic-load-concatenated-source-op
@@ -76,3 +73,6 @@
    (trivial-operation "test-asdf/test-module-depend" "quux")))
 
 (operate 'trivial-operation 'test-asdf/test-module-depend)
+;;; this test intended to catch a bug in operate :around method in operate.lisp,
+;;; thanks to Jan Moringen [2014/08/10:rpg]
+(operate (make-instance 'trivial-operation) 'test-asdf/test-module-depend)

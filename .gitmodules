@@ -1,0 +1,30 @@
+[submodule "ext/fare-utils"]
+	path = ext/fare-utils
+	url = git://common-lisp.net/users/frideau/fare-utils.git
+[submodule "ext/fare-quasiquote"]
+	path = ext/fare-quasiquote
+	url = git://common-lisp.net/users/frideau/fare-quasiquote.git
+[submodule "ext/fare-mop"]
+	path = ext/fare-mop
+	url = git://common-lisp.net/users/frideau/fare-mop.git
+[submodule "ext/closer-closer-mop"]
+	path = ext/closer-closer-mop
+	url = git://git.code.sf.net/p/closer/closer-mop
+[submodule "ext/alexandria"]
+	path = ext/alexandria
+	url = git://common-lisp.net/projects/alexandria/alexandria.git
+[submodule "ext/optima"]
+	path = ext/optima
+	url = https://github.com/m2ym/optima.git
+[submodule "ext/named-readtables"]
+	path = ext/named-readtables
+	url = https://github.com/melisgl/named-readtables.git
+[submodule "ext/inferior-shell"]
+	path = ext/inferior-shell
+	url = git://common-lisp.net/projects/qitab/inferior-shell.git
+[submodule "ext/lisp-invocation"]
+	path = ext/lisp-invocation
+	url = git://common-lisp.net/projects/qitab/lisp-invocation.git
+[submodule "ext/cl-ppcre"]
+	path = ext/cl-ppcre
+	url = https://github.com/edicl/cl-ppcre

@@ -456,7 +456,7 @@ A symbol otherwise designates a class by name."
       (or (and found
                (or (eq super t) (#-cormanlisp subtypep #+cormanlisp cl::subclassp found super))
                found)
-          (call-function error "Can't coerce ~S to a ~@[class~;subclass of ~:*~S]" class super)))))
+          (call-function error "Can't coerce ~S to a ~:[class~;subclass of ~:*~S~]" class super)))))
 
 
 ;;; Hash-tables
