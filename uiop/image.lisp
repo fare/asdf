@@ -227,7 +227,7 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     #+abcl ext:*command-line-argument-list* ; Use 1.0.0 or later!
     #+allegro (sys:command-line-arguments) ; default: :application t
     #+clisp (coerce (ext:argv) 'list)
-    #+clozure (ccl::command-line-arguments)
+    #+clozure ccl:*command-line-argument-list*
     #+(or cmu scl) extensions:*command-line-strings*
     #+ecl (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
     #+gcl si:*command-args*
