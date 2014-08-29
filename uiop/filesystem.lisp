@@ -267,10 +267,10 @@ permits this."
 on the directory if COLLECTP returns true when CALL-FUNCTION'ed with the directory,
 and recurse each of its subdirectories on which the RECURSEP returns true when CALL-FUNCTION'ed with them."
     (when (call-function collectp directory)
-      (call-function collector directory))
-    (dolist (subdir (subdirectories directory))
-      (when (call-function recursep subdir)
-        (collect-sub*directories subdir collectp recursep collector)))))
+      (call-function collector directory)
+      (dolist (subdir (subdirectories directory))
+        (when (call-function recursep subdir)
+          (collect-sub*directories subdir collectp recursep collector))))))
 
 ;;; Resolving symlinks somewhat
 (with-upgradability ()
