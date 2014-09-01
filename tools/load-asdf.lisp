@@ -154,12 +154,12 @@
 (in-package :asdf)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  ;; User-configurable parts
-  (let* ((required-asdf-version "3.1.2") ;; In the end, we want at least ASDF 3.1.2
-         (here-directory
+  (let* ((here-directory
            (pathname-directory-pathname
             (or *compile-file-truename* *load-truename*
                 (truename *default-pathname-defaults*))))
+         ;; User-configurable parts start here
+         (required-asdf-version "3.1.2") ;; In the end, we want at least ASDF 3.1.2
          (source-directory
            ;; Here, define the top of your source code hierarchy.
            ;; For your project, it could be something like
@@ -173,7 +173,11 @@
            ;; and in a fully controlled build, you'd :ignore-inherited-configuration
                   (or (getenvp "ASDF_DEVEL_SOURCE_REGISTRY")
                       `(:source-registry
-                        (:tree ,source-directory)
+                        (:directory ,source-directory)
+                        (:directory (,source-directory "uiop"))
+                        (:directory (,source-directory "tools"))
+                        (:tree (,source-directory "ext"))
+                        ;; In a fully controlled build, you'd :ignore-inherited-configuration instead:
                         :inherit-configuration)))
          (output-directory
            ;; There again, you might want to use some getenvp variant.
