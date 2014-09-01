@@ -10,9 +10,9 @@
               '((load "tools/install-asdf.lisp")(uiop:quit))
               :lisp lisp))))
     (case lisp
-      ((:allegro :allegromodern :ccl :clisp :cmucl :lispworks :sbcl :scl :xcl)
+      ((:allegro :allegromodern :ccl :clisp :cmucl :ecl :ecl_bytecodes :lispworks :mkcl :sbcl :scl :xcl)
        (doit))
-      ((:abcl :ecl :ecl_bytecodes :mkcl)
+      ((:abcl)
        (format t "Upgrading the implementation-provided ASDF on ~(~A~) isn't supported (yet).
 Happily, that implementation is known to keep ASDF reasonably up to date.~%" lisp))
       ((:cormancl :gcl :genera :mcl :mocl)

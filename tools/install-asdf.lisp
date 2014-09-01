@@ -1,6 +1,7 @@
 ":" ; exec cl-launch "$0" "$@" # -*- Lisp -*-
 #|
-Usage: ./tools/asdf-tools install-asdf l=lispworks
+Usage: ./tools/asdf-tools install-asdf lispworks
+    or l=lispworks ./tools/asdf-tools install-asdf
 
 This script will install the current version of ASDF
 as a module pre-compiled for your implementation,
@@ -17,7 +18,7 @@ It notably doesn't work on:
  Also, MKCL now delivers UIOP separately from ASDF, which is great,
  but requires support. Happily, both ECL and MKCL tend to sport
  a recent ASDF 3, too.
-* GCL, that doesn't have a usable REQUIRE mechanism.
+* SBCL since 1.2.2 now like MKCL delivers UIOP separately from ASDF.
 * mocl, that doesn't support ASDF 3 yet.
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 
@@ -37,7 +38,7 @@ It notably doesn't work on:
                    :want-physical t :want-absolute t
                    :want-existing t :truename t))
 
-(defun asdf-module-directory ()
+(defun module-directory ()
   #+allegro #p"sys:code;"
   #+clisp (subpathname custom:*lib-directory* "asdf/")
   #+clozure #p"ccl:tools;"
@@ -49,9 +50,9 @@ It notably doesn't work on:
   #+scl #p"file://modules/"
   #+xcl ext:*xcl-home*
   #-(or allegro clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
-  (error "asdf-module-directory not implemented on ~A" (implementation-type)))
+  (error "module-directory not implemented on ~A" (implementation-type)))
 
-(defun asdf-module-fasl ()
+(defun module-fasl (name)
   #+allegro
   (flet ((pathname-key (x)
            (let ((type (pathname-type x)))
@@ -59,20 +60,83 @@ It notably doesn't work on:
                ((and (stringp type) (every #'digit-char-p type)) (parse-integer type))
                ((equal type "fasl") 0)
                (t -1)))))
-    (first (sort (directory (merge-pathnames* "asdf.*" (asdf-module-directory)))
+    (first (sort (directory (merge-pathnames* (strcat name ".*") (module-directory)))
                  #'> :key #'pathname-key)))
   #+(or clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
-  (compile-file-pathname (subpathname (truename (asdf-module-directory)) "asdf.lisp"))
-  ;; ECL and MKCL not really supported at this point. See above.
-  #-(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
+  (compile-file-pathname (subpathname (truename (module-directory)) name :type "lisp"))
+  #-(or allegro clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
   (error "Not implemented on ~A" (implementation-type)))
 
-(defun install-asdf-as-module ()
-  (let* ((fasl (asdf-module-fasl))
-         (orig (add-pathname-suffix fasl "-orig")))
-    (ensure-directories-exist (translate-logical-pathname fasl))
-    (when (and (probe-file* fasl) (not (probe-file* orig)))
-      (rename-file-overwriting-target fasl orig))
-    (compile-file* (subpathname *asdf-dir* "build/asdf.lisp") :output-file fasl)))
+(defun uiop-module-fasl () (module-fasl "uiop"))
+(defun asdf-module-fasl () (module-fasl "asdf"))
 
-(uiop:writeln (multiple-value-list (install-asdf-as-module)))
+(defun object-file (name &optional (type :object))
+  #-(or ecl mkcl) (progn name type (assert nil))
+  #+ecl (compile-file-pathname name :type type)
+  #+mkcl (make-pathname :defaults name :type (bundle-pathname-type type)))
+
+(defun call-with-file-replacement (file thunk)
+  (let ((orig (add-pathname-suffix file "-orig")))
+    (ensure-directories-exist (translate-logical-pathname file))
+    (when (and (probe-file* file) (not (probe-file* orig)))
+      (rename-file-overwriting-target file orig))
+    (funcall thunk)))
+
+(defmacro with-file-replacement ((file) &body body)
+  `(call-with-file-replacement ,file (lambda () ,@body)))
+
+(uiop:uiop-debug)
+
+(defun install-asdf-as-module ()
+  (nest
+   (let* ((asdf.lisp (system-relative-pathname :asdf-tools "../build/asdf.lisp"))
+          (asdf.fasl (asdf-module-fasl))
+          #+(or ecl mkcl) (asdf.o (object-file asdf.fasl :object))
+          #+(or ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
+   (with-file-replacement (asdf.fasl))
+   #+(or ecl mkcl) (with-file-replacement (asdf.o))
+   #+(or ecl mkcl) (with-file-replacement (asdf.a))
+   (progn
+     (compile-file* asdf.lisp :output-file asdf.fasl
+                    #+(or ecl mkcl) :object-file #+(or ecl mkcl) asdf.o)
+     #+(or ecl mkcl)
+     (create-image asdf.a (list asdf.o) :kind :lib))))
+
+(defun install-uiop-and-asdf-as-modules ()
+  (let ((uiop.fasl (uiop-module-fasl)))
+    (with-file-replacement (uiop.fasl)
+      (operate 'compile-bundle-op "uiop")
+      (rename-file-overwriting-target (first (output-files 'compile-bundle-op "uiop")) uiop.fasl)
+      (load uiop.fasl))
+    #+(or ecl mkcl)
+    (let ((uiop.a (object-file asdf.fasl :lib)))
+      (with-file-replacement (uiop.a)
+        (operate 'lib-op "uiop")
+        (rename-file-overwriting-target (output-file 'lib-op "uiop") uiop.a)))
+  (nest
+   (let* ((asdf.fasl (asdf-module-fasl))
+          (asdf.lisp (make-pathname :type "lisp" :defaults asdf.fasl))
+          #+(or ecl mkcl) (asdf.o (object-file asdf.fasl :object))
+          #+(or ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
+   (with-file-replacement (asdf.lisp))
+   (with-file-replacement (asdf.fasl))
+   #+(or ecl mkcl) (with-file-replacement (asdf.o))
+   #+(or ecl mkcl) (with-file-replacement (asdf.a))
+   (progn
+     (with-output-file (o asdf.lisp :if-exists :rename-and-delete :if-does-not-exist :create)
+       (println "(cl:require \"uiop\")" o)
+       (dolist (c (component-children (find-system "asdf/defsystem")))
+         (with-input-file (i (component-pathname c))
+           (copy-stream-to-stream i o))))
+     (compile-file* asdf.lisp :output-file asdf.fasl
+                    #+(or ecl mkcl) :object-file #+(or ecl mkcl) asdf.o)
+     #+(or ecl mkcl)
+     (create-image asdf.a (list asdf.o) :kind :lib)))))
+
+#+(or sbcl mkcl)
+(progn (install-uiop-and-asdf-as-modules) (quit))
+#+(or allegro clisp clozure cmu ecl gcl lispworks scl xcl)
+(progn (install-asdf-as-module) (quit))
+#+(or abcl cormanlisp genera  mcl mocl)
+(die 2 "Not supported on ~A" (implementation-type))
+(error "What kind of implementation is THIS?")
