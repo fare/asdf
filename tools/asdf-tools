@@ -1,6 +1,7 @@
 ":" ; exec sbcl --script "$0" "$@" ; exit # -*- Lisp -*-
 ;;;;; Really runs on any decent Common Lisp implementation
-;;;;; Can also be invoked by cl-launch 4: cl-launch -sp asdf-tools -r restart -- "$@"
+;;;;; Can also be invoked by cl-launch 4:
+;;;;;    cl-launch -sp asdf-tools -r entry-point -- "$@"
 
 (in-package :cl-user) ;; That may be default, but let's make double sure and tell SLIME.
 
