@@ -3,6 +3,9 @@
 # End-Users, all you need to do is:
 #   make
 #
+# If you want a list of all of the new targets, use
+#   make help
+#
 # Vendors, you may want to test your implementation with:
 #   make test l=sbcl
 #
