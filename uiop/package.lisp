@@ -66,7 +66,7 @@ or when loading the package is optional."
   (defun shadowing-import* (symbol package-designator)
     (shadowing-import (or symbol (list symbol)) (find-package* package-designator)))
   (defun shadow* (name package-designator)
-    (shadow (string name) (find-package* package-designator)))
+    (shadow (list (string name)) (find-package* package-designator)))
   (defun make-symbol* (name)
     (etypecase name
       (string (make-symbol name))

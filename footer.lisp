@@ -3,7 +3,8 @@
 
 (uiop/package:define-package :asdf/footer
   (:recycle :asdf/footer :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/operate :asdf/bundle))
+  (:use :uiop/common-lisp :uiop
+        :asdf/upgrade :asdf/find-system :asdf/operate :asdf/bundle))
 (in-package :asdf/footer)
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
@@ -33,7 +34,7 @@
                 (if (eq f 'module-provide-asdf) f
                     #'(lambda (name)
                         (let ((l (multiple-value-list (funcall f name))))
-                          (and (first l) (register-pre-built-system (coerce-name name)))
+                          (and (first l) (register-preloaded-system (coerce-name name)))
                           (values-list l))))))))
 
 #+cmu ;; Hook into the CMUCL herald.
@@ -58,4 +59,3 @@
 
 (when *load-verbose*
   (asdf-message ";; ASDF, version ~a~%" (asdf-version)))
-
