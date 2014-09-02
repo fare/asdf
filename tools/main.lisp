@@ -45,7 +45,7 @@
     test-all test-all-scripts-no-stop test-all-upgrade-no-stop
     test-all-no-upgrade-no-stop test-all-no-stop
     check-all-scripts-results check-all-upgrade-results check-all-results
-    make-archive publish-archive link-archive archive install ;; release
+    make-archive make-and-publish-archive publish-archive link-archive archive install ;; release
     debian-package publish-debian-package
     re help show-commands makefile-targets)) ;; main
 
