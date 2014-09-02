@@ -14,6 +14,11 @@ Quick Summary
 
 	~/.local/share/common-lisp/source/asdf/
 
+    or, assuming your implementation provides ASDF 3.1 or later::
+
+	~/common-lisp/asdf/
+
+
 
 What is ASDF?
 -------------
@@ -59,6 +64,27 @@ Building and testing it
 If you cloned our git repository, bootstrap a copy of build/asdf.lisp with::
 
     make
+
+Before you may run tests, you need a few CL libraries.
+The simplest way to get them is as follows, but read below::
+
+    make ext
+
+The above make target uses `git submodule update` to download
+all these libraries using git. If you don't otherwise maintain your
+own set of carefully controlled CL libraries, that's what you want to use.
+However, if you do maintain your own set of carefully controlled CL libraries
+then you will want to use whichever tools you use (e.g. quicklisp, clbuild,
+or your own scripts around git) to download these libraries:
+alexandria, closer-mop, cl-ppcre, fare-mop, fare-quasiquote, fare-utils,
+inferior-shell, lisp-invocation, named-readtables, optima.
+
+If you are a CL developer, you may already have them, or may want
+to use your own tools to download a version of them you control.
+If you use Quicklisp, you may let Quicklisp download those you don't have.
+In these cases, you do NOT want to use
+However, if you want to let ASDF download known-working versions
+of its dependencies, you can do it with::
 
 To run all the tests on your favorite Lisp implementation $L,
 choose your most elaborate installed system $S, and try::
@@ -146,6 +172,10 @@ build/
         results/ -- logs of tests that have been run
         fasls/ -- output files while running tests.
 
+ext/
+	external dependencies, that can be populated with `make ext`
+        or equivalently with `git submodule update`.
+
 README
 	this file
 
@@ -153,4 +183,4 @@ TODO
 	plenty of ideas for how to further improve ASDF.
 
 
-Last updated Wednesday, May 19th, 2014.
+Last updated Tuesday, September 2nd, 2014.
