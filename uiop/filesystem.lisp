@@ -263,8 +263,8 @@ permits this."
                      :directory (append prefix (make-pathname-component-logical (last dir)))))))))))
 
   (defun collect-sub*directories (directory collectp recursep collector)
-    "Given a DIRECTORY, call-function the COLLECTOR function designator
-on the directory if COLLECTP returns true when CALL-FUNCTION'ed with the directory,
+    "Given a DIRECTORY, when COLLECTP returns true when CALL-FUNCTION'ed with the directory,
+call-function the COLLECTOR function designator on the directory,
 and recurse each of its subdirectories on which the RECURSEP returns true when CALL-FUNCTION'ed with them."
     (when (call-function collectp directory)
       (call-function collector directory)

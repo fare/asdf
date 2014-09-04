@@ -354,7 +354,7 @@ will be treated as part of the directory path.
 
 An empty string is thus read as meaning a pathname object with all fields nil.
 
-Note that : characters will NOT be interpreted as host specification.
+Note that colon characters #\: will NOT be interpreted as host specification.
 Absolute pathnames are only appropriate on Unix-style systems.
 
 The intention of this function is to support structured component names,
