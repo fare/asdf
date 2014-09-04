@@ -1,7 +1,11 @@
 ":" ; exec cl-launch "$0" "$@" # -*- Lisp -*-
 #|
-Usage: ./tools/asdf-tools install-asdf lispworks
-    or l=lispworks ./tools/asdf-tools install-asdf
+Usage: make && ./tools/asdf-tools install-asdf lispworks
+    or make && l=lispworks ./tools/asdf-tools install-asdf
+    or make && cl-launch -l lispworks bin/install-asdf-as-module
+    or make
+       sbcl # or otherwise start your Lisp
+       (load "bin/install-asdf-as-module")
 
 This script will install the current version of ASDF
 as a module pre-compiled for your implementation,
@@ -18,7 +22,7 @@ It notably doesn't work on:
  Also, MKCL now delivers UIOP separately from ASDF, which is great,
  but requires support. Happily, both ECL and MKCL tend to sport
  a recent ASDF 3, too.
-* SBCL since 1.2.2 now like MKCL delivers UIOP separately from ASDF.
+* SBCL since 1.2.3 now like MKCL delivers UIOP separately from ASDF.
 * mocl, that doesn't support ASDF 3 yet.
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 
