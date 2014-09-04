@@ -3439,7 +3439,47 @@ specifications from the next configuration
 The implementation is allowed to either eagerly compute the information
 from the configurations and file system, or to lazily re-compute it
 every time, or to cache any part of it as it goes.
-To explicitly flush any information cached by the system, use the API below.
+In practice, the recommended @code{source-registry} eagerly collects and caches results
+and you need to explicitly flush the cache for change to be taken into account,
+whereas the old-style @code{*central-registry*} mechanism queries the filesystem every time.
+
+To explicitly flush any information cached by the system
+after a change was made in the filesystem, @xref{Configuration API},
+and e.g. call @code{asdf:clear-source-registry}.
+
+Starting with ASDF 3.1.4, you can also explicitly build a persistent cache
+of the @file{.asd} files found under a tree:
+when recursing into a directory declared by @code{:tree} and its transitive subdirectories,
+if a file @file{.cl-source-registry.cache} exists containing a form
+that is a list starting with @code{:source-registry-cache} followed by a list of strings,
+as in @code{(:source-registry-cache @emph{"foo/bar.asd" "path/to/more.asd" ...})},
+then the strings are assumed to be @code{unix-namestring}s designating
+the available asd files under that tree, and the recursion otherwise stops.
+The list can also be empty, allowing to stop a costly recursion in a huge directory tree.
+
+To update such a cache after you install, update or remove source repositories,
+you can run a script distributed with ASDF:
+@code{./tools/cl-source-registry-cache.lisp @emph{/path/to/directory}}.
+To wholly invalidate the cache, you can
+delete the file @file{.cl-source-registry.cache} in that directory.
+In either case, for an existing Lisp process to see this change,
+it needs to clear its own cache with e.g. @code{(asdf:clear-source-registry)}.
+
+Developers may safely create a cache in their development tree,
+and we recommend they do it at the top of their source tree if
+it contains more than a small number of files and directories;
+they only need update it when they create, remove or move @file{.asd} files.
+Software distribution managers may also safely create such a cache,
+but they must be careful to update it every time they install, update or remove
+a software source repository or installation package.
+Finally, advanced developers who juggle with a lot of code
+in their @code{source-registry} may manually manage such a cache,
+to allow for faster startup of Lisp programs.
+For instance, on one machine with hundreds of source repositories,
+such a cache shaves half a second at the startup
+of every @code{#!/usr/bin/cl} script,
+which makes a difference as to their subjective interactivity and usability.
+
 
 @node Configuration API, Introspection, Caching Results, Controlling where ASDF searches for systems
 @section Configuration API

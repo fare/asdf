@@ -395,3 +395,20 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** when everyone has migrated, remove the old mode and the short-circuit.
 ** However, we cannot deprecate component-depends-on yet — not until we have
    some transition in place to a better interface.
+
+
+* Faster source-registry:
+   In addition and/or as a substitute to the .cl-source-registry.cache,
+   that is meant to be semi-automatically managed, there could be
+   a cl-source-registry.conf meant for manual management:
+   when recursing into a source-registry :tree, if such file is present
+   (or if not, if a hidden .cl-source-registry.conf is present instead?),
+   its contents is read as a (:source-registry ...) specification, and
+   replaces the actual or notional (:tree ...) for the current directory;
+   it may then include :file entries as well as :directory and :tree entries,
+   whereby the programmer can explicitly give a definitive list of
+   systems exported by his software, while excluding any test system
+   that he doesn't want to export. This means that developers have
+   both a way of speeding up the build of their software and of
+   avoiding pollution by test systems that should remain private,
+   and that they can otherwise explicitly enable when they need them.
