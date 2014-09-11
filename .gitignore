@@ -26,6 +26,7 @@ doc/asdf.dvi
 *.tmp
 
 LICENSE
+README.html
 tmp/
 man/
 lib/

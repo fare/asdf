@@ -1751,25 +1751,21 @@ and create a file @file{my-lib.asd}
 with the @code{:class :package-inferred-system} option in its @code{defsystem}.
 For instance:
 @example
-#-asdf (error "my-lib requires ASDF 3")
+#-asdf3 (error "my-lib requires ASDF 3")
 (defsystem my-lib
   :class :package-inferred-system
   :defsystem-depends-on (:asdf-package-system)
-  :depends-on (:lil/interface/all
-               :lil/pure/all
-               :lil/stateful/all
-               :lil/transform/all)
-  :in-order-to ((test-op (load-op :lil/test/all)))
-  :perform (test-op (o c) (symbol-call :lil/test/all :test-suite)))
+  :depends-on (:my-lib/interface/all
+               :my-lib/src/all
+               :my-lib/extras/all)
+  :in-order-to ((test-op (load-op :my-lib/test/all)))
+  :perform (test-op (o c) (symbol-call :my-lib/test/all :test-suite)))
 
-(defsystem :lil/test :depends-on (:lil/test/all))
+(defsystem :my-lib/test :depends-on (:my-lib/test/all))
 
-(register-system-packages :lil/interface/all '(:interface))
-(register-system-packages :lil/pure/all '(:pure))
-(register-system-packages :lil/stateful/all '(:stateful))
-(register-system-packages :lil/transform/classy '(:classy))
-(register-system-packages :lil/transform/posh '(:posh))
-(register-system-packages :lil/test/all '(:lil/test))
+(register-system-packages :my-lib/interface/all '(:my-lib-interface))
+(register-system-packages :my-lib/src/all '(:my-lib-implementation))
+(register-system-packages :my-lib/test/all '(:my-lib-test))
 
 (register-system-packages
  :closer-mop
@@ -1809,9 +1805,11 @@ ASDF can tell that this file depends on system @code{closer-mop} (registered abo
 (package and system names match, and they will be looked up hierarchically).
 
 ASDF also detects dependencies from @code{:import-from} clauses.
-To depend on a system without using a package or importing any symbol from it
-(because you'll fully qualify them when used),
-you may thus use an @code{:import-from} clause with an empty list of symbols, as in:
+You may thus import a well-defined set of symbols from an existing package
+as loaded from suitably named system;
+or if you prefer to use any such symbol fully qualified by a package prefix,
+you may declare a dependency on such a package and its corresponding system
+via an @code{:import-from} clause with an empty list of symbols, as in:
 
 @example
 (defpackage :foo/bar
