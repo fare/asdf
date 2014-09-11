@@ -7,70 +7,70 @@ between operating systems, and between what the standard provides and
 what programmers actually need, to write portable Common Lisp programs.
 
 It is organized by topic in many files, each of which defines its own package
-according to its topic: e.g pathname.lisp will define package UIOP/PATHNAME
+according to its topic: e.g `pathname.lisp` will define package `UIOP/PATHNAME`
 and contain utilities related to the handling of pathname objects.
-All exported symbols are reexported in a convenience package UIOP.
+All exported symbols are reexported in a convenience package `UIOP`.
 
 The files that constitute UIOP are, in loading order:
 
-* package: deals with packages and their symbols, most notably including
-  define-package, a variant of defpackage capable of hot-upgrade, or
-  symbol-call and find-symbol* that are also useful for use in .asd files
+* `package`: deals with packages and their symbols, most notably including
+  `define-package`, a variant of `defpackage` capable of hot-upgrade, or
+  `symbol-call` and `find-symbol*` that are also useful for use in `.asd` files
   before packages have been defined.
 
-* common-lisp: lets you paper over various sub-standard implementations.
+* `common-lisp`: lets you paper over various sub-standard implementations.
   Big offenders are Corman, GCL, Genera, MCL, all of them unmaintained.
   Supported without serious issues are:
   ABCL, Allegro, CCL, CMUCL, CLISP, ECL, LispWorks, MKCL, SBCL, SCL, XCL.
 
-* utility: provides macros and functions that do not involve I/O; it handles
+* `utility`: provides macros and functions that do not involve I/O; it handles
   control-flow, (p)lists, characters, strings, functions, classes, conditions,
   "stamps" (real number or boolean for +/- infinity), versions, etc.
-  It also sports uiop-debug, a useful tool to help you debug programs.
+  It also sports `uiop-debug`, a useful tool to help you debug programs.
 
-* os: extracts information from your environment, including
+* `os`: extracts information from your environment, including
   an ABI identifier, features that distinguish Unix vs Windows,
-  getenv, hostname, getcwd and chdir, etc.
+  `getenv`, `hostname`, `getcwd` and `chdir`, etc.
 
-* pathname: overcomes the gruesome non-portability trap that are CL pathnames
+* `pathname`: overcomes the gruesome non-portability trap that are CL pathnames
   (and their lovecraftian "logical" variant), offering a vast array of
   functions and a sensible, usable abstraction to specify relative pathnames.
-  It has a function merge-pathnames* to use instead of merge-pathnames, or
-  even better, subpathname and its variant subpathname*; it has also plenty
+  It has a function `merge-pathnames*` to use instead of `merge-pathnames`, or
+  even better, `subpathname` and its variant `subpathname*`; it has also plenty
   of functions for dealing with pathnames being directory vs file,
   physical vs logical, absolute vs relative, and more.
 
-* filesystem: provides portable access to the filesystem, inspecting it,
+* `filesystem`: provides portable access to the filesystem, inspecting it,
   only using truename when desired, using native OS namestrings,
   atomic file renaming, creating or deleting directories, etc.
 
-* stream: portably deals with *stderr* vs *error-output*, character encodings
-  (external formats), element types, safe READing and WRITEing, opening files
-  or temporary files, providing FORMAT-like designators for streams,
+* `stream`: portably deals with `*stderr*` vs `*error-output*`, character encodings
+  (external formats), element types, safe `read`ing and `write`ing, opening files
+  or temporary files, providing `format`-like designators for streams,
   flushing output buffers, consuming or copying streams, concatenating streams
   or files, copying files, etc.
 
-* image: portably deals with images, dumping them, restoring from them,
+* `image`: portably deals with images, dumping them, restoring from them,
   registering hooks to run at suitable events in the image lifetime,
   printing backtraces, handling fatal conditions, using or avoiding debug modes,
   accessing command line arguments or quitting the process.
 
-* run-program: portably spawns external processes and captures their output.
+* `run-program`: portably spawns external processes and captures their output.
   Can also capture error-output, inject input, or let it all be interactive.
 
-* lisp-build: portably compiles common-lisp code, handles compilation results,
+* `lisp-build`: portably compiles Common Lisp code, handles compilation results,
   muffles uninteresting conditions, saves and restores deferred warnings,
   runs hooks around compilation (to e.g. control optimizations or syntax),
   identifies the pathname of the current file, combines FASLs, etc.
 
-* configuration: helps you define portable configuration files, using best
+* `configuration`: helps you define portable configuration files, using best
   practices to define and validate syntax, search standard paths,
   let users specify pathnames or pathname patterns, etc.
 
-* backward-driver: provides backward-compatibility with earlier incarnations
+* `backward-driver`: provides backward-compatibility with earlier incarnations
   of this library (i.e. ASDF internals that have leaked, or ASDF-UTILS)
 
-* driver: reexports all the above utilities in a single package UIOP.
+* `driver`: reexports all the above utilities in a single package `UIOP`.
 
 
 Documentation
@@ -86,12 +86,12 @@ make a webpage from it, at which point it would be nice to insert a link here.
 
 One tool with which you can extract all the documentation is HEΛP.
 At this time, the interface is not great, but if you use the scrollbar on the right
-of the left side panel, you can see many packages and from there the defined symbols::
+of the left side panel, you can see many packages and from there the defined symbols:
 
 	http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html
 
 Another automated documentation tool is quickdocs, but unhappily, at the time of this writing,
-it only extracts information from the first package::
+it only extracts information from the first package:
 
 	http://quickdocs.org/uiop/api
 
@@ -100,16 +100,18 @@ Using UIOP
 ----------
 
 UIOP is part of ASDF 3, and any modern Common Lisp implementation
-will have all of UIOP available when you (require "asdf").
-NB: (require :asdf) also works on all implementations but CLISP.
+will have all of UIOP available when you `(require "asdf")`.
+NB: `(require :asdf)` also works on all implementations but CLISP.
 
 If you need some functionality only available in a recent version of UIOP,
 but cannot or will not upgrade ASDF, UIOP is also distributed separately;
-see e.g. in Quicklisp. You may then have to load it like any other library::
+see e.g. in Quicklisp. You may then have to load it like any other library:
+
 	(asdf:load-system :uiop)
 
 If you want to use UIOP while preserving compatibility with ASDF 2,
-we recommend that in your ASDF system definition you may use the like of::
+we recommend that in your ASDF system definition you may use the like of:
+
 	:depends-on (#-asdf3 :uiop)
 
 
