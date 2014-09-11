@@ -62,8 +62,8 @@
 so that, when included in the Makefile, they will enable shell completion
 based on a list of targets"
   (let ((c (public-command-strings)))
-    ;;(format t ".PHONY: ~{~A~^ ~}~%~%~{~A:~%~}~%" c c)
-    (format t "~{~A:~%~}~%" c))
+    (format t ".PHONY: ~{~A~^ ~}~%~%~{~A~^ ~}: force
+	./tools/asdf-tools env l='$l' L='$L' u='$u' U='$u' v='$v' s='$s' t='$t' $@~%" c c))
   (values))
 
 (defun help (&optional x)

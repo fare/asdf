@@ -8,11 +8,13 @@
 ;;; Documentation
 (defun doc ()
   "build documentation in doc/ directory"
-  (run '(make) :directory (pn "doc/")))
+  (run '(make) :directory (pn "doc/"))
+  (values))
 
 (defun website ()
   "publish documentation onto the public website"
-  (run '(make website) :directory (pn "doc/")))
+  (run '(make website) :directory (pn "doc/"))
+  (values))
 
 
 ;;; Line counting
