@@ -48,7 +48,7 @@ It notably doesn't work on:
   #+clozure #p"ccl:tools;"
   #+cmu #p"modules:asdf/"
   #+(or ecl mkcl) #p"sys:"
-  #+gcl system:*system-directory*
+  #+gcl (subpathname system:*system-directory* "../modules/")
   #+lispworks (system:lispworks-dir "load-on-demand/utilities/")
   #+sbcl (subpathname (sb-int:sbcl-homedir-pathname) "contrib/")
   #+scl #p"file://modules/"
