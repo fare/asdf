@@ -37,7 +37,7 @@
 (def-test-system :versioned-system-file-line
   :defsystem-depends-on ((:version :test-asdf/2 "2.1"))
   :pathname #.*test-directory*
-  :version (:read-file-line "version.lisp-expr" :at 1))
+  :version (:read-file-line #.(test-source "version.lisp-expr") :at 1))
 
 (defun vtest (name v &optional (true t))
   (or (eq true (version-satisfies (find-system name) v))

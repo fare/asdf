@@ -37,9 +37,10 @@
 
 #+os-unix
 (progn
+  (chdir *test-directory*)
+
   (DBG "Testing good shell command in current directory via run-shell-command")
-  (unless (equal 0 (run-shell-command "./good-shell-command"))
-    (error "Failed to capture exit status indicating shell command success."))
+  (assert-equal 0 (run-shell-command "./good-shell-command"))
 
   ;; this test checks for a problem there was in allegro -- :output :interactive
   ;; would try to open T as a stream for INPUT.
@@ -263,4 +264,3 @@ Testing run-program
 
 
 (test/run-program)
-
