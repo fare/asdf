@@ -4,7 +4,9 @@ ASDF: Another System Definition Facility
 What is ASDF?
 -------------
 
-ASDF is the de facto standard build facility for Common Lisp.
+ASDF is the de facto standard build facility for Common Lisp.  Your lisp
+implementation probably contains a copy of ASDF, which you can load using
+`REQUIRE`.
 
 If you come from the C/C++ world, the function ASDF covers a bit of what
 each of make, autoconf, dlopen and libc do for C programs:
@@ -39,7 +41,7 @@ More information and additional links can be found on ASDF's home page at:
     http://common-lisp.net/project/asdf/
 
 
-Quick Summary
+Quick Start
 -------------
 
 Just use `(require "asdf")` to load your implementation-provided ASDF.
