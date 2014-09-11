@@ -5,6 +5,8 @@ What is ASDF?
 -------------
 
 ASDF is the de facto standard build facility for Common Lisp.
+Your Lisp implementation probably contains a copy of ASDF,
+which you can load using `(require "asdf")`.
 
 If you come from the C/C++ world, the function ASDF covers a bit of what
 each of make, autoconf, dlopen and libc do for C programs:
@@ -32,15 +34,15 @@ The manual is also in the doc/ subdirectory, and can be prepared with:
 ASDF 3 now includes an extensive runtime support library:
 UIOP, the Utilities for Implementation- and OS- Portability.
 Its documentation unhappily lies mainly in the source code and docstrings.
-See [`uiop/README`](uiop/README) for an introduction.
+See [`uiop/README.md`](uiop/README.md) for an introduction.
 
 More information and additional links can be found on ASDF's home page at:
 
     http://common-lisp.net/project/asdf/
 
 
-Quick Summary
--------------
+Quick Start
+-----------
 
 Just use `(require "asdf")` to load your implementation-provided ASDF.
 
@@ -139,7 +141,7 @@ How do I navigate this source directory?
         * `load-asdf.lisp` -- how to load ASDF in a self-contained project
         * `asdf-tools.asd` -- system definition for asdf-tools
         * `*.lisp` -- the source code for asdf-tools
-    * Also in this directory:
+    * also a couple scripts to help ASDF users:
         * `install-asdf.lisp` -- replace and update an implementation's ASDF
         * `cl-source-registry-cache.lisp` -- update a cache for the source-registry
 
