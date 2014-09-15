@@ -42,7 +42,7 @@ More information and additional links can be found on ASDF's home page at:
 
 
 Quick Start
--------------
+-----------
 
 Just use `(require "asdf")` to load your implementation-provided ASDF.
 
@@ -137,6 +137,7 @@ How do I navigate this source directory?
 
 * `tools/`
     * Some scripts to help ASDF users
+        * `load-asdf.lisp` -- a build script to load, configure and use ASDF
         * `install-asdf.lisp` -- replace and update an implementation's ASDF
         * `cl-source-registry-cache.lisp` -- update a cache for the source-registry
 

@@ -18,8 +18,10 @@
 ;; Do everything in eval-when, so this works
 ;; whether this file is being loaded directly or compiled first.
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (load (make-pathname :name "load-asdf" :type "lisp"
-                       :defaults (or *load-pathname* *compile-file-pathname*))))
+  (let* ((this (or *load-pathname* *compile-file-pathname*)))
+    (load (merge-pathnames (make-pathname :name "load-asdf" :type "lisp"
+                                          :directory '(:relative :back "tools")
+                                          :defaults this) this))))
 
 (in-package :asdf)
 
