@@ -142,6 +142,7 @@ How do I navigate this source directory?
         * `asdf-tools.asd` -- system definition for asdf-tools
         * `*.lisp` -- the source code for asdf-tools
     * also a couple scripts to help ASDF users:
+        * `load-asdf.lisp` -- a build script to load, configure and use ASDF
         * `install-asdf.lisp` -- replace and update an implementation's ASDF
         * `cl-source-registry-cache.lisp` -- update a cache for the source-registry
 
