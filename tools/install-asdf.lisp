@@ -27,6 +27,16 @@ It notably doesn't work on:
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 
 |#
+
+#+gcl
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (declaim (optimize (speed 1) (safety 0) (space 0)))
+  (proclaim '(optimize (speed 1) (safety 0) (space 0)))
+  (si::use-fast-links nil)
+  (compile-file (merge-pathnames #p"../build/asdf.lisp" *load-truename*)
+                :output-file (merge-pathnames #p"../modules/asdf.o" system:*system-directory*))
+  (system:quit 0))
+
 ;;; Ensure we load and configure this particular ASDF
 #-cl-launch
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -93,7 +103,7 @@ It notably doesn't work on:
 
 (defun install-asdf-as-module ()
   (nest
-   (let* ((asdf.lisp (system-relative-pathname :asdf-tools "../build/asdf.lisp"))
+   (let* ((asdf.lisp (system-relative-pathname :uiop "../build/asdf.lisp"))
           (asdf.fasl (asdf-module-fasl))
           #+(or ecl mkcl) (asdf.o (object-file asdf.fasl :object))
           #+(or ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
