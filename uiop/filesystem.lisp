@@ -198,8 +198,8 @@ This function is used as a helper to DIRECTORY-FILES to avoid invalid entries wh
 Subdirectories should NOT be returned.
   PATTERN defaults to a pattern carefully chosen based on the implementation;
 override the default at your own risk.
-  DIRECTORY-FILES tries NOT to resolve symlinks if the implementation
-permits this."
+  DIRECTORY-FILES tries NOT to resolve symlinks if the implementation permits this,
+but the behavior in presence of symlinks is not portable. Use IOlib to handle such situations."
     (let ((dir (pathname directory)))
       (when (logical-pathname-p dir)
         ;; Because of the filtering we do below,
@@ -225,7 +225,8 @@ permits this."
                                        :version (make-pathname-component-logical (pathname-version f)))))))))
 
   (defun subdirectories (directory)
-    "Given a DIRECTORY pathname designator, return a list of the subdirectories under it."
+    "Given a DIRECTORY pathname designator, return a list of the subdirectories under it.
+The behavior in presence of symlinks is not portable. Use IOlib to handle such situations."
     (let* ((directory (ensure-directory-pathname directory))
            #-(or abcl cormanlisp genera xcl)
            (wild (merge-pathnames*
@@ -265,7 +266,10 @@ permits this."
   (defun collect-sub*directories (directory collectp recursep collector)
     "Given a DIRECTORY, when COLLECTP returns true when CALL-FUNCTION'ed with the directory,
 call-function the COLLECTOR function designator on the directory,
-and recurse each of its subdirectories on which the RECURSEP returns true when CALL-FUNCTION'ed with them."
+and recurse each of its subdirectories on which the RECURSEP returns true when CALL-FUNCTION'ed with them.
+This function will thus let you traverse a filesystem hierarchy,
+superseding the functionality of CL-FAD:WALK-DIRECTORY.
+The behavior in presence of symlinks is not portable. Use IOlib to handle such situations."
     (when (call-function collectp directory)
       (call-function collector directory)
       (dolist (subdir (subdirectories directory))
