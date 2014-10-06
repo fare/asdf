@@ -56,7 +56,7 @@
   (require 'sockets) ;; Test the pre-compiled system feature
   ;; Test that we didn't break require for non-asdf modules
   (progn
-    (pop #+ecl ext:*module-provider-functions* #+mkcl mkext:*module-provider-functions*)
+    (pop #+ecl ext:*module-provider-functions* #+mkcl mk-ext:*module-provider-functions*)
     (require 'serve-event))
   (operate 'dll-op :test-asdf/dll-test)
   (let ((dll (first (output-files 'dll-op :test-asdf/dll-test))))

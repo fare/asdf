@@ -23,7 +23,7 @@ all: build/asdf.lisp
 
 # Download all the development-time dependencies of ASDF:
 ext:
-	git submodule update
+	git submodule update --init
 
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp

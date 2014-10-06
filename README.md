@@ -73,7 +73,7 @@ The simplest way to get them is as follows, but read below:
 
     make ext
 
-The above make target uses `git submodule update` to download
+The above make target uses `git submodule update --init` to download
 all these libraries using git. If you don't otherwise maintain your
 own set of carefully controlled CL libraries, that's what you want to use.
 However, if you do maintain your own set of carefully controlled CL libraries
@@ -183,7 +183,7 @@ How do I navigate this source directory?
 
 * `ext/`
     * external dependencies, that can be populated with `make ext`
-      or equivalently with `git submodule update`.
+      or equivalently with `git submodule update --init`.
 
 * `README`
     * this file
