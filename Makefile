@@ -78,6 +78,9 @@ build/asdf.lisp: $(all_lisp)
 	rm -f $@
 	cat $(all_lisp) > $@
 
+ext:
+	git submodule update --init
+
 # This quickly locates such mistakes as unbalanced parentheses:
 load: build/asdf.lisp
 	./test/run-tests.sh -t $l $(all_lisp)
