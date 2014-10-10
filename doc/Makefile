@@ -25,8 +25,8 @@ asdf.pdf: asdf.texinfo
 	texi2pdf asdf.texinfo
 
 website: all
-	rsync -av ${webfiles} ${website}
-	rsync -av ../debian/changelog ${website}/changelog
+	rsync -lt --no-g ${webfiles} ${website}
+	rsync -lt --no-g ../debian/changelog ${website}/changelog
 
 .PHONY: clean veryclean manual-html
 clean:
