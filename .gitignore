@@ -26,6 +26,7 @@ doc/asdf.dvi
 *.tmp
 
 LICENSE
+README.html
 tmp/
 man/
 lib/
@@ -52,6 +53,7 @@ debian/cl-asdf.postinst.debhelper
 debian/cl-asdf.prerm.debhelper
 debian/cl-asdf.substvars
 debian/cl-asdf/
+debian/patches/
 debian/files
 .pc
 

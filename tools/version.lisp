@@ -5,17 +5,18 @@
 (defparameter *version-tag-glob* "[0-9][.][0-9]*")
 
 (defun version-from-tag (&optional commit)
-  (git `(describe --tags --match ,*version-tag-glob* ,commit)
-       :output :line :directory (pn)))
+  ;; run-program issue: :output :line closes the fd, which causes the program to die in error.
+  (first (nth-value 1 (git `(describe --tags --match ,*version-tag-glob* ,commit) :output :lines))))
 
 (defun version-from-file (&optional commit)
   (if commit
-      (git `(show (,commit":version.lisp-expr")) :output :form)
+      (nth-value 1 (git `(show (,commit":version.lisp-expr")) :output :form))
       (safe-read-file-form (pn "version.lisp-expr"))))
 
 (defun debian-version-from-file (&optional commit)
   (match (if commit
-             (git `(show (,commit":debian/changelog")) :output :line)
+             ;; run-program issue: :output :line closes the fd, which causes the program to die in error.
+             (first (nth-value 1 (git `(show (,commit":debian/changelog")) :output :lines)))
              (read-file-line (pn "debian/changelog")))
     ((ppcre "^[^(]*\\(([-0-9.:-]+)\\)" ver) ver)))
 
@@ -26,6 +27,14 @@
     ;; (B) epoch = nil is semantically same as epoch = 0
     ;; (C) rel = nil is for debian-native packages, e.g. base-passwd or cowbuilder
     (values ver epoch rel)))
+
+(defun debian-version-string (ver epoch rel)
+  (format nil "~@[~D:~]~A~@[-~A~]" epoch ver rel))
+
+(defun debian-version-without-epoch (version-string)
+  (multiple-value-bind (ver epoch rel) (parse-debian-version version-string)
+    (declare (ignore epoch))
+    (debian-version-string ver nil rel)))
 
 (defparameter *version* (version-from-file))
 

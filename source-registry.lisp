@@ -13,7 +13,7 @@
    #:ensure-source-registry #:*source-registry-parameter*
    #:*default-source-registry-exclusions* #:*source-registry-exclusions*
    #:*wild-asd* #:directory-asd-files #:register-asd-directory
-   #:collect-asds-in-directory #:collect-sub*directories-asd-files
+   #:*recurse-beyond-asds* #:collect-asds-in-directory #:collect-sub*directories-asd-files
    #:validate-source-registry-directive #:validate-source-registry-form
    #:validate-source-registry-file #:validate-source-registry-directory
    #:parse-source-registry-string #:wrapping-source-registry
@@ -59,15 +59,33 @@ system names to pathnames of .asd files")
     (directory-files directory *wild-asd*))
 
   (defun collect-asds-in-directory (directory collect)
-    (map () collect (directory-asd-files directory)))
+    (let ((asds (directory-asd-files directory)))
+      (map () collect asds)
+      asds))
+
+  (defvar *recurse-beyond-asds* t
+    "Should :tree entries of the source-registry recurse in subdirectories
+after having found a .asd file? True by default.")
+
+  (defun process-source-registry-cache (directory collect)
+    (let ((cache (ignore-errors
+                  (safe-read-file-form (subpathname directory ".cl-source-registry.cache")))))
+      (when (and (listp cache) (eq :source-registry-cache (first cache)))
+        (loop :for s :in (rest cache) :do (funcall collect (subpathname directory s)))
+        t)))
 
   (defun collect-sub*directories-asd-files
-      (directory &key (exclude *default-source-registry-exclusions*) collect)
+      (directory &key (exclude *default-source-registry-exclusions*) collect
+                   (recurse-beyond-asds *recurse-beyond-asds*) ignore-cache)
     (collect-sub*directories
      directory
-     (constantly t)
-     #'(lambda (x &aux (l (car (last (pathname-directory x))))) (not (member l exclude :test #'equal)))
-     #'(lambda (dir) (collect-asds-in-directory dir collect))))
+     #'(lambda (dir)
+         (unless (and (not ignore-cache) (process-source-registry-cache directory collect))
+           (let ((asds (collect-asds-in-directory dir collect)))
+             (or recurse-beyond-asds (not asds)))))
+     #'(lambda (x)
+         (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
+     (constantly nil)))
 
   (defun validate-source-registry-directive (directive)
     (or (member directive '(:default-registry))
@@ -223,7 +241,8 @@ system names to pathnames of .asd files")
         ((:also-exclude)
          (appendf *source-registry-exclusions* rest))
         ((:default-registry)
-         (inherit-source-registry '(default-source-registry) :register register))
+         (inherit-source-registry
+          '(default-user-source-registry default-system-source-registry) :register register))
         ((:inherit-configuration)
          (inherit-source-registry inherit :register register))
         ((:ignore-inherited-configuration)

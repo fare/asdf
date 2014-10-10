@@ -119,7 +119,8 @@
 (defun publish-archive ()
   "publish tarballs to the website"
   (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
-    (run `(rsync ,@tarballs ,(asdf-lisp-name) (,*clnet* ":" ,(public-path "archives/")))
+    (run `(rsync "--times" "--chmod=a+rX,ug+w"
+                 ,@tarballs ,(asdf-lisp-name) (,*clnet* ":" ,(public-path "archives/")))
          :show t :directory (pn "build/")))
   (format t "~&To download the tarballs, point your browser at:~%
         http://common-lisp.net/project/asdf/archives/
@@ -176,7 +177,7 @@
 
 (defun publish-debian-package (&optional release)
   "publish a debian package"
-  (let ((changes (strcat "cl-asdf_" (debian-version-from-file release)
+  (let ((changes (strcat "cl-asdf_" (debian-version-without-epoch (debian-version-from-file release))
                          "_" (debian-architecture) ".changes")))
     (run* `(dput mentors ,(pn "../" changes)))))
 

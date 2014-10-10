@@ -10,7 +10,8 @@
 (handler-bind
     ((error #'(lambda (c)
                 (format t "~&Caught error ~s" c)
-		(assert (not *caught-error*) () "Déjà vu")
+                (assert (not *caught-error*) ()
+                        "The missing system component error is not fixed by the handler, as expected.")
                 (setf *caught-error* t)
                 ;; Evil side-effect: create a .asd file from .hidden file.
                 (concatenate-files (list (test-source "try-reloading-dependency.hidden"))

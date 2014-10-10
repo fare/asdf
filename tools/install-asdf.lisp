@@ -1,7 +1,11 @@
 ":" ; exec cl-launch "$0" "$@" # -*- Lisp -*-
 #|
-Usage: ./tools/asdf-tools install-asdf lispworks
-    or l=lispworks ./tools/asdf-tools install-asdf
+Usage: make && ./tools/asdf-tools install-asdf lispworks
+    or make && l=lispworks ./tools/asdf-tools install-asdf
+    or make && cl-launch -l lispworks bin/install-asdf-as-module
+    or make
+       sbcl # or otherwise start your Lisp
+       (load "bin/install-asdf-as-module")
 
 This script will install the current version of ASDF
 as a module pre-compiled for your implementation,
@@ -18,11 +22,21 @@ It notably doesn't work on:
  Also, MKCL now delivers UIOP separately from ASDF, which is great,
  but requires support. Happily, both ECL and MKCL tend to sport
  a recent ASDF 3, too.
-* SBCL since 1.2.2 now like MKCL delivers UIOP separately from ASDF.
+* SBCL since 1.2.3 now like MKCL delivers UIOP separately from ASDF.
 * mocl, that doesn't support ASDF 3 yet.
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 
 |#
+
+#+gcl
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (declaim (optimize (speed 1) (safety 0) (space 0)))
+  (proclaim '(optimize (speed 1) (safety 0) (space 0)))
+  (si::use-fast-links nil)
+  (compile-file (merge-pathnames #p"../build/asdf.lisp" *load-truename*)
+                :output-file (merge-pathnames #p"../modules/asdf.o" system:*system-directory*))
+  (system:quit 0))
+
 ;;; Ensure we load and configure this particular ASDF
 #-cl-launch
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -44,7 +58,7 @@ It notably doesn't work on:
   #+clozure #p"ccl:tools;"
   #+cmu #p"modules:asdf/"
   #+(or ecl mkcl) #p"sys:"
-  #+gcl system:*system-directory*
+  #+gcl (subpathname system:*system-directory* "../modules/")
   #+lispworks (system:lispworks-dir "load-on-demand/utilities/")
   #+sbcl (subpathname (sb-int:sbcl-homedir-pathname) "contrib/")
   #+scl #p"file://modules/"
@@ -89,7 +103,7 @@ It notably doesn't work on:
 
 (defun install-asdf-as-module ()
   (nest
-   (let* ((asdf.lisp (system-relative-pathname :asdf-tools "../build/asdf.lisp"))
+   (let* ((asdf.lisp (system-relative-pathname :uiop "../build/asdf.lisp"))
           (asdf.fasl (asdf-module-fasl))
           #+(or ecl mkcl) (asdf.o (object-file asdf.fasl :object))
           #+(or ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))

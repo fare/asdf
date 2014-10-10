@@ -470,6 +470,11 @@ itself.")) ;; operation on a system and its dependencies
   ;;(unless (or #+ecl (use-ecl-byte-compiler-p))
   ;;  (setf *load-system-operation* 'load-bundle-op))
 
+  (defun uiop-library-pathname ()
+    #+ecl (or (probe-file* (compile-file-pathname "sys:uiop" :type :lib)) ;; new style
+              (probe-file* (compile-file-pathname "sys:uiop" :type :object))) ;; old style
+    #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;uiop"))
+
   (defun asdf-library-pathname ()
     #+ecl (or (probe-file* (compile-file-pathname "sys:asdf" :type :lib)) ;; new style
               (probe-file* (compile-file-pathname "sys:asdf" :type :object))) ;; old style
@@ -491,10 +496,12 @@ itself.")) ;; operation on a system and its dependencies
                `(,(make-library-system
                    "cmp" (compiler-library-pathname))))
            ,@(unless (or (no-uiop c) (has-it-p "uiop") (has-it-p "asdf"))
-               `(,(cond
-                    ((system-source-directory :uiop) (find-system :uiop))
-                    ((system-source-directory :asdf) (find-system :asdf))
-                    (t (make-library-system "asdf" (asdf-library-pathname))))))
+               `(cond
+                  ((system-source-directory :uiop) `(,(find-system :uiop)))
+                  ((system-source-directory :asdf) `(,(find-system :asdf)))
+                  (t `(,@(if-let (uiop (uiop-library-pathname))
+                           `(,(make-library-system "uiop" uiop)))
+                       ,(make-library-system "asdf" (asdf-library-pathname))))))
            ,@deps)))))
 
   (defmethod perform ((o link-op) (c system))

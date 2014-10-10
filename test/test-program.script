@@ -7,6 +7,8 @@
 
 (assert (find-system :hello-world-example))
 
+(trace run-program)
+
 #+allegro
 (defparameter *lisp*
   (let ((argv0 (parse-native-namestring (first (raw-command-line-arguments)))))
@@ -18,7 +20,7 @@
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
             *uiop-directory*
             ;; try finding xcvb's lisp-invocation right next to asdf.
-            (subpathname *asdf-directory* "../lisp-invocation/")))
+            (subpathname *asdf-directory* "ext/lisp-invocation/")))
 (unless (find-system :lisp-invocation nil)
   ;; try harder by enabling the user's source-registry
   (initialize-source-registry ""))

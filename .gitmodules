@@ -28,3 +28,6 @@
 [submodule "ext/cl-ppcre"]
 	path = ext/cl-ppcre
 	url = https://github.com/edicl/cl-ppcre
+[submodule "ext/asdf-encodings"]
+	path = ext/asdf-encodings
+	url = git://common-lisp.net/projects/asdf/asdf-encodings.git

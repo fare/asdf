@@ -45,7 +45,7 @@
     test-all test-all-scripts-no-stop test-all-upgrade-no-stop
     test-all-no-upgrade-no-stop test-all-no-stop
     check-all-scripts-results check-all-upgrade-results check-all-results
-    make-archive publish-archive link-archive archive install ;; release
+    make-archive make-and-publish-archive publish-archive link-archive archive install ;; release
     debian-package publish-debian-package
     re help show-commands makefile-targets)) ;; main
 
@@ -62,8 +62,8 @@
 so that, when included in the Makefile, they will enable shell completion
 based on a list of targets"
   (let ((c (public-command-strings)))
-    ;;(format t ".PHONY: ~{~A~^ ~}~%~%~{~A:~%~}~%" c c))
-    (format t "~{~A:~%~}~%" c))
+    (format t ".PHONY: ~{~A~^ ~}~%~%~{~A~^ ~}: force
+	./tools/asdf-tools env l='$l' L='$L' u='$u' U='$u' v='$v' s='$s' t='$t' $@~%" c c))
   (values))
 
 (defun help (&optional x)
