@@ -8,6 +8,7 @@
      #+mkcl
      ,@`(:prefix-lisp-object-files (,(namestring (truename (translate-logical-pathname #P"SYS:cmp.a"))))
          :extra-build-args ,(or #-windows '(:use-mkcl-shared-libraries nil))
+         :class program-system
          :epilogue-code (progn
                           (setq uiop/image:*image-dumped-p* :executable)
                           (setq uiop/image:*lisp-interaction* nil)

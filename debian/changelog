@@ -1,3 +1,20 @@
+cl-asdf (2:3.1.4-1) unstable; urgency=low
+
+  [ Robert P. Goldman ]
+  Bug fix release:
+  * Remove compatibility stubs for old bundle classes (not working
+    properly, anyway), these are now available in a contrib.
+  * Add INPUT-STRING function to UIOP.
+  * For developer and tester convenience, bring all the external
+    dependencies into the git repo as submodules. See target make ext
+  * Optionally speed up registry search by providing a cache for
+    the SOURCE-REGISTRY. See the cache-generating script in:
+      asdf/tools/cl-source-registry-cache.lisp
+  * Fixes to tests and documentation.
+  * Many minor bugfixes.
+
+ -- François-René Rideau <fare@tunes.org>  Thu, 09 Oct 2014 21:18:21 -0400
+
 cl-asdf (2:3.1.3-1) unstable; urgency=low
 
   Bug fix release:
@@ -10,7 +27,7 @@ cl-asdf (2:3.1.3-1) unstable; urgency=low
   * Miscellaneous bug fixes and tweaks to UIOP.
   * Documentation improvements.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 24 Jul 2014 12:48:29 -0400
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 14 Jul 2014 16:54:49 -0400
 
 cl-asdf (2:3.1.2-2) unstable; urgency=low
 
