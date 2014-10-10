@@ -176,7 +176,7 @@
 
 (defun publish-debian-package (&optional release)
   "publish a debian package"
-  (let ((changes (strcat "cl-asdf_" (debian-version-from-file release)
+  (let ((changes (strcat "cl-asdf_" (debian-version-without-epoch (debian-version-from-file release))
                          "_" (debian-architecture) ".changes")))
     (run* `(dput mentors ,(pn "../" changes)))))
 

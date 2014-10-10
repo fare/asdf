@@ -28,6 +28,14 @@
     ;; (C) rel = nil is for debian-native packages, e.g. base-passwd or cowbuilder
     (values ver epoch rel)))
 
+(defun debian-version-string (ver epoch rel)
+  (format nil "~@[~D:~]~A~@[-~A~]" epoch ver rel))
+
+(defun debian-version-without-epoch (version-string)
+  (multiple-value-bind (ver epoch rel) (parse-debian-version version-string)
+    (declare (ignore epoch))
+    (debian-version-string ver nil rel)))
+
 (defparameter *version* (version-from-file))
 
 ;;; Bumping the version of ASDF
