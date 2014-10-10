@@ -26,9 +26,7 @@ cl-asdf (2:3.1.3-1) unstable; urgency=low
   * Miscellaneous bug fixes and tweaks to UIOP.
   * Documentation improvements.
 
-  [ Robert P. Goldman ]
-
- -- Robert P. Goldman <rpgoldman@sift.info>  Thu, 09 Oct 2014 20:12:23 -0500
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 14 Jul 2014 16:54:49 -0400
 
 cl-asdf (2:3.1.2-2) unstable; urgency=low
 
