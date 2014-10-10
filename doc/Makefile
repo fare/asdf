@@ -26,6 +26,7 @@ asdf.pdf: asdf.texinfo
 
 website: all
 	rsync -av ${webfiles} ${website}
+	rsync -av ../debian/changelog ${website}/changelog
 
 .PHONY: clean veryclean manual-html
 clean:

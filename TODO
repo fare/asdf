@@ -105,6 +105,8 @@
     but possibly also triggered by the non-standard declaim.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
+*** It purports to support Unicode, but it has only 16-bit characters.
+   Note that (subtypep 'character 'base-char) says T -- everything is a base char(!)
 
 ** SCL has bugs:
 *** it doesn't like run-program from a modified directory?
@@ -164,12 +166,12 @@
    /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
 *** Tests that try to catch an error fail (but catching a warning succeeds),
    which suggests brokenness in handler-bind and/or error.
+*** COMPILE-FILE* fails due to handler-bind error in
+   with-muffled-compiler-conditions or so.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 *** (DIRECTORY #p"*.*") fails to match files with pathname type NIL.
 *** GCL doesn't properly process files the name of which contains a *
-*** Low-level compiler bug:
-   ./cl-launch.sh -B redo_test sh gcl exec noupdate noinc file system noinit
 
 ** ABCL has a few bugs.
 *** ABCL fails the timestamp propagation test.
@@ -179,9 +181,10 @@
 
 ** ECL has issues with its bundles.
    On MacOS X, test-bundle.script fails.
-   On Linux, test-program.script fails with recent ECL 237af2e,
-   but used to work quite fine earlier in 2013.
 *** ECL doesn't properly process files the name of which contains a *
+
+** Allegro fails to parse argv the correct Windows way wrt C++ escaping conventions.
+   Is this (still) the case? What about LispWorks? Other implementations?
 
 * Design & Implement some out-of-line configuration mechanism for various options?
   i.e. let configuration files override some variables around some actions.
@@ -233,7 +236,7 @@
 * Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
    :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
-** Or deprecate and remove ABL compatibility altogether?
+** Or deprecate and remove ABL compatibility altogether? Move it to contrib?
    No one has been using ASDF1 for years.
    There is no ABL to be compatible with —
    is anyone still using the compatibility mode?

@@ -26,8 +26,7 @@
         <li><a href="#extensions">Extensions</a></li>
         <li><a href="#bugs">Reporting Bugs</a></li>
         <li><a href="#mailing-lists">Mailing Lists</a></li>
-        <li><a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=log"
-               >Changelog</a></li>
+        <li><a href="changelog">Changelog</a></li>
       </ul>
     </div>
     <div class="contents">
@@ -317,32 +316,32 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a id="extensions"></a>
         <h3>Extensions</h3>
         <p>Known extensions to ASDF include:</p>
-	<ul>
-	  <li><a href="http://common-lisp.net/gitweb/?p=asdf/asdf-contrib.git"
-		 ><tt>asdf-contrib</tt></a>,
-	    a collection of most of the below.</li>
-	  <li><a href="http://common-lisp.net/gitweb/?p=asdf/asdf-encodings.git"
-		 ><tt>asdf-encodings</tt></a>,
-	    to compile Lisp source files with character encodings other than UTF-8.</li>
-	  <li><a href="http://common-lisp.net/gitweb/?p=asdf/asdf-finalizers.git"
-		 ><tt>asdf-finalizers</tt></a>,
-	    to allow macros to include code to be evaluated
-	    at the end of a file being compiled.</li>
-	  <li>
+        <ul>
+          <li><a href="http://common-lisp.net/gitweb/?p=asdf/asdf-contrib.git"
+                 ><tt>asdf-contrib</tt></a>,
+            a collection of most of the below.</li>
+          <li><a href="http://common-lisp.net/gitweb/?p=asdf/asdf-encodings.git"
+                 ><tt>asdf-encodings</tt></a>,
+            to compile Lisp source files with character encodings other than UTF-8.</li>
+          <li><a href="http://common-lisp.net/gitweb/?p=asdf/asdf-finalizers.git"
+                 ><tt>asdf-finalizers</tt></a>,
+            to allow macros to include code to be evaluated
+            at the end of a file being compiled.</li>
+          <li>
             <!-- <a href="http://common-lisp.net/gitweb?p=projects/xcvb/asdf-dependency-grovel.git"> -->
             <a href="http://common-lisp.net/gitweb/?p=xcvb/asdf-dependency-grovel.git;a=summary;js=1">
             <tt>asdf-dependency-grovel</tt></a>,
-	    to compute the actual dependencies in a big ASDF system.</li>
-	  <li><a href="http://common-lisp.net/project/qitab/"
-		 ><tt>poiu</tt></a>,
-	    to compile a system in parallel.</li>
-	  <li><a href="http://common-lisp.net/project/asdf-system-connections/"
-		 ><tt>asdf-system-connections</tt></a>,
-	    lets you specify systems that are automatically loaded when
+            to compute the actual dependencies in a big ASDF system.</li>
+          <li><a href="http://common-lisp.net/project/qitab/"
+                 ><tt>poiu</tt></a>,
+            to compile a system in parallel.</li>
+          <li><a href="http://common-lisp.net/project/asdf-system-connections/"
+                 ><tt>asdf-system-connections</tt></a>,
+            lets you specify systems that are automatically loaded when
             two other systems are loaded, to connect them.</li>
-	  <li><a href="http://www.lrde.epita.fr/~didier/software/lisp/misc.php#asdf-flv"
-		 ><tt>asdf-flv</tt></a>,
-	    to bind file-local variables around the compilation of some files.</li>
+          <li><a href="http://www.lrde.epita.fr/~didier/software/lisp/misc.php#asdf-flv"
+                 ><tt>asdf-flv</tt></a>,
+            to bind file-local variables around the compilation of some files.</li>
           <li><a href="http://common-lisp.net/gitweb/?p=asdf/asdf-package-system.git"
                  ><tt>asdf-package-system</tt></a>,
             to compile Lisp source files with one package per file
@@ -355,7 +354,7 @@ XCL (Peter Graves) <gnooth@gmail.com>
         </ul>
         <p>Former extensions, now superseded, include:</p>
         <ul>
-	  <li><tt>asdf-binary-locations</tt> allowed one to redirect where ASDF creates its output files,
+          <li><tt>asdf-binary-locations</tt> allowed one to redirect where ASDF creates its output files,
             so they don't clash between implementations and don't pollute source directories.
             It is superseded by <tt>asdf/defsystem</tt>'s builtin
             <tt>asdf-output-translations</tt> mechanism;
@@ -364,7 +363,7 @@ XCL (Peter Graves) <gnooth@gmail.com>
             <tt>common-lisp-controller</tt> and <tt>cl-launch</tt> used to provide similar mechanisms,
             and have also been superseded by <tt>asdf-output-translations</tt>.
           </li>
-	  <li><tt>asdf-bundle</tt>, n&eacute;e <tt>asdf-ecl</tt>,
+          <li><tt>asdf-bundle</tt>, n&eacute;e <tt>asdf-ecl</tt>,
             allowed you to create a single-file bundle out of a system,
             for easier delivery.
             It is now a builtin part of <tt>asdf/defsystem</tt>,
@@ -372,17 +371,17 @@ XCL (Peter Graves) <gnooth@gmail.com>
             a standalone executable program (on supported implementations),
             or an image containing your system precompiled.
           </li>
-	  <li><tt>asdf-utils</tt> was a collection of utilities that originated with ASDF.
+          <li><tt>asdf-utils</tt> was a collection of utilities that originated with ASDF.
             It is now superseded by <tt>uiop</tt>, aka <tt>asdf/driver</tt>,
             which is part of ASDF,
             and exports its functionality
             in its own package <tt>uiop</tt>.
           </li>
-	  <li><tt>asdf-condition-control</tt>, initially part of XCVB's <tt>xcvb-driver</tt>,
+          <li><tt>asdf-condition-control</tt>, initially part of XCVB's <tt>xcvb-driver</tt>,
             allowed you to muffle uninteresting conditions during compilation.
             Is now superseded by equivalent functionality in <tt>uiop</tt>.
           </li>
-	</ul>
+        </ul>
 
         <h3>Contributing</h3>
         <p>Join our mailing list, check the code out from git,
@@ -402,17 +401,17 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <ul>
           <li><b>asdf-devel</b>
             A list for questions, suggestions, bug reports, patches, and so on.
-	    It's for everyone and everything. Please join the conversation!
+            It's for everyone and everything. Please join the conversation!
           <a
         href="http://mailman.common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel">asdf-devel
         mailman site to subscribe</a>
-	  </li>
+          </li>
           <li><b>asdf-announce</b>
             A low-volume mailing-list for announcements only, mostly regarding new releases.
-	    Posting is restricted to project administrators and to important notices.
-	    Please subscribe to it if you're a Lisp implementation or distribution vendor,
-	    who needs to know when to upgrade the ASDF you distribute,
-	    but are otherwise not interested in day to day design and
+            Posting is restricted to project administrators and to important notices.
+            Please subscribe to it if you're a Lisp implementation or distribution vendor,
+            who needs to know when to upgrade the ASDF you distribute,
+            but are otherwise not interested in day to day design and
         development.
           <a
         href="http://mailman.common-lisp.net/cgi-bin/mailman/listinfo/asdf-announce">asdf-announce
@@ -427,6 +426,10 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>October 2014</dt>
+          <dd>More bug fixing leads to release of 3.1.4 on 10 October 2014.
+          There should be no incompatibilities. See the <a
+          href="changelog">Changelog</a> for more details.</dd>
           <dt>August 2014</dt>
           <dd>The ASDF mailing lists have been reestablished, in particular
         asdf-announce, which should allow CL implementers better access to only
@@ -501,7 +504,7 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2014 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2014-05-19</div>
+        <div id="timestamp">Last updated 2014-10-10</div>
     </div>
   </body>
 </html>
