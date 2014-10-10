@@ -53,5 +53,5 @@
 
 (defun git-all-committed-p ()
   "is your checkout clean, with all files committed?"
-  (null (git '(status -s) :output :lines)))
+  (null (nth-value 1 (git '(status -s) :output :lines))))
 
