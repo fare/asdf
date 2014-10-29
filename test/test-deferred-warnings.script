@@ -28,6 +28,8 @@
   :depends-on (:unintern-foo)
   :serial t
   :components ((:file "use-setf-foo") (:file "defsetf-foo")))
+(def-test-system :undefined-variables
+  :components ((:file "fun-with-undefined-locals")))
 
 (DBG :tdw0 *compile-file-warnings-behaviour*)
 (handler-bind
@@ -95,3 +97,18 @@
    ((or compile-file-error compile-warned-error) () t)
    ;;(t (c) (DBG :ustdf0 c))
    (:no-error (&rest values) (DBG :ustdf1 values) nil)))
+
+(assert
+ (flet ((expected-error (x)
+                        (format t "Expected error type: ~a" (type-of x))
+                        t))
+   (handler-case
+    (let ((*compile-file-warnings-behaviour* :error))
+      (trace compile-file)
+      (load-system :undefined-variables)
+      nil)
+    (compile-failed-error (x) (expected-error x))
+    (compile-file-error (x) (expected-error x))
+    (error (x)
+           (format t "Unexpected error type: ~a" (type-of x))
+           nil))))
