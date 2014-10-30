@@ -104,7 +104,6 @@
                         t))
    (handler-case
     (let ((*compile-file-warnings-behaviour* :error))
-      (trace compile-file)
       (load-system :undefined-variables)
       nil)
     (compile-failed-error (x) (expected-error x))
@@ -112,3 +111,9 @@
     (error (x)
            (format t "Unexpected error type: ~a" (type-of x))
            nil))))
+(assert
+ (handler-case
+  (let ((*compile-file-warnings-behaviour* :warning))
+    (load-system :undefined-variables :force t)
+    nil)
+  (error () t)))
