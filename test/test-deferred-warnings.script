@@ -98,22 +98,13 @@
    ;;(t (c) (DBG :ustdf0 c))
    (:no-error (&rest values) (DBG :ustdf1 values) nil)))
 
-(assert
- (flet ((expected-error (x)
-                        (format t "Expected error type: ~a" (type-of x))
-                        t))
-   (handler-case
-    (let ((*compile-file-warnings-behaviour* :error))
-      (load-system :undefined-variables)
-      nil)
-    (compile-failed-error (x) (expected-error x))
-    (compile-file-error (x) (expected-error x))
-    (error (x)
-           (format t "Unexpected error type: ~a" (type-of x))
-           nil))))
-(assert
- (handler-case
-  (let ((*compile-file-warnings-behaviour* :warning))
-    (load-system :undefined-variables :force t)
-    nil)
-  (error () t)))
+(errors #+(or allegro clozure) compile-file-error
+        #+(or cmu scl) null
+        #+sbcl compile-failed-error
+        (let ((*compile-file-warnings-behaviour* :error))
+          (load-system :undefined-variables)))
+(errors #+(or allegro clozure) compile-file-error
+        #+(or cmu scl) null
+        #+sbcl compile-failed-error
+        (let ((*compile-file-warnings-behaviour* :warning))
+          (load-system :undefined-variables :force t)))

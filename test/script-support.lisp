@@ -127,7 +127,11 @@ Some constraints:
                 ',sexp ',condition ,x))
        (t (,x)
          (error "Expression ~S raises signal ~S, not ~S" ',sexp ,x ',condition)))))
-
+(defmacro errors (condition sexp)
+  `(progn
+     (format *error-output* "~&Checking whether ~S signals error ~S~%" ',sexp ',condition)
+     (finish-output *error-output*)
+     (assert-equal ',condition (type-of (nth-value 1 (ignore-errors ,sexp))))))
 
 ;;; Helpful for debugging
 (defun pathname-components (p)
