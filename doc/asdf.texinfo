@@ -1371,7 +1371,7 @@ If you are tempted to write a system @var{foo}
 that weakly-depends-on a system @var{bar},
 we recommend that you should instead
 write system @var{foo} in a parametric way,
-and offer some special variable and/or some hook to specialize its behavior;
+and offer some special variable and/or some hook to specialize its behaviour;
 then you should write a system @var{foo+bar}
 that does the hooking of things together.
 
@@ -1388,13 +1388,13 @@ this option is accepted at any component, but it probably
 only makes sense at the @code{defsystem} level.
 Programmers are cautioned not
 to use this component option except at the @code{defsystem} level, as
-this anomalous behavior may be removed without warning.
+this anomalous behaviour may be removed without warning.
 
 @c Finally, you might look into the @code{asdf-system-connections} extension,
 @c that will let you define additional code to be loaded
 @c when two systems are simultaneously loaded.
 @c It may or may not be considered good style, but at least it can be used
-@c in a way that has deterministic behavior independent of load order,
+@c in a way that has deterministic behaviour independent of load order,
 @c unlike @code{weakly-depends-on}.
 
 
@@ -1452,9 +1452,9 @@ Such objects are typically specified using reader macros such as @code{#p}
 or @code{#.(make-pathname ...)}.
 Note however, that @code{#p...} is
 a shorthand for @code{#.(parse-namestring ...)}
-and that the behavior of @code{parse-namestring} is completely non-portable,
+and that the behaviour of @code{parse-namestring} is completely non-portable,
 unless you are using Common Lisp @code{logical-pathname}s,
-which themselves involve other non-portable behavior
+which themselves involve other non-portable behaviour
 (@pxref{The defsystem grammar,,Using logical pathnames}, below).
 Pathnames made with @code{#.(make-pathname ...)}
 can usually be done more easily with the string syntax above.
@@ -1832,7 +1832,7 @@ that allow for ``inheritance'' of symbols being exported.
 
 ASDF is designed in an object-oriented way from the ground up.
 Both a system's structure and the operations that can be performed on systems
-follow a extensible protocol, allowing programmers to add new behaviors to ASDF.
+follow a extensible protocol, allowing programmers to add new behaviours to ASDF.
 For example, @code{cffi} adds support for special FFI description files
 that interface with C libraries and for wrapper files that embed C code in Lisp.
 @code{abcl-jar} supports creating Java JAR archives in ABCL.
@@ -1878,7 +1878,7 @@ We will describe the built-in component and operation classes, and
 explain how to extend the ASDF protocol by defining new classes and
 methods for ASDF's generic functions.
 We will also describe the many @emph{hooks} that can be configured to
-customize the behavior of existing @emph{functions}.
+customize the behaviour of existing @emph{functions}.
 
 @c FIXME: Swap operations and components.
 @c FIXME: Possibly add a description of the PLAN object.
@@ -2184,7 +2184,7 @@ The pathname of the output of bundle operations
 is subject to output-translation as usual,
 unless the operation is equal to
 the @code{:build-operation} argument to @code{defsystem}.
-This behavior is not very satisfactory and may change in the future.
+This behaviour is not very satisfactory and may change in the future.
 Maybe you have suggestions on how to better configure it?
 @end deffn
 
@@ -3804,7 +3804,7 @@ we provide a limited emulation mode:
 
 @defun enable-asdf-binary-locations-compatibility @Akey{} centralize-lisp-binaries default-toplevel-directory include-per-user-information map-all-source-files source-to-target-mappings
 This function will initialize the new @code{asdf-output-translations} facility in a way
-that emulates the behavior of the old @code{ASDF-Binary-Locations} facility.
+that emulates the behaviour of the old @code{ASDF-Binary-Locations} facility.
 Where you would previously set global variables
 @var{*centralize-lisp-binaries*},
 @var{*default-toplevel-directory*},
@@ -4310,7 +4310,7 @@ and translates the former to the implementation-dependent @var{*utf-8-external-f
 and the latter to itself (that itself is portable but has an implementation-dependent meaning).
 
 In other words, there now are plenty of extension hooks, but
-by default ASDF enforces the previous @emph{de facto} standard behavior
+by default ASDF enforces the previous @emph{de facto} standard behaviour
 of using @code{:utf-8}, independently from
 whatever configuration the user may be using.
 Thus, system authors can now rely on @code{:utf-8}
@@ -4360,7 +4360,7 @@ even without any explicit specification in your @file{.asd} files.
 Indeed, on some implementations and configurations,
 UTF-8 is already the @code{:default},
 and loading your code may cause errors if it is encoded in anything but UTF-8.
-Therefore, even with the legacy behavior,
+Therefore, even with the legacy behaviour,
 non-UTF-8 is guaranteed to break for some users,
 whereas UTF-8 is pretty much guaranteed not to break anywhere
 (provided you do @emph{not} use a BOM),
@@ -4496,7 +4496,7 @@ whether you're using your software from source or from fasl.
 
 This function is obsolete and present only for the sake of backwards-compatibility:
 ``If it's not backwards, it's not compatible''. We @emph{strongly} discourage its use.
-Its current behavior is only well-defined on Unix platforms
+Its current behaviour is only well-defined on Unix platforms
 (which include MacOS X and cygwin). On Windows, anything goes.
 The following documentation is only for the purpose of your migrating away from it
 in a way that preserves semantics.
@@ -4609,14 +4609,14 @@ or a string to be executed by a shell.
 It spawns the command, waits for it to return,
 verifies that it exited cleanly (unless told not too below),
 and optionally captures and processes its output.
-It accepts many keyword arguments to configure its behavior.
+It accepts many keyword arguments to configure its behaviour.
 
 @code{run-program} returns three values: the first for the output,
 the second for the error-output, and the third for the return value.
 (Beware that before ASDF 3.0.2.11, it didn't handle input or error-output,
 and returned only one value,
 the one for the output if any handler was specified, or else the exit code;
-please upgrade ASDF, or at least UIOP, to rely on the new enhanced behavior.)
+please upgrade ASDF, or at least UIOP, to rely on the new enhanced behaviour.)
 
 @var{output} is its most important argument;
 it specifies how the output is captured and processed.
