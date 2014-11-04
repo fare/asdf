@@ -4176,11 +4176,11 @@ These are signalled using generalised instances of
 
 @section Compilation error and warning handling
 @vindex *compile-file-warnings-behaviour*
-@vindex *compile-file-errors-behavior*
+@vindex *compile-file-failure-behaviour*
 
 ASDF checks for warnings and errors when a file is compiled.
 The variables @var{*compile-file-warnings-behaviour*} and
-@var{*compile-file-errors-behavior*}
+@var{*compile-file-failure-behaviour*}
 control the handling of any such events.
 The valid values for these variables are
 @code{:error}, @code{:warn}, and @code{:ignore}.
