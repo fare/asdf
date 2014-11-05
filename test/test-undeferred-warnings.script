@@ -11,13 +11,14 @@
   :components ((:file "fun-with-undefined-locals")))
 
 
-#+(or allegro clozure cmu sbcl scl)
-(progn
-  (errors #+(or allegro clozure) compile-file-error
-          #+(or cmu sbcl scl) null
-          (let ((*compile-file-warnings-behaviour* :error))
-            (load-system :undefined-variables)))
-  (errors #+(or allegro clozure) compile-file-error
-          #+(or cmu sbcl scl) null
-          (let ((*compile-file-warnings-behaviour* :warning))
-            (load-system :undefined-variables :force t))))
+;; GCL fails to warn; CMUCL, SBCL and presumably SCL defer warning to end of compilation unit;
+;; SCL and XCL not actually tested
+
+(errors #+(or abcl allegro clisp clozure ecl lispworks mkcl xcl) compile-file-error
+        #+(or cmu gcl sbcl scl) null
+        (let ((*compile-file-warnings-behaviour* :error))
+          (load-system :undefined-variables)))
+(errors #+(or abcl allegro clisp clozure ecl lispworks mkcl xcl) compile-file-error
+        #+(or cmu gcl sbcl scl) null
+        (let ((*compile-file-warnings-behaviour* :warning))
+          (load-system :undefined-variables :force t)))
