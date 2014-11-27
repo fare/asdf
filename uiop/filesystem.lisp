@@ -499,11 +499,21 @@ Note that this operation is usually NOT thread-safe."
     "What character does the current OS conventionally uses to separate directories?"
     (if (os-unix-p) #\: #\;))
 
-  (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
+  (defun split-native-pathnames-string (string &rest constraints &key (discard-empty-entries t) &allow-other-keys)
     "Given a string of pathnames specified in native OS syntax, separate them in a list,
-check constraints and normalize each one as per ENSURE-PATHNAME."
-    (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
-          :collect (apply 'parse-native-namestring namestring constraints)))
+check constraints and normalize each one as per ENSURE-PATHNAME.
+     If DISCARD-EMPTY-ENTRIES is T, empty strings will be quietly ignored, otherwise they will
+be translated into a NIL return value."
+    (let ((constraints (copy-list constraints)))
+      (remf constraints :discard-empty-entries)
+
+      (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
+            :if (emptyp namestring)
+              :unless discard-empty-entries
+                :collect nil
+            :end ; unless
+            :else
+              :collect (apply 'parse-native-namestring namestring constraints))))
 
   (defun getenv-pathname (x &rest constraints &key ensure-directory want-directory on-error &allow-other-keys)
     "Extract a pathname from a user-configured environment variable, as per native OS,
@@ -514,21 +524,25 @@ check constraints and normalize as per ENSURE-PATHNAME."
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathname ,x))
            constraints))
-  (defun getenv-pathnames (x &rest constraints &key on-error &allow-other-keys)
+  (defun getenv-pathnames (x &rest constraints &key on-error (discard-empty-entries t) &allow-other-keys)
     "Extract a list of pathname from a user-configured environment variable, as per native OS,
 check constraints and normalize each one as per ENSURE-PATHNAME."
-    (apply 'split-native-pathnames-string (getenvp x)
-           :on-error (or on-error
-                         `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
-           constraints))
+    (let ((constraints (copy-list constraints)))
+      (remf constraints :discard-empty-entries)
+      (apply 'split-native-pathnames-string (getenvp x)
+             :on-error (or on-error
+                           `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
+             :discard-empty-entries discard-empty-entries
+             constraints)))
   (defun getenv-absolute-directory (x)
     "Extract an absolute directory pathname from a user-configured environment variable,
 as per native OS"
     (getenv-pathname x :want-absolute t :ensure-directory t))
-  (defun getenv-absolute-directories (x)
+  (defun getenv-absolute-directories (x &key (discard-empty-entries t))
     "Extract a list of absolute directories from a user-configured environment variable,
 as per native OS"
-    (getenv-pathnames x :want-absolute t :ensure-directory t))
+    (getenv-pathnames x :want-absolute t :ensure-directory t
+                        :discard-empty-entries discard-empty-entries))
 
   (defun lisp-implementation-directory (&key truename)
     "Where are the system files of the current installation of the CL implementation?"
