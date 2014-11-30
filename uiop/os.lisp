@@ -85,7 +85,8 @@ use getenvp to return NIL in such a case."
     #+(or abcl clisp ecl xcl) (ext:getenv x)
     #+allegro (sys:getenv x)
     #+clozure (ccl:getenv x)
-    #+(or cmu scl) (cdr (assoc x ext:*environment-list* :test #'string=))
+    #+cmu (unix:unix-getenv x)
+    #+scl (cdr (assoc x ext:*environment-list* :test #'string=))
     #+cormanlisp
     (let* ((buffer (ct:malloc 1))
            (cname (ct:lisp-string-to-c-string x))
