@@ -40,12 +40,15 @@
         (if (os-unix-p) (unix-namestring p)
             (namestring p)))))
 
-  (defun parse-native-namestring (string &rest constraints &key ensure-directory &allow-other-keys)
+  (defun parse-native-namestring (string &rest constraints &key want-absolute ensure-directory &allow-other-keys)
     "From a native namestring suitable for use by the operating system, return
 a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
     (check-type string (or string null))
     (let* ((pathname
              (when string
+               (unless (or (not want-absolute)
+                           (absolute-pathname-p string))
+                 (error "Invalid pathname ~S: Expected an absolute pathname." string))
                (with-pathname-defaults ()
                  #+clozure (ccl:native-to-pathname string)
                  #+sbcl (sb-ext:parse-native-namestring string)
@@ -333,6 +336,7 @@ Defaults to T.")
       (pathname &key
                   on-error
                   defaults type dot-dot namestring
+                  empty-is-nil
                   want-pathname
                   want-logical want-physical ensure-physical
                   want-relative want-absolute ensure-absolute ensure-subpath
@@ -376,6 +380,7 @@ You could also pass (CERROR \"CONTINUE DESPITE FAILED CHECK\").
 The transformations and constraint checks are done in this order,
 which is also the order in the lambda-list:
 
+EMPTY-IS-NIL returns NIL if the argument is an empty string.
 WANT-PATHNAME checks that pathname (after parsing if needed) is not null.
 Otherwise, if the pathname is NIL, ensure-pathname returns NIL.
 WANT-LOGICAL checks that pathname is a LOGICAL-PATHNAME
@@ -415,6 +420,8 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
           (etypecase p
             ((or null pathname))
             (string
+             (when (and (emptyp p) empty-is-nil)
+               (return-from ensure-pathname nil))
              (setf p (case namestring
                        ((:unix nil)
                         (parse-unix-namestring
@@ -499,21 +506,20 @@ Note that this operation is usually NOT thread-safe."
     "What character does the current OS conventionally uses to separate directories?"
     (if (os-unix-p) #\: #\;))
 
-  (defun split-native-pathnames-string (string &rest constraints &key (discard-empty-entries t) &allow-other-keys)
-    "Given a string of pathnames specified in native OS syntax, separate them in a list,
-check constraints and normalize each one as per ENSURE-PATHNAME.
-     If DISCARD-EMPTY-ENTRIES is T, empty strings will be quietly ignored, otherwise they will
-be translated into a NIL return value."
-    (let ((constraints (copy-list constraints)))
-      (remf constraints :discard-empty-entries)
+  ;;   (defun split-native-pathnames-string (string &rest constraints)
+  ;;     "Given a string of pathnames specified in native OS syntax, separate them in a list,
+  ;; check constraints and normalize each one as per ENSURE-PATHNAME.
+  ;;      If DISCARD-EMPTY-ENTRIES is T, empty strings will be quietly ignored, otherwise they will
+  ;; be translated into a NIL return value."
+  ;;       (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
+  ;;             :collect (apply 'parse-native-namestring namestring constraints)))
 
-      (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
-            :if (emptyp namestring)
-              :unless discard-empty-entries
-                :collect nil
-            :end ; unless
-            :else
-              :collect (apply 'parse-native-namestring namestring constraints))))
+   (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
+     "Given a string of pathnames specified in native OS syntax, separate them in a list,
+check constraints and normalize each one as per ENSURE-PATHNAME,
+where an empty string denotes NIL." ;;; <---- slight change in semantics, but pretty conservative in previously supported cases.
+     (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
+          :collect (unless (emptyp namestring) (apply 'parse-native-namestring namestring constraints))))
 
   (defun getenv-pathname (x &rest constraints &key ensure-directory want-directory on-error &allow-other-keys)
     "Extract a pathname from a user-configured environment variable, as per native OS,
@@ -524,25 +530,23 @@ check constraints and normalize as per ENSURE-PATHNAME."
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathname ,x))
            constraints))
-  (defun getenv-pathnames (x &rest constraints &key on-error (discard-empty-entries t) &allow-other-keys)
+  (defun getenv-pathnames (x &rest constraints &key on-error (empty-is-nil t) &allow-other-keys)
     "Extract a list of pathname from a user-configured environment variable, as per native OS,
 check constraints and normalize each one as per ENSURE-PATHNAME."
-    (let ((constraints (copy-list constraints)))
-      (remf constraints :discard-empty-entries)
-      (apply 'split-native-pathnames-string (getenvp x)
-             :on-error (or on-error
-                           `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
-             :discard-empty-entries discard-empty-entries
-             constraints)))
+    (apply 'split-native-pathnames-string (getenvp x)
+           :on-error (or on-error
+                         `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
+           :empty-is-nil empty-is-nil
+           constraints))
   (defun getenv-absolute-directory (x)
     "Extract an absolute directory pathname from a user-configured environment variable,
 as per native OS"
     (getenv-pathname x :want-absolute t :ensure-directory t))
-  (defun getenv-absolute-directories (x &key (discard-empty-entries t))
+  (defun getenv-absolute-directories (x &key (empty-is-nil t))
     "Extract a list of absolute directories from a user-configured environment variable,
 as per native OS"
     (getenv-pathnames x :want-absolute t :ensure-directory t
-                        :discard-empty-entries discard-empty-entries))
+                        :empty-is-nil empty-is-nil))
 
   (defun lisp-implementation-directory (&key truename)
     "Where are the system files of the current installation of the CL implementation?"
@@ -674,4 +678,3 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
              (dolist (d (nreverse sub*directories))
                (map () 'delete-file (directory-files d))
                (delete-empty-directory d)))))))
-
