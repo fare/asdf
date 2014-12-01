@@ -506,18 +506,10 @@ Note that this operation is usually NOT thread-safe."
     "What character does the current OS conventionally uses to separate directories?"
     (if (os-unix-p) #\: #\;))
 
-  ;;   (defun split-native-pathnames-string (string &rest constraints)
-  ;;     "Given a string of pathnames specified in native OS syntax, separate them in a list,
-  ;; check constraints and normalize each one as per ENSURE-PATHNAME.
-  ;;      If DISCARD-EMPTY-ENTRIES is T, empty strings will be quietly ignored, otherwise they will
-  ;; be translated into a NIL return value."
-  ;;       (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
-  ;;             :collect (apply 'parse-native-namestring namestring constraints)))
-
    (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
      "Given a string of pathnames specified in native OS syntax, separate them in a list,
 check constraints and normalize each one as per ENSURE-PATHNAME,
-where an empty string denotes NIL." ;;; <---- slight change in semantics, but pretty conservative in previously supported cases.
+where an empty string denotes NIL."
      (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
           :collect (unless (emptyp namestring) (apply 'parse-native-namestring namestring constraints))))
 
@@ -530,23 +522,25 @@ check constraints and normalize as per ENSURE-PATHNAME."
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathname ,x))
            constraints))
-  (defun getenv-pathnames (x &rest constraints &key on-error (empty-is-nil t) &allow-other-keys)
+  (defun getenv-pathnames (x &rest constraints &key on-error &allow-other-keys)
     "Extract a list of pathname from a user-configured environment variable, as per native OS,
-check constraints and normalize each one as per ENSURE-PATHNAME."
+check constraints and normalize each one as per ENSURE-PATHNAME.
+       Any empty entries in the environment variable X will be returned as NILs."
+    (unless (getf constraints :empty-is-nil t)
+      (error "Cannot have EMPTY-IS-NIL false for GETENV-PATHNAMES."))
     (apply 'split-native-pathnames-string (getenvp x)
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
-           :empty-is-nil empty-is-nil
            constraints))
   (defun getenv-absolute-directory (x)
     "Extract an absolute directory pathname from a user-configured environment variable,
 as per native OS"
     (getenv-pathname x :want-absolute t :ensure-directory t))
-  (defun getenv-absolute-directories (x &key (empty-is-nil t))
+  (defun getenv-absolute-directories (x)
     "Extract a list of absolute directories from a user-configured environment variable,
-as per native OS"
-    (getenv-pathnames x :want-absolute t :ensure-directory t
-                        :empty-is-nil empty-is-nil))
+as per native OS.  Any empty entries in the environment variable X will be returned as
+NILs."
+    (getenv-pathnames x :want-absolute t :ensure-directory t))
 
   (defun lisp-implementation-directory (&key truename)
     "Where are the system files of the current installation of the CL implementation?"
