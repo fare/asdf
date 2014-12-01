@@ -40,22 +40,18 @@
         (if (os-unix-p) (unix-namestring p)
             (namestring p)))))
 
-  (defun parse-native-namestring (string &rest constraints &key want-absolute ensure-directory &allow-other-keys)
+  (defun parse-native-namestring (string &rest constraints &key ensure-directory &allow-other-keys)
     "From a native namestring suitable for use by the operating system, return
 a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
     (check-type string (or string null))
     (let* ((pathname
-             (when string
-               (unless (or (not want-absolute)
-                           (absolute-pathname-p string))
-                 (error "Invalid pathname ~S: Expected an absolute pathname." string))
-               (with-pathname-defaults ()
-                 #+clozure (ccl:native-to-pathname string)
-                 #+sbcl (sb-ext:parse-native-namestring string)
-                 #-(or clozure sbcl)
-                 (if (os-unix-p)
-                     (parse-unix-namestring string :ensure-directory ensure-directory)
-                     (parse-namestring string)))))
+             (with-pathname-defaults ()
+               #+clozure (ccl:native-to-pathname string)
+               #+sbcl (sb-ext:parse-native-namestring string)
+               #-(or clozure sbcl)
+               (if (os-unix-p)
+                   (parse-unix-namestring string :ensure-directory ensure-directory)
+                   (parse-namestring string))))
            (pathname
              (if ensure-directory
                  (and pathname (ensure-directory-pathname pathname))
