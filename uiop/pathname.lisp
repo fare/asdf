@@ -424,8 +424,8 @@ The last #\\/-separated substring is interpreted as follows:
  are separated by SPLIT-NAME-TYPE.
 3- If TYPE is a string, it is the given TYPE, and the whole string is the NAME.
 
-Directory components with an empty name the name . are removed.
-Any directory named .. is read as DOT-DOT,
+Directory components with an empty name or the name \".\" are removed.
+Any directory named \"..\" is read as DOT-DOT,
 which must be one of :BACK or :UP and defaults to :BACK.
 
 HOST, DEVICE and VERSION components are taken from DEFAULTS,
