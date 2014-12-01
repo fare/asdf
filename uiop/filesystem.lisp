@@ -45,13 +45,14 @@
 a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
     (check-type string (or string null))
     (let* ((pathname
-             (with-pathname-defaults ()
-               #+clozure (ccl:native-to-pathname string)
-               #+sbcl (sb-ext:parse-native-namestring string)
-               #-(or clozure sbcl)
-               (if (os-unix-p)
-                   (parse-unix-namestring string :ensure-directory ensure-directory)
-                   (parse-namestring string))))
+             (when string
+               (with-pathname-defaults ()
+                 #+clozure (ccl:native-to-pathname string)
+                 #+sbcl (sb-ext:parse-native-namestring string)
+                 #-(or clozure sbcl)
+                 (if (os-unix-p)
+                     (parse-unix-namestring string :ensure-directory ensure-directory)
+                     (parse-namestring string)))))
            (pathname
              (if ensure-directory
                  (and pathname (ensure-directory-pathname pathname))
@@ -502,11 +503,11 @@ Note that this operation is usually NOT thread-safe."
     "What character does the current OS conventionally uses to separate directories?"
     (if (os-unix-p) #\: #\;))
 
-   (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
-     "Given a string of pathnames specified in native OS syntax, separate them in a list,
+  (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
+    "Given a string of pathnames specified in native OS syntax, separate them in a list,
 check constraints and normalize each one as per ENSURE-PATHNAME,
 where an empty string denotes NIL."
-     (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
+    (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
           :collect (unless (emptyp namestring) (apply 'parse-native-namestring namestring constraints))))
 
   (defun getenv-pathname (x &rest constraints &key ensure-directory want-directory on-error &allow-other-keys)
@@ -527,6 +528,7 @@ check constraints and normalize each one as per ENSURE-PATHNAME.
     (apply 'split-native-pathnames-string (getenvp x)
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
+           :empty-is-nil t
            constraints))
   (defun getenv-absolute-directory (x)
     "Extract an absolute directory pathname from a user-configured environment variable,
