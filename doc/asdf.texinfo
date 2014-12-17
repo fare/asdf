@@ -1257,8 +1257,18 @@ system-definition := ( defsystem system-designator @var{system-option}* )
 system-option := :defsystem-depends-on system-list
                  | :weakly-depends-on @var{system-list}
                  | :class class-name (see discussion below)
+                 | system-option
                  | module-option
                  | option
+
+# These are only available since ASDF3 (actually its alpha release 2.27)
+system-option := :homepage string
+                 | :bug-tracker string
+                 | :mailto string
+                 | :long-name string
+                 | :source-control source-control
+
+source-control := (keyword string)
 
 module-option := :components component-list
                  | :serial [ t | nil ]
