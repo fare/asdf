@@ -333,6 +333,7 @@ Defaults to T.")
       (pathname &key
                   on-error
                   defaults type dot-dot namestring
+                  empty-is-nil
                   want-pathname
                   want-logical want-physical ensure-physical
                   want-relative want-absolute ensure-absolute ensure-subpath
@@ -376,6 +377,7 @@ You could also pass (CERROR \"CONTINUE DESPITE FAILED CHECK\").
 The transformations and constraint checks are done in this order,
 which is also the order in the lambda-list:
 
+EMPTY-IS-NIL returns NIL if the argument is an empty string.
 WANT-PATHNAME checks that pathname (after parsing if needed) is not null.
 Otherwise, if the pathname is NIL, ensure-pathname returns NIL.
 WANT-LOGICAL checks that pathname is a LOGICAL-PATHNAME
@@ -415,6 +417,8 @@ TRUENAMIZE uses TRUENAMIZE to resolve as many symlinks as possible."
           (etypecase p
             ((or null pathname))
             (string
+             (when (and (emptyp p) empty-is-nil)
+               (return-from ensure-pathname nil))
              (setf p (case namestring
                        ((:unix nil)
                         (parse-unix-namestring
@@ -501,9 +505,10 @@ Note that this operation is usually NOT thread-safe."
 
   (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
     "Given a string of pathnames specified in native OS syntax, separate them in a list,
-check constraints and normalize each one as per ENSURE-PATHNAME."
+check constraints and normalize each one as per ENSURE-PATHNAME,
+where an empty string denotes NIL."
     (loop :for namestring :in (split-string string :separator (string (inter-directory-separator)))
-          :collect (apply 'parse-native-namestring namestring constraints)))
+          :collect (unless (emptyp namestring) (apply 'parse-native-namestring namestring constraints))))
 
   (defun getenv-pathname (x &rest constraints &key ensure-directory want-directory on-error &allow-other-keys)
     "Extract a pathname from a user-configured environment variable, as per native OS,
@@ -516,10 +521,14 @@ check constraints and normalize as per ENSURE-PATHNAME."
            constraints))
   (defun getenv-pathnames (x &rest constraints &key on-error &allow-other-keys)
     "Extract a list of pathname from a user-configured environment variable, as per native OS,
-check constraints and normalize each one as per ENSURE-PATHNAME."
+check constraints and normalize each one as per ENSURE-PATHNAME.
+       Any empty entries in the environment variable X will be returned as NILs."
+    (unless (getf constraints :empty-is-nil t)
+      (error "Cannot have EMPTY-IS-NIL false for GETENV-PATHNAMES."))
     (apply 'split-native-pathnames-string (getenvp x)
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
+           :empty-is-nil t
            constraints))
   (defun getenv-absolute-directory (x)
     "Extract an absolute directory pathname from a user-configured environment variable,
@@ -527,7 +536,8 @@ as per native OS"
     (getenv-pathname x :want-absolute t :ensure-directory t))
   (defun getenv-absolute-directories (x)
     "Extract a list of absolute directories from a user-configured environment variable,
-as per native OS"
+as per native OS.  Any empty entries in the environment variable X will be returned as
+NILs."
     (getenv-pathnames x :want-absolute t :ensure-directory t))
 
   (defun lisp-implementation-directory (&key truename)
@@ -660,4 +670,3 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
              (dolist (d (nreverse sub*directories))
                (map () 'delete-file (directory-files d))
                (delete-empty-directory d)))))))
-

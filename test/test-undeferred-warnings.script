@@ -1,0 +1,24 @@
+;;; -*- Lisp -*-
+
+;;;---------------------------------------------------------------------------
+;;; Intended to test behaviors that we see when the deferred warnings check is
+;;; NOT deferred.
+;;; ---------------------------------------------------------------------------
+
+(in-package :asdf-test)
+
+(def-test-system :undefined-variables
+  :components ((:file "fun-with-undefined-locals")))
+
+
+;; GCL fails to warn; CMUCL, SBCL and presumably SCL defer warning to end of compilation unit;
+;; SCL and XCL not actually tested
+
+(errors #+(or abcl allegro clisp clozure ecl lispworks mkcl xcl) compile-file-error
+        #+(or cmu gcl sbcl scl) null
+        (let ((*compile-file-warnings-behaviour* :error))
+          (load-system :undefined-variables)))
+(errors #+(or abcl allegro clisp clozure ecl lispworks mkcl xcl) compile-file-error
+        #+(or cmu gcl sbcl scl) null
+        (let ((*compile-file-warnings-behaviour* :warning))
+          (load-system :undefined-variables :force t)))

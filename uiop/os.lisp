@@ -76,7 +76,6 @@ that is neither Unix, nor Windows, nor Genera, nor even old MacOS.~%Now you port
   (detect-os))
 
 ;;;; Environment variables: getting them, and parsing them.
-
 (with-upgradability ()
   (defun getenv (x)
     "Query the environment, as in C getenv.
@@ -86,7 +85,8 @@ use getenvp to return NIL in such a case."
     #+(or abcl clisp ecl xcl) (ext:getenv x)
     #+allegro (sys:getenv x)
     #+clozure (ccl:getenv x)
-    #+(or cmu scl) (cdr (assoc x ext:*environment-list* :test #'string=))
+    #+cmu (unix:unix-getenv x)
+    #+scl (cdr (assoc x ext:*environment-list* :test #'string=))
     #+cormanlisp
     (let* ((buffer (ct:malloc 1))
            (cname (ct:lisp-string-to-c-string x))
@@ -108,6 +108,21 @@ use getenvp to return NIL in such a case."
     #+sbcl (sb-ext:posix-getenv x)
     #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
     (error "~S is not supported on your implementation" 'getenv))
+
+
+    (defsetf getenv (x) (val)
+    "Set an environment variable."
+      (declare (ignorable x val))
+    #+clisp `(system::setenv ,x ,val)
+    #+ecl `(ext:setenv ,x ,val)
+    #+allegro `(setf (sys:getenv ,x) ,val)
+    #+clozure `(ccl:setenv ,x ,val)
+    #+cmu `(unix:unix-setenv ,x ,val 1)
+    #+lispworks `(hcl:setenv ,x ,val)
+    #+mkcl `(mkcl:setenv ,x ,val)
+    #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
+    #-(or allegro clisp clozure ecl lispworks mkcl sbcl cmu)
+    '(error "SETF ~S is not supported on your implementation" 'getenv))
 
   (defun getenvp (x)
     "Predicate that is true if the named variable is present in the libc environment,
