@@ -4,7 +4,7 @@ Upstream-Contact: asdf-devel <asdf-devel@common-lisp.net>
 Source: http://common-lisp.net/project/asdf/
 
 Files: *
-Copyright: 2001-2014 Daniel Barlow, Francois-Rene Rideau, Robert P. Goldman, and contributors
+Copyright: 2001-2015 Daniel Barlow, Francois-Rene Rideau, Robert P. Goldman, and contributors
 Comment: This is the MIT license, but Debian, after GNU, calls it the Expat license
  to unambiguously distinguish it from other licenses once used by MIT.
 License: Expat
@@ -37,7 +37,7 @@ License: Expat
 Files: debian/*
 Copyright: 2002 Kevin M. Rosenberg <kmr@debian.org>
 License: GPL-2
- On Debian systems, the full text of the Expat License can be found in the file
+ On Debian systems, the full text of the GNU GPL v2 can be found in the file
  `/usr/share/common-licenses/GPL-2'.
 Comment: This package was initially debianized by Kevin M. Rosenberg <kmr@debian.org>
  on Fri, 16 Aug 2002 23:14:49 -0600.

@@ -10,7 +10,7 @@ Uploaders: Peter Van Eynde <pvaneynd@debian.org>,
   Robert P. Goldman <rpgoldman@sift.info>
 Build-Depends: debhelper (>> 7)
 Build-Depends-Indep: texinfo, texlive-extra-utils, texlive, texlive-generic-recommended
-Standards-Version: 3.9.6
+Standards-Version: 3.9.6.1
 Homepage: http://common-lisp.net/project/asdf/
 Vcs-Git: git://common-lisp.net/projects/asdf/asdf.git
 
