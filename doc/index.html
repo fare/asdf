@@ -36,9 +36,10 @@
           It was rewritten for improved portability, robustness, usability,
           extensibility, configurability, internal consistency,
           and the ability to deliver standalone executables.
-          It was pre-released as 2.27 on February 1st 2013,
-          released as 3.0.0 on May 15th 2013,
-          again as 3.1.2 on May 6th 2014, and as 3.1.3 on 24 July 2014.
+          Its notable versions include pre-release 2.27 on February 1st 2013,
+          first release 3.0.0 on May 15th 2013,
+          major release 3.1.2 on May 6th 2014,
+          and latest release 3.1.4 on October 10th 2014.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -169,45 +170,43 @@
           and you can simply <tt>(require "asdf")</tt>.
           (All of them but CLISP also accept
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
-          Most of these implementations provide ASDF 3,
-          a few only provide ASDF 2.
-          Some implementations don't provide ASDF yet,
+          Most of these implementations provide ASDF 3.
+          Some implementations don't provide ASDF 3 yet,
           but have announced they will in their next release.
           As for remaining implementations,
-          they are obsolete and/or mostly unmaintained;
-          still ASDF 3 supports them if you load it manually,
-          though there might never be a next release
-          to provide it through <tt>require</tt>.
+          they are obsolete and/or mostly unmaintained.
         </p>
         <table border="1">
           <tr><th></th>
             <th align="left">Provide ASDF 3</th>
-            <th align="left">Provide ASDF 2</th>
-            <th align="left">Will provide ASDF(?)</th>
-            <th align="left">Obsolete</th></tr>
+            <th align="left">Will provide ASDF 3</th>
+            <th align="left">Unmaintained</th></tr>
           <tr><th align="left">Free</th>
             <td align="left"><tt>abcl ccl clisp cmucl ecl mkcl sbcl</tt></td>
-            <td align="left"><tt>xcl</tt></td>
-            <td> </td>
-            <td align="left"><tt>gcl mcl</tt></td></tr>
+            <td align="left"><tt>clasp gcl</tt></td>
+            <td align="left"><tt>mcl xcl</tt></td></tr>
           <tr><th align="left">Proprietary</th>
             <td align="left"><tt>allegro</tt></td>
             <td align="left"><tt>lispworks mocl</tt></td>
-            <td align="left"><tt>scl</tt></td>
-            <td align="left"><tt>cormanlisp genera</tt></td></tr>
+            <td align="left"><tt>cormanlisp genera scl</tt></td></tr>
         </table>
         <p>
           To deal with an implementation that doesn't yet provide ASDF 3,
           we provide <a href="http://common-lisp.net/gitweb?p=projects/asdf/asdf.git;a=blob;f=tools/install-asdf.lisp">a script</a> that can install ASDF 3
           where your implementation goes looking for it
-          when you <tt>require</tt> it.
-          Alternatively, if the implementation provides ASDF 2 or an older ASDF 3,
+          when you <tt>(require "asdf")</tt> .
+        </p><p>
+          Alternatively, if the implementation provides ASDF 2
+          (as do <tt>lispworks mocl xcl</tt> or older versions of some implementations)
+          or an overly old version of ASDF 3,
           you can download, install and configure a more recent ASDF 3,
-          and use <tt>(asdf:load-system :asdf)</tt> to upgrade it.
-          Beware: when upgrading from ASDF 2, you should always do it
-          immediately after the <tt>require</tt>,
-          and before you use ASDF for anything else
-          (ASDF 3 does that automatically).
+          then use <tt>(require "asdf") (asdf:load-system :asdf)</tt> to load it.
+          Beware: when upgrading that way from ASDF 2, you should always do it
+          <em>immediately</em> after the <tt>require</tt> (and optional configuration),
+          and before you use ASDF to do anything else;
+          ASDF 3 does this early upgrade automatically.
+          Also note that <tt>mocl</tt> only supports a heavily modified variant of ASDF 2,
+          and its cross-compilation setup isn't yet supported by ASDF 3.
         </p>
         <!-- Note to self:
              asdf-announce may have been a casualty of some recent mailing-list reorganization. Check.
