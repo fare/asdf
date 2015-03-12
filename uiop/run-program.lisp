@@ -378,8 +378,8 @@ argument to pass to the internal RUN-PROGRAM"
       ((eql :interactive)
        #+allegro nil
        #+clisp :terminal
-       #+(or clozure cmu ecl mkcl sbcl scl) t)
-      #+(or allegro clozure cmu ecl lispworks mkcl sbcl scl)
+       #+(or clasp clozure cmu ecl mkcl sbcl scl) t)
+      #+(or allegro clasp clozure cmu ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
            :output
@@ -447,8 +447,8 @@ It returns a process-info plist with possible keys:
                    #+os-windows (string (run 'ext:run-shell-command %command))
                    (list (run 'ext:run-program (car %command)
                               :arguments (cdr %command)))))
-               #+(or clozure cmu ecl mkcl sbcl scl)
-               (#-(or ecl mkcl) progn #+(or ecl mkcl) multiple-value-list
+               #+(or clasp clozure cmu ecl mkcl sbcl scl)
+               (#-(or clasp ecl mkcl) progn #+(or clasp ecl mkcl) multiple-value-list
                 (apply
                  '#+(or cmu ecl scl) ext:run-program
                  #+clozure ccl:run-program #+sbcl sb-ext:run-program #+mkcl mk-ext:run-program
@@ -526,8 +526,8 @@ It returns a process-info plist with possible keys:
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmu scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
-        #+(or ecl mkcl)
-        (destructuring-bind #+ecl (stream code process) #+mkcl (stream process code) process*
+        #+(or clasp ecl mkcl)
+        (destructuring-bind #+(or clasp ecl) (stream code process) #+mkcl (stream process code) process*
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
             (cond
               ((zerop mode))
@@ -552,7 +552,7 @@ It returns a process-info plist with possible keys:
       (declare (ignorable process))
       #+(or allegro lispworks) process
       #+clozure (ccl::external-process-pid process)
-      #+ecl (si:external-process-pid process)
+      #+(or clasp ecl) (si:external-process-pid process)
       #+(or cmu scl) (ext:process-pid process)
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
@@ -565,13 +565,13 @@ It returns a process-info plist with possible keys:
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
             #+(or cmu scl) (ext:process-wait process)
-            #+(and ecl os-unix) (ext:external-process-wait process)
+            #+(and (or clasp ecl) os-unix) (ext:external-process-wait process)
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
             #+allegro (sys:reap-os-subprocess :pid process :wait t)
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
-            #+ecl (nth-value 1 (ext:external-process-status process))
+            #+(or clasp ecl) (nth-value 1 (ext:external-process-status process))
             #+lispworks
             (if-let ((stream (or (getf process-info :input-stream)
                                  (getf process-info :output-stream)
@@ -773,7 +773,7 @@ It returns a process-info plist with possible keys:
     #+(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
     (%wait-process-result
      (apply '%run-program (%normalize-system-command command) :wait t keys))
-    #+(or abcl cormanlisp clisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
+    #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
@@ -785,7 +785,7 @@ It returns a process-info plist with possible keys:
       (with-current-directory ((unless (os-unix-p) directory))
         #+abcl (ext:run-shell-command %command)
         #+cormanlisp (win32:system %command)
-        #+ecl (let ((*standard-input* *stdin*)
+        #+(or clasp ecl) (let ((*standard-input* *stdin*)
                     (*standard-output* *stdout*)
                     (*error-output* *stderr*))
                 (ext:system %command))
@@ -872,11 +872,11 @@ RUN-PROGRAM returns 3 values:
 2- either 0 if the subprocess exited with success status,
 or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
-    #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
     (error "RUN-PROGRAM not implemented for this Lisp")
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
-                     #+(or clisp ecl) (or (not ignore-error-status) t)
+                     #+(or clasp clisp ecl) (or (not ignore-error-status) t)
                      #+clisp (eq error-output :interactive)
                      #+(or abcl clisp) (eq :error-output :output)
                      #+(and lispworks os-unix) (%interactivep input output error-output)

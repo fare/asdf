@@ -6,6 +6,6 @@
   ;; Work around:
   #+(and ecl ecl-bytecmp)
   (when (and (eq asdf:*compile-file-failure-behaviour* :error)
-             #+ecl (equal (compile-file-type) "fasc"))
+             #+(or clasp ecl) (equal (compile-file-type) "fasc"))
     (error 'compile-file-error :description "faking it"))
   (warn "Warning."))

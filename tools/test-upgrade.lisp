@@ -96,6 +96,9 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ;; CCL fasl numbering broke loading of old asdf 2.0
      ((:ccl) (or (version< tag "2.0") (version<= "2.20" tag)))
 
+     ;; CLASP is only supported as of 3.1.4.3
+     ((:clasp) (version<= "3.1.4.3" tag))
+
      ;; My old Ubuntu 10.04LTS clisp 2.44.1 came wired in
      ;; with an antique ASDF 1.374 from CLC that can't be removed.
      ;; More recent CLISPs work.

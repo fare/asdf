@@ -8,27 +8,27 @@
 (in-package :asdf/footer)
 
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
-#+(or abcl clisp clozure cmu ecl mkcl sbcl)
+#+(or abcl clasp clisp clozure cmu ecl mkcl sbcl)
 (with-upgradability ()
   (if-let (x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom nil)))
     (eval `(pushnew 'module-provide-asdf
                     #+abcl sys::*module-provider-functions*
+                    #+(or clasp cmu ecl) ext:*module-provider-functions*
                     #+clisp ,x
                     #+clozure ccl:*module-provider-functions*
-                    #+(or cmu ecl) ext:*module-provider-functions*
                     #+mkcl mk-ext:*module-provider-functions*
                     #+sbcl sb-ext:*module-provider-functions*)))
 
-  #+(or ecl mkcl)
+  #+(or clasp ecl mkcl)
   (progn
     (pushnew '("fasb" . si::load-binary) si::*load-hooks* :test 'equal :key 'car)
 
-    #+(or (and ecl win32) (and mkcl windows))
-    (unless (assoc "asd" #+ecl ext:*load-hooks* #+mkcl si::*load-hooks* :test 'equal)
-      (appendf #+ecl ext:*load-hooks* #+mkcl si::*load-hooks* '(("asd" . si::load-source))))
+    #+(or (and clasp windows) (and ecl win32) (and mkcl windows))
+    (unless (assoc "asd" #+(or clasp ecl) ext:*load-hooks* #+mkcl si::*load-hooks* :test 'equal)
+      (appendf #+(or clasp ecl) ext:*load-hooks* #+mkcl si::*load-hooks* '(("asd" . si::load-source))))
 
-    (setf #+ecl ext:*module-provider-functions* #+mkcl mk-ext::*module-provider-functions*
-          (loop :for f :in #+ecl ext:*module-provider-functions*
+    (setf #+(or clasp ecl) ext:*module-provider-functions* #+mkcl mk-ext::*module-provider-functions*
+          (loop :for f :in #+(or clasp ecl) ext:*module-provider-functions*
                 #+mkcl mk-ext::*module-provider-functions*
                 :collect
                 (if (eq f 'module-provide-asdf) f

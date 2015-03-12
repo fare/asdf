@@ -10,7 +10,7 @@
    :uiop/configuration)
   (:export
    #:coerce-pathname #:component-name-to-pathname-components
-   #+(or ecl mkcl) #:compile-file-keeping-object
+   #+(or clasp ecl mkcl) #:compile-file-keeping-object
    ))
 (in-package :uiop/backward-driver)
 
@@ -37,5 +37,5 @@
                unix-style-namestring))
       (values relabs path filename)))
 
-  #+(or ecl mkcl)
+  #+(or clasp ecl mkcl)
   (defun compile-file-keeping-object (&rest args) (apply #'compile-file* args)))

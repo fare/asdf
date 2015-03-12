@@ -7,9 +7,9 @@
   (:use :uiop/common-lisp :uiop/package)
   ;; import and reexport a few things defined in :uiop/common-lisp
   (:import-from :uiop/common-lisp #:compatfmt #:loop* #:frob-substrings
-   #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
+   #+(or clasp ecl) #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export #:compatfmt #:loop* #:frob-substrings #:compatfmt
-   #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
+   #+(or clasp ecl) #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
@@ -72,9 +72,9 @@
               `(progn
                  ;; We usually try to do it only for the functions that need it,
                  ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
-                 ,@(when (or supersede #+ecl t)
+                 ,@(when (or supersede #+(or clasp ecl) t)
                      `((undefine-function ',name)))
-                 ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
+                 ,@(when (and #+(or clasp ecl) (symbolp name)) ; fails for setf functions on ecl
                      `((declaim (notinline ,name))))
                  (,',def ,name ,formals ,@rest))))))
     (defdef defgeneric* defgeneric)
@@ -548,10 +548,10 @@ with later being determined by a lexicographical comparison of minor numbers."
     #+clisp 'system::$format-control
     #+clozure 'ccl::format-control
     #+(or cmu scl) 'conditions::format-control
-    #+(or ecl mkcl) 'si::format-control
+    #+(or clasp ecl mkcl) 'si::format-control
     #+(or gcl lispworks) 'conditions::format-string
     #+sbcl 'sb-kernel:format-control
-    #-(or abcl allegro clisp clozure cmu ecl gcl lispworks mkcl sbcl scl) nil
+    #-(or abcl allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl) nil
     "Name of the slot for FORMAT-CONTROL in simple-condition")
 
   (defun match-condition-p (x condition)

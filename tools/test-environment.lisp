@@ -141,7 +141,7 @@
 
 (defparameter *default-test-lisps*
   '(:ccl :clisp :sbcl :ecl :ecl_bytecodes :cmucl :abcl :scl :allegro
-    :lispworks :allegromodern :gcl :xcl :mkcl)
+    :lispworks :allegromodern :clasp :gcl :xcl :mkcl)
   ;; NOT SUPPORTED BY OUR AUTOMATED TESTS:
   ;; :cormancl :genera :lispworks-personal-edition :mcl
   ;; Also, grep for #+/#- features in the test/ directory

@@ -67,26 +67,27 @@ This can help you produce more deterministic output for FASLs."))
         #+clozure '(ccl::*nx-speed* ccl::*nx-space* ccl::*nx-safety*
                     ccl::*nx-debug* ccl::*nx-cspeed*)
         #+(or cmu scl) '(c::*default-cookie*)
-        #+ecl (unless (use-ecl-byte-compiler-p) '(c::*speed* c::*space* c::*safety* c::*debug*))
+        #+(and ecl (not clasp)) (unless (use-ecl-byte-compiler-p) '(c::*speed* c::*space* c::*safety* c::*debug*))
+        #+clasp '()
         #+gcl '(compiler::*speed* compiler::*space* compiler::*compiler-new-safety* compiler::*debug*)
         #+lispworks '(compiler::*optimization-level*)
         #+mkcl '(si::*speed* si::*space* si::*safety* si::*debug*)
         #+sbcl '(sb-c::*policy*)))
   (defun get-optimization-settings ()
     "Get current compiler optimization settings, ready to PROCLAIM again"
-    #-(or abcl allegro clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
     (warn "~S does not support ~S. Please help me fix that."
           'get-optimization-settings (implementation-type))
-    #+(or abcl allegro clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
+    #+(or abcl allegro clasp clisp clozure cmu ecl lispworks mkcl sbcl scl xcl)
     (let ((settings '(speed space safety debug compilation-speed #+(or cmu scl) c::brevity)))
       #.`(loop #+(or allegro clozure)
                ,@'(:with info = #+allegro (sys:declaration-information 'optimize)
                    #+clozure (ccl:declaration-information 'optimize nil))
                :for x :in settings
-               ,@(or #+(or abcl ecl gcl mkcl xcl) '(:for v :in +optimization-variables+))
+               ,@(or #+(or abcl clasp ecl gcl mkcl xcl) '(:for v :in +optimization-variables+))
                :for y = (or #+(or allegro clozure) (second (assoc x info)) ; normalize order
                             #+clisp (gethash x system::*optimize* 1)
-                            #+(or abcl ecl mkcl xcl) (symbol-value v)
+                            #+(or abcl clasp ecl mkcl xcl) (symbol-value v)
                             #+(or cmu scl) (slot-value c::*default-cookie*
                                                        (case x (compilation-speed 'c::cspeed)
                                                              (otherwise x)))
@@ -610,8 +611,8 @@ possibly in a different process. Otherwise just call THUNK."
   (defun compile-file-type (&rest keys)
     "pathname TYPE for lisp FASt Loading files"
     (declare (ignorable keys))
-    #-(or ecl mkcl) (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
-    #+(or ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo" keys)))
+    #-(or clasp ecl mkcl) (load-time-value (pathname-type (compile-file-pathname "foo.lisp")))
+    #+(or clasp ecl mkcl) (pathname-type (apply 'compile-file-pathname "foo" keys)))
 
   (defun call-around-hook (hook function)
     "Call a HOOK around the execution of FUNCTION"
@@ -636,7 +637,7 @@ possibly in a different process. Otherwise just call THUNK."
 
   (defun* (compile-file*) (input-file &rest keys
                                       &key (compile-check *compile-check*) output-file warnings-file
-                                      #+clisp lib-file #+(or ecl mkcl) object-file #+sbcl emit-cfasl
+                                      #+clisp lib-file #+(or clasp ecl mkcl) object-file #+sbcl emit-cfasl
                                       &allow-other-keys)
     "This function provides a portable wrapper around COMPILE-FILE.
 It ensures that the OUTPUT-FILE value is only returned and
@@ -656,21 +657,23 @@ If WARNINGS-FILE is defined, deferred warnings are saved to that file.
 On ECL or MKCL, it creates both the linkable object and loadable fasl files.
 On implementations that erroneously do not recognize standard keyword arguments,
 it will filter them appropriately."
-    #+ecl (when (and object-file (equal (compile-file-type) (pathname object-file)))
+    #+(or clasp ecl) (when (and object-file (equal (compile-file-type) (pathname object-file)))
             (format t "Whoa, some funky ASDF upgrade switched ~S calling convention for ~S and ~S~%"
                     'compile-file* output-file object-file)
             (rotatef output-file object-file))
     (let* ((keywords (remove-plist-keys
                       `(:output-file :compile-check :warnings-file
-                                     #+clisp :lib-file #+(or ecl mkcl) :object-file) keys))
+                                     #+clisp :lib-file #+(or clasp ecl mkcl) :object-file) keys))
            (output-file
              (or output-file
                  (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
-           #+ecl
+           #+(or clasp ecl)
            (object-file
              (unless (use-ecl-byte-compiler-p)
                (or object-file
-                   (compile-file-pathname output-file :type :object))))
+                   #+ecl(compile-file-pathname output-file :type :object)
+                   #+clasp (compile-file-pathname output-file :output-type :object)
+                   )))
            #+mkcl
            (object-file
              (or object-file
@@ -690,14 +693,18 @@ it will filter them appropriately."
           (with-enough-pathname (input-file :defaults *base-build-directory*)
             (with-saved-deferred-warnings (warnings-file :source-namestring (namestring input-file))
               (with-muffled-compiler-conditions ()
-                (or #-(or ecl mkcl)
+                (or #-(or clasp ecl mkcl)
                     (apply 'compile-file input-file :output-file tmp-file
                            #+sbcl (if emit-cfasl (list* :emit-cfasl tmp-cfasl keywords) keywords)
                            #-sbcl keywords)
                     #+ecl (apply 'compile-file input-file :output-file
-                                 (if object-file
-                                     (list* object-file :system-p t keywords)
-                                     (list* tmp-file keywords)))
+                                (if object-file
+                                    (list* object-file :system-p t keywords)
+                                    (list* tmp-file keywords)))
+                    #+clasp (apply 'compile-file input-file :output-file
+                                  (if object-file
+                                      (list* object-file :output-type :object #|:system-p t|# keywords)
+                                      (list* tmp-file keywords)))
                     #+mkcl (apply 'compile-file input-file
                                   :output-file object-file :fasl-p nil keywords)))))
         (cond
@@ -707,20 +714,22 @@ it will filter them appropriately."
                   (and (check-flag failure-p *compile-file-failure-behaviour*)
                        (check-flag warnings-p *compile-file-warnings-behaviour*)))
                 (progn
-                  #+(or ecl mkcl)
-                  (when (and #+ecl object-file)
+                  #+(or clasp ecl mkcl)
+                  (when (and #+(or clasp ecl) object-file)
                     (setf output-truename
-                          (compiler::build-fasl
-                           tmp-file #+ecl :lisp-files #+mkcl :lisp-object-files
-                                    (list object-file))))
+                          (compiler::build-fasl tmp-file
+                                                #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files
+                                                (list object-file))))
                   (or (not compile-check)
-                      (apply compile-check input-file :output-file tmp-file keywords))))
+                      (apply compile-check input-file :output-file #+clasp output-file #+ecl tmp-file keywords))))
            (delete-file-if-exists output-file)
            (when output-truename
+             #+clasp (when output-truename (rename-file-overwriting-target tmp-file output-truename))
              #+clisp (when lib-file (rename-file-overwriting-target tmp-lib lib-file))
              #+sbcl (when cfasl-file (rename-file-overwriting-target tmp-cfasl cfasl-file))
              (rename-file-overwriting-target output-truename output-file)
              (setf output-truename (truename output-file)))
+           #+clasp (delete-file-if-exists tmp-file)
            #+clisp (delete-file-if-exists tmp-lib))
           (t ;; error or failed check
            (delete-file-if-exists output-truename)
@@ -779,4 +788,3 @@ it will filter them appropriately."
              (scm:concatenate-system output :fasls-to-concatenate))
         (loop :for f :in fasls :do (ignore-errors (delete-file f)))
         (ignore-errors (lispworks:delete-system :fasls-to-concatenate))))))
-
