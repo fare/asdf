@@ -86,15 +86,15 @@ processed in order by OPERATE."))
        (default-toplevel-directory
         (subpathname (user-homedir-pathname) ".fasls/")) ;; Use ".cache/common-lisp/" instead ???
        (include-per-user-information nil)
-       (map-all-source-files (or #+(or clisp ecl mkcl) t nil))
+       (map-all-source-files (or #+(or clasp clisp ecl mkcl) t nil))
        (source-to-target-mappings nil)
        (file-types `(,(compile-file-type)
                      "build-report"
-                     #+ecl (compile-file-type :type :object)
+                     #+(or clasp ecl) (compile-file-type :type :object)
                      #+mkcl (compile-file-type :fasl-p nil)
                      #+clisp "lib" #+sbcl "cfasl"
                      #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
-    #+(or clisp ecl mkcl)
+    #+(or clasp clisp ecl mkcl)
     (when (null map-all-source-files)
       (error "asdf:enable-asdf-binary-locations-compatibility doesn't support :map-all-source-files nil on CLISP, ECL and MKCL"))
     (let* ((patterns (if map-all-source-files (list *wild-file*)

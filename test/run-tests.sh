@@ -229,6 +229,10 @@ case "$lisp" in
     flags="--no-init --quiet"
     nodebug="--batch"
     eval="--eval" ;;
+  clasp)
+    command="${CLASP:-clasp}"
+    flags=""
+    eval="" ;;
   clisp)
     command="${CLISP:-clisp}"
     flags="-norc --silent -ansi -I "

@@ -26,7 +26,7 @@
     ((build-args :initarg :args :initform nil :accessor extra-build-args)
      (name-suffix :initarg :name-suffix :initform nil)
      (bundle-type :initform :no-output-file :reader bundle-type)
-     #+ecl (lisp-files :initform nil :accessor extra-object-files)))
+     #+(or clasp ecl) (lisp-files :initform nil :accessor extra-object-files)))
 
   (defclass monolithic-op (operation) ()
     (:documentation "A MONOLITHIC operation operates on a system *and all of its
@@ -89,16 +89,18 @@ itself.")) ;; operation on a system and its dependencies
     ((bundle-type :initform :fasl)))
 
   (defclass prepare-bundle-op (sideway-operation)
-    ((sideway-operation :initform #+(or ecl mkcl) 'load-bundle-op #-(or ecl mkcl) 'load-op
-                        :allocation :class)))
+    ((sideway-operation
+      :initform #+(or clasp ecl mkcl) 'load-bundle-op #-(or clasp ecl mkcl) 'load-op
+      :allocation :class)))
 
   (defclass lib-op (link-op gather-op non-propagating-operation)
     ((bundle-type :initform :lib))
     (:documentation "compile the system and produce linkable (.a) library for it."))
 
   (defclass compile-bundle-op (basic-compile-bundle-op selfward-operation
-                               #+(or ecl mkcl) link-op #-ecl gather-op)
-    ((selfward-operation :initform '(prepare-bundle-op #+ecl lib-op) :allocation :class)))
+                               #+(or clasp ecl mkcl) link-op #-(or clasp ecl) gather-op)
+    ((selfward-operation :initform '(prepare-bundle-op #+(or clasp ecl) lib-op)
+                         :allocation :class)))
 
   (defclass load-bundle-op (basic-load-op selfward-operation)
     ((selfward-operation :initform '(prepare-bundle-op compile-bundle-op) :allocation :class)))
@@ -113,18 +115,19 @@ itself.")) ;; operation on a system and its dependencies
     (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
 
   (defclass deliver-asd-op (basic-compile-op selfward-operation)
-    ((selfward-operation :initform '(compile-bundle-op #+(or ecl mkcl) lib-op) :allocation :class))
+    ((selfward-operation :initform '(compile-bundle-op #+(or clasp ecl mkcl) lib-op) :allocation :class))
     (:documentation "produce an asd file for delivering the system as a single fasl"))
 
 
   (defclass monolithic-deliver-asd-op (monolithic-bundle-op deliver-asd-op)
-    ((selfward-operation :initform '(monolithic-compile-bundle-op #+(or ecl mkcl) monolithic-lib-op)
-                         :allocation :class))
+    ((selfward-operation
+      :initform '(monolithic-compile-bundle-op #+(or clasp ecl mkcl) monolithic-lib-op)
+      :allocation :class))
     (:documentation "produce fasl and asd files for combined system and dependencies."))
 
   (defclass monolithic-compile-bundle-op (monolithic-bundle-op basic-compile-bundle-op
-                                          #+(or ecl mkcl) link-op gather-op non-propagating-operation)
-    ((gather-op :initform #+(or ecl mkcl) 'lib-op #-(or ecl mkcl) 'compile-bundle-op :allocation :class))
+                                          #+(or clasp ecl mkcl) link-op gather-op non-propagating-operation)
+    ((gather-op :initform #+(or clasp ecl mkcl) 'lib-op #-(or clasp ecl mkcl) 'compile-bundle-op :allocation :class))
     (:documentation "Create a single fasl for the system and its dependencies."))
 
   (defclass monolithic-load-bundle-op (monolithic-bundle-op load-bundle-op)
@@ -139,9 +142,9 @@ itself.")) ;; operation on a system and its dependencies
     (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
 
   (defclass image-op (monolithic-bundle-op selfward-operation
-                      #+(or ecl mkcl) link-op #+(or ecl mkcl) gather-op)
+                      #+(or clasp ecl mkcl) link-op #+(or clasp ecl mkcl) gather-op)
     ((bundle-type :initform :image)
-     (selfward-operation :initform '(#-(or ecl mkcl) load-op) :allocation :class))
+     (selfward-operation :initform '(#-(or clasp ecl mkcl) load-op) :allocation :class))
     (:documentation "create an image file from the system and its dependencies"))
 
   (defclass program-op (image-op)
@@ -152,8 +155,8 @@ itself.")) ;; operation on a system and its dependencies
     (etypecase bundle-type
       ((eql :no-output-file) nil) ;; should we error out instead?
       ((or null string) bundle-type)
-      ((eql :fasl) #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")
-      #+ecl
+      ((eql :fasl) #-(or clasp ecl mkcl) (compile-file-type) #+(or clasp ecl mkcl) "fasb")
+      #+(or clasp ecl)
       ((member :dll :lib :shared-library :static-library :program :object :program)
        (compile-file-type :type bundle-type))
       ((member :image) #-allegro "image" #+allegro "dxl")
@@ -175,7 +178,7 @@ itself.")) ;; operation on a system and its dependencies
   (defmethod output-files ((o bundle-op) (c system))
     (bundle-output-files o c))
 
-  #-(or ecl mkcl)
+  #-(or clasp ecl mkcl)
   (progn
     (defmethod perform ((o image-op) (c system))
       (dump-image (output-file o c) :executable (typep o 'program-op)))
@@ -183,7 +186,7 @@ itself.")) ;; operation on a system and its dependencies
       (setf *image-entry-point* (ensure-function (component-entry-point c)))))
 
   (defclass compiled-file (file-component)
-    ((type :initform #-(or ecl mkcl) (compile-file-type) #+(or ecl mkcl) "fasb")))
+    ((type :initform #-(or clasp ecl mkcl) (compile-file-type) #+(or clasp ecl mkcl) "fasb")))
 
   (defclass precompiled-system (system)
     ((build-pathname :initarg :fasl)))
@@ -209,15 +212,16 @@ itself.")) ;; operation on a system and its dependencies
     (unless name-suffix-p
       (setf (slot-value instance 'name-suffix)
             (unless (typep instance 'program-op)
-              (if (operation-monolithic-p instance) "--all-systems" #-(or ecl mkcl) "--system")))) ; . no good for Logical Pathnames
+              ;; "." is no good separator for Logical Pathnames, so we use "--"
+              (if (operation-monolithic-p instance) "--all-systems" #-(or clasp ecl mkcl) "--system"))))
     (when (typep instance 'monolithic-bundle-op)
       (destructuring-bind (&key lisp-files prologue-code epilogue-code
                            &allow-other-keys)
           (operation-original-initargs instance)
         (setf (prologue-code instance) prologue-code
               (epilogue-code instance) epilogue-code)
-        #-ecl (assert (null (or lisp-files #-mkcl epilogue-code #-mkcl prologue-code)))
-        #+ecl (setf (extra-object-files instance) lisp-files)))
+        #-(or clasp ecl) (assert (null (or lisp-files #-mkcl epilogue-code #-mkcl prologue-code)))
+        #+(or clasp ecl) (setf (extra-object-files instance) lisp-files)))
     (setf (extra-build-args instance)
           (remove-plist-keys
            '(:type :monolithic :name-suffix :epilogue-code :prologue-code :lisp-files
@@ -227,8 +231,8 @@ itself.")) ;; operation on a system and its dependencies
   (defun bundlable-file-p (pathname)
     (let ((type (pathname-type pathname)))
       (declare (ignorable type))
-      (or #+ecl (or (equalp type (compile-file-type :type :object))
-                    (equalp type (compile-file-type :type :static-library)))
+      (or #+(or clasp ecl) (or (equalp type (compile-file-type :type :object))
+                               (equalp type (compile-file-type :type :static-library)))
           #+mkcl (or (equalp type (compile-file-type :fasl-p nil))
                      #+(or unix mingw32 mingw64) (equalp type "a") ;; valid on Unix and MinGW
                      #+(and windows (not (or mingw32 mingw64))) (equalp type "lib"))
@@ -427,7 +431,7 @@ itself.")) ;; operation on a system and its dependencies
                   s)
           (terpri s)))))
 
-  #-(or ecl mkcl)
+  #-(or clasp ecl mkcl)
   (defmethod perform ((o basic-compile-bundle-op) (c system))
     (let* ((input-files (input-files o c))
            (fasl-files (remove (compile-file-type) input-files :key #'pathname-type :test-not #'equalp))
@@ -461,26 +465,29 @@ itself.")) ;; operation on a system and its dependencies
 (asdf:load-system :precompiled-asdf-utils)
 |#
 
-#+(or ecl mkcl)
+#+(or clasp ecl mkcl)
 (with-upgradability ()
   ;; I think that Juanjo intended for this to be,
   ;; but beware the weird bug in test-xach-update-bug.script,
   ;; and also it makes mkcl fail test-logical-pathname.script,
   ;; and ecl fail test-bundle.script.
-  ;;(unless (or #+ecl (use-ecl-byte-compiler-p))
+  ;;(unless (or #+(or clasp ecl) (use-ecl-byte-compiler-p))
   ;;  (setf *load-system-operation* 'load-bundle-op))
 
   (defun uiop-library-pathname ()
+    #+clasp (probe-file* (compile-file-pathname "sys:uiop" :output-type :object))
     #+ecl (or (probe-file* (compile-file-pathname "sys:uiop" :type :lib)) ;; new style
               (probe-file* (compile-file-pathname "sys:uiop" :type :object))) ;; old style
     #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;uiop"))
 
   (defun asdf-library-pathname ()
+    #+clasp (probe-file* (compile-file-pathname "sys:asdf" :output-type :object))
     #+ecl (or (probe-file* (compile-file-pathname "sys:asdf" :type :lib)) ;; new style
               (probe-file* (compile-file-pathname "sys:asdf" :type :object))) ;; old style
     #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;asdf"))
 
   (defun compiler-library-pathname ()
+    #+clasp (compile-file-pathname "sys:cmp" :output-type :lib)
     #+ecl (compile-file-pathname "sys:cmp" :type :lib)
     #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:cmp"))
 
@@ -525,7 +532,7 @@ itself.")) ;; operation on a system and its dependencies
                (when programp `(:entry-point ,(component-entry-point c))))))))
 
 #+(and (not asdf-use-unsafe-mac-bundle-op)
-       (or (and ecl darwin)
+       (or (and clasp ecl darwin)
            (and abcl darwin (not abcl-bundle-op-supported))))
 (defmethod perform :before ((o basic-compile-bundle-op) (c component))
   (unless (featurep :asdf-use-unsafe-mac-bundle-op)

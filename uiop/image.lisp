@@ -65,11 +65,11 @@ This is designed to abstract away the implementation specific quit forms."
       (finish-outputs))
     #+(or abcl xcl) (ext:quit :status code)
     #+allegro (excl:exit code :quiet t)
+    #+(or clasp ecl) (si:quit code)
     #+clisp (ext:quit code)
     #+clozure (ccl:quit code)
     #+cormanlisp (win32:exitprocess code)
     #+(or cmu scl) (unix:unix-exit code)
-    #+ecl (si:quit code)
     #+gcl (system:quit code)
     #+genera (error "~S: You probably don't want to Halt Genera. (code: ~S)" 'quit code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
@@ -80,7 +80,7 @@ This is designed to abstract away the implementation specific quit forms."
                (cond
                  (exit `(,exit :code code :abort (not finish-output)))
                  (quit `(,quit :unix-status code :recklessly-p (not finish-output)))))
-    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
     (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
   (defun die (code format &rest arguments)
@@ -107,6 +107,15 @@ This is designed to abstract away the implementation specific quit forms."
         :from-read-eval-print-loop nil
         :count (or count t)
         :all t))
+    #+(or clasp ecl mkcl)
+    (let* ((top (si:ihs-top))
+           (repeats (if count (min top count) top))
+           (backtrace (loop :for ihs :from 0 :below top
+                            :collect (list (si::ihs-fun ihs)
+                                           (si::ihs-env ihs)))))
+      (loop :for i :from 0 :below repeats
+            :for frame :in (nreverse backtrace) :do
+              (safe-format! stream "~&~D: ~S~%" i frame)))
     #+clisp
     (system::print-backtrace :out stream :limit count)
     #+(or clozure mcl)
@@ -118,15 +127,6 @@ This is designed to abstract away the implementation specific quit forms."
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
       (debug:backtrace (or count most-positive-fixnum) stream))
-    #+(or ecl mkcl)
-    (let* ((top (si:ihs-top))
-           (repeats (if count (min top count) top))
-           (backtrace (loop :for ihs :from 0 :below top
-                            :collect (list (si::ihs-fun ihs)
-                                           (si::ihs-env ihs)))))
-      (loop :for i :from 0 :below repeats
-            :for frame :in (nreverse backtrace) :do
-              (safe-format! stream "~&~D: ~S~%" i frame)))
     #+gcl
     (let ((*debug-io* stream))
       (ignore-errors
@@ -226,17 +226,17 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     "Find what the actual command line for this process was."
     #+abcl ext:*command-line-argument-list* ; Use 1.0.0 or later!
     #+allegro (sys:command-line-arguments) ; default: :application t
+    #+(or clasp ecl) (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
     #+clisp (coerce (ext:argv) 'list)
     #+clozure ccl:*command-line-argument-list*
     #+(or cmu scl) extensions:*command-line-strings*
-    #+ecl (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
     #+gcl si:*command-args*
     #+(or genera mcl) nil
     #+lispworks sys:*line-arguments-list*
     #+mkcl (loop :for i :from 0 :below (mkcl:argc) :collect (mkcl:argv i))
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
-    #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
     (error "raw-command-line-arguments not implemented yet"))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
@@ -267,7 +267,7 @@ Otherwise, return NIL."
        ;; NB: not currently available on ABCL, Corman, Genera, MCL
        (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
            (first (raw-command-line-arguments))
-           #+ecl (si:argv 0) #+mkcl (mkcl:argv 0)))
+           #+(or clasp ecl) (si:argv 0) #+mkcl (mkcl:argv 0)))
       (t ;; argv[0] is the name of the interpreter.
        ;; The wrapper script can export __CL_ARGV0. cl-launch does as of 4.0.1.8.
        (getenvp "__CL_ARGV0"))))
@@ -427,37 +427,38 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,
     ;; and otherwise simulate dump-image, including quitting at the end.
-    #-(or ecl mkcl) (error "~S not implemented for your implementation (yet)" 'create-image)
-    #+(or ecl mkcl)
+    #-(or clasp ecl mkcl) (error "~S not implemented for your implementation (yet)" 'create-image)
+    #+(or clasp ecl mkcl)
     (let ((epilogue-code
-            (if no-uiop
-                epilogue-code
-                (let ((forms
-                        (append
-                         (when epilogue-code `(,epilogue-code))
-                         (when postludep `((setf *image-postlude* ',postlude)))
-                         (when preludep `((setf *image-prelude* ',prelude)))
-                         (when entry-point-p `((setf *image-entry-point* ',entry-point)))
-                         (case kind
-                           ((:image)
-                            (setf kind :program) ;; to ECL, it's just another program.
-                            `((setf *image-dumped-p* t)
-                              (si::top-level #+ecl t) (quit)))
-                           ((:program)
-                            `((setf *image-dumped-p* :executable)
-                              (shell-boolean-exit
-                               (restore-image))))))))
-                  (when forms `(progn ,@forms))))))
-      #+ecl (check-type kind (member :dll :lib :static-library :program :object :fasl))
-      (apply #+ecl 'c::builder #+ecl kind
+           (if no-uiop
+               epilogue-code
+               (let ((forms
+                      (append
+                       (when epilogue-code `(,epilogue-code))
+                       (when postludep `((setf *image-postlude* ',postlude)))
+                       (when preludep `((setf *image-prelude* ',prelude)))
+                       (when entry-point-p `((setf *image-entry-point* ',entry-point)))
+                       (case kind
+                         ((:image)
+                          (setf kind :program) ;; to ECL, it's just another program.
+                          `((setf *image-dumped-p* t)
+                            (si::top-level #+(or clasp ecl) t) (quit)))
+                         ((:program)
+                          `((setf *image-dumped-p* :executable)
+                            (shell-boolean-exit
+                             (restore-image))))))))
+                 (when forms `(progn ,@forms))))))
+      #+(or clasp ecl) (check-type kind (member :dll :lib :static-library :program :object :fasl))
+      (apply #+clasp 'cmp:builder #+clasp kind
+             #+(or ecl (not clasp)) 'c::builder #+(or ecl (not clasp)) kind
              #+mkcl (ecase kind
                       ((:dll) 'compiler::build-shared-library)
                       ((:lib :static-library) 'compiler::build-static-library)
                       ((:fasl) 'compiler::build-bundle)
                       ((:program) 'compiler::build-program))
              (pathname destination)
-             #+ecl :lisp-files #+mkcl :lisp-object-files (append lisp-object-files #+ecl extra-object-files)
-             #+ecl :init-name #+ecl (c::compute-init-name (or output-name destination) :kind kind)
+             #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (append lisp-object-files #+(or clasp ecl) extra-object-files)
+             #+(or clasp ecl) :init-name #+(or clasp ecl) (c::compute-init-name (or output-name destination) :kind kind)
              (append
               (when prologue-code `(:prologue-code ,prologue-code))
               (when epilogue-code `(:epilogue-code ,epilogue-code))

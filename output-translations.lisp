@@ -139,7 +139,7 @@ and the order is by decreasing length of namestring of the source pathname.")
     `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
     ;; so we must disable translations for implementation paths.
-      #+(or #|clozure|# ecl mkcl sbcl)
+      #+(or clasp #|clozure|# ecl mkcl sbcl)
       ,@(let ((h (resolve-symlinks* (lisp-implementation-directory))))
           (when h `(((,h ,*wild-path*) ()))))
       #+mkcl (,(translate-logical-pathname "CONTRIB:") ())

@@ -54,16 +54,16 @@ It notably doesn't work on:
 
 (defun module-directory ()
   #+allegro #p"sys:code;"
+  #+(or clasp ecl mkcl) #p"sys:"
   #+clisp (subpathname custom:*lib-directory* "asdf/")
   #+clozure #p"ccl:tools;"
   #+cmu #p"modules:asdf/"
-  #+(or ecl mkcl) #p"sys:"
   #+gcl (subpathname system:*system-directory* "../modules/")
   #+lispworks (system:lispworks-dir "load-on-demand/utilities/")
   #+sbcl (subpathname (sb-int:sbcl-homedir-pathname) "contrib/")
   #+scl #p"file://modules/"
   #+xcl ext:*xcl-home*
-  #-(or allegro clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
+  #-(or allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
   (error "module-directory not implemented on ~A" (implementation-type)))
 
 (defun module-fasl (name)
@@ -76,17 +76,17 @@ It notably doesn't work on:
                (t -1)))))
     (first (sort (directory (merge-pathnames* (strcat name ".*") (module-directory)))
                  #'> :key #'pathname-key)))
-  #+(or clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
+  #+(or clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
   (compile-file-pathname (subpathname (truename (module-directory)) name :type "lisp"))
-  #-(or allegro clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
+  #-(or allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
   (error "Not implemented on ~A" (implementation-type)))
 
 (defun uiop-module-fasl () (module-fasl "uiop"))
 (defun asdf-module-fasl () (module-fasl "asdf"))
 
 (defun object-file (name &optional (type :object))
-  #-(or ecl mkcl) (progn name type (assert nil))
-  #+ecl (compile-file-pathname name :type type)
+  #-(or clasp ecl mkcl) (progn name type (assert nil))
+  #+(or clasp ecl) (compile-file-pathname name :type type)
   #+mkcl (make-pathname :defaults name :type (bundle-pathname-type type)))
 
 (defun call-with-file-replacement (file thunk)
@@ -105,14 +105,14 @@ It notably doesn't work on:
   (nest
    (let* ((asdf.lisp (system-relative-pathname :uiop "../build/asdf.lisp"))
           (asdf.fasl (asdf-module-fasl))
-          #+(or ecl mkcl) (asdf.o (object-file asdf.fasl :object))
-          #+(or ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
+          #+(or clasp ecl mkcl) (asdf.o (object-file asdf.fasl :object))
+          #+(or clasp ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
    (with-file-replacement (asdf.fasl))
-   #+(or ecl mkcl) (with-file-replacement (asdf.o))
-   #+(or ecl mkcl) (with-file-replacement (asdf.a))
+   #+(or clasp ecl mkcl) (with-file-replacement (asdf.o))
+   #+(or clasp ecl mkcl) (with-file-replacement (asdf.a))
    (progn
      (compile-file* asdf.lisp :output-file asdf.fasl
-                    #+(or ecl mkcl) :object-file #+(or ecl mkcl) asdf.o)
+                    #+(or clasp ecl mkcl) :object-file #+(or clasp ecl mkcl) asdf.o)
      #+(or ecl mkcl)
      (create-image asdf.a (list asdf.o) :kind :lib))))
 
@@ -122,7 +122,7 @@ It notably doesn't work on:
       (operate 'compile-bundle-op "uiop")
       (rename-file-overwriting-target (first (output-files 'compile-bundle-op "uiop")) uiop.fasl)
       (load uiop.fasl))
-    #+(or ecl mkcl)
+    #+(or clasp ecl mkcl)
     (let ((uiop.a (object-file asdf.fasl :lib)))
       (with-file-replacement (uiop.a)
         (operate 'lib-op "uiop")
@@ -130,12 +130,12 @@ It notably doesn't work on:
   (nest
    (let* ((asdf.fasl (asdf-module-fasl))
           (asdf.lisp (make-pathname :type "lisp" :defaults asdf.fasl))
-          #+(or ecl mkcl) (asdf.o (object-file asdf.fasl :object))
-          #+(or ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
+          #+(or clasp ecl mkcl) (asdf.o (object-file asdf.fasl :object))
+          #+(or clasp ecl mkcl) (asdf.a (object-file asdf.fasl :lib))))
    (with-file-replacement (asdf.lisp))
    (with-file-replacement (asdf.fasl))
-   #+(or ecl mkcl) (with-file-replacement (asdf.o))
-   #+(or ecl mkcl) (with-file-replacement (asdf.a))
+   #+(or clasp ecl mkcl) (with-file-replacement (asdf.o))
+   #+(or clasp ecl mkcl) (with-file-replacement (asdf.a))
    (progn
      (with-output-file (o asdf.lisp :if-exists :rename-and-delete :if-does-not-exist :create)
        (println "(cl:require \"uiop\")" o)
@@ -143,13 +143,13 @@ It notably doesn't work on:
          (with-input-file (i (component-pathname c))
            (copy-stream-to-stream i o))))
      (compile-file* asdf.lisp :output-file asdf.fasl
-                    #+(or ecl mkcl) :object-file #+(or ecl mkcl) asdf.o)
-     #+(or ecl mkcl)
+                    #+(or clasp ecl mkcl) :object-file #+(or clasp ecl mkcl) asdf.o)
+     #+(or clasp ecl mkcl)
      (create-image asdf.a (list asdf.o) :kind :lib)))))
 
 #+(or sbcl mkcl)
 (progn (install-uiop-and-asdf-as-modules) (quit))
-#+(or allegro clisp clozure cmu ecl gcl lispworks scl xcl)
+#+(or allegro clasp clisp clozure cmu ecl gcl lispworks scl xcl)
 (progn (install-asdf-as-module) (quit))
 #+(or abcl cormanlisp genera  mcl mocl)
 (die 2 "Not supported on ~A" (implementation-type))
