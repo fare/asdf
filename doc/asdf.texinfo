@@ -2319,9 +2319,17 @@ An operation @emph{may} provide methods for the following generic functions:
 @findex input-files
 A method for this function is often not needed,
 since ASDF has a pretty clever default @code{input-files} mechanism.
-You only need create a method if there are multiple ultimate input files,
-and/or the bottom one doesn't depend
-on the @code{component-pathname} of the component.
+You only need create a method if there are multiple ultimate input
+files.
+Most operations inherit from @code{selfward-operation}, which
+appropriately sets the input-files to include the source file itself.
+
+@c FIXME: Add documentation of built-in operation types.
+
+@defun input-files operation component
+Return a list of pathnames that represent the input to @var{operation}
+performed on @var{component}.
+@end defun
 
 @item @code{operation-done-p}
 @findex operation-done-p
@@ -2754,6 +2762,29 @@ Note that the @code{defsystem} macro (used to create a ``top-level'' system)
 does additional processing to set the filesystem location of
 the top component in that system.
 This is detailed elsewhere. @xref{Defining systems with defsystem}.
+
+To find the CL pathname corresponding to a component, use
+
+@defun component-pathname component
+Returns the pathname corresponding to @var{component}.  For components
+such as source files, this will be a filename pathname.  For example:
+
+@lisp
+CL-USER> (asdf:component-pathname (asdf:find-system "xmls"))
+#P"/Users/rpg/lisp/xmls/"
+@end lisp
+
+and
+
+@lisp
+CL-USER> (asdf:component-pathname
+           (asdf:find-component
+              (asdf:find-system "xmls") "xmls"))
+#P"/Users/rpg/lisp/xmls/xmls.lisp"
+@end lisp
+@end defun
+
+
 
 
 @subsubsection properties

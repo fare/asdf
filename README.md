@@ -8,8 +8,8 @@ ASDF is the de facto standard build facility for Common Lisp.
 Your Lisp implementation probably contains a copy of ASDF,
 which you can load using `(require "asdf")`.
 
-If you come from the C/C++ world, the function ASDF covers a bit of what
-each of make, autoconf, dlopen and libc do for C programs:
+If you come from the C/C++ world, the ASDF covers a bit of what each of
+make, autoconf, dlopen and libc do for C programs:
 it orchestrates the compilation and dependency management,
 handles some of the portability issues, dynamically finds and loads code,
 and offers some portable system access.
@@ -18,8 +18,7 @@ though it requires acquiring some basic concepts.
 Importantly, ASDF builds all software in the current Lisp image.
 
 To use ASDF, read our manual:
-
-    http://common-lisp.net/project/asdf/asdf.html
+    <http://common-lisp.net/project/asdf/asdf.html>
 
 The first few sections, Loading ASDF, Configuring ASDF and Using ASDF,
 will get you started as a simple user.
@@ -37,8 +36,7 @@ Its documentation unhappily lies mainly in the source code and docstrings.
 See [`uiop/README.md`](uiop/README.md) for an introduction.
 
 More information and additional links can be found on ASDF's home page at:
-
-    http://common-lisp.net/project/asdf/
+    <http://common-lisp.net/project/asdf/>
 
 
 Quick Start
@@ -85,8 +83,8 @@ inferior-shell, lisp-invocation, named-readtables, optima.
 If you are a CL developer, you may already have them, or may want
 to use your own tools to download a version of them you control.
 If you use Quicklisp, you may let Quicklisp download those you don't have.
-In these cases, you do NOT want to use
-However, if you want to let ASDF download known-working versions
+In these cases, you do NOT want to use the git submodules from make ext.
+Otherwise, if you want to let ASDF download known-working versions
 of its dependencies, you can do it with:
 
     make ext
@@ -106,6 +104,10 @@ To load ASDF in such a way that M-. will work, install the source code, and run:
     (map () 'load ;; loading asdf/defsystem is tricky
      (mapcar 'asdf:component-pathname
       (asdf::required-components :asdf/defsystem :keep-component 'asdf:cl-source-file)))
+
+Note that the above can be adapted in a general to get all the files in a system, in order.
+To also have the files in systems it depends on, add the `:other-systems t` keyword argument
+to the call to `asdf::required-components`.
 
 
 What has changed?
@@ -157,7 +159,7 @@ How do I navigate this source directory?
 
 * `doc/`
     * documentation for ASDF, including:
-        * `index.html` -- the web page for http://common-lisp.net/project/asdf/
+        * `index.html` -- the web page for <http://common-lisp.net/project/asdf/>
         * `asdf.texinfo` -- our manual
         * `Makefile` -- how to build the manual
         * `cclan.png` `lisp-logo120x80.png` `style.css` `favicon.ico`
@@ -192,4 +194,4 @@ How do I navigate this source directory?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Thursday, September 11th, 2014.
+Last updated Sunday, March 22nd, 2015.
