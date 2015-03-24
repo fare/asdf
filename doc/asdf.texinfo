@@ -63,11 +63,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 @end copying
 
-
+@include version.texinfo
 
 @titlepage
 @title ASDF: Another System Definition Facility
-
+@subtitle Manual for Version @value{VERSION}
 @c The following two commands start the copyright page.
 @page
 @vskip 0pt plus 1filll
@@ -83,6 +83,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 @node Top, Introduction, (dir), (dir)
 @top ASDF: Another System Definition Facility
+@ifnottex
+Manual for Version @value{VERSION}
+@end ifnottex
+
 
 @insertcopying
 
