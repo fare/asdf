@@ -7,6 +7,7 @@
   (:use :uiop/common-lisp :uiop/package :uiop/utility)
   (:export
    #:featurep #:os-unix-p #:os-macosx-p #:os-windows-p #:os-genera-p #:detect-os ;; features
+   #:os-cond
    #:getenv #:getenvp ;; environment variables
    #:implementation-identifier ;; implementation identifier
    #:implementation-type #:*implementation-type*
@@ -73,6 +74,10 @@ except on ABCL where it might change between FASL compilation and runtime."
            (return (or o (error "Congratulations for trying ASDF on an operating system~%~
 that is neither Unix, nor Windows, nor Genera, nor even old MacOS.~%Now you port it.")))))
 
+  (defmacro os-cond (&rest clauses)
+    #+abcl `(cond ,@clauses)
+    #-abcl (loop* :for (test . body) :in clauses :when (eval test) :return `(progn ,@body)))
+
   (detect-os))
 
 ;;;; Environment variables: getting them, and parsing them.
@@ -109,20 +114,19 @@ use getenvp to return NIL in such a case."
     #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
     (error "~S is not supported on your implementation" 'getenv))
 
-
-    (defsetf getenv (x) (val)
+  (defsetf getenv (x) (val)
     "Set an environment variable."
       (declare (ignorable x val))
-    #+clisp `(system::setenv ,x ,val)
-    #+ecl `(ext:setenv ,x ,val)
     #+allegro `(setf (sys:getenv ,x) ,val)
+    #+clisp `(system::setenv ,x ,val)
     #+clozure `(ccl:setenv ,x ,val)
     #+cmu `(unix:unix-setenv ,x ,val 1)
+    #+ecl `(ext:setenv ,x ,val)
     #+lispworks `(hcl:setenv ,x ,val)
     #+mkcl `(mkcl:setenv ,x ,val)
     #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
-    #-(or allegro clisp clozure ecl lispworks mkcl sbcl cmu)
-    '(error "SETF ~S is not supported on your implementation" 'getenv))
+    #-(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
+    '(error "~S ~S is not supported on your implementation" 'setf 'getenv))
 
   (defun getenvp (x)
     "Predicate that is true if the named variable is present in the libc environment,

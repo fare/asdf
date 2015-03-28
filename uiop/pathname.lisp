@@ -404,9 +404,9 @@ For an empty type, *UNSPECIFIC-PATHNAME-TYPE* is returned."
     "Coerce NAME into a PATHNAME using standard Unix syntax.
 
 Unix syntax is used whether or not the underlying system is Unix;
-on such non-Unix systems it is only usable but for relative pathnames;
-but especially to manipulate relative pathnames portably, it is of crucial
-to possess a portable pathname syntax independent of the underlying OS.
+on such non-Unix systems it is reliably usable only for relative pathnames.
+This function is especially useful to manipulate relative pathnames portably,
+where it is of crucial to possess a portable pathname syntax independent of the underlying OS.
 This is what PARSE-UNIX-NAMESTRING provides, and why we use it in ASDF.
 
 When given a PATHNAME object, just return it untouched.

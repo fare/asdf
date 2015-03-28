@@ -104,7 +104,7 @@ for use within a POSIX Bourne shell, outputing to S."
 
   (defun escape-shell-token (token &optional s)
     "Escape a token for the current operating system shell"
-    (cond
+    (os-cond
       ((os-unix-p) (escape-sh-token token s))
       ((os-windows-p) (escape-windows-token token s))))
 
