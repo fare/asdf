@@ -6,11 +6,12 @@
   (:recycle :uiop/backward-driver :asdf/backward-driver :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility
    :uiop/pathname :uiop/stream :uiop/os :uiop/image
-   :uiop/run-program :uiop/lisp-build
-   :uiop/configuration)
+   :uiop/run-program :uiop/lisp-build :uiop/configuration)
   (:export
    #:coerce-pathname #:component-name-to-pathname-components
    #+(or clasp ecl mkcl) #:compile-file-keeping-object
+   #:user-configuration-directories #:system-configuration-directories
+   #:in-first-directory #:in-user-configuration-directory #:in-system-configuration-directory
    ))
 (in-package :uiop/backward-driver)
 
@@ -38,4 +39,26 @@
       (values relabs path filename)))
 
   #+(or clasp ecl mkcl)
-  (defun compile-file-keeping-object (&rest args) (apply #'compile-file* args)))
+  (defun compile-file-keeping-object (&rest args) (apply #'compile-file* args))
+
+  ;; Backward compatibility for ASDF 2.27 to 3.1.4
+  (defun user-configuration-directories ()
+    "Determine user configuration directories.
+DEPRECATED. Use uiop:config-pathnames instead."
+    (config-pathnames "common-lisp"))
+  (defun system-configuration-directories ()
+    "Determine system user configuration directories.
+DEPRECATED. Use uiop:config-system-pathnames instead."
+    (config-system-pathnames "common-lisp"))
+  (defun in-first-directory (dirs x &key (direction :input))
+    "Find first file in the list of configuration DIRS with subpathname X that exists (for direction :input or :probe)
+or just the first one (for direction :output or :io). DEPRECATED."
+    (find-preferred-file
+     (mapcar #'(lambda (dir) (subpathname (ensure-directory-pathname dir) x)) dirs)
+     :direction direction))
+  (defun in-user-configuration-directory (x &key (direction :input))
+    "return pathname under user configuration directory, subpathname X. DEPRECATED."
+    (find-config-pathname "common-lisp" x direction))
+  (defun in-system-configuration-directory (x &key (direction :input))
+    "return pathname under system configuration directory, subpathname X. DEPRECATED."
+    (find-preferred-file (config-system-pathnames "common-lisp" x) :direction direction)))
