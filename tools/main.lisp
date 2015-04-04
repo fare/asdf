@@ -105,6 +105,4 @@ based on a list of targets"
   (process-arguments argv))
 
 (defun entry-point ()
-  (setf *lisp-interaction* nil)
-  (uiop:with-fatal-condition-handler ()
-    (main *command-line-arguments*)))
+  (main *command-line-arguments*))

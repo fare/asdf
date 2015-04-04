@@ -20,5 +20,7 @@
   (let ((*standard-output* (make-broadcast-stream)))
     (ql:quickload :asdf-tools)))
 
+(in-package :asdf-tools)
+
 ;;; Actually run the stuff!
-(uiop:restore-image :entry-point 'asdf-tools::entry-point)
+(restore-image :entry-point 'entry-point :lisp-interaction nil)
