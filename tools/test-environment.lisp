@@ -69,7 +69,8 @@
   (let ((*package* (find-package :asdf-tools)))
     (loop :for variable-name :in (mapcar 'first *environment-variable-specs*)
           :do (format t "~T~S = ~S~%"
-                      variable-name (symbol-value variable-name)))))
+                      variable-name (symbol-value variable-name))))
+  (values))
 
 (defun test-definition (def)
   (block ()
