@@ -277,7 +277,7 @@ and return that"
   (defun null-device-pathname ()
     "Pathname to a bit bucket device that discards any information written to it
 and always returns EOF when read from"
-    (cond
+    (os-cond
       ((os-unix-p) #p"/dev/null")
       ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?
       (t (error "No /dev/null on your OS"))))
@@ -528,13 +528,13 @@ If a string, repeatedly read and evaluate from it, returning the last values."
 (with-upgradability ()
   (defun default-temporary-directory ()
     "Return a default directory to use for temporary files"
-    (or
-     (when (os-unix-p)
+    (os-cond
+      ((os-unix-p)
        (or (getenv-pathname "TMPDIR" :ensure-directory t)
            (parse-native-namestring "/tmp/")))
-     (when (os-windows-p)
+      ((os-windows-p)
        (getenv-pathname "TEMP" :ensure-directory t))
-     (subpathname (user-homedir-pathname) "tmp/")))
+      (t (subpathname (user-homedir-pathname) "tmp/"))))
 
   (defvar *temporary-directory* nil "User-configurable location for temporary files")
 
