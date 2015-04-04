@@ -64,6 +64,12 @@
               (setf (gethash envvar h) x)
               (setf (gethash short h) x))))
 
+(defun display-environment ()
+  (format t "Environment for ASDF tools:~%")
+  (loop :for variable-name :in (mapcar 'first *environment-variable-specs*)
+        :do (format t "~T~A = ~A~%"
+                    variable-name (symbol-value variable-name))))
+
 (defun test-definition (def)
   (block ()
     (match def
