@@ -85,7 +85,7 @@ based on a list of targets"
 
 ;;; Main entry point.
 ;;; NB: For access control, you could check that only exported symbols are used as entry points.
-(defun main (args)
+(defun process-arguments (args)
   (block nil
     (unless args
       (format t "No command provided~%")
@@ -99,9 +99,12 @@ based on a list of targets"
     (format t "Command ~A not found~%" (first args))
     (return)))
 
+;;; For a multi-call binary, use these cl-launch or buildapp arguments: --dispatch-entry asdf-tools/asdf-tools::main
+(defun main (argv)
+  (initialize-environment)
+  (process-arguments argv))
 
 (defun entry-point ()
   (setf *lisp-interaction* nil)
   (uiop:with-fatal-condition-handler ()
-    (initialize-environment)
     (main *command-line-arguments*)))

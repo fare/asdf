@@ -60,15 +60,16 @@
           :do (setf (symbol-value variable)
                     (if-let (x (getenvp envvar))
                       (funcall transformer x)
-                      defaults))
+                      (eval defaults)))
               (setf (gethash envvar h) x)
               (setf (gethash short h) x))))
 
 (defun display-environment ()
   (format t "Environment for ASDF tools:~%")
-  (loop :for variable-name :in (mapcar 'first *environment-variable-specs*)
-        :do (format t "~T~A = ~A~%"
-                    variable-name (symbol-value variable-name))))
+  (let ((*package* (find-package :asdf-tools)))
+    (loop :for variable-name :in (mapcar 'first *environment-variable-specs*)
+          :do (format t "~T~S = ~S~%"
+                      variable-name (symbol-value variable-name)))))
 
 (defun test-definition (def)
   (block ()

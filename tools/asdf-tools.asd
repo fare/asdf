@@ -2,10 +2,10 @@
   :description "tools to build, test, maintain and release ASDF itself"
   :depends-on ((:version "asdf" "3.1.2")
                (:version "inferior-shell" "2.0.2")
-               (:version "cl-ppcre" "2.0.4")
                (:version "lisp-invocation" "1.0.2")
-               (:feature :sbcl "sb-introspect")
-               "optima" "optima.ppcre")
+               (:version "cl-ppcre" "2.0.4")
+               (:version "optima.ppcre" "1.0")
+               (:feature :sbcl "sb-introspect"))
   :components
   ((:file "package")
    (:file "main" :depends-on ("package"))

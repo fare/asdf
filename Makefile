@@ -17,8 +17,6 @@
 # Other targets are for maintainer use only.
 #
 
-l ?= sbcl
-
 # Default action: bootstrap asdf.lisp
 # That's the only thing that we really need before we may invoke asdf-builder.
 all: build/asdf.lisp
