@@ -7,7 +7,9 @@
 (defun run* (cmd &rest keys)
   (multiple-value-bind (out err code)
       (apply 'run cmd keys)
-    (values (eql 0 code) out err code)))
+    (if (eql 0 code)
+        (success)
+        (values nil out err code))))
 
 (defun git (cmd &rest keys)
   (with-asdf-dir ()

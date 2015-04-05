@@ -49,13 +49,14 @@ Use your preferred lisp implementation and check that asdf is loaded without any
                            :output :interactive :error-output :output :input nil))
          (progn
            (log! log "GOOD: Loading ASDF on ~(~A~) produces no message" lisp)
-           (return t))
+           (return (success)))
          (progn
            (log! log "BAD: Loading ASDF on ~(~A~) produces messages" lisp)
            (return nil))))))
 
 (deftestcmd test-basic (lisp systems)
   "basic test: doc, clean-load, load-systems"
-  (doc)
-  (test-clean-load lisp)
-  (test-load-systems lisp systems))
+  (all-pass
+   (doc)
+   (test-clean-load lisp)
+   (test-load-systems lisp systems)))

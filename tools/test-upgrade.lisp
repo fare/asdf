@@ -2,9 +2,6 @@
 
 ;;; Upgrade tests
 
-(defun get-upgrade-lisps (&optional (x *upgrade-test-lisps*))
-  (if (eq x :default) (get-lisps) x))
-
 (defparameter *default-upgrade-test-tags*
   ;; We return a list of entries in reverse chronological order,
   ;; which should also be more or less the order of decreasing relevance.
@@ -63,11 +60,13 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
              (ensure-directories-exist (pn "build/old/build/"))
              (run `(pipe (git archive ,tag) (tar "xfC" - ,(pn "build/old/"))))
              (run `(make) :directory (pn "build/old/"))
-             (rename-file-overwriting-target (pn "build/old/build/asdf.lisp") file))))))))
+             (rename-file-overwriting-target (pn "build/old/build/asdf.lisp") file)))))))
+  (success))
 
 (deftestcmd extract-all-tagged-asdf (upgrade-tags)
   "extract all asdf tags used for upgrade"
-  (map () 'extract-tagged-asdf upgrade-tags))
+  (map () 'extract-tagged-asdf upgrade-tags)
+  (success))
 
 (defalias extract extract-all-tagged-asdf)
 
@@ -142,14 +141,17 @@ Use the preferred lisp implementation"
    (loop :for tag :in upgrade-tags :do
      (loop :for method :in upgrade-methods
            :when (valid-upgrade-test-p lisp tag method) :do
-             (extract-tagged-asdf tag)
-             (run-test-lisp
-              (format nil "Testing ASDF upgrade on ~(~A~) from ~A to ~A using method ~(~{~A~^:~}~)"
-                      lisp tag *version* method)
-              `((load "test/script-support.lisp")
-                (asdf-test::test-upgrade ,@method ,tag))
-              :lisp lisp :log log))
-    :finally (log! log "Upgrade test succeeded for ~(~A~)" lisp))))
+             (unless (and
+                      (extract-tagged-asdf tag)
+                      (run-test-lisp
+                       (format nil "Testing ASDF upgrade on ~(~A~) from ~A to ~A using method ~(~{~A~^:~}~)"
+                               lisp tag *version* method)
+                       `((load "test/script-support.lisp")
+                         (asdf-test::test-upgrade ,@method ,tag))
+                       :lisp lisp :log log))
+               (return-from test-upgrade nil)))
+    :finally (log! log "Upgrade test succeeded for ~(~A~)" lisp))
+   (return (success))))
 
 (defalias u test-upgrade)
 

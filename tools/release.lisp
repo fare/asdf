@@ -36,7 +36,7 @@
     (let ((tarball (strcat name "." type)))
       (run `(git archive -o ,(pn "build" tarball)
                  :prefix (,name /) ,*version* -- ,@files) :show t)))
-  (values))
+  (success))
 
 (defun make-tarball-from-git-plus (name base files &key asdf-lisp version-file)
   ;; make a tarball, then add build/asdf.lisp to it
@@ -63,7 +63,7 @@
       (let ((dir (pn "build" name "")))
         (when (directory-exists-p dir) (delete-empty-directory dir)))
       (run `(gzip -f9 ,tarball) :show t)))
-  (values))
+  (success))
 
 (defun uiop-files ()
   "list files in uiop"
@@ -99,7 +99,8 @@
 (defun make-asdf-lisp ()
   (build-asdf)
   (concatenate-files (list (pn "build/asdf.lisp"))
-                     (pn "build/" (asdf-lisp-name))))
+                     (pn "build/" (asdf-lisp-name)))
+  (success))
 
 (defun make-archive ()
   "build tarballs for release"
@@ -107,7 +108,7 @@
   (make-asdf-defsystem-tarball)
   (make-git-tarball)
   (make-asdf-lisp)
-  t)
+  (success))
 
 
 ;;; Publishing tarballs onto the public repository
@@ -125,7 +126,7 @@
   (format t "~&To download the tarballs, point your browser at:~%
         http://common-lisp.net/project/asdf/archives/
 ~%")
-  t)
+  (success))
 
 (defun link-archive ()
   "symlink new tarballs on the website"
@@ -139,7 +140,7 @@
                (asdf-lisp-name)
                (public-path "archives/asdf.lisp"))
        :show t :host *clnet*)
-  t)
+  (success))
 
 (defun make-and-publish-archive ()
   "make and publish tarballs"
@@ -170,7 +171,8 @@
            ;; --git-no-pristine-tar
            --git-force-create
            --git-ignore-branch)
-         :directory (pn) :show t)))
+         :directory (pn) :show t))
+  (success))
 
 (defun debian-architecture ()
   (run/ss `(dpkg --print-architecture)))
@@ -182,7 +184,7 @@
     (run* `(dput mentors ,(pn "../" changes)))))
 
 (deftestcmd release (new-version lisps scripts systems)
-  "all steps to release the code (not implemented)"
+  "all steps to release the code (NOT YET IMPLEMENTED)"
   (break) ;; for each function, offer to do it or not (?)
   (with-asdf-dir ()
     (let ((log (newlogfile "release" "all"))
@@ -212,4 +214,5 @@
        (when releasep
          (log! log t "Don't forget to send a debian mentors request!"))
        (log! log "Don't forget to send announcement to asdf-announce, asdf-devel, etc.")
-       (log! log "Don't forget to move all fixed bugs from Fix Committed -> Fix Released on launchpad")))))
+       (log! log "Don't forget to move all fixed bugs from Fix Committed -> Fix Released on launchpad"))))
+  (success))

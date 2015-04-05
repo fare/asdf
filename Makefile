@@ -3,18 +3,17 @@
 # End-Users, all you need to do is:
 #   make
 #
-# If you want a list of all of the new targets, use
-#   make help
-#
 # Vendors, you may want to test your implementation with:
 #   make test l=sbcl
-# BUT you first need have installed the development-time external dependencies of ASDF,
-# which will be done automatically if you are using quicklisp,
-# which you can do manually with your favorite tools (e.g. clbuild or git), or
-# which you can do using `git submodule update` which is also available as:
+# BUT you first need have installed the development-time external dependencies of ASDF;
+# this will be done automatically if you are using quicklisp;
+# you can do it manually with your favorite tools (e.g. clbuild or git);
+# or you can do it using `git submodule update` which is also available as:
 #   make ext
+# To undo the `git submodule update` you can use: `make noext`
 #
-# Other targets are for maintainer use only.
+# Other targets are for maintainer use only. If you want a list of all of the targets, use
+#   make help
 #
 
 # Default action: bootstrap asdf.lisp

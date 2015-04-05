@@ -1,23 +1,36 @@
 ;;;; Generic code to interface a Lisp script to the shell command-line.
 (in-package :asdf-tools)
 
+(defun success (&optional (success t))
+  "Return magic values that signal success (default), or failure depending on SUCCESS"
+  (if success
+      (values t '#:success)
+      (values nil '#:failure)))
+
+(defun failure ()
+  "Return magic values that signal failure"
+  (success nil))
+
+
 (defun re (arg)
   "Read-Eval function (the RE of REPL)
 (the Print and Loop parts are not here)"
   (eval (read-from-string arg)))
 
-(defun find-command (x &optional earlyp)
-  "Find the function for an asdf-tools command by name"
+(defun find-command (name &optional earlyp)
+  "Given a string NAME, find the symbol for the function that implements the command, or else NIL.
+Unless EARLYP is true, return NIL if the symbol is not fbound."
   (block nil
     (flet ((try (x)
              (multiple-value-bind (sym foundp)
                  (find-symbol* (string-upcase x) :asdf-tools nil)
                (when (and sym (or earlyp (and foundp (fboundp sym))))
                  (return sym)))))
-      (try (strcat "%" (string x))) ;; so that you may use load, t, etc., as targets
-      (try x))))
+      (try (strcat "%" (string name))) ;; so that you may use load, t, etc., as targets
+      (try name))))
 
 (defun command-name (x &optional earlyp)
+  "Given a command designator as per FIND-COMMAND, return the unix-y name for it, as a string"
   (let ((c (find-command x earlyp)))
     (when c
       (let ((s (string-downcase c)))
@@ -55,7 +68,7 @@
 (defun show-commands ()
   "print the (sorted list of) names of all the public commands of asdf-tools."
   (format t "~{~A~^ ~}~%" (public-command-strings))
-  (values))
+  (success))
 
 (defun makefile-targets ()
   "print declaration for the public commands of asdf-tools as as many Makefile targets
@@ -64,7 +77,7 @@ based on a list of targets"
   (let ((c (public-command-strings)))
     (format t ".PHONY: ~{~A~^ ~}~%~%~{~A~^ ~}: force
 	./tools/asdf-tools env l='$l' L='$L' u='$u' U='$u' v='$v' s='$s' t='$t' $@~%" c c))
-  (values))
+  (success))
 
 (defun help (&optional x)
   "help about a command, or list of commands"
@@ -73,7 +86,7 @@ based on a list of targets"
      (loop :for x :in (public-command-strings)
            :do (format t "~(~27A~)~@[  ~A~]~%"
                        x (short-function-description x)))
-     (values))
+     (success))
     (t
      (let ((x (find-command x)))
        (when x
@@ -81,7 +94,7 @@ based on a list of targets"
                  (command-name x)
                  (or ()) ;; TODO: remember the arguments to deftestcmd, translate to v=, etc
                  (documentation x 'function))
-         (values))))))
+         (success))))))
 
 ;;; Main entry point.
 ;;; NB: For access control, you could check that only exported symbols are used as entry points.
@@ -91,13 +104,15 @@ based on a list of targets"
       (format t "No command provided~%")
       (return))
     (if-let ((fun (find-command (first args))))
-      (let ((results
-              (multiple-value-list (apply fun (rest args)))))
-        (when results
-          (format t "~&~{~S~%~}" results))
-        (return (or (null results) (first results))))) ;; Trick: (values) counts as T, not NIL.
+      (let ((results (multiple-value-list (apply fun (rest args)))))
+        ;; Don't print anything on success for regular commands, otherwise print all values returned.
+        (cond
+          ((equal results (multiple-value-list (success))))
+          ((equal results (multiple-value-list (failure))) (format t "~&Command failed.~%"))
+          (t (format t "~&~{~S~%~}" results)))
+        (return (first results))))
     (format t "Command ~A not found~%" (first args))
-    (return)))
+    (return nil)))
 
 ;;; For a multi-call binary, use these cl-launch or buildapp arguments: --dispatch-entry asdf-tools/asdf-tools::main
 (defun main (argv)

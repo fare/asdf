@@ -88,7 +88,8 @@
                     new-contents)))
           (check-type written-contents (or string (byte-vector)))
           (clobber-file-with-vector file written-contents :external-format external-format)
-          (format t "done.~%")))))
+          (format t "done.~%"))))
+  (success))
 
 (defun version-transformer (new-version file prefix suffix &optional dont-warn)
   (let* ((qprefix (cl-ppcre:quote-meta-chars prefix))
@@ -108,7 +109,8 @@
   (maybe-replace-file (pn file) (version-transformer new-version file prefix suffix)))
 
 (defun transform-files (new-version)
-  (loop :for f :in *versioned-files* :do (apply 'transform-file new-version f)))
+  (loop :for f :in *versioned-files* :do (apply 'transform-file new-version f))
+  (success))
 
 (defun test-transform-file (new-version file prefix suffix)
   (let ((lines (read-file-lines (pn file))))
@@ -118,7 +120,7 @@
         (when foundp
           (format t "Found a match:~%  ==> ~A~%Replacing with~%  ==> ~A~%~%"
                   l new-text)
-          (return t))))))
+          (return (success)))))))
 
 (defun test-transform (new-version)
   (apply 'test-transform-file new-version (first *versioned-files*)))

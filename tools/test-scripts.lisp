@@ -63,20 +63,20 @@ Use the preferred lisp implementation"
             (progn
               (incf test-fail)
               (push i failed-list)))
-     :finally
-        (let ((okp (zerop test-fail)))
-          (log! log "~
+     :finally)
+   (let ((okp (zerop test-fail)))
+     (log! log "~
 -#---------------------------------------
 Using ~A
 Ran ~D tests, ~D passed, ~D failed~
 ~:[~%All tests apparently successful.~;:~:*~{~%  ~A~}~]
 -#---------------------------------------~%"
-                  lisp
-                  n-tests test-pass test-fail (reverse failed-list))
-          (unless okp
-            (log! log "To view full results and failures, try the following command:
+           lisp
+           n-tests test-pass test-fail (reverse failed-list))
+     (unless okp
+       (log! log "To view full results and failures, try the following command:
      less -p ABORTED ~A" (enough-namestring log (pn))))
-          (return okp)))))
+     (return (success okp)))))
 
 (deftestcmd %test (lisp test-scripts)
   "run all normal tests but upgrade tests

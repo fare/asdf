@@ -3,18 +3,18 @@
 (defun build-asdf ()
   "make sure asdf.lisp is built"
   (load-system :asdf)
-  (values))
+  (success))
 
 ;;; Documentation
 (defun doc ()
   "build documentation in doc/ directory"
   (run '(make) :directory (pn "doc/"))
-  (values))
+  (success))
 
 (defun website ()
   "publish documentation onto the public website"
   (run '(make website) :directory (pn "doc/"))
-  (values))
+  (success))
 
 
 ;;; Line counting
@@ -29,11 +29,12 @@
         (run `(pipe (wc header.lisp ,@defsystem-files) (sort -n)))
         (terpri)
         (run `(pipe (wc header.lisp ,@driver-files ,@defsystem-files) (tail -n 1))))))
-  (values))
+  (success))
 
 
 ;;; debug the source registry that is being used to execute these tools.
 (defun list-source-registry ()
   "Display the source-registry cache"
   (writeln (sort (alexandria:hash-table-alist asdf::*source-registry*)
-                 'string< :key 'car)))
+                 'string< :key 'car))
+  (success))

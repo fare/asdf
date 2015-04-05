@@ -70,7 +70,7 @@
     (loop :for variable-name :in (mapcar 'first *environment-variable-specs*)
           :do (format t "~T~S = ~S~%"
                       variable-name (symbol-value variable-name))))
-  (values))
+  (success))
 
 (defun test-definition (def)
   (block ()
@@ -88,7 +88,7 @@
 (defun show-environment ()
   (loop :for (v) :in *environment-variable-specs* :do
     (format t "~A = ~S~%" v (symbol-value v)))
-  (values))
+  (success))
 
 (defun env (&rest env)
   (loop :for (first . rest) :on env
@@ -114,6 +114,8 @@
            (setf lisp (get-lisp lisp)))
           (lisps ((lisps *test-lisps*))
            (setf lisps (get-lisps lisps)))
+          (upgrade-lisps ((lisps *upgrade-test-lisps*))
+           (setf upgrade-lisps (get-upgrade-lisps lisps)))
           (systems ((systems *test-systems*)))
           (test-scripts ((test-scripts *test-scripts*))
            (setf test-scripts (get-test-scripts test-scripts)))
@@ -136,7 +138,7 @@
                   ,@body)))))
 
 (defun all-pass (&rest tests)
-  (every 'identity tests))
+  (success (every 'identity tests)))
 
 (defmacro defalias (name real)
   `(defun ,name (&rest args)
@@ -162,6 +164,9 @@
 (defun get-lisp (&optional (lisp *test-lisps*))
   (if (and (keywordp lisp) (not (eq lisp :default))) lisp (first (get-lisps lisp))))
 
+(defun get-upgrade-lisps (&optional (x *upgrade-test-lisps*))
+  (if (eq x :default) (get-lisps) x))
+
 (defun date-string (&optional (date (get-universal-time)))
   (multiple-value-bind (second minute hour date month year weekday daylight-savings-p timezone)
       (decode-universal-time date)
@@ -186,7 +191,7 @@
         ;; re-open every time because we're interleaved with inferior process writing to the log,
         ;; and on e.g. Windows there might be a locking conflict if we keep it open.
         (format s "~&~A~&" msg))))
-  (values))
+  (success))
 
 ;; TODO: When composing a form to evaluate in the test lisp implementation,
 ;; our shell script went through great lengths to avoid a double-quote #\" in the command line,
@@ -222,4 +227,4 @@ then copy/paste:
               (print-process-spec command nil)
               (print-process-spec (interactive-command) nil)
               (compose-copy-paste-string forms)))
-    (values okp out err code))))
+      (if okp (success) (values nil out err code)))))
