@@ -31,6 +31,7 @@
   "run test scripts
 Use the preferred lisp implementation"
   (nest
+   (with-asdf-dir ())
    (let* ((log (newlogfile "test" lisp)))
      (log! log "Running the following ~D ASDF test scripts on ~(~A~):~%~{  ~A~%~}"
            (length test-scripts) lisp test-scripts))
