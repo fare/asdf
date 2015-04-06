@@ -31,17 +31,17 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
 |#
 
 (loop
-  :for (smpchar smpname smpfullname) :in `(("" "" "") ("S" ,(string :_s) " (SMP)")) :do
+  :for (smpvar smpname smpfullname) :in `(("" "" "") ("S" :_s " (SMP)")) :do
     (loop
-      :for (bits bitsname bitsfullname) :in '(("" "") ("64" "_64" " (64-bit words)"))
-      :for dirvar = (strcat "ALLEGRO" bits smpchar)
+      :for (bitsvar bitsname bitsfullname) :in '(("" "" "") ("64" "_64" " (64-bit words)"))
+      :for dirvar = (format nil "~:@(ALLEGRO~A~A~)" bitsvar smpvar)
       :for dir = (getenv-pathname dirvar :want-absolute t :ensure-directory t) :do
-        (loop :for (charbits charname) :in '(("" "") ("8" " (8-bit chars)")) :do
-          (loop :for (casechar casename casefullname) :in '(("a" "" "") ("m" :modern " (modern syntax)"))
-                :for allegro-variant = (conc-keyword :allegro casename charbits bits)
+        (loop :for (charname charfullname) :in '(("" "") ("8" " (8-bit chars)")) :do
+          (loop :for (caseexe casename casefullname) :in '(("a" "" "") ("m" :modern " (modern syntax)"))
+                :for allegro-variant = (conc-keyword :allegro casename charname bitsname smpname)
                 :for fullname = (strcat "Allegro CL"
-                                        casefullname charname bitsname smpname)
-                :for executable = (strcat casechar "lisp" charbits bits) :do
+                                        casefullname charfullname bitsfullname smpfullname)
+                :for executable = (format nil "~(~alisp~a~a~a~)" caseexe charname bitsname smpname) :do
                   (register-lisp-implementation
                    allegro-variant
                    :fullname fullname
