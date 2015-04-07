@@ -41,7 +41,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
                 :for allegro-variant = (conc-keyword :allegro casename charname bitsname smpname)
                 :for fullname = (strcat "Allegro CL"
                                         casefullname charfullname bitsfullname smpfullname)
-                :for executable = (format nil "~(~alisp~a~a~a~)" caseexe charname bitsname smpname) :do
+                :for executable = (format nil "~(~alisp~a~)" caseexe charname) :do
                   (register-lisp-implementation
                    allegro-variant
                    :fullname fullname
