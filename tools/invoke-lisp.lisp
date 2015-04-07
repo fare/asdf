@@ -29,51 +29,61 @@ Similarly, you can configure which scripts to tests with ASDF_TEST_SCRIPTS or t=
 and which systems to test loading with ASDF_TEST_SYSTEMS or s=
 
 |#
+(defun all-allegro-variants ()
+  "Return a list of possible Allegro variants based on built-in information
+and environment variables.  The returned list is made up of argument lists for
+REGISTER-LISP-IMPLEMENTATION."
+  (loop
+    :with results
+    :for (smpvar smpname smpfullname) :in `(("" "" "") ("S" :_s " (SMP)")) :do
+      (loop
+        :for (bitsvar bitsname bitsfullname) :in '(("" "" "") ("64" "_64" " (64-bit words)"))
+        :for dirvar = (format nil "~:@(ALLEGRO~A~A~)" bitsvar smpvar)
+        :for dir = (getenv-pathname dirvar :want-absolute t :ensure-directory t) :do
+          (loop :for (charname charfullname) :in '(("" "") ("8" " (8-bit chars)")) :do
+            (loop :for (caseexe casename casefullname) :in '(("a" "" "") ("m" :modern " (modern syntax)"))
+                  :for allegro-variant = (conc-keyword :allegro casename charname bitsname smpname)
+                  :for fullname = (strcat "Allegro CL"
+                                          casefullname charfullname bitsfullname smpfullname)
+                  :for executable = (format nil "~(~alisp~a~)" caseexe charname)
+                  :do
+                      (push
+                       `(,allegro-variant
+                         :fullname ,fullname
+                         :name ,(native-namestring (subpathname dir executable))
+                         :feature :allegro ;; do we want a more discriminating feature expression?
+                         :flags '("-qq")
+                         :eval-flag "-e"
+                         :load-flag "-L"
+                         ;; :quit-flags ("-kill")
+                         :arguments-end "--"
+                         :image-flag "-I"
+                         :image-executable-p nil
+                         :standalone-executable nil
+                         :argument-control t
+                         :disable-debugger ,`("-batch" ; see also -#D -#C -#!
+                                              ,@(when (and (os-windows-p) (not (getenvp "ALLEGRO_NOISY")))
+                                                  '("+c")))
+                         :quit-format "(excl:exit ~A :quiet t)"
+                         :dump-format "(progn (sys:resize-areas :global-gc t :pack-heap t :sift-old-areas t :tenure t) (excl:dumplisp :name ~A :suppress-allegro-cl-banner t))") results))))
+    :finally (return results)))
 
-(loop
-  :for (smpvar smpname smpfullname) :in `(("" "" "") ("S" :_s " (SMP)")) :do
-    (loop
-      :for (bitsvar bitsname bitsfullname) :in '(("" "" "") ("64" "_64" " (64-bit words)"))
-      :for dirvar = (format nil "~:@(ALLEGRO~A~A~)" bitsvar smpvar)
-      :for dir = (getenv-pathname dirvar :want-absolute t :ensure-directory t) :do
-        (loop :for (charname charfullname) :in '(("" "") ("8" " (8-bit chars)")) :do
-          (loop :for (caseexe casename casefullname) :in '(("a" "" "") ("m" :modern " (modern syntax)"))
-                :for allegro-variant = (conc-keyword :allegro casename charname bitsname smpname)
-                :for fullname = (strcat "Allegro CL"
-                                        casefullname charfullname bitsfullname smpfullname)
-                :for executable = (format nil "~(~alisp~a~)" caseexe charname) :do
-                  (register-lisp-implementation
-                   allegro-variant
-                   :fullname fullname
-                   :name (native-namestring (subpathname dir executable))
-                   :feature :allegro ;; do we want a more discriminating feature expression?
-                   :flags '("-qq")
-                   :eval-flag "-e"
-                   :load-flag "-L"
-                   ;; :quit-flags ("-kill")
-                   :arguments-end "--"
-                   :image-flag "-I"
-                   :image-executable-p nil
-                   :standalone-executable nil
-                   :argument-control t
-                   :disable-debugger `("-batch" ; see also -#D -#C -#!
-                                       ,@(when (and (os-windows-p) (not (getenvp "ALLEGRO_NOISY")))
-                                           '("+c")))
-                   :quit-format "(excl:exit ~A :quiet t)"
-                   :dump-format "(progn (sys:resize-areas :global-gc t :pack-heap t :sift-old-areas t :tenure t) (excl:dumplisp :name ~A :suppress-allegro-cl-banner t))")))))
+(mapc #'(lambda (x) (apply 'register-lisp-implementation x)) (all-allegro-variants))
 
-(loop
+(defun all-ecl-variants ()
+  (loop
   :for (ecl-variant extraname flags) :in
   '((:ecl "" ("-load" "sys:cmp"))
     (:ecl_bytecodes " (using bytecodes compiler)" ("-eval" "(ext::install-bytecodes-compiler)")))
   :for fullname = (strcat "Embeddable Common-Lisp" extraname)
-  :do (register-lisp-implementation
-       ecl-variant
-       :fullname fullname
+  :collecting
+  `(
+       ,ecl-variant
+       :fullname ,fullname
        :name "ecl"
        :feature :ecl
        :environment-variable "ECL"
-       :flags `("-norc" ,@flags)
+       :flags ,`("-norc" ,@flags)
        :eval-flag "-eval" ; -e
        :load-flag "-load"
        :image-flag nil
@@ -82,8 +92,9 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
        :argument-control t ;; must be fixed now, but double-checking needed.
        :disable-debugger ()
        :quit-format "(si:quit ~A)"
-       :dump-format nil)) ;; Cannot dump with ECL. Link instead.
+       :dump-format nil))) ;; Cannot dump with ECL. Link instead.
 
+(mapc #'(lambda (x) (apply 'register-lisp-implementation x)) (all-ecl-variants))
 
 (defun acceptable-eval-character-p (character)
   "Is this character acceptable in an eval form, even when used under Windows?"
