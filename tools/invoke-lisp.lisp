@@ -68,13 +68,14 @@ REGISTER-LISP-IMPLEMENTATION."
                      :dump-format "(progn (sys:resize-areas :global-gc t :pack-heap t :sift-old-areas t :tenure t) (excl:dumplisp :name ~A :suppress-allegro-cl-banner t))"))))))))
 
 (defun register-lisp-implementation* (x)
-  "Register the lisp implementation described a list X of a name followed by a plist"
+  "Register the lisp implementation described by the list X, which consists of a name
+followed by a plist of keywords and arguments."
   (apply 'register-lisp-implementation x))
 
 (map () 'register-lisp-implementation* (all-allegro-variants))
 
 (defun all-ecl-variants ()
-  "Return a list of possible ECL variants with or withotu bytecode compiler"
+  "Return a list of possible ECL variants with or without bytecode compiler"
   (loop
     :for (ecl-variant extraname flags) :in
     '((:ecl "" ("-load" "sys:cmp"))
