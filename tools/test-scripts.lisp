@@ -82,6 +82,6 @@ Ran ~D tests, ~D passed, ~D failed~
 (deftestcmd %test (lisp test-scripts)
   "run all normal tests but upgrade tests
 Use the preferred lisp implementation"
-  (all-pass (test-scripts lisp test-scripts) (doc) (test-clean-load lisp)))
+  (all-pass (doc) (test-clean-load lisp) (test-scripts lisp test-scripts)))
 
 (defalias %t %test)
