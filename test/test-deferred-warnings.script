@@ -99,7 +99,7 @@
    (:no-error (&rest values) (DBG :ustdf1 values) nil)))
 
 (errors #+(or allegro clozure) compile-file-error
-        #+(or cmu scl) null
+        #+(or cmu scl) compile-warned-error
         #+sbcl compile-failed-error
         (let ((*compile-file-warnings-behaviour* :error))
           (load-system :undefined-variables)))
