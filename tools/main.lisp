@@ -1,4 +1,10 @@
 ;;;; Generic code to interface a Lisp script to the shell command-line.
+;;;; How does it work:
+;;;; We get our command line from make.
+;;;; the MAIN function first initializes the environment for the system,
+;;;;  then processes the arguments
+;;;; A key part of the argument processing is to decode the command name from
+;;;;  make strings to CL function names.
 (in-package :asdf-tools)
 
 (defun re (arg)
@@ -19,7 +25,8 @@ Unless EARLYP is true, return NIL if the symbol is not fbound."
       (try name))))
 
 (defun command-name (x &optional earlyp)
-  "Given a command designator as per FIND-COMMAND, return the unix-y name for it, as a string"
+  "Given a command designator as per FIND-COMMAND, return the unix-y name for it, as a string.
+The UNIX-y name will be downcased, and any % prefix will be dropped."
   (let ((c (find-command x earlyp)))
     (when c
       (let ((s (string-downcase c)))
@@ -65,7 +72,7 @@ so that, when included in the Makefile, they will enable shell completion
 based on a list of targets"
   (let ((c (public-command-strings)))
     (format t ".PHONY: ~{~A~^ ~}~%~%~{~A~^ ~}: force
-	./tools/asdf-tools env l='$l' L='$L' u='$u' U='$u' v='$v' s='$s' t='$t' $@~%" c c))
+        ./tools/asdf-tools env l='$l' L='$L' u='$u' U='$u' v='$v' s='$s' t='$t' $@~%" c c))
   (success))
 
 (defun help (&optional x)
