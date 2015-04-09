@@ -140,18 +140,18 @@ Use the preferred lisp implementation"
        (map () 'delete-file (directory* pattern))))
    (loop :for tag :in upgrade-tags :do
      (loop :for method :in upgrade-methods
+           :for description
+             = (format nil "Testing ASDF upgrade on ~(~A~) from ~A to ~A using method ~(~{~A~^:~}~)"
+                       lisp tag *version* method)
            :when (valid-upgrade-test-p lisp tag method) :do
-             (unless (and
-                      (extract-tagged-asdf tag)
-                      (run-test-lisp
-                       (format nil "Testing ASDF upgrade on ~(~A~) from ~A to ~A using method ~(~{~A~^:~}~)"
-                               lisp tag *version* method)
-                       `((load "test/script-support.lisp")
-                         (asdf-test::test-upgrade ,@method ,tag))
-                       :lisp lisp :log log))
-               (return-from test-upgrade nil)))
-    :finally (log! log "Upgrade test succeeded for ~(~A~)" lisp))
-   (return (success))))
+             (failure-if (and
+                          (extract-tagged-asdf tag)
+                          (run-test-lisp description
+                           `((load "test/script-support.lisp")
+                             (asdf-test::test-upgrade ,@method ,tag))
+                           :lisp lisp :log log))
+                         description))
+    :finally (log! log "Upgrade test succeeded for ~(~A~)" lisp))))
 
 (defalias u test-upgrade)
 

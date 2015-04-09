@@ -1,17 +1,6 @@
 ;;;; Generic code to interface a Lisp script to the shell command-line.
 (in-package :asdf-tools)
 
-(defun success (&optional (success t))
-  "Return magic values that signal success (default), or failure depending on SUCCESS"
-  (if success
-      (values t '#:success)
-      (values nil '#:failure)))
-
-(defun failure ()
-  "Return magic values that signal failure"
-  (success nil))
-
-
 (defun re (arg)
   "Read-Eval function (the RE of REPL)
 (the Print and Loop parts are not here)"
@@ -52,7 +41,7 @@ Unless EARLYP is true, return NIL if the symbol is not fbound."
     git-all-committed-p
     bump-version bump ;; version
     test-load-systems test-clean-load test-basic %load install-asdf ;; test-basic
-    %test %t test-scripts ;; test-scripts
+    test %t test-scripts ;; test-scripts
     test-upgrade u extract-tagged-asdf extract-all-tagged-asdf extract ;; test-upgrade
     test-all-clean-load test-all-scripts test-all-no-upgrade test-all-upgrade ;; test-all
     test-all test-all-scripts-no-stop test-all-upgrade-no-stop
@@ -99,20 +88,18 @@ based on a list of targets"
 ;;; Main entry point.
 ;;; NB: For access control, you could check that only exported symbols are used as entry points.
 (defun process-arguments (args)
-  (block nil
-    (unless args
-      (format t "No command provided~%")
-      (return))
-    (if-let ((fun (find-command (first args))))
-      (let ((results (multiple-value-list (apply fun (rest args)))))
-        ;; Don't print anything on success for regular commands, otherwise print all values returned.
-        (cond
-          ((equal results (multiple-value-list (success))))
-          ((equal results (multiple-value-list (failure))) (format t "~&Command failed.~%"))
-          (t (format t "~&~{~S~%~}" results)))
-        (return (first results))))
-    (format t "Command ~A not found~%" (first args))
-    (return nil)))
+  (if-let ((fun (and args (find-command (first args)))))
+    (let ((results (multiple-value-list (apply fun (rest args)))))
+      ;; Don't print anything on success for regular commands, otherwise print all values returned.
+      (if (failurep results)
+          (format t "~&Failure:~{~& ~A~}~&" (failure-failures results))
+          (format t "~{~&~S~&~}" (if (successp results) (success-values results) results)))
+      (apply 'values results))
+    (progn
+      (if args
+        (format t "Command ~A not found~%" (first args))
+        (format t "No command provided~%"))
+      nil)))
 
 ;;; For a multi-call binary, use these cl-launch or buildapp arguments: --dispatch-entry asdf-tools/asdf-tools::main
 (defun main (argv)

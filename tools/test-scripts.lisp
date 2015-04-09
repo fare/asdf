@@ -35,6 +35,7 @@ Use the preferred lisp implementation"
    (let* ((log (newlogfile "test" lisp)))
      (log! log "Running the following ~D ASDF test scripts on ~(~A~):~%~{  ~A~%~}"
            (length test-scripts) lisp test-scripts))
+   (without-stopping ())
    (and
     (run-test-lisp
      "compiling ASDF"
@@ -65,7 +66,7 @@ Use the preferred lisp implementation"
               (incf test-fail)
               (push i failed-list)))
      :finally)
-   (let ((okp (zerop test-fail)))
+   (let ((failp (plusp test-fail)))
      (log! log "~
 -#---------------------------------------
 Using ~A
@@ -74,14 +75,23 @@ Ran ~D tests, ~D passed, ~D failed~
 -#---------------------------------------~%"
            lisp
            n-tests test-pass test-fail (reverse failed-list))
-     (unless okp
+     (when failp
        (log! log "To view full results and failures, try the following command:
      less -p ABORTED ~A" (enough-namestring log (pn))))
-     (return (success okp)))))
+     (failure-if failp "~D test~:*~P failed" test-fail))))
 
-(deftestcmd %test (lisp test-scripts)
+(deftestcmd test (lisp test-scripts)
   "run all normal tests but upgrade tests
 Use the preferred lisp implementation"
-  (all-pass (doc) (test-clean-load lisp) (test-scripts lisp test-scripts)))
+  (without-stopping () (doc) (test-clean-load lisp) (test-scripts lisp test-scripts)))
 
-(defalias %t %test)
+;;(defalias %t test)
+
+(deftestcmd %t ()
+  (with-failure-context ("foo")
+    (without-stopping ()
+      (with-failure-context ("1") (error "bar"))
+      (with-failure-context ("2") (error "baz"))
+      (error "frob")
+      (with-failure-context ("3") (error "quux"))
+      (success))))

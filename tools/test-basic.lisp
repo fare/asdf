@@ -56,7 +56,7 @@ Use your preferred lisp implementation and check that asdf is loaded without any
 
 (deftestcmd test-basic (lisp systems)
   "basic test: doc, clean-load, load-systems"
-  (all-pass
-   (doc)
-   (test-clean-load lisp)
-   (test-load-systems lisp systems)))
+  (without-stopping ()
+    (doc)
+    (test-clean-load lisp)
+    (test-load-systems lisp systems)))

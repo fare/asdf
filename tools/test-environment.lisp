@@ -134,11 +134,10 @@
              (return
                `(defun ,name (&optional ,@largs)
                   ,@decl
-                  ,@inits
-                  ,@body)))))
-
-(defun all-pass (&rest tests)
-  (success (every 'identity tests)))
+                  (with-failure-context (,(command-name name))
+                    ,@inits
+                    ,@body
+                    (success))))))) ;; use return-from ,name to return a value.
 
 (defmacro defalias (name real)
   `(defun ,name (&rest args)
@@ -147,7 +146,7 @@
 
 (deftestcmd interactive-command (lisp)
   (let* ((command (lisp-invocation-arglist :implementation-type lisp :debugger t)))
-    (cons "rlwrap" command)))
+    (return-from interactive-command (cons "rlwrap" command))))
 
 (defparameter *default-test-lisps*
   '(:ccl :clisp :sbcl :ecl :ecl_bytecodes :cmucl :abcl :scl :allegro
@@ -181,7 +180,7 @@
        log (add-pathname-suffix log (strcat "-" (date-string date)))))
     (with-output-file (s log) s) ;; create the file
     ;;(format t "Logging results to ~A" log)
-    log))
+    (return-from newlogfile log)))
 
 (defun log! (log fmt &rest args)
   (let ((msg (apply 'format nil fmt args)))
@@ -199,6 +198,13 @@
 ;; While we're at it, we also avoid spaces and backslashes.
 ;; We haven't tested our new Lisp implementation of the test infrastructure on Windows, though.
 
+(defun run* (cmd &rest keys)
+  (let* ((string (strcat "`" (print-process-spec cmd) "`")))
+    (with-failure-context (string)
+      (apply 'run cmd
+             :on-error (lambda (c) (fail! "process failed with code ~A" (subprocess-error-code c)))
+             keys))))
+
 (defun run-test-lisp (activity forms &key (output t) log lisp debugger)
   ;; Activity is of the form "compiling ASDF", "running this test", etc.
   (format t "~&Now ~A...~@[ (log in ~A)~]~%" activity log)
@@ -209,14 +215,16 @@
          (output (if (eq output t) *standard-output* output))
          (output (if (eq output *stdout*) :interactive output)))
     (log! log "~A" (print-process-spec command nil))
-    (multiple-value-bind (okp out err code)
-        (run* `((>& 2 1) ,@(when interactive '(rlwrap)) ,@command
-                ,@(when log `((>> ,log)))) ;; unhappily, | tee -a log eats error codes :-(
-              :input interactive :output output :error-output (or interactive :output) :on-error nil)
-      (unless interactive
-        (log! log (if okp
-                      "SUCCEEDED at ~A."
-                      "FAILED at ~A.
+    (multiple-value-bind (out err code)
+        (run `((>& 2 1) ,@(when interactive '(rlwrap)) ,@command
+               ,@(when log `((>> ,log)))) ;; unhappily, | tee -a log eats error codes :-(
+             :input interactive :output output :error-output (or interactive :output) :on-error nil)
+      (declare (ignore out err))
+      (let ((okp (eql code 0)))
+        (unless interactive
+          (log! log (if okp
+                        "SUCCEEDED at ~A."
+                        "FAILED at ~A.
 You can retry ~A with:
     ~A
 or more interactively, start with:
@@ -227,4 +235,4 @@ then copy/paste:
               (print-process-spec command nil)
               (print-process-spec (interactive-command) nil)
               (compose-copy-paste-string forms)))
-      (if okp (success) (values nil out err code)))))
+        (success-if okp "failed at ~A" activity)))))
