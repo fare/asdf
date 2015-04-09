@@ -85,13 +85,4 @@ Ran ~D tests, ~D passed, ~D failed~
 Use the preferred lisp implementation"
   (without-stopping () (doc) (test-clean-load lisp) (test-scripts lisp test-scripts)))
 
-;;(defalias %t test)
-
-(deftestcmd %t ()
-  (with-failure-context ("foo")
-    (without-stopping ()
-      (with-failure-context ("1") (error "bar"))
-      (with-failure-context ("2") (error "baz"))
-      (error "frob")
-      (with-failure-context ("3") (error "quux"))
-      (success))))
+(defalias %t test)
