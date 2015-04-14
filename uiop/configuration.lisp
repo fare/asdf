@@ -300,7 +300,7 @@ this function tries to locate the Windows FOLDER for one of
             (os-cond
               ((os-windows-p) (mapcar 'get-folder-path '(:appdata :common-appdata)))
               (t (or (getenv-absolute-directories "XDG_DATA_DIRS")
-                     (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))))
+                     (mapcar 'parse-unix-namestring '("/usr/local/share/" "/opt/local/share/" "/usr/share/")))))))
 
   (defun config-search-pathnames (&optional app &rest more)
     "the preference-ordered set of additional base paths to search for configuration files"
@@ -308,7 +308,10 @@ this function tries to locate the Windows FOLDER for one of
      ((os-windows-p) (apply 'data-search-pathnames app "config/" more))
      (t (mapcar #'(lambda (d) (resolve-location `(,d ,app ,more)))
                 (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
-                    (list (parse-unix-namestring "/etc/xdg/")))))))
+                    (mapcar 'parse-unix-namestring
+                            (list "/etc/xdg/"
+                                  "/usr/local/etc/"
+                                  "/opt/local/etc/")))))))
 
   (defun cache-home-pathname (&optional app &rest more)
     "the base directory relative to which user specific non-essential data files should be stored"
