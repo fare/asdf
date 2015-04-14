@@ -263,7 +263,8 @@ directive.")
   (defun get-folder-path (folder)
     "Semi-portable implementation of a subset of LispWorks' sys:get-folder-path,
 this function tries to locate the Windows FOLDER for one of
-:LOCAL-APPDATA, :APPDATA or :COMMON-APPDATA."
+:LOCAL-APPDATA, :APPDATA or :COMMON-APPDATA.
+     Returns NIL when the folder is not defined (e.g., not on Windows)."
     (or #+(and lispworks mswindows) (sys:get-folder-path folder)
         ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
         (ecase folder
@@ -307,7 +308,7 @@ this function tries to locate the Windows FOLDER for one of
      ((os-windows-p) (apply 'data-search-pathnames app "config/" more))
      (t (mapcar #'(lambda (d) (resolve-location `(,d ,app ,more)))
                 (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
-                    (list (parse-unix-namestring '("/etc/xdg/"))))))))
+                    (list (parse-unix-namestring "/etc/xdg/")))))))
 
   (defun cache-home-pathname (&optional app &rest more)
     "the base directory relative to which user specific non-essential data files should be stored"
@@ -334,17 +335,21 @@ this function tries to locate the Windows FOLDER for one of
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs) :from-end t :test 'equal))
 
   (defun data-pathnames (&optional app &rest more)
-    "Determine pathnames for user configuration"
+    "Return a list of absolute pathnames for application data directories.  With APP,
+returns directory for data for that application, without APP, returns the set of directories
+for storing all application configurations."
     (clean-search-pathnames
      `(,(data-home-pathname app more)
        ,@(data-search-pathnames app more))))
 
   (defun config-pathnames (&optional app &rest more)
-    "Determine pathnames for user configuration"
+    "Return a list of pathnames for application configuration. Without the APP argument,
+returns pathnames for directories that contain all of the configuration information."
     (clean-search-pathnames
      `(,(config-home-pathname app more)
        ,@(config-search-pathnames app more))))
 
+  ;; FIXME: AFAICT although this says "find FILE," it is often used to find a DIRECTORY.
   (defun find-preferred-file (files &key (direction :input))
     "Find first file in the list of FILES that exists (for direction :input or :probe)
 or just the first one (for direction :output or :io)."
@@ -357,6 +362,7 @@ or just the first one (for direction :output or :io)."
     (find-preferred-file (config-pathnames app more) :direction direction))
 
   (defun compute-user-cache ()
-    "Compute the location of the default user-cache for translate-output objects"
+    "Compute (and return) the location of the default user-cache for translate-output
+objects. Side-effects for cached file location computation."
     (setf *user-cache* (cache-home-pathname "common-lisp" :implementation)))
   (register-image-restore-hook 'compute-user-cache))
