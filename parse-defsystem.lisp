@@ -250,8 +250,9 @@ system names contained using COERCE-NAME. Return the result."
                                    :name name :source-file source-file))
              (component-options
               (remove-plist-keys '(:defsystem-depends-on :class) options))
-             (defsystem-dependencies (loop :for spec :in defsystem-depends-on :collect
-                                           (resolve-dependency-spec nil spec))))
+             (defsystem-dependencies (loop :for spec :in defsystem-depends-on
+                                           :when (resolve-dependency-spec nil spec)
+                                           :collect :it)))
         ;; cache defsystem-depends-on in canonical form
         (when defsystem-depends-on
           (setf component-options

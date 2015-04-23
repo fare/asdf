@@ -102,7 +102,7 @@
         #+(or cmu scl) compile-warned-error
         #+sbcl compile-failed-error
         (let ((*compile-file-warnings-behaviour* :error))
-          (load-system :undefined-variables)))
+          (load-system :undefined-variables :force t)))
 (errors #+(or allegro clozure) compile-file-error
         #+(or cmu scl) null
         #+sbcl compile-failed-error
