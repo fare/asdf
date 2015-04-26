@@ -344,11 +344,11 @@ platform, or STRING on a so-called \"modern\" platform such as Allegro with mode
 NAME-DESIGNATOR and PACKAGE-DESIGNATOR will be converted to a string using STRING-DESIGNATOR on an
 ANSI CL platform, or STRING on a so-called \"modern\" platform such as Allegro with modern syntax.
 If optional ERROR argument is NIL, return NIL instead of an error when the symbol is not found."
-    (find-symbol (standard-case-symbol-name name-designator)
-                 (etypecase package-designator
-                   ((or package null) package-designator)
-                   ((or string symbol)))
-                 error)))
+    (find-symbol* (standard-case-symbol-name name-designator)
+                  (etypecase package-designator
+                    ((or package null) package-designator)
+                    ((or string symbol)))
+                  error)))
 
 ;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
