@@ -41,7 +41,7 @@
 (defun ensure-keyword (x)
   (etypecase x
     ((or null keyword) x)
-    ((or string symbol) (intern (string-upcase x) :keyword))))
+    ((or string symbol) (intern (standard-case-symbol-name x) :keyword))))
 
 (defun ensure-list-of-keywords (x)
   (mapcar 'ensure-keyword (ensure-list-of-strings x)))

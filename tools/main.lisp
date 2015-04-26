@@ -18,7 +18,7 @@ Unless EARLYP is true, return NIL if the symbol is not fbound."
   (block nil
     (flet ((try (x)
              (multiple-value-bind (sym foundp)
-                 (find-symbol* (string-upcase x) :asdf-tools nil)
+                 (find-standard-case-symbol x :asdf-tools nil)
                (when (and sym (or earlyp (and foundp (fboundp sym))))
                  (return sym)))))
       (try (strcat "%" (string name))) ;; so that you may use load, t, etc., as targets
