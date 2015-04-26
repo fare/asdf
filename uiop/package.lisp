@@ -37,7 +37,7 @@
         (t nil))))
   (defun find-symbol* (name package-designator &optional (error t))
     "Find a symbol in a package of given string'ified NAME;
-unless CL:FIND-SYMBOL, work well with 'modern' case sensitive syntax
+unlike CL:FIND-SYMBOL, work well with 'modern' case sensitive syntax
 by letting you supply a symbol or keyword for the name;
 also works well when the package is not present.
 If optional ERROR argument is NIL, return NIL instead of an error
