@@ -24,6 +24,7 @@
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
    #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
+   #:standard-case-symbol-name #:find-standard-case-symbol
    #:coerce-class ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
@@ -312,7 +313,7 @@ starting the separation from the end, e.g. when called with arguments
   (defun string-enclosed-p (prefix string suffix)
     "Does STRING begin with PREFIX and end with SUFFIX?"
     (and (string-prefix-p prefix string)
-         (string-suffix-p string suffix))))
+         (string-suffix-p string suffix)))
 
   (defvar +cr+ (coerce #(#\Return) 'string))
   (defvar +lf+ (coerce #(#\Linefeed) 'string))
@@ -330,6 +331,24 @@ the two results passed to STRCAT always reconstitute the original string"
                         (return (values (subseq x 0 (- (length x) (length end))) end)))))
         (when x (c +crlf+) (c +lf+) (c +cr+) (values x nil)))))
 
+  (defun standard-case-symbol-name (name-designator)
+    "Given a NAME-DESIGNATOR for a symbol, convert it to a string, using STRING-UPCASE on an ANSI CL
+platform, or STRING on a so-called \"modern\" platform such as Allegro with modern syntax."
+    (cond
+      ;; Should we be doing something on CLISP?
+      #+allegro ((eq excl:*current-case-mode* :case-sensitive-lower) (string name-designator))
+      (t (string-upcase name-designator))))
+
+  (defun find-standard-case-symbol (name-designator package-designator &optional (error t))
+    "Find a symbol in a package the name of which is designated by NAME-DESIGNATOR;
+NAME-DESIGNATOR and PACKAGE-DESIGNATOR will be converted to a string using STRING-DESIGNATOR on an
+ANSI CL platform, or STRING on a so-called \"modern\" platform such as Allegro with modern syntax.
+If optional ERROR argument is NIL, return NIL instead of an error when the symbol is not found."
+    (find-symbol (standard-case-symbol-name name-designator)
+                 (etypecase package-designator
+                   ((or package null) package-designator)
+                   ((or string symbol)))
+                 error)))
 
 ;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
