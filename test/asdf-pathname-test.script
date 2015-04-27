@@ -417,10 +417,7 @@
 
 (defun test-pathname-parsing ()
   #-(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
-  (progn
-    ;; FIXME: unable to get DBG to load in this file. [2014/11/30:rpg]
-    (format t "Can't test pathname parsing: this lisp lacks SETENV support.")
-    t)
+  (DBG "Can't test pathname parsing: this lisp lacks SETENV support.")
   #+(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
   (let ((old-config (uiop:getenvp "XDG_CONFIG_DIRS"))
         (old-home-config (uiop:getenvp "XDG_CONFIG_HOME")))
