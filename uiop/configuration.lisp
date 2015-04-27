@@ -352,10 +352,10 @@ returns pathnames for directories that contain all of the configuration informat
      `(,(config-home-pathname app more)
        ,@(config-search-pathnames app more))))
 
-  ;; FIXME: AFAICT although this says "find FILE," it is often used to find a DIRECTORY.
   (defun find-preferred-file (files &key (direction :input))
     "Find first file in the list of FILES that exists (for direction :input or :probe)
-or just the first one (for direction :output or :io)."
+or just the first one (for direction :output or :io).
+    Note that when we say \"file\" here, the files in question may be directories."
     (find-if (ecase direction ((:probe :input) 'probe-file*) ((:output :io) 'identity)) files))
 
   (defun find-data-pathname (&optional app more (direction :input))
