@@ -37,8 +37,9 @@
         #+(or cmu scl) (ext:unix-namestring p nil)
         #+sbcl (sb-ext:native-namestring p)
         #-(or clozure cmu sbcl scl)
-        (if (os-unix-p) (unix-namestring p)
-            (namestring p)))))
+        (os-cond
+         ((os-unix-p) (unix-namestring p))
+         (t (namestring p))))))
 
   (defun parse-native-namestring (string &rest constraints &key ensure-directory &allow-other-keys)
     "From a native namestring suitable for use by the operating system, return
@@ -50,9 +51,9 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
                  #+clozure (ccl:native-to-pathname string)
                  #+sbcl (sb-ext:parse-native-namestring string)
                  #-(or clozure sbcl)
-                 (if (os-unix-p)
-                     (parse-unix-namestring string :ensure-directory ensure-directory)
-                     (parse-namestring string)))))
+                 (os-cond
+                  ((os-unix-p) (parse-unix-namestring string :ensure-directory ensure-directory))
+                  (t (parse-namestring string))))))
            (pathname
              (if ensure-directory
                  (and pathname (ensure-directory-pathname pathname))
@@ -501,7 +502,7 @@ Note that this operation is usually NOT thread-safe."
 (with-upgradability ()
   (defun inter-directory-separator ()
     "What character does the current OS conventionally uses to separate directories?"
-    (if (os-unix-p) #\: #\;))
+    (os-cond ((os-unix-p) #\:) (t #\;)))
 
   (defun split-native-pathnames-string (string &rest constraints &key &allow-other-keys)
     "Given a string of pathnames specified in native OS syntax, separate them in a list,

@@ -331,7 +331,8 @@ this function tries to locate the Windows FOLDER for one of
 
   (defun config-system-pathnames (&optional app &rest more)
     "Determine system user configuration directories"
-     (when (os-unix-p) (list (resolve-location `(,(parse-unix-namestring "/etc/") ,app ,more)))))
+    (os-cond
+     ((os-unix-p) (list (resolve-location `(,(parse-unix-namestring "/etc/") ,app ,more))))))
 
   (defun clean-search-pathnames (dirs)
     "Parse strings as unix namestrings and remove duplicates and non absolute-pathnames in a list"

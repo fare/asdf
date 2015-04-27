@@ -656,9 +656,10 @@ given DEFAULTS-PATHNAME as a base pathname."
   (defun directorize-pathname-host-device (pathname)
     "Given a PATHNAME, return a pathname that has representations of its HOST and DEVICE components
 added to its DIRECTORY component. This is useful for output translations."
-    #+(or unix abcl)
-    (when (and #+abcl (os-unix-p) (physical-pathname-p pathname))
-      (return-from directorize-pathname-host-device pathname))
+    (os-cond
+     ((os-unix-p)
+      (when (physical-pathname-p pathname)
+        (return-from directorize-pathname-host-device pathname))))
     (let* ((root (pathname-root pathname))
            (wild-root (wilden root))
            (absolute-pathname (merge-pathnames* pathname root))
