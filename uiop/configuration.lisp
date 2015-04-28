@@ -10,10 +10,10 @@
    #:user-configuration-directories #:system-configuration-directories ;; implemented in backward-driver
    #:in-first-directory #:in-user-configuration-directory #:in-system-configuration-directory ;; idem
    #:get-folder-path
-   #:data-home-pathname #:config-home-pathname #:data-search-pathnames #:config-search-pathnames
-   #:cache-home-pathname #:runtime-dir-pathname #:config-system-pathnames
-   #:clean-search-pathnames #:data-pathnames #:config-pathnames
-   #:find-preferred-file #:find-data-pathname #:find-config-pathname
+   #:xdg-data-home #:xdg-config-home #:xdg-data-dirs #:xdg-config-dirs
+   #:xdg-cache-home #:xdg-runtime-dir #:system-config-pathnames
+   #:clean-search-pathnames #:xdg-data-pathnames #:xdg-config-pathnames
+   #:find-preferred-file #:xdg-data-pathname #:xdg-config-pathname
    #:validate-configuration-form #:validate-configuration-file #:validate-configuration-directory
    #:configuration-inheritance-directive-p
    #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form* #:*user-cache*
@@ -269,89 +269,84 @@ this function tries to locate the Windows FOLDER for one of
         ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
         (ecase folder
           (:local-appdata (or (getenv-absolute-directory "LOCALAPPDATA")
-                              (subpathname* (getenv-absolute-directory "APPDATA") "Local")))
+                              (subpathname* (get-folder-path :appdata) "Local")))
           (:appdata (getenv-absolute-directory "APPDATA"))
           (:common-appdata (or (getenv-absolute-directory "ALLUSERSAPPDATA")
                                (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
 
   ;; Support for the XDG Base Directory Specification
-  (defun data-home-pathname (&optional app &rest more)
+  (defun xdg-data-home (&rest more)
     "path for user specific data files"
-    (resolve-location
-     `(,(os-cond
-         ((os-windows-p) (or (get-folder-path :local-appdata)
-                             (subpathname* (get-folder-path :appdata) "Local/")))
-         (t (or (getenv-absolute-directory "XDG_DATA_HOME")
-                (subpathname (user-homedir-pathname) ".local/share/"))))
-       ,app ,more)))
-
-  (defun config-home-pathname (&optional app &rest more)
-    "path for user specific configuration files"
-    (os-cond
-     ((os-windows-p) (apply 'data-home-path app "config/" more))
-     (t (resolve-absolute-location
-         `(,(or (getenv-absolute-directory "XDG_CONFIG_HOME")
-                (subpathname (user-homedir-pathname) ".config/"))
-           ,app ,more)))))
-
-  (defun data-search-pathnames (&optional app &rest more)
-    "the preference-ordered set of additional paths to search for data files"
-    (mapcar #'(lambda (d) (resolve-location `(,d ,app ,more)))
+    (resolve-absolute-location
+     `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
             (os-cond
-              ((os-windows-p) (mapcar 'get-folder-path '(:appdata :common-appdata)))
-              (t (or (getenv-absolute-directories "XDG_DATA_DIRS")
-                     (mapcar 'parse-unix-namestring '("/usr/local/share/" "/opt/local/share/" "/usr/share/")))))))
+             ((os-windows-p) (get-folder-path :local-appdata))
+             (t (subpathname (user-homedir-pathname) ".local/share/"))))
+       ,more)))
 
-  (defun config-search-pathnames (&optional app &rest more)
+  (defun xdg-config-home (&rest more)
+    "path for user specific configuration files"
+    (resolve-absolute-location
+     `(,(or (getenv-absolute-directory "XDG_CONFIG_HOME")
+            (os-cond
+             ((os-windows-p) (xdg-data-home "config/"))
+             (t (subpathname (user-homedir-pathname) ".config/"))))
+       ,more)))
+
+  (defun xdg-data-dirs (&rest more)
+    "the preference-ordered set of additional paths to search for data files"
+    (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
+            (or (getenv-absolute-directories "XDG_DATA_DIRS")
+                (os-cond
+                 ((os-windows-p) (mapcar 'get-folder-path '(:appdata :common-appdata)))
+                 (t (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))))
+
+  (defun xdg-config-dirs (&rest more)
     "the preference-ordered set of additional base paths to search for configuration files"
-    (os-cond
-     ((os-windows-p) (apply 'data-search-pathnames app "config/" more))
-     (t (mapcar #'(lambda (d) (resolve-location `(,d ,app ,more)))
-                (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
-                    (mapcar 'parse-unix-namestring
-                            (list "/etc/xdg/"
-                                  "/usr/local/etc/"
-                                  "/opt/local/etc/")))))))
+    (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
+            (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
+                (os-cond
+                 ((os-windows-p) (xdg-data-dirs "config/" more))
+                 (t (mapcar 'parse-unix-namestring '("/etc/xdg/")))))))
 
-  (defun cache-home-pathname (&optional app &rest more)
+  (defun xdg-cache-home (&rest more)
     "the base directory relative to which user specific non-essential data files should be stored"
-    (os-cond
-     ((os-windows-p) (data-home-pathname app "cache" more))
-     (t (resolve-location `(,(or (getenv-absolute-directory "XDG_CACHE_HOME")
-                                 (subpathname* (user-homedir-pathname) ".cache/")) ,app ,more)))))
+    (resolve-absolute-location
+     `(,(or (getenv-absolute-directory "XDG_CACHE_HOME")
+            (os-cond
+             ((os-windows-p) (xdg-data-home "cache"))
+             (t (subpathname* (user-homedir-pathname) ".cache/"))))
+       ,more)))
 
-  (defun runtime-dir-pathname (&optional app &rest more)
+  (defun xdg-runtime-dir (&rest more)
     "pathname for user-specific non-essential runtime files and other file objects"
     ;; (such as sockets, named pipes, ...)
     ;; The XDG spec says that if not provided by the login system, the application should
     ;; issue a warning and provide a replacement. UIOP is not equipped to do that and returns NIL.
-    (os-cond
-     ((not (os-windows-p))
-      (resolve-location `(,(getenv-absolute-directory "XDG_RUNTIME_DIR") ,app ,more)))))
+    (resolve-absolute-location `(,(getenv-absolute-directory "XDG_RUNTIME_DIR") ,more)))
 
-  (defun config-system-pathnames (&optional app &rest more)
+  (defun system-config-pathnames (&rest more)
     "Determine system user configuration directories"
     (os-cond
-     ((os-unix-p) (list (resolve-location `(,(parse-unix-namestring "/etc/") ,app ,more))))))
+     ((os-unix-p) (list (resolve-absolute-location `(,(parse-unix-namestring "/etc/") ,more))))))
 
   (defun clean-search-pathnames (dirs)
     "Parse strings as unix namestrings and remove duplicates and non absolute-pathnames in a list"
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs) :from-end t :test 'equal))
 
-  (defun data-pathnames (&optional app &rest more)
+  (defun xdg-data-pathnames (&rest more)
     "Return a list of absolute pathnames for application data directories.  With APP,
 returns directory for data for that application, without APP, returns the set of directories
 for storing all application configurations."
     (clean-search-pathnames
-     `(,(data-home-pathname app more)
-       ,@(data-search-pathnames app more))))
+     `(,(xdg-data-home more)
+       ,@(xdg-data-dirs more))))
 
-  (defun config-pathnames (&optional app &rest more)
-    "Return a list of pathnames for application configuration. Without the APP argument,
-returns pathnames for directories that contain all of the configuration information."
+  (defun xdg-config-pathnames (&rest more)
+    "Return a list of pathnames for application configuration."
     (clean-search-pathnames
-     `(,(config-home-pathname app more)
-       ,@(config-search-pathnames app more))))
+     `(,(xdg-config-home more)
+       ,@(xdg-config-dirs more))))
 
   ;; FIXME: AFAICT although this says "find FILE," it is often used to find a DIRECTORY.
   (defun find-preferred-file (files &key (direction :input))
@@ -359,14 +354,14 @@ returns pathnames for directories that contain all of the configuration informat
 or just the first one (for direction :output or :io)."
     (find-if (ecase direction ((:probe :input) 'probe-file*) ((:output :io) 'identity)) files))
 
-  (defun find-data-pathname (&optional app more (direction :input))
-    (find-preferred-file (data-pathnames app more) :direction direction))
+  (defun xdg-data-pathname (&optional more (direction :input))
+    (find-preferred-file (xdg-data-pathnames more) :direction direction))
 
-  (defun find-config-pathname (&optional app more (direction :input))
-    (find-preferred-file (config-pathnames app more) :direction direction))
+  (defun xdg-config-pathname (&optional more (direction :input))
+    (find-preferred-file (xdg-config-pathnames more) :direction direction))
 
   (defun compute-user-cache ()
     "Compute (and return) the location of the default user-cache for translate-output
 objects. Side-effects for cached file location computation."
-    (setf *user-cache* (cache-home-pathname "common-lisp" :implementation)))
+    (setf *user-cache* (xdg-cache-home "common-lisp" :implementation)))
   (register-image-restore-hook 'compute-user-cache))
