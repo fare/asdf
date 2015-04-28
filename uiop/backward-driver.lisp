@@ -45,12 +45,12 @@
   (defun user-configuration-directories ()
     "Return the current user's list of user configuration directories
 for configuring common-lisp.
-    DEPRECATED. Use uiop:config-pathnames instead."
-    (config-pathnames "common-lisp"))
+    DEPRECATED. Use uiop:xdg-config-pathnames instead."
+    (xdg-config-pathnames "common-lisp"))
   (defun system-configuration-directories ()
     "Return the list of system configuration directories for common-lisp.
     DEPRECATED. Use uiop:config-system-pathnames instead."
-    (config-system-pathnames "common-lisp"))
+    (system-config-pathnames "common-lisp"))
   (defun in-first-directory (dirs x &key (direction :input))
     "Finds the first appropriate file named X in the list of DIRS for I/O
 in DIRECTION \(which may be :INPUT, :OUTPUT, :IO, or :PROBE).
@@ -64,8 +64,8 @@ first element of DIRS that exists. DEPRECATED."
   (defun in-user-configuration-directory (x &key (direction :input))
     "Return the file named X in the user configuration directory for common-lisp.
 DEPRECATED."
-    (find-config-pathname "common-lisp" x direction))
+    (xdg-config-pathname "common-lisp" x direction))
   (defun in-system-configuration-directory (x &key (direction :input))
     "Return the pathname for the file named X under the system configuration directory
 for common-lisp. DEPRECATED."
-    (find-preferred-file (config-system-pathnames "common-lisp" x) :direction direction)))
+    (find-preferred-file (system-config-pathnames "common-lisp" x) :direction direction)))
