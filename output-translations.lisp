@@ -197,12 +197,10 @@ and the order is by decreasing length of namestring of the source pathname.")
                     ((location-function-p dst)
                      (funcall collect
                               (list trusrc (ensure-function (second dst)))))
-                    ((eq dst t)
+                    ((typep dst 'boolean)
                      (funcall collect (list trusrc t)))
                     (t
-                     (let* ((trudst (if dst
-                                        (resolve-location dst :ensure-directory t :wilden t)
-                                        trusrc)))
+                     (let* ((trudst (resolve-location dst :ensure-directory t :wilden t)))
                        (funcall collect (list trudst t))
                        (funcall collect (list trusrc trudst)))))))))))
 

@@ -234,10 +234,10 @@ directive.")
            :do (setf path (if (absolute-pathname-p sub) (resolve-symlinks* sub) sub))
            :finally (return path)))
 
-  ;;; NOTE: Why is a boolean a location designator? Could we amplify the
-  ;;; docstring? Possibly just by reference to the ASF manual...
   (defun location-designator-p (x)
     "Is X a designator for a location?"
+    ;; NIL means "skip this entry", or as an output translation, same as translation input.
+    ;; T means "any input" for a translation, or as output, same as translation input.
     (flet ((absolute-component-p (c)
              (typep c '(or string pathname
                         (member :root :home :here :user-cache))))
@@ -248,12 +248,10 @@ directive.")
           (absolute-component-p x)
           (and (consp x) (absolute-component-p (first x)) (every #'relative-component-p (rest x))))))
 
-  ;;; NOTE: similarly, what's a location function?
   (defun location-function-p (x)
     "Is X the specification of a location function?"
-    (and
-     (length=n-p x 2)
-     (eq (car x) :function)))
+    ;; Location functions are allowed in output translations, and notably used by ABCL for JAR file support.
+    (and (length=n-p x 2) (eq (car x) :function)))
 
   (defvar *clear-configuration-hook* '())
 
@@ -289,9 +287,9 @@ this function tries to locate the Windows FOLDER for one of
                                (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
 
   ;; Support for the XDG Base Directory Specification
-  ;;; NOTE: Can we explain what MORE is for here?
   (defun xdg-data-home (&rest more)
-    "Returns a pathname for the directory containing user-specific data files."
+    "Returns an absolute pathname for the directory containing user-specific data files.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
             (os-cond
@@ -300,7 +298,8 @@ this function tries to locate the Windows FOLDER for one of
        ,more)))
 
   (defun xdg-config-home (&rest more)
-    "Returns a pathname for the directory containing user-specific configuration files."
+    "Returns a pathname for the directory containing user-specific configuration files.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_CONFIG_HOME")
             (os-cond
@@ -310,7 +309,8 @@ this function tries to locate the Windows FOLDER for one of
 
   (defun xdg-data-dirs (&rest more)
     "The preference-ordered set of additional paths to search for data files.
-Returns a list of absolute directory pathnames."
+Returns a list of absolute directory pathnames.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
             (or (getenv-absolute-directories "XDG_DATA_DIRS")
                 (os-cond
@@ -319,7 +319,8 @@ Returns a list of absolute directory pathnames."
 
   (defun xdg-config-dirs (&rest more)
     "The preference-ordered set of additional base paths to search for configuration files.
-Returns a list of absolute directory pathnames."
+Returns a list of absolute directory pathnames.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
             (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
                 (os-cond
@@ -328,7 +329,8 @@ Returns a list of absolute directory pathnames."
 
   (defun xdg-cache-home (&rest more)
     "The base directory relative to which user specific non-essential data files should be stored.
-Returns an absolute directory pathname."
+Returns an absolute directory pathname.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_CACHE_HOME")
             (os-cond
@@ -338,7 +340,8 @@ Returns an absolute directory pathname."
 
   (defun xdg-runtime-dir (&rest more)
     "Pathname for user-specific non-essential runtime files and other file objects.
-Returns an absolute directory pathname."
+Returns an absolute directory pathname.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     ;; (such as sockets, named pipes, ...)
     ;; The XDG spec says that if not provided by the login system, the application should
     ;; issue a warning and provide a replacement. UIOP is not equipped to do that and returns NIL.
@@ -347,7 +350,8 @@ Returns an absolute directory pathname."
   ;;; NOTE: modified the docstring because "system user configuration
   ;;; directories" seems self-contradictory. I'm not sure my wording is right.
   (defun system-config-pathnames (&rest more)
-    "Return a list of directories where are stored the system's default user configuration information."
+    "Return a list of directories where are stored the system's default user configuration information.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (os-cond
      ((os-unix-p) (list (resolve-absolute-location `(,(parse-unix-namestring "/etc/") ,more))))))
 
@@ -358,13 +362,15 @@ Returns an absolute directory pathname."
   (defun xdg-data-pathnames (&rest more)
     "Return a list of absolute pathnames for application data directories.  With APP,
 returns directory for data for that application, without APP, returns the set of directories
-for storing all application configurations."
+for storing all application configurations.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (filter-pathname-set
      `(,(xdg-data-home more)
        ,@(xdg-data-dirs more))))
 
   (defun xdg-config-pathnames (&rest more)
-    "Return a list of pathnames for application configuration."
+    "Return a list of pathnames for application configuration.
+MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     (filter-pathname-set
      `(,(xdg-config-home more)
        ,@(xdg-config-dirs more))))

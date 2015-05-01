@@ -426,13 +426,13 @@
            (setf (uiop:getenv "XDG_CONFIG_DIRS") "/foo:prismatic")
            (multiple-value-bind (ret err)
                (ignore-errors
-                (uiop:config-pathnames))
+                (uiop:xdg-config-pathnames))
              (assert (and (not ret) err)))
            (setf (uiop:getenv "XDG_CONFIG_DIRS") "/foo:")
            (setf (uiop:getenv "XDG_CONFIG_HOME") "")
            (multiple-value-bind (ret err)
                (ignore-errors
-                (uiop:config-pathnames))
+                (uiop:xdg-config-pathnames))
              (assert (not err))
              (assert (= (length ret) 2))))
       (when old-config
