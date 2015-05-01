@@ -12,7 +12,7 @@
    #:get-folder-path
    #:xdg-data-home #:xdg-config-home #:xdg-data-dirs #:xdg-config-dirs
    #:xdg-cache-home #:xdg-runtime-dir #:system-config-pathnames
-   #:clean-search-pathnames #:xdg-data-pathnames #:xdg-config-pathnames
+   #:filter-pathname-set #:xdg-data-pathnames #:xdg-config-pathnames
    #:find-preferred-file #:xdg-data-pathname #:xdg-config-pathname
    #:validate-configuration-form #:validate-configuration-file #:validate-configuration-directory
    #:configuration-inheritance-directive-p
@@ -57,7 +57,16 @@
 
   (defun validate-configuration-form (form tag directive-validator
                                             &key location invalid-form-reporter)
-    "Validate a configuration FORM"
+    "Validate a configuration FORM. By default it will raise an error if the
+FORM is not valid.  Otherwise it will return the validated form.
+     Arguments control the behavior:
+     The configuration FORM should be of the form (TAG . <rest>)
+     Each element of <rest> will be checked by first seeing if it's a configuration inheritance
+directive (see CONFIGURATION-INHERITANCE-DIRECTIVE-P) then invoking DIRECTIVE-VALIDATOR
+on it.
+     In the event of an invalid form, INVALID-FORM-REPORTER will be used to control
+reporting (see REPORT-INVALID-FORM) with LOCATION providing information about where
+the configuration form appeared."
     (unless (and (consp form) (eq (car form) tag))
       (setf *ignored-configuration-form* t)
       (report-invalid-form invalid-form-reporter :form form :location location)
@@ -90,7 +99,9 @@
              (return (nreverse x))))
 
   (defun validate-configuration-file (file validator &key description)
-    "Validate a configuration file for conformance of its form with the validator function"
+    "Validate a configuration FILE.  The configuration file should have only one s-expression
+in it, which will be checked with the VALIDATOR FORM.  DESCRIPTION argument used for error
+reporting."
     (let ((forms (read-file-forms file)))
       (unless (length=n-p forms 1)
         (error (compatfmt "~@<One and only one form allowed for ~A. Got: ~3i~_~S~@:>~%")
@@ -123,7 +134,7 @@ values of TAG include :source-registry and :output-translations."
         :inherit-configuration)))
 
   (defun resolve-relative-location (x &key ensure-directory wilden)
-    "Given a designator X for an relative location, resolve it to a pathname"
+    "Given a designator X for an relative location, resolve it to a pathname."
     (ensure-pathname
      (etypecase x
        (null nil)
@@ -223,6 +234,8 @@ directive.")
            :do (setf path (if (absolute-pathname-p sub) (resolve-symlinks* sub) sub))
            :finally (return path)))
 
+  ;;; NOTE: Why is a boolean a location designator? Could we amplify the
+  ;;; docstring? Possibly just by reference to the ASF manual...
   (defun location-designator-p (x)
     "Is X a designator for a location?"
     (flet ((absolute-component-p (c)
@@ -235,6 +248,7 @@ directive.")
           (absolute-component-p x)
           (and (consp x) (absolute-component-p (first x)) (every #'relative-component-p (rest x))))))
 
+  ;;; NOTE: similarly, what's a location function?
   (defun location-function-p (x)
     "Is X the specification of a location function?"
     (and
@@ -275,8 +289,9 @@ this function tries to locate the Windows FOLDER for one of
                                (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
 
   ;; Support for the XDG Base Directory Specification
+  ;;; NOTE: Can we explain what MORE is for here?
   (defun xdg-data-home (&rest more)
-    "path for user specific data files"
+    "Returns a pathname for the directory containing user-specific data files."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
             (os-cond
@@ -285,7 +300,7 @@ this function tries to locate the Windows FOLDER for one of
        ,more)))
 
   (defun xdg-config-home (&rest more)
-    "path for user specific configuration files"
+    "Returns a pathname for the directory containing user-specific configuration files."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_CONFIG_HOME")
             (os-cond
@@ -294,7 +309,8 @@ this function tries to locate the Windows FOLDER for one of
        ,more)))
 
   (defun xdg-data-dirs (&rest more)
-    "the preference-ordered set of additional paths to search for data files"
+    "The preference-ordered set of additional paths to search for data files.
+Returns a list of absolute directory pathnames."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
             (or (getenv-absolute-directories "XDG_DATA_DIRS")
                 (os-cond
@@ -302,7 +318,8 @@ this function tries to locate the Windows FOLDER for one of
                  (t (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))))
 
   (defun xdg-config-dirs (&rest more)
-    "the preference-ordered set of additional base paths to search for configuration files"
+    "The preference-ordered set of additional base paths to search for configuration files.
+Returns a list of absolute directory pathnames."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
             (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
                 (os-cond
@@ -310,7 +327,8 @@ this function tries to locate the Windows FOLDER for one of
                  (t (mapcar 'parse-unix-namestring '("/etc/xdg/")))))))
 
   (defun xdg-cache-home (&rest more)
-    "the base directory relative to which user specific non-essential data files should be stored"
+    "The base directory relative to which user specific non-essential data files should be stored.
+Returns an absolute directory pathname."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_CACHE_HOME")
             (os-cond
@@ -319,32 +337,35 @@ this function tries to locate the Windows FOLDER for one of
        ,more)))
 
   (defun xdg-runtime-dir (&rest more)
-    "pathname for user-specific non-essential runtime files and other file objects"
+    "Pathname for user-specific non-essential runtime files and other file objects.
+Returns an absolute directory pathname."
     ;; (such as sockets, named pipes, ...)
     ;; The XDG spec says that if not provided by the login system, the application should
     ;; issue a warning and provide a replacement. UIOP is not equipped to do that and returns NIL.
     (resolve-absolute-location `(,(getenv-absolute-directory "XDG_RUNTIME_DIR") ,more)))
 
+  ;;; NOTE: modified the docstring because "system user configuration
+  ;;; directories" seems self-contradictory. I'm not sure my wording is right.
   (defun system-config-pathnames (&rest more)
-    "Determine system user configuration directories"
+    "Return a list of directories where are stored the system's default user configuration information."
     (os-cond
      ((os-unix-p) (list (resolve-absolute-location `(,(parse-unix-namestring "/etc/") ,more))))))
 
-  (defun clean-search-pathnames (dirs)
-    "Parse strings as unix namestrings and remove duplicates and non absolute-pathnames in a list"
+  (defun filter-pathname-set (dirs)
+    "Parse strings as unix namestrings and remove duplicates and non absolute-pathnames in a list."
     (remove-duplicates (remove-if-not #'absolute-pathname-p dirs) :from-end t :test 'equal))
 
   (defun xdg-data-pathnames (&rest more)
     "Return a list of absolute pathnames for application data directories.  With APP,
 returns directory for data for that application, without APP, returns the set of directories
 for storing all application configurations."
-    (clean-search-pathnames
+    (filter-pathname-set
      `(,(xdg-data-home more)
        ,@(xdg-data-dirs more))))
 
   (defun xdg-config-pathnames (&rest more)
     "Return a list of pathnames for application configuration."
-    (clean-search-pathnames
+    (filter-pathname-set
      `(,(xdg-config-home more)
        ,@(xdg-config-dirs more))))
 
