@@ -286,10 +286,13 @@ this function tries to locate the Windows FOLDER for one of
           (:common-appdata (or (getenv-absolute-directory "ALLUSERSAPPDATA")
                                (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
 
+
   ;; Support for the XDG Base Directory Specification
   (defun xdg-data-home (&rest more)
     "Returns an absolute pathname for the directory containing user-specific data files.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
             (os-cond
@@ -299,7 +302,9 @@ MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
 
   (defun xdg-config-home (&rest more)
     "Returns a pathname for the directory containing user-specific configuration files.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_CONFIG_HOME")
             (os-cond
@@ -310,7 +315,9 @@ MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
   (defun xdg-data-dirs (&rest more)
     "The preference-ordered set of additional paths to search for data files.
 Returns a list of absolute directory pathnames.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
             (or (getenv-absolute-directories "XDG_DATA_DIRS")
                 (os-cond
@@ -320,7 +327,9 @@ MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
   (defun xdg-config-dirs (&rest more)
     "The preference-ordered set of additional base paths to search for configuration files.
 Returns a list of absolute directory pathnames.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
             (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
                 (os-cond
@@ -330,7 +339,9 @@ MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
   (defun xdg-cache-home (&rest more)
     "The base directory relative to which user specific non-essential data files should be stored.
 Returns an absolute directory pathname.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_CACHE_HOME")
             (os-cond
@@ -339,10 +350,12 @@ MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
        ,more)))
 
   (defun xdg-runtime-dir (&rest more)
-    "Pathname for user-specific non-essential runtime files and other file objects.
+    "Pathname for user-specific non-essential runtime files and other file objects,
+such as sockets, named pipes, etc.
 Returns an absolute directory pathname.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
-    ;; (such as sockets, named pipes, ...)
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     ;; The XDG spec says that if not provided by the login system, the application should
     ;; issue a warning and provide a replacement. UIOP is not equipped to do that and returns NIL.
     (resolve-absolute-location `(,(getenv-absolute-directory "XDG_RUNTIME_DIR") ,more)))
@@ -351,7 +364,9 @@ MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
   ;;; directories" seems self-contradictory. I'm not sure my wording is right.
   (defun system-config-pathnames (&rest more)
     "Return a list of directories where are stored the system's default user configuration information.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (os-cond
      ((os-unix-p) (list (resolve-absolute-location `(,(parse-unix-namestring "/etc/") ,more))))))
 
@@ -363,14 +378,18 @@ MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
     "Return a list of absolute pathnames for application data directories.  With APP,
 returns directory for data for that application, without APP, returns the set of directories
 for storing all application configurations.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (filter-pathname-set
      `(,(xdg-data-home more)
        ,@(xdg-data-dirs more))))
 
   (defun xdg-config-pathnames (&rest more)
     "Return a list of pathnames for application configuration.
-MORE may contain specifications for a subpath, as per RESOLVE-LOCATION."
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
     (filter-pathname-set
      `(,(xdg-config-home more)
        ,@(xdg-config-dirs more))))
