@@ -64,7 +64,7 @@ first element of DIRS that exists. DEPRECATED."
   (defun in-user-configuration-directory (x &key (direction :input))
     "Return the file named X in the user configuration directory for common-lisp.
 DEPRECATED."
-    (xdg-config-pathname "common-lisp" x direction))
+    (xdg-config-pathname (format nil "common-lisp/~a/" x) direction))
   (defun in-system-configuration-directory (x &key (direction :input))
     "Return the pathname for the file named X under the system configuration directory
 for common-lisp. DEPRECATED."
