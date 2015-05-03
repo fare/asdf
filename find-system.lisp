@@ -174,14 +174,16 @@ Going forward, we recommend new users should be using the source-registry.
                        :truename truename))
           (return file))
         #-(or clisp genera) ; clisp doesn't need it, plain genera doesn't have read-sequence(!)
-        (when (and (os-windows-p) (physical-pathname-p defaults))
-          (let ((shortcut
-                  (make-pathname
-                   :defaults defaults :case :local
-                   :name (strcat name ".asd")
-                   :type "lnk")))
-            (when (probe-file* shortcut)
-              (ensure-pathname (parse-windows-shortcut shortcut) :namestring :native)))))))
+        (os-cond
+         ((os-windows-p)
+          (when (physical-pathname-p defaults)
+            (let ((shortcut
+                    (make-pathname
+                     :defaults defaults :case :local
+                     :name (strcat name ".asd")
+                     :type "lnk")))
+              (when (probe-file* shortcut)
+                (ensure-pathname (parse-windows-shortcut shortcut) :namestring :native)))))))))
 
   (defun sysdef-central-registry-search (system)
     (let ((name (primary-system-name system))

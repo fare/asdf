@@ -739,7 +739,9 @@ It returns a process-info plist with possible keys:
     (etypecase command
       (string command)
       (list (escape-shell-command
-             (if (os-unix-p) (cons "exec" command) command)))))
+             (os-cond
+              ((os-unix-p) (cons "exec" command))
+              (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
     (flet ((redirect (spec operator)
@@ -756,14 +758,16 @@ It returns a process-info plist with possible keys:
                        (escape-shell-token (native-namestring pathname)))))))
       (multiple-value-bind (before after)
           (let ((normalized (%normalize-system-command command)))
-            (if (os-unix-p)
-                (values '("exec") (list " ; " normalized))
-                (values (list normalized) ())))
+            (os-cond
+             ((os-unix-p) (values '("exec") (list " ; " normalized)))
+             (t (values (list normalized) ()))))
         (reduce/strcat
          (append
           before (redirect in " <") (redirect out " >") (redirect err " 2>")
-          (when (and directory (os-unix-p)) ;; NB: unless on Unix, %system uses with-current-directory
-            `(" ; cd " ,(escape-shell-token (native-namestring directory))))
+          (os-cond
+           ((os-unix-p)
+            (when directory ;; NB: unless on Unix, %system uses with-current-directory
+              `(" ; cd " ,(escape-shell-token (native-namestring directory))))))
           after)))))
 
   (defun %system (command &rest keys
@@ -782,7 +786,7 @@ It returns a process-info plist with possible keys:
        (apply '%run-program %command :wait t
               :input :interactive :output :interactive :error-output :interactive keys))
       #-(or clisp (and lispworks os-windows))
-      (with-current-directory ((unless (os-unix-p) directory))
+      (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
         #+abcl (ext:run-shell-command %command)
         #+cormanlisp (win32:system %command)
         #+(or clasp ecl) (let ((*standard-input* *stdin*)

@@ -1,8 +1,5 @@
 ;;; -*- Lisp -*-
 
-(defpackage :asdf-pathname-test (:use :asdf :uiop :uiop/common-lisp :asdf/cache :asdf-test))
-(in-package :asdf-pathname-test)
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #-(or xcl gcl) (push :asdf-test-logical-pathname *features*)
   #+xcl (push :buggy-untyped-file *features*))
@@ -419,12 +416,9 @@
     (clear-system "test-system")))
 
 (defun test-pathname-parsing ()
-  #-(or allegro clisp clozure ecl lispworks mkcl sbcl cmu)
-  (progn
-    ;; FIXME: unable to get DBG to load in this file. [2014/11/30:rpg]
-    (format t "Can't test pathname parsing: this lisp lacks SETENV support.")
-    t)
-  #+(or allegro clisp clozure ecl lispworks mkcl sbcl cmu)
+  #-(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
+  (DBG "Can't test pathname parsing: this lisp lacks SETENV support.")
+  #+(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
   (let ((old-config (uiop:getenvp "XDG_CONFIG_DIRS"))
         (old-home-config (uiop:getenvp "XDG_CONFIG_HOME")))
     (unwind-protect
@@ -432,13 +426,13 @@
            (setf (uiop:getenv "XDG_CONFIG_DIRS") "/foo:prismatic")
            (multiple-value-bind (ret err)
                (ignore-errors
-                (uiop:user-configuration-directories))
+                (uiop:xdg-config-pathnames))
              (assert (and (not ret) err)))
            (setf (uiop:getenv "XDG_CONFIG_DIRS") "/foo:")
            (setf (uiop:getenv "XDG_CONFIG_HOME") "")
            (multiple-value-bind (ret err)
                (ignore-errors
-                (uiop:user-configuration-directories))
+                (uiop:xdg-config-pathnames))
              (assert (not err))
              (assert (= (length ret) 2))))
       (when old-config

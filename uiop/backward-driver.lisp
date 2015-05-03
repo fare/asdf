@@ -6,11 +6,12 @@
   (:recycle :uiop/backward-driver :asdf/backward-driver :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility
    :uiop/pathname :uiop/stream :uiop/os :uiop/image
-   :uiop/run-program :uiop/lisp-build
-   :uiop/configuration)
+   :uiop/run-program :uiop/lisp-build :uiop/configuration)
   (:export
    #:coerce-pathname #:component-name-to-pathname-components
    #+(or clasp ecl mkcl) #:compile-file-keeping-object
+   #:user-configuration-directories #:system-configuration-directories
+   #:in-first-directory #:in-user-configuration-directory #:in-system-configuration-directory
    ))
 (in-package :uiop/backward-driver)
 
@@ -38,4 +39,33 @@
       (values relabs path filename)))
 
   #+(or clasp ecl mkcl)
-  (defun compile-file-keeping-object (&rest args) (apply #'compile-file* args)))
+  (defun compile-file-keeping-object (&rest args) (apply #'compile-file* args))
+
+  ;; Backward compatibility for ASDF 2.27 to 3.1.4
+  (defun user-configuration-directories ()
+    "Return the current user's list of user configuration directories
+for configuring common-lisp.
+    DEPRECATED. Use uiop:xdg-config-pathnames instead."
+    (xdg-config-pathnames "common-lisp"))
+  (defun system-configuration-directories ()
+    "Return the list of system configuration directories for common-lisp.
+    DEPRECATED. Use uiop:config-system-pathnames instead."
+    (system-config-pathnames "common-lisp"))
+  (defun in-first-directory (dirs x &key (direction :input))
+    "Finds the first appropriate file named X in the list of DIRS for I/O
+in DIRECTION \(which may be :INPUT, :OUTPUT, :IO, or :PROBE).
+   If direction is :INPUT or :PROBE, will return the first extant file named
+X in one of the DIRS.
+   If direction is :OUTPUT or :IO, will simply return the file named X in the
+first element of DIRS that exists. DEPRECATED."
+    (find-preferred-file
+     (mapcar #'(lambda (dir) (subpathname (ensure-directory-pathname dir) x)) dirs)
+     :direction direction))
+  (defun in-user-configuration-directory (x &key (direction :input))
+    "Return the file named X in the user configuration directory for common-lisp.
+DEPRECATED."
+    (xdg-config-pathname (format nil "common-lisp/~a/" x) direction))
+  (defun in-system-configuration-directory (x &key (direction :input))
+    "Return the pathname for the file named X under the system configuration directory
+for common-lisp. DEPRECATED."
+    (find-preferred-file (system-config-pathnames "common-lisp" x) :direction direction)))
