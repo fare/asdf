@@ -56,16 +56,16 @@
    (:file "operate" :depends-on ("plan"))
    (:file "output-translations" :depends-on ("operate"))
    (:file "source-registry" :depends-on ("find-system"))
-   (:file "backward-internals" :depends-on ("lisp-action" "operate"))
-   (:file "parse-defsystem" :depends-on ("backward-internals" "cache" "system"))
+   (:file "parse-defsystem" :depends-on ("cache" "system" "lisp-action" "operate"))
    (:file "bundle" :depends-on ("lisp-action" "operate" "parse-defsystem"))
    (:file "concatenate-source" :depends-on ("plan" "parse-defsystem" "bundle"))
-   (:file "backward-interface" :depends-on ("operate" "output-translations"))
    (:file "package-inferred-system" :depends-on ("system" "find-system" "parse-defsystem"))
+   (:file "backward-internals" :depends-on ("find-system" "parse-defsystem"))
+   (:file "backward-interface" :depends-on ("operate" "output-translations"))
    (:file "interface" :depends-on
           ("parse-defsystem" "concatenate-source"
-           "backward-interface" "backward-internals"
-           "output-translations" "source-registry" "package-inferred-system"))
+           "output-translations" "source-registry" "package-inferred-system"
+           "backward-interface" "backward-internals"))
    (:file "user" :depends-on ("interface"))
    (:file "footer" :depends-on ("user"))))
 
@@ -75,10 +75,10 @@
   :licence "MIT"
   :description "Another System Definition Facility"
   :long-description "ASDF builds Common Lisp software organized into defined systems."
-  :version "3.1.4.5" ;; to be automatically updated by make bump-version
+  :version "3.1.4.8" ;; to be automatically updated by make bump-version
   :depends-on ()
   #+asdf3 :encoding #+asdf3 :utf-8
-  :class #.(if (find-class 'package-inferred-system nil) 'package-inferred-system 'system)
+  :class #+asdf3.1 package-inferred-system #-asdf3.1 system
   ;; For most purposes, asdf itself specially counts as a builtin system.
   ;; If you want to link it or do something forbidden to builtin systems,
   ;; specify separate dependencies on uiop (aka asdf-driver) and asdf/defsystem.

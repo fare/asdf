@@ -151,17 +151,19 @@ and the order is by decreasing length of namestring of the source pathname.")
       ;; We enable the user cache by default, and here is the place we do:
       :enable-user-cache))
 
-  (defparameter *output-translations-file* (parse-unix-namestring "asdf-output-translations.conf"))
-  (defparameter *output-translations-directory* (parse-unix-namestring "asdf-output-translations.conf.d/"))
+  (defparameter *output-translations-file* (parse-unix-namestring "common-lisp/asdf-output-translations.conf"))
+  (defparameter *output-translations-directory* (parse-unix-namestring "common-lisp/asdf-output-translations.conf.d/"))
 
   (defun user-output-translations-pathname (&key (direction :input))
-    (in-user-configuration-directory *output-translations-file* :direction direction))
+    (xdg-config-pathname *output-translations-file* direction))
   (defun system-output-translations-pathname (&key (direction :input))
-    (in-system-configuration-directory *output-translations-file* :direction direction))
+    (find-preferred-file (system-config-pathnames *output-translations-file*)
+                         :direction direction))
   (defun user-output-translations-directory-pathname (&key (direction :input))
-    (in-user-configuration-directory *output-translations-directory* :direction direction))
+    (xdg-config-pathname *output-translations-directory* direction))
   (defun system-output-translations-directory-pathname (&key (direction :input))
-    (in-system-configuration-directory *output-translations-directory* :direction direction))
+    (find-preferred-file (system-config-pathnames *output-translations-directory*)
+                         :direction direction))
   (defun environment-output-translations ()
     (getenv "ASDF_OUTPUT_TRANSLATIONS"))
 
@@ -195,12 +197,10 @@ and the order is by decreasing length of namestring of the source pathname.")
                     ((location-function-p dst)
                      (funcall collect
                               (list trusrc (ensure-function (second dst)))))
-                    ((eq dst t)
+                    ((typep dst 'boolean)
                      (funcall collect (list trusrc t)))
                     (t
-                     (let* ((trudst (if dst
-                                        (resolve-location dst :ensure-directory t :wilden t)
-                                        trusrc)))
+                     (let* ((trudst (resolve-location dst :ensure-directory t :wilden t)))
                        (funcall collect (list trudst t))
                        (funcall collect (list trusrc trudst)))))))))))
 

@@ -347,3 +347,29 @@
                   #+mkcl (DBG :os i q s (assoc q s))
                          (assert-equal i (second (assoc q s))))))
         (assert-equal (get-optimization-settings) settings))
+
+(DBG :standard-case-symbol-name)
+(if (or #+allegro (eq excl:*current-case-mode* :case-sensitive-lower))
+    (push :modern-syntax *features*)
+    (setf *features* (remove :modern-syntax *features*)))
+(assert-equal (standard-case-symbol-name "foo") #-modern-syntax "FOO" #+modern-syntax "foo")
+(assert-equal (standard-case-symbol-name "BaR") #-modern-syntax "BAR" #+modern-syntax "BaR")
+(assert-equal (standard-case-symbol-name "BAZ") #-modern-syntax "BAZ" #+modern-syntax "BAZ")
+(assert-equal (standard-case-symbol-name :foo) #-modern-syntax "FOO" #+modern-syntax "foo")
+(assert-equal (standard-case-symbol-name 'BaR) #-modern-syntax "BAR" #+modern-syntax "BaR")
+(assert-equal (standard-case-symbol-name '#:BAZ) #-modern-syntax "BAZ" #+modern-syntax "BAZ")
+(assert-equal (standard-case-symbol-name :|foo|) "foo")
+(assert-equal (standard-case-symbol-name '|BaR|) "BaR")
+(assert-equal (standard-case-symbol-name '#:|BAZ|) "BAZ")
+
+(DBG :find-standard-case-symbol)
+(assert-equal 'symbol (find-standard-case-symbol "symbol" "asdf-test"))
+(assert-equal 'Symbol (find-standard-case-symbol "Symbol" "asdf-test"))
+(assert-equal 'SYMBOL (find-standard-case-symbol "SYMBOL" "asdf-test"))
+
+(assert-equal '|lowercase| (find-standard-case-symbol :|lowercase| :asdf-test))
+(assert-equal '|CamelCase| (find-standard-case-symbol :|CamelCase| :asdf-test))
+(assert-equal '|UPPER-CASE| (find-standard-case-symbol :|UPPER-CASE| :asdf-test))
+
+(assert-equal #-modern-syntax '|THIS_SYMBOL| #+modern-syntax '|This_Symbol|
+              (find-standard-case-symbol "This_Symbol" "asdf-test"))

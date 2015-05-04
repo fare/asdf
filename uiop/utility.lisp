@@ -332,22 +332,24 @@ the two results passed to STRCAT always reconstitute the original string"
         (when x (c +crlf+) (c +lf+) (c +cr+) (values x nil)))))
 
   (defun standard-case-symbol-name (name-designator)
-    "Given a NAME-DESIGNATOR for a symbol, convert it to a string, using STRING-UPCASE on an ANSI CL
-platform, or STRING on a so-called \"modern\" platform such as Allegro with modern syntax."
+    "Given a NAME-DESIGNATOR for a symbol, if it is a symbol, convert it to a string using STRING;
+if it is a string, use STRING-UPCASE on an ANSI CL platform, or STRING on a so-called \"modern\"
+platform such as Allegro with modern syntax."
+    (check-type name-designator (or string symbol))
     (cond
+      ((or (symbolp name-designator) #+allegro (eq excl:*current-case-mode* :case-sensitive-lower))
+       (string name-designator))
       ;; Should we be doing something on CLISP?
-      #+allegro ((eq excl:*current-case-mode* :case-sensitive-lower) (string name-designator))
       (t (string-upcase name-designator))))
 
   (defun find-standard-case-symbol (name-designator package-designator &optional (error t))
-    "Find a symbol in a package the name of which is designated by NAME-DESIGNATOR;
-NAME-DESIGNATOR and PACKAGE-DESIGNATOR will be converted to a string using STRING-DESIGNATOR on an
-ANSI CL platform, or STRING on a so-called \"modern\" platform such as Allegro with modern syntax.
+    "Find a symbol designated by NAME-DESIGNATOR in a package designated by PACKAGE-DESIGNATOR,
+where STANDARD-CASE-SYMBOL-NAME is used to transform them if these designators are strings.
 If optional ERROR argument is NIL, return NIL instead of an error when the symbol is not found."
     (find-symbol* (standard-case-symbol-name name-designator)
                   (etypecase package-designator
-                    ((or package null) package-designator)
-                    ((or string symbol)))
+                    ((or package symbol) package-designator)
+                    (string (standard-case-symbol-name package-designator)))
                   error)))
 
 ;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity

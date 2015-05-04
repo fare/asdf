@@ -7,10 +7,13 @@
   (:use :uiop/common-lisp :uiop/utility
    :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image :uiop/lisp-build)
   (:export
+   #:user-configuration-directories #:system-configuration-directories ;; implemented in backward-driver
+   #:in-first-directory #:in-user-configuration-directory #:in-system-configuration-directory ;; idem
    #:get-folder-path
-   #:user-configuration-directories #:system-configuration-directories
-   #:in-first-directory
-   #:in-user-configuration-directory #:in-system-configuration-directory
+   #:xdg-data-home #:xdg-config-home #:xdg-data-dirs #:xdg-config-dirs
+   #:xdg-cache-home #:xdg-runtime-dir #:system-config-pathnames
+   #:filter-pathname-set #:xdg-data-pathnames #:xdg-config-pathnames
+   #:find-preferred-file #:xdg-data-pathname #:xdg-config-pathname
    #:validate-configuration-form #:validate-configuration-file #:validate-configuration-directory
    #:configuration-inheritance-directive-p
    #:report-invalid-form #:invalid-configuration #:*ignored-configuration-form* #:*user-cache*
@@ -30,56 +33,6 @@
                        (condition-format c)
                        (list* (condition-form c) (condition-location c)
                               (condition-arguments c))))))
-
-  (defun get-folder-path (folder)
-    "Semi-portable implementation of a subset of LispWorks' sys:get-folder-path,
-this function tries to locate the Windows FOLDER for one of
-:LOCAL-APPDATA, :APPDATA or :COMMON-APPDATA."
-    (or #+(and lispworks mswindows) (sys:get-folder-path folder)
-        ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
-        (ecase folder
-          (:local-appdata (getenv-absolute-directory "LOCALAPPDATA"))
-          (:appdata (getenv-absolute-directory "APPDATA"))
-          (:common-appdata (or (getenv-absolute-directory "ALLUSERSAPPDATA")
-                               (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
-
-  (defun user-configuration-directories ()
-    "Determine user configuration directories"
-    (let ((dirs
-            `(,@(when (os-unix-p)
-                  (cons
-                   (subpathname* (getenv-absolute-directory "XDG_CONFIG_HOME") "common-lisp/")
-                   (loop :for dir :in (getenv-absolute-directories "XDG_CONFIG_DIRS")
-                         :collect (subpathname* dir "common-lisp/"))))
-              ,@(when (os-windows-p)
-                  `(,(subpathname* (get-folder-path :local-appdata) "common-lisp/config/")
-                    ,(subpathname* (get-folder-path :appdata) "common-lisp/config/")))
-              ,(subpathname (user-homedir-pathname) ".config/common-lisp/"))))
-      (remove-duplicates (remove-if-not #'absolute-pathname-p dirs)
-                         :from-end t :test 'equal)))
-
-  (defun system-configuration-directories ()
-    "Determine system user configuration directories"
-    (cond
-      ((os-unix-p) '(#p"/etc/common-lisp/"))
-      ((os-windows-p)
-       (if-let (it (subpathname* (get-folder-path :common-appdata) "common-lisp/config/"))
-         (list it)))))
-
-  (defun in-first-directory (dirs x &key (direction :input))
-    "Determine system user configuration directories"
-    (loop :with fun = (ecase direction
-                        ((nil :input :probe) 'probe-file*)
-                        ((:output :io) 'identity))
-          :for dir :in dirs
-          :thereis (and dir (funcall fun (subpathname (ensure-directory-pathname dir) x)))))
-
-  (defun in-user-configuration-directory (x &key (direction :input))
-    "return pathname under user configuration directory, subpathname X"
-    (in-first-directory (user-configuration-directories) x :direction direction))
-  (defun in-system-configuration-directory (x &key (direction :input))
-    "return pathname under system configuration directory, subpathname X"
-    (in-first-directory (system-configuration-directories) x :direction direction))
 
   (defun configuration-inheritance-directive-p (x)
     "Is X a configuration inheritance directive?"
@@ -104,7 +57,16 @@ this function tries to locate the Windows FOLDER for one of
 
   (defun validate-configuration-form (form tag directive-validator
                                             &key location invalid-form-reporter)
-    "Validate a configuration FORM"
+    "Validate a configuration FORM. By default it will raise an error if the
+FORM is not valid.  Otherwise it will return the validated form.
+     Arguments control the behavior:
+     The configuration FORM should be of the form (TAG . <rest>)
+     Each element of <rest> will be checked by first seeing if it's a configuration inheritance
+directive (see CONFIGURATION-INHERITANCE-DIRECTIVE-P) then invoking DIRECTIVE-VALIDATOR
+on it.
+     In the event of an invalid form, INVALID-FORM-REPORTER will be used to control
+reporting (see REPORT-INVALID-FORM) with LOCATION providing information about where
+the configuration form appeared."
     (unless (and (consp form) (eq (car form) tag))
       (setf *ignored-configuration-form* t)
       (report-invalid-form invalid-form-reporter :form form :location location)
@@ -137,7 +99,9 @@ this function tries to locate the Windows FOLDER for one of
              (return (nreverse x))))
 
   (defun validate-configuration-file (file validator &key description)
-    "Validate a configuration file for conformance of its form with the validator function"
+    "Validate a configuration FILE.  The configuration file should have only one s-expression
+in it, which will be checked with the VALIDATOR FORM.  DESCRIPTION argument used for error
+reporting."
     (let ((forms (read-file-forms file)))
       (unless (length=n-p forms 1)
         (error (compatfmt "~@<One and only one form allowed for ~A. Got: ~3i~_~S~@:>~%")
@@ -170,9 +134,10 @@ values of TAG include :source-registry and :output-translations."
         :inherit-configuration)))
 
   (defun resolve-relative-location (x &key ensure-directory wilden)
-    "Given a designator X for an relative location, resolve it to a pathname"
+    "Given a designator X for an relative location, resolve it to a pathname."
     (ensure-pathname
      (etypecase x
+       (null nil)
        (pathname x)
        (string (parse-unix-namestring
                 x :ensure-directory ensure-directory))
@@ -208,23 +173,11 @@ directive.")
   (defvar *user-cache* nil
     "A specification as per RESOLVE-LOCATION of where the user keeps his FASL cache")
 
-  (defun compute-user-cache ()
-    "Compute the location of the default user-cache for translate-output objects"
-    (setf *user-cache*
-          (flet ((try (x &rest sub) (and x `(,x ,@sub))))
-            (or
-             (try (getenv-absolute-directory "XDG_CACHE_HOME") "common-lisp" :implementation)
-             (when (os-windows-p)
-               (try (or (get-folder-path :local-appdata)
-                        (get-folder-path :appdata))
-                    "common-lisp" "cache" :implementation))
-             '(:home ".cache" "common-lisp" :implementation)))))
-  (register-image-restore-hook 'compute-user-cache)
-
   (defun resolve-absolute-location (x &key ensure-directory wilden)
     "Given a designator X for an absolute location, resolve it to a pathname"
     (ensure-pathname
      (etypecase x
+       (null nil)
        (pathname x)
        (string
         (let ((p #-mcl (parse-namestring x)
@@ -267,9 +220,10 @@ directive.")
     ;; :directory backward compatibility, until 2014-01-16: accept directory as well as ensure-directory
     (loop* :with dirp = (or directory ensure-directory)
            :with (first . rest) = (if (atom x) (list x) x)
-           :with path = (resolve-absolute-location
-                         first :ensure-directory (and (or dirp rest) t)
-                               :wilden (and wilden (null rest)))
+           :with path = (or (resolve-absolute-location
+                             first :ensure-directory (and (or dirp rest) t)
+                                   :wilden (and wilden (null rest)))
+                            (return nil))
            :for (element . morep) :on rest
            :for dir = (and (or morep dirp) t)
            :for wild = (and wilden (not morep))
@@ -282,6 +236,8 @@ directive.")
 
   (defun location-designator-p (x)
     "Is X a designator for a location?"
+    ;; NIL means "skip this entry", or as an output translation, same as translation input.
+    ;; T means "any input" for a translation, or as output, same as translation input.
     (flet ((absolute-component-p (c)
              (typep c '(or string pathname
                         (member :root :home :here :user-cache))))
@@ -294,9 +250,8 @@ directive.")
 
   (defun location-function-p (x)
     "Is X the specification of a location function?"
-    (and
-     (length=n-p x 2)
-     (eq (car x) :function)))
+    ;; Location functions are allowed in output translations, and notably used by ABCL for JAR file support.
+    (and (length=n-p x 2) (eq (car x) :function)))
 
   (defvar *clear-configuration-hook* '())
 
@@ -314,6 +269,145 @@ directive.")
     "If a previous version of ASDF failed to read some configuration, try again now."
     (when *ignored-configuration-form*
       (clear-configuration)
-      (setf *ignored-configuration-form* nil))))
+      (setf *ignored-configuration-form* nil)))
 
 
+  (defun get-folder-path (folder)
+    "Semi-portable implementation of a subset of LispWorks' sys:get-folder-path,
+this function tries to locate the Windows FOLDER for one of
+:LOCAL-APPDATA, :APPDATA or :COMMON-APPDATA.
+     Returns NIL when the folder is not defined (e.g., not on Windows)."
+    (or #+(and lispworks mswindows) (sys:get-folder-path folder)
+        ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
+        (ecase folder
+          (:local-appdata (or (getenv-absolute-directory "LOCALAPPDATA")
+                              (subpathname* (get-folder-path :appdata) "Local")))
+          (:appdata (getenv-absolute-directory "APPDATA"))
+          (:common-appdata (or (getenv-absolute-directory "ALLUSERSAPPDATA")
+                               (subpathname* (getenv-absolute-directory "ALLUSERSPROFILE") "Application Data/"))))))
+
+
+  ;; Support for the XDG Base Directory Specification
+  (defun xdg-data-home (&rest more)
+    "Returns an absolute pathname for the directory containing user-specific data files.
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (resolve-absolute-location
+     `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
+            (os-cond
+             ((os-windows-p) (get-folder-path :local-appdata))
+             (t (subpathname (user-homedir-pathname) ".local/share/"))))
+       ,more)))
+
+  (defun xdg-config-home (&rest more)
+    "Returns a pathname for the directory containing user-specific configuration files.
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (resolve-absolute-location
+     `(,(or (getenv-absolute-directory "XDG_CONFIG_HOME")
+            (os-cond
+             ((os-windows-p) (xdg-data-home "config/"))
+             (t (subpathname (user-homedir-pathname) ".config/"))))
+       ,more)))
+
+  (defun xdg-data-dirs (&rest more)
+    "The preference-ordered set of additional paths to search for data files.
+Returns a list of absolute directory pathnames.
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
+            (or (getenv-absolute-directories "XDG_DATA_DIRS")
+                (os-cond
+                 ((os-windows-p) (mapcar 'get-folder-path '(:appdata :common-appdata)))
+                 (t (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))))
+
+  (defun xdg-config-dirs (&rest more)
+    "The preference-ordered set of additional base paths to search for configuration files.
+Returns a list of absolute directory pathnames.
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
+            (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
+                (os-cond
+                 ((os-windows-p) (xdg-data-dirs "config/" more))
+                 (t (mapcar 'parse-unix-namestring '("/etc/xdg/")))))))
+
+  (defun xdg-cache-home (&rest more)
+    "The base directory relative to which user specific non-essential data files should be stored.
+Returns an absolute directory pathname.
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (resolve-absolute-location
+     `(,(or (getenv-absolute-directory "XDG_CACHE_HOME")
+            (os-cond
+             ((os-windows-p) (xdg-data-home "cache"))
+             (t (subpathname* (user-homedir-pathname) ".cache/"))))
+       ,more)))
+
+  (defun xdg-runtime-dir (&rest more)
+    "Pathname for user-specific non-essential runtime files and other file objects,
+such as sockets, named pipes, etc.
+Returns an absolute directory pathname.
+MORE may contain specifications for a subpath relative to this directory: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    ;; The XDG spec says that if not provided by the login system, the application should
+    ;; issue a warning and provide a replacement. UIOP is not equipped to do that and returns NIL.
+    (resolve-absolute-location `(,(getenv-absolute-directory "XDG_RUNTIME_DIR") ,more)))
+
+  ;;; NOTE: modified the docstring because "system user configuration
+  ;;; directories" seems self-contradictory. I'm not sure my wording is right.
+  (defun system-config-pathnames (&rest more)
+    "Return a list of directories where are stored the system's default user configuration information.
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (os-cond
+     ((os-unix-p) (list (resolve-absolute-location `(,(parse-unix-namestring "/etc/") ,more))))))
+
+  (defun filter-pathname-set (dirs)
+    "Parse strings as unix namestrings and remove duplicates and non absolute-pathnames in a list."
+    (remove-duplicates (remove-if-not #'absolute-pathname-p dirs) :from-end t :test 'equal))
+
+  (defun xdg-data-pathnames (&rest more)
+    "Return a list of absolute pathnames for application data directories.  With APP,
+returns directory for data for that application, without APP, returns the set of directories
+for storing all application configurations.
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (filter-pathname-set
+     `(,(xdg-data-home more)
+       ,@(xdg-data-dirs more))))
+
+  (defun xdg-config-pathnames (&rest more)
+    "Return a list of pathnames for application configuration.
+MORE may contain specifications for a subpath relative to these directories: a
+subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
+also \"Configuration DSL\"\) in the ASDF manual."
+    (filter-pathname-set
+     `(,(xdg-config-home more)
+       ,@(xdg-config-dirs more))))
+
+  (defun find-preferred-file (files &key (direction :input))
+    "Find first file in the list of FILES that exists (for direction :input or :probe)
+or just the first one (for direction :output or :io).
+    Note that when we say \"file\" here, the files in question may be directories."
+    (find-if (ecase direction ((:probe :input) 'probe-file*) ((:output :io) 'identity)) files))
+
+  (defun xdg-data-pathname (&optional more (direction :input))
+    (find-preferred-file (xdg-data-pathnames more) :direction direction))
+
+  (defun xdg-config-pathname (&optional more (direction :input))
+    (find-preferred-file (xdg-config-pathnames more) :direction direction))
+
+  (defun compute-user-cache ()
+    "Compute (and return) the location of the default user-cache for translate-output
+objects. Side-effects for cached file location computation."
+    (setf *user-cache* (xdg-cache-home "common-lisp" :implementation)))
+  (register-image-restore-hook 'compute-user-cache))
