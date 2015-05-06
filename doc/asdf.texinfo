@@ -409,12 +409,12 @@ For portability's sake, you should use @code{(require "asdf")}.
 
 As of the writing of this manual,
 the following implementations provide ASDF 3 this way:
-ABCL, Allegro CL, Clozure CL, CMUCL, ECL, GNU CLISP, MKCL, SBCL.
+ABCL, Allegro CL, Clozure CL, CMUCL, ECL, GNU CLISP, LispWorks, MKCL, SBCL.
 The following implementations only provide ASDF 2:
-LispWorks, mocl, XCL.
+mocl, XCL.
 The following implementations don't provide ASDF:
 Corman CL, GCL, Genera, MCL, SCL.
-The latter implementations are not actively maintained;
+The latter implementations are not actively maintained (except maybe GCL);
 if some of them are ever released again, they probably will include ASDF 3.
 
 If the implementation you are using doesn't provide ASDF 2 or ASDF 3,

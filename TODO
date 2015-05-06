@@ -4,8 +4,8 @@
   Already, swank-asdf doesn't support anything older than 2.014.6
   (as provided by the first 2011 iteration of Quicklisp), and
   I (fare) am pushing for swank-asdf to not support anything older
-  than 2.019 (still used by LispWorks 6.1).
-  Hopefully, sometime in 2014, everyone will have adopted ASDF 3.0.1, or even 3.1.2.
+  than 3.0 (since no maintained implementation has anything older,
+  with the LispWorks 7.0 release being last to upgrade, in May 2015).
   Maybe remove old versions from upgrade tests; or maybe not:
   if we support old versions in any way,
   it should be for upgrade only, and "punt" is acceptable.
