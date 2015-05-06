@@ -1,5 +1,5 @@
-UIOP the Utilities for Implementation- and OS- Portability
-==========================================================
+UIOP, the Utilities for Implementation- and OS- Portability
+===========================================================
 
 UIOP is the portability layer of ASDF.
 It provides utilities that abstract over discrepancies between implementations,
@@ -9,9 +9,11 @@ what programmers actually need, to write portable Common Lisp programs.
 It is organized by topic in many files, each of which defines its own package
 according to its topic: e.g `pathname.lisp` will define package `UIOP/PATHNAME`
 and contain utilities related to the handling of pathname objects.
-All exported symbols are reexported in a convenience package `UIOP`.
+All exported symbols are reexported in a convenience package `UIOP`,
+except for those from `UIOP/COMMON-LISP`.
+We recommend package `UIOP` be used to access all the symbols.
 
-The files that constitute UIOP are, in loading order:
+The files that constitute UIOP are, in dependency loading order:
 
 * `package`: deals with packages and their symbols, most notably including
   `define-package`, a variant of `defpackage` capable of hot-upgrade, or
@@ -21,7 +23,7 @@ The files that constitute UIOP are, in loading order:
 * `common-lisp`: lets you paper over various sub-standard implementations.
   Big offenders are Corman, GCL, Genera, MCL, all of them unmaintained.
   Supported without serious issues are:
-  ABCL, Allegro, CCL, CMUCL, CLISP, ECL, LispWorks, MKCL, SBCL, SCL, XCL.
+  ABCL, Allegro, CCL, CMUCL, CLASP, CLISP, ECL, LispWorks, MKCL, SBCL, SCL, XCL.
 
 * `utility`: provides macros and functions that do not involve I/O; it handles
   control-flow, (p)lists, characters, strings, functions, classes, conditions,
@@ -63,8 +65,8 @@ The files that constitute UIOP are, in loading order:
   runs hooks around compilation (to e.g. control optimizations or syntax),
   identifies the pathname of the current file, combines FASLs, etc.
 
-* `configuration`: helps you define portable configuration files, using best
-  practices to define and validate syntax, search standard paths,
+* `configuration`: helps you portably locate and parse configuration files,
+  using best practices to define and validate syntax, search standard paths,
   let users specify pathnames or pathname patterns, etc.
 
 * `backward-driver`: provides backward-compatibility with earlier incarnations
@@ -95,6 +97,10 @@ it only extracts information from the first package:
 
 	http://quickdocs.org/uiop/api
 
+See bug report:
+
+	https://github.com/fukamachi/quickdocs/issues/24
+
 
 Using UIOP
 ----------
@@ -123,11 +129,15 @@ evolved from ASDF 2's internal utilities and portability layer.
 It has since fully superseded functionality from the following libraries:
 ASDF-UTILS (UIOP carries on the ASDF 2 utilities that this exported),
 CL-FAD (UIOP's pathname and filesystem functions are much more portable),
-CL-LAUNCH (UIOP took its image and command-line argument handling from it),
-EXTERNAL-PROGRAM, TRIVIAL-SHELL and XCVB-DRIVER (UIOP's run-program is better),
-SLIME's swank-loader (UIOP has better compilation and API identification),
+CL-LAUNCH (UIOP took its image and command-line argument handling),
+EXTERNAL-PROGRAM, TRIVIAL-SHELL and XCVB-DRIVER (UIOP's run-program evolved
+from XCVB-DRIVER's, and so did its condition muffling),
+SLIME's swank-loader (UIOP has better compilation and ABI identification),
 TRIVIAL-BACKTRACE (UIOP/IMAGE has all of it and more), etc.
 
 UIOP also captures a large subset of the functionality from TRIVIAL-FEATURES,
 and a small subset of the functionality from ALEXANDRIA or FARE-UTILS.
 
+We recommend you use UIOP instead of any of the above, where applicable,
+since UIOP is more portable, more robust, more ubiquitous, better designed,
+better documented, etc.

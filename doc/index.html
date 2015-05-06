@@ -84,7 +84,9 @@
               call other programs and parse their output,
               compile Lisp code, muffle conditions, or configure Lisp software.
               See its
-              <a href="https://gitlab.common-lisp.net/asdf/asdf/tree/master/uiop/README.md">README.md</a>.
+              <a href="https://gitlab.common-lisp.net/asdf/asdf/tree/master/uiop/README.md">README.md</a> for an overview,
+              and the documentation as extracted from its docstrings by
+              <a href="http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html">HEΛP</a>.
             </p>
             <p><tt>uiop</tt> is distributed as part of the <tt>ASDF</tt>,
               its source code is transcluded in the single-file <tt>asdf.lisp</tt> being distributed
@@ -120,14 +122,15 @@
               <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a>
               (also reimplemented as the ASDF extension
               <a href="https://gitlab.common-lisp.net/asdf/asdf-package-system"
-                 ><tt>asdf-package-system</tt></a>; similar to <tt>faslpath</tt> below).
+                 ><tt>asdf-package-system</tt></a>, now part of ASDF 3;
+              similar to <tt>faslpath</tt> below).
             </li>
             <li>Fran&ccedil;ois-Ren&eacute; Rideau's
               <a href="https://common-lisp.net/project/xcvb/"><tt>XCVB</tt></a>
               (building object and image files deterministically and in parallel,
               but not actively maintained since 2012;
-              thanks to its new build model, ASDF 3 could conceivably be modified
-              to support these features).
+              a hypothetical ASDF 4 could conceivably be evolved to support these features
+              thanks to the groundwork laid by ASDF 3).
             </li>
             <li>Drew McDermott's
               <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
@@ -187,16 +190,16 @@
             <td align="left"><tt>mcl xcl</tt></td></tr>
           <tr><th align="left">Proprietary</th>
             <td align="left"><tt>allegro</tt></td>
-            <td align="left"><tt>lispworks mocl</tt></td>
-            <td align="left"><tt>cormanlisp genera scl</tt></td></tr>
+            <td align="left"><tt>lispworks</tt></td>
+            <td align="left"><tt>cormanlisp genera mocl scl</tt></td></tr>
         </table>
         <p>
           To deal with an implementation that doesn't yet provide ASDF 3,
-          we provide <a href="https://common-lisp.net/asdf/asdf/tree/master/tools/install-asdf.lisp">a script</a> that can install ASDF 3
-          where your implementation goes looking for it
+          we provide <a href="https://common-lisp.net/asdf/asdf/tree/master/tools/install-asdf.lisp">a script</a>
+          that can install ASDF 3 where your implementation goes looking for it
           when you <tt>(require "asdf")</tt> .
         </p><p>
-          Alternatively, if the implementation provides ASDF 2
+          Alternatively, though we don't recommend it, if the implementation provides ASDF 2
           (as do <tt>lispworks mocl xcl</tt> or older versions of some implementations)
           or an overly old version of ASDF 3,
           you can download, install and configure a more recent ASDF 3,
@@ -329,7 +332,7 @@ XCL (Peter Graves) <gnooth@gmail.com>
             to compute the actual dependencies in a big ASDF system.</li>
           <li><a href="https://common-lisp.net/project/qitab/"
                  ><tt>poiu</tt></a>,
-            to compile a system in parallel.</li>
+            to compile a system in parallel on a multiprocessor machine.</li>
           <li><a href="https://common-lisp.net/project/asdf-system-connections/"
                  ><tt>asdf-system-connections</tt></a>,
             lets you specify systems that are automatically loaded when
@@ -337,19 +340,10 @@ XCL (Peter Graves) <gnooth@gmail.com>
           <li><a href="http://www.lrde.epita.fr/~didier/software/lisp/misc.php#asdf-flv"
                  ><tt>asdf-flv</tt></a>,
             to bind file-local variables around the compilation of some files.</li>
-          <li><a href="http://gitlab.common-lisp.net/asdf/asdf-package-system"
-                 ><tt>asdf-package-system</tt></a>,
-            to compile Lisp source files with one package per file
-            that also determines dependencies, in the style of
-            <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a> or
-            <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
-            (this functionality is built into recent versions of ASDF 3.1 and later,
-            but this package exists for backward compatibility with earlier versions of ASDF 3;
-            search the manual for <tt>package-inferred-system</tt>).
         </ul>
         <p>Former extensions, now superseded, include:</p>
         <ul>
-          <li><tt>asdf-binary-locations</tt> allowed one to redirect where ASDF creates its output files,
+          <li><tt>asdf-binary-locations</tt> used to allow one to redirect where ASDF 1 created its output files,
             so they don't clash between implementations and don't pollute source directories.
             It is superseded by <tt>asdf/defsystem</tt>'s builtin
             <tt>asdf-output-translations</tt> mechanism;
@@ -366,15 +360,25 @@ XCL (Peter Graves) <gnooth@gmail.com>
             a standalone executable program (on supported implementations),
             or an image containing your system precompiled.
           </li>
+          <li><tt>asdf-condition-control</tt>, initially part of XCVB's <tt>xcvb-driver</tt>,
+            allowed you to muffle uninteresting conditions during compilation.
+            Is now superseded by equivalent functionality in <tt>uiop</tt>.
+          </li>
+          <li><a href="http://gitlab.common-lisp.net/asdf/asdf-package-system"
+                 ><tt>asdf-package-system</tt></a>,
+            to compile Lisp source files with one package per file
+            that also determines dependencies, in the style of
+            <a href="https://bugs.launchpad.net/asdf/+bug/1230368"><tt>quick-build</tt></a> or
+            <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
+            (this functionality is built into recent versions of ASDF 3.1 and later,
+            but this package exists for backward compatibility with earlier versions of ASDF 3;
+            search the manual for <tt>package-inferred-system</tt>).
+          </li>
           <li><tt>asdf-utils</tt> was a collection of utilities that originated with ASDF.
             It is now superseded by <tt>uiop</tt>, aka <tt>asdf/driver</tt>,
             which is part of ASDF,
             and exports its functionality
             in its own package <tt>uiop</tt>.
-          </li>
-          <li><tt>asdf-condition-control</tt>, initially part of XCVB's <tt>xcvb-driver</tt>,
-            allowed you to muffle uninteresting conditions during compilation.
-            Is now superseded by equivalent functionality in <tt>uiop</tt>.
           </li>
         </ul>
 
@@ -497,9 +501,9 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a class="nav" href="http://www.catb.org/hacker-emblem/" title="hacker"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/hacker.png" width="80" height="15" title="hacker emblem" alt="hacker button" /></a>
         <a class="nav" href="http://www.lisp.org/" title="Association of Lisp Users"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lambda-lisp.png" width="80" height="15" title="ALU emblem" alt="ALU button" /></a>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
-        <p><span class="copyright"Copyright &copy; 2001-2014 Daniel Barlow and contributors</span></p>
+        <p><span class="copyright"Copyright &copy; 2001-2015 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2015-03-28</div>
+        <div id="timestamp">Last updated 2015-05-05</div>
     </div>
   </body>
 </html>
