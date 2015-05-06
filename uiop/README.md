@@ -93,13 +93,13 @@ At this time, the interface is not great: it isn't obvious at all that you can i
 use a scrollbar on the right of the top left side panel to navigate the many packages;
 once you click on the package you're interested in, you can see its defined symbols:
 
-* [http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html](http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html)
+* <http://bimib.disco.unimib.it/people/Marco.Antoniotti/Projects/CL/HELAMBDAP/tests/asdf-uiop/docs/html/dictionary/dictionary.html>
 
 Another automated documentation tool is quickdocs, but unhappily, at the time of this writing,
 it only extracts information from the first package
 (see [bug #24](https://github.com/fukamachi/quickdocs/issues/24)):
 
-* [http://quickdocs.org/uiop/api](http://quickdocs.org/uiop/api)
+* <http://quickdocs.org/uiop/api>
 
 
 Help wanted extracting working documentation from UIOP's docstrings.
