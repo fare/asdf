@@ -351,9 +351,9 @@ upgrade_tags () {
     echo REQUIRE
     echo 3.1.2
     echo 3.0.3 3.0.2 3.0.1
-    echo 2.32 2.27
-    echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
-    echo 1.369 1.97 1.85
+#    echo 2.32 2.27
+#    echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
+#    echo 1.369 1.97 1.85
 }
 upgrade_methods () {
     if [ -n "$ASDF_UPGRADE_TEST_METHODS" ] ; then
