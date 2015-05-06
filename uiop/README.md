@@ -7,7 +7,7 @@ between operating systems, and between what the standard provides and
 what programmers actually need, to write portable Common Lisp programs.
 
 It is organized by topic in many files, each of which defines its own package
-according to its topic: e.g [`pathname.lisp`](pathname.lisp)
+according to its topic: e.g `[pathname.lisp](pathname.lisp)`
 will define package `UIOP/PATHNAME` and contain utilities related to
 the handling of pathname objects.
 All exported symbols are reexported in a convenience package `UIOP`,
@@ -16,26 +16,26 @@ We recommend package `UIOP` be used to access all the symbols.
 
 The files that constitute UIOP are, in dependency loading order:
 
-* [`package`](package.lisp): deals with packages and their symbols, most notably including
+* `[package](package.lisp)`: deals with packages and their symbols, most notably including
   `define-package`, a variant of `defpackage` capable of hot-upgrade, or
   `symbol-call` and `find-symbol*` that are also useful for use in `.asd` files
   before packages have been defined.
 
-* [`common-lisp`](common-lisp.lisp): lets you paper over various sub-standard implementations.
+* `[common-lisp](common-lisp.lisp)`: lets you paper over various sub-standard implementations.
   Big offenders are Corman, GCL, Genera, MCL, all of them unmaintained.
   Supported without serious issues are:
   ABCL, Allegro, CCL, CMUCL, CLASP, CLISP, ECL, LispWorks, MKCL, SBCL, SCL, XCL.
 
-* [`utility`](utility.lisp): provides macros and functions that do not involve I/O; it handles
+* `[utility](utility.lisp)`: provides macros and functions that do not involve I/O; it handles
   control-flow, (p)lists, characters, strings, functions, classes, conditions,
   "stamps" (real number or boolean for +/- infinity), versions, etc.
   It also sports `uiop-debug`, a useful tool to help you debug programs.
 
-* [`os`](os.lisp): extracts information from your environment, including
+* `[os](os.lisp)`: extracts information from your environment, including
   an ABI identifier, features that distinguish Unix vs Windows,
   `getenv`, `hostname`, `getcwd` and `chdir`, etc.
 
-* [`pathname`](pathname.lisp): overcomes the gruesome non-portability trap that are CL pathnames
+* `[pathname](pathname.lisp)`: overcomes the gruesome non-portability trap that are CL pathnames
   (and their lovecraftian "logical" variant), offering a vast array of
   functions and a sensible, usable abstraction to specify relative pathnames.
   It has a function `merge-pathnames*` to use instead of `merge-pathnames`, or
@@ -43,38 +43,38 @@ The files that constitute UIOP are, in dependency loading order:
   of functions for dealing with pathnames being directory vs file,
   physical vs logical, absolute vs relative, and more.
 
-* [`filesystem`](filesystem.lisp): provides portable access to the filesystem, inspecting it,
+* `[filesystem](filesystem.lisp)`: provides portable access to the filesystem, inspecting it,
   only using truename when desired, using native OS namestrings,
   atomic file renaming, creating or deleting directories, etc.
 
-* [`stream`](stream.lisp): portably deals with `*stderr*` vs `*error-output*`, character encodings
+* `[stream](stream.lisp)`: portably deals with `*stderr*` vs `*error-output*`, character encodings
   (external formats), element types, safe `read`ing and `write`ing, opening files
   or temporary files, providing `format`-like designators for streams,
   flushing output buffers, consuming or copying streams, concatenating streams
   or files, copying files, etc.
 
-* [`image`](image.lisp): portably deals with images, dumping them, restoring from them,
+* `[image](image.lisp)`: portably deals with images, dumping them, restoring from them,
   registering hooks to run at suitable events in the image lifetime,
   printing backtraces, handling fatal conditions, using or avoiding debug modes,
   accessing command line arguments or quitting the process.
 
-* [`run-program`](program.lisp): portably spawns external processes and captures their output.
+* `[run-program](program.lisp)`: portably spawns external processes and captures their output.
   Can also capture error-output, inject input, or let it all be interactive.
 
-* [`lisp-build`](lisp-build.lisp): portably compiles Common Lisp code, handles compilation results,
+* `[lisp-build](lisp-build.lisp)`: portably compiles Common Lisp code, handles compilation results,
   muffles uninteresting conditions, saves and restores deferred warnings,
   runs hooks around compilation (to e.g. control optimizations or syntax),
   identifies the pathname of the current file, combines FASLs, etc.
 
-* [`configuration`](configuration.lisp): portably locate and parse configuration files,
+* `[configuration](configuration.lisp)`: portably locate and parse configuration files,
   using best practices to define and validate syntax, search standard paths,
   let users specify pathnames or pathname patterns, etc.
 
-* [`backward-driver`](backward-driver.lisp): provides backward-compatibility
+* `[backward-driver](backward-driver.lisp)`: provides backward-compatibility
   with earlier incarnations of this library
   (i.e. ASDF internals that have leaked, ASDF-UTILS, or older versions of UIOP).
 
-* [`driver`](driver.lisp): reexports all the above utilities in a single package `UIOP`.
+* `[driver](driver.lisp)`: reexports all the above utilities in a single package `UIOP`.
 
 
 Documentation
