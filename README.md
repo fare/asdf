@@ -150,7 +150,7 @@ How do I navigate this source directory?
 * [version.lisp-expr](version.lisp-expr)
     * The current version. Bumped up every time the code changes, using:
 
-        ./tools/asdf-builder bump
+          ./tools/asdf-builder bump
 
 * [doc/](doc/)
     * documentation for ASDF, including:
@@ -159,7 +159,7 @@ How do I navigate this source directory?
         * [Makefile](doc/Makefile) -- how to build the manual
         * [cclan.png](doc/cclan.png) [lisp-logo120x80.png](doc/lisp-logo120x80.png)
           [style.css](doc/style.css) [favicon.ico](doc/favicon.ico)
-		-- auxiliaries of [index.html](doc/index.html)
+	  -- auxiliaries of [index.html](doc/index.html)
 
 * [test/](test/)
     * regression test scripts (and ancillary files) for developers to check
@@ -170,7 +170,7 @@ How do I navigate this source directory?
     * a few contributed files that show case how to use ASDF.
 
 * [debian/](debian/)
-	files for packaging on debian, ubuntu, etc.
+    * files for packaging on debian, ubuntu, etc.
 
 * [build/](build/)
     * where the `Makefile` and `asdf-tools` store their output files, including
