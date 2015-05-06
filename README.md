@@ -8,7 +8,7 @@ ASDF is the de facto standard build facility for Common Lisp.
 Your Lisp implementation probably contains a copy of ASDF,
 which you can load using `(require "asdf")`.
 
-If you come from the C/C++ world, the ASDF covers a bit of what each of
+If you come from the C/C++ world, ASDF covers a bit of what each of
 make, autoconf, dlopen and libc do for C programs:
 it orchestrates the compilation and dependency management,
 handles some of the portability issues, dynamically finds and loads code,
@@ -25,15 +25,15 @@ will get you started as a simple user.
 If you want to define your own systems, further read the section
 Defining systems with defsystem.
 
-The manual is also in the doc/ subdirectory, and can be prepared with:
+The manual is also in the [doc/](doc/) subdirectory, and can be prepared with:
 
     make doc
 
 
 ASDF 3 now includes an extensive runtime support library:
-UIOP, the Utilities for Implementation- and OS- Portability.
+[UIOP, the Utilities for Implementation- and OS- Portability](uiop/).
 Its documentation unhappily lies mainly in the source code and docstrings.
-See [`uiop/README.md`](uiop/README.md) for an introduction.
+See [uiop/README.md](uiop/README.md) for an introduction.
 
 More information and additional links can be found on ASDF's home page at:
     <http://common-lisp.net/project/asdf/>
@@ -62,7 +62,7 @@ or, assuming your implementation provides ASDF 3.1 or later:
     ~/common-lisp/asdf/
 
 
-If you cloned our git repository, bootstrap a copy of build/asdf.lisp with:
+If you cloned our git repository, bootstrap a copy of `build/asdf.lisp` with:
 
     make
 
@@ -98,7 +98,7 @@ choose your most elaborate installed system $S, and try:
 Debugging tip
 -------------
 
-To load ASDF in such a way that M-. will work, install the source code, and run:
+To load ASDF in such a way that `M-.` will work, install the source code, and run:
 
     (asdf:load-system :uiop) ;; loading uiop is simple
     (map () 'load ;; loading asdf/defsystem is tricky
@@ -113,7 +113,7 @@ to the call to `asdf::required-components`.
 What has changed?
 -----------------
 
-You can consult the `debian/changelog` for an overview of the
+You can consult the [debian/changelog](debian/changelog) for an overview of the
 significant changes in each release, and
 the `git log` for a detailed description of each commit.
 
@@ -121,77 +121,78 @@ the `git log` for a detailed description of each commit.
 How do I navigate this source directory?
 ----------------------------------------
 
-* `asdf.asd`
+* [asdf.asd](asdf.asd)
     * The system definition for building ASDF with ASDF.
 
 * `*.lisp`
-    * The source code files for asdf/defsystem.
-      See asdf.asd for the order in which they are loaded.
+    * The source code files for `asdf/defsystem`.
+      See [asdf.asd](asdf.asd) for the order in which they are loaded.
 
-* `uiop/`
+* [uiop/](uiop/)
     * Utilities of Implementation- and OS- Portability,
-      the portability layer of ASDF. It has its own `README`,
+      the portability layer of ASDF. It has its own [README](uiop/README.md),
       and functions all have docstrings.
 
-* `Makefile`
-    * a minimal Makefile for bootstrapping purposes.
-      Most of the logic is in the asdf-tools system
+* [Makefile](Makefile)
+    * a minimal `Makefile` for bootstrapping purposes.
+      Most of the logic is in the [asdf-tools](tools/asdf-tools.asd) system below.
 
-* `tools/`
+* [tools/](tools/)
     * `asdf-tools`, a system to build, test and release ASDF. It includes:
-        * `asdf-tools` -- a shell script to run it as a shell command.
-        * `load-asdf.lisp` -- how to load ASDF in a self-contained project
-        * `asdf-tools.asd` -- system definition for asdf-tools
-        * `*.lisp` -- the source code for asdf-tools
+        * [asdf-tools](tools/asdf-tools) -- a shell script to run it as a shell command.
+        * [load-asdf.lisp](tools/load-asdf.lisp) -- how to load ASDF in a self-contained project
+        * [asdf-tools.asd](tools/asdf-tools.asd) -- system definition for asdf-tools
+        * `*.lisp` -- the source code for `asdf-tools`
     * also a couple scripts to help ASDF users:
-        * `load-asdf.lisp` -- a build script to load, configure and use ASDF
-        * `install-asdf.lisp` -- replace and update an implementation's ASDF
-        * `cl-source-registry-cache.lisp` -- update a cache for the source-registry
+        * [load-asdf.lisp](tools/load-asdf.lisp) -- a build script to load, configure and use ASDF
+        * [install-asdf.lisp](install-asdf.lisp) -- replace and update an implementation's ASDF
+        * [cl-source-registry-cache.lisp](cl-source-registry-cache.lisp) -- update a cache for the source-registry
 
-* `build.xcvb`
+* [build.xcvb](build.xcvb)
     * The system definition for building ASDF with XCVB.
       It hasn't been tested or maintained for years and has bitrotten.
 
-* `version.lisp-expr`
+* [version.lisp-expr](version.lisp-expr)
     * The current version. Bumped up every time the code changes, using:
 
-        ./tools/asdf-builder bump
+          ./tools/asdf-builder bump
 
-* `doc/`
+* [doc/](doc/)
     * documentation for ASDF, including:
-        * `index.html` -- the web page for <http://common-lisp.net/project/asdf/>
-        * `asdf.texinfo` -- our manual
-        * `Makefile` -- how to build the manual
-        * `cclan.png` `lisp-logo120x80.png` `style.css` `favicon.ico`
-		-- auxiliaries of `index.html`
+        * [index.html](doc/index.html) -- the web page for <http://common-lisp.net/project/asdf/>
+        * [asdf.texinfo](doc/asdf.texinfo) -- our manual
+        * [Makefile](doc/Makefile) -- how to build the manual
+        * [cclan.png](doc/cclan.png) [lisp-logo120x80.png](doc/lisp-logo120x80.png)
+          [style.css](doc/style.css) [favicon.ico](doc/favicon.ico)
+	  -- auxiliaries of [index.html](doc/index.html)
 
-* `test/`
+* [test/](test/)
     * regression test scripts (and ancillary files) for developers to check
       that they don't unintentionally break any of the functionality of ASDF.
       Far from covering all of ASDF.
 
-* `contrib/`
+* [contrib/](contrib/)
     * a few contributed files that show case how to use ASDF.
 
-* `debian/`
-	files for packaging on debian, ubuntu, etc.
+* [debian/](debian/)
+    * files for packaging on Debian, Ubuntu, etc.
 
-* `build/`
-    * where the Makefile and asdf-tools store their output files, including
+* [build/](build/)
+    * where the `Makefile` and `asdf-tools` store their output files, including
         * `asdf.lisp` -- the current one-file deliverable of ASDF
         * `asdf-XXX.lisp` -- for upgrade test purposes, old versions
         * `results/` -- logs of tests that have been run
         * `fasls/` -- output files while running tests.
 
-* `ext/`
+* [ext/](ext/)
     * external dependencies, that can be populated with `make ext`
       or equivalently with `git submodule update --init`.
 
-* `README`
+* [README.md](README.md)
     * this file
 
-* `TODO`
+* [TODO](TODO)
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Sunday, March 22nd, 2015.
+Last updated Wednesday, May 6th, 2015.
