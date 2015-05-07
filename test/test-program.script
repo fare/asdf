@@ -40,7 +40,7 @@
      #+allegro :lisp-path #+allegro *lisp*
      :cross-compile nil
      :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
-     :eval (format nil "(asdf-test::make-hello-~a)" kind)
+     :eval (format nil "(asdf-test::make-hello-~(~a~))" kind)
      :run-program-args
      `(:input nil :ignore-error-status t
        :output (,*standard-output* :linewise t :prefix "stdout: ")
@@ -56,7 +56,7 @@
   (make-hello-world 'image)
   (assert (probe-file* img) () "Can't find image file ~S" img)
 
-  (DBG "- then, use it")
+  (DBG "- then use this executable image")
   (assert-equal
    (nest
     #+lispworks (last)
@@ -68,7 +68,7 @@
      :run-program-args '(:output :lines :error-output t)))
    '("hello, world"))
 
-  (DBG "- now, use it with arguments")
+  (DBG "- now, use this executable image with arguments")
   #-(or lispworks scl) ;; These can't be passed arguments the normal way
   (assert-equal
    (lisp-invocation:invoke-lisp
@@ -102,11 +102,11 @@
   (make-hello-world 'program)
   (assert (probe-file* exe) () "Can't find executable file ~S" exe)
 
-  (DBG "- use that")
+  (DBG "- use that standalone program")
   (assert-equal (run-program `(,(native-namestring exe)) :output :lines :error-output t)
                 '("hello, world"))
 
-  (DBG "- use that with arguments")
+  (DBG "- use that standalone program with arguments")
   (assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines :error-output t)
                 '("hello, world"
                   "You passed 3 arguments:"
