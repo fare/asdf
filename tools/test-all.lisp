@@ -63,8 +63,8 @@
     (let ((bad-lisps
             (run/lines
              `(grep "-L" "[5-9][0-9] passing and 0 failing"
-                    ,(mapcar (lambda (l) (format nil "build/results/~(~A~)-test.text" l))
-                             *test-lisps*)))))
+                    ,@(mapcar (lambda (l) (format nil "build/results/~(~A~)-test.text" l))
+                              *test-lisps*)))))
     (failure-if bad-lisps
                 "Unexpected test failures on these implementations:~%~{~A~%~}" bad-lisps))))
 
@@ -74,8 +74,8 @@
     (let ((bad-lisps
             (run/lines
              `(grep "-L" "Upgrade test succeeded for "
-                    ,(mapcar (lambda (l) (format nil "build/results/~(~A~)-upgrade.text" l))
-                             *upgrade-test-lisps*)))))
+                    ,@(mapcar (lambda (l) (format nil "build/results/~(~A~)-upgrade.text" l))
+                              *upgrade-test-lisps*)))))
       (failure-if bad-lisps
                   "Unexpected upgrade failures on these implementations:~%~{~A~%~}~%" bad-lisps))))
 
