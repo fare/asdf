@@ -155,7 +155,8 @@ Use the preferred lisp implementation"
                              (asdf-test::test-upgrade ,@method ,tag))
                            :lisp lisp :log log))
                          description))
-    :finally (log! log "Upgrade test succeeded for ~(~A~)" lisp))))
+    :finally (log! log "Upgrade test succeeded for ~(~A~)" lisp)
+         (return (success)))))
 
 (defalias u test-upgrade)
 
