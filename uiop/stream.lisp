@@ -601,17 +601,17 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
                  (when stream
                    (setf okp pathname)
                    (when want-stream-p
-                     (setf results
-                           (multiple-value-list
-                            (if want-pathname-p
-                                (funcall thunk stream pathname)
-                                (funcall thunk stream)))))))
-               (when okp
-                 (unless want-stream-p
-                   (setf results (multiple-value-list (call-function thunk pathname))))
-                 (when after
-                   (setf results (multiple-value-list (call-function after pathname))))
-                 (return (apply 'values results))))
+                     ;; Note: can't return directly from within with-open-file
+                     ;; or the non-local return causes the file creation to be undone.
+                     (setf results (multiple-value-list
+                                    (if want-pathname-p
+                                        (funcall thunk stream pathname)
+                                        (funcall thunk stream)))))))
+               (cond
+                 ((not okp) nil)
+                 (after (return (call-function after okp)))
+                 ((and want-pathname-p (not want-stream-p)) (return (call-function thunk okp)))
+                 (t (return (apply 'values results)))))
           (when (and okp (not (call-function keep)))
             (ignore-errors (delete-file-if-exists okp))))))
 
