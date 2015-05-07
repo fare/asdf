@@ -24,6 +24,7 @@ doc/asdf.vrs
 doc/asdf.t2d/
 doc/asdf.dvi
 doc/version.texinfo
+doc/*.log
 *.tmp
 
 LICENSE
