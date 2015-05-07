@@ -4,7 +4,7 @@
   (let ((thunks
           (loop :for lisp :in (get-lisps lisps)
                 :collect (let ((l lisp))
-                           (lambda () (with-failure-context ((format nil "using ~(~A~)" l))
+                           (lambda () (with-failure-context (:name (format nil "using ~(~A~)" l))
                                         (funcall thunk l)))))))
     (if fail-fast
         (progn (map () 'funcall thunks) (success))

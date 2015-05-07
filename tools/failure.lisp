@@ -95,8 +95,8 @@
 (defun make-failures (&optional list)
   (make-condition 'execution-failures :failures list))
 
-(defmacro with-failure-context ((&optional context) &body body)
-  `(call-with-failure-context (lambda () ,@body) ,context))
+(defmacro with-failure-context ((&key name (fail-fast t)) &body body)
+  `(call-with-failure-context (lambda () ,@body) :name ,name :fail-fast ,fail-fast))
 
 (defun register-failures (failure)
   (let ((failure (make-failure failure)))
@@ -107,18 +107,17 @@
        (push failure *failures*)))
     failure))
 
-(defun call-with-failure-context (thunk context)
+(defun call-with-failure-context (thunk &key name (fail-fast t))
   (let ((toplevel (null *execution-context*))
-        (*execution-context* (cons context *execution-context*))
-        (fail-fast *fail-fast*)
-        (*fail-fast* t))
+        (*execution-context* (cons name *execution-context*)))
     (labels ((compute ()
                (block nil
                  (handler-bind ((error (lambda (c)
                                          (register-failures c)
-                                         (if (and fail-fast (not toplevel))
-                                             (error (make-failures))
-                                             (return (failure))))))
+                                         (cond
+                                           (toplevel (return (failure *failures*)))
+                                           (fail-fast (error (make-failures)))
+                                           (t (return (failure)))))))
                    (funcall thunk))))
              (doit ()
                (let ((results (multiple-value-list (compute))))
@@ -128,13 +127,12 @@
           (doit)))))
 
 (defmacro without-stopping (() &body body)
-  `(call-without-stopping ,@(mapcar (lambda (form) `(lambda () ,form)) body)))
+  `(call-without-stopping (list ,@(mapcar (lambda (form) `(lambda () ,form)) body))))
 
-(defun call-without-stopping (&rest thunks)
-  (let ((failurep nil)
-        (*fail-fast* nil))
-    (dolist (thunk thunks)
-      (when (failurep (multiple-value-list (with-failure-context () (funcall thunk))))
-        (setf failurep t)))
-    (failure-if failurep (make-failures))))
-
+(defun call-without-stopping (thunks)
+  (with-failure-context (:fail-fast nil)
+    (let ((failurep nil))
+      (dolist (thunk thunks)
+        (when (failurep (multiple-value-list (with-failure-context () (funcall thunk))))
+          (setf failurep t)))
+      (failure-if failurep (make-failures)))))

@@ -134,7 +134,7 @@
              (return
                `(defun ,name (&optional ,@largs)
                   ,@decl
-                  (with-failure-context (,(command-name name))
+                  (with-failure-context (:name ,(command-name name))
                     ,@inits
                     ,@body
                     (success))))))) ;; use return-from ,name to return a value.
@@ -200,7 +200,7 @@
 
 (defun run* (cmd &rest keys)
   (let* ((string (strcat "`" (print-process-spec cmd) "`")))
-    (with-failure-context (string)
+    (with-failure-context (:name string)
       (apply 'run cmd
              :on-error (lambda (c) (fail! "process failed with code ~A" (subprocess-error-code c)))
              keys))))

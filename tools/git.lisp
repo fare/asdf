@@ -38,15 +38,13 @@
 
 (deftestcmd fix-local-git-tags ()
   "delete wrongful tags from local git repository"
-  (without-stopping ()
-    (dolist (tag *wrongful-tags*)
-      (git `(tag -d ,tag) :on-error nil))))
+  (call-without-stopping
+    (mapcar (lambda (tag) (lambda () (git `(tag -d ,tag) :on-error nil))) *wrongful-tags*)))
 
 (deftestcmd fix-remote-git-tags ((remote "origin"))
   "delete wrongful tags from remote git repository"
-  (without-stopping ()
-    (dolist (tag *wrongful-tags*)
-      (git `(push ,remote (:refs/tags/,tag)) :on-error nil))))
+  (call-without-stopping
+    (mapcar (lambda (tag) (lambda () (git `(push ,remote (:refs/tags/,tag)) :on-error nil))) *wrongful-tags*)))
 
 (deftestcmd git-all-committed-p ()
   "is your checkout clean, with all files committed?"

@@ -7,12 +7,12 @@
 ;;; Documentation
 (deftestcmd doc ()
   "build documentation in doc/ directory"
-  (with-failure-context ("in doc/ directory")
+  (with-failure-context (:name "in doc/ directory")
     (run* '(make) :directory (pn "doc/"))))
 
 (deftestcmd website ()
   "publish documentation onto the public website"
-  (with-failure-context ("in doc/ directory")
+  (with-failure-context (:name "in doc/ directory")
     (run* '(make website) :directory (pn "doc/"))))
 
 

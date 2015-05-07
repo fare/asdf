@@ -35,50 +35,51 @@ Use the preferred lisp implementation"
    (let* ((log (newlogfile "test" lisp)))
      (log! log "Running the following ~D ASDF test script~:*~P on ~(~A~):~%~{  ~A~%~}"
            (length test-scripts) lisp test-scripts))
-   (without-stopping ())
-   (and
-    (run-test-lisp
-     "compiling ASDF"
-     '((load "test/script-support.lisp") (asdf-test::compile-asdf-script))
-     :lisp lisp :log log))
-   (loop
-     :with n-tests = (length test-scripts)
-     :with test-pass = 0
-     :with test-fail = 0
-     :with failed-list = ()
-     :for i :in test-scripts
-     :for ni = (native-namestring (subpathname "test/" i))
-     :for test-count :from 0
-     :do
-        ;; TODO: do we want to delete the output file cache?
-        ;; If so, we need to do it in the inferior lisp,
-        ;; because only it knows for sure its output configuration.
-        ;; Or we could do it in a more heavy handed way.
-        (if (run-test-lisp
-             (format nil "testing ~A on ~(~A~)" i lisp)
-             `((load "test/script-support.lisp")
-               (asdf-test::load-asdf)
-               (asdf-test::frob-packages)
-               (asdf-test::run-test-script ,ni))
-             :lisp lisp :log log)
-            (incf test-pass)
-            (progn
-              (incf test-fail)
-              (push i failed-list)))
-     :finally)
-   (let ((failp (plusp test-fail)))
-     (log! log "~
+   (let ((n-tests (length test-scripts))
+         (test-pass 0)
+         (test-fail 0)
+         (failed-list ())))
+   (call-without-stopping
+    `(,(lambda() (run-test-lisp
+      "compiling ASDF"
+      '((load "test/script-support.lisp") (asdf-test::compile-asdf-script))
+      :lisp lisp :log log))
+      ,@(mapcar
+          (lambda (test-script)
+            (lambda ()
+              ;; TODO: do we want to delete the output file cache?
+              ;; If so, we need to do it in the inferior lisp,
+              ;; because only it knows for sure its output configuration.
+              ;; Or we could do it in a more heavy handed way.
+              ;; A better solution would be to do any output operations in a temporary workspace,
+              ;; which would allow test parallelization.
+              (if (with-failure-context (:fail-fast nil)
+                    (run-test-lisp
+                     (format nil "testing ~A on ~(~A~)" test-script lisp)
+                     `((load "test/script-support.lisp")
+                       (asdf-test::load-asdf)
+                       (asdf-test::frob-packages)
+                       (asdf-test::run-test-script ,(native-namestring (subpathname "test/" test-script))))
+                     :lisp lisp :log log))
+                (incf test-pass)
+                (progn
+                  (incf test-fail)
+                  (push test-script failed-list)))))
+          test-scripts)
+      ,(lambda ()
+         (let ((failp (plusp test-fail)))
+           (log! log "~
 -#---------------------------------------
 Using ~A
 Ran ~D tests, ~D passed, ~D failed~
 ~:[~%All tests apparently successful.~;:~:*~{~%  ~A~}~]
 -#---------------------------------------~%"
-           lisp
-           n-tests test-pass test-fail (reverse failed-list))
-     (when failp
-       (log! log "To view full results and failures, try the following command:
+                 lisp
+                 n-tests test-pass test-fail (reverse failed-list))
+           (when failp
+             (log! log "To view full results and failures, try the following command:
      less -p ABORTED ~A" (enough-namestring log (pn))))
-     (failure-if failp "~D test~:*~P failed" test-fail))))
+           (failure-if failp "~D test~:*~P failed" test-fail)))))))
 
 (deftestcmd test (lisp test-scripts)
   "run all normal tests but upgrade tests
