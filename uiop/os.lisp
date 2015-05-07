@@ -271,9 +271,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
 
   (defun getcwd ()
     "Get the current working directory as per POSIX getcwd(3), as a pathname object"
-    (or #+abcl (truename (symbol-call :asdf/filesystem :parse-native-namestring
-                          (java:jstatic "getProperty" "java.lang.System" "user.dir")
-                          :ensure-directory t))
+    (or #+(or abcl genera) (truename *default-pathname-defaults*) ;; d-p-d is canonical!
         #+allegro (excl::current-directory)
         #+clisp (ext:default-directory)
         #+clozure (ccl:current-directory)
@@ -282,7 +280,6 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
         #+cormanlisp (pathname (pl::get-current-directory)) ;; Q: what type does it return?
         #+(or clasp ecl) (ext:getcwd)
         #+gcl (let ((*default-pathname-defaults* #p"")) (truename #p""))
-        #+genera *default-pathname-defaults* ;; on a Lisp OS, it *is* canonical!
         #+lispworks (hcl:get-working-directory)
         #+mkcl (mk-ext:getcwd)
         #+sbcl (sb-ext:parse-native-namestring (sb-unix:posix-getcwd/))
@@ -292,7 +289,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
   (defun chdir (x)
     "Change current directory, as per POSIX chdir(2), to a given pathname object"
     (if-let (x (pathname x))
-      #+abcl (java:jstatic "setProperty" "java.lang.System" "user.dir" (namestring x))
+      #+(or abcl genera) (setf *default-pathname-defaults* (truename x)) ;; d-p-d is canonical!
       #+allegro (excl:chdir x)
       #+clisp (ext:cd x)
       #+clozure (setf (ccl:current-directory) x)
@@ -301,7 +298,6 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
                      (error "Could not set current directory to ~A" x))
       #+(or clasp ecl) (ext:chdir x)
       #+gcl (system:chdir x)
-      #+genera (setf *default-pathname-defaults* x)
       #+lispworks (hcl:change-directory x)
       #+mkcl (mk-ext:chdir x)
       #+sbcl (progn (require :sb-posix) (symbol-call :sb-posix :chdir (sb-ext:native-namestring x)))

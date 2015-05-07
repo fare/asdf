@@ -203,9 +203,12 @@ when merging, making or parsing pathnames"
 when merging, making or parsing pathnames")
 
   (defmacro with-pathname-defaults ((&optional defaults) &body body)
-    "Execute BODY in a context where the *DEFAULT-PATHNAME-DEFAULTS* are as neutral as possible
-when merging, making or parsing pathnames"
-    `(let ((*default-pathname-defaults* ,(or defaults '*nil-pathname*))) ,@body)))
+    "Execute BODY in a context where the *DEFAULT-PATHNAME-DEFAULTS* is as specified,
+where leaving the defaults NIL or unspecified means a (NIL-PATHNAME), except on ABCL and Genera,
+where it remains unchanged for it doubles as current-directory."
+    `(let ((*default-pathname-defaults*
+             ,(or defaults #-(or abcl genera) '*nil-pathname* #+(or abcl genera) '*default-pathname-defaults*)))
+       ,@body)))
 
 
 ;;; Some pathname predicates
@@ -572,7 +575,7 @@ when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPA
          (absolute-pathname-p maybe-subpath) (absolute-pathname-p base-pathname)
          (directory-pathname-p base-pathname) (not (wild-pathname-p base-pathname))
          (pathname-equal (pathname-root maybe-subpath) (pathname-root base-pathname))
-         (with-pathname-defaults ()
+         (with-pathname-defaults (*nil-pathname*)
            (let ((enough (enough-namestring maybe-subpath base-pathname)))
              (and (relative-pathname-p enough) (pathname enough))))))
 
