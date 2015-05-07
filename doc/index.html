@@ -192,38 +192,29 @@
             <td align="left"><tt>gcl</tt></td>
             <td align="left"><tt>mcl xcl</tt></td></tr>
           <tr><th align="left">Proprietary</th>
-            <td align="left"><tt>allegro</tt></td>
-            <td align="left"><tt>lispworks</tt></td>
+            <td align="left"><tt>allegro lispworks</tt></td>
+            <td align="left"></td>
             <td align="left"><tt>cormanlisp genera mocl scl</tt></td></tr>
         </table>
         <p>
-          To deal with an implementation that doesn't yet provide ASDF 3,
+          To deal with an old implementation that didn't yet provide ASDF 3,
           we provide <a href="https://common-lisp.net/asdf/asdf/blob/master/tools/install-asdf.lisp">a script</a>
           that can install ASDF 3 where your implementation goes looking for it
           when you <tt>(require "asdf")</tt> .
         </p><p>
-          Alternatively, though we don't recommend it, if the implementation provides ASDF 2
-          (as do <tt>lispworks mocl xcl</tt> or older versions of some implementations)
-          or an overly old version of ASDF 3,
-          you can download, install and configure a more recent ASDF 3,
-          then use <tt>(require "asdf") (asdf:load-system :asdf)</tt> to load it.
-          Beware: when upgrading that way from ASDF 2, you should always do it
-          <em>immediately</em> after the <tt>require</tt> (and optional configuration),
-          and before you use ASDF to do anything else;
-          ASDF 3 does this early upgrade automatically.
+          Note that upgrading from an old version of ASDF is possible,
+          but quite complex to do right in a robust way, and we do not recommend it.
           Also note that <tt>mocl</tt> only supports a heavily modified variant of ASDF 2,
-          and its cross-compilation setup isn't yet supported by ASDF 3.
+          and will require robust cross-compilation support to be added to ASDF 3
+          before it is actually supported.
         </p>
         <!-- Note to self:
-             asdf-announce may have been a casualty of some recent mailing-list reorganization. Check.
-sds, maintainer of CLISP, used to listen to it.
-
              The maintainers of the following implementations require direct notification:
              abcl allegro ccl clisp cmucl ecl gcl lispworks mkcl sbcl scl xcl
 Armed Bear <armedbear-devel@common-lisp.net>,
 Allegro <bugs@franz.com>,
 Clozure CL <openmcl-devel@clozure.com>,
-GNU CLISP <clisp-list@lists.sourceforge.net> (sds)
+GNU CLISP <clisp-list@lists.sourceforge.net> (sds),
 CMU CL <cmucl-imp@cmucl.cons.org>,
 ECL <ecls-list@lists.sourceforge.net>,
 GCL <gcl-devel@gnu.org>,
@@ -428,6 +419,10 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>May 2015</dt>
+          <dd>With the LispWorks 7.0 release, all actively maintained CL implementations
+        are now providind ASDF 3.0 or later, and
+        support for older variants is now officially dropped.</dd>
           <dt>October 2014</dt>
           <dd>More bug fixing leads to release of 3.1.4 on 10 October 2014.
           There should be no incompatibilities. See the <a

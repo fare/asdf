@@ -756,19 +756,18 @@ It returns a process-info plist with possible keys:
                (when pathname
                  (list operator " "
                        (escape-shell-token (native-namestring pathname)))))))
-      (multiple-value-bind (before after)
-          (let ((normalized (%normalize-system-command command)))
-            (os-cond
-             ((os-unix-p) (values '("exec") (list " ; " normalized)))
-             (t (values (list normalized) ()))))
+      (let* ((redirections (append (redirect in " <") (redirect out " >") (redirect err " 2>")))
+             (normalized (%normalize-system-command command))
+             (directory (or directory #+abcl (getcwd)))
+             (chdir (when directory
+                      (let ((dir-arg (escape-shell-token (native-namestring directory))))
+                        (os-cond
+                         ((os-unix-p) `("cd " ,dir-arg " ; "))
+                         ((os-windows-p) `("cd /d " ,dir-arg " & ")))))))
         (reduce/strcat
-         (append
-          before (redirect in " <") (redirect out " >") (redirect err " 2>")
-          (os-cond
-           ((os-unix-p)
-            (when directory ;; NB: unless on Unix, %system uses with-current-directory
-              `(" ; cd " ,(escape-shell-token (native-namestring directory))))))
-          after)))))
+         (os-cond
+          ((os-unix-p) `(,@(when redirections `("exec " ,@redirections " ; ")) ,@chdir ,normalized))
+          ((os-windows-p) `(,@chdir @redirections ,normalized)))))))
 
   (defun %system (command &rest keys
                   &key input output error-output directory &allow-other-keys)
@@ -881,8 +880,7 @@ or an indication of failure via the EXIT-CODE of the process"
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
                      #+(or clasp clisp ecl) (or (not ignore-error-status) t)
-                     #+clisp (eq error-output :interactive)
-                     #+(or abcl clisp) (eq :error-output :output)
+                     #+clisp (member error-output '(:interactive :output))
                      #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)

@@ -19,9 +19,10 @@
     ;; not compatible with ASDF2 anymore, so we immediately released 3.0.1
     "3.0.3" ;; (2013-10-22) the last in the ASDF 3.0 series
     "3.0.2" ;; (2013-07-02) the first ASDF 3 in SBCL
-    "3.0.1" ;; (2013-05-16) the first stable ASDF 3 release
+    "3.0.1")) ;; (2013-05-16) the first stable ASDF 3 release
 
-    ;; 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
+(defparameter *obsolete-upgrade-test-tags*
+  '(;; 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
     "2.32" ;; (2013-03-05) the first really stable ASDF 3 pre-release
     "2.27" ;; (2013-02-01) the first ASDF 3 pre-release
 
@@ -43,7 +44,10 @@
     "1.97")) ;; (2006-05-14) the last release before Gary King takes over
 
 (defun get-upgrade-tags (&optional (x *upgrade-test-tags*))
-  (if (eq x :default) *default-upgrade-test-tags* x))
+  (cond
+    ((eq x :default) *default-upgrade-test-tags*)
+    ((or (eq x :old) (equal x '("old"))) *obsolete-upgrade-test-tags*)
+    (t x)))
 
 (defun extract-tagged-asdf (tag)
   "extract an asdf version from git
