@@ -450,7 +450,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
                  (when forms `(progn ,@forms))))))
       #+(or clasp ecl) (check-type kind (member :dll :lib :static-library :program :object :fasl))
       (apply #+clasp 'cmp:builder #+clasp kind
-             #+(or ecl (not clasp)) 'c::builder #+(or ecl (not clasp)) kind
+             #+(and ecl (not clasp)) 'c::builder #+(and ecl (not clasp)) kind
              #+mkcl (ecase kind
                       ((:dll) 'compiler::build-shared-library)
                       ((:lib :static-library) 'compiler::build-static-library)
