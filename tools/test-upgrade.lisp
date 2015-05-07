@@ -105,9 +105,10 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ;; My old Ubuntu 10.04LTS clisp 2.44.1 came wired in
      ;; with an antique ASDF 1.374 from CLC that can't be removed.
      ;; More recent CLISPs work.
-     ;; 2.00[0-7] use UID, which fails on some old CLISPs.
+     ;; 2.00[0-7] use UID, which fails on some old CLISPs,
+     ;; but these old ASDF versions still can be loaded and upgraded from.
      ;; Note that for the longest time, CLISP has included 2.011 in its distribution.
-     ;; However, the was we punt or don't punt, these should all work.
+     ;; However, whether we punt or don't punt, these should all work.
      ((:clisp) t)
 
      ;; CMUCL has problems with 2.32 and earlier because of
@@ -148,15 +149,15 @@ Use the preferred lisp implementation"
              = (format nil "Testing ASDF upgrade on ~(~A~) from ~A to ~A using method ~(~{~A~^:~}~)"
                        lisp tag *version* method)
            :when (valid-upgrade-test-p lisp tag method) :do
-             (failure-if (and
+             (success-if (and
                           (extract-tagged-asdf tag)
                           (run-test-lisp description
                            `((load "test/script-support.lisp")
                              (asdf-test::test-upgrade ,@method ,tag))
                            :lisp lisp :log log))
                          description))
-    :finally (log! log "Upgrade test succeeded for ~(~A~)" lisp)
-         (return (success)))))
+    :finally (progn (log! log "Upgrade test succeeded for ~(~A~)" lisp)
+                    (return (success))))))
 
 (defalias u test-upgrade)
 
