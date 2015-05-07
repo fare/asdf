@@ -33,7 +33,7 @@ Use the preferred lisp implementation"
   (nest
    (with-asdf-dir ())
    (let* ((log (newlogfile "test" lisp)))
-     (log! log "Running the following ~D ASDF test scripts on ~(~A~):~%~{  ~A~%~}"
+     (log! log "Running the following ~D ASDF test script~:*~P on ~(~A~):~%~{  ~A~%~}"
            (length test-scripts) lisp test-scripts))
    (without-stopping ())
    (and

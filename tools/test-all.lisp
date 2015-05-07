@@ -3,8 +3,9 @@
 (defun call-with-all-lisps (thunk &key (lisps *test-lisps*) (fail-fast t))
   (let ((thunks
           (loop :for lisp :in (get-lisps lisps)
-                :collect (lambda () (with-failure-context ((format nil "using ~(~A~)" lisp))
-                                      (funcall thunk lisp))))))
+                :collect (let ((l lisp))
+                           (lambda () (with-failure-context ((format nil "using ~(~A~)" l))
+                                        (funcall thunk l)))))))
     (if fail-fast
         (progn (map () 'funcall thunks) (success))
         (apply 'call-without-stopping thunks))))
@@ -62,9 +63,9 @@
   (with-asdf-dir ()
     (let ((bad-lisps
             (run/lines
-             `(grep "-L" "[5-9][0-9] passing and 0 failing"
+             `(grep "-L" "All tests apparently successful."
                     ,@(mapcar (lambda (l) (format nil "build/results/~(~A~)-test.text" l))
-                              *test-lisps*)))))
+                              *test-lisps*)) :on-error nil)))
     (failure-if bad-lisps
                 "Unexpected test failures on these implementations:~%~{~A~%~}" bad-lisps))))
 
@@ -75,7 +76,7 @@
             (run/lines
              `(grep "-L" "Upgrade test succeeded for "
                     ,@(mapcar (lambda (l) (format nil "build/results/~(~A~)-upgrade.text" l))
-                              *upgrade-test-lisps*)))))
+                              *upgrade-test-lisps*)) :on-error nil)))
       (failure-if bad-lisps
                   "Unexpected upgrade failures on these implementations:~%~{~A~%~}~%" bad-lisps))))
 
