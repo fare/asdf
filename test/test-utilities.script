@@ -302,34 +302,29 @@
   (ts "c" +crlf+ (strcat ccr +lf+))
   (ts (strcat acrlf "b") +lf+ (strcat acrlf blf)))
 
-(DBG :wtf-s)
-(with-temporary-file (:stream s :direction :io :prefix "LEP")
+(DBG "testing with-temporary-file")
+(with-temporary-file (:stream s :direction :io :prefix "WTF0")
   (println "Hello, World" s)
   (file-position s 0)
   (assert-equal (read-line s) "Hello, World"))
 
-(DBG :wtf-p)
-(let ((pn
-        (with-temporary-file (:pathname pn :direction :output :prefix "LEP")
-          (assert-equal (read-file-lines pn) ())
-          pn)))
-  (assert (not (probe-file pn))))
+(let ((pn1 (with-temporary-file (:pathname pn :direction :output :prefix "WTF1")
+             (assert-equal (read-file-lines pn) ())
+             pn)))
+  (assert (not (probe-file pn1))))
 
-(DBG :wtf-s-p)
-(let ((pn
-        (with-temporary-file (:stream s :pathname p :keep t :direction :io :prefix "LEP")
-          (println "Hello, World" s)
-          (DBG :wsp s p (probe-file p))
-          p)))
-  (assert-equal (read-file-lines pn) '("Hello, World"))
-  (delete-file pn))
+(let ((pn2 (with-temporary-file (:stream s :pathname p :keep t :direction :io :prefix "WTF2")
+             (println "Hello, World" s)
+             p)))
+  (assert-equal (read-file-lines pn2) '("Hello, World"))
+  (delete-file pn2))
 
+#-gcl ;; BUG in GCL compiling the WTF internal loop. Works if loaded without compiling.
 (assert
  (not (probe-file
        (let ((s 'outer-s))
-         (with-temporary-file (:stream s :pathname p :direction :io :prefix "LEP")
+         (with-temporary-file (:stream s :pathname p :direction :io :prefix "WTF3")
            (assert (open-stream-p s))
-           (DBG :wsp s p (probe-file p))
            (println "Same thing with :close-stream" s)
            :close-stream
            (assert-equal s 'outer-s) ;; the stream s (1) has been closed and (2) is no longer in scope.
