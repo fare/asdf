@@ -230,9 +230,11 @@ You can retry ~A with:
 or more interactively, start with:
     ~A~%(rlwrap is optional; don't use it when in emacs; skip if not installed.)
 then copy/paste:
-~@<    ~@;~A~@:>~&")
+~@<    ~@;~A~@:>~&~
+ Note that to debug rather than merely reproduce, you may want to call~%~
+ (asdf-test::debug-asdf) before last form to avoid quit-on-failure behavior~%")
               activity activity
               (print-process-spec command nil)
-              (print-process-spec (interactive-command) nil)
+              (print-process-spec (interactive-command lisp) nil)
               (compose-copy-paste-string forms)))
         (success-if okp "failed at ~A" activity)))))
