@@ -42,12 +42,12 @@
              (ignore-errors (and (probe-file x) (load x))))
            (load-and-configure-asdf ()
              ;; First, try to require ASDF from the implementation, if not already loaded.
-             ;; Most implementations provide ASDF 3.0, LispWorks still lags with ASDF 2.019,
-             ;; and some unmaintained implementations, or obsolete implementations or versions thereof
-             ;; only provide ASDF 2, ASDF 1, or don't provide ASDF.
+             ;; All actively maintained implementations now provide ASDF 3.0;
+             ;; some old versions of maintained implementations, and some unmaintained
+             ;; or obsolete implementations only provide ASDF 2, ASDF 1, or don't provide ASDF.
              ;; Note that CLISP is case-sensitive, so we need to specify a lowercase string,
-             ;; and not the keyword :asdf or symbol 'asdf; old CLISP versions that don't provide ASDF
-             ;; may error at compile-time if we call (require "asdf") directly.
+             ;; and not the keyword :asdf or symbol 'asdf; also old CLISP versions that don't
+             ;; provide ASDF may error at compile-time if we call (require "asdf") directly.
              (ignore-errors (funcall 'require "asdf"))
              ;; If ASDF 2 isn't provided, load our ASDF from source.
              ;; ASDF 1 is not enough, because it won't heed our project's output-translations.

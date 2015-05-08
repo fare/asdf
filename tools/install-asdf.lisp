@@ -1,11 +1,11 @@
 ":" ; exec cl-launch "$0" "$@" # -*- Lisp -*-
 #|
 Usage: make && ./tools/asdf-tools install-asdf lispworks
-    or make && l=lispworks ./tools/asdf-tools install-asdf
-    or make && cl-launch -l lispworks bin/install-asdf-as-module
+    or make l=lispworks install-asdf
+    or make && cl-launch -l lispworks tools/install-asdf.lisp
     or make
        sbcl # or otherwise start your Lisp
-       (load "bin/install-asdf-as-module")
+       (load "tools/install-asdf.lisp")
 
 This script will install the current version of ASDF
 as a module pre-compiled for your implementation,
@@ -26,6 +26,11 @@ It notably doesn't work on:
 * mocl, that doesn't support ASDF 3 yet.
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 
+Note that if you're using it with LispWorks, you first have to create
+a command-line executable for LispWorks this way:
+
+       echo '(hcl:save-image "lispworks-console" :environment nil)' > si.lisp
+       lispworks-7-0-0-x86-linux -siteinit - -init - -build si.lisp
 |#
 
 #+gcl

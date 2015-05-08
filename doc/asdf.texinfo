@@ -36,11 +36,11 @@ for Common Lisp programs and libraries.
 You can find the latest version of this manual at
 @url{http://common-lisp.net/project/asdf/asdf.html}.
 
-ASDF Copyright @copyright{} 2001-2014 Daniel Barlow and contributors.
+ASDF Copyright @copyright{} 2001-2015 Daniel Barlow and contributors.
 
-This manual Copyright @copyright{} 2001-2014 Daniel Barlow and contributors.
+This manual Copyright @copyright{} 2001-2015 Daniel Barlow and contributors.
 
-This manual revised @copyright{} 2009-2014 Robert P. Goldman and Francois-Rene Rideau.
+This manual revised @copyright{} 2009-2015 Robert P. Goldman and Francois-Rene Rideau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -395,8 +395,7 @@ to make sure it's all working properly. @xref{Using ASDF}.
 @node  Loading a pre-installed ASDF, Checking whether ASDF is loaded, Loading ASDF, Loading ASDF
 @section Loading a pre-installed ASDF
 
-Most recent Lisp implementations include a copy of ASDF 3,
-or at least ASDF 2.
+All actively maintained Lisp implementations now include a copy of ASDF 3.
 You can usually load this copy using Common Lisp's @code{require} function.@footnote{
 NB: all implementations except GNU CLISP also accept
 @code{(require "ASDF")}, @code{(require 'asdf)} and @code{(require :asdf)}.
@@ -409,7 +408,7 @@ For portability's sake, you should use @code{(require "asdf")}.
 
 As of the writing of this manual,
 the following implementations provide ASDF 3 this way:
-ABCL, Allegro CL, Clozure CL, CMUCL, ECL, GNU CLISP, LispWorks, MKCL, SBCL.
+ABCL, Allegro CL, CLASP, Clozure CL, CMUCL, ECL, GNU CLISP, LispWorks, MKCL, SBCL.
 The following implementations only provide ASDF 2:
 mocl, XCL.
 The following implementations don't provide ASDF:
@@ -417,11 +416,11 @@ Corman CL, GCL, Genera, MCL, SCL.
 The latter implementations are not actively maintained (except maybe GCL);
 if some of them are ever released again, they probably will include ASDF 3.
 
-If the implementation you are using doesn't provide ASDF 2 or ASDF 3,
+If the implementation you are using doesn't provide a recent ASDF 3,
 see @pxref{Loading ASDF,,Loading ASDF from source} below.
 If that implementation is still actively maintained,
 you may also send a bug report to your Lisp vendor and complain
-about their failing to provide ASDF.
+about their failing to provide an up-to-date ASDF.
 
 @node Checking whether ASDF is loaded, Upgrading ASDF, Loading a pre-installed ASDF, Loading ASDF
 @section Checking whether ASDF is loaded
@@ -494,11 +493,17 @@ amongst the regularly configured systems, before it compiles anything else.
 @node Upgrading your implementation's ASDF, Issues with upgrading ASDF, Upgrading ASDF, Upgrading ASDF
 @subsection Upgrading your implementation's ASDF
 
-Most implementations provide a recent ASDF 3 in their latest release.
+@c Now that all implementations provide ASDF 3, most issues become trivial,
+@c except on CMUCL where upgrade doesn't work.
+@c Most of the upgrading section might be moved to an advanced chapter
+@c rather than being in an early section that will trouble the novice.
+
+All maintained implementations now provide ASDF 3 in their latest release.
 If yours doesn't, we recommend upgrading your implementation.
-If the latest version of your implementation still doesn't provide ASDF,
-or provides an old version, we recommend installing a recent ASDF so your implementation provides it,
-as explained below.
+If you want to stick to an old implementation that didn't provide ASDF or provided an old version,
+we recommend installing a recent ASDF, as explained below,
+into your implementation's installation directory;
+thus your modified implementation will now provide ASDF 3.
 If all fails, we recommend you load ASDF from source
 @pxref{Loading ASDF,,Loading ASDF from source}.
 
@@ -562,7 +567,7 @@ at the very beginning of whatever script you are running,
 before you start using ASDF to load anything else.
 
 @item
-Until all implementations provide ASDF 3 or later,
+Until all implementations provide ASDF 3 or later (now the case in May 2015),
 it is unsafe to upgrade ASDF as part of loading a system
 that depends on a more recent version of ASDF,
 since the new one might shadow the old one while the old one is running,
@@ -578,13 +583,18 @@ with such code as:
   (error "FOO requires ASDF ~A or later." *required-asdf-version*))
 @end example
 @item
-Until all implementations provide ASDF 3 or later,
+Until all implementations provide ASDF 3 or later (now the case in May 2015),
 it is unsafe for a system to transitively depend on ASDF
 and not directly depend on ASDF;
 if any of the system you use either depends-on asdf,
 system-depends-on asdf, or transitively does,
 you should also do as well.
 @end itemize
+
+Note that bugs in CMUCL and XCL prevent upgrade of ASDF.
+Happily, CMUCL comes with a recent ASDF,
+and XCL is more of a working demo than something you'd use seriously anyway.
+
 
 @node Loading ASDF from source,  , Upgrading ASDF, Loading ASDF
 @section Loading ASDF from source
@@ -1265,7 +1275,7 @@ system-option := :defsystem-depends-on system-list
                  | module-option
                  | option
 
-# These are only available since ASDF3 (actually its alpha release 2.27)
+# These are only available since ASDF 3 (actually its alpha release 2.27)
 system-option := :homepage string
                  | :bug-tracker string
                  | :mailto string
@@ -4375,9 +4385,9 @@ on implementations that support Unicode, and you can use reader-conditionalizati
 to protect any @code{:encoding @emph{encoding}} statement, as in
 @code{#+asdf-unicode :encoding #+asdf-unicode :utf-8}.
 We recommend that you avoid using unprotected @code{:encoding} specifications
-until after ASDF 2.21 or later becomes widespread
-(in April 2014, only LispWorks lags with ASDF 2.019,
-and is scheduled to be updated later this year).
+until after ASDF 2.21 or later becomes widespread.
+As of May 2015, all maintained implementations provide ASDF 3,
+so you may prudently start using this and other features without such protection.
 
 While it offers plenty of hooks for extension,
 and one such extension is available (see @code{asdf-encodings} below),
