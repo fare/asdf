@@ -758,7 +758,7 @@ It returns a process-info plist with possible keys:
                        (escape-shell-token (native-namestring pathname)))))))
       (let* ((redirections (append (redirect in " <") (redirect out " >") (redirect err " 2>")))
              (normalized (%normalize-system-command command))
-             (directory (or directory #+abcl (getcwd)))
+             (directory (or directory #+(or abcl xcl) (getcwd)))
              (chdir (when directory
                       (let ((dir-arg (escape-shell-token (native-namestring directory))))
                         (os-cond

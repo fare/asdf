@@ -204,10 +204,10 @@ when merging, making or parsing pathnames")
 
   (defmacro with-pathname-defaults ((&optional defaults) &body body)
     "Execute BODY in a context where the *DEFAULT-PATHNAME-DEFAULTS* is as specified,
-where leaving the defaults NIL or unspecified means a (NIL-PATHNAME), except on ABCL and Genera,
-where it remains unchanged for it doubles as current-directory."
+where leaving the defaults NIL or unspecified means a (NIL-PATHNAME), except
+on ABCL, Genera and XCL, where it remains unchanged for it doubles as current-directory."
     `(let ((*default-pathname-defaults*
-             ,(or defaults #-(or abcl genera) '*nil-pathname* #+(or abcl genera) '*default-pathname-defaults*)))
+             ,(or defaults #-(or abcl genera xcl) '*nil-pathname* #+(or abcl genera) '*default-pathname-defaults*)))
        ,@body)))
 
 
