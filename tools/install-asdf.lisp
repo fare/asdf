@@ -26,12 +26,11 @@ It notably doesn't work on:
 * mocl, that doesn't support ASDF 3 yet.
 * Corman Lisp, RMCL, Genera, that are obsolete anyway.
 
-Note that if you're using it with LispWorks (known to only provide ASDF 2
-as of LispWorks 6.1 in 2015), you first have to create a command-line
-executable for LispWorks this way:
+Note that if you're using it with LispWorks, you first have to create
+a command-line executable for LispWorks this way:
 
        echo '(hcl:save-image "lispworks-console" :environment nil)' > si.lisp
-       lispworks-6-1-0-x86-linux -siteinit - -init - -build si.lisp
+       lispworks-7-0-0-x86-linux -siteinit - -init - -build si.lisp
 |#
 
 #+gcl
