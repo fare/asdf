@@ -8,7 +8,7 @@
                                         (funcall thunk l)))))))
     (if fail-fast
         (progn (map () 'funcall thunks) (success))
-        (apply 'call-without-stopping thunks))))
+        (call-without-stopping thunks))))
 
 (defmacro with-all-lisps ((lisp-var lisps &key (fail-fast t)) &body body)
   `(call-with-all-lisps (lambda (,lisp-var) ,@body) :lisps ,lisps :fail-fast ,fail-fast))
