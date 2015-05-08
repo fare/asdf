@@ -37,7 +37,8 @@
 
 #+os-unix
 (progn
-  (chdir *test-directory*)
+  (with-expected-failure (#+xcl "no chdir")
+    (chdir *test-directory*))
 
   (DBG "Testing good shell command in current directory via run-shell-command")
   (assert-equal 0 (run-shell-command "./good-shell-command"))
@@ -70,7 +71,6 @@
        (let ((*verbose-out* s))
          (run-shell-command "echo ~A 1" "ok")))))
    ok1)
-  #-ecl
   (assert-equal
    (dewindowize
     (stripln
@@ -182,8 +182,7 @@ Testing run-program
   (assert-equal (nl "Hello World") (run-program '("echo" "Hello World") :output :string))
   (assert-equal (nl "Hello World") (run-program "echo Hello World" :output :string))
 
-  ;; Test that run-program fails properly with an
-  ;; empty program string
+  ;; Test that run-program fails properly with an empty program string
   #+(or clozure (and allegro os-unix) cmu (and lispworks os-unix) sbcl scl)
   (signals error (run-program '("") :output :lines))
 

@@ -459,7 +459,7 @@
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-1))))
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-2))))
 
-#-gcl
+#-gcl ;; expected-failure: GCL crashes badly
 (assert (test-component-pathnames :delete-host t :support-string-pathnames nil))
 
 (test-pathname-parsing)

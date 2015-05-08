@@ -15,7 +15,7 @@ Some constraints:
   (:export
    #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
-   #:deftest #:is #:signals
+   #:deftest #:is #:signals #:errors #:with-expected-failure
    #:assert-compare #:assert-equal #:assert-pathname-equal #:assert-pathnames-equal
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
@@ -132,6 +132,16 @@ Some constraints:
      (format *error-output* "~&Checking whether ~S signals error ~S~%" ',sexp ',condition)
      (finish-output *error-output*)
      (assert-equal ',condition (type-of (nth-value 1 (ignore-errors ,sexp))))))
+(defmacro with-expected-failure ((&optional condition) &body body)
+  `(call-with-expected-failure ,condition (lambda () ,@body)))
+(defun call-with-expected-failure (condition thunk)
+  (if condition
+      (handler-case (funcall thunk)
+        (:no-error (&rest x) (declare (ignore x)) (error "Unexpected success: ~A" condition))
+        (t (x) (declare (ignore x)) t))
+      (funcall thunk)))
+
+
 
 ;;; Helpful for debugging
 (defun pathname-components (p)
