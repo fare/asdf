@@ -27,7 +27,7 @@
 (unless (find-system :lisp-invocation nil)
   (leave-test "Couldn't find lisp-invocation. Probably your ASDF ext/ directory needs submodule update." 1))
 (load-system :lisp-invocation)
-(unless (version-satisfies (find-system :lisp-invocation) "1.0.1")
+(unless (version-satisfies (find-system :lisp-invocation) "1.0.4")
   (leave-test "Lisp-invocation library isn't new enough to test successfully. Probably your ASDF ext/ directory needs submodule update." 1))
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
@@ -54,6 +54,9 @@
   (delete-file-if-exists img)
   (DBG "- first create an executable image")
   (make-hello-world 'image)
+  #+cmu
+  (unless (probe-file* img)
+    (leave-test "CMUCL seemingly can't find the 32-bit compiler and libraries required to dump images. Aborting test." 0))
   (assert (probe-file* img) () "Can't find image file ~S" img)
 
   (DBG "- then use this executable image")
