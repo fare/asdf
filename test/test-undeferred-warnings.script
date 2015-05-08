@@ -14,11 +14,11 @@
 ;; GCL fails to warn; CMUCL, SBCL and presumably SCL defer warning to end of compilation unit;
 ;; SCL and XCL not actually tested
 
-(errors #+(or abcl allegro clisp clozure ecl lispworks mkcl xcl) compile-file-error
-        #+(or cmu gcl sbcl scl) null
+(errors #+(or abcl allegro clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl xcl) compile-file-error
+        #+(or cmu (and ecl ecl-bytecmp) gcl sbcl scl) null
         (let ((*compile-file-warnings-behaviour* :error))
           (load-system :undefined-variables)))
-(errors #+(or abcl allegro clisp clozure ecl lispworks mkcl xcl) compile-file-error
-        #+(or cmu gcl sbcl scl) null
+(errors #+(or abcl allegro clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl xcl) compile-file-error
+        #+(or cmu (and ecl ecl-bytecmp) gcl sbcl scl) null
         (let ((*compile-file-warnings-behaviour* :warning))
           (load-system :undefined-variables :force t)))
