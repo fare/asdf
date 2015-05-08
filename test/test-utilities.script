@@ -7,12 +7,14 @@
     :output '(:string :stripped t))
    :ensure-directory t))
 
-(chdir *asdf-directory*)
-(assert (pathname-equal *asdf-directory* (getcwd)))
-(assert (pathname-equal *asdf-directory* (getcwd-from-run-program)))
-(assert (probe-file* "asdf.asd"))
+(with-expected-failure (#+xcl "chdir unsupported")
+  (chdir *asdf-directory*)
+  (assert (pathname-equal *asdf-directory* (getcwd)))
+  (assert (pathname-equal *asdf-directory* (getcwd-from-run-program)))
+  (assert (probe-file* "asdf.asd")))
 
-(chdir *test-directory*)
+(with-expected-failure (#+xcl "chdir unsupported")
+  (chdir *test-directory*))
 (assert (pathname-equal *test-directory* (getcwd)))
 (assert (pathname-equal *test-directory* (getcwd-from-run-program)))
 (assert (probe-file* "test-utilities.script"))
@@ -319,17 +321,17 @@
   (assert-equal (read-file-lines pn2) '("Hello, World"))
   (delete-file pn2))
 
-#-gcl ;; BUG in GCL compiling the WTF internal loop. Works if loaded without compiling.
-(assert
- (not (probe-file
-       (let ((s 'outer-s))
-         (with-temporary-file (:stream s :pathname p :direction :io :prefix "WTF3")
-           (assert (open-stream-p s))
-           (println "Same thing with :close-stream" s)
-           :close-stream
-           (assert-equal s 'outer-s) ;; the stream s (1) has been closed and (2) is no longer in scope.
-           (assert-equal (read-file-lines p) '("Same thing with :close-stream"))
-           p)))))
+(with-expected-failure (#+gcl "BUG in GCL compiling the WTF internal loop. Works if loaded without compiling.")
+  (assert
+   (not (probe-file
+         (let ((s 'outer-s))
+           (with-temporary-file (:stream s :pathname p :direction :io :prefix "WTF3")
+             (assert (open-stream-p s))
+             (println "Same thing with :close-stream" s)
+             :close-stream
+             (assert-equal s 'outer-s) ;; the stream s (1) has been closed and (2) is no longer in scope.
+             (assert-equal (read-file-lines p) '("Same thing with :close-stream"))
+             p))))))
 
 (DBG :ensure-gethash)
 (let ((h (make-hash-table :test 'equal)))

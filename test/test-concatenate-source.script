@@ -16,11 +16,11 @@
 (assert-pathnames-equal
  (input-files mcso sys)
  (loop :for n :in '(3 1 2) :collect (test-source (format nil "file~D.lisp" n))))
-#-xcl ;; xcl has buggy translate-pathname
-(assert-pathname-equal
- (output-file mcso sys)
- (apply-output-translations
-  (resolve-output "asdf/test/test-concatenate-source--all-systems.lisp")))
+(with-expected-failure (#+xcl "xcl has buggy translate-pathname")
+  (assert-pathname-equal
+   (output-file mcso sys)
+   (apply-output-translations
+    (resolve-output "asdf/test/test-concatenate-source--all-systems.lisp"))))
 (assert-pathnames-equal
  (output-files mcso sys)
  (input-files mccso sys))

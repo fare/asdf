@@ -9,9 +9,9 @@
 	      t)
           (compile-file-error () nil)))
 
-#-gcl
-(assert (handler-case
-            (let ((*compile-file-failure-behaviour* :error))
-              (load-system 'test-compile-file-failure :force t)
-              nil)
-          (compile-file-error () t)))
+(with-expected-failure (#+gcl "GCL failure to report compile-file error")
+  (assert (handler-case
+              (let ((*compile-file-failure-behaviour* :error))
+                (load-system 'test-compile-file-failure :force t)
+                nil)
+            (compile-file-error () t))))

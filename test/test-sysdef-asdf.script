@@ -50,7 +50,7 @@
 ;; But if we cheat on our version, that should work
 (setf asdf::*asdf-version* "3.0")
 (asdf::clear-defined-system "asdf")
-#-xcl ;; XCL has trouble with the ASDF upgrade
+#-xcl ;; expected-failure: XCL has trouble with the ASDF upgrade
 (load-system :asdf)
 (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
 		       (system-source-file (find-system :asdf)))

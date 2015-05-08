@@ -77,14 +77,21 @@
 
 
 (load-system :asdf-encodings)
-#-lispworks
-(with-encoding-test (:latin-2)
-  (def-test-system :test-encoding-implicit-autodetect
-    :components ((:file "lambda"))))
+
+(with-expected-failure (#+lispworks "LispWorks doesn't have LATIN-2"
+                        #+ecl "ECL recently broke its encoding support") ;; Check that it indeed still is broken before we punt.
+  (with-encoding-test (:latin-2)
+    (def-test-system :test-encoding-implicit-autodetect
+      :components ((:file "lambda")))))
+
+#+ecl
+(leave-test "ECL recently broke its encoding support" 0)
+
 #+sbcl
 (with-encoding-test (:koi8-r)
   (def-test-system :test-encoding-explicit-koi8-r
     :components ((:file "lambda" :encoding :koi8-r))))
+
 
 (with-encoding-test (:utf-8)
   (def-test-system :test-file-encoding-u8
