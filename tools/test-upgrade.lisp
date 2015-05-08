@@ -116,7 +116,7 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ((:cmucl) (version<= "2.33" tag))
 
      ;; Skip many ECL tests, for various ASDF issues
-     ((:ecl) (version<= "2.21" tag))
+     ((:ecl :ecl_bytecodes) (version<= "2.21" tag))
 
      ;; GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
      ((:gcl) (version<= "3.1.2" tag))
