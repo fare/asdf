@@ -136,3 +136,12 @@
         (when (failurep (multiple-value-list (with-failure-context () (funcall thunk))))
           (setf failurep t)))
       (failure-if failurep (make-failures)))))
+
+(defun run-command (fun &rest args)
+  (let ((results (multiple-value-list (with-failure-context () (apply fun (rest args))))))
+    ;; Don't print anything on success for regular commands, otherwise print all values returned.
+    (if (failurep results)
+        (let ((failures (failure-failures results)))
+          (format t "~&Failure~P:~{~& ~A~}~&" (length failures) failures))
+        (format t "~{~&~S~&~}" (if (successp results) (success-values results) results)))
+    (apply 'values results)))

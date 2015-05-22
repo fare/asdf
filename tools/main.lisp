@@ -96,13 +96,7 @@ based on a list of targets"
 ;;; NB: For access control, you could check that only exported symbols are used as entry points.
 (defun process-arguments (args)
   (if-let ((fun (and args (find-command (first args)))))
-    (let ((results (multiple-value-list (with-failure-context () (apply fun (rest args))))))
-      ;; Don't print anything on success for regular commands, otherwise print all values returned.
-      (if (failurep results)
-          (let ((failures (failure-failures results)))
-            (format t "~&Failure~P:~{~& ~A~}~&" (length failures) failures))
-          (format t "~{~&~S~&~}" (if (successp results) (success-values results) results)))
-      (apply 'values results))
+    (run-command fun (rest args))
     (progn
       (if args
         (format t "Command ~A not found~%" (first args))
