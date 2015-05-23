@@ -453,3 +453,14 @@ It looks like SWANK can be fixed soon, though, so we'll see.
    but instead store the name of these directories,
    so these files will be read recursively by asdf, allowing for
    semi-modular updates.
+
+* Properly deprecate all that needs to go
+** Get lisa, readable, bourbaki to NOT include ASDF 1 anymore in their sources.
+** Identify all the things in ASDF that we want to deprecate, and make
+   sure we deprecate them all in 3.2.
+** Implement support for deprecating old packages,
+   by having all functions and macros under the old package name be
+   proxies to those in the new package name?
+   (Exception: special variables can't be proxies, have to be imported.)
+** Eradicate Quicklisp systems that depend on asdf-driver or
+   asdf-package-system, make them depend on uiop and asdf3.1 instead.

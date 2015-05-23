@@ -23,7 +23,7 @@ our $file = $asdf_dir . "version.lisp-expr";
 our @transform_ref =
   (
    [ "version.lisp-expr", "\"", "\"" ],
-   [ "uiop/version.lisp-expr", "\"", "\"" ],
+   [ "uiop/version.lisp", "(defparameter *uiop-version* \"", "\")" ],
    [ "asdf.asd", "  :version \"", "\" ;; to be automatically updated by make bump-version" ],
    [ "header.lisp", "This is ASDF ", ": Another System Definition Facility." ],
    [ "upgrade.lisp", "\\(asdf-version \"", "\"\\)" ],
@@ -70,7 +70,7 @@ sub transform_files {
     my $regex = "(" . $entry[1] . ")" . "(([0-9]+\.)+[0-9]+)" . "(" . $entry[2] .")";
     my $filename = $asdf_dir . $file;
     my $data = read_text($filename);
-    my $count = ($data =~ s/$regex/$1$new$4/);
+    my $count = ($data =~ s/$regex/$1$new$4/g);
     if ($count == 0) {
       die "Unable to replace $regex with $1$new$4";
     }

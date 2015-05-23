@@ -16,9 +16,9 @@
 
 ;;;; Register ASDF itself and all its subsystems as preloaded.
 (with-upgradability ()
-  (dolist (s '("asdf" "uiop" "asdf-defsystem" "asdf-package-system"))
+  (dolist (s '("asdf" "uiop" "asdf-package-system"))
     ;; Don't bother with these system names, no one relies on them anymore:
-    ;; "asdf-utils" "asdf-bundle" "asdf-driver"
+    ;; "asdf-utils" "asdf-bundle" "asdf-driver" "asdf-defsystem"
     (register-preloaded-system s :version *asdf-version*)))
 
 

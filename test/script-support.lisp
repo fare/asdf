@@ -15,7 +15,7 @@ Some constraints:
   (:export
    #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
-   #:deftest #:is #:signals #:errors #:with-expected-failure
+   #:deftest #:is #:signals #:does-not-signal #:errors #:with-expected-failure
    #:assert-compare #:assert-equal #:assert-pathname-equal #:assert-pathnames-equal
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
@@ -127,17 +127,27 @@ Some constraints:
        (,condition (,x)
          (format *error-output* "~&Received signal ~S~%" ,x)
          (finish-output *error-output*)
-         t)
+         ,x)
        (:no-error (&rest ,x)
          (error "Expression ~S fails to raise condition ~S, instead returning~{ ~S~}"
-                ',sexp ',condition ,x))
-       (t (,x)
-         (error "Expression ~S raises signal ~S, not ~S" ',sexp ,x ',condition)))))
-(defmacro errors (condition sexp)
+                ',sexp ',condition ,x)))))
+(defmacro does-not-signal (condition sexp &aux (x (gensym)))
+  `(progn
+     (format *error-output* "~&Checking that ~S does NOT signal ~S~%" ',sexp ',condition)
+     (finish-output *error-output*)
+     (handler-case
+         ,sexp
+       (,condition (,x)
+         (error "~&Condition signaled: ~S~%" ,x))
+       (:no-error (&rest ,x)
+         t))))
+(defmacro errors (condition sexp &aux (x (gensym)))
   `(progn
      (format *error-output* "~&Checking whether ~S signals error ~S~%" ',sexp ',condition)
      (finish-output *error-output*)
-     (assert-equal ',condition (type-of (nth-value 1 (ignore-errors ,sexp))))))
+     (let ((,x (nth-value 1 (ignore-errors ,sexp))))
+       (assert-equal ',condition (type-of ,x))
+       ,x)))
 (defmacro with-expected-failure ((&optional condition) &body body)
   `(call-with-expected-failure ,condition (lambda () ,@body)))
 (defun call-with-expected-failure (condition thunk)

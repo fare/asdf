@@ -10,7 +10,7 @@
    ;; that could cause potential conflicts for packages that would :use (cl uiop)
    ;; or :use (closer-common-lisp uiop), etc.
   (:use-reexport
-   :uiop/package :uiop/utility
+   :uiop/package :uiop/utility :uiop/version
    :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image
    :uiop/launch-program :uiop/run-program
    :uiop/lisp-build :uiop/configuration :uiop/backward-driver))
