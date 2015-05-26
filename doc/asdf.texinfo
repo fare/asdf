@@ -1281,6 +1281,7 @@ system-option := :homepage string
                  | :mailto string
                  | :long-name string
                  | :source-control source-control
+                 | :version version-specifier
 
 source-control := (keyword string)
 

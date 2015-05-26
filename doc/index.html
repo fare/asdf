@@ -310,9 +310,6 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <h3>Extensions</h3>
         <p>Known extensions to ASDF include:</p>
         <ul>
-          <li><a href="https://gitlab.common-lisp.net/asdf/asdf-contrib"
-                 ><tt>asdf-contrib</tt></a>,
-            a collection of most of the below.</li>
           <li><a href="https://gitlab.common-lisp.net/asdf/asdf-encodings"
                  ><tt>asdf-encodings</tt></a>,
             to compile Lisp source files with character encodings other than UTF-8.</li>
@@ -337,14 +334,17 @@ XCL (Peter Graves) <gnooth@gmail.com>
         </ul>
         <p>Former extensions, now superseded, include:</p>
         <ul>
-          <li><tt>asdf-binary-locations</tt> used to allow one to redirect where ASDF 1 created its output files,
+          <li><tt>asdf-binary-locations</tt>
+            used to allow one to redirect where ASDF 1 created its output files,
             so they don't clash between implementations and don't pollute source directories.
             It is superseded by <tt>asdf/defsystem</tt>'s builtin
             <tt>asdf-output-translations</tt> mechanism;
             a limited compatibility mode is available to easily convert
             your former ABL configuration into an AOT configuration.
-            <tt>common-lisp-controller</tt> and <tt>cl-launch</tt> used to provide similar mechanisms,
-            and have also been superseded by <tt>asdf-output-translations</tt>.
+            <tt>common-lisp-controller</tt> and <tt>cl-launch</tt>
+            used to provide similar mechanisms,
+            and have also been superseded by <tt>asdf-output-translations</tt>
+            (built into ASDF 2 and later).
           </li>
           <li><tt>asdf-bundle</tt>, n&eacute;e <tt>asdf-ecl</tt>,
             allowed you to create a single-file bundle out of a system,
@@ -358,6 +358,10 @@ XCL (Peter Graves) <gnooth@gmail.com>
             allowed you to muffle uninteresting conditions during compilation.
             Is now superseded by equivalent functionality in <tt>uiop</tt>.
           </li>
+          <li><a href="https://gitlab.common-lisp.net/asdf/asdf-contrib"
+                 ><tt>asdf-contrib</tt></a>,
+            an empty package that used to collect dependencies on other systems
+            in the list above and below.</li>
           <li><a href="http://gitlab.common-lisp.net/asdf/asdf-package-system"
                  ><tt>asdf-package-system</tt></a>,
             to compile Lisp source files with one package per file

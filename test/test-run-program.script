@@ -37,8 +37,7 @@
 
 #+os-unix
 (progn
-  (with-expected-failure (#+xcl "no chdir")
-    (chdir *test-directory*))
+  (chdir *test-directory*)
 
   (DBG "Testing good shell command in current directory via run-shell-command")
   (assert-equal 0 (run-shell-command "./good-shell-command"))
