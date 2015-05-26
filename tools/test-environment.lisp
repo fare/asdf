@@ -220,7 +220,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
 (defun run-test-lisp (activity forms &key (output t) log lisp debugger)
   ;; Activity is of the form "compiling ASDF", "running this test", etc.
   (format t "~&Now ~A...~@[ (log in ~A)~]~%" activity log)
-  (let* ((eval (compose-eval-string forms))
+  (let* ((eval (compose-non-special-string forms))
          (command (lisp-invocation-arglist :implementation-type (get-lisp lisp)
                                            :eval eval :debugger debugger))
          (interactive (if (eq output :interactive) :interactive nil))
