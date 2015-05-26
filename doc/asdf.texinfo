@@ -1756,7 +1756,6 @@ whereby each file is its own system,
 and dependencies are deduced from the @code{defpackage} form
 (or its variant @code{uiop:define-package}).
 
-
 In this style, packages refer to a system with the same name (downcased);
 and if a system is defined with @code{:class package-inferred-system},
 then system names that start with that name
@@ -1769,40 +1768,36 @@ will be found in file @file{/foo/bar/my-lib/src/utility.lisp}.
 This style was made popular by @code{faslpath} and @code{quick-build} before,
 and at the cost of a stricter package discipline,
 seems to make for more maintainable code.
-It is used by ASDF itself (starting with ASDF 3) and by @code{lisp-interface-library}.
+It is used by ASDF itself (starting with ASDF 3), by @code{lisp-interface-library},
+and a few other libraries.
 
 To use this style, choose a toplevel system name, e.g. @code{my-lib},
 and create a file @file{my-lib.asd}
 with the @code{:class :package-inferred-system} option in its @code{defsystem}.
 For instance:
 @example
-#-asdf3 (error "my-lib requires ASDF 3")
-(defsystem my-lib
+#-asdf3.1 (error "my-lib requires ASDF 3.1")
+(defsystem "my-lib"
   :class :package-inferred-system
-  :defsystem-depends-on (:asdf-package-system)
-  :depends-on (:my-lib/interface/all
-               :my-lib/src/all
-               :my-lib/extras/all)
-  :in-order-to ((test-op (load-op :my-lib/test/all)))
+  :depends-on ("my-lib/interface/all"
+               "my-lib/src/all"
+               "my-lib/extras/all")
+  :in-order-to ((test-op (load-op "my-lib/test/all")))
   :perform (test-op (o c) (symbol-call :my-lib/test/all :test-suite)))
 
-(defsystem :my-lib/test :depends-on (:my-lib/test/all))
+(defsystem "my-lib/test" :depends-on ("my-lib/test/all"))
 
-(register-system-packages :my-lib/interface/all '(:my-lib-interface))
-(register-system-packages :my-lib/src/all '(:my-lib-implementation))
-(register-system-packages :my-lib/test/all '(:my-lib-test))
+(register-system-packages "my-lib/interface/all" '(:my-lib-interface))
+(register-system-packages "my-lib/src/all" '(:my-lib-implementation))
+(register-system-packages "my-lib/test/all" '(:my-lib-test))
 
 (register-system-packages
- :closer-mop
+ "closer-mop"
  '(:c2mop :closer-common-lisp :c2cl :closer-common-lisp-user :c2cl-user))
 @end example
 
-In the code above, the
-@code{:defsystem-depends-on (:asdf-package-system)} is
-for compatibility with older versions of ASDF 3 (ASDF 2 is not supported),
-and requires the @code{asdf-package-system} library to be present
-(it is implicitly provided by ASDF starting with release 3.1.2,
-which can be detected with the feature @code{:asdf3.1}).
+In the code above, the first line checks that we are using ASDF 3.1,
+which provides @code{package-inferred-system}.
 
 The function @code{register-system-packages} has to be called to register
 packages used or provided by your system and its components
