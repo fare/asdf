@@ -35,6 +35,8 @@ Some constraints:
 
 (in-package :asdf-test)
 
+#+(and ecl (not ecl-bytecmp)) (require :cmp)
+
 (declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                    #+(or cmu scl) (c::brevity 2)))
 (proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)

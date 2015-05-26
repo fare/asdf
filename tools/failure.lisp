@@ -138,7 +138,7 @@
       (failure-if failurep (make-failures)))))
 
 (defun run-command (fun &rest args)
-  (let ((results (multiple-value-list (with-failure-context () (apply fun (rest args))))))
+  (let ((results (multiple-value-list (with-failure-context () (apply fun args)))))
     ;; Don't print anything on success for regular commands, otherwise print all values returned.
     (if (failurep results)
         (let ((failures (failure-failures results)))

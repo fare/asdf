@@ -1,6 +1,6 @@
 (defpackage :asdf-tools
   (:use :common-lisp :uiop :asdf
-   :fare-utils :inferior-shell :lisp-invocation :cl-ppcre :optima :optima.ppcre)
+   :fare-utils :inferior-shell :lisp-invocation :lisp-invocation/non-special :cl-ppcre :optima :optima.ppcre)
   (:export ;; TODO: export stuff
    ;; failure
    #:with-failure-context #:success #:failure #:success-if #:failure-if #:fail!

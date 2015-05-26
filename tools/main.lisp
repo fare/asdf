@@ -96,7 +96,7 @@ based on a list of targets"
 ;;; NB: For access control, you could check that only exported symbols are used as entry points.
 (defun process-arguments (args)
   (if-let ((fun (and args (find-command (first args)))))
-    (run-command fun (rest args))
+    (apply 'run-command fun (rest args))
     (progn
       (if args
         (format t "Command ~A not found~%" (first args))

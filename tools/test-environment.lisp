@@ -1,6 +1,18 @@
 (in-package :asdf-tools)
 
 ;;; Testing
+#|
+To configure the lisp implementations with which to run the tests,
+you may export environment variables to override the defaults:
+ASDF_TEST_LISPS and ASDF_UPGRADE_TEST_LISPS can each be a string of space-separated names
+amongst the above implementation names.
+You may also explicitly specify the same variables with the respective l= and u= arguments.
+Individual test commands only use the first (preferred) provided implementation;
+other test commands (named test-all-FOO) iterate over all implementations.
+
+Similarly, you can configure which scripts to tests with ASDF_TEST_SCRIPTS or t=
+and which systems to test loading with ASDF_TEST_SYSTEMS or s=
+|#
 
 (defparameter *test-lisps* :default
   "The list of lisp implementations to use for tests")
