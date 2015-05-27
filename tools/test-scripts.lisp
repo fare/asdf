@@ -70,7 +70,7 @@ Use the preferred lisp implementation"
          (let ((failp (plusp test-fail)))
            (log! log "~
 -#---------------------------------------
-Using ~A
+Using ~(~A~)
 Ran ~D tests, ~D passed, ~D failed~
 ~:[~%All tests apparently successful.~;:~:*~{~%  ~A~}~]
 -#---------------------------------------~%"
