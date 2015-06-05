@@ -34,9 +34,9 @@ website: all
 	rsync -lt --no-g ${webfiles} ${website}
 	rsync -lt --no-g ../debian/changelog ${website}/changelog
 
-.PHONY: clean veryclean manual-html
-clean:
+.PHONY: clean intermediate-clean manual-html
+intermediate-clean:
 	rm -f ${intermediate}
-veryclean: clean
+clean: intermediate-clean
 	rm -f asdf.html asdf.pdf asdf.info
 	rm -rf asdf/ asdf.t2d/
