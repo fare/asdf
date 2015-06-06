@@ -2,7 +2,8 @@ cl-asdf (2:3.1.5-1) unstable; urgency=low
 
   Bug fix release:
   * Add CLASP support.
-  * Many miscellaneous fixes for issues on individual implementations.
+  * Many miscellaneous fixes for issues on individual implementations,
+    notably UIOP incompatibility introduced by SBCL 1.2.12 (closes: #787909).
   * Added OS-COND to UIOP to paper over some incompatibilities about when
     and how operating system can be detected on different implementations.
   * Fixes to XDG configuration directory handling.  Try to stick to the
@@ -11,7 +12,7 @@ cl-asdf (2:3.1.5-1) unstable; urgency=low
     prefixes.
   * Documentation improvements.
 
- -- François-René Rideau <fare@tunes.org>  Mon, 25 May 2015 09:52:54 -0400
+ -- François-René Rideau <fare@tunes.org>  Sat, 06 Jun 2015 16:16:41 -0400
 
 cl-asdf (2:3.1.4-1) unstable; urgency=low
 
