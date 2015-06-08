@@ -195,15 +195,24 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 
 ;;; Characters
-(with-upgradability () ;; base-char != character on ECL, LW, SBCL, Genera. LW also has SIMPLE-CHAR.
-  (defconstant +non-base-chars-exist-p+ #.(not (subtypep 'character 'base-char)))
-  #-scl ;; In SCL, all characters seem to be 16-bit base-char, but this flag gets set somehow???
-  (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
-
 (with-upgradability ()
+  ;; base-char != character on ECL, LW, SBCL, Genera.
+  ;; NB: We assume a total order on character types.
+  ;; If that's not true... this code will need to be updated.
   (defparameter +character-types+ ;; assuming a simple hierarchy
-    #(#+non-base-chars-exist-p base-char #+lispworks lw:simple-char character))
-  (defparameter +max-character-type-index+ (1- (length +character-types+))))
+    #.(coerce (loop* :for (type next) :on
+                     '(;; In SCL, all characters seem to be 16-bit base-char
+                       ;; Yet somehow character fails to be a subtype of base-char
+                       #-scl base-char
+                       ;; LW6 has BASE-CHAR < SIMPLE-CHAR < CHARACTER
+                       ;; LW7 has BASE-CHAR < BMP-CHAR < SIMPLE-CHAR = CHARACTER
+                       #+lispworks7 lw:bmp-char #+lispworks lw:simple-char
+                       character)
+                     :unless (and next (subtypep next type))
+                     :collect type) 'vector))
+  (defparameter +max-character-type-index+ (1- (length +character-types+)))
+  (defconstant +non-base-chars-exist-p+ (plusp +max-character-type-index+))
+  (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
 
 (with-upgradability ()
   (defun character-type-index (x)
@@ -215,7 +224,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
              (symbol (if (subtypep x 'base-char) 0 1))))
         (otherwise
          '(or (position-if (etypecase x
-                             (character  #'(lambda (type) (typep x type)))
+                             (character #'(lambda (type) (typep x type)))
                              (symbol #'(lambda (type) (subtypep x type))))
                +character-types+)
            (error "Not a character or character type: ~S" x))))))
@@ -234,14 +243,20 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     #.(if +non-base-chars-exist-p+
           `(aref +character-types+
             (loop :with index = 0 :for s :in strings :do
-              (cond
-                ((= index ,+max-character-type-index+) (return index))
-                ((emptyp s)) ;; NIL or empty string
-                ((characterp s) (setf index (max index (character-type-index s))))
-                ((stringp s) (unless (>= index (character-type-index (array-element-type s)))
-                               (setf index (reduce 'max s :key #'character-type-index
-                                                          :initial-value index))))
-                (t (error "Invalid string designator ~S for ~S" s 'strings-common-element-type)))
+              (flet ((consider (i)
+                       (cond ((= i ,+max-character-type-index+) (return i))
+                             ,@(when (> +max-character-type-index+ 1) `(((> i index) (setf index i)))))))
+                (cond
+                  ((emptyp s)) ;; NIL or empty string
+                  ((characterp s) (consider (character-type-index s)))
+                  ((stringp s) (let ((string-type-index
+                                       (character-type-index (array-element-type s))))
+                                 (unless (>= index string-type-index)
+                                   (loop :for c :across s :for i = (character-type-index c)
+                                         :do (consider i)
+                                         ,@(when (> +max-character-type-index+ 1)
+                                             `((when (= i string-type-index) (return))))))))
+                  (t (error "Invalid string designator ~S for ~S" s 'strings-common-element-type))))
                   :finally (return index)))
           ''character))
 

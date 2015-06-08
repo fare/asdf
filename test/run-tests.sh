@@ -260,7 +260,7 @@ case "$lisp" in
     nodebug="-batch"
     eval="-eval" ;;
   lispworks)
-    command="${LISPWORKS:-lispworks}"
+    command="${LISPWORKS:-lispworks-console}"
     # If you have a licensed copy of lispworks,
     # you can obtain the "lispworks" binary with, e.g.
     # echo '(hcl:save-image "/lispworks" :environment nil)' > /tmp/build.lisp ;
