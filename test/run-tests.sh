@@ -408,15 +408,17 @@ valid_upgrade_test_p () {
         # More recent CLISPs work.
         # 2.00[0-7] use UID, which fails on some old CLISPs.
         # Note that for the longest time, CLISP has included 2.011 in its distribution.
+        # Now its hg repository includes 3.0.2.29, but clisp hasn't released in many years(!)
         # We don't punt on upgrade anymore, so we can go at it!
-        ### clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
-        # CMUCL has problems with 2.32 and earlier because of
-        # the redefinition of system's superclass component.
-        cmucl:1.*|cmucl:2.*) : ;;
+        #clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
+        # CMUCL has problems with CLOS upgrade in general.
+        cmucl:*) : ;;
         # Skip many ECL tests, for various ASDF issues
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
         # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
         gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*) : ;;
+        # LispWorks is broken at ASDF 3.0.3, but can upgrade from earlier and later ASDFs.
+        lispworks:3.0.3:*) : ;;
         # MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
         mkcl:[12]*|mkcl:3.0*) : ;;
         # XCL support starts with ASDF 2.014.2
