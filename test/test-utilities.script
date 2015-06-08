@@ -8,13 +8,13 @@
    :ensure-directory t))
 
 (chdir *asdf-directory*)
-(assert (pathname-equal *asdf-directory* (getcwd)))
-(assert (pathname-equal *asdf-directory* (getcwd-from-run-program)))
+(assert-pathname-equal *asdf-directory* (getcwd)))
+(assert-pathname-equal *asdf-directory* (getcwd-from-run-program)))
 (assert (probe-file* "asdf.asd"))
 
 (chdir *test-directory*)
-(assert (pathname-equal *test-directory* (getcwd)))
-(assert (pathname-equal *test-directory* (getcwd-from-run-program)))
+(assert-pathname-equal *test-directory* (getcwd))
+(assert-pathname-equal *test-directory* (getcwd-from-run-program))
 (assert (probe-file* "test-utilities.script"))
 
 (assert
@@ -279,10 +279,6 @@
   (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
   (assert (not (base-string-p (strcat (basify "ab") #\c *last-char* (unbasify "d")))))
   (assert (base-string-p (strcat (basify "ab") #\c #\d))))
-
-(or #+os-windows ;; Avoid C:\Users vs C:\users on SBCL.
-    (equalp (namestring *test-directory*) (namestring (getcwd)))
-    (assert-pathname-equal *test-directory* (getcwd)))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
 (assert-equal +lf+ (map 'string 'code-char '(10)))
