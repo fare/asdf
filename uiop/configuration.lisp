@@ -327,7 +327,7 @@ also \"Configuration DSL\"\) in the ASDF manual."
   (defun xdg-config-dirs (&rest more)
     "The preference-ordered set of additional base paths to search for configuration files.
 Returns a list of absolute directory pathnames.
-MORE may contain specifications for a subpath relative to these directories: a
+MORE may contain specifications for a subpath relative to these directories:
 subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
 also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
