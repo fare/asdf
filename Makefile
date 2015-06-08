@@ -81,6 +81,9 @@ build/asdf.lisp: $(all_lisp)
 ext:
 	git submodule update --init
 
+noext:
+	git submodule deinit .
+
 # This quickly locates such mistakes as unbalanced parentheses:
 load: build/asdf.lisp
 	./test/run-tests.sh -t $l $(all_lisp)
@@ -262,7 +265,8 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
 	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
-	list-source-registry
+	list-source-registry \
+	ext noext
 
 # debug the source registry that will be used to execute commands from this Makefile.
 list-source-registry:
