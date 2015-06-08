@@ -7,15 +7,17 @@
     :output '(:string :stripped t))
    :ensure-directory t))
 
-(chdir *asdf-directory*)
-(assert-pathname-equal *asdf-directory* (getcwd))
-(assert-pathname-equal *asdf-directory* (getcwd-from-run-program))
-(assert (probe-file* "asdf.asd"))
+(let ((asdf-directory (truename *asdf-directory*)))
+  (chdir asdf-directory)
+  (assert-pathname-equal asdf-directory (getcwd))
+  (assert-pathname-equal asdf-directory (getcwd-from-run-program))
+  (assert (probe-file* "asdf.asd")))
 
-(chdir *test-directory*)
-(assert-pathname-equal *test-directory* (getcwd))
-(assert-pathname-equal *test-directory* (getcwd-from-run-program))
-(assert (probe-file* "test-utilities.script"))
+(let ((test-directory (truename *test-directory*)))
+  (chdir test-directory)
+  (assert-pathname-equal test-directory (getcwd))
+  (assert-pathname-equal test-directory (getcwd-from-run-program))
+  (assert (probe-file* "test-utilities.script")))
 
 (assert
  (every #'directory-pathname-p
