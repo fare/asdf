@@ -121,6 +121,9 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ;; GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
      ((:gcl) (version<= "3.1.2" tag))
 
+     ;; LispWorks is fine, but ASDF 3.0.3 has a bug and can't be loaded.
+     ((:lispworks) (equal "3.0.3" tag))
+
      ;; MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
      ((:mkcl) (version<= "3.1.2" tag))
 
