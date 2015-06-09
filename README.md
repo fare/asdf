@@ -79,13 +79,14 @@ all these libraries using git. If you don't otherwise maintain your
 own set of carefully controlled CL libraries, that's what you want to use.
 However, if you do maintain your own set of carefully controlled CL libraries
 then you will want to use whichever tools you use (e.g. `quicklisp`, `clbuild`,
-or your own scripts around git) to download these libraries:
+or your own scripts around `git`) to download these libraries:
 `alexandria`, `closer-mop`, `cl-ppcre`, `fare-mop`, `fare-quasiquote`,
 `fare-utils`, `inferior-shell`, `lisp-invocation`, `named-readtables`, `optima`.
 
 If you are a CL developer, you may already have them, or may want
 to use your own tools to download a version of them you control.
-If you use Quicklisp, you may let Quicklisp download those you don't have.
+If you use [Quicklisp](https://www.quicklisp.org/), you may let
+Quicklisp download those you don't have.
 In these cases, you do NOT want to use the git submodules from `make ext`.
 Otherwise, if you want to let ASDF download known-working versions
 of its dependencies, you can do it with:
@@ -101,28 +102,29 @@ choose your most elaborate installed system `$S`, and try:
 Debugging tip
 -------------
 
-To load ASDF in such a way that `M-.` will work, install the source code, and run:
+To interactively debug ASDF, you may load it in such a way that `M-.` will work,
+by installing the source code, and running:
 
     (asdf:load-system :uiop) ;; loading uiop is simple
     (map () 'load ;; loading asdf/defsystem is tricky
      (mapcar 'asdf:component-pathname
       (asdf::required-components :asdf/defsystem :keep-component 'asdf:cl-source-file)))
 
-Note that the above can be adapted in a general to get all the files in a system, in order.
-To also have the files in systems it depends on, add the `:other-systems t` keyword argument
-to the call to `asdf::required-components`.
+Note that the above can be adapted in a general recipe to get all the files in a system, in order.
+To also have the files in systems it transitively depends on, add the `:other-systems t` keyword
+argument to the call to `asdf::required-components`.
 
 
 What has changed?
 -----------------
 
-You can consult the `debian/changelog` for an overview of the
+You can consult the [debian/changelog](debian/changelog) for an overview of the
 significant changes in each release, and
 the `git log` for a detailed description of each commit.
 
 
-How do I navigate this source directory?
-----------------------------------------
+How do I navigate this source tree?
+-----------------------------------
 
 * [asdf.asd](asdf.asd)
     * The system definition for building ASDF with ASDF.
@@ -172,7 +174,7 @@ How do I navigate this source directory?
     * a few contributed files that show case how to use ASDF.
 
 * [debian/](debian/)
-    * files for packaging on debian, ubuntu, etc.
+    * files for packaging on Debian, Ubuntu, etc.
 
 * [build/](build/)
     * where the `Makefile` and `asdf-tools` store their output files, including
