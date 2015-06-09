@@ -3,7 +3,7 @@
 (defun getcwd-from-run-program ()
   (uiop:parse-native-namestring
    (run-program
-    (os-cond ((os-unix-p) "pwd") ((os-windows-p) "echo %cd%"))
+    (os-cond ((os-unix-p) '("pwd" "-P")) ((os-windows-p) "echo %cd%"))
     :output '(:string :stripped t))
    :ensure-directory t))
 
