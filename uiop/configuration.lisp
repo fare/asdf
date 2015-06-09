@@ -327,13 +327,13 @@ also \"Configuration DSL\"\) in the ASDF manual."
   (defun xdg-config-dirs (&rest more)
     "The preference-ordered set of additional base paths to search for configuration files.
 Returns a list of absolute directory pathnames.
-MORE may contain specifications for a subpath relative to these directories: a
+MORE may contain specifications for a subpath relative to these directories:
 subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
 also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
             (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
                 (os-cond
-                 ((os-windows-p) (xdg-data-dirs "config/" more))
+                 ((os-windows-p) (xdg-data-dirs "config/"))
                  (t (mapcar 'parse-unix-namestring '("/etc/xdg/")))))))
 
   (defun xdg-cache-home (&rest more)
@@ -367,6 +367,7 @@ also \"Configuration DSL\"\) in the ASDF manual."
 MORE may contain specifications for a subpath relative to these directories: a
 subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
 also \"Configuration DSL\"\) in the ASDF manual."
+    (declare (ignorable more))
     (os-cond
      ((os-unix-p) (list (resolve-absolute-location `(,(parse-unix-namestring "/etc/") ,more))))))
 

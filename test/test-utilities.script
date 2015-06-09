@@ -7,15 +7,17 @@
     :output '(:string :stripped t))
    :ensure-directory t))
 
-(chdir *asdf-directory*)
-(assert (pathname-equal *asdf-directory* (getcwd)))
-(assert (pathname-equal *asdf-directory* (getcwd-from-run-program)))
-(assert (probe-file* "asdf.asd"))
+(let ((asdf-directory (truename *asdf-directory*)))
+  (chdir asdf-directory)
+  (assert-pathname-equal asdf-directory (getcwd))
+  (assert-pathname-equal asdf-directory (getcwd-from-run-program))
+  (assert (probe-file* "asdf.asd")))
 
-(chdir *test-directory*)
-(assert (pathname-equal *test-directory* (getcwd)))
-(assert (pathname-equal *test-directory* (getcwd-from-run-program)))
-(assert (probe-file* "test-utilities.script"))
+(let ((test-directory (truename *test-directory*)))
+  (chdir test-directory)
+  (assert-pathname-equal test-directory (getcwd))
+  (assert-pathname-equal test-directory (getcwd-from-run-program))
+  (assert (probe-file* "test-utilities.script")))
 
 (assert
  (every #'directory-pathname-p
@@ -270,6 +272,7 @@
 
 #+non-base-chars-exist-p
 (progn
+  (assert (= 0 (character-type-index #\a)))
   (assert (not (base-string-p *last-char-string*)))
   (assert (not (base-string-p (make-string 10 :element-type 'character))))
   (assert (not (base-string-p (unbasify "abc"))))
@@ -278,11 +281,19 @@
   (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" nil "cd")))))
   (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
   (assert (not (base-string-p (strcat (basify "ab") #\c *last-char* (unbasify "d")))))
-  (assert (base-string-p (strcat (basify "ab") #\c #\d))))
-
-(or #+os-windows ;; Avoid C:\Users vs C:\users on SBCL.
-    (equalp (namestring *test-directory*) (namestring (getcwd)))
-    (assert-pathname-equal *test-directory* (getcwd)))
+  (assert (base-string-p (strcat (basify "ab") #\c #\d)))
+  (when (< 256 char-code-limit)
+    (let* ((lambda-char (code-char 955))
+           (lambda-string (string lambda-char)))
+      (assert (= 1 (character-type-index lambda-char)))
+      (assert-equal (strings-common-element-type (list #\a nil (strcat "hello, " lambda-string "world")))
+                    #-lispworks 'character #+lispworks7 'lw:bmp-char #+(and lispworks (not lispworks7)) 'lw:simple-char)
+      (when (< 65536 char-code-limit)
+        (let* ((amagi (format nil "~a~a" (code-char #x120BC) (code-char #x12104))))
+          (assert (= #+lispworks7 2 #-lispworks7 1 (character-type-index (first-char amagi))))
+          (assert-equal (strings-common-element-type (list #\a nil amagi lambda-string))
+                        #+(or (not lispworks) lispworks7) 'character
+                        #+(and lispworks (not lispworks7)) 'lw:simple-char))))))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
 (assert-equal +lf+ (map 'string 'code-char '(10)))

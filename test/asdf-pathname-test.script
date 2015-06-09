@@ -462,4 +462,5 @@
 #-gcl ;; expected-failure: GCL crashes badly
 (assert (test-component-pathnames :delete-host t :support-string-pathnames nil))
 
+#+os-unix
 (test-pathname-parsing)

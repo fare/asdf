@@ -8,17 +8,17 @@ Uploaders: Peter Van Eynde <pvaneynd@debian.org>,
   Julien Danjou <acid@debian.org>,
   François-René Rideau <fare@tunes.org>,
   Robert P. Goldman <rpgoldman@sift.info>
-Build-Depends: debhelper (>> 7)
+Build-Depends: debhelper (>= 9)
 Build-Depends-Indep: texinfo, texlive-extra-utils, texlive, texlive-generic-recommended
 Standards-Version: 3.9.6.1
 Homepage: http://common-lisp.net/project/asdf/
-Vcs-Git: git://common-lisp.net/projects/asdf/asdf.git
+Vcs-Git: https://gitlab.common-lisp.net/asdf/asdf.git
 
 Package: cl-asdf
 Architecture: all
 Recommends: common-lisp-controller, sbcl | lisp-compiler
 Replaces: sbcl-common (<= 1:0.9.13.0-2)
-Breaks: sbcl-common (<= 1:0.9.13.0-2), common-lisp-controller (<< 7.3)
+Breaks: sbcl-common (<= 1:0.9.13.0-2), common-lisp-controller (<= 7.3)
 Depends: ${misc:Depends}
 Suggests: cl-launch (>= 4.1)
 Description: Another System Definition Facility
