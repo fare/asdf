@@ -12,10 +12,11 @@ If you come from the C/C++ world, ASDF covers a bit of what each of
 make, autoconf, dlopen and libc do for C programs:
 it orchestrates the compilation and dependency management,
 handles some of the portability issues, dynamically finds and loads code,
-and offers some portable system access.
+and offers some portable system access library.
 Except everything is different in Common Lisp, and ultimately much simpler,
 though it requires acquiring some basic concepts.
-Importantly, ASDF builds all software in the current Lisp image.
+Importantly, ASDF builds all software in the current Lisp image,
+as opposed to building software into separate processes.
 
 To use ASDF, read our manual:
     <http://common-lisp.net/project/asdf/asdf.html>
@@ -47,6 +48,8 @@ Just use `(require "asdf")` to load your implementation-provided ASDF.
 If it is recent enough (3.0 or later, check its `(asdf:asdf-version)`),
 then it will automatically upgrade to the ASDF provided as source code,
 assuming the source code in under a path registered by the source-registry.
+If it isn't present or isn't recent enough, we recommend you install a recent
+ASDF release using [tools/install-asdf.lisp](tools/install-asdf.lisp)
 
 
 Building and testing it
@@ -75,22 +78,22 @@ The above make target uses `git submodule update --init` to download
 all these libraries using git. If you don't otherwise maintain your
 own set of carefully controlled CL libraries, that's what you want to use.
 However, if you do maintain your own set of carefully controlled CL libraries
-then you will want to use whichever tools you use (e.g. quicklisp, clbuild,
+then you will want to use whichever tools you use (e.g. `quicklisp`, `clbuild`,
 or your own scripts around git) to download these libraries:
-alexandria, closer-mop, cl-ppcre, fare-mop, fare-quasiquote, fare-utils,
-inferior-shell, lisp-invocation, named-readtables, optima.
+`alexandria`, `closer-mop`, `cl-ppcre`, `fare-mop`, `fare-quasiquote`,
+`fare-utils`, `inferior-shell`, `lisp-invocation`, `named-readtables`, `optima`.
 
 If you are a CL developer, you may already have them, or may want
 to use your own tools to download a version of them you control.
 If you use Quicklisp, you may let Quicklisp download those you don't have.
-In these cases, you do NOT want to use the git submodules from make ext.
+In these cases, you do NOT want to use the git submodules from `make ext`.
 Otherwise, if you want to let ASDF download known-working versions
 of its dependencies, you can do it with:
 
     make ext
 
-To run all the tests on your favorite Lisp implementation $L,
-choose your most elaborate installed system $S, and try:
+To run all the tests on your favorite Lisp implementation `$L`,
+choose your most elaborate installed system `$S`, and try:
 
     make t u l=$L s=$S
 
@@ -134,8 +137,7 @@ How do I navigate this source directory?
       and functions all have docstrings.
 
 * [Makefile](Makefile)
-    * a minimal `Makefile` for bootstrapping purposes.
-      Most of the logic is in the [asdf-tools](tools/asdf-tools.asd) system.
+    * a `Makefile` for bootstrap and development purposes.
 
 * [tools/](tools/)
     * Some scripts to help ASDF users
@@ -182,6 +184,7 @@ How do I navigate this source directory?
 * [ext/](ext/)
     * external dependencies, that can be populated with `make ext`
       or equivalently with `git submodule update --init`.
+      Depopulate it with `make noext`.
 
 * [README.md](README.md)
     * this file
@@ -190,4 +193,4 @@ How do I navigate this source directory?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Wednesday, May 6th, 2015.
+Last updated Tuesday, June 9th, 2015.
