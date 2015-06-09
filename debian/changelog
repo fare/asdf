@@ -1,9 +1,11 @@
 cl-asdf (2:3.1.5-1) unstable; urgency=low
 
-  Bug fix release:
+  Bug fix and portability release:
   * Add CLASP support.
   * Many miscellaneous fixes for issues on individual implementations,
-    notably UIOP incompatibility introduced by SBCL 1.2.12 (closes: #787909).
+    notably UIOP incompatibility introduced by SBCL 1.2.12, support for
+    LispWorks 7 character types, fixes to chdir on ABCL, improvements
+    to run-program on Windows.
   * Added OS-COND to UIOP to paper over some incompatibilities about when
     and how operating system can be detected on different implementations.
   * Fixes to XDG configuration directory handling.  Try to stick to the
@@ -12,7 +14,7 @@ cl-asdf (2:3.1.5-1) unstable; urgency=low
     prefixes.
   * Documentation improvements.
 
- -- François-René Rideau <fare@tunes.org>  Sat, 06 Jun 2015 16:16:41 -0400
+ -- François-René Rideau <fare@tunes.org>  Tue, 09 Jun 2015 12:09:50 -0400
 
 cl-asdf (2:3.1.4-1) unstable; urgency=low
 
