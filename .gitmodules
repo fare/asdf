@@ -31,3 +31,6 @@
 [submodule "ext/asdf-encodings"]
 	path = ext/asdf-encodings
 	url = https://gitlab.common-lisp.net/asdf/asdf-encodings.git
+[submodule "ext/cl-scripting"]
+	path = ext/cl-scripting
+	url = https://github.com/fare/cl-scripting.git

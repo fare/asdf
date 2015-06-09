@@ -5,13 +5,13 @@
                (:version "lisp-invocation/all" "1.0.5")
                (:version "cl-ppcre" "2.0.4")
                (:version "optima.ppcre" "1.0")
+               "cl-scripting"
                (:feature :sbcl "sb-introspect"))
   :components
   ((:file "package")
-   (:file "failure" :depends-on ("package"))
-   (:file "main" :depends-on ("failure"))
+   (:file "main" :depends-on ("package"))
    (:file "pathnames" :depends-on ("package"))
-   (:file "version" :depends-on ("failure"))
+   (:file "version" :depends-on ("package"))
    (:file "test-environment" :depends-on ("pathnames" "main"))
    (:file "build" :depends-on ("test-environment"))
    (:file "git" :depends-on ("test-environment"))
