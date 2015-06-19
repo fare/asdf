@@ -2,9 +2,12 @@
 
 (defun getcwd-from-run-program ()
   (uiop:parse-native-namestring
-   (run-program
-    (os-cond ((os-unix-p) '("pwd" "-P")) ((os-windows-p) "echo %cd%"))
-    :output '(:string :stripped t))
+   (nest
+    ;; TODO: fix run-program to use POWERSHELL.EXE rather than CMD, and remove this kluge.
+    #+os-windows (string-trim " ")
+    (run-program
+     (os-cond ((os-unix-p) '("pwd" "-P")) ((os-windows-p) "echo %cd%"))
+     :output '(:string :stripped t)))
    :ensure-directory t))
 
 (let ((asdf-directory (truename *asdf-directory*)))
