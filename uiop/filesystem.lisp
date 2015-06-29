@@ -635,18 +635,18 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
       ((not (and (pathnamep directory-pathname) (directory-pathname-p directory-pathname)
                  (physical-pathname-p directory-pathname) (not (wild-pathname-p directory-pathname))))
        (error "~S was asked to delete ~S but it is not a physical non-wildcard directory pathname"
-              'delete-filesystem-tree directory-pathname))
+              'delete-directory-tree directory-pathname))
       ((not validatep)
        (error "~S was asked to delete ~S but was not provided a validation predicate"
-              'delete-filesystem-tree directory-pathname))
+              'delete-directory-tree directory-pathname))
       ((not (call-function validate directory-pathname))
        (error "~S was asked to delete ~S but it is not valid ~@[according to ~S~]"
-              'delete-filesystem-tree directory-pathname validate))
+              'delete-directory-tree directory-pathname validate))
       ((not (directory-exists-p directory-pathname))
        (ecase if-does-not-exist
          (:error
           (error "~S was asked to delete ~S but the directory does not exist"
-              'delete-filesystem-tree directory-pathname))
+              'delete-directory-tree directory-pathname))
          (:ignore nil)))
       #-(or allegro cmu clozure genera sbcl scl)
       ((os-unix-p) ;; On Unix, don't recursively walk the directory and delete everything in Lisp,
