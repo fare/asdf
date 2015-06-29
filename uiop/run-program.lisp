@@ -737,10 +737,18 @@ It returns a process-info plist with possible keys:
 
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
     (etypecase command
-      (string command)
+      (string
+       (os-cond
+        ((os-windows-p)
+         #+allegro
+         (concatenate 'string "cmd /c " command)
+         #-allegro command)
+        (t command)))
       (list (escape-shell-command
              (os-cond
               ((os-unix-p) (cons "exec" command))
+              ((os-windows-p) #+allegro (append '("cmd" "/c") command)
+                              #-allegro command)
               (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
@@ -817,7 +825,7 @@ It returns a process-info plist with possible keys:
       (values output-result error-output-result exit-code)))
 
   (defun run-program (command &rest keys
-                       &key ignore-error-status force-shell
+                       &key ignore-error-status (force-shell nil force-shell-suppliedp)
                          (input nil inputp) (if-input-does-not-exist :error)
                          output (if-output-exists :overwrite)
                          (error-output nil error-output-p) (if-error-output-exists :overwrite)
@@ -829,7 +837,8 @@ either a list of strings specifying a program and list of arguments,
 or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows).
 
 Always call a shell (rather than directly execute the command when possible)
-if FORCE-SHELL is specified.
+if FORCE-SHELL is specified.  Similarly, never call a shell if FORCE-SHELL is
+specified to be NIL.
 
 Signal a continuable SUBPROCESS-ERROR if the process wasn't successful (exit-code 0),
 unless IGNORE-ERROR-STATUS is specified.
@@ -877,6 +886,11 @@ or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
     #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
     (error "RUN-PROGRAM not implemented for this Lisp")
+    ;; per doc string, set FORCE-SHELL to T if we get command as a string.  But
+    ;; don't override user's specified preference. [2015/06/29:rpg]
+    (when (stringp command)
+      (unless force-shell-suppliedp
+        (setf force-shell t)))
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
                      #+(or clasp clisp ecl) (or (not ignore-error-status) t)
