@@ -981,10 +981,14 @@ or silently convert lowercase to uppercase (lpns).
 @node Other Operations, Moving on, Loading a system, Using ASDF
 @section Other Operations
 
+@c FIXME: this isn't a great name for this node -- these are not, in
+@c fact, other OPERATIONS.  OPERATIONS are objects.  These are other
+@c "convenience functions," or something like that. [2015/06/29:rpg]
+
 @findex load-system
 @findex compile-system
 @findex test-system
-@findex requrie-system
+@findex require-system
 
 ASDF provides three commands for the most common system operations:
 @code{load-system}, @code{compile-system}, and @code{test-system}.
