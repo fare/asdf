@@ -135,7 +135,7 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ((:xcl) (version<= "2.15" tag))
 
      ;; all clear on these implementations
-     ((:allegro :lispworks :sbcl :scl) t))))
+     ((:allegro :sbcl :scl) t))))
 
 (deftestcmd test-upgrade (lisp upgrade-tags upgrade-methods)
   "run upgrade tests

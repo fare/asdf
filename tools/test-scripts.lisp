@@ -40,10 +40,11 @@ Use the preferred lisp implementation"
          (test-fail 0)
          (failed-list ())))
    (call-without-stopping
-    `(,(lambda() (run-test-lisp
-      "compiling ASDF"
-      '((load "test/script-support.lisp") (asdf-test::compile-asdf-script))
-      :lisp lisp :log log))
+    `(,(lambda ()
+         (run-test-lisp
+          "compiling ASDF"
+          '((load "test/script-support.lisp") (asdf-test::compile-asdf-script))
+          :lisp lisp :log log))
       ,@(mapcar
           (lambda (test-script)
             (lambda ()
