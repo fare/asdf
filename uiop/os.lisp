@@ -33,32 +33,29 @@ keywords explicitly."
       ((eq :and (car x)) (every #'featurep (cdr x)))
       (t (error "Malformed feature specification ~S" x))))
 
-  (defun os-unix-p ()
-    "Is the underlying operating system some Unix variant?"
-    (or #+abcl (featurep :unix)
-        #+(and (not abcl) (or unix cygwin darwin)) t))
-
+  ;; Starting with UIOP 3.1.5, these are runtime tests.
+  ;; You may bind *features* with a copy of what your target system offers to test its properties.
   (defun os-macosx-p ()
     "Is the underlying operating system MacOS X?"
     ;; OS-MACOSX is not mutually exclusive with OS-UNIX,
     ;; in fact the former implies the latter.
-    (or
-     #+allegro (featurep :macosx)
-     #+clisp (featurep :macos)
-     (featurep :darwin)))
+    (featurep '(:or :darwin (:and :allegro :macosx) (:and :clisp :macos))))
+
+  (defun os-unix-p ()
+    "Is the underlying operating system some Unix variant?"
+    (or (featurep '(:or :unix :cygwin)) (os-macosx-p)))
 
   (defun os-windows-p ()
     "Is the underlying operating system Microsoft Windows?"
-    (or #+abcl (featurep :windows)
-        #+(and (not (or abcl unix cygwin darwin)) (or win32 windows mswindows mingw32 mingw64)) t))
+    (and (not (os-unix-p)) (featurep '(:or :win32 :windows :mswindows :mingw32 :mingw64))))
 
   (defun os-genera-p ()
     "Is the underlying operating system Genera (running on a Symbolics Lisp Machine)?"
-    (or #+genera t))
+    (featurep :genera))
 
   (defun os-oldmac-p ()
     "Is the underlying operating system an (emulated?) MacOS 9 or earlier?"
-    (or #+mcl t))
+    (featurep :mcl))
 
   (defun detect-os ()
     "Detects the current operating system. Only needs be run at compile-time,
