@@ -1,12 +1,12 @@
 (defsystem "asdf-tools"
   :description "tools to build, test, maintain and release ASDF itself"
   :depends-on ((:version "asdf" "3.1.2")
-               (:version "inferior-shell" "2.0.2")
-               (:version "lisp-invocation/all" "1.0.5")
+               (:version "inferior-shell" "2.0.3")
+               (:version "lisp-invocation/all" "1.0.9")
                (:version "cl-ppcre" "2.0.4")
                (:version "optima.ppcre" "1.0")
-               "cl-scripting"
-               (:feature :sbcl "sb-introspect"))
+               (:version "cl-scripting" "0.1")
+               (:feature :sbcl (:require "sb-introspect")))
   :components
   ((:file "package")
    (:file "main" :depends-on ("package"))
