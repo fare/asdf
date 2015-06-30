@@ -222,7 +222,7 @@ case "$lisp" in
     ALLEGRO=$command ; export ALLEGRO
     flags="-q"
     nodebug="-batch"
-    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then bcmd="$command +c $flags" ; fi
+#    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then bcmd="$command +c $flags" ; fi
     eval="-e" ;;
   ccl)
     command="${CCL:-ccl}"

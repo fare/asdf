@@ -120,9 +120,10 @@ push:
 	git fetch
 	git status
 
-doc:
-	${MAKE} -C doc
-
+# doc:
+# 	${MAKE} -C doc
+# don't have the toolchain to build docs installed...
+doc: ;
 website:
 	${MAKE} -C doc website
 
