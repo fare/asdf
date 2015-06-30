@@ -2,9 +2,12 @@
 
 (defun getcwd-from-run-program ()
   (uiop:parse-native-namestring
-   (run-program
-    (os-cond ((os-unix-p) "pwd") ((os-windows-p) "echo %cd%"))
-    :output '(:string :stripped t))
+   (nest
+    ;; TODO: fix run-program to use POWERSHELL.EXE rather than CMD, and remove this kluge.
+    #+os-windows (string-trim " ")
+    (run-program
+     (os-cond ((os-unix-p) '("pwd" "-P")) ((os-windows-p) "echo %cd%"))
+     :output '(:string :stripped t)))
    :ensure-directory t))
 
 (let ((asdf-directory (truename *asdf-directory*)))
@@ -244,7 +247,7 @@
 (delete-empty-directory (subpathname *build-directory* "deleteme/a/b/e/"))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/"))))
 (delete-directory-tree (subpathname *build-directory* "deleteme/")
-                       :validate (lambda (x) (and (<= 5 (length (pathname-directory x)))
+                       :validate (lambda (x) (and (<= 4 (length (pathname-directory x)))
                                                   (subpathp x *build-directory*))))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/"))))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/"))))

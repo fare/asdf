@@ -1,0 +1,7 @@
+FIXME:  Attach the changelog!!!!
+
+Today I have released ASDF 3.1.5.  As usual many thanks are due to Faré for many bug fixes, clean ups, explanations, etc.  Thanks are also owed to Dave Cooper, for testing on the Windows platform, and identifying many uncaught bugs.
+
+We urge implementations that are currently bundling previous versions of ASDF to adopt 3.1.5.  3.1.5 does not introduce any API incompatibilities that we know of, and contains significant bug fixes on multiple platforms and implementations.  See the Changelog (attached) for a list of the major bug fixes.  Details on minor bugfixes can be found at launchpad.net/asdf
+
+We hope that 3.1.5 will be the last 3.1.x release.  We will now move to developing ASDF 3.2, which we expect will add new features.

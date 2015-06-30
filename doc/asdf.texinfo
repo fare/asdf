@@ -136,7 +136,7 @@ Configuring ASDF
 Using ASDF
 
 * Loading a system::
-* Other Operations::
+* Convenience Functions::
 * Moving on::
 
 Defining systems with defsystem
@@ -935,11 +935,11 @@ on CMUCL and SCL, etc.
 
 @menu
 * Loading a system::
-* Other Operations::
+* Convenience Functions::
 * Moving on::
 @end menu
 
-@node Loading a system, Other Operations, Using ASDF, Using ASDF
+@node Loading a system, Convenience Functions, Using ASDF, Using ASDF
 @section Loading a system
 
 The system @var{foo} is loaded (and compiled, if necessary)
@@ -958,17 +958,16 @@ and you can just use:
 (require :@var{foo})
 @end example
 
-In older versions of ASDF, you needed to use
+In old versions of ASDF 1, you needed to use
 @code{(asdf:oos 'asdf:load-op :@var{foo})}.
 If your ASDF is too old to provide @code{asdf:load-system} though
-we recommend that you upgrade to ASDF 3.
+we recommend that you upgrade to the latest ASDF 3 release.
 @xref{Loading ASDF,,Loading ASDF from source}.
 
-Note the name of a system is specified as a string or a symbol.
-If a symbol (including a keyword), its name is taken and lowercased.
+Note that the name of a system is specified as a string or a symbol.
+If it is a symbol (including a keyword), its @code{symbol-name} is taken and lowercased.
 The name must be a suitable value for the @code{:name} initarg
-to @code{make-pathname} in whatever filesystem the system is to be
-found.
+to @code{make-pathname} in whatever filesystem the system is to be found.
 
 The lower-casing-symbols behaviour is unconventional,
 but was selected after some consideration.
@@ -978,13 +977,13 @@ or silently convert lowercase to uppercase (lpns).
 @c so this makes more sense than attempting to use @code{:case :common},
 @c which is reported not to work on some implementations
 
-@node Other Operations, Moving on, Loading a system, Using ASDF
-@section Other Operations
+@node Convenience Functions, Moving on, Loading a system, Using ASDF
+@section Convenience Functions
 
 @findex load-system
 @findex compile-system
 @findex test-system
-@findex requrie-system
+@findex require-system
 
 ASDF provides three commands for the most common system operations:
 @code{load-system}, @code{compile-system}, and @code{test-system}.
@@ -1016,20 +1015,29 @@ should redirect all output from ASDF operations.
 @c FIXME: the following is too complicated for here, especially since
 @c :force hasn't been defined yet.  Move it. [2014/02/27:rpg]
 
-@findex already-loaded-systems
-@findex require-system
 @findex load-system
 @vindex *load-system-operation*
-For advanced users, note that
-@code{require-system} calls @code{load-system}
-with keyword arguments @code{:force-not (already-loaded-systems)}.
-@code{already-loaded-systems} returns a list of the names of loaded systems.
+@findex already-loaded-systems
+@findex require-system
 @code{load-system} applies @code{operate} with the operation from
-@code{*load-system-operation*} (which by default is @code{load-op}),
+@code{*load-system-operation*}
 the system, and any provided keyword arguments.
+@code{*load-system-operation*} by default is @code{load-op};
+it would be @code{load-bundle-op} by default on ECL, if only an implementation bug were fixed.
+For advanced users, note that
+@code{already-loaded-systems} returns a list of the names of loaded systems.
+@code{require-system} skips any update to systems that have already been loaded,
+in the spirit of @code{cl:require},
+by calling @code{load-system} with @code{:force-not (already-loaded-systems)}
+(note however that @code{cl:require} deals with implementation-provided modules
+that are unlikely to have been compatibly updated since the current image was started,
+whereas ASDF in general deals with user-provided systems at least one of which
+is typically modified during a development session;
+hence it doesn't usually make sense to check for updates to modules,
+whereas it does usually make sense to check for updates to systems).
 
 
-@node Moving on,  , Other Operations, Using ASDF
+@node Moving on,  , Convenience Functions, Using ASDF
 @section Moving on
 
 That's all you need to know to use ASDF to load systems written by others.
@@ -1541,6 +1549,11 @@ where significant API incompatibilities are signaled by an increased major numbe
 
 Use the implementation's own @code{require} to load the @var{module-name}.
 
+It is good taste to use @code{:if-feature @emph{:implementation-name}}
+rather than @code{#+@emph{implementation-name}}
+to only depend on the specified module on the specific implementation that provides it.
+@xref{if-feature-option}.
+
 
 @subsection Using logical pathnames
 @cindex logical pathnames
@@ -1579,7 +1592,7 @@ ASDF currently provides no specific support
 for defining logical pathname translations.
 
 Note that the reasons we do not recommend logical pathnames are that
-(1) there is no portable way to set up logical pathnames before they are used,
+(1) there is no portable way to set up logical pathnames @emph{before} they are used,
 (2) logical pathnames are limited to only portably use
 a single character case, digits and hyphens.
 While you can solve the first issue on your own,

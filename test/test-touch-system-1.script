@@ -15,7 +15,7 @@
 (defparameter date2 (- date1 600))
 (defparameter date3 (- date1 300))
 
-(asdf::clear-defined-system :test1)
+(clear-system :test1)
 (touch-file test1.asd :timestamp date2)
 (touch-file file1.lisp :timestamp date3)
 (touch-file file2.lisp :timestamp date3)
@@ -29,7 +29,7 @@
 (assert-compare (>= date4 date3))
 (sleep 1)
 
-(asdf::clear-defined-system :test1)
+(clear-system :test1)
 (touch-file test1.asd)
 (find-system :test1)
 (defparameter date6 (system-registered-time :test1))

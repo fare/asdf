@@ -12,8 +12,8 @@
 
 (defun clear-caches-and-search ()
   (setf asdf:*central-registry* nil)
-  (asdf/find-system:clear-defined-system "test-asdf")
-  (asdf/find-system:clear-defined-system "test-asdf/force1"))
+  (clear-system "test-asdf")
+  (clear-system "test-asdf/force1"))
 
 (DBG "Clearing the caches and finding.")
 (clear-caches-and-search)
