@@ -1,4 +1,4 @@
-#!/bin/sh -x
+#!/bin/sh
 
 # run-tests {lisp invocation} {scripts-regex}
 # - read lisp forms one at a time from standard input
