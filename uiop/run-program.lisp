@@ -775,7 +775,7 @@ It returns a process-info plist with possible keys:
         (reduce/strcat
          (os-cond
           ((os-unix-p) `(,@(when redirections `("exec " ,@redirections " ; ")) ,@chdir ,normalized))
-          ((os-windows-p) `(,@chdir ,@redirections ,normalized)))))))
+          ((os-windows-p) `(,@chdir ,@redirections " " ,normalized)))))))
 
   (defun %system (command &rest keys
                   &key input output error-output directory &allow-other-keys)
