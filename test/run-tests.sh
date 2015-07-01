@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/sh -x
 
 # run-tests {lisp invocation} {scripts-regex}
 # - read lisp forms one at a time from standard input
@@ -222,7 +222,17 @@ case "$lisp" in
     ALLEGRO=$command ; export ALLEGRO
     flags="-q"
     nodebug="-batch"
-#    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then bcmd="$command +c $flags" ; fi
+    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then
+        adir=$(dirname "${command}") ;
+        allegroName=$(basename "${command}") ;
+        if [[ ${allegroName: -1} == "8" ]] ; then build=build ; else build=buildi ; fi ;
+        # this takes somewhat unjustifiable advantage of the fact that
+        # the Allegro images have the same name (with .dxl extension)
+        # as the corresponding executables.  the "build" executable
+        # runs an ACL image in the current terminal instead of a
+        # separate window, as is normal on Windows.
+        bcmd="${adir}/${build}.exe -I ${command}.dxl $flags" ;
+    fi
     eval="-e" ;;
   ccl)
     command="${CCL:-ccl}"
