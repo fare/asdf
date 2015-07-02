@@ -42,6 +42,7 @@
 
 (defparameter *versioned-files*
   '(("version.lisp-expr" "\"" "\"")
+    ("uiop/version.lisp-expr" "\"" "\"")
     ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by make bump-version")
     ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
     ("upgrade.lisp" "   (asdf-version \"" "\")")))

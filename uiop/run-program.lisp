@@ -327,7 +327,7 @@ Programmers are encouraged to define their own methods for this generic function
      (command :initform nil :initarg :command :reader subprocess-error-command)
      (process :initform nil :initarg :process :reader subprocess-error-process))
     (:report (lambda (condition stream)
-               (format stream "Subprocess~@[ ~S~]~@[ run with command ~S~] exited with error~@[ code ~D~]"
+               (format stream "Subprocess ~@[~S~% ~]~@[with command ~S~% ~]exited with error~@[ code ~D~]"
                        (subprocess-error-process condition)
                        (subprocess-error-command condition)
                        (subprocess-error-code condition)))))
@@ -775,7 +775,7 @@ It returns a process-info plist with possible keys:
         (reduce/strcat
          (os-cond
           ((os-unix-p) `(,@(when redirections `("exec " ,@redirections " ; ")) ,@chdir ,normalized))
-          ((os-windows-p) `(,@chdir ,@redirections ,normalized)))))))
+          ((os-windows-p) `(,@chdir ,@redirections " " ,normalized)))))))
 
   (defun %system (command &rest keys
                   &key input output error-output directory &allow-other-keys)
