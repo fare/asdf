@@ -7,7 +7,7 @@
 
 (assert (find-system :hello-world-example))
 
-(trace run-program)
+(trace run-program #+(and sbcl os-windows) sb-ext:run-program)
 
 #+allegro
 (defparameter *lisp*

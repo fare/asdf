@@ -1,24 +1,30 @@
 ;;; -*- Lisp -*-
 
+#+(and sbcl os-windows) (trace sb-ext:run-program)
+
 (defun getcwd-from-run-program ()
   (uiop:parse-native-namestring
    (nest
     ;; TODO: fix run-program to use POWERSHELL.EXE rather than CMD, and remove this kluge.
     #+os-windows (string-trim " ")
     (run-program
-     (os-cond ((os-unix-p) '("pwd" "-P")) ((os-windows-p) "echo %cd%"))
+     (os-cond
+       ((os-unix-p) '("pwd" "-P"))
+       ((os-windows-p) "cd"))
      :output '(:string :stripped t)))
    :ensure-directory t))
 
 (let ((asdf-directory (truename *asdf-directory*)))
   (chdir asdf-directory)
   (assert-pathname-equal asdf-directory (getcwd))
+  #-(and sbcl os-windows)
   (assert-pathname-equal asdf-directory (getcwd-from-run-program))
   (assert (probe-file* "asdf.asd")))
 
 (let ((test-directory (truename *test-directory*)))
   (chdir test-directory)
   (assert-pathname-equal test-directory (getcwd))
+  #-(and sbcl os-windows)
   (assert-pathname-equal test-directory (getcwd-from-run-program))
   (assert (probe-file* "test-utilities.script")))
 

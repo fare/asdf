@@ -584,6 +584,7 @@ in an atomic way if the implementation allows."
     #+clisp ;; in recent enough versions of CLISP, :if-exists :overwrite would make it atomic
     (progn (funcall 'require "syscalls")
            (symbol-call :posix :copy-file source target :method :rename))
+    #+(and sbcl os-windows) (delete-file-if-exists target) ;; not atomic
     #-clisp
     (rename-file source target
                  #+(or clasp clozure ecl) :if-exists #+clozure :rename-and-delete #+(or clasp ecl) t))
