@@ -332,6 +332,15 @@ Programmers are encouraged to define their own methods for this generic function
                        (subprocess-error-command condition)
                        (subprocess-error-code condition)))))
 
+  ;;; find CMD.exe on windows
+  (defun %cmd-shell-pathname ()
+    (os-cond
+     ((os-windows-p)
+      (strcat (native-namestring (getenv-absolute-directory "WINDIR"))
+              "System32\\cmd.exe"))
+     (t
+      (error "CMD.EXE is not the command shell for this OS."))))
+
   ;;; Internal helpers for run-program
   (defun %normalize-command (command)
     "Given a COMMAND as a list or string, transform it in a format suitable
@@ -341,17 +350,18 @@ for the implementation's underlying run-program function"
       #+os-unix (list command)
       #+os-windows
       (string
-       #+mkcl (list "cmd" '#:/c command)
+       #+mkcl (list "cmd" "/c" command)
        ;; NB: We do NOT add cmd /c here. You might want to.
        #+(or allegro clisp) command
        ;; On ClozureCL for Windows, we assume you are using
        ;; r15398 or later in 1.9 or later,
        ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
        #+clozure (cons "cmd" (strcat "/c " command))
+       #+sbcl (list (%cmd-shell-pathname) "/c" command)
        ;; NB: On other Windows implementations, this is utterly bogus
        ;; except in the most trivial cases where no quoting is needed.
        ;; Use at your own risk.
-       #-(or allegro clisp clozure mkcl) (list "cmd" "/c" command))
+       #-(or allegro clisp clozure mkcl sbcl) (list "cmd" "/c" command))
       #+os-windows
       (list
        #+allegro (escape-windows-command command)
@@ -735,23 +745,14 @@ It returns a process-info plist with possible keys:
                                        :ignore-error-status ignore-error-status))))))))
       (values output-result error-output-result exit-code)))
 
-  ;; find CMD.exe on windows
-  (defun %cmd-shell-pathname ()
-    (os-cond
-     ((os-windows-p)
-      (concatenate 'string (namestring (getenv-absolute-directory "WINDIR"))
-                   "System32\\cmd"))
-     (t
-      (error "CMD.EXE is not the command shell for this OS."))))
-
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
     (etypecase command
       (string
        (os-cond
         ((os-windows-p)
-         #+(or allegro clisp sbcl)
-         (concatenate 'string (%cmd-shell-pathname) " /c " command)
-         #-(or allegro sbcl clisp) command)
+         #+(or allegro clisp)
+         (strcat (%cmd-shell-pathname) " /c " command)
+         #-(or allegro clisp) command)
         (t command)))
       (list (escape-shell-command
              (os-cond
