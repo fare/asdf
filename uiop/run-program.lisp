@@ -735,20 +735,31 @@ It returns a process-info plist with possible keys:
                                        :ignore-error-status ignore-error-status))))))))
       (values output-result error-output-result exit-code)))
 
+  ;; find CMD.exe on windows
+  (defun %cmd-shell-pathname ()
+    (os-cond
+     ((os-windows-p)
+      (concatenate 'string (namestring (getenv-absolute-directory "WINDIR"))
+                   "System32\\cmd"))
+     (t
+      (error "CMD.EXE is not the command shell for this OS."))))
+
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
     (etypecase command
       (string
        (os-cond
         ((os-windows-p)
-         #+allegro
-         (concatenate 'string "cmd /c " command)
-         #-allegro command)
+         #+(or allegro clisp sbcl)
+         (concatenate 'string (%cmd-shell-pathname) " /c " command)
+         #-(or allegro sbcl clisp) command)
         (t command)))
       (list (escape-shell-command
              (os-cond
               ((os-unix-p) (cons "exec" command))
-              ((os-windows-p) #+allegro (append '("cmd" "/c") command)
-                              #-allegro command)
+              ((os-windows-p)
+               #+(or allegro sbcl clisp)
+               (cons (%cmd-shell-pathname) (cons "/c" command))
+               #-(or allegro sbcl clisp) command)
               (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
