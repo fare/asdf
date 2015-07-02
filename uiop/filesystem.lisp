@@ -578,6 +578,10 @@ NILs."
       (when pathname
         (ensure-directories-exist (physicalize-pathname pathname)))))
 
+  (defun delete-file-if-exists (x)
+    "Delete a file X if it already exists"
+    (when x (handler-case (delete-file x) (file-error () nil))))
+
   (defun rename-file-overwriting-target (source target)
     "Rename a file, overwriting any previous file with the TARGET name,
 in an atomic way if the implementation allows."
@@ -588,10 +592,6 @@ in an atomic way if the implementation allows."
     #-clisp
     (rename-file source target
                  #+(or clasp clozure ecl) :if-exists #+clozure :rename-and-delete #+(or clasp ecl) t))
-
-  (defun delete-file-if-exists (x)
-    "Delete a file X if it already exists"
-    (when x (handler-case (delete-file x) (file-error () nil))))
 
   (defun delete-empty-directory (directory-pathname)
     "Delete an empty directory"
