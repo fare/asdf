@@ -265,7 +265,7 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	test-all test-all-lisps test-all-no-upgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
-	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
+	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf \
 	list-source-registry \
 	ext noext
 
