@@ -16,19 +16,17 @@
         (truename (subpathname #p"sys:" argv0)))))
 
 ;; Try to load lisp-invocation from xcvb
-(setf *central-registry*
-      (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
-            *uiop-directory*
-            ;; try finding xcvb's lisp-invocation right next to asdf.
-            (subpathname *asdf-directory* "ext/lisp-invocation/")))
-(unless (find-system :lisp-invocation nil)
-  ;; try harder by enabling the user's source-registry
-  (initialize-source-registry ""))
+(initialize-source-registry
+ `(:source-registry
+   (:directory ,*asdf-directory*)
+   (:directory (,*asdf-directory* "uiop/"))
+   (:tree (,*asdf-directory* "ext/"))
+   :inherit-configuration))
 (unless (find-system :lisp-invocation nil)
   (leave-test "Couldn't find lisp-invocation. Probably your ASDF ext/ directory needs submodule update." 1))
-(load-system "lisp-invocation")
 (unless (version-satisfies (find-system "lisp-invocation") "1.0.11")
   (leave-test "Lisp-invocation library isn't new enough to test successfully. Probably your ASDF ext/ directory needs submodule update." 1))
+(load-system "lisp-invocation/all")
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
