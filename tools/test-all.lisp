@@ -65,7 +65,7 @@
             (run/lines
              `(grep "-L" "All tests apparently successful."
                     ,@(mapcar (lambda (l) (format nil "build/results/~(~A~)-test.text" l))
-                              *test-lisps*)) :on-error nil)))
+                              (get-lisps))) :on-error nil)))
     (failure-if bad-lisps
                 "Unexpected test failures on these implementations:~%~{~A~%~}" bad-lisps))))
 
@@ -76,7 +76,7 @@
             (run/lines
              `(grep "-L" "Upgrade test succeeded for "
                     ,@(mapcar (lambda (l) (format nil "build/results/~(~A~)-upgrade.text" l))
-                              *upgrade-test-lisps*)) :on-error nil)))
+                              (get-upgrade-lisps))) :on-error nil)))
       (failure-if bad-lisps
                   "Unexpected upgrade failures on these implementations:~%~{~A~%~}~%" bad-lisps))))
 

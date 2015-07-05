@@ -41,8 +41,8 @@
 
     ;; The original ASDF 1 series
     "1.369" ;; (2009-10-27) the last release by Gary King
-    "1.85" ;; (2004-05-16) the last release by Daniel Barlow (not 1.37, which is the README revision!)
-    "1.97")) ;; (2006-05-14) the last release before Gary King takes over
+    "1.97" ;; (2006-05-14) the last release before Gary King takes over
+    "1.85")) ;; (2004-05-16) the last release by Daniel Barlow (not 1.37, which is the README revision!)
 
 (defun get-upgrade-tags (&optional (x *upgrade-test-tags*))
   (cond
@@ -137,7 +137,11 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ((:xcl) (version<= "2.15" tag))
 
      ;; all clear on these implementations
-     ((:allegro :sbcl :scl) t))))
+     ((:allegro :allegromodern :allegro8 :allegromodern8
+       :allegro_64 :allegromodern_64 :allegro8_64 :allegromodern8_64
+       :allegro_s :allegromodern_s :allegro8_s :allegromodern8_s
+       :allegro_64_s :allegromodern_64_s :allegro8_64_s :allegromodern8_64_s
+       :sbcl :scl) t))))
 
 (deftestcmd test-upgrade (lisp upgrade-tags upgrade-methods)
   "run upgrade tests
