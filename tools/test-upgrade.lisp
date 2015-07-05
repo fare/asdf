@@ -119,8 +119,10 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
      ;; Skip many ECL tests, for various ASDF issues
      ((:ecl :ecl_bytecodes) (version<= "2.21" tag))
 
-     ;; GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
-     ((:gcl) (version<= "3.1.2" tag))
+     ;; GCL 2.7.0 from at least late May 2014 is required, with ASDF 3.1.2 or later.
+     ;; But since GCL doesn't ship with ASDF yet anyway, no need to test upgrade
+     ;; against anything but the latest release.
+     ((:gcl) (version<= "3.1.4" tag))
 
      ;; LispWorks is fine, but ASDF 3.0.3 has a bug and can't be loaded.
      ((:lispworks) (not (equal "3.0.3" tag)))
