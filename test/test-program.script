@@ -26,8 +26,8 @@
   (initialize-source-registry ""))
 (unless (find-system :lisp-invocation nil)
   (leave-test "Couldn't find lisp-invocation. Probably your ASDF ext/ directory needs submodule update." 1))
-(load-system :lisp-invocation)
-(unless (version-satisfies (find-system :lisp-invocation) "1.0.8")
+(load-system "lisp-invocation")
+(unless (version-satisfies (find-system "lisp-invocation") "1.0.11")
   (leave-test "Lisp-invocation library isn't new enough to test successfully. Probably your ASDF ext/ directory needs submodule update." 1))
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
