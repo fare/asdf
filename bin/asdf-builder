@@ -131,43 +131,45 @@
     (delete-directory-tree destination :validate #'(lambda (x) (equal x destination)))
     (values)))
 
-(defun driver-files ()
-  (list* "README.md" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
-(defun driver-name ()
+(defun uiop-files ()
+  "list files in uiop"
+  (list* "README.md" "uiop.asd" "asdf-driver.asd" (system-source-files "uiop")))
+(defun uiop-name ()
   (format nil "uiop-~A" *version*))
-(defun make-driver-tarball ()
-  (make-tarball-under-build (driver-name) *uiop-dir* (driver-files)))
+(defun make-uiop-tarball ()
+  (make-tarball-under-build (uiop-name) *uiop-dir* (uiop-files)))
 
 (defun asdf-defsystem-files ()
-  (list* "asdf.asd" "build/asdf.lisp" "version.lisp-expr" "header.lisp"
-         (system-source-files :asdf/defsystem)))
+  "list files in asdf/defsystem"
+  (list* "build/asdf.lisp" ;; for bootstrap purposes
+         "asdf.asd" "version.lisp-expr" "header.lisp"
+         (system-source-files "asdf/defsystem")))
 (defun asdf-defsystem-name ()
   (format nil "asdf-defsystem-~A" *version*))
 (defun make-asdf-defsystem-tarball ()
   (build-asdf)
   (make-tarball-under-build (asdf-defsystem-name) *asdf-dir* (asdf-defsystem-files)))
 
-(defun asdf-git-name ()
+(defun asdf-all-name ()
   (strcat "asdf-" *version*))
-(defun all-asdf-files ()
+(defun asdf-all-files ()
   (remove-if #'(lambda (x) (string-prefix-p "ext/" x))
              (run/lines '(git ls-files))))
-(defun make-git-tarball ()
+(defun make-asdf-all-tarball ()
   (build-asdf)
-  (make-tarball-under-build (asdf-git-name) *asdf-dir* (all-asdf-files)))
+  (make-tarball-under-build (asdf-all-name) *asdf-dir* (asdf-all-files)))
 
 (defun asdf-lisp-name ()
   (format nil "asdf-~A.lisp" *version*))
-
 (defun make-asdf-lisp ()
   (build-asdf)
   (concatenate-files (list (pn "build/asdf.lisp"))
                      (pn "build/" (asdf-lisp-name))))
 
 (defun make-archive ()
-  (make-driver-tarball)
+  (make-uiop-tarball)
   (make-asdf-defsystem-tarball)
-  (make-git-tarball)
+  (make-asdf-all-tarball)
   (make-asdf-lisp)
   (values))
 
@@ -300,7 +302,7 @@
 (defparameter *version-tag-glob* "[0-9][.][0-9]*")
 
 (defun version-from-tag (&optional commit)
-  (first (run/lines `("git" "describe" "--tags" "--match" ,*version-tag-glob*) :show t)))
+  (first (run/lines `("git" "describe" "--tags" "--match" ,*version-tag-glob* ,commit) :show t)))
 
 (defun version-from-file (&optional commit)
   (if commit
