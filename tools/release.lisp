@@ -31,69 +31,74 @@
 
 (defun tarname (name) (strcat name ".tar.gz"))
 
-(deftestcmd make-tarball-from-git (name base files (type "tar.gz"))
-  (with-asdf-dir (base)
-    (let ((tarball (strcat name "." type)))
-      (git `(archive -o ,(pn "build" tarball)
-                     :prefix (,name /) ,*version* -- ,@files) :show t))))
-
-(deftestcmd make-tarball-from-git-plus (name base files asdf-lisp version-file)
-  ;; make a tarball, then add build/asdf.lisp to it
-  (make-tarball-from-git name base files "tar")
-  (let* ((tarball (strcat name ".tar")))
-    (with-asdf-dir ("build/")
-      (when asdf-lisp
-        (build-asdf)
-        (ensure-directories-exist (pn "build" name "build/"))
-        (run* `(cp -a asdf.lisp (,name /build/)))
-        ;; TODO: find which tar it is and tell --uid 0 --gid 0 to BSD tar
-        ;; and --owner root --group root to GNU tar,
-        ;; falling back to nothing. Sigh.
-        (run* `(env "COPYFILE_DISABLE=1"
-                   tar "-rf" ,tarball (,name /build/asdf.lisp)) :show t)
-        (run* `(rm -f (,name /build/asdf.lisp)))
-        (delete-empty-directory (pn "build" name "build/")))
-      (when version-file
-        (ensure-directories-exist (pn "build" name ""))
-        (run* `(cp -a ../version.lisp-expr (,name /)))
-        (run* `(env "COPYFILE_DISABLE=1"
-                   tar "-rf" ,tarball (,name /version.lisp-expr)) :show t)
-        (run* `(rm -f (,name /version.lisp-expr))))
-      (let ((dir (pn "build" name "")))
-        (when (directory-exists-p dir) (delete-empty-directory dir)))
-      (run* `(gzip -f9 ,tarball) :show t))))
+(defun make-tarball-under-build (name base files)
+  (check-type name string)
+  (ensure-pathname base :want-absolute t :want-existing t :want-directory t)
+  (dolist (f files)
+    (check-type f string))
+  (let* ((base
+           (ensure-pathname
+            base
+            :want-absolute t :want-directory t
+            :want-existing t :truename t))
+         (destination
+           (ensure-pathname
+            name
+            :defaults *build-dir*
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t :ensure-directory t))
+         (tarball
+           (ensure-pathname
+            (tarname name)
+            :defaults *build-dir*
+            :want-relative t :ensure-absolute t
+            :ensure-subpath t :want-file t
+            :ensure-directories-exist t)))
+    (assert (< 6 (length (pathname-directory destination))))
+    (when (probe-file* destination)
+      (error "Destination ~S already exists, not taking chances - you can delete it yourself."
+             destination))
+    (ensure-directories-exist destination)
+    (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
+    (run `(tar "zcfC" ,tarball ,*build-dir*
+               ;; TODO: Have better autodetection for which tar is being used,
+               ;; and fall back to no option if not recognized.
+               #+linux (* :owner root :group root) ;; assume GNU tar on Linux.
+               #+darwin (* :uid 0 :gid 0) ;; assume BSD tar on Darwin.
+               (,name /)) :show t)
+    (delete-directory-tree destination :validate #'(lambda (x) (equal x destination)))
+    (values)))
 
 (defun uiop-files ()
   "list files in uiop"
-  (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
-(defun driver-name ()
+  (list* "README.md" "uiop.asd" "asdf-driver.asd" (system-source-files "uiop")))
+(defun uiop-name ()
   (format nil "uiop-~A" *version*))
-(defun make-driver-tarball ()
-  (make-tarball-from-git-plus
-   (driver-name) "uiop/"
-   (remove "version.lisp-expr" (uiop-files) :test 'equal)
-   nil t))
-
+(deftestcmd make-uiop-tarball ()
+  (make-tarball-under-build (uiop-name) *uiop-dir* (uiop-files)))
 
 (defun asdf-defsystem-files ()
   "list files in asdf/defsystem"
-  (list* "asdf.asd" "version.lisp-expr" "header.lisp"
-         (system-source-files :asdf/defsystem)))
+  (list* "build/asdf.lisp" ;; for bootstrap purposes
+         "asdf.asd" "version.lisp-expr" "header.lisp"
+         (system-source-files "asdf/defsystem")))
 (defun asdf-defsystem-name ()
   (format nil "asdf-defsystem-~A" *version*))
-(defun make-asdf-defsystem-tarball ()
-  (make-tarball-from-git-plus
-   (asdf-defsystem-name) "" (asdf-defsystem-files)))
+(deftestcmd make-asdf-defsystem-tarball ()
+  (build-asdf)
+  (make-tarball-under-build (asdf-defsystem-name) *asdf-dir* (asdf-defsystem-files)))
 
-(defun asdf-git-name ()
+(defun asdf-all-name ()
   (strcat "asdf-" *version*))
-
-(defun make-git-tarball ()
-  (make-tarball-from-git-plus (asdf-git-name) "" nil))
+(defun asdf-all-files ()
+  (remove-if #'(lambda (x) (string-prefix-p "ext/" x))
+             (with-asdf-dir () (run/lines '(git ls-files)))))
+(deftestcmd make-asdf-all-tarball ()
+  (build-asdf)
+  (make-tarball-under-build (asdf-all-name) *asdf-dir* (asdf-all-files)))
 
 (defun asdf-lisp-name ()
   (format nil "asdf-~A.lisp" *version*))
-
 (deftestcmd make-asdf-lisp ()
   (build-asdf)
   (concatenate-files (list (pn "build/asdf.lisp"))
@@ -101,9 +106,9 @@
 
 (deftestcmd make-archive ()
   "build tarballs for release"
-  (make-driver-tarball)
+  (make-uiop-tarball)
   (make-asdf-defsystem-tarball)
-  (make-git-tarball)
+  (make-asdf-all-tarball)
   (make-asdf-lisp))
 
 
