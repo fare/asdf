@@ -59,15 +59,15 @@
       (error "Destination ~S already exists, not taking chances - you can delete it yourself."
              destination))
     (ensure-directories-exist destination)
-    (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
-    (run `(tar "zcfC" ,tarball ,*build-dir*
+    (run* `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
+    (run* `(tar "zcfC" ,tarball ,*build-dir*
                ;; TODO: Have better autodetection for which tar is being used,
                ;; and fall back to no option if not recognized.
                #+linux (* :owner root :group root) ;; assume GNU tar on Linux.
                #+darwin (* :uid 0 :gid 0) ;; assume BSD tar on Darwin.
                (,name /)) :show t)
     (delete-directory-tree destination :validate #'(lambda (x) (equal x destination)))
-    (values)))
+    (success)))
 
 (defun uiop-files ()
   "list files in uiop"
