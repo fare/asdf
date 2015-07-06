@@ -122,8 +122,13 @@
              destination))
     (ensure-directories-exist destination)
     (run `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
-    (run `(tar "zcfC" ,tarball ,*build-dir* (,name /)) :show t)
-    (delete-directory-tree destination :validate (lambda (x) (equal x destination)))
+    (run `(tar "zcfC" ,tarball ,*build-dir*
+               ;; TODO: Have better autodetection for which tar is being used,
+               ;; and fall back to no option if not recognized.
+               #+linux (* :owner root :group root) ;; assume GNU tar on Linux.
+               #+darwin (* :uid 0 :gid 0) ;; assume BSD tar on Darwin.
+               (,name /)) :show t)
+    (delete-directory-tree destination :validate #'(lambda (x) (equal x destination)))
     (values)))
 
 (defun driver-files ()
@@ -144,12 +149,12 @@
 
 (defun asdf-git-name ()
   (strcat "asdf-" *version*))
+(defun all-asdf-files ()
+  (remove-if #'(lambda (x) (string-prefix-p "ext/" x))
+             (run/lines '(git ls-files))))
 (defun make-git-tarball ()
   (build-asdf)
-  (with-current-directory ((pn))
-    (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") "--exclude" ext/ build/asdf.lisp ,@(run/lines '(git ls-files)))
-         :show t))
-  (values))
+  (make-tarball-under-build (asdf-git-name) *asdf-dir* (all-asdf-files)))
 
 (defun asdf-lisp-name ()
   (format nil "asdf-~A.lisp" *version*))
@@ -172,8 +177,9 @@
 
 (defun publish-archive ()
   (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
-    (run (format nil "cd ~S && rsync ~{~S ~}~S common-lisp.net:/project/asdf/public_html/archives/"
-                 /build-dir/ tarballs (asdf-lisp-name)) :show t))
+    (run `(rsync "--times" "--chmod=a+rX,ug+w"
+                  ,@tarballs ,(asdf-lisp-name) (,*clnet* ":" ,(public-path "archives/")))
+          :show t :directory (pn "build/")))
   (format t "~&To download the tarballs, point your browser at:~%
         http://common-lisp.net/project/asdf/archives/
 ~%")
