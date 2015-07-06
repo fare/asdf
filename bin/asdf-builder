@@ -127,7 +127,7 @@
     (values)))
 
 (defun driver-files ()
-  (list* "README" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
+  (list* "README.md" "uiop.asd" "asdf-driver.asd" (system-source-files :uiop)))
 (defun driver-name ()
   (format nil "uiop-~A" *version*))
 (defun make-driver-tarball ()
@@ -147,7 +147,7 @@
 (defun make-git-tarball ()
   (build-asdf)
   (with-current-directory ((pn))
-    (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") build/asdf.lisp ,@(run/lines '(git ls-files)))
+    (run `(tar zcf ("build/" ,(asdf-git-name) ".tar.gz") "--exclude" ext/ build/asdf.lisp ,@(run/lines '(git ls-files)))
          :show t))
   (values))
 
