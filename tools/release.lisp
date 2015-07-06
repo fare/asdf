@@ -120,7 +120,7 @@
 
 (deftestcmd publish-archive ()
   "publish tarballs to the website"
-  (let ((tarballs (mapcar 'tarname (list (driver-name) (asdf-defsystem-name) (asdf-git-name)))))
+  (let ((tarballs (mapcar 'tarname (list (uiop-name) (asdf-defsystem-name) (asdf-all-name)))))
     (run* `(rsync "--times" "--chmod=a+rX,ug+w"
                   ,@tarballs ,(asdf-lisp-name) (,*clnet* ":" ,(public-path "archives/")))
           :show t :directory (pn "build/")))
@@ -131,11 +131,11 @@
 (deftestcmd link-archive ()
   "symlink new tarballs on the website"
   (run* (format nil "ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S ; ln -sf ~S ~S"
-                (tarname (driver-name))
+                (tarname (uiop-name))
                 (public-path "archives/uiop.tar.gz")
                 (tarname (asdf-defsystem-name))
                 (public-path "archives/asdf-defsystem.tar.gz")
-                (tarname (asdf-git-name))
+                (tarname (asdf-all-name))
                 (public-path "archives/asdf.tar.gz")
                 (asdf-lisp-name)
                 (public-path "archives/asdf.lisp"))
