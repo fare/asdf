@@ -14,6 +14,16 @@
 
 ;;; ASDF3 is loaded, now use it!
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  ;; For bootstrap purposes, avoid having to extract cl-launch.asd into ext/cl-launch/
+  (let ((cl-launch-dir (uiop:subpathname (uiop:current-lisp-file-pathname) "../ext/cl-launch/")))
+    (when (uiop:probe-file* (uiop:subpathname cl-launch-dir "dispatch.lisp"))
+      (asdf:register-preloaded-system
+       :cl-launch/dispatch
+       :class :package-inferred-system
+       :source-file nil
+       :pathname cl-launch-dir
+       :components '((cl-source-file "lisp" :pathname "dispatch.lisp")))))
+  ;; Load either with or without quicklisp
   #-quicklisp
   (asdf:load-system :asdf-tools :verbose nil)
   #+quicklisp

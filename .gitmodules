@@ -34,3 +34,6 @@
 [submodule "ext/cl-scripting"]
 	path = ext/cl-scripting
 	url = https://github.com/fare/cl-scripting.git
+[submodule "ext/cl-launch"]
+	path = ext/cl-launch
+	url = https://gitlab.common-lisp.net/xcvb/cl-launch.git
