@@ -9,12 +9,6 @@
 
 (trace run-program #+(and sbcl os-windows) sb-ext:run-program)
 
-#+allegro
-(defparameter *lisp*
-  (let ((argv0 (parse-native-namestring (first (raw-command-line-arguments)))))
-    (or (absolute-pathname-p argv0)
-        (truename (subpathname #p"sys:" argv0)))))
-
 ;; Try to load lisp-invocation from xcvb
 (initialize-source-registry
  `(:source-registry
@@ -24,7 +18,7 @@
    :inherit-configuration))
 (unless (find-system :lisp-invocation nil)
   (leave-test "Couldn't find lisp-invocation. Probably your ASDF ext/ directory needs submodule update." 1))
-(unless (version-satisfies (find-system "lisp-invocation") "1.0.11")
+(unless (version-satisfies (find-system "lisp-invocation") "1.0.12")
   (leave-test "Lisp-invocation library isn't new enough to test successfully. Probably your ASDF ext/ directory needs submodule update." 1))
 (load-system "lisp-invocation/all")
 ;; Disable any user source registry.
@@ -35,7 +29,7 @@
    0
    (nth-value 2
     (lisp-invocation:invoke-lisp
-     #+allegro :lisp-path #+allegro *lisp*
+     :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
      :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
      :eval (format nil "(asdf-test::make-hello-~(~a~))" kind)
@@ -62,7 +56,7 @@
    (nest
     #+lispworks (last)
     (lisp-invocation:invoke-lisp
-     #+allegro :lisp-path #+allegro *lisp*
+     :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
      :image-path (native-namestring img)
      :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
@@ -73,7 +67,7 @@
   #-(or lispworks scl) ;; These can't be passed arguments the normal way
   (assert-equal
    (lisp-invocation:invoke-lisp
-    #+allegro :lisp-path #+allegro *lisp*
+    :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
     :image-path (native-namestring img)
     :cross-compile nil
     :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
