@@ -35,7 +35,7 @@ portable support on all of Windows, Linux (x64, x86, ARM), MacOS X
   (defun load-sys (system)
     (if (featurep :quicklisp)
         (let ((*standard-output* (make-broadcast-stream))) ;; be quiet
-          (ql:quickload system))
+          (symbol-call :ql :quickload system))
         (load-system system :verbose nil)))
   ;; Finally, load asdf-tools
   (load-sys "asdf-tools"))
