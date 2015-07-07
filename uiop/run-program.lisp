@@ -31,9 +31,9 @@ as either a recognizing function or a sequence of characters."
      (cond
        ((and good-chars bad-chars)
         (error "only one of good-chars and bad-chars can be provided"))
-       ((functionp good-chars)
+       ((typep good-chars '(or function symbol))
         (complement good-chars))
-       ((functionp bad-chars)
+       ((typep bad-chars '(or function symbol))
         bad-chars)
        ((and good-chars (typep good-chars 'sequence))
         #'(lambda (c) (not (find c good-chars))))
@@ -76,10 +76,14 @@ for use within a MS Windows command-line, outputing to S."
             (otherwise
              (issue (char x i)) (setf i i+1))))))
 
+  (defun easy-windows-character-p (x)
+    "Is X an \"easy\" character that does not require quoting by the shell?"
+    (or (alphanumericp x) (find x "+-_.,@:/=")))
+
   (defun escape-windows-token (token &optional s)
     "Escape a string TOKEN within double-quotes if needed
 for use within a MS Windows command-line, outputing to S."
-    (escape-token token :stream s :bad-chars #(#\space #\tab #\") :quote nil
+    (escape-token token :stream s :good-chars 'easy-windows-character-p :quote nil
                         :escaper 'escape-windows-token-within-double-quotes))
 
   (defun escape-sh-token-within-double-quotes (x s &key (quote t))
@@ -94,12 +98,12 @@ omit the outer double-quotes if key argument :QUOTE is NIL"
 
   (defun easy-sh-character-p (x)
     "Is X an \"easy\" character that does not require quoting by the shell?"
-    (or (alphanumericp x) (find x "+-_.,%@:/")))
+    (or (alphanumericp x) (find x "+-_.,%@:/=")))
 
   (defun escape-sh-token (token &optional s)
     "Escape a string TOKEN within double-quotes if needed
 for use within a POSIX Bourne shell, outputing to S."
-    (escape-token token :stream s :quote #\" :good-chars #'easy-sh-character-p
+    (escape-token token :stream s :quote #\" :good-chars 'easy-sh-character-p
                         :escaper 'escape-sh-token-within-double-quotes))
 
   (defun escape-shell-token (token &optional s)
