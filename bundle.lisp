@@ -159,7 +159,7 @@ itself.")) ;; operation on a system and its dependencies
       #+(or clasp ecl)
       ((member :dll :lib :shared-library :static-library :program :object :program)
        (compile-file-type :type bundle-type))
-      ((member :image) (or #+allegro "dxl" #+(and clisp os-windows) "exe" "image"))
+      ((member :image) #+allegro "dxl" #+(and clisp os-windows) "exe" #-(or allegro (and clisp os-windows)) "image")
       ((member :dll :shared-library) (os-cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
       ((member :lib :static-library) (os-cond ((os-unix-p) "a")
                                               ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "a" "lib"))))
