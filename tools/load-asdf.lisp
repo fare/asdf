@@ -75,7 +75,7 @@
              ;; we'd move this form right below the (funcall 'require "asdf") above.
              ;; See also notes in try-load-quicklisp.
              (try-load-quicklisp))
-           ;; User-configurable parts
+           ;; ****** User-configurable parts ******
            (required-asdf-version () "3.1.2") ;; In the end, we want at least ASDF 3.1.2
            (asdf-lisp ()
                ;; Here, define where your Lisp source code hierarchy stores its copy of ASDF.
@@ -129,7 +129,7 @@
                         ;; The above should already cover all paths that we use;
                         ;; we don't want user configuration to interfere with the build.
                         :ignore-inherited-configuration)))
-               ;; No more user-configurable parts below.
+               ;; ****** No more user-configurable parts below. ******
                (asdf-call 'initialize-source-registry source-registry)
                (asdf-call 'initialize-output-translations output-translations))))
     ;; Configure the printer
