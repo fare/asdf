@@ -87,59 +87,60 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
 probes the filesystem for a file or directory with given pathname.
 If it exists, return its truename is ENSURE-PATHNAME is true,
 or the original (parsed) pathname if it is false (the default)."
-    (with-pathname-defaults () ;; avoids logical-pathname issues on some implementations
-      (etypecase p
-        (null nil)
-        (string (probe-file* (parse-namestring p) :truename truename))
-        (pathname
-         (and (not (wild-pathname-p p))
-              (handler-case
-                  (or
-                   #+allegro
-                   (probe-file p :follow-symlinks truename)
-                   #+gcl
-                   (if truename
-                       (truename* p)
-                       (let ((kind (car (si::stat p))))
-                         (when (eq kind :link)
-                           (setf kind (ignore-errors (car (si::stat (truename* p))))))
-                         (ecase kind
-                           ((nil) nil)
-                           ((:file :link)
-                            (cond
-                              ((file-pathname-p p) p)
-                              ((directory-pathname-p p)
-                               (subpathname p (car (last (pathname-directory p)))))))
-                           (:directory (ensure-directory-pathname p)))))
-                   #+clisp
-                   #.(flet ((probe (probe)
-                              `(let ((foundtrue ,probe))
-                                 (cond
-                                   (truename foundtrue)
-                                   (foundtrue p)))))
-                       (let* ((fs (or #-os-windows (find-symbol* '#:file-stat :posix nil)))
-                              (pp (find-symbol* '#:probe-pathname :ext nil))
-                              (resolve (if pp
-                                           `(ignore-errors (,pp p))
-                                           '(or (truename* p)
-                                             (truename* (ignore-errors (ensure-directory-pathname p)))))))
-                         (if fs
-                             `(if truename
-                                  ,resolve
-                                  (and (ignore-errors (,fs p)) p))
-                             (probe resolve))))
-                   #-(or allegro clisp gcl)
-                   (if truename
-                       (probe-file p)
-                       (ignore-errors
-                        (let ((pp (physicalize-pathname p)))
-                          (and
-                           #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
-                           #+(and lispworks unix) (system:get-file-stat pp)
-                           #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
-                           #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
-                           p)))))
-                (file-error () nil)))))))
+    (etypecase p
+      (null nil)
+      (string
+       ;; avoid logical-pathname issues on some implementations
+       (let ((pn (with-pathname-defaults () (parse-namestring p))))
+	 (probe-file* pn :truename truename)))
+      (pathname
+       (and (not (wild-pathname-p p))
+	    (handler-case
+		(or
+		 #+allegro
+		 (probe-file p :follow-symlinks truename)
+		 #+gcl
+		 (if truename
+		   (truename* p)
+		   (let ((kind (car (si::stat p))))
+		     (when (eq kind :link)
+		       (setf kind (ignore-errors (car (si::stat (truename* p))))))
+		     (ecase kind
+		       ((nil) nil)
+		       ((:file :link)
+			(cond
+			  ((file-pathname-p p) p)
+			  ((directory-pathname-p p)
+			   (subpathname p (car (last (pathname-directory p)))))))
+		       (:directory (ensure-directory-pathname p)))))
+		 #+clisp
+		 #.(let* ((fs (or #-os-windows (find-symbol* '#:file-stat :posix nil)))
+			  (pp (find-symbol* '#:probe-pathname :ext nil)))
+		       `(if truename
+			  ,(if pp
+			     `(ignore-errors (,pp p))
+			     '(or (truename* p)
+			       (truename* (ignore-errors (ensure-directory-pathname p)))))
+			  ,(cond
+			     (fs `(and (ignore-errors (,fs p)) p))
+			     (pp `(ignore-errors (nth-value 1 (,pp p))))
+			     (t '(if-let (q (ensure-absolute-pathname p
+					     :defaults 'get-pathname-defaults :on-error nil))
+				  (or (and (truename* q) q)
+				   (if-let (d (ignore-errors (ensure-directory-pathname q)))
+				     (and (truename* d) d))))))))
+		 #-(or allegro clisp gcl)
+		 (if truename
+		   (probe-file p)
+		   (ignore-errors
+		    (let ((pp (physicalize-pathname p)))
+		      (and
+		       #+(or cmu scl) (unix:unix-stat (ext:unix-namestring pp))
+		       #+(and lispworks unix) (system:get-file-stat pp)
+		       #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring pp))
+		       #-(or cmu (and lispworks unix) sbcl scl) (file-write-date pp)
+		       p)))))
+	      (file-error () nil))))))
 
   (defun directory-exists-p (x)
     "Is X the name of a directory that exists on the filesystem?"
