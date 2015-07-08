@@ -380,6 +380,14 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** czak@google.com rewrote part of deferred warnings support.
    Ask him for the code he implemented at Google.
 
+** Ensure all run-program issues on Windows are solved.
+*** SBCL cannot do raw CMD.EXE command-lines
+*** We don't seem to properly escape CRLF in escape-windows-token,
+   or maybe it is, but CMD.EXE does the wrong thing in them,
+   so the semantics depend on whether it's used,
+   or maybe it's CCL eating them while parsing, or maybe not, etc.
+   In any case, this requires clarification.
+
 ** define-package cannot deal with symbols moving "forward".
 *** document that THOU SHALT NOT USE :RECYCLE with packages previously
    defined by define-package when building from scratch.

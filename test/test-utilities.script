@@ -15,6 +15,24 @@
      :output '(:string :stripped t)))
    :ensure-directory t))
 
+(defun simplify-pathname-directory (pathname)
+  (setf pathname (ensure-pathname pathname))
+  (when pathname
+    (make-pathname :defaults pathname :directory (simplify-pathname-directory-component (pathname-directory pathname)))))
+
+(defun simplify-pathname-directory-component (dir)
+  (setf dir (normalize-pathname-directory-component dir))
+  (loop
+   :with head = (progn
+		  (unless (and (consp dir) (cdr dir)) (return dir))
+		  (subseq dir 0 1))
+   :with tail = (rest dir)
+   :for (next rest) :on tail :do
+   (unless (equal next ".")
+     (when (member next '(".." :up) :test 'equal) (setf next :back))
+     (setf head (merge-pathname-directory-components (list :relative next) head)))
+   :finally (return head)))
+
 (let ((asdf-directory (truename *asdf-directory*))
       (test-directory (truename *test-directory*)))
   (labels ((check-cwd (dir)
@@ -23,8 +41,8 @@
              (assert-pathname-equal dir (getcwd-from-run-program)))
            (check-true-dpd (dir)
              (assert-pathname-equal dir (get-pathname-defaults))
-             (assert-pathname-equal dir (truename #p"./"))
-             (assert-pathname-equal dir (truename* #p"./")))
+             (assert-pathname-equal dir (simplify-pathname-directory (truename #p"./")))
+             (assert-pathname-equal dir (simplify-pathname-directory (truename* #p"./"))))
            (check-file-exists (file &optional true)
              (setf file (parse-unix-namestring file))
              (if true
@@ -45,8 +63,10 @@
                    (assert-pathname-equal true dir)
                    (setf true dir)))
              (assert-pathname-equal true (truename (ensure-directory-pathname file)))
-             (assert-pathname-equal true (truename* file))
-             (assert-pathname-equal true (nest #+allegro (ensure-directory-pathname) (probe-file* file :truename t)))
+             (assert-pathname-equal true (nest #+(and clisp windows) (ensure-directory-pathname)
+					       (truename* file))
+             (assert-pathname-equal true (nest #+(or allegro (and clisp windows)) (ensure-directory-pathname)
+					       (probe-file* file :truename t)))
              (assert-pathname-equal true (if-let (x (probe-file* file))
                                            (ensure-absolute-pathname (ensure-directory-pathname x) 'get-pathname-defaults))))
            (check-directory-doesnt-exist (file)
@@ -78,7 +98,8 @@
       (DBG "3" (chdir asdf-directory) (setf *default-pathname-defaults* test-directory))
       (check-true-dpd-test))
 
-    #-(or abcl genera xcl) ;; on these platforms, chdir changes D-P-D so these tests are not meaningful
+    #-(or abcl genera xcl ;; on these platforms, chdir changes D-P-D so these tests are not meaningful
+	  (and sbcl os-windows)) ;; SBCL on Windows really hates a relative D-P-D.
     (progn
       ;; SBCL hates to get (truename #p"") when D-P-D is itself #p"". See https://bugs.launchpad.net/sbcl/+bug/1472414
       (DBG "4"
