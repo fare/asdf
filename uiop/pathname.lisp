@@ -207,7 +207,7 @@ when merging, making or parsing pathnames")
 where leaving the defaults NIL or unspecified means a (NIL-PATHNAME), except
 on ABCL, Genera and XCL, where it remains unchanged for it doubles as current-directory."
     `(let ((*default-pathname-defaults*
-             ,(or defaults #-(or abcl genera xcl) '*nil-pathname* #+(or abcl genera) '*default-pathname-defaults*)))
+             ,(or defaults #-(or abcl genera xcl) '*nil-pathname* #+(or abcl genera xcl) '*default-pathname-defaults*)))
        ,@body)))
 
 
