@@ -24,8 +24,8 @@
   (setf dir (normalize-pathname-directory-component dir))
   (loop
    :with head = (progn
-		  (unless (and (consp dir) (cdr dir)) (return dir))
-		  (subseq dir 0 1))
+                  (unless (and (consp dir) (cdr dir)) (return dir))
+                  (subseq dir 0 1))
    :with tail = (rest dir)
    :for (next rest) :on tail :do
    (unless (equal next ".")
@@ -64,9 +64,9 @@
                    (setf true dir)))
              (assert-pathname-equal true (truename (ensure-directory-pathname file)))
              (assert-pathname-equal true (nest #+(and clisp windows) (ensure-directory-pathname)
-					       (truename* file))
+                                               (truename* file))
              (assert-pathname-equal true (nest #+(or allegro (and clisp windows)) (ensure-directory-pathname)
-					       (probe-file* file :truename t)))
+                                               (probe-file* file :truename t)))
              (assert-pathname-equal true (if-let (x (probe-file* file))
                                            (ensure-absolute-pathname (ensure-directory-pathname x) 'get-pathname-defaults))))
            (check-directory-doesnt-exist (file)
@@ -99,7 +99,7 @@
       (check-true-dpd-test))
 
     #-(or abcl genera xcl ;; on these platforms, chdir changes D-P-D so these tests are not meaningful
-	  (and sbcl os-windows)) ;; SBCL on Windows really hates a relative D-P-D.
+          (and sbcl os-windows)) ;; SBCL on Windows really hates a relative D-P-D.
     (progn
       ;; SBCL hates to get (truename #p"") when D-P-D is itself #p"". See https://bugs.launchpad.net/sbcl/+bug/1472414
       (DBG "4"
@@ -122,7 +122,7 @@
 
     ;; For the rest of this test, use these:
     (setf *default-pathname-defaults* (nil-pathname))
-    (chdir test-directory)))
+    (chdir test-directory))))
 
 (assert
  (every #'directory-pathname-p
