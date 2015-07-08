@@ -64,7 +64,7 @@
                    (setf true dir)))
              (assert-pathname-equal true (truename (ensure-directory-pathname file)))
              (assert-pathname-equal true (nest #+(and clisp windows) (ensure-directory-pathname)
-                                               (truename* file))
+                                               (truename* file)))
              (assert-pathname-equal true (nest #+(or allegro (and clisp windows)) (ensure-directory-pathname)
                                                (probe-file* file :truename t)))
              (assert-pathname-equal true (if-let (x (probe-file* file))
@@ -122,7 +122,7 @@
 
     ;; For the rest of this test, use these:
     (setf *default-pathname-defaults* (nil-pathname))
-    (chdir test-directory))))
+    (chdir test-directory)))
 
 (assert
  (every #'directory-pathname-p
