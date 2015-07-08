@@ -168,14 +168,14 @@ Some constraints:
         qx x (pathname-components x)
         qy y (pathname-components y)))
     ;; accept equalp namestrings, to account for case-independent filesystems
-    ((equalp (namestring x) (namestring y))
+    ((equalp (and x (namestring x)) (and y (namestring y)))
      (warn "These two expressions yield pathnames that have equalp namestrings yet are not pathname-equal~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
         the other expression ~S yields that:~%  ~S~%  ~S~%"
         qx x (pathname-components x)
         qy y (pathname-components y)))
     (t
-     (error "These two expressions yield paths that are equal in any way:~%~
+     (error "These two expressions yield paths that are not equal in any way:~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
         the other expression ~S yields that:~%  ~S~%  ~S~%"
         qx x (pathname-components x)
