@@ -113,6 +113,7 @@
 *** it somehow pushes :non-base-chars-exist-p even though +non-base-chars-exist-p+ is NIL???
 
 ** XCL has bad bugs:
+*** it can't compile ASDF3 anymore. Figure out why, if you have time.
 *** make-pathname doesn't handle :type nil properly and
     has massive lossage in logical-pathname support.
 *** If using block () and return in search-for-system-definition

@@ -1,6 +1,7 @@
 ;;; -*- Lisp -*-
 
 #+(and sbcl os-windows) (trace sb-ext:run-program)
+(proclaim '(optimize (debug 3) (speed 1) (safety 3) (compilation-speed 0)))
 
 (defun getcwd-from-run-program ()
   (uiop:parse-native-namestring
@@ -14,19 +15,93 @@
      :output '(:string :stripped t)))
    :ensure-directory t))
 
-(let ((asdf-directory (truename *asdf-directory*)))
-  (chdir asdf-directory)
-  (assert-pathname-equal asdf-directory (getcwd))
-  #-(and sbcl os-windows)
-  (assert-pathname-equal asdf-directory (getcwd-from-run-program))
-  (assert (probe-file* "asdf.asd")))
+(let ((asdf-directory (truename *asdf-directory*))
+      (test-directory (truename *test-directory*)))
+  (labels ((check-cwd (dir)
+             (assert-pathname-equal dir (getcwd))
+             #-(and sbcl os-windows)
+             (assert-pathname-equal dir (getcwd-from-run-program)))
+           (check-true-dpd (dir)
+             (assert-pathname-equal dir (get-pathname-defaults))
+             (assert-pathname-equal dir (truename #p"./"))
+             (assert-pathname-equal dir (truename* #p"./")))
+           (check-file-exists (file &optional true)
+             (setf file (parse-unix-namestring file))
+             (if true
+                 (assert-pathname-equal true (probe-file file))
+                 (setf true (probe-file file)))
+             (assert-pathname-equal true (truename file))
+             (assert-pathname-equal true (truename* file))
+             (assert-pathname-equal true (probe-file* file :truename t))
+             (assert-pathname-equal true (ensure-absolute-pathname (probe-file* file) 'get-pathname-defaults)))
+           (check-file-doesnt-exist (file)
+             (setf file (parse-unix-namestring file))
+             (assert-equal nil (probe-file* file))
+             (assert-equal nil (probe-file file)))
+           (check-directory-exists (file &optional true)
+             (setf file (parse-unix-namestring file))
+             (let ((dir (truename (ensure-directory-pathname file))))
+               (if true
+                   (assert-pathname-equal true dir)
+                   (setf true dir)))
+             (assert-pathname-equal true (truename (ensure-directory-pathname file)))
+             (assert-pathname-equal true (truename* file))
+             (assert-pathname-equal true (nest #+allegro (ensure-directory-pathname) (probe-file* file :truename t)))
+             (assert-pathname-equal true (if-let (x (probe-file* file))
+                                           (ensure-absolute-pathname (ensure-directory-pathname x) 'get-pathname-defaults))))
+           (check-directory-doesnt-exist (file)
+             (setf file (parse-unix-namestring file))
+             (assert-equal nil (probe-file* file)))
+           (check-true-dpd-asdf ()
+             (check-true-dpd asdf-directory)
+             (check-file-exists "asdf.asd")
+             (check-file-exists "test/test-utilities.script")
+             (check-directory-exists "tools/")
+             (check-directory-exists "tools")
+             (check-file-doesnt-exist "test-utilities.script")
+             (check-directory-doesnt-exist "stamp-propagation/"))
+           (check-true-dpd-test ()
+             (check-true-dpd test-directory)
+             (check-file-exists "test-utilities.script")
+             (check-directory-exists "stamp-propagation/")
+             (check-directory-exists "stamp-propagation")
+             (check-file-doesnt-exist "test/test-utilities.script")
+             (check-directory-doesnt-exist "tools/")))
 
-(let ((test-directory (truename *test-directory*)))
-  (chdir test-directory)
-  (assert-pathname-equal test-directory (getcwd))
-  #-(and sbcl os-windows)
-  (assert-pathname-equal test-directory (getcwd-from-run-program))
-  (assert (probe-file* "test-utilities.script")))
+    (DBG "1" (chdir asdf-directory) (setf *default-pathname-defaults* asdf-directory))
+    (check-true-dpd-asdf)
+
+    (DBG "2" (chdir test-directory) (setf *default-pathname-defaults* test-directory))
+    (check-true-dpd-test)
+
+    (with-expected-failure (#+gcl t)
+      (DBG "3" (chdir asdf-directory) (setf *default-pathname-defaults* test-directory))
+      (check-true-dpd-test))
+
+    #-(or abcl genera xcl) ;; on these platforms, chdir changes D-P-D so these tests are not meaningful
+    (progn
+      ;; SBCL hates to get (truename #p"") when D-P-D is itself #p"". See https://bugs.launchpad.net/sbcl/+bug/1472414
+      (DBG "4"
+           (setf *default-pathname-defaults* (nil-pathname)) ;; make things relative to GETCWD
+           (chdir asdf-directory)) ;; note: may or may not change *default-pathname-defaults* to an absolute pathname.
+      (check-true-dpd-asdf)
+      (DBG "5"
+           *default-pathname-defaults*
+           (chdir test-directory)) ;; note: may or may not change *default-pathname-defaults* to an absolute pathname.
+      (check-true-dpd-test)
+
+      ;; On implementations where chdir doesn't side-effect D-P-D, we can have D-P-D be relative to GETCWD...
+      ;; except on allegro, that hates this trick.
+      (with-expected-failure (#+(or allegro gcl) t)
+        (unless (absolute-pathname-p *default-pathname-defaults*)
+          (DBG "6"
+               (chdir asdf-directory)
+               (setf *default-pathname-defaults* (parse-unix-namestring "test/")))
+          (check-true-dpd-test))))
+
+    ;; For the rest of this test, use these:
+    (setf *default-pathname-defaults* (nil-pathname))
+    (chdir test-directory)))
 
 (assert
  (every #'directory-pathname-p
