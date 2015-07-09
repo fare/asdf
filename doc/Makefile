@@ -32,6 +32,7 @@ asdf.pdf: asdf.texinfo version.texinfo
 
 website: all
 	rsync -lt --no-g ${webfiles} ${website}
+	rsync --recursive --no-g --delete asdf ${website}
 	rsync -lt --no-g ../debian/changelog ${website}/changelog
 
 .PHONY: clean intermediate-clean manual-html
