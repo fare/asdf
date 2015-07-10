@@ -24,8 +24,8 @@
   (setf dir (normalize-pathname-directory-component dir))
   (loop
    :with head = (progn
-		  (unless (and (consp dir) (cdr dir)) (return dir))
-		  (subseq dir 0 1))
+                  (unless (and (consp dir) (cdr dir)) (return dir))
+                  (subseq dir 0 1))
    :with tail = (rest dir)
    :for (next rest) :on tail :do
    (unless (equal next ".")
@@ -63,10 +63,12 @@
                    (assert-pathname-equal true dir)
                    (setf true dir)))
              (assert-pathname-equal true (truename (ensure-directory-pathname file)))
-             (assert-pathname-equal true (nest #+(and clisp windows) (ensure-directory-pathname)
-					       (truename* file))
-             (assert-pathname-equal true (nest #+(or allegro (and clisp windows)) (ensure-directory-pathname)
-					       (probe-file* file :truename t)))
+             (assert-pathname-equal true (nest #+(and clisp os-windows) (ensure-directory-pathname)
+                                               (truename* file)))
+             (assert-pathname-equal true
+                                    (let ((path (probe-file* file :truename t)))
+                                      #+(or allegro (and clisp os-windows)) (ensure-directory-pathname path)
+                                      #-(or allegro (and clisp os-windows)) path))
              (assert-pathname-equal true (if-let (x (probe-file* file))
                                            (ensure-absolute-pathname (ensure-directory-pathname x) 'get-pathname-defaults))))
            (check-directory-doesnt-exist (file)
@@ -99,7 +101,7 @@
       (check-true-dpd-test))
 
     #-(or abcl genera xcl ;; on these platforms, chdir changes D-P-D so these tests are not meaningful
-	  (and sbcl os-windows)) ;; SBCL on Windows really hates a relative D-P-D.
+          (and sbcl os-windows)) ;; SBCL on Windows really hates a relative D-P-D.
     (progn
       ;; SBCL hates to get (truename #p"") when D-P-D is itself #p"". See https://bugs.launchpad.net/sbcl/+bug/1472414
       (DBG "4"
@@ -113,7 +115,7 @@
 
       ;; On implementations where chdir doesn't side-effect D-P-D, we can have D-P-D be relative to GETCWD...
       ;; except on allegro, that hates this trick.
-      (with-expected-failure (#+(or allegro gcl) t)
+      (with-expected-failure (#+(or allegro gcl (and clisp os-windows)) t)
         (unless (absolute-pathname-p *default-pathname-defaults*)
           (DBG "6"
                (chdir asdf-directory)

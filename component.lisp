@@ -230,8 +230,8 @@ children.")))
 
   (defmethod component-relative-pathname ((component component))
     ;; SOURCE-FILE-TYPE below is strictly for backward-compatibility with ASDF1.
-    ;; We ought to be able to extract this from the component alone with COMPONENT-TYPE.
-    ;; TODO: track who uses it, and have them not use it anymore;
+    ;; We ought to be able to extract this from the component alone with FILE-TYPE.
+    ;; TODO: track who uses it in Quicklisp, and have them not use it anymore;
     ;; maybe issue a WARNING (then eventually CERROR) if the two methods diverge?
     (parse-unix-namestring
      (or (and (slot-boundp component 'relative-pathname)

@@ -69,6 +69,8 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
       (when (stringp p) (setf p (with-pathname-defaults () (parse-namestring p))))
       (values
        (or (ignore-errors (truename p))
+           ;; this is here because trying to find the truename of a directory pathname WITHOUT supplying
+           ;; a trailing directory separator, causes an error on some lisps.
            #+(or clisp gcl) (if-let (d (ensure-directory-pathname p)) (ignore-errors (truename d)))))))
 
   (defun safe-file-write-date (pathname)
