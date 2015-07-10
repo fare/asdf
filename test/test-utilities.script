@@ -115,7 +115,7 @@
 
       ;; On implementations where chdir doesn't side-effect D-P-D, we can have D-P-D be relative to GETCWD...
       ;; except on allegro, that hates this trick.
-      (with-expected-failure (#+(or allegro gcl) t)
+      (with-expected-failure (#+(or allegro gcl (and clisp os-windows)) t)
         (unless (absolute-pathname-p *default-pathname-defaults*)
           (DBG "6"
                (chdir asdf-directory)
