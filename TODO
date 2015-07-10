@@ -417,7 +417,7 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 
 
 * Faster source-registry:
-   In addition and/or as a substitute to the .cl-source-registry.cache,
+** In addition and/or as a substitute to the .cl-source-registry.cache,
    that is meant to be semi-automatically managed, there could be
    a cl-source-registry.conf meant for manual management:
    when recursing into a source-registry :tree, if such file is present
@@ -431,3 +431,8 @@ It looks like SWANK can be fixed soon, though, so we'll see.
    both a way of speeding up the build of their software and of
    avoiding pollution by test systems that should remain private,
    and that they can otherwise explicitly enable when they need them.
+** The .cl-source-registry.cache should avoid recursing into
+   directories that themselves already have a cache or a .conf file,
+   but instead store the name of these directories,
+   so these files will be read recursively by asdf, allowing for
+   semi-modular updates.
