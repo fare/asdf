@@ -5249,8 +5249,12 @@ and instead you will @code{(defclass cl-source-file.lis (cl-source-file) ((type 
 and use @code{:default-component-class cl-source-file.lis}
 as argument to @code{defsystem},
 as detailed in a @pxref{FAQ,How do I create a system definition where all the source files have a .cl extension?} below.
+@code{source-file-type} is deprecated.  To access a component's
+file-type, use @code{file-type}, instead.  @code{source-file-type} will
+be removed.
 
 @findex source-file-type
+@findex file-type
 
 
 @end itemize
@@ -5663,20 +5667,6 @@ you might skip package complications:
 (defsystem my-cl-system
   :default-component-class cl-source-file.lis
   ...)
-@end lisp
-
-It is possible to achieve the same effect
-in a way that supports both ASDF 1 and ASDF 2,
-but really, friends don't let friends use ASDF 1.
-Please upgrade to ASDF 3.
-In short, though: do same as above, but
-@emph{before} you use the class in a @code{defsystem},
-you also define the following method:
-
-@lisp
-(defmethod source-file-type ((f cl-source-file.lis) (s system))
-  (declare (ignorable f s))
-  "lis")
 @end lisp
 
 @node How do I mark a source file to be loaded only and not compiled?, How do I work with readtables?, How do I create a system definition where all the source files have a .cl extension?, Issues with using and extending ASDF to define systems
