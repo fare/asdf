@@ -58,7 +58,8 @@
    #:static-file #:doc-file #:html-file
    #:file-type #:source-file-type
 
-   #:register-preloaded-system #:register-immutable-system
+   #:register-preloaded-system #:sysdef-preloaded-system-search
+   #:register-immutable-system #:sysdef-immutable-system-search
 
    #:package-inferred-system #:register-system-packages
    #:package-system ;; backward-compatibility during migration, to be removed in a further release.
