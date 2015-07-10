@@ -146,13 +146,12 @@ How do I navigate this source tree?
 * [tools/](tools/)
     * `asdf-tools`, a system to build, test and release ASDF. It includes:
         * [asdf-tools](tools/asdf-tools) -- a shell script to run it as a shell command.
-        * [load-asdf.lisp](tools/load-asdf.lisp) -- how to load ASDF in a self-contained project
         * [asdf-tools.asd](tools/asdf-tools.asd) -- system definition for asdf-tools
-        * `*.lisp` -- the source code for `asdf-tools`
+        * `*.lisp` -- the source code for the `asdf-tools` system, except for the few files below.
     * also a couple scripts to help ASDF users:
-        * [load-asdf.lisp](tools/load-asdf.lisp) -- a build script to load, configure and use ASDF
+        * [load-asdf.lisp](tools/load-asdf.lisp) -- a working example script to load, configure and use ASDF in a self-contained project
         * [install-asdf.lisp](install-asdf.lisp) -- replace and update an implementation's ASDF
-        * [cl-source-registry-cache.lisp](cl-source-registry-cache.lisp) -- update a cache for the source-registry
+        * [cl-source-registry-cache.lisp](cl-source-registry-cache.lisp) -- update a cache for the source-registry as a standalone script.
 
 * [build.xcvb](build.xcvb)
     * The system definition for building ASDF with XCVB.
