@@ -2002,6 +2002,8 @@ are forced not to be recompiled even if modified since last compilation
 If @var{force-not} is a list, then it specifies a list of systems that
 are forced not to be recompiled even if modified since last compilation.
 
+@findex register-immutable-system
+@cindex immutable systems
 Both @var{force} and @var{force-not} apply to systems that are dependencies and were already compiled.
 @var{force-not} takes precedences over @var{force},
 as it should, really, but unhappily only since ASDF 3.1.2.
@@ -2009,6 +2011,7 @@ Moreover, systems which have been registered as immutable by @code{register-immu
 are always considered @var{forced-not}, and even their @file{.asd} are not refreshed from the filesystem.
 @xref{Miscellaneous Functions}.
 
+@findex traverse
 To see what @code{operate} would do, you can use:
 @example
 (asdf:traverse operation-class system-name)
@@ -4578,7 +4581,9 @@ This function (available since ASDF 3.1.5) is particularly useful if
 you distribute a large body of code as a precompiled image,
 and want to allow users to extend the image with further extension systems,
 but without making thousands of filesystem requests looking for inexistent (or worse, out of date) source code
-for all the systems that came bundled with the image but aren't distributed as source code to regular users.
+for all the systems that came bundled with the image but aren't
+distributed as source code to regular users.
+@cindex immutable systems
 @end defun
 
 @defun run-shell-command control-string @Arest{} args
