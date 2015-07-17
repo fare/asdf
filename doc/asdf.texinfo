@@ -1029,13 +1029,7 @@ For advanced users, note that
 @code{already-loaded-systems} returns a list of the names of loaded systems.
 @code{require-system} skips any update to systems that have already been loaded,
 in the spirit of @code{cl:require},
-by calling @code{load-system} with @code{:force-not (already-loaded-systems)}
-(note however that @code{cl:require} deals with implementation-provided modules
-that are unlikely to have been compatibly updated since the current image was started,
-whereas ASDF in general deals with user-provided systems at least one of which
-is typically modified during a development session;
-hence it doesn't usually make sense to check for updates to modules,
-whereas it does usually make sense to check for updates to systems).
+by calling @code{load-system} with @code{:force-not (already-loaded-systems)}.
 
 
 @node Moving on,  , Convenience Functions, Using ASDF
