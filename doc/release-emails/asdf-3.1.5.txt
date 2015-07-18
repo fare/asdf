@@ -1,6 +1,8 @@
 FIXME:  Attach the changelog!!!!
 
-Today I have released ASDF 3.1.5.  As usual many thanks are due to Faré for many bug fixes, clean ups, explanations, etc.  Thanks are also owed to Dave Cooper, for testing on the Windows platform, and identifying many uncaught bugs.
+We would like to announce the release of ASDF 3.1.5, much later than expected, but also much more solid.  As usual many thanks are due to Faré for many bug fixes, clean ups, explanations, etc.  Thanks are also owed to Dave Cooper, for testing on the Windows platform, enabling the maintainers to test on Windows, and identifying many uncaught bugs. Thanks to Anton Vodonosov for testing the release candidate against Quicklisp on cl-test-grid.  Finally, thanks to all who found bugs, provided patches, and used prerelease candidates.
+
+One thing that we have cleaned up that might affect some users is the treatment of the XDG directories.  If you are using Windows and taking advantage of the default search path for the configuration and/or source-registry, then you will find that this path has just changed in incompatible ways. If you have configuration files, you may have to move or copy them from $LOCALAPPDATA/common-lisp/config/ to $LOCALAPPDATA/config/common-lisp/. Meanwhile your cache will be moved from $LOCALAPPDATA/common-lisp/cache/ to $LOCALAPPDATA/cache/common-lisp/. However, you should not have to move your source code, still in subdirectories of $LOCALAPPDATA/common-lisp/source/
 
 We urge implementations that are currently bundling previous versions of ASDF to adopt 3.1.5.  3.1.5 does not introduce any API incompatibilities that we know of, and contains significant bug fixes on multiple platforms and implementations.  See the Changelog (attached) for a list of the major bug fixes.  Details on minor bugfixes can be found at launchpad.net/asdf
 
