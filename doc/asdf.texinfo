@@ -209,11 +209,13 @@ Miscellaneous additional functionality
 
 * Controlling file compilation::
 * Controlling source file character encoding::
+* Miscellaneous Functions::
 * Some Utility Functions::
 
 FAQ
 
 * Where do I report a bug?::
+* Mailing list::
 * What has changed between ASDF 1 ASDF 2 and ASDF 3?::
 * Issues with installing the proper version of ASDF::
 * Issues with configuring ASDF::
@@ -233,6 +235,7 @@ FAQ
 * ASDF can be upgraded::
 * Decoupled release cycle::
 * Pitfalls of the transition to ASDF 2::
+* Pitfalls of the upgrade to ASDF 3::
 * What happened to the bundle operations::
 
 Issues with installing the proper version of ASDF
@@ -4671,7 +4674,7 @@ while others (like SBCL) will make an attempt at invoking a POSIX shell
 (and fail if it is not present).
 @end defun
 
-@node Some Utility Functions,  , Controlling source file character encoding, Miscellaneous additional functionality
+@node Some Utility Functions,  , Miscellaneous Functions, Miscellaneous additional functionality
 @section Some Utility Functions
 
 The below functions are not exported by ASDF itself, but by UIOP, available since ASDF 3.
@@ -4893,6 +4896,7 @@ We recommend you control the syntax with such macro as
 @comment  node-name,  next,  previous,  up
 @chapter Getting the latest version
 
+
 Decide which version you want.
 The @code{master} branch is where development happens;
 its @code{HEAD} is usually OK, including the latest fixes and portability tweaks,
@@ -4910,10 +4914,7 @@ You can also browse the repository on
 @url{https://gitlab.common-lisp.net/asdf/asdf}.
 
 Discussion of ASDF development is conducted on the
-mailing list
-@kbd{asdf-devel@@common-lisp.net}.
-@url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel}
-
+mailing list (@pxref{Mailing list}).
 
 @node FAQ, Ongoing Work, Getting the latest version, Top
 @comment  node-name,  next,  previous,  up
@@ -4921,6 +4922,7 @@ mailing list
 
 @menu
 * Where do I report a bug?::
+* Mailing list::
 * What has changed between ASDF 1 ASDF 2 and ASDF 3?::
 * Issues with installing the proper version of ASDF::
 * Issues with configuring ASDF::
@@ -4928,16 +4930,26 @@ mailing list
 * ASDF development FAQs::
 @end menu
 
-@node Where do I report a bug?, What has changed between ASDF 1 ASDF 2 and ASDF 3?, FAQ, FAQ
+@node Where do I report a bug?, Mailing list, FAQ, FAQ
 @section  ``Where do I report a bug?''
-
+@cindex bug tracker
+@cindex launchpad
 ASDF bugs are tracked on launchpad: @url{https://launchpad.net/asdf}.
 
 If you're unsure about whether something is a bug, or for general discussion,
-use the @url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
+use the asdf-devel mailing list (@pxref{Mailing list}).
+
+@node Mailing list, What has changed between ASDF 1 ASDF 2 and ASDF 3?, Where do I report a bug?, FAQ
+@section Mailing list
+@cindex mailing list
+
+Discussion of ASDF development is conducted on the
+mailing list
+@kbd{asdf-devel@@common-lisp.net}.
+@url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel}
 
 
-@node What has changed between ASDF 1 ASDF 2 and ASDF 3?, Issues with installing the proper version of ASDF, Where do I report a bug?, FAQ
+@node What has changed between ASDF 1 ASDF 2 and ASDF 3?, Issues with installing the proper version of ASDF, Mailing list, FAQ
 @section ``What has changed between ASDF 1, ASDF 2, and ASDF 3?''
 
 We released ASDF 2.000 on May 31st 2010,
@@ -5707,9 +5719,10 @@ ASDF provides a predefined test operation, @code{test-op}.
 The test operation, however, is largely left to the system definer to specify.
 @code{test-op} has been
 a topic of considerable discussion on the
-@url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list},
+@url{http://common-lisp.net/cgi-bin/mailman/listinfo/asdf-devel,asdf-devel mailing list}
+(@pxref{Mailing list}),
 and on the
-@url{https://launchpad.net/asdf,launchpad bug-tracker}.
+@url{https://launchpad.net/asdf,launchpad bug-tracker} (@pxref{Where do I report a bug?}).
 We provide some guidelines in the discussion of @code{test-op}.
 
 @c cut the following because it's discussed in the discussion of test-op.
