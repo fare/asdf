@@ -18,7 +18,8 @@
    #:find-system-if-being-defined
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
-   #:*defined-systems* #:clear-defined-systems #:*immutable-systems* #:register-immutable-system
+   #:sysdef-immutable-system-search #:register-immutable-system #:*immutable-systems*
+   #:*defined-systems* #:clear-defined-systems
    ;; defined in source-registry, but specially mentioned here:
    #:initialize-source-registry #:sysdef-source-registry-search))
 (in-package :asdf/find-system)

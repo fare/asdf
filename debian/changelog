@@ -1,7 +1,10 @@
 cl-asdf (2:3.1.5-1) unstable; urgency=low
 
   Bug fix and portability release:
-  * Add immutable-system support (thanks to Dave Cooper).
+  * Add immutable-system support (thanks to Dave Cooper).  This support
+    should be regarded as preliminary and subject to change.
+  * Substantially improved operation on Windows: many bugfixes and improve-
+    ments to UIOP functions that interface with the operating system.
   * Add CLASP support.
   * Many miscellaneous fixes for issues on individual implementations,
     notably UIOP incompatibility introduced by SBCL 1.2.12, support for
@@ -17,7 +20,7 @@ cl-asdf (2:3.1.5-1) unstable; urgency=low
     prefixes.
   * Documentation improvements.
 
- -- François-René Rideau <fare@tunes.org>  Tue, 09 Jun 2015 12:09:50 -0400
+ -- François-René Rideau <fare@tunes.org>  Sat, 18 Jul 2015 16:51:50 -0500
 
 cl-asdf (2:3.1.4-1) unstable; urgency=low
 

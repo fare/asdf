@@ -1,8 +1,15 @@
 #!/usr/bin/cl -sp asdf -E main
+#|
+Usage:
+    ~/common-lisp/asdf/tools/cl-source-registry-cache.lisp ~/common-lisp
+will compute a cache of the .asd files under ~/common-lisp//
+vastly speeding the future initialization of the source-registry.
+To update the cache, run the same command again.
+To invalidate the cache, remove the cache file in the same directory:
+    rm -f ~/common-lisp/.cl-source-registry.cache
+|#
 
 (in-package :asdf)
-
-(uiop-debug)
 
 (defun collect-asd (table asd)
   (multiple-value-bind (previous foundp)

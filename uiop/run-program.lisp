@@ -31,9 +31,9 @@ as either a recognizing function or a sequence of characters."
      (cond
        ((and good-chars bad-chars)
         (error "only one of good-chars and bad-chars can be provided"))
-       ((typep good-chars '(or function symbol))
+       ((typep good-chars 'function)
         (complement good-chars))
-       ((typep bad-chars '(or function symbol))
+       ((typep bad-chars 'function)
         bad-chars)
        ((and good-chars (typep good-chars 'sequence))
         #'(lambda (c) (not (find c good-chars))))
@@ -83,7 +83,7 @@ for use within a MS Windows command-line, outputing to S."
   (defun escape-windows-token (token &optional s)
     "Escape a string TOKEN within double-quotes if needed
 for use within a MS Windows command-line, outputing to S."
-    (escape-token token :stream s :good-chars 'easy-windows-character-p :quote nil
+    (escape-token token :stream s :good-chars #'easy-windows-character-p :quote nil
                         :escaper 'escape-windows-token-within-double-quotes))
 
   (defun escape-sh-token-within-double-quotes (x s &key (quote t))
@@ -103,7 +103,7 @@ omit the outer double-quotes if key argument :QUOTE is NIL"
   (defun escape-sh-token (token &optional s)
     "Escape a string TOKEN within double-quotes if needed
 for use within a POSIX Bourne shell, outputing to S."
-    (escape-token token :stream s :quote #\" :good-chars 'easy-sh-character-p
+    (escape-token token :stream s :quote #\" :good-chars #'easy-sh-character-p
                         :escaper 'escape-sh-token-within-double-quotes))
 
   (defun escape-shell-token (token &optional s)
