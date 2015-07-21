@@ -45,7 +45,9 @@
     ("uiop/version.lisp-expr" "\"" "\"")
     ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by make bump-version")
     ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
-    ("upgrade.lisp" "   (asdf-version \"" "\")")))
+    ("upgrade.lisp" "   (asdf-version \"" "\")")
+    ("doc/asdf.texinfo" "Manual for Version @value{" "}"))) ;; NB: two occurrences with this pattern.
+
 
 (defparameter *old-version* :default)
 (defparameter *new-version* :default)
@@ -101,7 +103,7 @@
            (constantly (strcat prefix new-version suffix))))
     (lambda (text)
       (multiple-value-bind (new-text foundp)
-          (cl-ppcre:regex-replace regex text replacement)
+          (cl-ppcre:regex-replace-all regex text replacement)
         (unless (or foundp dont-warn)
           (warn "Missing version in ~A" (file-namestring file)))
         (values new-text foundp)))))
