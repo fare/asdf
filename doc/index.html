@@ -39,12 +39,12 @@
           Its notable versions include pre-release 2.27 on February 1st 2013,
           first release 3.0.0 on May 15th 2013,
           major release 3.1.2 on May 6th 2014,
-          and latest release 3.1.4 on October 10th 2014.
+          and latest release 3.1.5 on July 21st 2015.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
         <p>ASDF stands for <em>A</em>nother <em>S</em>ystem <em>D</em>efinition <em>F</em>acility,
-          in the continuity of the Lisp <tt>DEFSYSTEM</tt> of yore.
+          the successor of the Lisp <tt>DEFSYSTEM</tt> of yore.
         </p>
         <p>ASDF 3 contains two parts: <tt>asdf/defsystem</tt> and <tt>uiop</tt>.
         </p>
@@ -60,7 +60,7 @@
               And you must typically compile and load files that define packages, macros, variables,
               before you may compile and load other files that use them.
             </p>
-            <p>It is roughly what Common Lisp hackers use to build and load software
+            <p>ASDF is what Common Lisp hackers use to build and load software,
               where C hackers might use GNU <tt>Make</tt> to build software and
               <tt>ld.so</tt> to load it.
             </p>
@@ -423,9 +423,14 @@ XCL (Peter Graves) <gnooth@gmail.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>July 2015</dt>
+          <dd>An extensive bout of bug-fixing, notably on Windows, leads to
+        release of ASDF 3.1.5 on 21 July 2015. XDG handling has been improved to
+        be more compliant with the standard. <em>Preliminary</em> support for
+        immutable systems has been added.</dd>
           <dt>May 2015</dt>
           <dd>With the LispWorks 7.0 release, all actively maintained CL implementations
-        are now providind ASDF 3.0 or later, and
+        are now providing ASDF 3.0 or later, and
         support for older variants is now officially dropped.</dd>
           <dt>October 2014</dt>
           <dd>More bug fixing leads to release of 3.1.4 on 10 October 2014.
