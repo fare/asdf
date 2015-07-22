@@ -37,7 +37,7 @@
         (t nil))))
   (defun find-symbol* (name package-designator &optional (error t))
     "Find a symbol in a package of given string'ified NAME;
-unless CL:FIND-SYMBOL, work well with 'modern' case sensitive syntax
+unlike CL:FIND-SYMBOL, work well with 'modern' case sensitive syntax
 by letting you supply a symbol or keyword for the name;
 also works well when the package is not present.
 If optional ERROR argument is NIL, return NIL instead of an error
@@ -66,7 +66,7 @@ or when loading the package is optional."
   (defun shadowing-import* (symbol package-designator)
     (shadowing-import (or symbol (list symbol)) (find-package* package-designator)))
   (defun shadow* (name package-designator)
-    (shadow (string name) (find-package* package-designator)))
+    (shadow (list (string name)) (find-package* package-designator)))
   (defun make-symbol* (name)
     (etypecase name
       (string (make-symbol name))
@@ -734,7 +734,7 @@ UNINTERN -- Remove symbols here from PACKAGE."
   (let ((ensure-form
           `(apply 'ensure-package ',(parse-define-package-form package clauses))))
     `(progn
-       #+(or ecl gcl mkcl) (defpackage ,package (:use))
+       #+(or clasp ecl gcl mkcl) (defpackage ,package (:use))
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form))))
 

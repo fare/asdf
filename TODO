@@ -4,8 +4,8 @@
   Already, swank-asdf doesn't support anything older than 2.014.6
   (as provided by the first 2011 iteration of Quicklisp), and
   I (fare) am pushing for swank-asdf to not support anything older
-  than 2.019 (still used by LispWorks 6.1).
-  Hopefully, sometime in 2014, everyone will have adopted ASDF 3.0.1, or even 3.1.2.
+  than 3.0 (since no maintained implementation has anything older,
+  with the LispWorks 7.0 release being last to upgrade, in May 2015).
   Maybe remove old versions from upgrade tests; or maybe not:
   if we support old versions in any way,
   it should be for upgrade only, and "punt" is acceptable.
@@ -105,12 +105,15 @@
     but possibly also triggered by the non-standard declaim.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
+*** It purports to support Unicode, but it has only 16-bit characters.
+   Note that (subtypep 'character 'base-char) says T -- everything is a base char(!)
 
 ** SCL has bugs:
 *** it doesn't like run-program from a modified directory?
 *** it somehow pushes :non-base-chars-exist-p even though +non-base-chars-exist-p+ is NIL???
 
 ** XCL has bad bugs:
+*** it can't compile ASDF3 anymore. Figure out why, if you have time.
 *** make-pathname doesn't handle :type nil properly and
     has massive lossage in logical-pathname support.
 *** If using block () and return in search-for-system-definition
@@ -131,7 +134,16 @@
 *** XCL doesn't properly process files the name of which contains a *
 
 ** GCL is almost working again; but implementation bugs remain.
-   See November 2013 discussion on gcl-devel.
+   See Francois-Rene Rideau's messages on gcl-devel starting November 2013.
+*** Missing support for many UIOP functions:
+   combine-fasls, get-optimization-settings...
+*** ASDF may now be included for (require "asdf") and (require "ASDF"),
+    but how to compile it properly?
+*** GCL fails to properly compile ASDF with the default compilation settings,
+   but works with those in script-support.lisp.
+   Symptoms when trying to load asdf.o:
+   Signalled by "AN ANONYMOUS FUNCTION".
+   INTERNAL-SIMPLE-ERROR: The package named ASDF/INTERFACE, does not exist
 *** Another GCL compiler bug:
    when I changed the definition of getcwd from
    (let ((*default-pathname-defaults* #p"")) (truename #p"")) to
@@ -143,11 +155,11 @@
    before `(#',beforef)) ,@(when after `(#',afterf))))
 *** (typep p 'logical-pathname) should be T if p has a logical-pathname host.
 *** apropos is case-sensitive and returns a same symbol many times
+   (presumably once per package where it is present,
+   instead of just once for its home package)
 *** compile-file fails to return proper secondary values in case of non-style WARNING.
 *** (pathname-directory #p"foo/") is incorrectly ("foo") instead of (:RELATIVE "foo")
-*** Missing: chdir, combine-fasls, and plenty more UIOP functions.
 *** Do whatever it takes to pass the asdf tests, add the above?
-*** Have (require "asdf") and (require "ASDF") both work.
 *** Trying to uiop:slurp-stream-forms from a stream with #+(or) :foo
    (or read-file-forms from an file with same) results in an error,
    rather than nil. This is probably a bug in #+ processing.
@@ -155,14 +167,12 @@
    /etc/common-lisp/asdf-output-translations.conf.d/01-common-lisp-controller.conf
 *** Tests that try to catch an error fail (but catching a warning succeeds),
    which suggests brokenness in handler-bind and/or error.
+*** COMPILE-FILE* fails due to handler-bind error in
+   with-muffled-compiler-conditions or so.
 *** `#5(1 ,@`(2 3)))` returns #(1 2 3),
      rather than #(1 2 3 2 3 2 3 2 3) or even better #(1 2 3 3 3).
 *** (DIRECTORY #p"*.*") fails to match files with pathname type NIL.
 *** GCL doesn't properly process files the name of which contains a *
-*** Require is useless, because there is no system search path,
-   and so you can't put ASDF (or anything) there.
-*** Low-level compiler bug:
-   ./cl-launch.sh -B redo_test sh gcl exec noupdate noinc file system noinit
 
 ** ABCL has a few bugs.
 *** ABCL fails the timestamp propagation test.
@@ -172,9 +182,10 @@
 
 ** ECL has issues with its bundles.
    On MacOS X, test-bundle.script fails.
-   On Linux, test-program.script fails with recent ECL 237af2e,
-   but used to work quite fine earlier in 2013.
 *** ECL doesn't properly process files the name of which contains a *
+
+** Allegro fails to parse argv the correct Windows way wrt C++ escaping conventions.
+   Is this (still) the case? What about LispWorks? Other implementations?
 
 * Design & Implement some out-of-line configuration mechanism for various options?
   i.e. let configuration files override some variables around some actions.
@@ -226,7 +237,7 @@
 * Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
    :centralize-lisp-binaries t :default-toplevel-directory *fasl-dir*)
-** Or deprecate and remove ABL compatibility altogether?
+** Or deprecate and remove ABL compatibility altogether? Move it to contrib?
    No one has been using ASDF1 for years.
    There is no ABL to be compatible with —
    is anyone still using the compatibility mode?
@@ -369,6 +380,14 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** czak@google.com rewrote part of deferred warnings support.
    Ask him for the code he implemented at Google.
 
+** Ensure all run-program issues on Windows are solved.
+*** SBCL cannot do raw CMD.EXE command-lines
+*** We don't seem to properly escape CRLF in escape-windows-token,
+   or maybe it is, but CMD.EXE does the wrong thing in them,
+   so the semantics depend on whether it's used,
+   or maybe it's CCL eating them while parsing, or maybe not, etc.
+   In any case, this requires clarification.
+
 ** define-package cannot deal with symbols moving "forward".
 *** document that THOU SHALT NOT USE :RECYCLE with packages previously
    defined by define-package when building from scratch.
@@ -469,3 +488,24 @@ style. Unhappily some of the constraints are not enforceable (2A and
 So my next question is: do you want to safely support these
 conventions? Do your systems modify the current *readtable* structure,
 or do they bind *readtable* to a new value?
+
+* Faster source-registry:
+** In addition and/or as a substitute to the .cl-source-registry.cache,
+   that is meant to be semi-automatically managed, there could be
+   a cl-source-registry.conf meant for manual management:
+   when recursing into a source-registry :tree, if such file is present
+   (or if not, if a hidden .cl-source-registry.conf is present instead?),
+   its contents is read as a (:source-registry ...) specification, and
+   replaces the actual or notional (:tree ...) for the current directory;
+   it may then include :file entries as well as :directory and :tree entries,
+   whereby the programmer can explicitly give a definitive list of
+   systems exported by his software, while excluding any test system
+   that he doesn't want to export. This means that developers have
+   both a way of speeding up the build of their software and of
+   avoiding pollution by test systems that should remain private,
+   and that they can otherwise explicitly enable when they need them.
+** The .cl-source-registry.cache should avoid recursing into
+   directories that themselves already have a cache or a .conf file,
+   but instead store the name of these directories,
+   so these files will be read recursively by asdf, allowing for
+   semi-modular updates.

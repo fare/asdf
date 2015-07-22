@@ -92,7 +92,7 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   ;; This will be :unspecific if supported, or NIL if not.
   (defparameter *unspecific-pathname-type*
     #+(or abcl allegro clozure cmu genera lispworks sbcl scl) :unspecific
-    #+(or clisp ecl mkcl gcl xcl #|These haven't been tested:|# cormanlisp mcl) nil
+    #+(or clasp clisp ecl mkcl gcl xcl #|These haven't been tested:|# cormanlisp mcl) nil
     "Unspecific type component to use with the underlying implementation's MAKE-PATHNAME")
 
   (defun make-pathname* (&rest keys &key (directory nil)
@@ -203,9 +203,14 @@ when merging, making or parsing pathnames"
 when merging, making or parsing pathnames")
 
   (defmacro with-pathname-defaults ((&optional defaults) &body body)
-    "Execute BODY in a context where the *DEFAULT-PATHNAME-DEFAULTS* are as neutral as possible
-when merging, making or parsing pathnames"
-    `(let ((*default-pathname-defaults* ,(or defaults '*nil-pathname*))) ,@body)))
+    "Execute BODY in a context where the *DEFAULT-PATHNAME-DEFAULTS* is as specified,
+where leaving the defaults NIL or unspecified means a (NIL-PATHNAME), except
+on ABCL, Genera and XCL, where it remains unchanged for it doubles as current-directory."
+    `(let ((*default-pathname-defaults*
+             ,(or defaults
+                  #-(or abcl genera xcl) '*nil-pathname*
+                  #+(or abcl genera xcl) '*default-pathname-defaults*)))
+       ,@body)))
 
 
 ;;; Some pathname predicates
@@ -354,7 +359,7 @@ will be treated as part of the directory path.
 
 An empty string is thus read as meaning a pathname object with all fields nil.
 
-Note that : characters will NOT be interpreted as host specification.
+Note that colon characters #\: will NOT be interpreted as host specification.
 Absolute pathnames are only appropriate on Unix-style systems.
 
 The intention of this function is to support structured component names,
@@ -404,9 +409,9 @@ For an empty type, *UNSPECIFIC-PATHNAME-TYPE* is returned."
     "Coerce NAME into a PATHNAME using standard Unix syntax.
 
 Unix syntax is used whether or not the underlying system is Unix;
-on such non-Unix systems it is only usable but for relative pathnames;
-but especially to manipulate relative pathnames portably, it is of crucial
-to possess a portable pathname syntax independent of the underlying OS.
+on such non-Unix systems it is reliably usable only for relative pathnames.
+This function is especially useful to manipulate relative pathnames portably,
+where it is of crucial to possess a portable pathname syntax independent of the underlying OS.
 This is what PARSE-UNIX-NAMESTRING provides, and why we use it in ASDF.
 
 When given a PATHNAME object, just return it untouched.
@@ -424,8 +429,8 @@ The last #\\/-separated substring is interpreted as follows:
  are separated by SPLIT-NAME-TYPE.
 3- If TYPE is a string, it is the given TYPE, and the whole string is the NAME.
 
-Directory components with an empty name the name . are removed.
-Any directory named .. is read as DOT-DOT,
+Directory components with an empty name or the name \".\" are removed.
+Any directory named \"..\" is read as DOT-DOT,
 which must be one of :BACK or :UP and defaults to :BACK.
 
 HOST, DEVICE and VERSION components are taken from DEFAULTS,
@@ -572,7 +577,7 @@ when used with MERGE-PATHNAMES* with defaults BASE-PATHNAME, returns MAYBE-SUBPA
          (absolute-pathname-p maybe-subpath) (absolute-pathname-p base-pathname)
          (directory-pathname-p base-pathname) (not (wild-pathname-p base-pathname))
          (pathname-equal (pathname-root maybe-subpath) (pathname-root base-pathname))
-         (with-pathname-defaults ()
+         (with-pathname-defaults (*nil-pathname*)
            (let ((enough (enough-namestring maybe-subpath base-pathname)))
              (and (relative-pathname-p enough) (pathname enough))))))
 
@@ -656,9 +661,10 @@ given DEFAULTS-PATHNAME as a base pathname."
   (defun directorize-pathname-host-device (pathname)
     "Given a PATHNAME, return a pathname that has representations of its HOST and DEVICE components
 added to its DIRECTORY component. This is useful for output translations."
-    #+(or unix abcl)
-    (when (and #+abcl (os-unix-p) (physical-pathname-p pathname))
-      (return-from directorize-pathname-host-device pathname))
+    (os-cond
+     ((os-unix-p)
+      (when (physical-pathname-p pathname)
+        (return-from directorize-pathname-host-device pathname))))
     (let* ((root (pathname-root pathname))
            (wild-root (wilden root))
            (absolute-pathname (merge-pathnames* pathname root))

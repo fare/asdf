@@ -1,32 +1,26 @@
 ;;; -*- Lisp -*-
 (DBG :foo (current-lisp-file-pathname))
 
-(unless (or #+(or allegro clisp clozure cmu (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
+(unless (or #+(or allegro (and clisp os-unix) clozure cmu (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
 
 (assert (find-system :hello-world-example))
 
-#+allegro
-(defparameter *lisp*
-  (let ((argv0 (parse-native-namestring (first (raw-command-line-arguments)))))
-    (or (absolute-pathname-p argv0)
-        (truename (subpathname #p"sys:" argv0)))))
+(trace run-program #+(and sbcl os-windows) sb-ext:run-program)
 
 ;; Try to load lisp-invocation from xcvb
-(setf *central-registry*
-      (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
-            *uiop-directory*
-            ;; try finding xcvb's lisp-invocation right next to asdf.
-            (subpathname *asdf-directory* "../lisp-invocation/")))
+(initialize-source-registry
+ `(:source-registry
+   (:directory ,*asdf-directory*)
+   (:directory (,*asdf-directory* "uiop/"))
+   (:tree (,*asdf-directory* "ext/"))
+   :inherit-configuration))
 (unless (find-system :lisp-invocation nil)
-  ;; try harder by enabling the user's source-registry
-  (initialize-source-registry ""))
-(unless (find-system :lisp-invocation nil)
-  (leave-test "Couldn't find lisp-invocation. Skipping the rest of the test." 0))
-(load-system :lisp-invocation)
-(unless (version-satisfies (find-system :lisp-invocation) "1.0.1")
-  (leave-test "Lisp-invocation library isn't new enough to test successfully. Skipping test-program." 0))
+  (leave-test "Couldn't find lisp-invocation. Probably your ASDF ext/ directory needs submodule update." 1))
+(unless (version-satisfies (find-system "lisp-invocation") "1.0.12")
+  (leave-test "Lisp-invocation library isn't new enough to test successfully. Probably your ASDF ext/ directory needs submodule update." 1))
+(load-system "lisp-invocation/all")
 ;; Disable any user source registry.
 (initialize-source-registry `(:source-registry :ignore-inherited-configuration))
 
@@ -35,10 +29,10 @@
    0
    (nth-value 2
     (lisp-invocation:invoke-lisp
-     #+allegro :lisp-path #+allegro *lisp*
+     :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
      :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
-     :eval (format nil "(asdf-test::make-hello-~a)" kind)
+     :eval (format nil "(asdf-test::make-hello-~(~a~))" kind)
      :run-program-args
      `(:input nil :ignore-error-status t
        :output (,*standard-output* :linewise t :prefix "stdout: ")
@@ -52,25 +46,28 @@
   (delete-file-if-exists img)
   (DBG "- first create an executable image")
   (make-hello-world 'image)
+  #+cmu
+  (unless (probe-file* img)
+    (leave-test "CMUCL seemingly can't find the 32-bit compiler and libraries required to dump images. Aborting test." 0))
   (assert (probe-file* img) () "Can't find image file ~S" img)
 
-  (DBG "- then, use it")
+  (DBG "- then use this executable image")
   (assert-equal
    (nest
     #+lispworks (last)
     (lisp-invocation:invoke-lisp
-     #+allegro :lisp-path #+allegro *lisp*
+     :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
      :image-path (native-namestring img)
      :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
      :run-program-args '(:output :lines :error-output t)))
    '("hello, world"))
 
-  (DBG "- now, use it with arguments")
+  (DBG "- now, use this executable image with arguments")
   #-(or lispworks scl) ;; These can't be passed arguments the normal way
   (assert-equal
    (lisp-invocation:invoke-lisp
-    #+allegro :lisp-path #+allegro *lisp*
+    :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
     :image-path (native-namestring img)
     :cross-compile nil
     :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
@@ -100,11 +97,11 @@
   (make-hello-world 'program)
   (assert (probe-file* exe) () "Can't find executable file ~S" exe)
 
-  (DBG "- use that")
+  (DBG "- use that standalone program")
   (assert-equal (run-program `(,(native-namestring exe)) :output :lines :error-output t)
                 '("hello, world"))
 
-  (DBG "- use that with arguments")
+  (DBG "- use that standalone program with arguments")
   (assert-equal (run-program `(,(native-namestring exe) "a" "b c" "d") :output :lines :error-output t)
                 '("hello, world"
                   "You passed 3 arguments:"

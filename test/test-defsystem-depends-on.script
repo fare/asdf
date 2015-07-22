@@ -1,5 +1,7 @@
 ;;-*- Lisp -*-
 
+(in-package :asdf-test)
+
 (def-test-system test-defsystem-depends-on-1
   :defsystem-depends-on (test-asdf/l-file)
   :default-component-class "l-file:cl-source-file.l"
@@ -28,3 +30,11 @@
   :components ((:file "file3")))
 
 (signals asdf::formatted-system-definition-error (make :test-defsystem-depends-on-3))
+
+(defparameter *newsym* (gentemp (symbol-name 'feature) :keyword))
+
+;;; FIXME: the following form triggers bug https://bugs.launchpad.net/asdf/+bug/1445638
+(eval `(def-test-system test-defsystem-depends-on-4
+         :defsystem-depends-on ((:feature ,*newsym* "test-defsystem-depends-on-3"))))
+
+(assert (find-system "test-defsystem-depends-on-4"))

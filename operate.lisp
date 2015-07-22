@@ -161,19 +161,26 @@ to load it in current image."
     (apply 'operate 'test-op system args)
     t))
 
-
-;;;; Define require-system, to be hooked into CL:REQUIRE when possible,
-;; i.e. for ABCL, CLISP, ClozureCL, CMUCL, ECL, MKCL and SBCL
+;;;;; Define the function REQUIRE-SYSTEM, that, similarly to REQUIRE,
+;; only tries to load its specified target if it's not loaded yet.
 (with-upgradability ()
-  (defun component-loaded-p (c)
-    (action-already-done-p nil (make-instance 'load-op) (find-component c ())))
+  (defun component-loaded-p (component)
+    "has given COMPONENT been successfully loaded in the current image (yet)?"
+    (action-already-done-p nil (make-instance 'load-op) (find-component component ())))
 
   (defun already-loaded-systems ()
+    "return a list of the names of the systems that have been successfully loaded so far"
     (remove-if-not 'component-loaded-p (registered-systems)))
 
-  (defun require-system (s &rest keys &key &allow-other-keys)
-    (apply 'load-system s :force-not (already-loaded-systems) keys))
+  (defun require-system (system &rest keys &key &allow-other-keys)
+    "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but skip any update to the
+system or its dependencies if they have already been loaded."
+    (apply 'load-system system :force-not (already-loaded-systems) keys)))
 
+
+;;;; Define the class REQUIRE-SYSTEM, to be hooked into CL:REQUIRE when possible,
+;; i.e. for ABCL, CLISP, ClozureCL, CMUCL, ECL, MKCL and SBCL
+(with-upgradability ()
   (defvar *modules-being-required* nil)
 
   (defclass require-system (system)

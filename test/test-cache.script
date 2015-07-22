@@ -2,8 +2,7 @@
 
 ;;; test to check that the cache doesn't upset error signaling from FIND-SYSTEM
 
-
-(in-package asdf-test)
+(in-package :asdf-test)
 
 (defparameter *all-systems*
   (list
@@ -25,7 +24,7 @@
 
 (defun clear-caches-and-search ()
   (setf asdf:*central-registry* nil)
-  (mapc #'asdf/find-system:clear-defined-system *all-systems*))
+  (mapc #'clear-system *all-systems*))
 
 (clear-caches-and-search)
 (assert (not (asdf:find-system "test-asdf/force1" nil)))

@@ -1,4 +1,4 @@
-;;;;; A few essential debugging utilities by Faré,
+;;;;; A few essential debugging utilities by fare@tunes.org,
 ;;;;; to be loaded in the *PACKAGE* that you wish to debug.
 ;;
 ;; We want debugging utilities in the _current_ package,

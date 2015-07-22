@@ -12,24 +12,32 @@ intermediate = asdf.cps asdf.log asdf.vr asdf.aux asdf.fn asdf.toc asdf.vrs \
 
 all:	asdf.html asdf.info asdf.pdf manual-html
 
-manual-html: asdf.texinfo
-	makeinfo --html asdf.texinfo
+version.texinfo: ../version.lisp-expr
+	head -n 1 $^ | perl -ne 'm|\"(.*)\"|; print "\@set VERSION $$1\n"' > $@
 
-asdf.html: asdf.texinfo
-	makeinfo --html --no-split --no-headers -o asdf.html asdf.texinfo
+manual-html: asdf.texinfo version.texinfo
+	makeinfo --html asdf.texinfo \
+	2>&1 > manual-html.log || { echo "failed. See log in manual-html.log" ; exit 1 ;}
 
-asdf.info: asdf.texinfo
+asdf.html: asdf.texinfo version.texinfo
+	makeinfo --html --no-split --no-headers -o asdf.html asdf.texinfo \
+	2>&1 > asdf.html.log || { echo "failed. See log in asdf.html.log" ; exit 1 ;}
+
+asdf.info: asdf.texinfo version.texinfo
 	makeinfo asdf.texinfo
 
-asdf.pdf: asdf.texinfo
-	texi2pdf asdf.texinfo
+asdf.pdf: asdf.texinfo version.texinfo
+	texi2pdf asdf.texinfo \
+	2>&1 > asdf.pdf.log || { echo "failed. See log in asdf.pdf.log" ; exit 1 ;}
 
 website: all
-	rsync -av ${webfiles} ${website}
+	rsync -lt --no-g ${webfiles} ${website}
+	rsync --recursive --no-g --delete asdf ${website}
+	rsync -lt --no-g ../debian/changelog ${website}/changelog
 
-.PHONY: clean veryclean manual-html
-clean:
+.PHONY: clean intermediate-clean manual-html
+intermediate-clean:
 	rm -f ${intermediate}
-veryclean: clean
+clean: intermediate-clean
 	rm -f asdf.html asdf.pdf asdf.info
 	rm -rf asdf/ asdf.t2d/

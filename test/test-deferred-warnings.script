@@ -28,6 +28,8 @@
   :depends-on (:unintern-foo)
   :serial t
   :components ((:file "use-setf-foo") (:file "defsetf-foo")))
+(def-test-system :undefined-variables
+  :components ((:file "fun-with-undefined-locals")))
 
 (DBG :tdw0 *compile-file-warnings-behaviour*)
 (handler-bind
@@ -74,24 +76,32 @@
 
 (load-system :use-setf-then-defun-foo)
 
-;;#+clozure (format t "~S~%" asdf/lisp-build::*warnings*)
-;;#+clozure (trace load compile-file check-deferred-warnings check-lisp-compile-warnings)
-
 ;; FIXME: on CCL, the defmacro warning is found while loading the defmacro fasl.
 ;; We should probably beef up the detection in reify-deferred-warnings,
 ;; possibly file a bug.
-#-clozure
-(assert
- (handler-case
-     (load-system :use-then-defmacro-foo :force t)
-   ((or compile-file-error compile-warned-error) () t)
-   ;;(t (c) (DBG :utdf0 c))
-   (:no-error (&rest values) (DBG :utdf1 values) nil)))
+(with-expected-failure (#+clozure "CCL warns while loading, not compiling")
+  (assert
+   (handler-case
+       (load-system :use-then-defmacro-foo :force t)
+     ((or compile-file-error compile-warned-error) () t)
+     ;;(t (c) (DBG :utdf0 c))
+     (:no-error (&rest values) (DBG :utdf1 values) nil))))
 
-#-clozure
-(assert
- (handler-case
-     (load-system :use-setf-then-defsetf-foo :force t)
-   ((or compile-file-error compile-warned-error) () t)
-   ;;(t (c) (DBG :ustdf0 c))
-   (:no-error (&rest values) (DBG :ustdf1 values) nil)))
+(with-expected-failure (#+clozure "CCL warns while loading, not compiling")
+  (assert
+   (handler-case
+       (load-system :use-setf-then-defsetf-foo :force t)
+     ((or compile-file-error compile-warned-error) () t)
+     ;;(t (c) (DBG :ustdf0 c))
+     (:no-error (&rest values) (DBG :ustdf1 values) nil))))
+
+(errors #+(or allegro clozure) compile-file-error
+        #+(or cmu scl) compile-warned-error
+        #+sbcl compile-failed-error
+        (let ((*compile-file-warnings-behaviour* :error))
+          (load-system :undefined-variables :force t)))
+(errors #+(or allegro clozure) compile-file-error
+        #+(or cmu scl) null
+        #+sbcl compile-failed-error
+        (let ((*compile-file-warnings-behaviour* :warning))
+          (load-system :undefined-variables :force t)))

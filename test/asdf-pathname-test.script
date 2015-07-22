@@ -1,8 +1,5 @@
 ;;; -*- Lisp -*-
 
-(defpackage :asdf-pathname-test (:use :asdf :uiop :uiop/common-lisp :asdf/cache :asdf-test))
-(in-package :asdf-pathname-test)
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #-(or xcl gcl) (push :asdf-test-logical-pathname *features*)
   #+xcl (push :buggy-untyped-file *features*))
@@ -418,6 +415,31 @@
       (setf (logical-pathname-translations "ASDFTEST") nil))
     (clear-system "test-system")))
 
+(defun test-pathname-parsing ()
+  #-(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
+  (DBG "Can't test pathname parsing: this lisp lacks SETENV support.")
+  #+(or allegro clisp clozure cmu ecl lispworks mkcl sbcl)
+  (let ((old-config (uiop:getenvp "XDG_CONFIG_DIRS"))
+        (old-home-config (uiop:getenvp "XDG_CONFIG_HOME")))
+    (unwind-protect
+         (progn
+           (setf (uiop:getenv "XDG_CONFIG_DIRS") "/foo:prismatic")
+           (multiple-value-bind (ret err)
+               (ignore-errors
+                (uiop:xdg-config-pathnames))
+             (assert (and (not ret) err)))
+           (setf (uiop:getenv "XDG_CONFIG_DIRS") "/foo:")
+           (setf (uiop:getenv "XDG_CONFIG_HOME") "")
+           (multiple-value-bind (ret err)
+               (ignore-errors
+                (uiop:xdg-config-pathnames))
+             (assert (not err))
+             (assert (= (length ret) 2))))
+      (when old-config
+        (setf (uiop:getenv "XDG_CONFIG_DIRS") old-config))
+      (when old-home-config
+        (setf (uiop:getenv "XDG_CONFIG_HOME") old-home-config)))))
+
 (asdf:initialize-source-registry)
 (format t "source registry: ~S~%" (hash-table->alist asdf::*source-registry*))
 (asdf:initialize-output-translations)
@@ -437,5 +459,8 @@
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-1))))
 (assert (directory-pathname-p (system-source-directory (find-system :test-asdf/test-source-directory-2))))
 
-#-gcl
+#-gcl ;; expected-failure: GCL crashes badly
 (assert (test-component-pathnames :delete-host t :support-string-pathnames nil))
+
+#+os-unix
+(test-pathname-parsing)

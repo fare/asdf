@@ -1,3 +1,44 @@
+cl-asdf (2:3.1.5-1) unstable; urgency=low
+
+  Bug fix and portability release:
+  * Add immutable-system support (thanks to Dave Cooper).  This support
+    should be regarded as preliminary and subject to change.
+  * Substantially improved operation on Windows: many bugfixes and improve-
+    ments to UIOP functions that interface with the operating system.
+  * Add CLASP support.
+  * Many miscellaneous fixes for issues on individual implementations,
+    notably UIOP incompatibility introduced by SBCL 1.2.12, support for
+    LispWorks 7 character types, fixes to chdir on ABCL, improvements
+    to run-program on Windows.
+  * Added OS-COND to UIOP to paper over some incompatibilities about when
+    and how operating system can be detected on different implementations.
+    Made OS predicates run test at runtime so you can bind *features* from
+    a target system and determine its OS.
+  * Fixes to XDG configuration directory handling.  Try to stick to the
+    XDG spec, rather than guessing what it should be on different platforms.
+    To recognize this, change UIOP functions about XDG files to "XDG-"
+    prefixes.
+  * Documentation improvements.
+
+ -- François-René Rideau <fare@tunes.org>  Sat, 18 Jul 2015 16:51:50 -0500
+
+cl-asdf (2:3.1.4-1) unstable; urgency=low
+
+  [ Robert P. Goldman ]
+  Bug fix release:
+  * Remove compatibility stubs for old bundle classes (not working
+    properly, anyway), these are now available in a contrib.
+  * Add INPUT-STRING function to UIOP.
+  * For developer and tester convenience, bring all the external
+    dependencies into the git repo as submodules. See target make ext
+  * Optionally speed up registry search by providing a cache for
+    the SOURCE-REGISTRY. See the cache-generating script in:
+      asdf/tools/cl-source-registry-cache.lisp
+  * Fixes to tests and documentation.
+  * Many minor bugfixes.
+
+ -- François-René Rideau <fare@tunes.org>  Thu, 09 Oct 2014 21:18:21 -0400
+
 cl-asdf (2:3.1.3-1) unstable; urgency=low
 
   Bug fix release:
@@ -10,7 +51,7 @@ cl-asdf (2:3.1.3-1) unstable; urgency=low
   * Miscellaneous bug fixes and tweaks to UIOP.
   * Documentation improvements.
 
- -- Francois-Rene Rideau <fare@tunes.org>  Thu, 24 Jul 2014 12:48:29 -0400
+ -- Francois-Rene Rideau <fare@tunes.org>  Mon, 14 Jul 2014 16:54:49 -0400
 
 cl-asdf (2:3.1.2-2) unstable; urgency=low
 

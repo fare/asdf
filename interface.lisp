@@ -16,7 +16,7 @@
   ;; Note: (1) we are NOT automatically reexporting everything from previous packages.
   ;; (2) we only reexport UIOP functionality when backward-compatibility requires it.
   (:export
-   #:defsystem #:find-system #:locate-system #:coerce-name #:primary-system-name
+   #:defsystem #:find-system #:load-asd #:locate-system #:coerce-name #:primary-system-name
    #:oos #:operate #:make-plan #:perform-plan #:sequential-plan
    #:system-definition-pathname
    #:search-for-system-definition #:find-component #:component-find-path
@@ -59,6 +59,9 @@
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
    #:static-file #:doc-file #:html-file
    #:file-type #:source-file-type
+
+   #:register-preloaded-system #:sysdef-preloaded-system-search
+   #:register-immutable-system #:sysdef-immutable-system-search
 
    #:package-inferred-system #:register-system-packages
    #:package-system ;; backward-compatibility during migration, to be removed in a further release.
@@ -104,7 +107,7 @@
    #:*compile-file-warnings-behaviour*
    #:*compile-file-failure-behaviour*
    #:*resolve-symlinks*
-   #:*load-system-operation* #:*immutable-systems*
+   #:*load-system-operation*
    #:*asdf-verbose* ;; unused. For backward-compatibility only.
    #:*verbose-out*
 

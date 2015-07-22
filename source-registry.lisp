@@ -13,7 +13,7 @@
    #:ensure-source-registry #:*source-registry-parameter*
    #:*default-source-registry-exclusions* #:*source-registry-exclusions*
    #:*wild-asd* #:directory-asd-files #:register-asd-directory
-   #:collect-asds-in-directory #:collect-sub*directories-asd-files
+   #:*recurse-beyond-asds* #:collect-asds-in-directory #:collect-sub*directories-asd-files
    #:validate-source-registry-directive #:validate-source-registry-form
    #:validate-source-registry-file #:validate-source-registry-directory
    #:parse-source-registry-string #:wrapping-source-registry
@@ -59,15 +59,33 @@ system names to pathnames of .asd files")
     (directory-files directory *wild-asd*))
 
   (defun collect-asds-in-directory (directory collect)
-    (map () collect (directory-asd-files directory)))
+    (let ((asds (directory-asd-files directory)))
+      (map () collect asds)
+      asds))
+
+  (defvar *recurse-beyond-asds* t
+    "Should :tree entries of the source-registry recurse in subdirectories
+after having found a .asd file? True by default.")
+
+  (defun process-source-registry-cache (directory collect)
+    (let ((cache (ignore-errors
+                  (safe-read-file-form (subpathname directory ".cl-source-registry.cache")))))
+      (when (and (listp cache) (eq :source-registry-cache (first cache)))
+        (loop :for s :in (rest cache) :do (funcall collect (subpathname directory s)))
+        t)))
 
   (defun collect-sub*directories-asd-files
-      (directory &key (exclude *default-source-registry-exclusions*) collect)
+      (directory &key (exclude *default-source-registry-exclusions*) collect
+                   (recurse-beyond-asds *recurse-beyond-asds*) ignore-cache)
     (collect-sub*directories
      directory
-     (constantly t)
-     #'(lambda (x &aux (l (car (last (pathname-directory x))))) (not (member l exclude :test #'equal)))
-     #'(lambda (dir) (collect-asds-in-directory dir collect))))
+     #'(lambda (dir)
+         (unless (and (not ignore-cache) (process-source-registry-cache directory collect))
+           (let ((asds (collect-asds-in-directory dir collect)))
+             (or recurse-beyond-asds (not asds)))))
+     #'(lambda (x)
+         (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
+     (constantly nil)))
 
   (defun validate-source-registry-directive (directive)
     (or (member directive '(:default-registry))
@@ -152,12 +170,12 @@ system names to pathnames of .asd files")
       default-system-source-registry)
     "List of default source registries" "3.1.0.102")
 
-  (defparameter *source-registry-file* (parse-unix-namestring "source-registry.conf"))
-  (defparameter *source-registry-directory* (parse-unix-namestring "source-registry.conf.d/"))
+  (defparameter *source-registry-file* (parse-unix-namestring "common-lisp/source-registry.conf"))
+  (defparameter *source-registry-directory* (parse-unix-namestring "common-lisp/source-registry.conf.d/"))
 
   (defun wrapping-source-registry ()
     `(:source-registry
-      #+(or ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
+      #+(or clasp ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
       :inherit-configuration
       #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
       #+cmu (:tree #p"modules:")
@@ -166,34 +184,25 @@ system names to pathnames of .asd files")
     `(:source-registry
       (:tree (:home "common-lisp/"))
       #+sbcl (:directory (:home ".sbcl/systems/"))
-      ,@(loop :for dir :in
-              `(,@(when (os-unix-p)
-                    `(,(or (getenv-absolute-directory "XDG_DATA_HOME")
-                           (subpathname (user-homedir-pathname) ".local/share/"))))
-                ,@(when (os-windows-p)
-                    (mapcar 'get-folder-path '(:local-appdata :appdata))))
-              :collect `(:directory ,(subpathname* dir "common-lisp/systems/"))
-              :collect `(:tree ,(subpathname* dir "common-lisp/source/")))
+      (:directory ,(xdg-data-home "common-lisp/systems/"))
+      (:tree ,(xdg-data-home "common-lisp/source/"))
       :inherit-configuration))
   (defun default-system-source-registry ()
     `(:source-registry
-      ,@(loop :for dir :in
-              `(,@(when (os-unix-p)
-                    (or (getenv-absolute-directories "XDG_DATA_DIRS")
-                        '("/usr/local/share" "/usr/share")))
-                ,@(when (os-windows-p)
-                    (list (get-folder-path :common-appdata))))
-              :collect `(:directory ,(subpathname* dir "common-lisp/systems/"))
-              :collect `(:tree ,(subpathname* dir "common-lisp/source/")))
+      ,@(loop :for dir :in (xdg-data-dirs "common-lisp/")
+              :collect `(:directory (,dir "systems/"))
+              :collect `(:tree (,dir "source/")))
       :inherit-configuration))
   (defun user-source-registry (&key (direction :input))
-    (in-user-configuration-directory *source-registry-file* :direction direction))
+    (xdg-config-pathname *source-registry-file* direction))
   (defun system-source-registry (&key (direction :input))
-    (in-system-configuration-directory *source-registry-file* :direction direction))
+    (find-preferred-file (system-config-pathnames *source-registry-file*)
+                         :direction direction))
   (defun user-source-registry-directory (&key (direction :input))
-    (in-user-configuration-directory *source-registry-directory* :direction direction))
+    (xdg-config-pathname *source-registry-directory* direction))
   (defun system-source-registry-directory (&key (direction :input))
-    (in-system-configuration-directory *source-registry-directory* :direction direction))
+    (find-preferred-file (system-config-pathnames *source-registry-directory*)
+                         :direction direction))
   (defun environment-source-registry ()
     (getenv "CL_SOURCE_REGISTRY"))
 
@@ -223,7 +232,8 @@ system names to pathnames of .asd files")
         ((:also-exclude)
          (appendf *source-registry-exclusions* rest))
         ((:default-registry)
-         (inherit-source-registry '(default-source-registry) :register register))
+         (inherit-source-registry
+          '(default-user-source-registry default-system-source-registry) :register register))
         ((:inherit-configuration)
          (inherit-source-registry inherit :register register))
         ((:ignore-inherited-configuration)

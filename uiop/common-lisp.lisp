@@ -22,7 +22,7 @@
   #+mcl (:shadow #:user-homedir-pathname))
 (in-package :uiop/common-lisp)
 
-#-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+#-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
 (error "ASDF is not supported on your implementation. Please help us port it.")
 
 ;; (declaim (optimize (speed 1) (debug 3) (safety 3))) ; DON'T: trust implementation defaults.
@@ -30,12 +30,12 @@
 
 ;;;; Early meta-level tweaks
 
-#+(or abcl allegro clisp cmu ecl mkcl clozure lispworks mkcl sbcl scl)
+#+(or abcl allegro clasp clisp cmu ecl mkcl clozure lispworks mkcl sbcl scl)
 (eval-when (:load-toplevel :compile-toplevel :execute)
   ;; Check for unicode at runtime, so that a hypothetical FASL compiled with unicode
   ;; but loaded in a non-unicode setting (e.g. on Allegro) won't tell a lie.
   (when (and #+allegro (member :ics *features*)
-             #+(or clisp cmu ecl mkcl) (member :unicode *features*)
+             #+(or clasp clisp cmu ecl mkcl) (member :unicode *features*)
              #+sbcl (member :sb-unicode *features*))
     (pushnew :asdf-unicode *features*)))
 
@@ -47,6 +47,11 @@
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
     (setf excl:*warn-on-nested-reader-conditionals* nil))
   (setf *print-readably* nil))
+
+#+clasp
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (setf *load-verbose* nil)
+  (defun use-ecl-byte-compiler-p () nil))
 
 #+clozure (in-package :ccl)
 #+(and clozure windows-target) ;; See http://trac.clozure.com/ccl/ticket/1117
@@ -61,7 +66,6 @@
                (external-process-%status proc))))))
 #+clozure (in-package :uiop/common-lisp)
 
-
 #+cormanlisp
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (deftype logical-pathname () nil)
@@ -74,7 +78,7 @@
     (setf p (pathname p))
     (format nil "~@[~A~]~@[.~A~]" (pathname-name p) (pathname-type p))))
 
-#+ecl
+#+(and ecl (not clasp))
 (eval-when (:load-toplevel :compile-toplevel :execute)
   (setf *load-verbose* nil)
   (defun use-ecl-byte-compiler-p () (and (member :ecl-bytecmp *features*) t))

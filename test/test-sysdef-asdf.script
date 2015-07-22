@@ -15,7 +15,7 @@
   (declare (ignore system))
   (subpathname *test-directory* "always-error.lisp"))
 
-(asdf::clear-defined-system "asdf")
+(clear-system "asdf")
 (let ((*system-definition-search-functions* '(sysdef-bogus-test-search))
       (state "Didn't catch warning"))
   (DBG "Bogus attempt at loading an old ASDF: should issue a warning and ignore")
@@ -25,7 +25,7 @@
 	     (when (search "ASDF will ignore this configured system rather than downgrade itself."
 			   (simple-condition-format-control c))
 	       (setf state "Caught warning")))))
-    (asdf::clear-defined-system "asdf")
+    (clear-system "asdf")
     (upgrade-asdf))
   (assert-equal state "Caught warning")
   (DBG "2nd bogus attempt at loading same old ASDF: should ignore without a warning")
@@ -33,7 +33,7 @@
       ((simple-warning
 	 #'(lambda (c)
 	     (error "Should not have issued warning, but did issue:~%  ~A" c))))
-    (asdf::clear-defined-system "asdf")
+    (clear-system "asdf")
     (upgrade-asdf)))
 
 (DBG "Load ASDF with proper configuration: should find asdf.asd from the source above")
@@ -42,15 +42,15 @@
    (:directory ,*asdf-directory*)
    (:directory ,*uiop-directory*)
    :ignore-inherited-configuration))
-(asdf::clear-defined-system "asdf")
+(clear-system "asdf")
 (load-system :asdf)
 ;; This time we found it, but it was skipped because the version was the same
 (assert-equal nil (system-source-file (find-system :asdf)))
 
 ;; But if we cheat on our version, that should work
 (setf asdf::*asdf-version* "3.0")
-(asdf::clear-defined-system "asdf")
-#-xcl ;; XCL has trouble with the ASDF upgrade
+(clear-system "asdf")
+#-xcl ;; expected-failure: XCL has trouble with the ASDF upgrade
 (load-system :asdf)
 (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
 		       (system-source-file (find-system :asdf)))

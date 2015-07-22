@@ -45,7 +45,7 @@
     (setf *stdin*
           #.(or #+clozure 'ccl::*stdin*
                 #+(or cmu scl) 'system:*stdin*
-                #+ecl 'ext::+process-standard-input+
+                #+(or clasp ecl) 'ext::+process-standard-input+
                 #+sbcl 'sb-sys:*stdin*
                 '*standard-input*)))
 
@@ -56,7 +56,7 @@
     (setf *stdout*
           #.(or #+clozure 'ccl::*stdout*
                 #+(or cmu scl) 'system:*stdout*
-                #+ecl 'ext::+process-standard-output+
+                #+(or clasp ecl) 'ext::+process-standard-output+
                 #+sbcl 'sb-sys:*stdout*
                 '*standard-output*)))
 
@@ -68,7 +68,7 @@
           #.(or #+allegro 'excl::*stderr*
                 #+clozure 'ccl::*stderr*
                 #+(or cmu scl) 'system:*stderr*
-                #+ecl 'ext::+process-error-output+
+                #+(or clasp ecl) 'ext::+process-error-output+
                 #+sbcl 'sb-sys:*stderr*
                 '*error-output*)))
 
@@ -270,7 +270,7 @@ and return that"
   (defun null-device-pathname ()
     "Pathname to a bit bucket device that discards any information written to it
 and always returns EOF when read from"
-    (cond
+    (os-cond
       ((os-unix-p) #p"/dev/null")
       ((os-windows-p) #p"NUL") ;; Q: how many Lisps accept the #p"NUL:" syntax?
       (t (error "No /dev/null on your OS"))))
@@ -494,13 +494,13 @@ within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
 (with-upgradability ()
   (defun default-temporary-directory ()
     "Return a default directory to use for temporary files"
-    (or
-     (when (os-unix-p)
+    (os-cond
+      ((os-unix-p)
        (or (getenv-pathname "TMPDIR" :ensure-directory t)
            (parse-native-namestring "/tmp/")))
-     (when (os-windows-p)
+      ((os-windows-p)
        (getenv-pathname "TEMP" :ensure-directory t))
-     (subpathname (user-homedir-pathname) "tmp/")))
+      (t (subpathname (user-homedir-pathname) "tmp/"))))
 
   (defvar *temporary-directory* nil "User-configurable location for temporary files")
 
@@ -567,17 +567,17 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
                  (when stream
                    (setf okp pathname)
                    (when want-stream-p
-                     (setf results
-                           (multiple-value-list
-                            (if want-pathname-p
-                                (funcall thunk stream pathname)
-                                (funcall thunk stream)))))))
-               (when okp
-                 (unless want-stream-p
-                   (setf results (multiple-value-list (call-function thunk pathname))))
-                 (when after
-                   (setf results (multiple-value-list (call-function after pathname))))
-                 (return (apply 'values results))))
+                     ;; Note: can't return directly from within with-open-file
+                     ;; or the non-local return causes the file creation to be undone.
+                     (setf results (multiple-value-list
+                                    (if want-pathname-p
+                                        (funcall thunk stream pathname)
+                                        (funcall thunk stream)))))))
+               (cond
+                 ((not okp) nil)
+                 (after (return (call-function after okp)))
+                 ((and want-pathname-p (not want-stream-p)) (return (call-function thunk okp)))
+                 (t (return (apply 'values results)))))
           (when (and okp (not (call-function keep)))
             (ignore-errors (delete-file-if-exists okp))))))
 

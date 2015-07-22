@@ -1,8 +1,17 @@
+# Configuring this Makefile for your personal use:
+# Set environment variable ASDF_TEST_LISPS to a space-separated list of values
+# (see "defaultlisps" below, for an example).
+# If you have a special way to find libraries that are used in the build and
+# test process, you may bind ASDF_DEVEL_SOURCE_REGISTRY to a source registry to
+# use (using the environment variable syntax), or bind it to "override" to use
+# your normal CL source registry. Otherwise, it will use local copies of
+# everything.
+
 system	 	:= "asdf"
 webhome_private := common-lisp.net:/project/asdf/public_html/
 webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
-sourceDirectory := $(shell pwd)
+sourceDirectory := $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
 #### Common Lisp implementations available for testing.
 ## export ASDF_TEST_LISPS to override the default list of such implementations,
@@ -33,7 +42,13 @@ s ?= ${ASDF_TEST_SYSTEMS}
 endif
 
 ifdef ASDF_DEVEL_SOURCE_REGISTRY
+ifeq ($(ASDF_DEVEL_SOURCE_REGISTRY), override)
+# do nothing... Use the user's CL_SOURCE_REGISTRY
+else
 export CL_SOURCE_REGISTRY = ${ASDF_DEVEL_SOURCE_REGISTRY}
+endif
+else # no ASDF_DEVEL_SOURCE_REGISTRY
+export CL_SOURCE_REGISTRY = ${sourceDirectory}/:${sourceDirectory}/uiop/:${sourceDirectory}/ext//:
 endif
 
 l ?= sbcl
@@ -54,7 +69,7 @@ XCL ?= xcl
 
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/eval.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
-defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp backward-internals.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp backward-interface.lisp package-inferred-system.lisp interface.lisp user.lisp footer.lisp
+defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp package-inferred-system.lisp backward-internals.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
 all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 
 # Making ASDF itself should be our first, default, target:
@@ -62,6 +77,12 @@ build/asdf.lisp: $(all_lisp)
 	mkdir -p build
 	rm -f $@
 	cat $(all_lisp) > $@
+
+ext:
+	git submodule update --init
+
+noext:
+	git submodule deinit .
 
 # This quickly locates such mistakes as unbalanced parentheses:
 load: build/asdf.lisp
@@ -99,9 +120,10 @@ push:
 	git fetch
 	git status
 
-doc:
-	${MAKE} -C doc
-
+# doc:
+# 	${MAKE} -C doc
+# don't have the toolchain to build docs installed...
+doc: ;
 website:
 	${MAKE} -C doc website
 
@@ -243,7 +265,13 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	test-all test-all-lisps test-all-no-upgrade \
 	debian-package release \
 	replace-sbcl-asdf replace-ccl-asdf \
-	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf
+	fix-local-git-tags fix-remote-git-tags wc wc-driver wc-asdf \
+	list-source-registry \
+	ext noext
+
+# debug the source registry that will be used to execute commands from this Makefile.
+list-source-registry:
+	${sourceDirectory}/bin/asdf-builder re '(uiop:writeln (sort (alexandria:hash-table-alist asdf::*source-registry*) `string< :key `car))'
 
 # RELEASE or PUSH checklist:
 # make test-all

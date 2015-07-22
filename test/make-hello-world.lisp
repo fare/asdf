@@ -2,7 +2,7 @@
 #+lispworks (lispworks:load-all-patches)
 (load (make-pathname :name "script-support" :defaults *load-pathname*))
 (load-asdf)
-#+(or ecl mkcl) (require :cmp)
+#+(or clasp ecl mkcl) (require :cmp)
 
 (asdf-test::register-directory asdf-test::*asdf-directory*) ;; we need UIOP, and ECL can dump.
 (asdf-test::register-directory asdf-test::*uiop-directory*)
@@ -28,9 +28,10 @@
 
 
 (defun make-hello-bundle (operation)
-  (operate 'load-fasl-op :hello-world-example)
+  (operate 'load-bundle-op :hello-world-example)
   (operate operation :hello-world-example)
-  #+mkcl (add-mkcl-dll (asdf::output-file operation :hello-world-example)))
+  #+mkcl (add-mkcl-dll (asdf::output-file operation :hello-world-example))
+  (quit 0))
 
 (defun make-hello-image ()
   (make-hello-bundle 'image-op))

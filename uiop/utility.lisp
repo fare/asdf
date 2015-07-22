@@ -7,9 +7,9 @@
   (:use :uiop/common-lisp :uiop/package)
   ;; import and reexport a few things defined in :uiop/common-lisp
   (:import-from :uiop/common-lisp #:compatfmt #:loop* #:frob-substrings
-   #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
+   #+(or clasp ecl) #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export #:compatfmt #:loop* #:frob-substrings #:compatfmt
-   #+ecl #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
+   #+(or clasp ecl) #:use-ecl-byte-compiler-p #+mcl #:probe-posix)
   (:export
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
@@ -24,6 +24,7 @@
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
    #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
+   #:standard-case-symbol-name #:find-standard-case-symbol
    #:coerce-class ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
@@ -74,9 +75,9 @@
               `(progn
                  ;; We usually try to do it only for the functions that need it,
                  ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
-                 ,@(when (or supersede #+ecl t)
+                 ,@(when (or supersede #+(or clasp ecl) t)
                      `((undefine-function ',name)))
-                 ,@(when (and #+ecl (symbolp name)) ; fails for setf functions on ecl
+                 ,@(when (and #+(or clasp ecl) (symbolp name)) ; fails for setf functions on ecl
                      `((declaim (notinline ,name))))
                  (,',def ,name ,formals ,@rest))))))
     (defdef defgeneric* defgeneric)
@@ -196,15 +197,26 @@ Returns two values: \(A B C\) and \(1 2 3\)."
 
 
 ;;; Characters
-(with-upgradability () ;; base-char != character on ECL, LW, SBCL, Genera. LW also has SIMPLE-CHAR.
-  (defconstant +non-base-chars-exist-p+ #.(not (subtypep 'character 'base-char)))
-  #-scl ;; In SCL, all characters seem to be 16-bit base-char, but this flag gets set somehow???
-  (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
-
 (with-upgradability ()
+  ;; base-char != character on ECL, LW, SBCL, Genera.
+  ;; NB: We assume a total order on character types.
+  ;; If that's not true... this code will need to be updated.
   (defparameter +character-types+ ;; assuming a simple hierarchy
-    #(#+non-base-chars-exist-p base-char #+lispworks lw:simple-char character))
-  (defparameter +max-character-type-index+ (1- (length +character-types+))))
+    #.(coerce (loop* :for (type next) :on
+                     '(;; In SCL, all characters seem to be 16-bit base-char
+                       ;; Yet somehow character fails to be a subtype of base-char
+                       #-scl base-char
+                       ;; LW6 has BASE-CHAR < SIMPLE-CHAR < CHARACTER
+                       ;; LW7 has BASE-CHAR < BMP-CHAR < SIMPLE-CHAR = CHARACTER
+                       #+(and lispworks (not (or lispworks4 lispworks5 lispworks6)))
+                       lw:bmp-char
+                       #+lispworks lw:simple-char
+                       character)
+                     :unless (and next (subtypep next type))
+                     :collect type) 'vector))
+  (defparameter +max-character-type-index+ (1- (length +character-types+)))
+  (defconstant +non-base-chars-exist-p+ (plusp +max-character-type-index+))
+  (when +non-base-chars-exist-p+ (pushnew :non-base-chars-exist-p *features*)))
 
 (with-upgradability ()
   (defun character-type-index (x)
@@ -216,7 +228,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
              (symbol (if (subtypep x 'base-char) 0 1))))
         (otherwise
          '(or (position-if (etypecase x
-                             (character  #'(lambda (type) (typep x type)))
+                             (character #'(lambda (type) (typep x type)))
                              (symbol #'(lambda (type) (subtypep x type))))
                +character-types+)
            (error "Not a character or character type: ~S" x))))))
@@ -235,14 +247,20 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     #.(if +non-base-chars-exist-p+
           `(aref +character-types+
             (loop :with index = 0 :for s :in strings :do
-              (cond
-                ((= index ,+max-character-type-index+) (return index))
-                ((emptyp s)) ;; NIL or empty string
-                ((characterp s) (setf index (max index (character-type-index s))))
-                ((stringp s) (unless (>= index (character-type-index (array-element-type s)))
-                               (setf index (reduce 'max s :key #'character-type-index
-                                                          :initial-value index))))
-                (t (error "Invalid string designator ~S for ~S" s 'strings-common-element-type)))
+              (flet ((consider (i)
+                       (cond ((= i ,+max-character-type-index+) (return i))
+                             ,@(when (> +max-character-type-index+ 1) `(((> i index) (setf index i)))))))
+                (cond
+                  ((emptyp s)) ;; NIL or empty string
+                  ((characterp s) (consider (character-type-index s)))
+                  ((stringp s) (let ((string-type-index
+                                       (character-type-index (array-element-type s))))
+                                 (unless (>= index string-type-index)
+                                   (loop :for c :across s :for i = (character-type-index c)
+                                         :do (consider i)
+                                         ,@(when (> +max-character-type-index+ 1)
+                                             `((when (= i string-type-index) (return))))))))
+                  (t (error "Invalid string designator ~S for ~S" s 'strings-common-element-type))))
                   :finally (return index)))
           ''character))
 
@@ -314,7 +332,7 @@ starting the separation from the end, e.g. when called with arguments
   (defun string-enclosed-p (prefix string suffix)
     "Does STRING begin with PREFIX and end with SUFFIX?"
     (and (string-prefix-p prefix string)
-         (string-suffix-p string suffix))))
+         (string-suffix-p string suffix)))
 
   (defvar +cr+ (coerce #(#\Return) 'string))
   (defvar +lf+ (coerce #(#\Linefeed) 'string))
@@ -332,6 +350,26 @@ the two results passed to STRCAT always reconstitute the original string"
                         (return (values (subseq x 0 (- (length x) (length end))) end)))))
         (when x (c +crlf+) (c +lf+) (c +cr+) (values x nil)))))
 
+  (defun standard-case-symbol-name (name-designator)
+    "Given a NAME-DESIGNATOR for a symbol, if it is a symbol, convert it to a string using STRING;
+if it is a string, use STRING-UPCASE on an ANSI CL platform, or STRING on a so-called \"modern\"
+platform such as Allegro with modern syntax."
+    (check-type name-designator (or string symbol))
+    (cond
+      ((or (symbolp name-designator) #+allegro (eq excl:*current-case-mode* :case-sensitive-lower))
+       (string name-designator))
+      ;; Should we be doing something on CLISP?
+      (t (string-upcase name-designator))))
+
+  (defun find-standard-case-symbol (name-designator package-designator &optional (error t))
+    "Find a symbol designated by NAME-DESIGNATOR in a package designated by PACKAGE-DESIGNATOR,
+where STANDARD-CASE-SYMBOL-NAME is used to transform them if these designators are strings.
+If optional ERROR argument is NIL, return NIL instead of an error when the symbol is not found."
+    (find-symbol* (standard-case-symbol-name name-designator)
+                  (etypecase package-designator
+                    ((or package symbol) package-designator)
+                    (string (standard-case-symbol-name package-designator)))
+                  error)))
 
 ;;; stamps: a REAL or a boolean where NIL=-infinity, T=+infinity
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute)
@@ -564,10 +602,10 @@ with later being determined by a lexicographical comparison of minor numbers."
     #+clisp 'system::$format-control
     #+clozure 'ccl::format-control
     #+(or cmu scl) 'conditions::format-control
-    #+(or ecl mkcl) 'si::format-control
+    #+(or clasp ecl mkcl) 'si::format-control
     #+(or gcl lispworks) 'conditions::format-string
     #+sbcl 'sb-kernel:format-control
-    #-(or abcl allegro clisp clozure cmu ecl gcl lispworks mkcl sbcl scl) nil
+    #-(or abcl allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl) nil
     "Name of the slot for FORMAT-CONTROL in simple-condition")
 
   (defun match-condition-p (x condition)

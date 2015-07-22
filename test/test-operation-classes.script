@@ -52,9 +52,9 @@
 (signals operation-definition-warning
          (make-instance 'my-unupdated-operation))
 
-#-gcl
-(signals operation-definition-error
-         (make-instance 'my-incoherent-operation))
+(with-expected-failure (#+gcl "GCL has trouble with CLOS?")
+  (signals operation-definition-error
+           (make-instance 'my-incoherent-operation)))
 
 (assert (make-instance 'my-good-operation))
 

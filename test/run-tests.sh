@@ -219,16 +219,31 @@ case "$lisp" in
       allegromodern8_64_s) command="${ALLEGROMODERN8_64_S:-mlisp8_64_s}" ;;
     esac
     # For the sake of the lisp-invocation library, re-export these
-    ALLEGRO=$command ; export ALLEGRO
+    ALLEGRO=$command ; export ALLEGRO ;
+    echo ALLEGRO=$ALLEGRO
     flags="-q"
     nodebug="-batch"
-    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then bcmd="$command +c $flags" ; fi
+    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then
+        adir=$(dirname "${command}") ;
+        allegroName=$(basename "${command}") ;
+        if [[ ${allegroName: -1} == "8" ]] ; then build=build ; else build=buildi ; fi ;
+        # this takes somewhat unjustifiable advantage of the fact that
+        # the Allegro images have the same name (with .dxl extension)
+        # as the corresponding executables.  the "build" executable
+        # runs an ACL image in the current terminal instead of a
+        # separate window, as is normal on Windows.
+        bcmd="${adir}/${build}.exe -I ${command}.dxl $flags" ;
+    fi
     eval="-e" ;;
   ccl)
     command="${CCL:-ccl}"
     flags="--no-init --quiet"
     nodebug="--batch"
     eval="--eval" ;;
+  clasp)
+    command="${CLASP:-clasp}"
+    flags=""
+    eval="" ;;
   clisp)
     command="${CLISP:-clisp}"
     flags="-norc --silent -ansi -I "
@@ -256,7 +271,7 @@ case "$lisp" in
     nodebug="-batch"
     eval="-eval" ;;
   lispworks)
-    command="${LISPWORKS:-lispworks}"
+    command="${LISPWORKS:-lispworks-console}"
     # If you have a licensed copy of lispworks,
     # you can obtain the "lispworks" binary with, e.g.
     # echo '(hcl:save-image "/lispworks" :environment nil)' > /tmp/build.lisp ;
@@ -345,11 +360,11 @@ upgrade_tags () {
     # We return the above designated versions in order of decreasing relevance,
     # which pretty much means REQUIRE and most recent first.
     echo REQUIRE
-    echo 3.1.2
+    echo 3.1.4 3.1.3 3.1.2
     echo 3.0.3 3.0.2 3.0.1
-    echo 2.32 2.27
-    echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
-    echo 1.369 1.97 1.85
+#    echo 2.32 2.27
+#    echo 2.26 2.22 2.20 2.019 2.014.6 2.011 2.008 2.000
+#    echo 1.369 1.97 1.85
 }
 upgrade_methods () {
     if [ -n "$ASDF_UPGRADE_TEST_METHODS" ] ; then
@@ -404,15 +419,18 @@ valid_upgrade_test_p () {
         # More recent CLISPs work.
         # 2.00[0-7] use UID, which fails on some old CLISPs.
         # Note that for the longest time, CLISP has included 2.011 in its distribution.
+        # Now its hg repository includes 3.0.2.29, but clisp hasn't released in many years(!)
         # We don't punt on upgrade anymore, so we can go at it!
-        ### clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
+        #clisp:2.00[0-7]:*|clisp:1.*|clisp:2.0[01]*|clisp:2.2[0-5]:*) : ;;
         # CMUCL has problems with 2.32 and earlier because of
         # the redefinition of system's superclass component.
-        cmucl:1.*|cmucl:2.*) : ;;
+        cmucl:1.*|cmucl:2.[012]*|cmucl:2.3[012]*) : ;;
         # Skip many ECL tests, for various ASDF issues
         ecl*:1.*|ecl*:2.0[01]*|ecl*:2.20:*) : ;;
         # GCL 2.7.0 from late November 2013 is required, with ASDF 3.1.2
         gcl:REQUIRE:*|gcl:1.*|gcl:2.*|gcl:3.0*) : ;;
+        # LispWorks is broken at ASDF 3.0.3, but can upgrade from earlier and later ASDFs.
+        lispworks:3.0.3:*) : ;;
         # MKCL is only supported starting with specific versions 2.24, 2.26.x, 3.0.3.0.x, so skip.
         mkcl:[12]*|mkcl:3.0*) : ;;
         # XCL support starts with ASDF 2.014.2

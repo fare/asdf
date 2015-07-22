@@ -6,6 +6,8 @@
   (trace uiop:run-program uiop/run-program::%run-program uiop/run-program::%system
          ext:shell ext:run-shell-command ext:run-program))
 
+#+(and sbcl os-windows) (trace sb-ext:run-program)
+
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun dewindowize (x)
   (block ()
@@ -21,9 +23,14 @@
 (assert-equal "ok 1"
               (dewindowize (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
 
-(DBG "Testing echo ok 1 via run-program as a string")
-(assert-equal "ok 1"
-              (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
+#+(and sbcl os-windows)
+(leave-test "SBCL won't let us pass unquoted arguments to cmd.exe" 0)
+
+#-(and sbcl os-windows)
+(progn
+ (DBG "Testing echo ok 1 via run-program as a string")
+ (assert-equal "ok 1"
+               (dewindowize (run-program "echo ok 1" :output '(:string :stripped t)))))
 
 ;;; test asdf run-shell-command function
 (setf *verbose-out* nil)
@@ -37,9 +44,10 @@
 
 #+os-unix
 (progn
+  (chdir *test-directory*)
+
   (DBG "Testing good shell command in current directory via run-shell-command")
-  (unless (equal 0 (run-shell-command "./good-shell-command"))
-    (error "Failed to capture exit status indicating shell command success."))
+  (assert-equal 0 (run-shell-command "./good-shell-command"))
 
   ;; this test checks for a problem there was in allegro -- :output :interactive
   ;; would try to open T as a stream for INPUT.
@@ -69,7 +77,6 @@
        (let ((*verbose-out* s))
          (run-shell-command "echo ~A 1" "ok")))))
    ok1)
-  #-ecl
   (assert-equal
    (dewindowize
     (stripln
@@ -81,9 +88,6 @@
              (error "Didn't get good exit status.")))))))
    ok1))
 
-;; NB1: run-shell-command is deprecated. Use run-program instead.
-;; NB2: we do NOT support stderr capture to *verbose-out* anymore in run-shell-command.
-;; If you want 2>&1 redirection, you know where to find it.
 (assert-equal '(:ok 1) (run-program "echo :ok  1" :output :forms))
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
@@ -181,8 +185,7 @@ Testing run-program
   (assert-equal (nl "Hello World") (run-program '("echo" "Hello World") :output :string))
   (assert-equal (nl "Hello World") (run-program "echo Hello World" :output :string))
 
-  ;; Test that run-program fails properly with an
-  ;; empty program string
+  ;; Test that run-program fails properly with an empty program string
   #+(or clozure (and allegro os-unix) cmu (and lispworks os-unix) sbcl scl)
   (signals error (run-program '("") :output :lines))
 
@@ -263,4 +266,3 @@ Testing run-program
 
 
 (test/run-program)
-

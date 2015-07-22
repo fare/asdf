@@ -1,4 +1,5 @@
 (uiop:define-package :detect-multiply-used-files
+  (:nicknames :asdf/contrib/detect-multiply-used-files)
   (:use :asdf :uiop :common-lisp)
   (:export #:find-fishy-components #:register-component-files #:*file-components*))
 

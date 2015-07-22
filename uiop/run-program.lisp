@@ -31,9 +31,9 @@ as either a recognizing function or a sequence of characters."
      (cond
        ((and good-chars bad-chars)
         (error "only one of good-chars and bad-chars can be provided"))
-       ((functionp good-chars)
+       ((typep good-chars 'function)
         (complement good-chars))
-       ((functionp bad-chars)
+       ((typep bad-chars 'function)
         bad-chars)
        ((and good-chars (typep good-chars 'sequence))
         #'(lambda (c) (not (find c good-chars))))
@@ -76,10 +76,14 @@ for use within a MS Windows command-line, outputing to S."
             (otherwise
              (issue (char x i)) (setf i i+1))))))
 
+  (defun easy-windows-character-p (x)
+    "Is X an \"easy\" character that does not require quoting by the shell?"
+    (or (alphanumericp x) (find x "+-_.,@:/=")))
+
   (defun escape-windows-token (token &optional s)
     "Escape a string TOKEN within double-quotes if needed
 for use within a MS Windows command-line, outputing to S."
-    (escape-token token :stream s :bad-chars #(#\space #\tab #\") :quote nil
+    (escape-token token :stream s :good-chars #'easy-windows-character-p :quote nil
                         :escaper 'escape-windows-token-within-double-quotes))
 
   (defun escape-sh-token-within-double-quotes (x s &key (quote t))
@@ -94,7 +98,7 @@ omit the outer double-quotes if key argument :QUOTE is NIL"
 
   (defun easy-sh-character-p (x)
     "Is X an \"easy\" character that does not require quoting by the shell?"
-    (or (alphanumericp x) (find x "+-_.,%@:/")))
+    (or (alphanumericp x) (find x "+-_.,%@:/=")))
 
   (defun escape-sh-token (token &optional s)
     "Escape a string TOKEN within double-quotes if needed
@@ -104,7 +108,7 @@ for use within a POSIX Bourne shell, outputing to S."
 
   (defun escape-shell-token (token &optional s)
     "Escape a token for the current operating system shell"
-    (cond
+    (os-cond
       ((os-unix-p) (escape-sh-token token s))
       ((os-windows-p) (escape-windows-token token s))))
 
@@ -327,10 +331,19 @@ Programmers are encouraged to define their own methods for this generic function
      (command :initform nil :initarg :command :reader subprocess-error-command)
      (process :initform nil :initarg :process :reader subprocess-error-process))
     (:report (lambda (condition stream)
-               (format stream "Subprocess~@[ ~S~]~@[ run with command ~S~] exited with error~@[ code ~D~]"
+               (format stream "Subprocess ~@[~S~% ~]~@[with command ~S~% ~]exited with error~@[ code ~D~]"
                        (subprocess-error-process condition)
                        (subprocess-error-command condition)
                        (subprocess-error-code condition)))))
+
+  ;;; find CMD.exe on windows
+  (defun %cmd-shell-pathname ()
+    (os-cond
+     ((os-windows-p)
+      (strcat (native-namestring (getenv-absolute-directory "WINDIR"))
+              "System32\\cmd.exe"))
+     (t
+      (error "CMD.EXE is not the command shell for this OS."))))
 
   ;;; Internal helpers for run-program
   (defun %normalize-command (command)
@@ -341,17 +354,18 @@ for the implementation's underlying run-program function"
       #+os-unix (list command)
       #+os-windows
       (string
-       #+mkcl (list "cmd" '#:/c command)
+       #+mkcl (list "cmd" "/c" command)
        ;; NB: We do NOT add cmd /c here. You might want to.
        #+(or allegro clisp) command
        ;; On ClozureCL for Windows, we assume you are using
        ;; r15398 or later in 1.9 or later,
        ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
        #+clozure (cons "cmd" (strcat "/c " command))
+       #+sbcl (list (%cmd-shell-pathname) "/c" command)
        ;; NB: On other Windows implementations, this is utterly bogus
        ;; except in the most trivial cases where no quoting is needed.
        ;; Use at your own risk.
-       #-(or allegro clisp clozure mkcl) (list "cmd" "/c" command))
+       #-(or allegro clisp clozure mkcl sbcl) (list "cmd" "/c" command))
       #+os-windows
       (list
        #+allegro (escape-windows-command command)
@@ -378,8 +392,8 @@ argument to pass to the internal RUN-PROGRAM"
       ((eql :interactive)
        #+allegro nil
        #+clisp :terminal
-       #+(or clozure cmu ecl mkcl sbcl scl) t)
-      #+(or allegro clozure cmu ecl lispworks mkcl sbcl scl)
+       #+(or clasp clozure cmu ecl mkcl sbcl scl) t)
+      #+(or allegro clasp clozure cmu ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
            :output
@@ -447,8 +461,8 @@ It returns a process-info plist with possible keys:
                    #+os-windows (string (run 'ext:run-shell-command %command))
                    (list (run 'ext:run-program (car %command)
                               :arguments (cdr %command)))))
-               #+(or clozure cmu ecl mkcl sbcl scl)
-               (#-(or ecl mkcl) progn #+(or ecl mkcl) multiple-value-list
+               #+(or clasp clozure cmu ecl mkcl sbcl scl)
+               (#-(or clasp ecl mkcl) progn #+(or clasp ecl mkcl) multiple-value-list
                 (apply
                  '#+(or cmu ecl scl) ext:run-program
                  #+clozure ccl:run-program #+sbcl sb-ext:run-program #+mkcl mk-ext:run-program
@@ -526,8 +540,8 @@ It returns a process-info plist with possible keys:
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmu scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
-        #+(or ecl mkcl)
-        (destructuring-bind #+ecl (stream code process) #+mkcl (stream process code) process*
+        #+(or clasp ecl mkcl)
+        (destructuring-bind #+(or clasp ecl) (stream code process) #+mkcl (stream process code) process*
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
             (cond
               ((zerop mode))
@@ -552,7 +566,7 @@ It returns a process-info plist with possible keys:
       (declare (ignorable process))
       #+(or allegro lispworks) process
       #+clozure (ccl::external-process-pid process)
-      #+ecl (si:external-process-pid process)
+      #+(or clasp ecl) (si:external-process-pid process)
       #+(or cmu scl) (ext:process-pid process)
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
@@ -565,13 +579,13 @@ It returns a process-info plist with possible keys:
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
             #+(or cmu scl) (ext:process-wait process)
-            #+(and ecl os-unix) (ext:external-process-wait process)
+            #+(and (or clasp ecl) os-unix) (ext:external-process-wait process)
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
             #+allegro (sys:reap-os-subprocess :pid process :wait t)
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
-            #+ecl (nth-value 1 (ext:external-process-status process))
+            #+(or clasp ecl) (nth-value 1 (ext:external-process-status process))
             #+lispworks
             (if-let ((stream (or (getf process-info :input-stream)
                                  (getf process-info :output-stream)
@@ -737,9 +751,21 @@ It returns a process-info plist with possible keys:
 
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
     (etypecase command
-      (string command)
+      (string
+       (os-cond
+        ((os-windows-p)
+         #+(or allegro clisp)
+         (strcat (%cmd-shell-pathname) " /c " command)
+         #-(or allegro clisp) command)
+        (t command)))
       (list (escape-shell-command
-             (if (os-unix-p) (cons "exec" command) command)))))
+             (os-cond
+              ((os-unix-p) (cons "exec" command))
+              ((os-windows-p)
+               #+(or allegro sbcl clisp)
+               (cons (%cmd-shell-pathname) (cons "/c" command))
+               #-(or allegro sbcl clisp) command)
+              (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
     (flet ((redirect (spec operator)
@@ -754,17 +780,18 @@ It returns a process-info plist with possible keys:
                (when pathname
                  (list operator " "
                        (escape-shell-token (native-namestring pathname)))))))
-      (multiple-value-bind (before after)
-          (let ((normalized (%normalize-system-command command)))
-            (if (os-unix-p)
-                (values '("exec") (list " ; " normalized))
-                (values (list normalized) ())))
+      (let* ((redirections (append (redirect in " <") (redirect out " >") (redirect err " 2>")))
+             (normalized (%normalize-system-command command))
+             (directory (or directory #+(or abcl xcl) (getcwd)))
+             (chdir (when directory
+                      (let ((dir-arg (escape-shell-token (native-namestring directory))))
+                        (os-cond
+                         ((os-unix-p) `("cd " ,dir-arg " ; "))
+                         ((os-windows-p) `("cd /d " ,dir-arg " & ")))))))
         (reduce/strcat
-         (append
-          before (redirect in " <") (redirect out " >") (redirect err " 2>")
-          (when (and directory (os-unix-p)) ;; NB: unless on Unix, %system uses with-current-directory
-            `(" ; cd " ,(escape-shell-token (native-namestring directory))))
-          after)))))
+         (os-cond
+          ((os-unix-p) `(,@(when redirections `("exec " ,@redirections " ; ")) ,@chdir ,normalized))
+          ((os-windows-p) `(,@chdir ,@redirections " " ,normalized)))))))
 
   (defun %system (command &rest keys
                   &key input output error-output directory &allow-other-keys)
@@ -773,7 +800,7 @@ It returns a process-info plist with possible keys:
     #+(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
     (%wait-process-result
      (apply '%run-program (%normalize-system-command command) :wait t keys))
-    #+(or abcl cormanlisp clisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
+    #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
@@ -782,10 +809,10 @@ It returns a process-info plist with possible keys:
        (apply '%run-program %command :wait t
               :input :interactive :output :interactive :error-output :interactive keys))
       #-(or clisp (and lispworks os-windows))
-      (with-current-directory ((unless (os-unix-p) directory))
+      (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
         #+abcl (ext:run-shell-command %command)
         #+cormanlisp (win32:system %command)
-        #+ecl (let ((*standard-input* *stdin*)
+        #+(or clasp ecl) (let ((*standard-input* *stdin*)
                     (*standard-output* *stdout*)
                     (*error-output* *stderr*))
                 (ext:system %command))
@@ -814,7 +841,7 @@ It returns a process-info plist with possible keys:
       (values output-result error-output-result exit-code)))
 
   (defun run-program (command &rest keys
-                       &key ignore-error-status force-shell
+                       &key ignore-error-status (force-shell nil force-shell-suppliedp)
                          (input nil inputp) (if-input-does-not-exist :error)
                          output (if-output-exists :overwrite)
                          (error-output nil error-output-p) (if-error-output-exists :overwrite)
@@ -826,7 +853,8 @@ either a list of strings specifying a program and list of arguments,
 or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows).
 
 Always call a shell (rather than directly execute the command when possible)
-if FORCE-SHELL is specified.
+if FORCE-SHELL is specified.  Similarly, never call a shell if FORCE-SHELL is
+specified to be NIL.
 
 Signal a continuable SUBPROCESS-ERROR if the process wasn't successful (exit-code 0),
 unless IGNORE-ERROR-STATUS is specified.
@@ -872,13 +900,17 @@ RUN-PROGRAM returns 3 values:
 2- either 0 if the subprocess exited with success status,
 or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
-    #-(or abcl allegro clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
     (error "RUN-PROGRAM not implemented for this Lisp")
+    ;; per doc string, set FORCE-SHELL to T if we get command as a string.  But
+    ;; don't override user's specified preference. [2015/06/29:rpg]
+    (when (stringp command)
+      (unless force-shell-suppliedp
+        (setf force-shell t)))
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
-                     #+(or clisp ecl) (or (not ignore-error-status) t)
-                     #+clisp (eq error-output :interactive)
-                     #+(or abcl clisp) (eq :error-output :output)
+                     #+(or clasp clisp ecl) (or (not ignore-error-status) t)
+                     #+clisp (member error-output '(:interactive :output))
                      #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)

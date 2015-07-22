@@ -15,7 +15,7 @@ Some constraints:
   (:export
    #:asym #:acall #:asymval
    #:*test-directory* #:*asdf-directory* #:*build-directory* #:*implementation*
-   #:deftest #:is #:signals
+   #:deftest #:is #:signals #:errors #:with-expected-failure
    #:assert-compare #:assert-equal #:assert-pathname-equal #:assert-pathnames-equal
    #:hash-table->alist
    #:load-asdf #:maybe-compile-asdf
@@ -127,6 +127,20 @@ Some constraints:
                 ',sexp ',condition ,x))
        (t (,x)
          (error "Expression ~S raises signal ~S, not ~S" ',sexp ,x ',condition)))))
+(defmacro errors (condition sexp)
+  `(progn
+     (format *error-output* "~&Checking whether ~S signals error ~S~%" ',sexp ',condition)
+     (finish-output *error-output*)
+     (assert-equal ',condition (type-of (nth-value 1 (ignore-errors ,sexp))))))
+(defmacro with-expected-failure ((&optional condition) &body body)
+  `(call-with-expected-failure ,condition (lambda () ,@body)))
+(defun call-with-expected-failure (condition thunk)
+  (if condition
+      (handler-case (funcall thunk)
+        (:no-error (&rest x) (declare (ignore x)) (error "Unexpected success: ~A" condition))
+        (t (x) (declare (ignore x)) t))
+      (funcall thunk)))
+
 
 
 ;;; Helpful for debugging
@@ -153,8 +167,15 @@ Some constraints:
         the other expression ~S yields that:~%  ~S~%  ~S~%"
         qx x (pathname-components x)
         qy y (pathname-components y)))
+    ;; accept equalp namestrings, to account for case-independent filesystems
+    ((equalp (and x (namestring x)) (and y (namestring y)))
+     (warn "These two expressions yield pathnames that have equalp namestrings yet are not pathname-equal~%~
+        the first expression ~S yields this:~%  ~S~%  ~S~%
+        the other expression ~S yields that:~%  ~S~%  ~S~%"
+        qx x (pathname-components x)
+        qy y (pathname-components y)))
     (t
-     (error "These two expressions yield paths that are not pathname-equal~%~
+     (error "These two expressions yield paths that are not equal in any way:~%~
         the first expression ~S yields this:~%  ~S~%  ~S~%
         the other expression ~S yields that:~%  ~S~%  ~S~%"
         qx x (pathname-components x)
@@ -200,12 +221,12 @@ Some constraints:
         (:case-sensitive-lower :mlisp)
         (:case-insensitive-upper :alisp))
       #+armedbear :abcl
+      #+(or clasp ecl) (or #+ecl-bytecmp :ecl_bytecodes :ecl)
       #+clisp :clisp
       #+clozure :ccl
       #+cmu :cmucl
       #+corman :cormanlisp
       #+digitool :mcl
-      #+ecl (or #+ecl-bytecmp :ecl_bytecodes :ecl)
       #+gcl :gcl
       #+lispworks :lispworks
       #+mkcl :mkcl
@@ -280,11 +301,11 @@ Some constraints:
   (finish-outputs*)
   #+(or abcl xcl) (ext:quit :status code)
   #+allegro (excl:exit code :quiet t)
+  #+(or clasp ecl) (si:quit code)
   #+clisp (ext:quit code)
   #+clozure (ccl:quit code)
   #+cormanlisp (win32:exitprocess code)
   #+(or cmu scl) (unix:unix-exit code)
-  #+ecl (si:quit code)
   #+gcl (system:quit code)
   #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
   #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
@@ -295,7 +316,7 @@ Some constraints:
              (cond
                (exit `(,exit :code code :abort t))
                (quit* `(,quit* :unix-status code :recklessly-p t))))
-  #-(or abcl allegro clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+  #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
 
@@ -382,15 +403,15 @@ is bound, write a message and exit on an error.  If
 
 (defun call-with-asdf-conditions (thunk &optional verbose)
   (declare (ignorable verbose))
-  (handler-bind (#+sbcl
-                 ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
-                   #'muffle-warning)
-                 #+(and ecl (not ecl-bytecmp))
+  (handler-bind (#+(and ecl (not ecl-bytecmp))
                  ((or c::compiler-note c::compiler-debug-note
                       c::compiler-warning) ;; ECL emits more serious warnings than it should.
                    #'muffle-warning)
                  #+mkcl
                  ((or compiler:compiler-note) #'muffle-warning)
+                 #+sbcl
+                 ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
+                   #'muffle-warning)
                  #-(or cmu scl)
                  ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
                  (style-warning
@@ -432,7 +453,7 @@ is bound, write a message and exit on an error.  If
             ;; CMUCL: ?
             ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
             ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
-            #+(or clisp cmu ecl scl xcl) (good :expected-style-warnings)
+            #+(or clasp clisp cmu ecl scl xcl) (good :expected-style-warnings)
             (and upgradep (good :unexpected-style-warnings))
             (bad :unexpected-style-warnings)))
           (t (good :success)))))))
@@ -630,7 +651,6 @@ is bound, write a message and exit on an error.  If
 (defun test-upgrade (old-method new-method tag) ;; called by run-test
   (with-test ()
     (verbose t nil)
-    (setf tag (string tag))
     (when old-method
       (cond
         ((string-equal tag "REQUIRE")
@@ -641,7 +661,7 @@ is bound, write a message and exit on an error.  If
              (leave-test "Your Lisp implementation does not provide ASDF. Skipping test.~%" 0)))
         (t
          (format t "Loading old asdf ~A via ~A~%" tag old-method)
-         (funcall old-method tag))))
+         (acall (list old-method :asdf-test) tag))))
     (when (find-package :asdf)
       (configure-asdf))
     (when (and (null old-method) (eq 'load-asdf-fasl new-method) (not (probe-file (asdf-fasl))))
@@ -649,7 +669,7 @@ is bound, write a message and exit on an error.  If
           (leave-test "Your failed to compile ASDF before your run (test-upgrade ()'load-asdf-fasl ...)"  1)
           (leave-test "Your Lisp doesn't provide ASDF. Skipping (test-upgrade ()'load-asdf-fasl ...)"  0)))
     (format t "Now loading new asdf via method ~A~%" new-method)
-    (funcall new-method)
+    (acall (list new-method :asdf-test))
     (format t "Testing it~%")
     (register-directory *test-directory*)
     (load-test-system :test-asdf/all)

@@ -1,6 +1,5 @@
 ;;; -*- Lisp -*-
 
-
 #+scl
 (require :http-library)
 

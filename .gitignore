@@ -2,6 +2,7 @@
 build
 asdf.lisp
 
+doc/cmucl/
 doc/asdf/
 doc/asdf.aux
 doc/asdf.cp
@@ -21,9 +22,16 @@ doc/asdf.tps
 doc/asdf.vr
 doc/asdf.vrs
 doc/asdf.t2d/
+doc/asdf.dvi
+doc/version.texinfo
+doc/*.log
+*.tmp
 
 LICENSE
+README.html
 tmp/
+man/
+lib/
 *.dribble
 *.fas[bcl]
 *.fas
@@ -47,6 +55,7 @@ debian/cl-asdf.postinst.debhelper
 debian/cl-asdf.prerm.debhelper
 debian/cl-asdf.substvars
 debian/cl-asdf/
+debian/patches/
 debian/files
 .pc
 

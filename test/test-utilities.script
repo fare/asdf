@@ -1,5 +1,131 @@
 ;;; -*- Lisp -*-
 
+#+(and sbcl os-windows) (trace sb-ext:run-program)
+(proclaim '(optimize (debug 3) (speed 1) (safety 3) (compilation-speed 0)))
+
+(defun getcwd-from-run-program ()
+  (uiop:parse-native-namestring
+   (nest
+    ;; TODO: fix run-program to use POWERSHELL.EXE rather than CMD, and remove this kluge.
+    #+os-windows (string-trim " ")
+    (run-program
+     (os-cond
+       ((os-unix-p) '("pwd" "-P"))
+       ((os-windows-p) "cd"))
+     :output '(:string :stripped t)))
+   :ensure-directory t))
+
+(defun simplify-pathname-directory (pathname)
+  (setf pathname (ensure-pathname pathname))
+  (when pathname
+    (make-pathname :defaults pathname :directory (simplify-pathname-directory-component (pathname-directory pathname)))))
+
+(defun simplify-pathname-directory-component (dir)
+  (setf dir (normalize-pathname-directory-component dir))
+  (loop
+   :with head = (progn
+                  (unless (and (consp dir) (cdr dir)) (return dir))
+                  (subseq dir 0 1))
+   :with tail = (rest dir)
+   :for (next rest) :on tail :do
+   (unless (equal next ".")
+     (when (member next '(".." :up) :test 'equal) (setf next :back))
+     (setf head (merge-pathname-directory-components (list :relative next) head)))
+   :finally (return head)))
+
+(let ((asdf-directory (truename *asdf-directory*))
+      (test-directory (truename *test-directory*)))
+  (labels ((check-cwd (dir)
+             (assert-pathname-equal dir (getcwd))
+             #-(and sbcl os-windows)
+             (assert-pathname-equal dir (getcwd-from-run-program)))
+           (check-true-dpd (dir)
+             (assert-pathname-equal dir (get-pathname-defaults))
+             (assert-pathname-equal dir (simplify-pathname-directory (truename #p"./")))
+             (assert-pathname-equal dir (simplify-pathname-directory (truename* #p"./"))))
+           (check-file-exists (file &optional true)
+             (setf file (parse-unix-namestring file))
+             (if true
+                 (assert-pathname-equal true (probe-file file))
+                 (setf true (probe-file file)))
+             (assert-pathname-equal true (truename file))
+             (assert-pathname-equal true (truename* file))
+             (assert-pathname-equal true (probe-file* file :truename t))
+             (assert-pathname-equal true (ensure-absolute-pathname (probe-file* file) 'get-pathname-defaults)))
+           (check-file-doesnt-exist (file)
+             (setf file (parse-unix-namestring file))
+             (assert-equal nil (probe-file* file))
+             (assert-equal nil (probe-file file)))
+           (check-directory-exists (file &optional true)
+             (setf file (parse-unix-namestring file))
+             (let ((dir (truename (ensure-directory-pathname file))))
+               (if true
+                   (assert-pathname-equal true dir)
+                   (setf true dir)))
+             (assert-pathname-equal true (truename (ensure-directory-pathname file)))
+             (assert-pathname-equal true (nest #+(and clisp os-windows) (ensure-directory-pathname)
+                                               (truename* file)))
+             (assert-pathname-equal true
+                                    (let ((path (probe-file* file :truename t)))
+                                      #+(or allegro (and clisp os-windows)) (ensure-directory-pathname path)
+                                      #-(or allegro (and clisp os-windows)) path))
+             (assert-pathname-equal true (if-let (x (probe-file* file))
+                                           (ensure-absolute-pathname (ensure-directory-pathname x) 'get-pathname-defaults))))
+           (check-directory-doesnt-exist (file)
+             (setf file (parse-unix-namestring file))
+             (assert-equal nil (probe-file* file)))
+           (check-true-dpd-asdf ()
+             (check-true-dpd asdf-directory)
+             (check-file-exists "asdf.asd")
+             (check-file-exists "test/test-utilities.script")
+             (check-directory-exists "tools/")
+             (check-directory-exists "tools")
+             (check-file-doesnt-exist "test-utilities.script")
+             (check-directory-doesnt-exist "stamp-propagation/"))
+           (check-true-dpd-test ()
+             (check-true-dpd test-directory)
+             (check-file-exists "test-utilities.script")
+             (check-directory-exists "stamp-propagation/")
+             (check-directory-exists "stamp-propagation")
+             (check-file-doesnt-exist "test/test-utilities.script")
+             (check-directory-doesnt-exist "tools/")))
+
+    (DBG "1" (chdir asdf-directory) (setf *default-pathname-defaults* asdf-directory))
+    (check-true-dpd-asdf)
+
+    (DBG "2" (chdir test-directory) (setf *default-pathname-defaults* test-directory))
+    (check-true-dpd-test)
+
+    (with-expected-failure (#+gcl t)
+      (DBG "3" (chdir asdf-directory) (setf *default-pathname-defaults* test-directory))
+      (check-true-dpd-test))
+
+    #-(or abcl genera xcl ;; on these platforms, chdir changes D-P-D so these tests are not meaningful
+          (and sbcl os-windows)) ;; SBCL on Windows really hates a relative D-P-D.
+    (progn
+      ;; SBCL hates to get (truename #p"") when D-P-D is itself #p"". See https://bugs.launchpad.net/sbcl/+bug/1472414
+      (DBG "4"
+           (setf *default-pathname-defaults* (nil-pathname)) ;; make things relative to GETCWD
+           (chdir asdf-directory)) ;; note: may or may not change *default-pathname-defaults* to an absolute pathname.
+      (check-true-dpd-asdf)
+      (DBG "5"
+           *default-pathname-defaults*
+           (chdir test-directory)) ;; note: may or may not change *default-pathname-defaults* to an absolute pathname.
+      (check-true-dpd-test)
+
+      ;; On implementations where chdir doesn't side-effect D-P-D, we can have D-P-D be relative to GETCWD...
+      ;; except on allegro, that hates this trick.
+      (with-expected-failure (#+(or allegro gcl (and clisp os-windows)) t)
+        (unless (absolute-pathname-p *default-pathname-defaults*)
+          (DBG "6"
+               (chdir asdf-directory)
+               (setf *default-pathname-defaults* (parse-unix-namestring "test/")))
+          (check-true-dpd-test))))
+
+    ;; For the rest of this test, use these:
+    (setf *default-pathname-defaults* (nil-pathname))
+    (chdir test-directory)))
+
 (assert
  (every #'directory-pathname-p
   (list
@@ -225,7 +351,7 @@
 (delete-empty-directory (subpathname *build-directory* "deleteme/a/b/e/"))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/e/"))))
 (delete-directory-tree (subpathname *build-directory* "deleteme/")
-                       :validate (lambda (x) (and (<= 5 (length (pathname-directory x)))
+                       :validate (lambda (x) (and (<= 4 (length (pathname-directory x)))
                                                   (subpathp x *build-directory*))))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/c/"))))
 (assert (not (directory-exists-p (subpathname *build-directory* "deleteme/a/b/d/"))))
@@ -253,6 +379,7 @@
 
 #+non-base-chars-exist-p
 (progn
+  (assert (= 0 (character-type-index #\a)))
   (assert (not (base-string-p *last-char-string*)))
   (assert (not (base-string-p (make-string 10 :element-type 'character))))
   (assert (not (base-string-p (unbasify "abc"))))
@@ -261,11 +388,19 @@
   (assert (base-string-p (reduce/strcat (mapcar 'basify '("a" "b" nil "cd")))))
   (assert (base-string-p (strcat (basify "ab") (basify "cd"))))
   (assert (not (base-string-p (strcat (basify "ab") #\c *last-char* (unbasify "d")))))
-  (assert (base-string-p (strcat (basify "ab") #\c #\d))))
-
-(or #+os-windows ;; Avoid C:\Users vs C:\users on SBCL.
-    (equalp (namestring *test-directory*) (namestring (getcwd)))
-    (assert-pathname-equal *test-directory* (getcwd)))
+  (assert (base-string-p (strcat (basify "ab") #\c #\d)))
+  (when (< 256 char-code-limit)
+    (let* ((lambda-char (code-char 955))
+           (lambda-string (string lambda-char)))
+      (assert (= 1 (character-type-index lambda-char)))
+      (assert-equal (strings-common-element-type (list #\a nil (strcat "hello, " lambda-string "world")))
+                    #-lispworks 'character #+lispworks7 'lw:bmp-char #+(and lispworks (not lispworks7)) 'lw:simple-char)
+      (when (< 65536 char-code-limit)
+        (let* ((amagi (format nil "~a~a" (code-char #x120BC) (code-char #x12104))))
+          (assert (= #+lispworks7 2 #-lispworks7 1 (character-type-index (first-char amagi))))
+          (assert-equal (strings-common-element-type (list #\a nil amagi lambda-string))
+                        #+(or (not lispworks) lispworks7) 'character
+                        #+(and lispworks (not lispworks7)) 'lw:simple-char))))))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
 (assert-equal +lf+ (map 'string 'code-char '(10)))
@@ -285,39 +420,34 @@
   (ts "c" +crlf+ (strcat ccr +lf+))
   (ts (strcat acrlf "b") +lf+ (strcat acrlf blf)))
 
-(DBG :wtf-s)
-(with-temporary-file (:stream s :direction :io :prefix "LEP")
+(DBG "testing with-temporary-file")
+(with-temporary-file (:stream s :direction :io :prefix "WTF0")
   (println "Hello, World" s)
   (file-position s 0)
   (assert-equal (read-line s) "Hello, World"))
 
-(DBG :wtf-p)
-(let ((pn
-        (with-temporary-file (:pathname pn :direction :output :prefix "LEP")
-          (assert-equal (read-file-lines pn) ())
-          pn)))
-  (assert (not (probe-file pn))))
+(let ((pn1 (with-temporary-file (:pathname pn :direction :output :prefix "WTF1")
+             (assert-equal (read-file-lines pn) ())
+             pn)))
+  (assert (not (probe-file pn1))))
 
-(DBG :wtf-s-p)
-(let ((pn
-        (with-temporary-file (:stream s :pathname p :keep t :direction :io :prefix "LEP")
-          (println "Hello, World" s)
-          (DBG :wsp s p (probe-file p))
-          p)))
-  (assert-equal (read-file-lines pn) '("Hello, World"))
-  (delete-file pn))
+(let ((pn2 (with-temporary-file (:stream s :pathname p :keep t :direction :io :prefix "WTF2")
+             (println "Hello, World" s)
+             p)))
+  (assert-equal (read-file-lines pn2) '("Hello, World"))
+  (delete-file pn2))
 
-(assert
- (not (probe-file
-       (let ((s 'outer-s))
-         (with-temporary-file (:stream s :pathname p :direction :io :prefix "LEP")
-           (assert (open-stream-p s))
-           (DBG :wsp s p (probe-file p))
-           (println "Same thing with :close-stream" s)
-           :close-stream
-           (assert-equal s 'outer-s) ;; the stream s (1) has been closed and (2) is no longer in scope.
-           (assert-equal (read-file-lines p) '("Same thing with :close-stream"))
-           p)))))
+(with-expected-failure (#+gcl "BUG in GCL compiling the WTF internal loop. Works if loaded without compiling.")
+  (assert
+   (not (probe-file
+         (let ((s 'outer-s))
+           (with-temporary-file (:stream s :pathname p :direction :io :prefix "WTF3")
+             (assert (open-stream-p s))
+             (println "Same thing with :close-stream" s)
+             :close-stream
+             (assert-equal s 'outer-s) ;; the stream s (1) has been closed and (2) is no longer in scope.
+             (assert-equal (read-file-lines p) '("Same thing with :close-stream"))
+             p))))))
 
 (DBG :ensure-gethash)
 (let ((h (make-hash-table :test 'equal)))
@@ -342,3 +472,29 @@
                   #+mkcl (DBG :os i q s (assoc q s))
                          (assert-equal i (second (assoc q s))))))
         (assert-equal (get-optimization-settings) settings))
+
+(DBG :standard-case-symbol-name)
+(if (or #+allegro (eq excl:*current-case-mode* :case-sensitive-lower))
+    (push :modern-syntax *features*)
+    (setf *features* (remove :modern-syntax *features*)))
+(assert-equal (standard-case-symbol-name "foo") #-modern-syntax "FOO" #+modern-syntax "foo")
+(assert-equal (standard-case-symbol-name "BaR") #-modern-syntax "BAR" #+modern-syntax "BaR")
+(assert-equal (standard-case-symbol-name "BAZ") #-modern-syntax "BAZ" #+modern-syntax "BAZ")
+(assert-equal (standard-case-symbol-name :foo) #-modern-syntax "FOO" #+modern-syntax "foo")
+(assert-equal (standard-case-symbol-name 'BaR) #-modern-syntax "BAR" #+modern-syntax "BaR")
+(assert-equal (standard-case-symbol-name '#:BAZ) #-modern-syntax "BAZ" #+modern-syntax "BAZ")
+(assert-equal (standard-case-symbol-name :|foo|) "foo")
+(assert-equal (standard-case-symbol-name '|BaR|) "BaR")
+(assert-equal (standard-case-symbol-name '#:|BAZ|) "BAZ")
+
+(DBG :find-standard-case-symbol)
+(assert-equal 'symbol (find-standard-case-symbol "symbol" "asdf-test"))
+(assert-equal 'Symbol (find-standard-case-symbol "Symbol" "asdf-test"))
+(assert-equal 'SYMBOL (find-standard-case-symbol "SYMBOL" "asdf-test"))
+
+(assert-equal '|lowercase| (find-standard-case-symbol :|lowercase| :asdf-test))
+(assert-equal '|CamelCase| (find-standard-case-symbol :|CamelCase| :asdf-test))
+(assert-equal '|UPPER-CASE| (find-standard-case-symbol :|UPPER-CASE| :asdf-test))
+
+(assert-equal #-modern-syntax '|THIS_SYMBOL| #+modern-syntax '|This_Symbol|
+              (find-standard-case-symbol "This_Symbol" "asdf-test"))
