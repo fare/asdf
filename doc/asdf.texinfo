@@ -258,7 +258,7 @@ Issues with using and extending ASDF to define systems
 
 ASDF development FAQs
 
-* How do run the tests interactively in a REPL?::
+* How do I run the tests interactively in a REPL?::
 
 @end detailmenu
 @end menu
@@ -1112,7 +1112,10 @@ Only period-separated non-negative integers are accepted at present.
 See below Version specifiers in @ref{The defsystem grammar}.
 
 @item
-This file contains a single @code{defsystem} declaration.
+This file contains a single form, the @code{defsystem} declaration.
+No @code{in-package} form, no @code{asdf:} package prefix, no nothing.
+Just the one naked @code{defsystem} form.
+This is what we recommend.
 More complex system definition files are possible with arbitrary Lisp code,
 but we recommend that you keep it simple if you can.
 This will make your system definitions more robust and more future-proof.
@@ -4959,7 +4962,6 @@ plus many implementations that previously did not.
 ASDF has been made to work with all actively maintained CL
 implementations and even a few implementations that are @emph{not}
 actively maintained.
-@xref{FAQ,,``What has changed between ASDF 1 ASDF 2 and ASDF 3?''}.
 
 Furthermore, it is possible to upgrade from ASDF 1 to ASDF 2 or ASDF 3 on the fly
 (though we recommend instead upgrading your implementation or replacing its ASDF module).
@@ -5461,12 +5463,12 @@ or the code of @url{https://cliki.net/cl-launch,@code{cl-launch}}.
 Note that in addition to the pitfalls and constraints above,
 these heroic scripts (should you wish to write or modify one),
 must take care to configure ASDF @emph{twice}.
-One first time, right after you load the old ASDF 2 and before you upgrade to the new ASDF 3,
+A first time, right after you load the old ASDF 2 and before you upgrade to the new ASDF 3,
 so it may find where you put ASDF 3.
-One second time, because some implementations can't handle a smooth upgrade to ASDF 3,
+A second time, because some implementations can't handle a smooth upgrade to ASDF 3,
 and lose configuration as they do.
 @lisp
-(require "asdf")
+(ignore-errors (funcall 'require "asdf")) ;; <--- try real hard
 ;; <--- insert heroics here, if that failed to provide ASDF 2 or 3
 ;; <--- insert configuration here, if that succeeded
 (asdf:load-system "asdf")
@@ -5495,7 +5497,6 @@ and lose configuration as they do.
 @code{asdf-ecl} and its short-lived successor @code{asdf-bundle} are no more,
 having been replaced by code now built into ASDF 3.
 Moreover, the name of the bundle operations has changed since ASDF 3.1.3.
-@xref{What happened to the bundle operations}.
 
 And yet, the feature is not enabled to be used by @code{load-system} by default on ECL as originally intended,
 because of a bug in ECL itself found during testing.
@@ -5990,11 +5991,11 @@ Use from the @code{named-readtables} system the macro @code{named-readtables:def
 @section ASDF development FAQs
 
 @menu
-* How do run the tests interactively in a REPL?::
+* How do I run the tests interactively in a REPL?::
 @end menu
 
-@node How do run the tests interactively in a REPL?,  , ASDF development FAQs, ASDF development FAQs
-@subsection How do run the tests interactively in a REPL?
+@node How do I run the tests interactively in a REPL?,  , ASDF development FAQs, ASDF development FAQs
+@subsection How do I run the tests interactively in a REPL?
 
 This not-so-frequently asked question is primarily for ASDF developers,
 but those who encounter an unexpected error in some test may be
