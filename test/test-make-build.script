@@ -1,0 +1,9 @@
+;;; -*- Lisp -*-
+
+(DBG "build sample-system. Should load from sample-system/")
+(setf *central-registry* (list (subpathname *test-directory* "sample-system/")))
+
+(make-build 'sample-system
+            :type :program :monolithic t
+            :name-suffix ""
+            #+ecl :epilogue-code #+ecl '(println "blue sky"))
