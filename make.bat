@@ -10,13 +10,13 @@ cd %~p0
 
 if "%1" == "" goto all
 if "%1" == "all" goto all
-if "%1" == "build_asdf" goto build_asdf
+if "%1" == "build-asdf" goto build-asdf
 if "%1" == "ext" goto ext
 if "%1" == "noext" goto noext
-if "%1" == "driver_files" goto driver_files
-if "%1" == "defsystem_files" goto defsystem_files
+if "%1" == "driver-files" goto driver-files
+if "%1" == "defsystem-files" goto defsystem-files
 
-call %0 build_asdf
+call %0 build-asdf
 %here%\asdf-tools.bat env %*
 goto :end
 
@@ -24,7 +24,7 @@ goto :end
 :all
 :: Default action: bootstrap asdf.lisp
 
-:build_asdf
+:build-asdf
 :: That's the only thing that we really need before we may invoke asdf-builder.
  if not exist build mkdir build
  set a=build\asdf.lisp
@@ -50,12 +50,12 @@ goto :end
  git submodule deinit .
  goto end
 
-:driver_files
+:driver-files
 :: These targets are used during tests to ensure the Makefile is in synch with the .asd files.
  echo %driver_lisp%
  goto end
 
-:defsystem_files
+:defsystem-files
 :: These targets are used during tests to ensure the Makefile is in synch with the .asd files.
  echo %defsystem_lisp%
  goto end
