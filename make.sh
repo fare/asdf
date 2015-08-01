@@ -8,9 +8,9 @@ defsystem_lisp="upgrade.lisp component.lisp system.lisp cache.lisp find-system.l
 
 all () {
   # Default action: bootstrap asdf.lisp
-  build-asdf
+  build_asdf
 }
-build-asdf () {
+build_asdf () {
   # That's the only thing that we really need before we may invoke asdf-builder.
   mkdir -p build
   a=build/asdf.lisp
@@ -29,17 +29,17 @@ noext () {
   # Remove all the development-time dependencies of ASDF:
   git submodule deinit .
 }
-driver-files () {
+driver_files () {
   # These targets are used during tests to ensure the Makefile is in synch with the .asd files.
   echo ${driver_lisp}
 }
-defsystem-files () {
+defsystem_files () {
   # These targets are used during tests to ensure the Makefile is in synch with the .asd files.
   echo ${defsystem_lisp}
 }
 
 case "$1" in
   "") all ;;
-  all|build-asdf|ext|noext|driver-files|defsystem-files) "$@" ;;
-  *) build-asdf ; exec ${here}/asdf-tools env "$@" ;;
+  all|build_asdf|ext|noext|driver_files|defsystem_files) "$@" ;;
+  *) build_asdf ; exec ${here}/tools/asdf-tools env "$@" ;;
 esac ; exit
