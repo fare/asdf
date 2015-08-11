@@ -1,13 +1,6 @@
 ;; -*- Lisp -*-
 (declaim (optimize (debug 3) (safety #-gcl 3 #+gcl 0)))
 
-#+(and clisp os-windows)
-(ext:without-package-lock ()
-  (trace uiop:run-program uiop/run-program::%run-program uiop/run-program::%system
-         ext:shell ext:run-shell-command ext:run-program))
-
-#+(and sbcl os-windows) (trace sb-ext:run-program)
-
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun dewindowize (x)
   (block ()
@@ -92,9 +85,6 @@
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
                                    (run-program "echo ok" :output t :error-output :output)))))
-
-;;#+allegro (trace excl:run-shell-command sys:reap-os-subprocess)
-;;#+lispworks (trace system:run-shell-command system:pid-exit-status)
 
 #|
 Testing run-program

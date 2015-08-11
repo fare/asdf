@@ -7,8 +7,6 @@
 
 (assert (find-system :hello-world-example))
 
-(trace run-program #+(and sbcl os-windows) sb-ext:run-program)
-
 ;; Try to load lisp-invocation from xcvb
 (initialize-source-registry
  `(:source-registry
