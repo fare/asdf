@@ -1,0 +1,8 @@
+;;; -*- Lisp -*-
+
+(DBG "Test ld-flags in make-image. Should load from ecl-make-image/")
+
+#+ecl
+(progn
+  (chdir #P"ecl-make-image/")
+  (load "readme.lisp"))
