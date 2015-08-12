@@ -584,7 +584,8 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
       :with results = ()
       :for counter :from (random (expt 36 #-gcl 8 #+gcl 5))
       :for pathname = (parse-native-namestring
-                       (format nil "~A~36R~@[~A~]~@[.~A~]" prefix counter suffix type))
+                       (format nil "~A~36R~@[~A~]~@[.~A~]"
+                               prefix counter suffix (unless (eq type :unspecific) type)))
       :for okp = nil :do
         ;; TODO: on Unix, do something about umask
         ;; TODO: on Unix, audit the code so we make sure it uses O_CREAT|O_EXCL
@@ -672,8 +673,13 @@ Further KEYS can be passed to MAKE-PATHNAME."
                           :defaults pathname keys))
 
   (defun tmpize-pathname (x)
-    "Return a new pathname modified from X by adding a trivial deterministic suffix"
-    (add-pathname-suffix x "-TMP"))
+    "Return a new pathname modified from X by adding a trivial random suffix.
+A new empty file with said temporary pathname is created, to ensure there is no
+clash with any concurrent process attempting the same thing."
+    (let* ((px (ensure-pathname x))
+           (prefix (if-let (n (pathname-name px)) (strcat n "-tmp") "tmp")))
+      (get-temporary-file
+       :directory (pathname-directory-pathname px) :prefix prefix :type (pathname-type px))))
 
   (defun call-with-staging-pathname (pathname fun)
     "Calls FUN with a staging pathname, and atomically
@@ -691,4 +697,3 @@ For the latter case, we ought pick a random suffix and atomically open it."
   (defmacro with-staging-pathname ((pathname-var &optional (pathname-value pathname-var)) &body body)
     "Trivial syntax wrapper for CALL-WITH-STAGING-PATHNAME"
     `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body))))
-
