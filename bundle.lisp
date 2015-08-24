@@ -503,12 +503,12 @@ itself.")) ;; operation on a system and its dependencies
                `(,(make-library-system
                    "cmp" (compiler-library-pathname))))
            ,@(unless (or (no-uiop c) (has-it-p "uiop") (has-it-p "asdf"))
-               `(cond
-                  ((system-source-directory :uiop) `(,(find-system :uiop)))
-                  ((system-source-directory :asdf) `(,(find-system :asdf)))
-                  (t `(,@(if-let (uiop (uiop-library-pathname))
-                           `(,(make-library-system "uiop" uiop)))
-                       ,(make-library-system "asdf" (asdf-library-pathname))))))
+               (cond
+                 ((system-source-directory :uiop) `(,(find-system :uiop)))
+                 ((system-source-directory :asdf) `(,(find-system :asdf)))
+                 (t `(,@(if-let (uiop (uiop-library-pathname))
+                          `(,(make-library-system "uiop" uiop)))
+                      ,(make-library-system "asdf" (asdf-library-pathname))))))
            ,@deps)))))
 
   (defmethod perform ((o link-op) (c system))
@@ -540,18 +540,3 @@ itself.")) ;; operation on a system and its dependencies
             "BASIC-COMPILE-BUNDLE-OP operations are not supported on Mac OS X for this lisp.~%~T~
 To continue, push :asdf-use-unsafe-mac-bundle-op onto *FEATURES*.~%~T~
 Please report to ASDF-DEVEL if this works for you.")))
-
-
-;;; Backward compatibility with pre-3.1.2 names
-;; (defclass fasl-op (selfward-operation)
-;;   ((selfward-operation :initform 'compile-bundle-op :allocation :class)))
-;; (defclass load-fasl-op (selfward-operation)
-;;   ((selfward-operation :initform 'load-bundle-op :allocation :class)))
-;; (defclass binary-op (selfward-operation)
-;;   ((selfward-operation :initform 'deliver-asd-op :allocation :class)))
-;; (defclass monolithic-fasl-op (selfward-operation)
-;;   ((selfward-operation :initform 'monolithic-compile-bundle-op :allocation :class)))
-;; (defclass monolithic-load-fasl-op (selfward-operation)
-;;   ((selfward-operation :initform 'monolithic-load-bundle-op :allocation :class)))
-;; (defclass monolithic-binary-op (selfward-operation)
-;;   ((selfward-operation :initform 'monolithic-deliver-asd-op :allocation :class)))

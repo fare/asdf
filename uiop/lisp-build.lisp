@@ -672,8 +672,7 @@ it will filter them appropriately."
              (unless (use-ecl-byte-compiler-p)
                (or object-file
                    #+ecl(compile-file-pathname output-file :type :object)
-                   #+clasp (compile-file-pathname output-file :output-type :object)
-                   )))
+                   #+clasp (compile-file-pathname output-file :output-type :object))))
            #+mkcl
            (object-file
              (or object-file

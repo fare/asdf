@@ -426,10 +426,10 @@ It returns a process-info plist with possible keys:
     ;; NB: these implementations have unix vs windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
     (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clisp clozure cmu (and lispworks os-unix) mkcl sbcl scl)
+    #-(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys directory
            (error "run-program not available"))
-    #+(or allegro clisp clozure cmu (and lispworks os-unix) mkcl sbcl scl)
+    #+(or allegro clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%input (%normalize-io-specifier input :input))
            (%output (%normalize-io-specifier output :output))
@@ -585,7 +585,7 @@ It returns a process-info plist with possible keys:
             #+allegro (sys:reap-os-subprocess :pid process :wait t)
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
-            #+(or clasp ecl) (nth-value 1 (ext:external-process-status process))
+            #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process))
             #+lispworks
             (if-let ((stream (or (getf process-info :input-stream)
                                  (getf process-info :output-stream)
@@ -909,8 +909,11 @@ or an indication of failure via the EXIT-CODE of the process"
         (setf force-shell t)))
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
-                     #+(or clasp clisp ecl) (or (not ignore-error-status) t)
+                     #+(or clasp clisp) (or (not ignore-error-status) t)
                      #+clisp (member error-output '(:interactive :output))
+                     ;; old versions of ecl <= 15.3.7 don't support non-trivial :error
+                     #+ecl (and (nth-value 1 (ignore-errors (slot-value (ext:make-external-process) 'ext::error-stream)))
+                                (not (member error-output '(:interactive :output nil))))
                      #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)
@@ -921,4 +924,4 @@ or an indication of failure via the EXIT-CODE of the process"
              :if-output-exists if-output-exists
              :if-error-output-exists if-error-output-exists
              :element-type element-type :external-format external-format
-           keys))))
+             keys))))
