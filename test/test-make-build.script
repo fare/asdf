@@ -10,6 +10,4 @@
 
 (make-build 'sample-system
             :type :program :monolithic t
-            #+(and ecl (not os-windows)) :name-suffix #+(and ecl (not os-windows)) ""
-            #+allegro :name-suffix #+allegro ".exe" ;; but in allegro 9.0 pathname translation of :unspecific(!)
             #+ecl :epilogue-code #+ecl '(println "blue sky"))
