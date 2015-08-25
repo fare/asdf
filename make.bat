@@ -1,4 +1,6 @@
 @echo off
+:: Usage: ./make.sh [keyword=argument ...] <command>
+:: See the Makefile for the list of acceptable keyword arguments
 
 set here=%~dp0
 set header_lisp=header.lisp

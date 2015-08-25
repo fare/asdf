@@ -1,4 +1,6 @@
 #!/bin/sh
+# Usage: ./make.sh [keyword=argument ...] <command>
+# See the Makefile for the list of acceptable keyword arguments
 
 here="$(dirname $0)"
 
