@@ -46,7 +46,7 @@
     ("asdf.asd" "  :version \"" "\" ;; to be automatically updated by make bump-version")
     ("header.lisp" "This is ASDF " ": Another System Definition Facility.")
     ("upgrade.lisp" "   (asdf-version \"" "\")")
-    ("doc/asdf.texinfo" "Manual for Version @value{" "}"))) ;; NB: two occurrences with this pattern.
+    ("doc/asdf.texinfo" "Manual for Version " ""))) ;; NB: two occurrences with this pattern.
 
 
 (defparameter *old-version* :default)
