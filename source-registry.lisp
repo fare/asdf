@@ -20,7 +20,7 @@
    #:default-user-source-registry #:default-system-source-registry
    #:user-source-registry #:system-source-registry
    #:user-source-registry-directory #:system-source-registry-directory
-   #:environment-source-registry #:process-source-registry
+   #:environment-source-registry #:process-source-registry #:inherit-source-registry
    #:compute-source-registry #:flatten-source-registry
    #:sysdef-source-registry-search))
 (in-package :asdf/source-registry)
@@ -42,6 +42,8 @@
   (defvar *source-registry* nil
     "Either NIL (for uninitialized), or an equal hash-table, mapping
 system names to pathnames of .asd files")
+
+  (defvar *source-registry-parameter* nil)
 
   (defun source-registry-initialized-p ()
     (typep *source-registry* 'hash-table))
@@ -264,7 +266,7 @@ after having found a .asd file? True by default.")
       (dolist (directive (cdr (validate-source-registry-form form)))
         (process-source-registry-directive directive :inherit inherit :register register))))
 
-  (defun flatten-source-registry (&optional parameter)
+  (defun flatten-source-registry (&optional (parameter *source-registry-parameter*))
     (remove-duplicates
      (while-collecting (collect)
        (with-pathname-defaults () ;; be location-independent
@@ -277,7 +279,7 @@ after having found a .asd file? True by default.")
      :test 'equal :from-end t))
 
   ;; Will read the configuration and initialize all internal variables.
-  (defun compute-source-registry (&optional parameter (registry *source-registry*))
+  (defun compute-source-registry (&optional (parameter *source-registry-parameter*) (registry *source-registry*))
     (dolist (entry (flatten-source-registry parameter))
       (destructuring-bind (directory &key recurse exclude) entry
         (let* ((h (make-hash-table :test 'equal))) ; table to detect duplicates
@@ -306,8 +308,6 @@ after having found a .asd file? True by default.")
                     (setf (gethash name h) asd))))))
           h)))
     (values))
-
-  (defvar *source-registry-parameter* nil)
 
   (defun initialize-source-registry (&optional (parameter *source-registry-parameter*))
     ;; Record the parameter used to configure the registry
