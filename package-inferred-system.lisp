@@ -111,7 +111,7 @@ otherwise return a default system name computed from PACKAGE-NAME."
       (unless (equal primary system)
         (let ((top (find-system primary nil)))
           (when (typep top 'package-inferred-system)
-            (if-let (dir (system-source-directory top))
+            (if-let (dir (component-pathname top))
               (let* ((sub (subseq system (1+ (length primary))))
                      (f (probe-file* (subpathname dir sub :type "lisp")
                                      :truename *resolve-symlinks*)))

@@ -1926,6 +1926,12 @@ and has many options that prove useful in this context,
 such as @code{:use-reexport} and @code{:mix-reexport}
 that allow for ``inheritance'' of symbols being exported.
 
+Note that starting with ASDF 3.1.5.6 only, ASDF will look for source files under
+the @code{component-pathname} as specified via the @code{:pathname} option,
+whereas earlier versions ignore this option and use the @code{system-source-directory}
+where the @file{.asd} file resides.
+
+
 @node The object model of ASDF, Controlling where ASDF searches for systems, Defining systems with defsystem, Top
 @comment  node-name,  next,  previous,  up
 @chapter The Object model of ASDF
