@@ -345,7 +345,7 @@ also \"Configuration DSL\"\) in the ASDF manual."
     (resolve-absolute-location
      `(,(or (getenv-absolute-directory "XDG_CACHE_HOME")
             (os-cond
-             ((os-windows-p) (xdg-data-home "cache"))
+             ((os-windows-p) (xdg-data-home "cache/"))
              (t (subpathname* (user-homedir-pathname) ".cache/"))))
        ,more)))
 

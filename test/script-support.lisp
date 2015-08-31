@@ -42,11 +42,10 @@ Some constraints:
 (proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                      #+(or cmu scl) (c::brevity 2) #+(or cmu scl) (ext:inhibit-warnings 3)))
 
-(defvar *trace-symbols*
+(defparameter *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,
     ;; here's a nice place to say what.
     ;; These string designators will be interned in ASDF after it is loaded.
-
     ;;#+ecl ,@'( :perform :input-files :output-files :compile-file* :compile-file-pathname* :load*)
     ))
 
@@ -428,7 +427,7 @@ is bound, write a message and exit on an error.  If
 (defmacro with-asdf-conditions ((&optional verbose) &body body)
   `(call-with-asdf-conditions #'(lambda () ,@body) ,verbose))
 
-(defun compile-asdf (&optional tag verbose upgradep)
+(defun compile-asdf (&optional tag (verbose nil) upgradep)
   (let* ((alisp (asdf-lisp tag))
          (afasl (asdf-fasl tag))
          (tmp (make-pathname :name "asdf-tmp" :defaults afasl)))
@@ -550,6 +549,13 @@ is bound, write a message and exit on an error.  If
 (defun load-asdf-lisp-clean ()
   (load-asdf-lisp)
   (clean-asdf-system))
+
+(defun hash-table-alist (h)
+  (loop for k being the hash-keys of h using (hash-value v) collect (cons k v)))
+
+(defun registry ()
+  (let ((sr (asymval :*source-registry*)))
+    (when sr (sort (hta sr) 'string< :key 'car))))
 
 (defun configure-asdf ()
   (format t "Configuring ASDF~%")
