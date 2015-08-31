@@ -1,9 +1,9 @@
-":" ; exec ${CCL:-ccl} --load "$0" -- "$@" ; exit # -*- Lisp -*-
+":" ; exec ${CCL:-ccl} --no-init --load "$0" -- "$@" ; exit # -*- Lisp -*-
 #|
 asdf-tools could also run on SBCL, or on any decent Common Lisp implementation,
 including using cl-launch, but CCL is the single implementation that has decent
 portable support on all of Windows, Linux (x64, x86, ARM), MacOS X
-":" ; exec ${SBCL:-sbcl} --script "$0" "$@" ; exit
+":" ; exec ${SBCL:-sbcl} --no-userinit --no-sysinit --script "$0" "$@" ; exit
 ":" ; cl-launch -l ccl -Q -sp asdf-tools -r entry-point -- "$@"
 |#
 
