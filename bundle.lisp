@@ -95,15 +95,24 @@ itself.")) ;; operation on a system and its dependencies
 
   (defclass lib-op (link-op gather-op non-propagating-operation)
     ((bundle-type :initform :lib))
-    (:documentation "compile the system and produce linkable (.a) library for it."))
+    (:documentation "Compile the system and produce linkable (.a) library for it.
+Compare with DLL-OP."))
 
   (defclass compile-bundle-op (basic-compile-bundle-op selfward-operation
                                #+(or clasp ecl mkcl) link-op #-(or clasp ecl) gather-op)
     ((selfward-operation :initform '(prepare-bundle-op #+(or clasp ecl) lib-op)
-                         :allocation :class)))
+                         :allocation :class))
+    (:documentation "This operator is an alternative to COMPILE-OP. Build a system
+and all of its dependencies, but build only a single (\"monolithic\") FASL, instead
+of one per source file, which may be more resource efficient.  That monolithic
+FASL should be loaded with LOAD-BUNDLE-OP, rather than LOAD-OP."))
 
   (defclass load-bundle-op (basic-load-op selfward-operation)
-    ((selfward-operation :initform '(prepare-bundle-op compile-bundle-op) :allocation :class)))
+    ((selfward-operation :initform '(prepare-bundle-op compile-bundle-op) :allocation :class))
+    (:documentation "This operator is an alternative to LOAD-OP. Build a system
+and all of its dependencies, using COMPILE-BUNDLE-OP. The difference with
+respect to LOAD-OP is that it builds only a single FASL, which may be
+faster and more resource efficient."))
 
   ;; NB: since the monolithic-op's can't be sideway-operation's,
   ;; if we wanted lib-op, dll-op, deliver-asd-op to be sideway-operation's,
@@ -112,7 +121,8 @@ itself.")) ;; operation on a system and its dependencies
 
   (defclass dll-op (link-op gather-op non-propagating-operation)
     ((bundle-type :initform :dll))
-    (:documentation "compile the system and produce dynamic (.so/.dll) library for it."))
+    (:documentation "compile the system and produce dynamic (.so/.dll) library for it.
+Compare with LIB-OP."))
 
   (defclass deliver-asd-op (basic-compile-op selfward-operation)
     ((selfward-operation :initform '(compile-bundle-op #+(or clasp ecl mkcl) lib-op) :allocation :class))
