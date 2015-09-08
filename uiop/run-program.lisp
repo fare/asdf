@@ -579,13 +579,12 @@ It returns a process-info plist with possible keys:
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
             #+(or cmu scl) (ext:process-wait process)
-            #+(and (or clasp ecl) os-unix) (ext:external-process-wait process)
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
             #+allegro (sys:reap-os-subprocess :pid process :wait t)
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
-            #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process))
+            #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
             #+lispworks
             (if-let ((stream (or (getf process-info :input-stream)
                                  (getf process-info :output-stream)
@@ -911,9 +910,7 @@ or an indication of failure via the EXIT-CODE of the process"
       (apply (if (or force-shell
                      #+(or clasp clisp) (or (not ignore-error-status) t)
                      #+clisp (member error-output '(:interactive :output))
-                     ;; old versions of ecl <= 15.3.7 don't support non-trivial :error
-                     #+ecl (and (nth-value 1 (ignore-errors (slot-value (ext:make-external-process) 'ext::error-stream)))
-                                (not (member error-output '(:interactive :output nil))))
+                     #+ecl t ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
                      #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)
