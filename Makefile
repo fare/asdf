@@ -43,7 +43,7 @@
 #   v=3.2.1 ./tools/asdf-tools bump
 
 ifeq ($(OS),Windows_NT)
-  MAKE_SCRIPT := make.bat
+  MAKE_SCRIPT := cmd /c make.bat
 else
   MAKE_SCRIPT := ./make.sh
 endif
