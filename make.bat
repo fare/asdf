@@ -4,8 +4,8 @@
 
 set here=%~dp0
 set header_lisp=header.lisp
-set driver_lisp=uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
-set defsystem_lisp=upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp package-inferred-system.lisp backward-internals.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
+set driver_lisp=uiop\package.lisp + uiop\common-lisp.lisp + uiop\utility.lisp + uiop\os.lisp + uiop\pathname.lisp + uiop\filesystem.lisp + uiop\stream.lisp + uiop\image.lisp + uiop\run-program.lisp + uiop\lisp-build.lisp + uiop\configuration.lisp + uiop\backward-driver.lisp + uiop\driver.lisp
+set defsystem_lisp=upgrade.lisp + component.lisp + system.lisp + cache.lisp + find-system.lisp + find-component.lisp + operation.lisp + action.lisp + lisp-action.lisp + plan.lisp + operate.lisp + output-translations.lisp + source-registry.lisp + parse-defsystem.lisp + bundle.lisp + concatenate-source.lisp + package-inferred-system.lisp + backward-internals.lisp + backward-interface.lisp + interface.lisp + user.lisp + footer.lisp
 
 %~d0
 cd %~p0
@@ -30,7 +30,7 @@ goto :end
 :: That's the only thing that we really need before we may invoke asdf-builder.
  if not exist build mkdir build
  set a=build\asdf.lisp
- copy /b %header_lisp% %driver_lisp% %defsystem_lisp% %a%.tmp
+ copy /b %header_lisp% + %driver_lisp% + %defsystem_lisp% %a%.tmp
  if not exist %a% goto clobber
  fc /b /0 %a%.tmp %a% > nul
  if errorlevel 1 goto clobber
@@ -39,7 +39,7 @@ goto :end
 
 :clobber
  if exist %a% del /f /q %a%
- ren %a%.tmp %a%
+ rename %a%.tmp asdf.lisp
  goto end
 
 :ext

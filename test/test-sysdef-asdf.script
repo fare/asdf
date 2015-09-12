@@ -62,10 +62,11 @@
 
 (defun bootstrap-lisp-files (target)
   (mapcar
-   'parse-unix-namestring
-   (remove-if 'emptyp
+   'parse-native-namestring
+   (remove-if (lambda (x) (or (emptyp x) #+os-windows (equal x "+")))
               (split-string ;; don't use make(1), use the bootstrap script
                (run-program `(#+os-unix "./make.sh" #+os-windows "make.bat" ,target)
+			    #+os-windows :force-shell #+os-windows t
                             :directory *asdf-directory* :output :string :error-output t)
                :separator #(#\space #\newline #\return #\tab)))))
 
