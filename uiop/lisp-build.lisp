@@ -785,6 +785,6 @@ it will filter them appropriately."
                       :members
                       ,(loop :for f :in (reverse fasls)
                              :collect `(,(namestring f) :load-only t))))
-             (scm:concatenate-system output :fasls-to-concatenate))
+             (scm:concatenate-system output :fasls-to-concatenate :force t))
         (loop :for f :in fasls :do (ignore-errors (delete-file f)))
         (ignore-errors (lispworks:delete-system :fasls-to-concatenate))))))
