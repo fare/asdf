@@ -9,12 +9,12 @@ Your Lisp implementation probably contains a copy of ASDF,
 which you can load using `(require "asdf")`.
 
 If you come from the C/C++ world, ASDF covers a bit of what each of
-make, autoconf, dlopen and libc do for C programs:
+`make`, `autoconf`, `dlopen` and `libc` do for C programs:
 it orchestrates the compilation and dependency management,
 handles some of the portability issues, dynamically finds and loads code,
 and offers some portable system access library.
 Except everything is different in Common Lisp, and ultimately much simpler,
-though it requires acquiring some basic concepts.
+though it does require acquiring some basic concepts.
 Importantly, ASDF builds all software in the current Lisp image,
 as opposed to building software into separate processes.
 
@@ -49,14 +49,15 @@ If it is recent enough (3.0 or later, check its `(asdf:asdf-version)`),
 then it will automatically upgrade to the ASDF provided as source code,
 assuming the source code in under a path registered by the source-registry.
 If it isn't present or isn't recent enough, we recommend you install a recent
-ASDF release using [tools/install-asdf.lisp](tools/install-asdf.lisp)
+ASDF release into your implementation using [tools/install-asdf.lisp](tools/install-asdf.lisp)
 
 
-Building and testing it
------------------------
+Building it
+-----------
 
 First, make sure ASDF is checked out under a path registered by the source-registry,
-if that isn't the case yet (see the manual). One place would be:
+if that isn't the case yet (see the [manual](http://common-lisp.net/project/asdf/asdf.html)).
+One place would be:
 
     ~/.local/share/common-lisp/source/asdf/
 
@@ -65,9 +66,14 @@ or, assuming your implementation provides ASDF 3.1 or later:
     ~/common-lisp/asdf/
 
 
-If you cloned our git repository, bootstrap a copy of `build/asdf.lisp` with:
+If you cloned our git repository, rather than extracted a tarball,
+bootstrap a copy of `build/asdf.lisp` with:
 
     make
+
+
+Testing it
+----------
 
 Before you may run tests, you need a few CL libraries.
 The simplest way to get them is as follows, but read below:
@@ -80,22 +86,32 @@ own set of carefully controlled CL libraries, that's what you want to use.
 However, if you do maintain your own set of carefully controlled CL libraries
 then you will want to use whichever tools you use (e.g. `quicklisp`, `clbuild`,
 or your own scripts around `git`) to download these libraries:
-`alexandria`, `closer-mop`, `cl-ppcre`, `cl-scripting`, `fare-mop`,
-`fare-quasiquote`, `fare-utils`, `inferior-shell`, `lisp-invocation`,
-`named-readtables`, `optima`.
+`alexandria`, `asdf-encodings`, `cl-launch`, `closer-mop`, `cl-ppcre`,
+`cl-scripting`, `fare-mop`, `fare-quasiquote`, `fare-utils`, `inferior-shell`,
+`lisp-invocation`, `named-readtables`, `optima`.
 
 If you are a CL developer, you may already have them, or may want
 to use your own tools to download a version of them you control.
 If you use [Quicklisp](https://www.quicklisp.org/), you may let
 Quicklisp download those you don't have.
-In these cases, you do NOT want to use the git submodules from `make ext`.
+In these cases, you may NOT want to use the git submodules from `make ext`.
 Otherwise, if you want to let ASDF download known-working versions
 of its dependencies, you can do it with:
 
     make ext
 
-To run all the tests on your favorite Lisp implementation `$L`,
-choose your most elaborate installed system `$S`, and try:
+
+ASDF by default uses Clozure Common Lisp (CCL) to run the scripts that orchestrate its tests.
+Install CCL and make sure an executable called `ccl` is in your `PATH`,
+or that you export a variable `CCL` that points to the CCL executable.
+To use a different Common Lisp implementation, suitably edit the script
+[`tools/asdf-tools`](tools/asdf-tools),
+or, on Windows, the batch file [`tools/asdf-tools.bat`](tools/asdf-tools.bat).
+
+
+Once you have all the required libraries and the asdf-tools script can find
+a suitable Common Lisp implementation, you may run all the tests
+on a given Common Lisp implementation `$L`, with your favorite installed system `$S`, using:
 
     make t u l=$L s=$S
 
@@ -146,6 +162,7 @@ How do I navigate this source tree?
 * [tools/](tools/)
     * `asdf-tools`, a system to build, test and release ASDF. It includes:
         * [asdf-tools](tools/asdf-tools) -- a shell script to run it as a shell command.
+        * [asdf-tools.bat](tools/asdf-tools.bat) -- a Windows batch file to run the above.
         * [asdf-tools.asd](tools/asdf-tools.asd) -- system definition for asdf-tools
         * `*.lisp` -- the source code for the `asdf-tools` system, except for the few files below.
     * also a couple scripts to help ASDF users:
@@ -160,7 +177,7 @@ How do I navigate this source tree?
 * [version.lisp-expr](version.lisp-expr)
     * The current version. Bumped up every time the code changes, using:
 
-          ./tools/asdf-builder bump
+          make bump
 
 * [doc/](doc/)
     * documentation for ASDF, including:
@@ -174,7 +191,7 @@ How do I navigate this source tree?
 * [test/](test/)
     * regression test scripts (and ancillary files) for developers to check
       that they don't unintentionally break any of the functionality of ASDF.
-      Far from covering all of ASDF.
+      Far from covering all of ASDF, but a good start.
 
 * [contrib/](contrib/)
     * a few contributed files that show case how to use ASDF.
@@ -201,4 +218,4 @@ How do I navigate this source tree?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Tuesday, June 9th, 2015.
+Last updated Tuesday, September 14th, 2015.
