@@ -555,7 +555,7 @@ is bound, write a message and exit on an error.  If
 
 (defun registry ()
   (let ((sr (asymval :*source-registry*)))
-    (when sr (sort (hta sr) 'string< :key 'car))))
+    (when sr (sort (hash-table-alist sr) 'string< :key 'car))))
 
 (defun configure-asdf ()
   (format t "Configuring ASDF~%")
