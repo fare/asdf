@@ -1,16 +1,37 @@
 @echo off
+
 ::: By default. We use CCL.
+if "%LISP%" == "" goto ccl
+if "%LISP%" == "allegro" goto allegro
+if "%LISP%" == "ccl" goto ccl
+if "%LISP%" == "sbcl" goto sbcl
+
+
+:ccl
 if "%CCL%" == "" set CCL=ccl
-%CCL% --no-init --load %~dp0\asdf-tools -- %*
+%CCL% --no-init --load %~dp0asdf-tools -- %*
+goto end
 
-::: To use SBCL instead (assuming its Windows support has been improved enough),
-::: comment out the above lines, and uncomment these:
-::if "%SBCL%" == "" set SBCL=sbcl
-::%SBCL% --no-userinit --no-sysinit --script %~dp0\asdf-tools %*
 
-::: To use Allegro instead,
-::: comment out the above lines, and uncomment these:
-::if "%ALLEGRO%" == "" set ALLEGRO=alisp
-:::Note that maybe you need something more like this (untested):
-::ALLEGRO=c:\path\to\allegro\buildi.exe -I c:\path\to\allegro\alisp.dxl
-::%ALLEGRO% --bat %~dp0\asdf-tools %*
+:sbcl
+::: As of SBCL 1.2.13, SBCL's run-program fails to call CMD.EXE directly, so can't fully run asdf-tools
+if "%SBCL%" == "" set SBCL=sbcl
+%SBCL% --noinform --no-userinit --no-sysinit --script %~dp0asdf-tools %*
+goto end
+
+
+:allegro
+if "%ALLEGRO%" == "" set ALLEGRO=alisp.exe
+if "%~1" == "get_allegro_dir" goto get_allegro_dir
+call %0 get_allegro_dir %ALLEGRO% %ALLEGRO%.exe
+%ALLEGRODIR%buildi.exe -I %ALLEGRODIR%alisp.dxl -qq -e "(setf *load-verbose* nil)" -L %~dp0asdf-tools. -- %*
+goto end
+:get_allegro_dir
+if not "%~dp$PATH:2" == "" ( set ALLEGRODIR=%~dp$PATH:2& goto end )
+if not "%~dp$PATH:3" == "" ( set ALLEGRODIR=%~dp$PATH:3& goto end )
+if not "%~dp2" == "" ( set ALLEGRODIR=%~dp2& goto end )
+goto end
+
+
+::: Make sure this remains at the end
+:end

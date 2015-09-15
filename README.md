@@ -102,11 +102,16 @@ of its dependencies, you can do it with:
 
 
 ASDF by default uses Clozure Common Lisp (CCL) to run the scripts that orchestrate its tests.
-Install CCL and make sure an executable called `ccl` is in your `PATH`,
-or that you export a variable `CCL` that points to the CCL executable.
-To use a different Common Lisp implementation, suitably edit the script
+By defining and exporting the variable LISP to be one of `ccl`, `sbcl` or `allegro`, you
+can have it use an alternate Common Lisp implementation instead.
+Install CCL (respectively SBCL or Allegro) and make sure an executable called
+`ccl` (respectively `sbcl` or `alisp`) is in your `PATH`,
+or that you export a variable `CCL` (respectively `SBCL` or `ALLEGRO`)
+that points to the executable.
+To use a further Common Lisp implementation, suitably edit the script
 [`tools/asdf-tools`](tools/asdf-tools),
 or, on Windows, the batch file [`tools/asdf-tools.bat`](tools/asdf-tools.bat).
+(Note that as of SBCL 1.2.13, we recommend against using SBCL on Windows.)
 
 
 Once you have all the required libraries and the asdf-tools script can find
@@ -114,6 +119,10 @@ a suitable Common Lisp implementation, you may run all the tests
 on a given Common Lisp implementation `$L`, with your favorite installed system `$S`, using:
 
     make t u l=$L s=$S
+
+To run only the regression test scripts, try simply:
+
+    make l=$L test-scripts
 
 
 Debugging tip
