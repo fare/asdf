@@ -10,13 +10,13 @@ set defsystem_lisp=upgrade.lisp + component.lisp + system.lisp + cache.lisp + fi
 %~d0
 cd %~p0
 
-if "%1" == "" goto all
-if "%1" == "all" goto all
-if "%1" == "build_asdf" goto build_asdf
-if "%1" == "ext" goto ext
-if "%1" == "noext" goto noext
-if "%1" == "driver_files" goto driver_files
-if "%1" == "defsystem_files" goto defsystem_files
+if "%~1"=="" goto all
+if "%~1"=="all" goto all
+if "%~1"=="build_asdf" goto build_asdf
+if "%~1"=="ext" goto ext
+if "%~1"=="noext" goto noext
+if "%~1"=="driver_files" goto driver_files
+if "%~1"=="defsystem_files" goto defsystem_files
 
 call %0 build_asdf
 %here%\tools\asdf-tools.bat env %*
@@ -30,7 +30,7 @@ goto :end
 :: That's the only thing that we really need before we may invoke asdf-builder.
  if not exist build mkdir build
  set a=build\asdf.lisp
- copy /b %header_lisp% + %driver_lisp% + %defsystem_lisp% %a%.tmp
+ copy /y /b %header_lisp% + %driver_lisp% + %defsystem_lisp% %a%.tmp > nul
  if not exist %a% goto clobber
  fc /b /0 %a%.tmp %a% > nul
  if errorlevel 1 goto clobber
