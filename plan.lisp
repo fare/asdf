@@ -224,7 +224,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
             (latest-in (stamps-latest (cons dep-stamp in-stamps))))
        (when (and missing-in (not just-done)) (return (values t nil))))
      ;; collect timestamps from outputs, and exit early if any is missing
-     (let* ((out-files (output-files o c))
+     (let* ((out-files (remove-if 'null (output-files o c)))
             (out-stamps (mapcar (if just-done 'register-file-stamp 'get-file-stamp) out-files))
             (missing-out (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
             (earliest-out (stamps-earliest out-stamps)))

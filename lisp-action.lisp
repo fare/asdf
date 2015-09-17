@@ -89,7 +89,13 @@
                &optional
                  #+(or clasp ecl mkcl) object-file
                  #+clisp lib-file
-                 warnings-file) outputs
+                 warnings-file &rest rest) outputs
+            ;; Allow for extra outputs that are not of type warnings-file
+            ;; The way we do it is kludgy. In ASDF4, output-files shall not be positional.
+            (declare (ignore rest))
+            (when warnings-file
+              (unless (equal (pathname-type warnings-file) (warnings-file-type))
+                (setf warnings-file nil)))
             (call-with-around-compile-hook
              c #'(lambda (&rest flags)
                    (apply 'compile-file* input-file

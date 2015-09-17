@@ -8,7 +8,7 @@
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/defsystem)
   (:export
    #:bundle-op #:bundle-type #:program-system
-   #:bundle-system #:bundle-pathname-type #:bundlable-file-p #:direct-dependency-files
+   #:bundle-system #:bundle-pathname-type #:direct-dependency-files
    #:monolithic-op #:monolithic-bundle-op #:operation-monolithic-p
    #:basic-compile-bundle-op #:prepare-bundle-op
    #:compile-bundle-op #:load-bundle-op #:monolithic-compile-bundle-op #:monolithic-load-bundle-op
@@ -66,7 +66,8 @@ itself.")) ;; operation on a system and its dependencies
     (:documentation "Abstract operation for linking files together"))
 
   (defclass gather-op (bundle-op)
-    ((gather-op :initform nil :allocation :class :reader gather-op))
+    ((gather-op :initform nil :allocation :class :reader gather-op)
+     (gather-type :initform :no-output-file :allocation :class :reader gather-type))
     (:documentation "Abstract operation for gathering many input files from a system"))
 
   (defun operation-monolithic-p (op)
@@ -86,7 +87,9 @@ itself.")) ;; operation on a system and its dependencies
 
   ;; create a single fasl for the entire library
   (defclass basic-compile-bundle-op (bundle-op)
-    ((bundle-type :initform :fasl)))
+    ((gather-type :initform #-(or clasp ecl mkcl) :fasl #+(or clasp ecl mkcl) :object
+                  :allocation :class)
+     (bundle-type :initform :fasl :allocation :class)))
 
   (defclass prepare-bundle-op (sideway-operation)
     ((sideway-operation
@@ -94,7 +97,8 @@ itself.")) ;; operation on a system and its dependencies
       :allocation :class)))
 
   (defclass lib-op (link-op gather-op non-propagating-operation)
-    ((bundle-type :initform :lib))
+    ((gather-type :initform :object :allocation :class)
+     (bundle-type :initform :lib :allocation :class))
     (:documentation "Compile the system and produce linkable (.a) library for it.
 Compare with DLL-OP."))
 
@@ -120,24 +124,35 @@ faster and more resource efficient."))
   ;; but instead inherit from a basic-FOO-op as with basic-compile-bundle-op above.
 
   (defclass dll-op (link-op gather-op non-propagating-operation)
-    ((bundle-type :initform :dll))
+    ((gather-type :initform :object :allocation :class)
+     (bundle-type :initform :dll :allocation :class))
     (:documentation "compile the system and produce dynamic (.so/.dll) library for it.
 Compare with LIB-OP."))
 
   (defclass deliver-asd-op (basic-compile-op selfward-operation)
-    ((selfward-operation :initform '(compile-bundle-op #+(or clasp ecl mkcl) lib-op) :allocation :class))
+    ((selfward-operation
+      ;; TODO: implement link-op on all implementations, and make that
+      ;; '(compile-bundle-op lib-op #-(or clasp ecl mkcl) dll-op)
+      :initform '(compile-bundle-op #+(or clasp ecl mkcl) lib-op)
+      :allocation :class))
     (:documentation "produce an asd file for delivering the system as a single fasl"))
 
 
   (defclass monolithic-deliver-asd-op (monolithic-bundle-op deliver-asd-op)
     ((selfward-operation
+      ;; TODO: implement link-op on all implementations, and make that
+      ;; '(monolithic-compile-bundle-op monolithic-lib-op #-(or clasp ecl mkcl) monolithic-dll-op)
       :initform '(monolithic-compile-bundle-op #+(or clasp ecl mkcl) monolithic-lib-op)
       :allocation :class))
     (:documentation "produce fasl and asd files for combined system and dependencies."))
 
-  (defclass monolithic-compile-bundle-op (monolithic-bundle-op basic-compile-bundle-op
-                                          #+(or clasp ecl mkcl) link-op gather-op non-propagating-operation)
-    ((gather-op :initform #+(or clasp ecl mkcl) 'lib-op #-(or clasp ecl mkcl) 'compile-bundle-op :allocation :class))
+  (defclass monolithic-compile-bundle-op
+      (monolithic-bundle-op basic-compile-bundle-op
+       #+(or clasp ecl mkcl) link-op gather-op non-propagating-operation)
+    ((gather-op :initform #-(or clasp ecl mkcl) 'compile-bundle-op #+(or clasp ecl mkcl) 'lib-op
+                :allocation :class)
+     (gather-type :initform #-(or clasp ecl mkcl) :fasl #+(or clasp ecl mkcl) :static-library
+                  :allocation :class))
     (:documentation "Create a single fasl for the system and its dependencies."))
 
   (defclass monolithic-load-bundle-op (monolithic-bundle-op load-bundle-op)
@@ -148,12 +163,13 @@ Compare with LIB-OP."))
     (:documentation "Create a single linkable library for the system and its dependencies."))
 
   (defclass monolithic-dll-op (monolithic-bundle-op dll-op non-propagating-operation)
-    ((bundle-type :initform :dll))
+    ((gather-type :initform :static-library :allocation :class))
     (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
 
   (defclass image-op (monolithic-bundle-op selfward-operation
                       #+(or clasp ecl mkcl) link-op #+(or clasp ecl mkcl) gather-op)
     ((bundle-type :initform :image)
+     #+(or clasp ecl mkcl) (gather-type :initform :static-library :allocation :class)
      (selfward-operation :initform '(#-(or clasp ecl mkcl) load-op) :allocation :class))
     (:documentation "create an image file from the system and its dependencies"))
 
@@ -163,17 +179,29 @@ Compare with LIB-OP."))
 
   (defun bundle-pathname-type (bundle-type)
     (etypecase bundle-type
-      ((eql :no-output-file) nil) ;; should we error out instead?
-      ((or null string) bundle-type)
-      ((eql :fasl) #-(or clasp ecl mkcl) (compile-file-type) #+(or clasp ecl mkcl) "fasb")
-      #+(or clasp ecl)
-      ((member :dll :lib :shared-library :static-library :program :object :program)
-       (compile-file-type :type bundle-type))
-      ((member :image) #+allegro "dxl" #+(and clisp os-windows) "exe" #-(or allegro (and clisp os-windows)) "image")
-      ((member :dll :shared-library) (os-cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
-      ((member :lib :static-library) (os-cond ((os-unix-p) "a")
-                                              ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "a" "lib"))))
-      ((eql :program) (os-cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
+      ((or null string) ;; pass through nil or string literal
+       bundle-type)
+      ((eql :no-output-file) ;; marker for a bundle-type that has NO output file
+       (error "No output file, therefore no pathname type"))
+      ((eql :fasl) ;; the type of a fasl
+       #-(or clasp ecl mkcl) (compile-file-type) ; on image-based platforms, used as input and output
+       #+(or clasp ecl mkcl) "fasb") ; on C-linking platforms, only used as output for system bundles
+      ((member :image)
+       #+allegro "dxl"
+       #+(and clisp os-windows) "exe"
+       #-(or allegro (and clisp os-windows)) "image")
+      ;; NB: on CLASP and ECL these implementations, we better agree with
+      ;; (compile-file-type :type bundle-type))
+      ((eql :object) ;; the type of a linkable object file
+       (os-cond ((os-unix-p) "o")
+                ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "o" "obj"))))
+      ((member :lib :static-library) ;; the type of a linkable library
+       (os-cond ((os-unix-p) "a")
+                ((os-windows-p) (if (featurep '(:or :mingw32 :mingw64)) "a" "lib"))))
+      ((member :dll :shared-library) ;; the type of a shared library
+       (os-cond ((os-macosx-p) "dylib") ((os-unix-p) "so") ((os-windows-p) "dll")))
+      ((eql :program) ;; the type of an executable program
+       (os-cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
 
   (defun bundle-output-files (o c)
     (let ((bundle-type (bundle-type o)))
@@ -238,16 +266,6 @@ Compare with LIB-OP."))
              :force :force-not :plan-class) ;; TODO: refactor so we don't mix plan and operation arguments
            (operation-original-initargs instance))))
 
-  (defun bundlable-file-p (pathname)
-    (let ((type (pathname-type pathname)))
-      (declare (ignorable type))
-      (or #+(or clasp ecl) (or (equalp type (compile-file-type :type :object))
-                               (equalp type (compile-file-type :type :static-library)))
-          #+mkcl (or (equalp type (compile-file-type :fasl-p nil))
-                     #+(or unix mingw32 mingw64) (equalp type "a") ;; valid on Unix and MinGW
-                     #+(and windows (not (or mingw32 mingw64))) (equalp type "lib"))
-          #+(or abcl allegro clisp clozure cmu lispworks sbcl scl xcl) (equalp type (compile-file-type)))))
-
   (defgeneric* (trivial-system-p) (component))
 
   (defun user-system-p (s)
@@ -276,9 +294,14 @@ Compare with LIB-OP."))
                  (loop :for f :in (funcall key sub-o sub-c)
                        :when (funcall test f) :do (collect f))))))
 
+  (defun pathname-type-equal-function (type)
+    #'(lambda (p) (equal (pathname-type p) type)))
+
   (defmethod input-files ((o gather-op) (c system))
     (unless (eq (bundle-type o) :no-output-file)
-      (direct-dependency-files o c :test 'bundlable-file-p :key 'output-files)))
+      (direct-dependency-files
+       o c :key 'output-files
+           :test (pathname-type-equal-function (bundle-pathname-type (gather-type o))))))
 
   (defun select-bundle-operation (type &optional monolithic)
     (ecase type
