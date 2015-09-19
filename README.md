@@ -9,7 +9,7 @@ Your Lisp implementation probably contains a copy of ASDF,
 which you can load using `(require "asdf")`.
 
 If you come from the C/C++ world, ASDF covers a bit of what each of
-make, autoconf, dlopen and libc do for C programs:
+`make`, `autoconf`, `dlopen` and `libc` do for C programs:
 it orchestrates the compilation and dependency management,
 handles some of the portability issues, dynamically finds and loads code,
 and offers some portable system access library.
@@ -17,6 +17,23 @@ Except everything is different in Common Lisp, and ultimately much simpler,
 though it requires acquiring some basic concepts.
 Importantly, ASDF builds all software in the current Lisp image,
 as opposed to building software into separate processes.
+
+
+Where to find ASDF?
+-------------------
+
+ASDF's home page contains more information and additional links, and can be found at:
+    <https://common-lisp.net/project/asdf/>
+
+The one and only official source control repository is at:
+    <https://gitlab.common-lisp.net/asdf/asdf>
+
+The one and only official bug tracker is at:
+    <https://bugs.launchpad.net/asdf>
+
+
+How to use ASDF?
+----------------
 
 To use ASDF, read our manual:
     <http://common-lisp.net/project/asdf/asdf.html>
@@ -36,8 +53,6 @@ ASDF 3 now includes an extensive runtime support library:
 Its documentation unhappily lies mainly in the source code and docstrings.
 See [uiop/README.md](uiop/README.md) for an introduction.
 
-More information and additional links can be found on ASDF's home page at:
-    <http://common-lisp.net/project/asdf/>
 
 
 Quick Start
@@ -195,4 +210,4 @@ How do I navigate this source tree?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Tuesday, June 9th, 2015.
+Last updated Saturday, September 19th, 2015.
