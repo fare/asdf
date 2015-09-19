@@ -1960,8 +1960,9 @@ by traversing the dependency graph using function @code{make-plan}.@footnote{
   Historically, the function that built a plan was
   called @code{traverse}, and returned a list of actions;
   it was deprecated in favor of @code{make-plan} (that returns a plan object)
-  when the @code{plan} objects were introduced;
-  the old function is kept for backward compatibility and debugging purposes only.
+  when the @code{plan} objects were introduced with ASDF 3;
+  the old function is kept for backward compatibility and debugging purposes only,
+  and may be removed in the near future.
 }
 The resulting plan object contains an ordered list of @emph{actions}.
 An action is a pair of an @code{operation} and a @code{component},
@@ -1970,7 +1971,8 @@ The ordering of the plan ensures that no action is performed before
 all its dependencies have been fulfilled.@footnote{
   The term @emph{action}
   was used by Kent Pitman in his article, ``The Description of Large Systems,''
-  (@pxref{Bibliography}).
+  (@pxref{Bibliography}),
+  and we suspect might be traced to @code{make}.
   Although the term was only used by ASDF hackers starting with ASDF 2,
   the concept was there since the very beginning of ASDF 1,
   just not clearly articulated.
