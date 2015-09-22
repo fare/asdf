@@ -19,7 +19,7 @@
      (translate-logical-pathname "ASDF:test;test-logical-pathname.lisp")
      (translate-logical-pathname "ASDF:test;test-logical-pathname.fasl"))
 
-#+(or gcl xcl) (leave-test "This implementation doesn't do Logical pathnames well enough" 0)
+#+(or clisp gcl xcl) (leave-test "This implementation doesn't do Logical pathnames well enough" 0)
 
 (DBG "Test logical pathnames in central registry")
 (setf *central-registry* '(#p"ASDF:test;"))
