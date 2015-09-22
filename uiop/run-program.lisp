@@ -386,15 +386,7 @@ argument to pass to the internal RUN-PROGRAM"
     (etypecase specifier
       (null (or #+(or allegro lispworks) (null-device-pathname)))
       (string (parse-native-namestring specifier))
-      (pathname
-       #-ecl specifier
-       #+ecl (let ((s (apply 'open specifier :direction
-                             (ecase role
-                               ((:input)
-                                '(:input :if-does-not-exist :error))
-                               ((:output :error-output)
-                                '(:output :if-does-not-exist :create :if-exists :rename-and-delete))))))
-               (values s s)))
+      (pathname specifier)
       (stream specifier)
       ((eql :stream) :stream)
       ((eql :interactive)
@@ -417,12 +409,6 @@ argument to pass to the internal RUN-PROGRAM"
       (integer raw-exit-code) ; negative: signal
       (t -1)))
 
-  (defun call-with-open-streams (streams thunk)
-    (unwind-protect (funcall thunk) (dolist (s streams) (ignore-errors (close s)))))
-
-  (defmacro with-open-streams ((streams) &body body)
-    `(call-with-closing ,streams #'(lambda () ,@body)))
-
   (defun %run-program (command
                        &rest keys
                        &key input (if-input-does-not-exist :error)
@@ -443,28 +429,19 @@ It returns a process-info plist with possible keys:
     #-(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys directory
            (error "run-program not available"))
-    #+(or allegro clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
-    (nest
-     (let ((%command (%normalize-command command))
-           #+ecl (close-me '())))
-     (multiple-value-bind (%input #+ecl i-close)
-         (%normalize-io-specifier input :input)
-       #+ecl (when i-close (push i-close close-me)))
-     (multiple-value-bind (%output #+ecl o-close)
-         (%normalize-io-specifier output :output)
-       #+ecl (when o-close (push o-close close-me)))
-     (multiple-value-bind (%error-output #+ecl e-close)
-         (%normalize-io-specifier error-output :error-output)
-       #+ecl (when e-close (push e-close close-me)))
-     #+(and allegro os-windows) (let ((interactive (%interactivep input output error-output))))
-     (let ((process*
+    #+(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
+    (let* ((%command (%normalize-command command))
+           (%input (%normalize-io-specifier input :input))
+           (%output (%normalize-io-specifier output :output))
+           (%error-output (%normalize-io-specifier error-output :error-output))
+           (interactive (%interactivep input output error-output))
+           (process*
              (nest
               #+clisp (progn
                         ;; clisp cannot redirect stderr, so check we don't.
                         ;; Also, since we now always return a code, we cannot use this code path
                         ;; if any of the input, output or error-output is :stream.
                         (assert (eq %error-output :terminal)))
-              #+ecl (with-open-streams (close-me))
               #-(or allegro mkcl sbcl) (with-current-directory (directory))
               #+(or allegro clasp clisp ecl lispworks mkcl) (multiple-value-list)
               (apply
@@ -501,76 +478,76 @@ It returns a process-info plist with possible keys:
                 #+mkcl `(:directory ,(native-namestring directory))
                 #-sbcl keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
-           (process-info-r ())))
-     (flet ((prop (key value) (push key process-info-r) (push value process-info-r)))
-       #+allegro
-       (cond
-         (wait (prop :exit-code (first process*)))
-         (separate-streams
-          (destructuring-bind (in out err pid) process*
-            (prop :process pid)
-            (when (eq input :stream) (prop :input-stream in))
-            (when (eq output :stream) (prop :output-stream out))
-            (when (eq error-output :stream) (prop :error-stream err))))
-         (t
-          (prop :process (third process*))
-          (let ((x (first process*)))
-            (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-              (0)
-              (1 (prop :input-stream x))
-              (2 (prop :output-stream x))
-              (3 (prop :bidir-stream x))))
+           (process-info-r ()))
+      (flet ((prop (key value) (push key process-info-r) (push value process-info-r)))
+        #+allegro
+        (cond
+          (wait (prop :exit-code (first process*)))
+          (separate-streams
+           (destructuring-bind (in out err pid) process*
+             (prop :process pid)
+             (when (eq input :stream) (prop :input-stream in))
+             (when (eq output :stream) (prop :output-stream out))
+             (when (eq error-output :stream) (prop :error-stream err))))
+          (t
+           (prop :process (third process*))
+           (let ((x (first process*)))
+             (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
+               (0)
+               (1 (prop :input-stream x))
+               (2 (prop :output-stream x))
+               (3 (prop :bidir-stream x))))
+           (when (eq error-output :stream)
+             (prop :error-stream (second process*)))))
+        #+clisp
+        (cond
+          (wait (prop :exit-code (clisp-exit-code (first process*))))
+          (t
+           (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
+             (0)
+             (1 (prop :input-stream (first process*)))
+             (2 (prop :output-stream (first process*)))
+             (3 (prop :bidir-stream (pop process*))
+              (prop :input-stream (pop process*))
+              (prop :output-stream (pop process*))))))
+        #+(or clozure cmu sbcl scl)
+        (progn
+          (prop :process process*)
+          (when (eq input :stream)
+            (prop :input-stream
+                  #+clozure (ccl:external-process-input-stream process*)
+                  #+(or cmu scl) (ext:process-input process*)
+                  #+sbcl (sb-ext:process-input process*)))
+          (when (eq output :stream)
+            (prop :output-stream
+                  #+clozure (ccl:external-process-output-stream process*)
+                  #+(or cmu scl) (ext:process-output process*)
+                  #+sbcl (sb-ext:process-output process*)))
           (when (eq error-output :stream)
-            (prop :error-stream (second process*)))))
-       #+clisp
-       (cond
-         (wait (prop :exit-code (clisp-exit-code (first process*))))
-         (t
-          (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-            (0)
-            (1 (prop :input-stream (first process*)))
-            (2 (prop :output-stream (first process*)))
-            (3 (prop :bidir-stream (pop process*))
-             (prop :input-stream (pop process*))
-             (prop :output-stream (pop process*))))))
-       #+(or clozure cmu sbcl scl)
-       (progn
-         (prop :process process*)
-         (when (eq input :stream)
-           (prop :input-stream
-                 #+clozure (ccl:external-process-input-stream process*)
-                 #+(or cmu scl) (ext:process-input process*)
-                 #+sbcl (sb-ext:process-input process*)))
-         (when (eq output :stream)
-           (prop :output-stream
-                 #+clozure (ccl:external-process-output-stream process*)
-                 #+(or cmu scl) (ext:process-output process*)
-                 #+sbcl (sb-ext:process-output process*)))
-         (when (eq error-output :stream)
-           (prop :error-output-stream
-                 #+clozure (ccl:external-process-error-stream process*)
-                 #+(or cmu scl) (ext:process-error process*)
-                 #+sbcl (sb-ext:process-error process*))))
-       #+(or clasp ecl mkcl)
-       (destructuring-bind #+(or clasp ecl) (stream code process) #+mkcl (stream process code) process*
-         (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-           (cond
-             ((zerop mode))
-             ((null process*) (prop :exit-code -1))
-             (t (prop (case mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) stream))))
-         (when code (prop :exit-code code))
-         (when process (prop :process process)))
-       #+lispworks
-       (if wait
-           (prop :exit-code (first process*))
-           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-             (if (zerop mode)
-                 (prop :process (first process*))
-                 (destructuring-bind (x err pid) process*
-                   (prop :process pid)
-                   (prop (ecase mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) x)
-                   (when (eq error-output :stream) (prop :error-stream err))))))
-       (nreverse process-info-r))))
+            (prop :error-output-stream
+                  #+clozure (ccl:external-process-error-stream process*)
+                  #+(or cmu scl) (ext:process-error process*)
+                  #+sbcl (sb-ext:process-error process*))))
+        #+(or clasp ecl mkcl)
+        (destructuring-bind #+(or clasp ecl) (stream code process) #+mkcl (stream process code) process*
+          (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
+            (cond
+              ((zerop mode))
+              ((null process*) (prop :exit-code -1))
+              (t (prop (case mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) stream))))
+          (when code (prop :exit-code code))
+          (when process (prop :process process)))
+        #+lispworks
+        (if wait
+            (prop :exit-code (first process*))
+            (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
+              (if (zerop mode)
+                  (prop :process (first process*))
+                  (destructuring-bind (x err pid) process*
+                    (prop :process pid)
+                    (prop (ecase mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) x)
+                    (when (eq error-output :stream) (prop :error-stream err))))))
+        (nreverse process-info-r))))
 
   (defun %process-info-pid (process-info)
     (let ((process (getf process-info :process)))
