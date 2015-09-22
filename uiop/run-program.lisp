@@ -434,6 +434,7 @@ It returns a process-info plist with possible keys:
            (%input (%normalize-io-specifier input :input))
            (%output (%normalize-io-specifier output :output))
            (%error-output (%normalize-io-specifier error-output :error-output))
+           #+(and allegro os-windows)
            (interactive (%interactivep input output error-output))
            (process*
              (nest
