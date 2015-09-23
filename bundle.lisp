@@ -159,7 +159,8 @@ Compare with LIB-OP."))
     ((selfward-operation :initform 'monolithic-compile-bundle-op :allocation :class))
     (:documentation "Load a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-op lib-op non-propagating-operation) ()
+  (defclass monolithic-lib-op (monolithic-bundle-op lib-op non-propagating-operation)
+    ((gather-type :initform :static-library :allocation :class))
     (:documentation "Create a single linkable library for the system and its dependencies."))
 
   (defclass monolithic-dll-op (monolithic-bundle-op dll-op non-propagating-operation)
@@ -500,10 +501,11 @@ Compare with LIB-OP."))
 
 #+(or clasp ecl mkcl)
 (with-upgradability ()
-  ;; I think that Juanjo intended for this to be,
-  ;; but beware the weird bug in test-xach-update-bug.script,
-  ;; and also it makes mkcl fail test-logical-pathname.script,
-  ;; and ecl fail test-bundle.script.
+  ;; I think that Juanjo intended for this to be, but it was disabled before 3.1
+  ;; due to implementation bugs in ECL and MKCL that seem to have been fixed since
+  ;; — see for ECL test-xach-update-bug.script and test-bundle.script,
+  ;; and for MKCL test-logical-pathname.script.
+  ;; We should probably reenable these after consulting with ECL and MKCL maintainers.
   ;;(unless (or #+(or clasp ecl) (use-ecl-byte-compiler-p))
   ;;  (setf *load-system-operation* 'load-bundle-op))
 
