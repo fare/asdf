@@ -142,7 +142,7 @@ This is designed to abstract away the implementation specific quit forms."
           (dbg:*debug-print-length* *print-length*))
       (dbg:bug-backtrace nil))
     #+sbcl
-    (sb-debug:backtrace
+    (sb-debug:print-backtrace
      #.(if (find-symbol* "*VERBOSITY*" "SB-DEBUG" nil) :stream '(or count most-positive-fixnum))
      stream)
     #+xcl
