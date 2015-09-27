@@ -212,7 +212,10 @@ Compare with LIB-OP."))
                         (format nil "~A~@[~A~]" (component-name c) (slot-value o 'name-suffix))))
               (type (bundle-pathname-type bundle-type)))
           (values (list (subpathname (component-pathname c) name :type type))
-                  (eq (type-of o) (component-build-operation c)))))))
+                  (eq (type-of o) (coerce-class (component-build-operation c)
+                                                :package :asdf/interface
+                                                :super 'operation
+                                                :error nil)))))))
 
   (defmethod output-files ((o bundle-op) (c system))
     (bundle-output-files o c))
