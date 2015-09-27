@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 
 (setf asdf/cache:*asdf-cache* nil) ;; disable cache between those two very different compilations.
-;;(setf asdf::*load-system-operation* 'load-bundle-op) ;; This triggers a bug on ECL. See below.
+(setf asdf::*load-system-operation* 'load-bundle-op) ;; This triggers a bug on ECL no more!
 
 (defparameter foo :test-asdf-location-change)
 

@@ -2,7 +2,7 @@
 
 (DBG "Test ld-flags in make-image. Should load from ecl-make-image/")
 
-#+ecl
+#+(and ecl (not ecl-bytecmp))
 (progn
   (chdir (subpathname *test-directory* "ecl-make-image/"))
   (load "readme.lisp"))
