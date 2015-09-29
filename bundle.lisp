@@ -99,8 +99,14 @@ itself.")) ;; operation on a system and its dependencies
   (defclass lib-op (link-op gather-op non-propagating-operation)
     ((gather-type :initform :object :allocation :class)
      (bundle-type :initform :lib :allocation :class))
-    (:documentation "Compile the system and produce linkable (.a) library for it.
-Compare with DLL-OP."))
+    (:documentation "Compile the system and produce a linkable static library (.a/.lib)
+for all the linkable object files associated with the system. Compare with DLL-OP.
+
+On most implementations, these object files only include extensions to the runtime
+written in C or another language with a compiler producing linkable object files.
+On CLASP, ECL, MKCL, these object files also include the contents of Lisp files
+themselves. In any case, this operation will produce what you need to further build
+a static runtime for your system, or a dynamic library to load in an existing runtime."))
 
   (defclass compile-bundle-op (basic-compile-bundle-op selfward-operation
                                #+(or clasp ecl mkcl) link-op #-(or clasp ecl) gather-op)
@@ -126,8 +132,8 @@ faster and more resource efficient."))
   (defclass dll-op (link-op gather-op non-propagating-operation)
     ((gather-type :initform :object :allocation :class)
      (bundle-type :initform :dll :allocation :class))
-    (:documentation "compile the system and produce dynamic (.so/.dll) library for it.
-Compare with LIB-OP."))
+    (:documentation "Compile the system and produce a dynamic loadable library (.so/.dll)
+for all the linkable object files associated with the system. Compare with LIB-OP."))
 
   (defclass deliver-asd-op (basic-compile-op selfward-operation)
     ((selfward-operation
@@ -161,11 +167,13 @@ Compare with LIB-OP."))
 
   (defclass monolithic-lib-op (monolithic-bundle-op lib-op non-propagating-operation)
     ((gather-type :initform :static-library :allocation :class))
-    (:documentation "Create a single linkable library for the system and its dependencies."))
+    (:documentation "Compile the system and produce a linkable static library (.a/.lib)
+for all the linkable object files associated with the system or its dependencies. See LIB-OP."))
 
   (defclass monolithic-dll-op (monolithic-bundle-op dll-op non-propagating-operation)
     ((gather-type :initform :static-library :allocation :class))
-    (:documentation "Create a single dynamic (.so/.dll) library for the system and its dependencies."))
+    (:documentation "Compile the system and produce a dynamic loadable library (.so/.dll)
+for all the linkable object files associated with the system or its dependencies. See LIB-OP"))
 
   (defclass image-op (monolithic-bundle-op selfward-operation
                       #+(or clasp ecl mkcl) link-op #+(or clasp ecl mkcl) gather-op)

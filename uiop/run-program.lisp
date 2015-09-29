@@ -838,7 +838,9 @@ It returns a process-info plist with possible keys:
                       &allow-other-keys)
     "Run program specified by COMMAND,
 either a list of strings specifying a program and list of arguments,
-or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows).
+or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows);
+_synchronously_ process its output as specified and return the processing results
+when the program and its output processing are complete.
 
 Always call a shell (rather than directly execute the command when possible)
 if FORCE-SHELL is specified.  Similarly, never call a shell if FORCE-SHELL is
