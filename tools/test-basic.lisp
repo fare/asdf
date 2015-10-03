@@ -58,5 +58,12 @@ Use your preferred lisp implementation and check that asdf is loaded without any
   "basic test: doc, clean-load, load-systems"
   (without-stopping ()
     (doc)
+    (test-ascii)
     (test-clean-load lisp)
     (test-load-systems lisp systems)))
+
+(deftestcmd test-ascii ()
+  "test that asdf is all ASCII"
+  (success-if
+   (loop for c across (read-file-string (pn "build/asdf.lisp"))
+         always (<= 0 (char-code c) 127))))

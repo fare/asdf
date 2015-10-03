@@ -47,7 +47,7 @@ The UNIX-y name will be downcased, and any % prefix will be dropped."
     clean %push merge-master-into-release fix-local-git-tags fix-remote-git-tags ;; git
     git-all-committed-p
     bump-version bump ;; version
-    test-load-systems test-clean-load test-basic %load install-asdf ;; test-basic
+    test-load-systems test-clean-load test-basic test-ascii %load install-asdf ;; test-basic
     test %t test-scripts ;; test-scripts
     test-upgrade u extract-tagged-asdf extract-all-tagged-asdf extract ;; test-upgrade
     test-all-clean-load test-all-scripts test-all-no-upgrade test-all-upgrade ;; test-all
