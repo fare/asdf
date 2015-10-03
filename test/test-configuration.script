@@ -56,7 +56,7 @@
     (ensure-directories-exist d)
     (with-open-file (s (merge-pathnames* (format nil "foo~D.asd" i) d)
                        :direction :output
-                       :if-exists :rename-and-delete
+                       :if-exists :supersede
                        :if-does-not-exist :create)
       (format s "(defsystem :foo~D)~%" i))))
 

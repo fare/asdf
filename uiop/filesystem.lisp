@@ -544,15 +544,19 @@ NILs."
   (defun lisp-implementation-directory (&key truename)
     "Where are the system files of the current installation of the CL implementation?"
     (declare (ignorable truename))
-    #+(or clasp clozure ecl gcl mkcl sbcl)
     (let ((dir
-            (ignore-errors
-             #+clozure #p"ccl:"
-             #+(or clasp ecl mkcl) #p"SYS:"
-             #+gcl system::*system-directory*
-             #+sbcl (if-let (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
-                      (funcall it)
-                      (getenv-pathname "SBCL_HOME" :ensure-directory t)))))
+            #+abcl extensions:*lisp-home*
+            #+(or allegro clasp ecl mkcl) #p"SYS:"
+            ;;#+clisp custom:*lib-directory* ; causes failure in asdf-pathname-test(!)
+            #+clozure #p"ccl:"
+            #+cmu (ignore-errors (pathname-parent-directory-pathname (truename #p"modules:")))
+            #+gcl system::*system-directory*
+            #+lispworks lispworks:*lispworks-directory*
+            #+sbcl (if-let (it (find-symbol* :sbcl-homedir-pathname :sb-int nil))
+                     (funcall it)
+                     (getenv-pathname "SBCL_HOME" :ensure-directory t))
+            #+scl (ignore-errors (pathname-parent-directory-pathname (truename #p"file://modules/")))
+            #+xcl ext:*xcl-home*))
       (if (and dir truename)
           (truename* dir)
           dir)))
