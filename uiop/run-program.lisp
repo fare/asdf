@@ -896,6 +896,7 @@ or an indication of failure via the EXIT-CODE of the process"
     ;; don't override user's specified preference. [2015/06/29:rpg]
     (when (stringp command)
       (unless force-shell-suppliedp
+        #-(and sbcl os-windows) ;; force-shell t isn't working properly on windows as of sbcl 1.2.16
         (setf force-shell t)))
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
