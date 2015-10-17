@@ -39,7 +39,7 @@
           Its notable versions include pre-release 2.27 on February 1st 2013,
           first stable release 3.0.1 on May 16th 2013,
           major release 3.1.2 on May 6th 2014,
-          and latest release 3.1.5 on July 21st 2015.
+          and latest release 3.1.6 on October 17th 2015.
         </p>
         <a id="what_it_is"></a>
         <h3>What it is</h3>
@@ -165,7 +165,7 @@
           </ul>
           There are probably more.
           However, none of these systems seems to ever have had the traction of ASDF,
-          probably because none was technically superior enough (when at all)
+          probably because none was technically superior enough (if at all)
           to compensate for the first mover advantage.
         </p>
         <h3>Supported Implementations</h3>
@@ -197,7 +197,7 @@
             <td align="left"><tt>cormanlisp genera mocl scl</tt></td></tr>
         </table>
         <p>
-          To deal with an old implementation that didn't yet provide ASDF 3,
+          To deal with an implementation that does not yet provide ASDF 3,
           we provide <a href="https://common-lisp.net/asdf/asdf/blob/master/tools/install-asdf.lisp">a script</a>
           that can install ASDF 3 where your implementation goes looking for it
           when you <tt>(require "asdf")</tt> .
@@ -431,6 +431,12 @@ Corman Common Lisp <admin@cormanlisp.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>October 2015</dt>
+          <dd>Although we had hoped that ASDF 3.1.5 would be the final release
+        in the ASDF 3.1 series, a number of bug reports led us to prepare
+        release 3.1.6.  Support for Windows continues to improve, and we wished
+        to release a number of bug fixes, and support the recent Allegro Common
+        Lisp 10.0 release.</dd>
           <dt>July 2015</dt>
           <dd>An extensive bout of bug-fixing, notably on Windows, leads to
         release of ASDF 3.1.5 on 21 July 2015. XDG handling has been improved to
