@@ -21,13 +21,13 @@
   "count lines of lisp code in asdf and uiop"
   (with-asdf-dir ()
     (flet ((lisp-only (x) (remove "lisp" x :test-not 'equal :key 'pathname-type)))
-      (let ((driver-files (mapcar #'(lambda (x) (subpathname "uiop/" x)) (lisp-only (uiop-files))))
+      (let ((uiop-files (mapcar #'(lambda (x) (subpathname "uiop/" x)) (lisp-only (uiop-files))))
             (defsystem-files (lisp-only (asdf-defsystem-files))))
-        (run* `(pipe (wc ,@driver-files) (sort -n)))
+        (run* `(pipe (wc ,@uiop-files) (sort -n)))
         (terpri)
         (run* `(pipe (wc header.lisp ,@defsystem-files) (sort -n)))
         (terpri)
-        (run* `(pipe (wc header.lisp ,@driver-files ,@defsystem-files) (tail -n 1)))))))
+        (run* `(pipe (wc header.lisp ,@uiop-files ,@defsystem-files) (tail -n 1)))))))
 
 
 ;;; debug the source registry that is being used to execute these tools.
