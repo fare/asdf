@@ -1,12 +1,13 @@
 ;;; -*- Lisp -*-
 
 (setf asdf/cache:*asdf-cache* nil) ;; disable cache between those two very different compilations.
+#-(and ecl ecl-bytecmp)
 (setf asdf::*load-system-operation* 'load-bundle-op) ;; This triggers a bug on ECL no more!
 
 (defparameter foo :test-asdf-location-change)
 
 (with-expected-failure (#+ecl (not (asdf:version-satisfies (lisp-implementation-version) "16"))
-                              #-ecl nil)
+                        #-ecl nil)
    (DBG "load foo. Should load from xach-foo-1/")
    (setf *central-registry* (list (subpathname *test-directory* "xach-foo-1/")))
    (defparameter foo1 (find-system foo))
