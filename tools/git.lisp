@@ -48,4 +48,29 @@
 
 (deftestcmd git-all-committed-p ()
   "is your checkout clean, with all files committed?"
-  (null (nth-value 2 (git '(status -s) :output :lines))))
+  (let ((uncommitted (nth-value 2 (git '(status -s) :output :lines))))
+    (success-if (null uncommitted)
+                "git reports uncommitted files:~{~%  ~A~}~%" uncommitted)))
+
+(defun get-git-branch ()
+  "What is the current checked out branch?"
+  (match (first (nth-value 2 (git '(status) :output :lines)))
+    ((ppcre "^# On branch (.*)$" x) x)))
+
+(deftestcmd ext-init ()
+  "Populate the ext/ directory if not already populated.
+Same as `make ext` in the bootstrap make script."
+  (git '(submodule update --init)))
+
+(deftestcmd ext-clear ()
+  "Depopulate the ext/ directory.
+Same as `make noext` in the bootstrap make script."
+  (git '(submodule deinit ".")))
+
+(deftestcmd ext-reset ()
+  "Reset the ext/ directory to the contents specified by the current git checkout."
+  (git '(submodule update --init)))
+
+(deftestcmd ext-update ()
+  "Update the ext/ directory to the latest version from remote repositories."
+  (git '(submodule update --remote)))

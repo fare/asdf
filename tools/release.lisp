@@ -150,18 +150,29 @@
 (defalias archive make-and-publish-archive)
 (defalias install make-and-publish-archive)
 
+(defun get-debian-packager-keyid ()
+  (or (getenv "DEBSIGN_KEYID")
+      (error "Please export variable DEBSIGN_KEYID to be the 8-hex hash of your GnuPG secret key")))
 
 ;;; Making a debian package
 (deftestcmd debian-package ((release "release"))
   "build a debian package"
   (let* ((debian-version (debian-version-from-file release))
-         (version (version-from-file release)))
+         (version (version-from-file release))
+         (has-ext-p (probe-file* (pn "ext/inferior-shell/inferior-shell.asd")))
+         (branch (get-git-branch))
+         (keyid (get-debian-packager-keyid)))
     (unless (equal version (parse-debian-version debian-version))
       (error "Debian version ~A doesn't match asdf version ~A" debian-version version))
+    (git-all-committed-p)
     (clean)
+    (ext-clear)
+    (git '(checkout release))
     (format t "building package version ~A~%" (debian-version-from-file))
     (run* `(git-buildpackage
             ;; --git-ignore-new ;; for testing purpose
+            ;; Override of the signing key, don't extract the name from the Changelog:
+            (--git-builder="debuild -k0x",keyid" -i -I")
             (--git-debian-branch= ,release)
             (--git-upstream-tag="%(version)s")
             ;;--git-upstream-tree=tag ;; if the changelog says 3.1.2, looks at that tag
@@ -170,7 +181,10 @@
             ;; --git-no-pristine-tar
             --git-force-create
             --git-ignore-branch)
-          :directory (pn) :show t)))
+          :directory (pn) :show t)
+    (git `(checkout ,branch))
+    (when has-ext-p (ext-reset))
+    (success)))
 
 (defun debian-architecture ()
   (run/ss `(dpkg --print-architecture)))
@@ -195,21 +209,20 @@
         (when (nth-value 1 (run '(dpkg-parsechangelog) :output nil :error-output :lines))
           (error "Malformed debian/changelog entry")))
       scripts ;; TODO: needs to be passed as argument!
-      (and ;; need a better combinator, that tells us about progress, etc.
-       (git-all-committed-p)
-       (test-all-no-stop) ;; TODO: NEED ARGUMENTS!
-       (test-load-systems lisps systems)
-       (bump new-version)
-       (when releasep
-         (and
-          (debian-package)
-          (publish-debian-package)
-          (merge-master-into-release)))
-       ;; SUCCESS! now publish more widely
-       (%push)
-       (archive)
-       (website)
-       (when releasep
-         (log! log t "Don't forget to send a debian mentors request!"))
-       (log! log "Don't forget to send announcement to asdf-announce, asdf-devel, etc.")
-       (log! log "Don't forget to move all fixed bugs from Fix Committed -> Fix Released on launchpad")))))
+      (git-all-committed-p)
+      (test-all-no-stop) ;; TODO: NEED ARGUMENTS!
+      (test-load-systems lisps systems)
+      (bump new-version)
+      (when releasep
+        (and
+         (debian-package)
+         (publish-debian-package)
+         (merge-master-into-release)))
+      ;; SUCCESS! now publish more widely
+      (%push)
+      (archive)
+      (website)
+      (when releasep
+        (log! log t "Don't forget to send a debian mentors request!"))
+      (log! log "Don't forget to send announcement to asdf-announce, asdf-devel, etc.")
+      (log! log "Don't forget to move all fixed bugs from Fix Committed -> Fix Released on launchpad"))))

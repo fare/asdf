@@ -45,6 +45,7 @@ The UNIX-y name will be downcased, and any % prefix will be dropped."
   ;; :when (and (eq x (find-command x)) (documentation x 'function)) :collect x)
   '(build-asdf doc website wc ;; build
     clean %push merge-master-into-release fix-local-git-tags fix-remote-git-tags ;; git
+    ext-init ext-clear ext-reset ext-update ;; extension
     git-all-committed-p
     bump-version bump ;; version
     test-load-systems test-clean-load test-basic test-ascii %load install-asdf ;; test-basic
