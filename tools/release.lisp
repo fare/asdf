@@ -60,11 +60,11 @@
              destination))
     (ensure-directories-exist destination)
     (run* `(cp "-pHux" --parents ,@files ,destination) :directory base :show t)
-    (run* `(tar "zcfC" ,tarball ,*build-dir*
-               ;; TODO: Have better autodetection for which tar is being used,
-               ;; and fall back to no option if not recognized.
-               #+linux (* :owner root :group root) ;; assume GNU tar on Linux.
-               #+darwin (* :uid 0 :gid 0) ;; assume BSD tar on Darwin.
+    (run* `(tar "zcf" ,tarball "-C" ,*build-dir*
+                ;; TODO: Have better autodetection for which tar is being used,
+                ;; and fall back to no option if not recognized.
+                ;; #+linux (* :owner root :group root) ;; assume GNU tar on Linux.
+                ;; #+darwin (* :uid 0 :gid 0) ;; assume BSD tar on Darwin.
                (,name /)) :show t)
     (delete-directory-tree destination :validate #'(lambda (x) (equal x destination)))
     (success)))
