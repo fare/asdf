@@ -6,17 +6,18 @@
 
 (defun version-from-tag (&optional commit)
   ;; run-program issue: :output :line closes the fd, which causes the program to die in error.
-  (first (nth-value 1 (git `(describe --tags --match ,*version-tag-glob* ,commit) :output :lines))))
+  (first (nth-value 2 (git `(describe --tags --match ,*version-tag-glob* ,commit) :output :lines))))
 
 (defun version-from-file (&optional commit)
   (if commit
-      (nth-value 1 (git `(show (,commit":version.lisp-expr")) :output :form))
+      (nth-value 2 (git `(show (,commit":version.lisp-expr")) :output :form))
       (safe-read-file-form (pn "version.lisp-expr"))))
 
 (defun debian-version-from-file (&optional commit)
   (match (if commit
              ;; run-program issue: :output :line closes the fd, which causes the program to die in error.
-             (first (nth-value 1 (git `(show (,commit":debian/changelog")) :output :lines)))
+             (first (nth-value 2 (git `(show (,commit":debian/changelog"))
+                                      :output :lines :error-output nil)))
              (read-file-line (pn "debian/changelog")))
     ((ppcre "^[^(]*\\(([-0-9.:-]+)\\)" ver) ver)))
 

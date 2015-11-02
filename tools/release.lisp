@@ -192,7 +192,7 @@
           (unless (equal new-version (parse-debian-version debian-version))
             (error "You're trying to release version ~A but the debian/changelog wasn't properly updated"
                    new-version)))
-        (when (nth-value 1 (run '(parse-changelog debian/changelog) :output nil :error-output :lines))
+        (when (nth-value 1 (run '(dpkg-parsechangelog) :output nil :error-output :lines))
           (error "Malformed debian/changelog entry")))
       scripts ;; TODO: needs to be passed as argument!
       (and ;; need a better combinator, that tells us about progress, etc.

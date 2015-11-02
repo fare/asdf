@@ -48,4 +48,4 @@
 
 (deftestcmd git-all-committed-p ()
   "is your checkout clean, with all files committed?"
-  (null (nth-value 1 (git '(status -s) :output :lines))))
+  (null (nth-value 2 (git '(status -s) :output :lines))))
