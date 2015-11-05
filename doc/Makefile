@@ -12,21 +12,18 @@ intermediate = asdf.cps asdf.log asdf.vr asdf.aux asdf.fn asdf.toc asdf.vrs \
 
 all:	asdf.html asdf.info asdf.pdf manual-html
 
-version.texinfo: ../version.lisp-expr
-	head -n 1 $^ | perl -ne 'm|\"(.*)\"|; print "\@set VERSION $$1\n"' > $@
-
-manual-html: asdf.texinfo version.texinfo
+manual-html: asdf.texinfo
 	makeinfo --html asdf.texinfo \
 	2>&1 > manual-html.log || { echo "failed. See log in manual-html.log" ; exit 1 ;}
 
-asdf.html: asdf.texinfo version.texinfo
+asdf.html: asdf.texinfo
 	makeinfo --html --no-split --no-headers -o asdf.html asdf.texinfo \
 	2>&1 > asdf.html.log || { echo "failed. See log in asdf.html.log" ; exit 1 ;}
 
-asdf.info: asdf.texinfo version.texinfo
+asdf.info: asdf.texinfo
 	makeinfo asdf.texinfo
 
-asdf.pdf: asdf.texinfo version.texinfo
+asdf.pdf: asdf.texinfo
 	texi2pdf asdf.texinfo \
 	2>&1 > asdf.pdf.log || { echo "failed. See log in asdf.pdf.log" ; exit 1 ;}
 

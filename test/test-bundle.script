@@ -49,28 +49,35 @@
 (operate 'monolithic-compile-bundle-op :test-asdf/bundle-2)
 (assert (probe-file *mono-bundle-2*))
 
-;;; Test dll-op and monolithic-dll-op on ECL and MKCL
 #+(or ecl mkcl)
 (progn
+  (DBG "On ECL and MKCL, test dll-op and monolithic-dll-op")
   #+ecl (trace c::builder)
-  (require 'sockets) ;; Test the pre-compiled system feature
-  ;; Test that we didn't break require for non-asdf modules
+  (DBG "Test the pre-compiled system feature")
+  (require 'sockets)
   (progn
+    (DBG "Test that we didn't break require for non-asdf modules")
     (pop #+ecl ext:*module-provider-functions* #+mkcl mk-ext:*module-provider-functions*)
     (require 'serve-event))
+  (DBG "Create a DLL via dll-op")
   (operate 'dll-op :test-asdf/dll-test)
+  (DBG "Load the DLL")
   (let ((dll (first (output-files 'dll-op :test-asdf/dll-test))))
     (si:load-foreign-module dll)
+    (DBG "Load a library that knows how to use the DLL")
     (let* (#+(and mkcl windows) (compiler::*builder-default-libraries* (list (namestring dll))))
       (operate 'load-op :test-asdf/dll-user)))
+  (DBG "Test that the DLL works")
   (assert-equal (test-package::sample-function) 42)
 
+  (DBG "Create a DLL via monolithic-dll-op")
   (nest
    #+(and mkcl windows)
    (let* ((lib (first (output-files (operate 'lib-op :test-asdf/monodll-1) :test-asdf/monodll-1)))
           (compiler::*builder-default-libraries* (list (namestring lib)))))
    (operate 'monolithic-dll-op :test-asdf/monodll))
 
+  (DBG "Use and test that DLL")
   (let ((dll (first (output-files 'monolithic-dll-op :test-asdf/monodll))))
     (si:load-foreign-module dll)
     (let* (#+(and mkcl windows) (compiler::*builder-default-libraries* (list (namestring dll))))

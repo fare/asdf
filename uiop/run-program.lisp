@@ -423,73 +423,62 @@ INPUT, OUTPUT and ERROR-OUTPUT specify a portable IO specifer,
 to be normalized by %NORMALIZE-IO-SPECIFIER.
 It returns a process-info plist with possible keys:
      PROCESS, EXIT-CODE, INPUT-STREAM, OUTPUT-STREAM, BIDIR-STREAM, ERROR-STREAM."
-    ;; NB: these implementations have unix vs windows set at compile-time.
+    ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
     (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clisp clozure cmu (and lispworks os-unix) mkcl sbcl scl)
+    #-(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys directory
            (error "run-program not available"))
-    #+(or allegro clisp clozure cmu (and lispworks os-unix) mkcl sbcl scl)
+    #+(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%input (%normalize-io-specifier input :input))
            (%output (%normalize-io-specifier output :output))
            (%error-output (%normalize-io-specifier error-output :error-output))
-           #+(and allegro os-windows) (interactive (%interactivep input output error-output))
+           #+(and allegro os-windows)
+           (interactive (%interactivep input output error-output))
            (process*
-             #+allegro
-             (multiple-value-list
+             (nest
+              #+clisp (progn
+                        ;; clisp cannot redirect stderr, so check we don't.
+                        ;; Also, since we now always return a code, we cannot use this code path
+                        ;; if any of the input, output or error-output is :stream.
+                        (assert (eq %error-output :terminal)))
+              #-(or allegro mkcl sbcl) (with-current-directory (directory))
+              #+(or allegro clasp clisp ecl lispworks mkcl) (multiple-value-list)
               (apply
-               'excl:run-shell-command
-               #+os-unix (coerce (cons (first %command) %command) 'vector)
-               #+os-windows %command
-               :input %input
-               :output %output
-               :error-output %error-output
-               :directory directory :wait wait
-               #+os-windows :show-window #+os-windows (if interactive nil :hide)
-               :allow-other-keys t keys))
-             #-allegro
-             (with-current-directory (#-(or sbcl mkcl) directory)
+               #+allegro 'excl:run-shell-command
+               #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
+               #+(and allegro os-windows) %command
                #+clisp
-               (flet ((run (f x &rest args)
-                        (multiple-value-list
-                         (apply f x :input %input :output %output
-                                    :allow-other-keys t `(,@args ,@keys)))))
-                 (assert (eq %error-output :terminal))
-                 ;;; since we now always return a code, we can't use this code path, anyway!
-                 (etypecase %command
-                   #+os-windows (string (run 'ext:run-shell-command %command))
-                   (list (run 'ext:run-program (car %command)
-                              :arguments (cdr %command)))))
-               #+(or clasp clozure cmu ecl mkcl sbcl scl)
-               (#-(or clasp ecl mkcl) progn #+(or clasp ecl mkcl) multiple-value-list
-                (apply
-                 '#+(or cmu ecl scl) ext:run-program
-                 #+clozure ccl:run-program #+sbcl sb-ext:run-program #+mkcl mk-ext:run-program
-                 (car %command) (cdr %command)
-                 :input %input
-                 :output %output
-                 :error %error-output
-                 :wait wait
-                 :allow-other-keys t
-                 (append
-                  #+(or clozure cmu mkcl sbcl scl)
-                  `(:if-input-does-not-exist ,if-input-does-not-exist
-                    :if-output-exists ,if-output-exists
-                    :if-error-exists ,if-error-output-exists)
-                  #+sbcl `(:search t
-                           :if-output-does-not-exist :create
-                           :if-error-does-not-exist :create)
-                  #-sbcl keys #+sbcl (if directory keys (remove-plist-key :directory keys)))))
-               #+(and lispworks os-unix) ;; note: only used on Unix in non-interactive case
-               (multiple-value-list
-                (apply
-                 'system:run-shell-command
-                 (cons "/usr/bin/env" %command) ; lispworks wants a full path.
-                 :input %input :if-input-does-not-exist if-input-does-not-exist
-                 :output %output :if-output-exists if-output-exists
-                 :error-output %error-output :if-error-output-exists if-error-output-exists
-                 :wait wait :save-exit-status t :allow-other-keys t keys))))
+               (etypecase %command
+                 #+os-windows
+                 (string (lambda (&rest keys) (apply 'ext:run-shell-command %command keys)))
+                 (list (lambda (&rest keys)
+                         (apply 'ext:run-program (car %command) :arguments (cdr %command) keys))))
+               #+clozure 'ccl:run-program
+               #+(or cmu ecl scl) 'ext:run-program
+               #+lispworks 'system:run-shell-command
+               #+lispworks (cons "/usr/bin/env" %command) ; LW wants a full path
+               #+mkcl 'mk-ext:run-program
+               #+sbcl 'sb-ext:run-program
+               (append
+                #+(or clozure cmu ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
+                `(:input ,%input :output ,%output :wait ,wait :allow-other-keys t)
+                #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
+                            ,%error-output)
+                #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
+                #+(or clozure cmu ecl lispworks mkcl sbcl scl)
+                `(:if-input-does-not-exist ,if-input-does-not-exist
+                  :if-output-exists ,if-output-exists
+                  #-lispworks :if-error-exists #+lispworks :if-error-output-exists
+                  ,if-error-output-exists)
+                #+lispworks `(:save-exit-status t)
+                #+sbcl `(:search t
+                         :if-output-does-not-exist :create
+                         :if-error-does-not-exist :create)
+                #+mkcl `(:directory ,(native-namestring directory))
+                #-sbcl keys
+                #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info-r ()))
       (flet ((prop (key value) (push key process-info-r) (push value process-info-r)))
         #+allegro
@@ -520,8 +509,8 @@ It returns a process-info plist with possible keys:
              (1 (prop :input-stream (first process*)))
              (2 (prop :output-stream (first process*)))
              (3 (prop :bidir-stream (pop process*))
-                (prop :input-stream (pop process*))
-                (prop :output-stream (pop process*))))))
+              (prop :input-stream (pop process*))
+              (prop :output-stream (pop process*))))))
         #+(or clozure cmu sbcl scl)
         (progn
           (prop :process process*)
@@ -579,13 +568,12 @@ It returns a process-info plist with possible keys:
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
             #+(or cmu scl) (ext:process-wait process)
-            #+(and (or clasp ecl) os-unix) (ext:external-process-wait process)
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
             #+allegro (sys:reap-os-subprocess :pid process :wait t)
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
-            #+(or clasp ecl) (nth-value 1 (ext:external-process-status process))
+            #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
             #+lispworks
             (if-let ((stream (or (getf process-info :input-stream)
                                  (getf process-info :output-stream)
@@ -850,7 +838,9 @@ It returns a process-info plist with possible keys:
                       &allow-other-keys)
     "Run program specified by COMMAND,
 either a list of strings specifying a program and list of arguments,
-or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows).
+or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows);
+_synchronously_ process its output as specified and return the processing results
+when the program and its output processing are complete.
 
 Always call a shell (rather than directly execute the command when possible)
 if FORCE-SHELL is specified.  Similarly, never call a shell if FORCE-SHELL is
@@ -906,11 +896,15 @@ or an indication of failure via the EXIT-CODE of the process"
     ;; don't override user's specified preference. [2015/06/29:rpg]
     (when (stringp command)
       (unless force-shell-suppliedp
+        #-(and sbcl os-windows) ;; force-shell t isn't working properly on windows as of sbcl 1.2.16
         (setf force-shell t)))
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
-                     #+(or clasp clisp ecl) (or (not ignore-error-status) t)
+                     #+(or clasp clisp) (or (not ignore-error-status) t)
                      #+clisp (member error-output '(:interactive :output))
+                     ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
+                     #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
+                               (lexicographic<= '< ver '(16 0 1)))
                      #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)
@@ -921,4 +915,4 @@ or an indication of failure via the EXIT-CODE of the process"
              :if-output-exists if-output-exists
              :if-error-output-exists if-error-output-exists
              :element-type element-type :external-format external-format
-           keys))))
+             keys))))

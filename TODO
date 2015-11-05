@@ -113,7 +113,6 @@
 *** it somehow pushes :non-base-chars-exist-p even though +non-base-chars-exist-p+ is NIL???
 
 ** XCL has bad bugs:
-*** it can't compile ASDF3 anymore. Figure out why, if you have time.
 *** make-pathname doesn't handle :type nil properly and
     has massive lossage in logical-pathname support.
 *** If using block () and return in search-for-system-definition
@@ -378,7 +377,7 @@ It looks like SWANK can be fixed soon, though, so we'll see.
 *** work with cl-test-grid to eliminate deferred warnings from quicklisp libraries
 *** https://www.mail-archive.com/asdf-devel@common-lisp.net/msg03608.html
 *** czak@google.com rewrote part of deferred warnings support.
-   Ask him for the code he implemented at Google.
+   Ask him to release the code he implemented at Google under QITAB.
 
 ** Ensure all run-program issues on Windows are solved.
 *** SBCL cannot do raw CMD.EXE command-lines
