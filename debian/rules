@@ -18,7 +18,8 @@ clean:
 	dh_testdir
 	dh_testroot
 	rm -f build-stamp
-	make -C doc clean
+	make clean
+	rm -rf doc/*log doc/version.texinfo
 	dh_clean
 
 # Build architecture-dependent files here.
