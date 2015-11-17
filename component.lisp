@@ -112,10 +112,9 @@ another pathname in a degenerate way."))
      ;; See our ASDF 2 paper for more complete explanations.
      (in-order-to :initform nil :initarg :in-order-to
                   :accessor component-in-order-to)
-     ;; methods defined using the "inline" style inside a defsystem form:
-     ;; need to store them somewhere so we can delete them when the system
-     ;; is re-evaluated.
-     (inline-methods :accessor component-inline-methods :initform nil) ;; OBSOLETE! DELETE THIS IF NO ONE USES.
+     ;; Methods defined using the "inline" style inside a defsystem form:
+     ;; we store them here so we can delete them when the system is re-evaluated.
+     (inline-methods :accessor component-inline-methods :initform nil)
      ;; ASDF4: rename it from relative-pathname to specified-pathname. It need not be relative.
      ;; There is no initform and no direct accessor for this specified pathname,
      ;; so we only access the information through appropriate methods, after it has been processed.
