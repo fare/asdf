@@ -1406,7 +1406,7 @@ simple-component-name := string
 pathname-specifier := pathname | string | symbol
 
 method-form := (operation-name qual lambda-list @Arest{} body)
-qual := method qualifier
+qual := method qualifier?
 
 component-dep-fail-option := :fail | :try-next | :ignore
 
