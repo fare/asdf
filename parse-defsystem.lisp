@@ -160,7 +160,7 @@
 
 ;;; Main parsing function
 (with-upgradability ()
-  (defun* parse-dependency-def (dd)
+  (defun parse-dependency-def (dd)
     (if (listp dd)
         (case (first dd)
           (:feature
@@ -181,12 +181,12 @@
           (otherwise (sysdef-error "Ill-formed dependency: ~s" dd)))
       (coerce-name dd)))
 
-  (defun* parse-dependency-defs (dd-list)
+  (defun parse-dependency-defs (dd-list)
     "Parse the dependency defs in DD-LIST into canonical form by translating all
 system names contained using COERCE-NAME. Return the result."
     (mapcar 'parse-dependency-def dd-list))
 
-  (defun* (parse-component-form) (parent options &key previous-serial-component)
+  (defun (parse-component-form) (parent options &key previous-serial-component)
     (destructuring-bind
         (type name &rest rest &key
                                 (builtin-system-p () bspp)
@@ -276,6 +276,15 @@ system names contained using COERCE-NAME. Return the result."
     (with-asdf-cache ()
       (let* ((name (coerce-name name))
              (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
+             ;; NB: handle defsystem-depends-on BEFORE to create the system object,
+             ;; so that in case it fails, there is no incomplete object polluting the build.
+             (checked-defsystem-depends-on
+               (let* ((dep-forms (parse-dependency-defs defsystem-depends-on))
+                      (deps (loop :for spec :in dep-forms
+                                  :when (resolve-dependency-spec nil spec)
+                                    :collect :it)))
+                 (load-systems* deps)
+                 dep-forms))
              (registered (system-registered-p name))
              (registered! (if registered
                               (rplaca registered (get-file-stamp source-file))
@@ -284,17 +293,12 @@ system names contained using COERCE-NAME. Return the result."
              (system (reset-system (cdr registered!)
                                    :name name :source-file source-file))
              (component-options
-              (remove-plist-keys '(:defsystem-depends-on :class) options))
-             (defsystem-dependencies (loop :for spec :in defsystem-depends-on
-                                           :when (resolve-dependency-spec nil spec)
-                                           :collect :it)))
-        ;; cache defsystem-depends-on in canonical form
-        (when defsystem-depends-on
-          (setf component-options
-                (append `(:defsystem-depends-on ,(parse-dependency-defs defsystem-depends-on))
-                        component-options)))
+              (append
+               (remove-plist-keys '(:defsystem-depends-on :class) options)
+               ;; cache defsystem-depends-on in canonical form
+               (when checked-defsystem-depends-on
+                 `(:defsystem-depends-on ,checked-defsystem-depends-on)))))
         (set-asdf-cache-entry `(find-system ,name) (list system))
-        (load-systems* defsystem-dependencies)
         ;; We change-class AFTER we loaded the defsystem-depends-on
         ;; since the class might be defined as part of those.
         (let ((class (class-for-type nil class)))

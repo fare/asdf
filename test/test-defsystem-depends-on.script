@@ -38,3 +38,12 @@
          :defsystem-depends-on ((:feature ,*newsym* "test-defsystem-depends-on-3"))))
 
 (assert (find-system "test-defsystem-depends-on-4"))
+
+(progn
+  (signals asdf:missing-dependency (def-test-system unloadable-system
+                                     :defsystem-depends-on (nonexistent-system)))
+  (assert (not (system-registered-p "unloadable-system"))))
+
+(progn
+  (signals asdf:missing-dependency (find-system "test-defsystem-depends-on-missing-system"))
+  (assert (not (system-registered-p "test-defsystem-depends-on-missing-system"))))

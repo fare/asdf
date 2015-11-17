@@ -295,7 +295,8 @@ Going forward, we recommend new users should be using the source-registry.
     (find-system (coerce-name name) error-p))
 
   (defun find-system-if-being-defined (name)
-    ;; notable side effect: mark the system as being defined, to avoid infinite loops
+    ;; NB: this depends on a corresponding side-effect in parse-defsystem;
+    ;; this protocol may change somewhat in the future.
     (first (gethash `(find-system ,(coerce-name name)) *asdf-cache*)))
 
   (defun load-asd (pathname
@@ -316,10 +317,10 @@ Going forward, we recommend new users should be using the source-registry.
                 ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
                 (pathname-directory-pathname (physicalize-pathname pathname))))
           (handler-bind
-              ((error #'(lambda (condition)
-                          (error 'load-system-definition-error
-                                 :name name :pathname pathname
-                                 :condition condition))))
+              (((and error (not missing-component))
+                 #'(lambda (condition)
+                     (error 'load-system-definition-error
+                            :name name :pathname pathname :condition condition))))
             (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
                           name pathname)
             (load* pathname :external-format external-format))))))
