@@ -297,13 +297,13 @@ The behavior in presence of symlinks is not portable. Use IOlib to handle such s
           (loop :while up-components :do
             (if-let (parent
                      (ignore-errors
-                      (probe-file* (make-pathname* :directory `(:absolute ,@(reverse up-components))
-                                                   :name nil :type nil :version nil :defaults p))))
+                      (probe-file* (make-pathname :directory `(:absolute ,@(reverse up-components))
+                                                  :name nil :type nil :version nil :defaults p))))
               (if-let (simplified
                        (ignore-errors
                         (merge-pathnames*
-                         (make-pathname* :directory `(:relative ,@down-components)
-                                         :defaults p)
+                         (make-pathname :directory `(:relative ,@down-components)
+                                        :defaults p)
                          (ensure-directory-pathname parent))))
                 (return simplified)))
             (push (pop up-components) down-components)

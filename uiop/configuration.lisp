@@ -199,7 +199,7 @@ directive.")
         ;; but what it means to the output-translations is
         ;; "relative to the root of the source pathname's host and device".
         (return-from resolve-absolute-location
-          (let ((p (make-pathname* :directory '(:relative))))
+          (let ((p (make-pathname :directory '(:relative))))
             (if wilden (wilden p) p))))
        ((eql :home) (user-homedir-pathname))
        ((eql :here) (resolve-absolute-location
