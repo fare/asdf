@@ -566,7 +566,7 @@ ELEMENT-TYPE (defaults to *DEFAULT-STREAM-ELEMENT-TYPE*) and
 EXTERNAL-FORMAT (defaults to *UTF-8-EXTERNAL-FORMAT*).
 If WANT-STREAM-P is true (the defaults to T), then THUNK will then be CALL-FUNCTION'ed
 with the stream and the pathname (if WANT-PATHNAME-P is true, defaults to T),
-and stream with be closed after the THUNK exits (either normally or abnormally).
+and stream will be closed after the THUNK exits (either normally or abnormally).
 If WANT-STREAM-P is false, then WANT-PATHAME-P must be true, and then
 THUNK is only CALL-FUNCTION'ed after the stream is closed, with the pathname as argument.
 Upon exit of THUNK, the AFTER thunk if defined is CALL-FUNCTION'ed with the pathname as argument.
