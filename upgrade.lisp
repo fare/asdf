@@ -90,21 +90,7 @@ previously-loaded version of ASDF."
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
           ;; NB: it's too late to do anything about functions in UIOP!
           ;; If you introduce some critically incompatibility there, you must change name.
-          '(#:component-relative-pathname #:component-parent-pathname ;; component
-            #:source-file-type
-            #:find-system #:system-source-file #:system-relative-pathname ;; system
-            #:find-component ;; find-component
-            #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
-            #:component-depends-on #:operation-done-p #:component-depends-on
-            #:traverse ;; backward-interface
-            #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies ;; plan
-            #:operate  ;; operate
-            #:parse-component-form ;; defsystem
-            #:apply-output-translations ;; output-translations
-            #:process-output-translations-directive
-            #:inherit-source-registry #:process-source-registry ;; source-registry
-            #:process-source-registry-directive
-            #:trivial-system-p)) ;; bundle
+          '()) ;; empty now that we don't unintern, but wholly punt on ASDF 2.26 or earlier.
         (redefined-classes
           ;; redefining the classes causes interim circularities
           ;; with the old ASDF during upgrade, and many implementations bork
