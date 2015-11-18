@@ -576,13 +576,3 @@ for all the linkable object files associated with the system or its dependencies
                :extra-object-files (or (extra-object-files o) (when programp (extra-object-files c)))
                :no-uiop (no-uiop c)
                (when programp `(:entry-point ,(component-entry-point c))))))))
-
-#+(and (not asdf-use-unsafe-mac-bundle-op)
-       (or (and clasp ecl darwin)
-           (and abcl darwin (not abcl-bundle-op-supported))))
-(defmethod perform :before ((o basic-compile-bundle-op) (c component))
-  (unless (featurep :asdf-use-unsafe-mac-bundle-op)
-    (cerror "Continue after modifying *FEATURES*."
-            "BASIC-COMPILE-BUNDLE-OP operations are not supported on Mac OS X for this lisp.~%~T~
-To continue, push :asdf-use-unsafe-mac-bundle-op onto *FEATURES*.~%~T~
-Please report to ASDF-DEVEL if this works for you.")))
