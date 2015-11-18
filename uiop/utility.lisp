@@ -585,11 +585,11 @@ with later being determined by a lexicographical comparison of minor numbers."
     #+allegro 'excl::format-control
     #+clisp 'system::$format-control
     #+clozure 'ccl::format-control
-    #+(or cmu scl) 'conditions::format-control
+    #+(or cmucl scl) 'conditions::format-control
     #+(or clasp ecl mkcl) 'si::format-control
     #+(or gcl lispworks) 'conditions::format-string
     #+sbcl 'sb-kernel:format-control
-    #-(or abcl allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl) nil
+    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl lispworks mkcl sbcl scl) nil
     "Name of the slot for FORMAT-CONTROL in simple-condition")
 
   (defun match-condition-p (x condition)
@@ -604,7 +604,7 @@ or a string describing the format-control of a simple-condition."
       (function (funcall x condition))
       (string (and (typep condition 'simple-condition)
                    ;; On SBCL, it's always set and the check triggers a warning
-                   #+(or allegro clozure cmu lispworks scl)
+                   #+(or allegro clozure cmucl lispworks scl)
                    (slot-boundp condition +simple-condition-format-control-slot+)
                    (ignore-errors (equal (simple-condition-format-control condition) x))))))
 

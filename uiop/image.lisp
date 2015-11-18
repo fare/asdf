@@ -69,7 +69,7 @@ This is designed to abstract away the implementation specific quit forms."
     #+clisp (ext:quit code)
     #+clozure (ccl:quit code)
     #+cormanlisp (win32:exitprocess code)
-    #+(or cmu scl) (unix:unix-exit code)
+    #+(or cmucl scl) (unix:unix-exit code)
     #+gcl (system:quit code)
     #+genera (error "~S: You probably don't want to Halt Genera. (code: ~S)" 'quit code)
     #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
@@ -80,7 +80,7 @@ This is designed to abstract away the implementation specific quit forms."
                (cond
                  (exit `(,exit :code code :abort (not finish-output)))
                  (quit `(,quit :unix-status code :recklessly-p (not finish-output)))))
-    #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
     (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
   (defun die (code format &rest arguments)
@@ -123,7 +123,7 @@ This is designed to abstract away the implementation specific quit forms."
       #+clozure (ccl:print-call-history :count count :start-frame-number 1)
       #+mcl (ccl:print-call-history :detailed-p nil)
       (finish-output stream))
-    #+(or cmu scl)
+    #+(or cmucl scl)
     (let ((debug:*debug-print-level* *print-level*)
           (debug:*debug-print-length* *print-length*))
       (debug:backtrace (or count most-positive-fixnum) stream))
@@ -227,14 +227,14 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     #+(or clasp ecl) (loop :for i :from 0 :below (si:argc) :collect (si:argv i))
     #+clisp (coerce (ext:argv) 'list)
     #+clozure ccl:*command-line-argument-list*
-    #+(or cmu scl) extensions:*command-line-strings*
+    #+(or cmucl scl) extensions:*command-line-strings*
     #+gcl si:*command-args*
     #+(or genera mcl) nil
     #+lispworks sys:*line-arguments-list*
     #+mkcl (loop :for i :from 0 :below (mkcl:argc) :collect (mkcl:argv i))
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
-    #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
     (error "raw-command-line-arguments not implemented yet"))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
@@ -263,7 +263,7 @@ Otherwise, return NIL."
     (cond
       ((eq *image-dumped-p* :executable) ; yes, this ARGV0 is our argv0 !
        ;; NB: not currently available on ABCL, Corman, Genera, MCL
-       (or #+(or allegro clisp clozure cmu gcl lispworks sbcl scl xcl)
+       (or #+(or allegro clisp clozure cmucl gcl lispworks sbcl scl xcl)
            (first (raw-command-line-arguments))
            #+(or clasp ecl) (si:argv 0) #+mkcl (mkcl:argv 0)))
       (t ;; argv[0] is the name of the interpreter.
@@ -353,7 +353,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     (setf *image-dump-hook* dump-hook)
     (call-image-dump-hook)
     (setf *image-restored-p* nil)
-    #-(or clisp clozure cmu lispworks sbcl scl)
+    #-(or clisp clozure cmucl lispworks sbcl scl)
     (when executable
       (error "Dumping an executable is not supported on this implementation! Aborting."))
     #+allegro
@@ -381,13 +381,13 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
             (funcall (fdefinition 'ccl::write-elf-symbols-to-file) path)
             (dump path))
           (dump t)))
-    #+(or cmu scl)
+    #+(or cmucl scl)
     (progn
       (ext:gc :full t)
       (setf ext:*batch-mode* nil)
       (setf ext::*gc-run-time* 0)
       (apply 'ext:save-lisp filename
-             #+cmu :executable #+cmu t
+             #+cmucl :executable #+cmucl t
              (when executable '(:init-function restore-image :process-command-line nil))))
     #+gcl
     (progn
@@ -410,7 +410,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
               #+(and sbcl os-windows) ;; passing :application-type :gui will disable the console window.
               ;; the default is :console - only works with SBCL 1.1.15 or later.
               (when application-type (list :application-type application-type)))))
-    #-(or allegro clisp clozure cmu gcl lispworks sbcl scl)
+    #-(or allegro clisp clozure cmucl gcl lispworks sbcl scl)
     (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
            'dump-image filename (nth-value 1 (implementation-type))))
 
