@@ -10,6 +10,8 @@
     ;; The 3.1 series provides the asdf3.1 feature, meaning users can rely on
     ;; all the stabilization work done in 3.0 so far, plus extra developments
     ;; in UIOP, package-inferred-system, and more robustification.
+    "3.1.6" ;; (2015-10-17) more bug fixes
+    "3.1.5" ;; (2015-07-21) more bug fixes
     "3.1.4" ;; (2014-10-09) more bug fixes, source-registry cache
     "3.1.3" ;; (2014-07-24) a bug fix release for 3.1.2
     "3.1.2" ;; (2014-05-06) the first ASDF 3.1 release
@@ -170,4 +172,3 @@ Use the preferred lisp implementation"
                     (return (success))))))
 
 (defalias u test-upgrade)
-
