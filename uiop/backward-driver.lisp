@@ -2,8 +2,6 @@
 ;;; Hacks for backward-compatibility of the driver
 
 (uiop/package:define-package :uiop/backward-driver
-  (:nicknames :asdf/backward-driver)
-  (:recycle :uiop/backward-driver :asdf/backward-driver :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility
    :uiop/pathname :uiop/stream :uiop/os :uiop/image
    :uiop/run-program :uiop/lisp-build :uiop/configuration)
