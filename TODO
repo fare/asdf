@@ -1,15 +1,18 @@
 * Decree that versions older than 2 years are not supported;
-  yet, keep supporting an upgrade from whatever vendors provide
-  — so push them to provide recent stuff.
-  Already, swank-asdf doesn't support anything older than 2.014.6
-  (as provided by the first 2011 iteration of Quicklisp), and
-  I (fare) am pushing for swank-asdf to not support anything older
-  than 3.0 (since no maintained implementation has anything older,
-  with the LispWorks 7.0 release being last to upgrade, in May 2015).
-  Maybe remove old versions from upgrade tests; or maybe not:
-  if we support old versions in any way,
-  it should be for upgrade only, and "punt" is acceptable.
-  Upgrade tests might be split in two test sets: short and long.
+   yet, keep supporting an upgrade from whatever vendors provide
+   — so push them to provide recent stuff.
+** Already, swank-asdf doesn't support anything older than 2.014.6
+   (as provided by the first 2011 iteration of Quicklisp), and
+   I (fare) am pushing for swank-asdf to not support anything older
+   than 3.0 (since no maintained implementation has anything older,
+   with the LispWorks 7.0 release being last to upgrade, in May 2015).
+** Maybe remove old versions from upgrade tests; or maybe not:
+   if we support old versions in any way,
+   it should be for upgrade only, and "punt" is acceptable.
+** Maybe remove upgrade from antique ASDF altogether.
+   Clear all the code in the header, and/or
+   move a few elements to asdf/upgrade.
+** Upgrade tests might be split in two test sets: short and long.
 
 * Moving toward cross-compilation (ASDF 3.2? 4?)
    This would allow to get most of the benefits of XCVB
@@ -231,7 +234,8 @@
 * Bug found by fe[nl]ix: infinite loop if the definitions in an asd file
   are not in strict defsystem-depends-on dependency order.
 ** At least document the issue.
-** Real solution: defer parsing and evaluation of defsystem forms.
+** Real solution: defer parsing and evaluation of defsystem forms?
+   Or simply detect circularity and issue an appropriate error?
 
 * Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
