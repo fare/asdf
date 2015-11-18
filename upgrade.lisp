@@ -30,7 +30,16 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
               (cons (format nil "~{~D~^.~}" rev))
               (null "1.0"))))))
   ;; Important: define *p-a-v* /before/ *a-v* so that it initializes correctly.
-  (defvar *previous-asdf-versions* (if-let (previous (asdf-version)) (list previous)))
+  (defvar *previous-asdf-versions*
+    (let ((previous (asdf-version)))
+      (when previous
+        ;; Punt on hard package upgrade: from ASDF1 or ASDF2
+        (when (version< previous "2.27") ;; 2.27 is the first to have the :asdf3 feature.
+          (let ((away (format nil "~A-~A" :asdf previous)))
+            (rename-package :asdf away)
+            (when *load-verbose*
+              (format t "~&; Renamed old ~A package away to ~A~%" :asdf away)))))
+        (list previous)))
   (defvar *asdf-version* nil)
   ;; We need to clear systems from versions yet older than the below:
   (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.

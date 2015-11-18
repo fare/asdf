@@ -64,7 +64,11 @@
              (wait-on-semaphore (external-process-completed proc))))
        (values (external-process-%exit-code proc)
                (external-process-%status proc))))))
-#+clozure (in-package :uiop/common-lisp)
+#+clozure (in-package :uiop/common-lisp) ;; back in this package.
+
+#+cmucl
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (setf ext:*gc-verbose* nil))
 
 #+cormanlisp
 (eval-when (:load-toplevel :compile-toplevel :execute)
