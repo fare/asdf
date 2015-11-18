@@ -22,12 +22,13 @@
   (with-asdf-dir ()
     (flet ((lisp-only (x) (remove "lisp" x :test-not 'equal :key 'pathname-type)))
       (let ((uiop-files (mapcar #'(lambda (x) (subpathname "uiop/" x)) (lisp-only (uiop-files))))
-            (defsystem-files (lisp-only (asdf-defsystem-files))))
+            (defsystem-files (remove "build/asdf.lisp"
+                                     (lisp-only (asdf-defsystem-files)) :test 'equal)))
         (run* `(pipe (wc ,@uiop-files) (sort -n)))
         (terpri)
-        (run* `(pipe (wc header.lisp ,@defsystem-files) (sort -n)))
+        (run* `(pipe (wc ,@defsystem-files) (sort -n)))
         (terpri)
-        (run* `(pipe (wc header.lisp ,@uiop-files ,@defsystem-files) (tail -n 1)))))))
+        (run* `(pipe (wc ,@uiop-files ,@defsystem-files) (tail -n 1)))))))
 
 
 ;;; debug the source registry that is being used to execute these tools.
