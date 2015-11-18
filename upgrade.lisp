@@ -112,12 +112,6 @@ previously-loaded version of ASDF."
 ;;; Self-upgrade functions
 
 (with-upgradability ()
-  (defun asdf-upgrade-error ()
-    ;; Important notice for whom it concerns. The crux of the matter is that
-    ;; TRAVERSE can be completely refactored, and so after the find-system returns, it's too late.
-    (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
-          Otherwise, when you upgrade from ASDF 2, you must do it before you operate on any system.~%"))
-
   (defun cleanup-upgraded-asdf (&optional (old-version (first *previous-asdf-versions*)))
     (let ((new-version (asdf-version)))
       (unless (equal old-version new-version)
