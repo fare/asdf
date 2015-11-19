@@ -1941,7 +1941,7 @@ Both a system's structure and the operations that can be performed on systems
 follow a extensible protocol, allowing programmers to add new behaviours to ASDF.
 For example, @code{cffi} adds support for special FFI description files
 that interface with C libraries and for wrapper files that embed C code in Lisp.
-@code{abcl-jar} supports creating Java JAR archives in ABCL.
+@code{asdf-jar} supports creating Java JAR archives in ABCL.
 @code{poiu} supports compiling code in parallel using background processes.
 
 The key classes in ASDF are @code{component} and @code{operation}.
