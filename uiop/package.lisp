@@ -737,16 +737,3 @@ UNINTERN -- Remove symbols here from PACKAGE."
        #+(or clasp ecl gcl mkcl) (defpackage ,package (:use))
        (eval-when (:compile-toplevel :load-toplevel :execute)
          ,ensure-form))))
-
-;;;; Final tricks to keep various implementations happy.
-;; We want most such tricks in common-lisp.lisp,
-;; but these need to be done before the define-package form there,
-;; that we nevertheless want to be the very first form.
-(eval-when (:load-toplevel :compile-toplevel :execute)
-  #+allegro ;; We need to disable autoloading BEFORE any mention of package ASDF.
-  (setf excl::*autoload-package-name-alist*
-        (remove "asdf" excl::*autoload-package-name-alist*
-                :test 'equalp :key 'car)))
-
-;; Compatibility with whoever calls asdf/package
-(define-package :asdf/package (:use :cl :uiop/package) (:reexport :uiop/package))

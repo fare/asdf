@@ -30,7 +30,16 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
               (cons (format nil "~{~D~^.~}" rev))
               (null "1.0"))))))
   ;; Important: define *p-a-v* /before/ *a-v* so that it initializes correctly.
-  (defvar *previous-asdf-versions* (if-let (previous (asdf-version)) (list previous)))
+  (defvar *previous-asdf-versions*
+    (let ((previous (asdf-version)))
+      (when previous
+        ;; Punt on hard package upgrade: from ASDF1 or ASDF2
+        (when (version< previous "2.27") ;; 2.27 is the first to have the :asdf3 feature.
+          (let ((away (format nil "~A-~A" :asdf previous)))
+            (rename-package :asdf away)
+            (when *load-verbose*
+              (format t "~&; Renamed old ~A package away to ~A~%" :asdf away)))))
+        (list previous)))
   (defvar *asdf-version* nil)
   ;; We need to clear systems from versions yet older than the below:
   (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.
@@ -67,7 +76,7 @@ previously-loaded version of ASDF."
          ;; "3.4.5.67" would be a development version in the official branch, on top of 3.4.5.
          ;; "3.4.5.0.8" would be your eighth local modification of official release 3.4.5
          ;; "3.4.5.67.8" would be your eighth local modification of development version 3.4.5.67
-         (asdf-version "3.1.6.1")
+         (asdf-version "3.1.6.2")
          (existing-version (asdf-version)))
     (setf *asdf-version* asdf-version)
     (when (and existing-version (not (equal asdf-version existing-version)))
@@ -81,21 +90,7 @@ previously-loaded version of ASDF."
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
           ;; NB: it's too late to do anything about functions in UIOP!
           ;; If you introduce some critically incompatibility there, you must change name.
-          '(#:component-relative-pathname #:component-parent-pathname ;; component
-            #:source-file-type
-            #:find-system #:system-source-file #:system-relative-pathname ;; system
-            #:find-component ;; find-component
-            #:explain #:perform #:perform-with-restarts #:input-files #:output-files ;; action
-            #:component-depends-on #:operation-done-p #:component-depends-on
-            #:traverse ;; backward-interface
-            #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies ;; plan
-            #:operate  ;; operate
-            #:parse-component-form ;; defsystem
-            #:apply-output-translations ;; output-translations
-            #:process-output-translations-directive
-            #:inherit-source-registry #:process-source-registry ;; source-registry
-            #:process-source-registry-directive
-            #:trivial-system-p)) ;; bundle
+          '()) ;; empty now that we don't unintern, but wholly punt on ASDF 2.26 or earlier.
         (redefined-classes
           ;; redefining the classes causes interim circularities
           ;; with the old ASDF during upgrade, and many implementations bork
@@ -117,12 +112,6 @@ previously-loaded version of ASDF."
 ;;; Self-upgrade functions
 
 (with-upgradability ()
-  (defun asdf-upgrade-error ()
-    ;; Important notice for whom it concerns. The crux of the matter is that
-    ;; TRAVERSE can be completely refactored, and so after the find-system returns, it's too late.
-    (error "When a system transitively depends on ASDF, it must :defsystem-depends-on (:asdf)~%~
-          Otherwise, when you upgrade from ASDF 2, you must do it before you operate on any system.~%"))
-
   (defun cleanup-upgraded-asdf (&optional (old-version (first *previous-asdf-versions*)))
     (let ((new-version (asdf-version)))
       (unless (equal old-version new-version)

@@ -2,8 +2,6 @@
 ;;;; Utilities related to streams
 
 (uiop/package:define-package :uiop/stream
-  (:nicknames :asdf/stream)
-  (:recycle :uiop/stream :asdf/stream :asdf)
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os :uiop/pathname :uiop/filesystem)
   (:export
    #:*default-stream-element-type*
@@ -34,7 +32,7 @@
 
 (with-upgradability ()
   (defvar *default-stream-element-type*
-    (or #+(or abcl cmu cormanlisp scl xcl) 'character
+    (or #+(or abcl cmucl cormanlisp scl xcl) 'character
         #+lispworks 'lw:simple-char
         :default)
     "default element-type for open (depends on the current CL implementation)")
@@ -45,7 +43,7 @@
   (defun setup-stdin ()
     (setf *stdin*
           #.(or #+clozure 'ccl::*stdin*
-                #+(or cmu scl) 'system:*stdin*
+                #+(or cmucl scl) 'system:*stdin*
                 #+(or clasp ecl) 'ext::+process-standard-input+
                 #+sbcl 'sb-sys:*stdin*
                 '*standard-input*)))
@@ -56,7 +54,7 @@
   (defun setup-stdout ()
     (setf *stdout*
           #.(or #+clozure 'ccl::*stdout*
-                #+(or cmu scl) 'system:*stdout*
+                #+(or cmucl scl) 'system:*stdout*
                 #+(or clasp ecl) 'ext::+process-standard-output+
                 #+sbcl 'sb-sys:*stdout*
                 '*standard-output*)))
@@ -68,7 +66,7 @@
     (setf *stderr*
           #.(or #+allegro 'excl::*stderr*
                 #+clozure 'ccl::*stderr*
-                #+(or cmu scl) 'system:*stderr*
+                #+(or cmucl scl) 'system:*stderr*
                 #+(or clasp ecl) 'ext::+process-error-output+
                 #+sbcl 'sb-sys:*stderr*
                 '*error-output*)))

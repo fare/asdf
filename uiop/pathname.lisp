@@ -4,8 +4,7 @@
 ;; which all is necessary prior to any access the filesystem or environment.
 
 (uiop/package:define-package :uiop/pathname
-  (:nicknames :asdf/pathname)
-  (:recycle :uiop/pathname :asdf/pathname :asdf)
+  (:nicknames :asdf/pathname) ;; deprecated. Used by ceramic
   (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/os)
   (:export
    ;; Making and merging pathnames, portably
@@ -48,7 +47,7 @@
 implementation's MAKE-PATHNAME and other primitives to a CLHS-standard format
 that is a list and not a string."
     (cond
-      #-(or cmu sbcl scl) ;; these implementations already normalize directory components.
+      #-(or cmucl sbcl scl) ;; these implementations already normalize directory components.
       ((stringp directory) `(:absolute ,directory))
       ((or (null directory)
            (and (consp directory) (member (first directory) '(:absolute :relative))))
@@ -91,7 +90,7 @@ by the underlying implementation's MAKE-PATHNAME and other primitives"
   ;; See CLHS make-pathname and 19.2.2.2.3.
   ;; This will be :unspecific if supported, or NIL if not.
   (defparameter *unspecific-pathname-type*
-    #+(or abcl allegro clozure cmu genera lispworks sbcl scl) :unspecific
+    #+(or abcl allegro clozure cmucl genera lispworks sbcl scl) :unspecific
     #+(or clasp clisp ecl mkcl gcl xcl #|These haven't been tested:|# cormanlisp mcl) nil
     "Unspecific type component to use with the underlying implementation's MAKE-PATHNAME")
 
@@ -187,7 +186,7 @@ when merging, making or parsing pathnames"
     (declare (ignorable defaults))
     #.`(make-pathname :directory nil :name nil :type nil :version nil
                       :device (or #+(and mkcl unix) :unspecific)
-                      :host (or #+cmu lisp::*unix-host* #+(and mkcl unix) "localhost")
+                      :host (or #+cmucl lisp::*unix-host* #+(and mkcl unix) "localhost")
                       #+scl ,@'(:scheme nil :scheme-specific-part nil
                                 :username nil :password nil :parameters nil :query nil :fragment nil)
                       ;; the default shouldn't matter, but we really want something physical

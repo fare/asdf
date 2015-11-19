@@ -74,7 +74,7 @@ another pathname in a degenerate way."))
     ;; condition objects, which in turn does inheritance of :report options at
     ;; run-time.  fortunately, inheritance means we only need this kludge here in
     ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
-    #+cmu (:report print-object))
+    #+cmucl (:report print-object))
 
   (define-condition duplicate-names (system-definition-error)
     ((name :initarg :name :reader duplicate-names-name))

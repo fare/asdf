@@ -7,10 +7,9 @@
 ;;; from this package only common-lisp symbols are exported.
 
 (uiop/package:define-package :uiop/common-lisp
-  (:nicknames :uoip/cl :asdf/common-lisp :asdf/cl)
+  (:nicknames :uoip/cl)
   (:use :uiop/package)
   (:use-reexport #-genera :common-lisp #+genera :future-common-lisp)
-  (:recycle :uiop/common-lisp :uoip/cl :asdf/common-lisp :asdf/cl :asdf)
   #+allegro (:intern #:*acl-warn-save*)
   #+cormanlisp (:shadow #:user-homedir-pathname)
   #+cormanlisp
@@ -22,7 +21,7 @@
   #+mcl (:shadow #:user-homedir-pathname))
 (in-package :uiop/common-lisp)
 
-#-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+#-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
 (error "ASDF is not supported on your implementation. Please help us port it.")
 
 ;; (declaim (optimize (speed 1) (debug 3) (safety 3))) ; DON'T: trust implementation defaults.
@@ -30,17 +29,23 @@
 
 ;;;; Early meta-level tweaks
 
-#+(or abcl allegro clasp clisp cmu ecl mkcl clozure lispworks mkcl sbcl scl)
+#+(or allegro clasp clisp cmucl ecl mkcl mkcl sbcl)
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  ;; Check for unicode at runtime, so that a hypothetical FASL compiled with unicode
-  ;; but loaded in a non-unicode setting (e.g. on Allegro) won't tell a lie.
   (when (and #+allegro (member :ics *features*)
-             #+(or clasp clisp cmu ecl mkcl) (member :unicode *features*)
+             #+(or clasp clisp cmucl ecl mkcl) (member :unicode *features*)
              #+sbcl (member :sb-unicode *features*))
+    ;; Check for unicode at runtime, so that a hypothetical FASL compiled with unicode
+    ;; but loaded in a non-unicode setting (e.g. on Allegro) won't tell a lie.
     (pushnew :asdf-unicode *features*)))
 
 #+allegro
 (eval-when (:load-toplevel :compile-toplevel :execute)
+  ;; We need to disable autoloading BEFORE any mention of package ASDF.
+  ;; In particular, there must NOT be a mention of package ASDF in the defpackage of this file
+  ;; or any previous file.
+  (setf excl::*autoload-package-name-alist*
+        (remove "asdf" excl::*autoload-package-name-alist*
+                :test 'equalp :key 'car))
   (defparameter *acl-warn-save*
     (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
       excl:*warn-on-nested-reader-conditionals*))
@@ -64,7 +69,11 @@
              (wait-on-semaphore (external-process-completed proc))))
        (values (external-process-%exit-code proc)
                (external-process-%status proc))))))
-#+clozure (in-package :uiop/common-lisp)
+#+clozure (in-package :uiop/common-lisp) ;; back in this package.
+
+#+cmucl
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  (setf ext:*gc-verbose* nil))
 
 #+cormanlisp
 (eval-when (:load-toplevel :compile-toplevel :execute)

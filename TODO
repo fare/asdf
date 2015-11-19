@@ -292,6 +292,8 @@ so these would have to be fixed first.
 And that's why I didn't do it.
 It looks like SWANK can be fixed soon, though, so we'll see.
 
+* Hunt systems that use obsolete APIs
+
 * Get rid of component-properties
 ** directly use component-properties:
 *** yaclml.asd => misguided :features for version comparison

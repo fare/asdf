@@ -2,8 +2,7 @@
 ;;;; run-program initially from xcvb-driver.
 
 (uiop/package:define-package :uiop/run-program
-  (:nicknames :asdf/run-program)
-  (:recycle :uiop/run-program :asdf/run-program :xcvb-driver)
+  (:nicknames :asdf/run-program) ; OBSOLETE. Used by cl-sane, printv.
   (:use :uiop/common-lisp :uiop/package :uiop/utility
    :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream)
   (:export
