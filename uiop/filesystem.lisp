@@ -240,7 +240,7 @@ The behavior in presence of symlinks is not portable. Use IOlib to handle such s
                                        #+mcl '(:directories t))))
              #+(or abcl xcl) (system:list-directory directory)
              #+cormanlisp (cl::directory-subdirs directory)
-             #+genera (fs:directory-list directory))
+             #+genera (handler-case (fs:directory-list directory) (fs:directory-not-found () nil)))
            #+(or abcl allegro cmucl genera lispworks sbcl scl xcl)
            (dirs (loop :for x :in dirs
                        :for d = #+(or abcl xcl) (extensions:probe-directory x)
