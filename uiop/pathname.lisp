@@ -268,9 +268,9 @@ actually-existing file.
 
 Returns the (parsed) PATHNAME when true"
     (when pathname
-      (let* ((pathname (pathname pathname))
-             (name (pathname-name pathname)))
-        (when (not (member name '(nil :unspecific "") :test 'equal))
+      (let ((pathname (pathname pathname)))
+        (unless (and (member (pathname-name pathname) '(nil :unspecific "") :test 'equal)
+                     (member (pathname-type pathname) '(nil :unspecific "") :test 'equal))
           pathname)))))
 
 
