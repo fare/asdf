@@ -281,7 +281,6 @@
     uiop/os:read-little-endian
     uiop/os:read-null-terminated-string
     ;; backward compatibility upgrade only
-    asdf/backward-internals:make-sub-operation
     asdf/backward-interface:on-failure
     asdf/backward-interface:on-warnings
     asdf/find-system:contrib-sysdef-search
