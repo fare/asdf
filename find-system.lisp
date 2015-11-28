@@ -9,7 +9,8 @@
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:locate-system #:load-asd
-   #:system-registered-p #:register-system #:registered-systems #:clear-system #:map-systems
+   #:system-registered-p #:register-system #:registered-systems* #:registered-systems
+   #:clear-system #:map-systems
    #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition
@@ -74,9 +75,12 @@ of which is a system object.")
   (defun system-registered-p (name)
     (gethash (coerce-name name) *defined-systems*))
 
-  (defun registered-systems ()
+  (defun registered-systems* ()
     (loop :for registered :being :the :hash-values :of *defined-systems*
-          :collect (coerce-name (cdr registered))))
+          :collect (cdr registered)))
+
+  (defun registered-systems ()
+    (mapcar 'coerce-name (registered-systems*)))
 
   (defun register-system (system)
     (check-type system system)

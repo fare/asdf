@@ -170,7 +170,7 @@ to load it in current image."
 
   (defun already-loaded-systems ()
     "return a list of the names of the systems that have been successfully loaded so far"
-    (remove-if-not 'component-loaded-p (registered-systems)))
+    (mapcar 'coerce-name (remove-if-not 'component-loaded-p (registered-systems*))))
 
   (defun require-system (system &rest keys &key &allow-other-keys)
     "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but skip any update to the
