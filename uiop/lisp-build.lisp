@@ -2,6 +2,7 @@
 ;;;; Support to build (compile and load) Lisp files
 
 (uiop/package:define-package :uiop/lisp-build
+  (:nicknames :asdf/lisp-build) ;; OBSOLETE, used by slime/contrib/swank-asdf.lisp
   (:use :uiop/common-lisp :uiop/package :uiop/utility
    :uiop/os :uiop/pathname :uiop/filesystem :uiop/stream :uiop/image)
   (:export
