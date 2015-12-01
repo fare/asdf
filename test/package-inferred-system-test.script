@@ -6,3 +6,6 @@
 
 ;; No such file.
 (signals missing-component (load-system :package-inferred-system-test/f))
+
+;; Test that around-compile is inherited by inferred systems.
+(assert-equal 3 (symbol-call :package-inferred-system-test/a :add10 1)) ;; add10 must have been compiled in base 2

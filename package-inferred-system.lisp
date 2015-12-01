@@ -93,11 +93,12 @@ otherwise return a default system name computed from PACKAGE-NAME."
       (remove t (mapcar 'package-name-system (package-dependencies defpackage-form)))
       (error 'package-inferred-system-missing-package-error :system system :pathname file)))
 
-  (defun same-package-inferred-system-p (system name directory subpath dependencies)
+  (defun same-package-inferred-system-p (system name directory subpath around-compile dependencies)
     (and (eq (type-of system) 'package-inferred-system)
          (equal (component-name system) name)
          (pathname-equal directory (component-pathname system))
          (equal dependencies (component-sideway-dependencies system))
+         (equal around-compile (around-compile-hook system))
          (let ((children (component-children system)))
            (and (length=n-p children 1)
                 (let ((child (first children)))
@@ -117,14 +118,16 @@ otherwise return a default system name computed from PACKAGE-NAME."
                                      :truename *resolve-symlinks*)))
                 (when (file-pathname-p f)
                   (let ((dependencies (package-inferred-system-file-dependencies f system))
-                        (previous (cdr (system-registered-p system))))
-                    (if (same-package-inferred-system-p previous system dir sub dependencies)
+                        (previous (cdr (system-registered-p system)))
+                        (around-compile (around-compile-hook top)))
+                    (if (same-package-inferred-system-p previous system dir sub around-compile dependencies)
                         previous
                         (eval `(defsystem ,system
                                  :class package-inferred-system
                                  :source-file nil
                                  :pathname ,dir
                                  :depends-on ,dependencies
+                                 :around-compile ,around-compile
                                  :components ((cl-source-file "lisp" :pathname ,sub)))))))))))))))
 
 (with-upgradability ()
