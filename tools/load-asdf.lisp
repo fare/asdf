@@ -74,7 +74,8 @@
              ;; to provide a copy of ASDF that the implementation might be lacking,
              ;; we'd move this form right below the (funcall 'require "asdf") above.
              ;; See also notes in try-load-quicklisp.
-             (try-load-quicklisp))
+             ;; (try-load-quicklisp)
+             )
            ;; ****** User-configurable parts ******
            (required-asdf-version () "3.1.2") ;; In the end, we want at least ASDF 3.1.2
            (asdf-lisp ()
