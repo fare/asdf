@@ -144,7 +144,8 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
         :finally
            (multiple-value-bind (decl body) (decl-and-body decl-and-body)
              (return
-               `(defun ,name (&optional ,@largs)
+               `(defun ,name ,@(if largs `((&optional ,@largs))
+                                 (list nil))
                   ,@decl
                   (with-failure-context (:name ,(command-name name))
                     ,@inits
