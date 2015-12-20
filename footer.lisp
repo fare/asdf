@@ -48,7 +48,7 @@
 (with-upgradability ()
   #+allegro
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
-    (setf excl:*warn-on-nested-reader-conditionals* asdf/common-lisp::*acl-warn-save*))
+    (setf excl:*warn-on-nested-reader-conditionals* uiop/common-lisp::*acl-warn-save*))
 
   (dolist (f '(:asdf :asdf2 :asdf3 :asdf3.1 :asdf-package-system)) (pushnew f *features*))
 
