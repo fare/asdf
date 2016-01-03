@@ -38,10 +38,14 @@ How to use ASDF?
 To use ASDF, read our manual:
     <http://common-lisp.net/project/asdf/asdf.html>
 
-The first few sections, Loading ASDF, Configuring ASDF and Using ASDF,
+The first few sections,
+[Loading ASDF](https://common-lisp.net/project/asdf/asdf/Loading-ASDF.html),
+[Configuring ASDF](https://common-lisp.net/project/asdf/asdf/Configuring-ASDF.html) and
+[Using ASDF](https://common-lisp.net/project/asdf/asdf/Using-ASDF.html)
 will get you started as a simple user.
+
 If you want to define your own systems, further read the section
-Defining systems with defsystem.
+[Defining systems with defsystem](https://common-lisp.net/project/asdf/asdf/Defining-systems-with-defsystem.html)
 
 The manual is also in the [doc/](doc/) subdirectory, and can be prepared with:
 
@@ -50,7 +54,7 @@ The manual is also in the [doc/](doc/) subdirectory, and can be prepared with:
 
 ASDF 3 now includes an extensive runtime support library:
 [UIOP, the Utilities for Implementation- and OS- Portability](uiop/).
-Its documentation unhappily lies mainly in the source code and docstrings.
+Its documentation unhappily lies mainly in the source code and its docstrings.
 See [uiop/README.md](uiop/README.md) for an introduction.
 
 
@@ -95,12 +99,21 @@ The simplest way to get them is as follows, but read below:
 
     make ext
 
-The above make target uses `git submodule update --init` to download
+_NOTA BENE_: You may also need to run `make ext` again
+after you `git pull` or switch branch, to update the `ext/` directory.
+This is unhappily not automatic.
+If for some reason tests fail, particularly due to an error
+compiling, loading or running a library, then run `make ext` and try again.
+
+The above `make` target uses `git submodule update --init` to download
 all these libraries using git. If you don't otherwise maintain your
 own set of carefully controlled CL libraries, that's what you want to use.
-However, if you do maintain your own set of carefully controlled CL libraries
-then you will want to use whichever tools you use (e.g. `quicklisp`, `clbuild`,
-or your own scripts around `git`) to download these libraries:
+However, it is only available if you have a git checkout of ASDF;
+not if you used a tarball.
+If you use a tarball or otherwise do maintain your own set
+of carefully controlled CL libraries then you will want to use whichever tools
+you use (e.g. `quicklisp`, `clbuild`, or your own scripts around `git`)
+to download these libraries:
 `alexandria`, `asdf-encodings`, `cl-launch`, `closer-mop`, `cl-ppcre`,
 `cl-scripting`, `fare-mop`, `fare-quasiquote`, `fare-utils`, `inferior-shell`,
 `lisp-invocation`, `named-readtables`, `optima`.
@@ -201,7 +214,7 @@ How do I navigate this source tree?
 * [version.lisp-expr](version.lisp-expr)
     * The current version. Bumped up every time the code changes, using:
 
-          make bump
+            make bump
 
 * [doc/](doc/)
     * documentation for ASDF, including:
@@ -242,4 +255,4 @@ How do I navigate this source tree?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Saturday, September 19th, 2015.
+Last updated Saturday, January 2nd, 2016.

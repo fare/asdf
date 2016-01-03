@@ -1929,6 +1929,9 @@ the @code{component-pathname} as specified via the @code{:pathname} option,
 whereas earlier versions ignore this option and use the @code{system-source-directory}
 where the @file{.asd} file resides.
 
+@c See this blog post about it:
+@c @url{http://davazp.net/2014/11/26/modern-library-with-asdf-and-package-inferred-system.html}
+
 
 @node The object model of ASDF, Controlling where ASDF searches for systems, Defining systems with defsystem, Top
 @comment  node-name,  next,  previous,  up
