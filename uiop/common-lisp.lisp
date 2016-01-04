@@ -18,7 +18,7 @@
    #:make-broadcast-stream #:file-namestring)
   #+genera (:shadowing-import-from :scl #:boolean)
   #+genera (:export #:boolean #:ensure-directories-exist #:read-sequence #:write-sequence)
-  #+mcl (:shadow #:user-homedir-pathname))
+  #+(or mcl cmucl) (:shadow #:user-homedir-pathname))
 (in-package :uiop/common-lisp)
 
 #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
@@ -73,7 +73,9 @@
 
 #+cmucl
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (setf ext:*gc-verbose* nil))
+  (setf ext:*gc-verbose* nil)
+  (defun user-homedir-pathname ()
+    (first (ext:search-list (cl:user-homedir-pathname)))))
 
 #+cormanlisp
 (eval-when (:load-toplevel :compile-toplevel :execute)
