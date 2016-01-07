@@ -47,8 +47,10 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
              (when string
                (with-pathname-defaults ()
                  #+clozure (ccl:native-to-pathname string)
+                 #+cmucl (uiop/os::parse-unix-namestring* string)
                  #+sbcl (sb-ext:parse-native-namestring string)
-                 #-(or clozure sbcl)
+                 #+scl (lisp::parse-unix-namestring string)
+                 #-(or clozure cmucl sbcl scl)
                  (os-cond
                   ((os-unix-p) (parse-unix-namestring string :ensure-directory ensure-directory))
                   (t (parse-namestring string))))))
