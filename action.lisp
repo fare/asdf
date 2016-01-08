@@ -352,9 +352,11 @@ in some previous image, or T if it needs to be done.")
   (defmethod component-operation-time ((o operation) (c component))
     (gethash (type-of o) (component-operation-times c)))
 
+  (defmethod (setf component-operation-time) (stamp (o operation) (c component))
+    (setf (gethash (type-of o) (component-operation-times c)) stamp))
+
   (defmethod mark-operation-done ((o operation) (c component))
-    (setf (gethash (type-of o) (component-operation-times c))
-          (compute-action-stamp nil o c :just-done t))))
+    (setf (component-operation-time o c) (compute-action-stamp nil o c :just-done t))))
 
 
 ;;;; Perform

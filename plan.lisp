@@ -365,6 +365,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
                                  :index (if status ; index of action amongst all nodes in traversal
                                             (action-index status) ;; if already visited, keep index
                                             (incf (plan-total-action-count plan))))) ; else new index
+                          (when (and done-p (not add-to-plan-p))
+                            (setf (component-operation-time operation component) stamp))
                           (when add-to-plan-p ; if it needs to be added to the plan,
                             (incf (plan-planned-action-count plan)) ; count it
                             (unless aniip ; if it's output-producing,
