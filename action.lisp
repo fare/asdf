@@ -316,6 +316,7 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
 ;;;; Done performing
 (with-upgradability ()
   (defgeneric component-operation-time (operation component)) ;; ASDF4: hide it behind plan-action-stamp
+  (defgeneric (setf component-operation-time) (time operation component))
   (define-convenience-action-methods component-operation-time (operation component))
 
   (defgeneric mark-operation-done (operation component)) ;; ASDF4: hide it behind (setf plan-action-stamp)
