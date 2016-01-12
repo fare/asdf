@@ -153,8 +153,8 @@ To run only the regression test scripts, try simply:
     make l=$L test-scripts
 
 
-Debugging tip
--------------
+Debugging it
+------------
 
 To interactively debug ASDF, you may load it in such a way that `M-.` will work,
 by installing the source code, and running:
@@ -167,6 +167,15 @@ by installing the source code, and running:
 Note that the above can be adapted in a general recipe to get all the files in a system, in order.
 To also have the files in systems it transitively depends on, add the `:other-systems t` keyword
 argument to the call to `asdf::required-components`.
+
+To interactively use the `asdf-tools`, you need to either have
+all its dependencies installed and configured.
+If you're using them through the `ext/` directory and `make ext`,
+then you may need to emulate what the script in [tools/asdf-tools](tools/asdf-tools) does
+with respect to initializing the source-registry.
+Note that it also declares a system for `cl-launch/dispatch`;
+you can either do something similar, or expand the source for `cl-launch` with
+`make -C ext/cl-launch source` so `cl-launch.asd` will be created.
 
 
 What has changed?
