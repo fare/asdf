@@ -220,10 +220,10 @@ for all the linkable object files associated with the system or its dependencies
                         (format nil "~A~@[~A~]" (component-name c) (slot-value o 'name-suffix))))
               (type (bundle-pathname-type bundle-type)))
           (values (list (subpathname (component-pathname c) name :type type))
-                  (eq (type-of o) (coerce-class (component-build-operation c)
-                                                :package :asdf/interface
-                                                :super 'operation
-                                                :error nil)))))))
+                  (eq (class-of o) (coerce-class (component-build-operation c)
+                                                 :package :asdf/interface
+                                                 :super 'operation
+                                                 :error nil)))))))
 
   (defmethod output-files ((o bundle-op) (c system))
     (bundle-output-files o c))
