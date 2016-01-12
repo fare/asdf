@@ -2,7 +2,14 @@
 
 (deftestcmd build-asdf ()
   "make sure asdf.lisp is built"
-  (load-system :asdf))
+  (load-system :asdf)
+  (success))
+
+(deftestcmd build-asdf-tools ()
+  "build a binary for asdf-tools"
+  (when (asdf:traverse :program-op :asdf-tools)
+    (asdf:operate :program-op :asdf-tools))
+  (success))
 
 ;;; Documentation
 (deftestcmd doc ()

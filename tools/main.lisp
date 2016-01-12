@@ -43,7 +43,7 @@ The UNIX-y name will be downcased, and any % prefix will be dropped."
 (defun public-commands ()
   ;;(loop :for x :being :the :external-symbols :of :asdf-tools
   ;; :when (and (eq x (find-command x)) (documentation x 'function)) :collect x)
-  '(build-asdf doc website wc ;; build
+  '(build-asdf build-asdf-tools doc website wc ;; build
     clean %push merge-master-into-release fix-local-git-tags fix-remote-git-tags ;; git
     ext-init ext-clear ext-reset ext-update ;; extension
     git-all-committed-p

@@ -7,6 +7,10 @@
                (:version "optima.ppcre" "1.0")
                (:version "cl-scripting" "0.2")
                (:feature :sbcl (:require "sb-introspect")))
+  :build-operation program-op
+  :build-pathname #.(format nil "../build/asdf-tools~@[.~A~]"
+                            (asdf/bundle:bundle-pathname-type :program))
+  :entry-point "asdf-tools::entry-point"
   :components
   ((:file "package")
    (:file "main" :depends-on ("package"))

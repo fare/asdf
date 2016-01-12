@@ -23,6 +23,15 @@ build_asdf () {
     mv -f ${a}.tmp ${a}
   fi
 }
+build_asdf_tools () {
+  if [ -x build/asdf-tools ] ; then
+    : "Reusing existing asdf-tools."
+  else
+    : "Building asdf-tools."
+    build_asdf
+    ${here}/tools/asdf-tools build-asdf-tools
+  fi
+}
 ext () {
   # Download all the development-time dependencies of ASDF:
   git submodule update --init
@@ -42,6 +51,6 @@ defsystem_files () {
 
 case "$1" in
   "") all ;;
-  all|build_asdf|ext|noext|driver_files|defsystem_files) "$@" ;;
-  *) build_asdf ; exec ${here}/tools/asdf-tools env "$@" ;;
+  all|build_asdf|build_asdf_tools|ext|noext|driver_files|defsystem_files) "$@" ;;
+  *) build_asdf_tools ; exec ${here}/build/asdf-tools env "$@" ;;
 esac ; exit

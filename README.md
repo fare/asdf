@@ -152,6 +152,17 @@ To run only the regression test scripts, try simply:
 
     make l=$L test-scripts
 
+Note that an executable `build/asdf-tools` is being built the first time you test ASDF.
+When you update ASDF, via e.g. `git pull` or a branch switch, you may have to update it, with:
+
+    make build-asdf-tools
+
+The reason this is not done automatically everytime is because
+building it depends on a working ASDF;
+but when you're modifying ASDF and testing it, you cannot rely on a working ASDF:
+indeed, a developer may not only make mistakes, but may deliberately
+introduce or re-introduce bugs at some place to test code in another place.
+
 
 Debugging it
 ------------
@@ -240,10 +251,12 @@ How do I navigate this source tree?
       Far from covering all of ASDF, but a good start.
 
 * [contrib/](contrib/)
-    * a few contributed files that show case how to use ASDF.
+    * a few contributed files that show case how to use ASDF
+      or help with debugging it or debugging programs that use it.
 
 * [debian/](debian/)
     * files for packaging on Debian, Ubuntu, etc.
+      (now only present in the debian branch).
 
 * [build/](build/)
     * where the `Makefile` and `asdf-tools` store their output files, including
@@ -264,4 +277,4 @@ How do I navigate this source tree?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Saturday, January 2nd, 2016.
+Last updated Tuesday, January 12th, 2016.

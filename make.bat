@@ -13,21 +13,22 @@ cd %~p0
 if "%~1"=="" goto all
 if "%~1"=="all" goto all
 if "%~1"=="build_asdf" goto build_asdf
+if "%~1"=="build_asdf_tools" goto build_asdf_tools
 if "%~1"=="ext" goto ext
 if "%~1"=="noext" goto noext
 if "%~1"=="driver_files" goto driver_files
 if "%~1"=="defsystem_files" goto defsystem_files
 
-call %0 build_asdf
-%here%\tools\asdf-tools.bat env %*
-goto :end
+call %0 build_asdf_tools
+%here%\build\asdf-tools.exe env %*
+goto end
 
 
 :all
 :: Default action: bootstrap asdf.lisp
 
 :build_asdf
-:: That's the only thing that we really need before we may invoke asdf-builder.
+:: That's the only thing that we really need before we may invoke the asdf-tools
  if not exist build mkdir build
  set a=build\asdf.lisp
  copy /y /b %header_lisp% + %driver_lisp% + %defsystem_lisp% %a%.tmp > nul
@@ -35,6 +36,13 @@ goto :end
  fc /b /0 %a%.tmp %a% > nul
  if errorlevel 1 goto clobber
  del /f /q %a%.tmp
+ goto end
+
+:build_asdf_tools
+:: Building a binary for asdf-tools
+ if exists build\asdf-tools.exe goto end
+ call %0 build_asdf
+ %here%\tools\asdf-tools.bat build-asdf-tools
  goto end
 
 :clobber
