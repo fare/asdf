@@ -959,19 +959,25 @@ should redirect all output from ASDF operations.
 @c FIXME: the following is too complicated for here, especially since
 @c :force hasn't been defined yet.  Move it. [2014/02/27:rpg]
 
-@findex load-system
 @vindex *load-system-operation*
 @findex already-loaded-systems
-@findex require-system
-@code{load-system} applies @code{operate} with the operation from
-@code{*load-system-operation*}
-the system, and any provided keyword arguments.
-@code{*load-system-operation*} by default is @code{load-op};
-it would be @code{load-bundle-op} by default on ECL, if only an implementation bug were fixed.
 
+@defun load-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
+Apply @code{operate} with the operation from
+@code{*load-system-operation*}
+the @var{system}, and any provided keyword arguments.
+@code{*load-system-operation*} by default is @code{load-op};
+it would be @code{load-bundle-op} by default on ECL,
+if only an implementation bug were fixed.
+Calling @code{load-system} is the regular, recommended way
+to load a system into the current image.
+@end defun
+
+@defun require-system system @Arest{} keys @Akey{} @AallowOtherKeys{}
 @code{require-system} skips any update to systems that have already been loaded,
 in the spirit of @code{cl:require}.
-It does it by calling @code{load-system} with a keyword option excluding already loaded systems.@footnote{
+It does it by calling @code{load-system} with a keyword option
+excluding already loaded systems.@footnote{
   For the curious, the option is @code{:force-not (already-loaded-systems)}.
 }.
 On actively maintained free software implementations
@@ -979,26 +985,54 @@ On actively maintained free software implementations
 once ASDF itself is loaded, @code{cl:require} too can load ASDF systems,
 by falling back on @code{require-system}
 for module names not recognized by the implementation.
+(Note however that @code{require-system} does @emph{not} fall back on @code{cl:require};
+that would introduce an ``interesting'' potential infinite loop to break somehow.)
 
-Note that @code{cl:require} and @code{require-system} are appropriate to load code
+@code{cl:require} and @code{require-system} are appropriate to load code
 that is not being modified during the current programming session.
-This notably includes the implementation-provided extension modules that @code{cl:require} can load.
-This also includes any number of ASDF systems that the user isn't either developing or debugging,
-for which a previously installed version is deemed to be satisfactory.
-@code{require-system} and through it @code{cl:require} can load these systems without any problem.
+@code{cl:require} will notably load the implementation-provided extension modules;
+@code{require-system} won't, unless they are also defined as systems somehow,
+which SBCL and MKCL do.
+@code{require-system} may also be used to load any number of ASDF systems
+that the user isn't either developing or debugging,
+for which a previously installed version is deemed to be satisfactory;
+@code{cl:require} on the above-mentioned implementations will delegate to @code{require-system}
+and may load them as well.
 But for code that you are actively developing, debugging, or otherwise modifying,
 you should use @code{load-system}, so ASDF will pick on your modifications
 and transitively re-build the modified files and everything that depends on them.
 
-Finally, starting with ASDF 3.1, a function @code{make} is also available,
-that does ``The Right Thing'' with your system.
+@end defun
+
+@defun make system @Arest{} keys @Akey{} @AallowOtherKeys{}
+Do ``The Right Thing'' with your system.
+Starting with ASDF 3.1, this function @code{make} is also available.
 The default behaviour is to load the system as if by @code{load-system};
-but instead of this default, system authors can specify
-the intended use of their system by specifying their desired operation
-with a @code{:build-operation} argument in the system definition.
+but system authors can override this default in their system definition
+they may specify an alternate operation as the intended use of their system,
+with a @code{:build-operation} argument in the @code{defsystem} form,
+and an intended output pathname for that operation with @code{:build-pathname}.
 @c Document :build-operation in the defsystem section.
 @c Document in the extension section that for richer programmatic access, you may instead use an overriding
 @c @code{(defmethod component-depends-on ((o build-op) (s system)) ...)}.
+@end defun
+
+@defun compile-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
+Apply @code{operate} with the operation @code{compile-op},
+the @var{system}, and any provided keyword arguments.
+This will make sure all the files in the system are compiled,
+but not necessarily load any of them in the current image;
+on most systems, it will @emph{not} load all compiled files in the current image.
+This function exists for symmetry with @code{load-system} but is not recommended
+unless you are writing build scripts and know what you're doing.
+But then, you might be interested in @code{program-op} rather than @code{compile-op}.
+@end defun
+
+@defun test-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
+Apply @code{operate} with the operation @code{test-op},
+the @var{system}, and any provided keyword arguments.
+@xref{test-op}.
+@end defun
 
 
 @node Moving on,  , Convenience Functions, Using ASDF
@@ -2165,7 +2199,7 @@ This operation will perform some tests on the module.
 The default method will do nothing.
 The default dependency is to require
 @code{load-op} to be performed on the module first.
-Its @code{operation-done-p} method returns @code{nil},
+Its default @code{operation-done-p} method returns @code{nil},
 which means that the operation is @emph{never} done
 --
 we assume that if you invoke the @code{test-op},
