@@ -1000,8 +1000,10 @@ for which a previously installed version is deemed to be satisfactory;
 and may load them as well.
 But for code that you are actively developing, debugging, or otherwise modifying,
 you should use @code{load-system}, so ASDF will pick on your modifications
-and transitively re-build the modified files and everything that depends on them.
-
+and transitively re-build the modified files and everything that depends on them
+(that the requested @var{system} itself depends on ---
+ASDF itself never builds anything unless
+it's an explicitly requested system or the dependencies thereof).
 @end defun
 
 @defun make system @Arest{} keys @Akey{} @AallowOtherKeys{}
