@@ -1,17 +1,17 @@
 (in-package :asdf-tools)
 
-(defun call-with-all-lisps (thunk &key (lisps *test-lisps*) (fail-fast t))
+(defun call-with-all-lisps (thunk &key (lisps *test-lisps*) muffle-failures)
   (let ((thunks
           (loop :for lisp :in (get-lisps lisps)
                 :collect (let ((l lisp))
                            (lambda () (with-failure-context (:name (format nil "using ~(~A~)" l))
                                         (funcall thunk l)))))))
-    (if fail-fast
-        (progn (map () 'funcall thunks) (success))
-        (call-without-stopping thunks))))
+    (if muffle-failures
+        (call-without-stopping thunks)
+        (progn (map () 'funcall thunks) (success)))))
 
-(defmacro with-all-lisps ((lisp-var lisps &key (fail-fast t)) &body body)
-  `(call-with-all-lisps (lambda (,lisp-var) ,@body) :lisps ,lisps :fail-fast ,fail-fast))
+(defmacro with-all-lisps ((lisp-var lisps &key muffle-failures) &body body)
+  `(call-with-all-lisps (lambda (,lisp-var) ,@body) :lisps ,lisps :muffle-failures ,muffle-failures))
 
 (deftestcmd test-all-clean-load (lisps)
   "test-clean-load on all lisps"
@@ -35,11 +35,11 @@
 
 (deftestcmd test-all-scripts-no-stop (lisps)
   "test-scripts on all lisps, no stop"
-  (with-all-lisps (l lisps :fail-fast nil) (test-scripts l)))
+  (with-all-lisps (l lisps :muffle-failures t) (test-scripts l)))
 
 (deftestcmd test-all-upgrade-no-stop (upgrade-lisps)
   "test-upgrade on all lisps, no stop"
-  (with-all-lisps (l upgrade-lisps :fail-fast nil) (test-upgrade l)))
+  (with-all-lisps (l upgrade-lisps :muffle-failures t) (test-upgrade l)))
 
 (deftestcmd test-all-no-upgrade-no-stop ()
   "all tests but upgrade on all lisps, no stop"
