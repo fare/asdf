@@ -13,8 +13,9 @@ If you come from the C/C++ world, ASDF covers a bit of what each of
 it orchestrates the compilation and dependency management,
 handles some of the portability issues, dynamically finds and loads code,
 and offers some portable system access library.
-Except everything is different in Common Lisp, and ultimately much simpler,
-though it does require acquiring some basic concepts.
+Except everything is different in Common Lisp, and ultimately much simpler overall,
+though it does require acquiring some basic concepts
+that do not exactly match those of the C and Unix world.
 Importantly, ASDF builds all software in the current Lisp image,
 as opposed to building software into separate processes.
 
@@ -130,7 +131,7 @@ of its dependencies, you can do it with:
 
 
 ASDF by default uses Clozure Common Lisp (CCL) to run the scripts that orchestrate its tests.
-By defining and exporting the variable LISP to be one of `ccl`, `sbcl` or `allegro`, you
+By defining and exporting the variable `LISP` to be one of `ccl`, `sbcl` or `allegro`, you
 can have it use an alternate Common Lisp implementation instead.
 Install CCL (respectively SBCL or Allegro) and make sure an executable called
 `ccl` (respectively `sbcl` or `alisp`) is in your `PATH`,
@@ -192,7 +193,7 @@ you can either do something similar, or expand the source for `cl-launch` with
 What has changed?
 -----------------
 
-You can consult the [debian/changelog](debian/changelog) for an overview of the
+You can consult the [doc/Changelog](doc/Changelog) for an overview of the
 significant changes in each release, and
 the `git log` for a detailed description of each commit.
 
