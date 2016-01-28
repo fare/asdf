@@ -351,7 +351,7 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
                  (when eof (return)))
           (loop
             :with buffer-size = (or buffer-size 8192)
-            :for buffer = (make-array (list buffer-size) :element-type (or element-type 'character))
+            :with buffer = (make-array (list buffer-size) :element-type (or element-type 'character))
             :for end = (read-sequence buffer input)
             :until (zerop end)
             :do (write-sequence buffer output :end end)
