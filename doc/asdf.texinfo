@@ -255,6 +255,7 @@ Issues with using and extending ASDF to define systems
 * How do I create a system definition where all the source files have a .cl extension?::
 * How do I mark a source file to be loaded only and not compiled?::
 * How do I work with readtables?::
+* How can I capture ASDF's output?::
 
 ASDF development FAQs
 
@@ -918,23 +919,36 @@ or silently convert lowercase to uppercase (lpns).
 @node Convenience Functions, Moving on, Loading a system, Using ASDF
 @section Convenience Functions
 
-@findex load-system
-@findex compile-system
-@findex test-system
-@findex require-system
-@findex make
+@c I believe thes are all unnecessary because of the function macros
+@c below [2016/01/30:rpg]
+@c @findex load-system
+@c @findex compile-system
+@c @findex test-system
+@c @findex require-system
+@c @findex make
 
 ASDF provides three commands for the most common system operations:
 @code{load-system}, @code{compile-system}, and @code{test-system}.
-It also provides @code{require-system}, a version of @code{load-system}
-that skips trying to update systems that are already loaded.
-And it provides @code{make}, a function that uses whichever operation
-was specified by the author of the target system,
-which by default behaves like @code{load-system}.
+
+ASDF also provides @code{require-system}, a variant of @code{load-system}
+that skips loading systems that are already loaded.  This is sometimes
+useful, for example, in order to avoid re-loading libraries that come
+pre-loaded into your  lisp implementation.
+
+ASDF also provides @code{make}, a way of allowing system developers to
+choose a default operation for their systems.  For example, a developer
+who has created a system intended to format a specific document, might
+make document-formatting the default operation invoked by @code{make},
+instead of loading.  If the system developer doesn't specify in the
+system definition, the default operation will be loading.
 
 @c FIXME: We seem to export @findex bundle-system also, that some ECL users seem to rely on.
 @c But it's probably better that bundle operations have their own manual chapter at some point.
 
+
+@c FIXME: There should be a @defun for OPERATE, but there isn't.  Not
+@c sure where it belongs...  The discussion here is just confusing if
+@c the reader doesn't understand how ASDF works. [2016/01/30:rpg]
 @findex operate
 @findex oos
 
@@ -946,11 +960,6 @@ so you may arbitrarily operate on your systems beyond the default operations.
 which stands for operate-on-system, a name inherited from @code{mk-defsystem}.)
 You'll use @code{operate} whenever you want to do something beyond
 compiling, loading and testing.
-
-Note that output from ASDF and ASDF extensions are sent
-to the CL stream @code{*standard-output*},
-so rebinding that stream around calls to @code{asdf:operate}
-should redirect all output from ASDF operations.
 
 @c Reminder: before ASDF can operate on a system, however,
 @c it must be able to find and load that system's definition.
@@ -971,6 +980,36 @@ it would be @code{load-bundle-op} by default on ECL,
 if only an implementation bug were fixed.
 Calling @code{load-system} is the regular, recommended way
 to load a system into the current image.
+@end defun
+
+@defun compile-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
+Apply @code{operate} with the operation @code{compile-op},
+the @var{system}, and any provided keyword arguments.
+This will make sure all the files in the system are compiled,
+but not necessarily load any of them in the current image;
+on most systems, it will @emph{not} load all compiled files in the current image.
+This function exists for symmetry with @code{load-system} but is not recommended
+unless you are writing build scripts and know what you're doing.
+But then, you might be interested in @code{program-op} rather than @code{compile-op}.
+@end defun
+
+@defun test-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
+Apply @code{operate} with the operation @code{test-op},
+the @var{system}, and any provided keyword arguments.
+@xref{test-op}.
+@end defun
+
+@defun make system @Arest{} keys @Akey{} @AallowOtherKeys{}
+Do ``The Right Thing'' with your system.
+Starting with ASDF 3.1, this function @code{make} is also available.
+The default behaviour is to load the system as if by @code{load-system};
+but system authors can override this default in their system definition
+they may specify an alternate operation as the intended use of their system,
+with a @code{:build-operation} argument in the @code{defsystem} form,
+and an intended output pathname for that operation with @code{:build-pathname}.
+@c Document :build-operation in the defsystem section.
+@c Document in the extension section that for richer programmatic access, you may instead use an overriding
+@c @code{(defmethod component-depends-on ((o build-op) (s system)) ...)}.
 @end defun
 
 @defun require-system system @Arest{} keys @Akey{} @AallowOtherKeys{}
@@ -1004,36 +1043,6 @@ and transitively re-build the modified files and everything that depends on them
 (that the requested @var{system} itself depends on ---
 ASDF itself never builds anything unless
 it's an explicitly requested system or the dependencies thereof).
-@end defun
-
-@defun make system @Arest{} keys @Akey{} @AallowOtherKeys{}
-Do ``The Right Thing'' with your system.
-Starting with ASDF 3.1, this function @code{make} is also available.
-The default behaviour is to load the system as if by @code{load-system};
-but system authors can override this default in their system definition
-they may specify an alternate operation as the intended use of their system,
-with a @code{:build-operation} argument in the @code{defsystem} form,
-and an intended output pathname for that operation with @code{:build-pathname}.
-@c Document :build-operation in the defsystem section.
-@c Document in the extension section that for richer programmatic access, you may instead use an overriding
-@c @code{(defmethod component-depends-on ((o build-op) (s system)) ...)}.
-@end defun
-
-@defun compile-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
-Apply @code{operate} with the operation @code{compile-op},
-the @var{system}, and any provided keyword arguments.
-This will make sure all the files in the system are compiled,
-but not necessarily load any of them in the current image;
-on most systems, it will @emph{not} load all compiled files in the current image.
-This function exists for symmetry with @code{load-system} but is not recommended
-unless you are writing build scripts and know what you're doing.
-But then, you might be interested in @code{program-op} rather than @code{compile-op}.
-@end defun
-
-@defun test-system system @Arest{} keys @Akey{} force force-not verbose version @AallowOtherKeys{}
-Apply @code{operate} with the operation @code{test-op},
-the @var{system}, and any provided keyword arguments.
-@xref{test-op}.
 @end defun
 
 
@@ -5755,6 +5764,7 @@ and only do this from your personal configuration or build scripts.
 * How do I create a system definition where all the source files have a .cl extension?::
 * How do I mark a source file to be loaded only and not compiled?::
 * How do I work with readtables?::
+* How can I capture ASDF's output?::
 @end menu
 
 @node How can I cater for unit-testing in my system?, How can I cater for documentation generation in my system?, Issues with using and extending ASDF to define systems, Issues with using and extending ASDF to define systems
@@ -5966,7 +5976,7 @@ to allow for such a trick.
 @c to adjust your compiler settings,
 @c or eschew compilation by @code{eval}uating a quoted source form at load-time.
 
-@node How do I work with readtables?,  , How do I mark a source file to be loaded only and not compiled?, Issues with using and extending ASDF to define systems
+@node How do I work with readtables?, How can I capture ASDF's output?, How do I mark a source file to be loaded only and not compiled?, Issues with using and extending ASDF to define systems
 @subsection How do I work with readtables?
 
 @cindex readtables
@@ -6033,6 +6043,19 @@ to eschew using such an important library anymore.
 @subsubsection How should my library make a readtable available to other systems?
 
 Use from the @code{named-readtables} system the macro @code{named-readtables:defreadtable}.
+
+@node How can I capture ASDF's output?,  , How do I work with readtables?, Issues with using and extending ASDF to define systems
+@subsection How can I capture ASDF's output?
+
+@cindex ASDF output
+@cindex Capturing ASDF output
+@vindex *standard-output*
+
+Output from ASDF and ASDF extensions are sent to the CL stream
+@code{*standard-output*}, so rebinding that stream around calls to
+@code{asdf:operate} should redirect all output from ASDF operations.
+
+
 
 @node ASDF development FAQs,  , Issues with using and extending ASDF to define systems, FAQ
 @section ASDF development FAQs
