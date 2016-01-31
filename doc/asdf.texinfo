@@ -1005,12 +1005,17 @@ Starting with ASDF 3.1, this function @code{make} is also available.
 The default behaviour is to load the system as if by @code{load-system};
 but system authors can override this default in their system definition
 they may specify an alternate operation as the intended use of their system,
-with a @code{:build-operation} argument in the @code{defsystem} form,
-and an intended output pathname for that operation with @code{:build-pathname}.
+with a @code{:build-operation} option in the @code{defsystem} form
+(@pxref{The defsystem grammar, build-operation}),
+and an intended output pathname for that operation with
+@code{:build-pathname}.
 @c Document :build-operation in the defsystem section.
 @c Document in the extension section that for richer programmatic access, you may instead use an overriding
-@c @code{(defmethod component-depends-on ((o build-op) (s system)) ...)}.
+@c @code{(defmethod component-depends-on ((o build-op) (s system))
+@c ...)}.
+This function is experimental and largely untested.  Use at your own risk.
 @end defun
+@cindex build-operation
 
 @defun require-system system @Arest{} keys @Akey{} @AallowOtherKeys{}
 @code{require-system} skips any update to systems that have already been loaded,
@@ -1391,6 +1396,7 @@ system-definition := ( defsystem system-designator @var{system-option}* )
 system-option := :defsystem-depends-on system-list
                  | :weakly-depends-on @var{system-list}
                  | :class class-name (see discussion below)
+                 | :build-operation @var{operation-name}
                  | system-option
                  | module-option
                  | option
@@ -1507,6 +1513,18 @@ programmer to specify another ASDF-defined system or set of systems that
 must be loaded @emph{before} the system definition is processed.
 Typically this is used to load an ASDF extension that is used in the
 system definition.
+
+@subsection Build-operation
+@cindex :build-operation
+
+The @code{:build-operation} option to @code{defsystem} allows the
+programmer to specify an operation that will be applied, in place of
+@code{load-op} when @code{make} (@pxref{Convenience Functions, make})
+is run on the system.    The option
+value should be the name of an operation.  E.g., @code{:build-operation doc-op}
+
+This feature is
+experimental and largely untested.  Use at your own risk.
 
 @subsection Weakly depends on
 @cindex :weakly-depends-on
