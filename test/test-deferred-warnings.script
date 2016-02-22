@@ -2,6 +2,7 @@
 
 (in-package :asdf-test)
 
+(uiop:uiop-debug)
 (enable-deferred-warnings-check)
 
 (def-test-system :unintern-foo
@@ -9,6 +10,13 @@
 (def-test-system :use-foo-only
   :depends-on (:unintern-foo)
   :components ((:file "use-foo")))
+(def-test-system :use-foo-with-wrapper
+  :depends-on (:unintern-foo)
+  :components ((:file "use-foo"
+                :perform (compile-op :around (op c)
+                                 (declare (ignorable op c))
+                                 (let ((asdf:*compile-file-warnings-behaviour* :error))
+                                   (call-next-method))))))
 (def-test-system :use-then-defun-foo
   :depends-on (:unintern-foo)
   :serial t
@@ -36,6 +44,10 @@
     ((error (lambda (c) (DBG :cfwbi-ufo c))))
   (let ((*compile-file-warnings-behaviour* :ignore))
     (load-system :use-foo-only :force t)))
+
+(handler-bind
+    ((error (lambda (c) (DBG :cfwbi-ufww c))))
+  (load-system :use-foo-with-wrapper :force t))
 
 (handler-bind
     ((error (lambda (c) (DBG :cfwbi-usfo c))))
