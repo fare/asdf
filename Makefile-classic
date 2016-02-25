@@ -95,7 +95,7 @@ bump: bump-version
 	temp=$$(cat version.lisp-expr); temp="$${temp%\"}"; temp="$${temp#\"}"; git tag $$temp
 
 bump-version: build/asdf.lisp
-	./bin/asdf-builder bump-version ${v}
+	./bin/bump-version ${v}
 
 driver-files:
 	@echo $(driver_lisp)
@@ -103,8 +103,9 @@ driver-files:
 defsystem-files:
 	@echo $(defsystem_lisp)
 
-archive: build/asdf.lisp
-	./bin/asdf-builder make-and-publish-archive
+# FIXME: needs rewrite
+#archive: build/asdf.lisp
+#	./bin/asdf-builder make-and-publish-archive
 
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
@@ -251,8 +252,8 @@ release: TODO test-all test-on-other-machines-too debian-changelog debian-packag
 	ext noext
 
 # debug the source registry that will be used to execute commands from this Makefile.
-list-source-registry:
-	${sourceDirectory}/bin/asdf-builder re '(uiop:writeln (sort (alexandria:hash-table-alist asdf::*source-registry*) `string< :key `car))'
+#list-source-registry:
+#	${sourceDirectory}/bin/asdf-builder re '(uiop:writeln (sort (alexandria:hash-table-alist asdf::*source-registry*) `string< :key `car))'
 
 # RELEASE or PUSH checklist:
 # make test-all
