@@ -2,8 +2,21 @@
 
 use FindBin;
 use File::Slurper qw(read_text write_text);
+use Getopt::Long;
 our $old;
 our $new;
+our $usage = 0;
+
+&GetOptions("help"=>\$usage,
+            "usage"=>\$usage);
+
+if ($usage) {
+  print "$0 [old-version] [new-version]\n";
+  print "\tIf only one argument, treat it as the new version argument.\n";
+  print "\tIf two arguments treat the first as old version number and second as new.\n";
+  print "\n\tBumps the version numbers in all the relevant files.\n";
+  exit 0;
+}
 
 our $asdf_dir = $FindBin::RealBin . "/../";
 our $file = $asdf_dir . "version.lisp-expr";
@@ -14,14 +27,14 @@ our @transform_ref =
    [ "uiop/version.lisp-expr", "\"", "\"" ],
    [ "asdf.asd", "  :version \"", "\" ;; to be automatically updated by make bump-version" ],
    [ "header.lisp", "This is ASDF ", ": Another System Definition Facility." ],
-   [ "upgrade.lisp", "   (asdf-version \"", "\")" ],
+   [ "upgrade.lisp", "\\(asdf-version \"", "\"\\)" ],
    [ "doc/asdf.texinfo", "Manual for Version ", "" ], );
 
-if ($1 && $2) {
-  $old = $1;
-  $new = $2;
-} elsif ($1) {
-  $new = $1;
+if ($#ARGV == 1) {
+  $old = $ARGV[0];
+  $new = $ARGV[1];
+} elsif ($#ARGV == 0) {
+  $new = $ARGV[0];
   $old = read_asdf_version();
 } else {
   $old = read_asdf_version();
