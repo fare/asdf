@@ -284,7 +284,8 @@ case "$lisp" in
     eval="-eval" ;;
   sbcl)
     command="${SBCL:-sbcl}"
-    flags="--noinform --no-userinit --no-sysinit"
+    flags="--no-userinit --no-sysinit"
+    # flags="--noinform --no-userinit --no-sysinit"
     nodebug="--disable-debugger"
     eval="--eval" ;;
   scl)
@@ -501,7 +502,7 @@ test_clean_load () {
       "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:exit-lisp'0))" \
       > $nop 2>&1
     $bcmd $eval \
-      "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:verbose())#.(load(string'|build/asdf.lisp|):verbose())#.(asdf/image:quit'0))" \
+      "(or'#.(load(string'|test/script-support.lisp|):verbose():print())#.(asdf-test:verbose())#.(load(string'|build/asdf.lisp|):verbose())#.(uiop/image:quit'0))" \
       > $load 2>&1
     if diff $nop $load ; then
       echo "GOOD: Loading ASDF on $lisp produces no message" >&2 ; return 0
