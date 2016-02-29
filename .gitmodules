@@ -9,7 +9,7 @@
 	url = https://gitlab.common-lisp.net/frideau/fare-mop.git
 [submodule "ext/closer-closer-mop"]
 	path = ext/closer-closer-mop
-	url = git://git.code.sf.net/p/closer/closer-mop
+	url = https://github.com/pcostanza/closer-mop.git
 [submodule "ext/alexandria"]
 	path = ext/alexandria
 	url = https://gitlab.common-lisp.net/alexandria/alexandria.git
