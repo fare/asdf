@@ -79,15 +79,22 @@ after having found a .asd file? True by default.")
   (defun collect-sub*directories-asd-files
       (directory &key (exclude *default-source-registry-exclusions*) collect
                    (recurse-beyond-asds *recurse-beyond-asds*) ignore-cache)
-    (collect-sub*directories
-     directory
-     #'(lambda (dir)
-         (unless (and (not ignore-cache) (process-source-registry-cache directory collect))
-           (let ((asds (collect-asds-in-directory dir collect)))
-             (or recurse-beyond-asds (not asds)))))
-     #'(lambda (x)
-         (not (member (car (last (pathname-directory x))) exclude :test #'equal)))
-     (constantly nil)))
+    (let ((visited (make-hash-table :test 'equalp)))
+      (collect-sub*directories
+       directory
+       #'(lambda (dir)
+           (unless (and (not ignore-cache) (process-source-registry-cache directory collect))
+             (let ((asds (collect-asds-in-directory dir collect)))
+               (or recurse-beyond-asds (not asds)))))
+       #'(lambda (x)                    ; x will be a directory pathname
+           (and
+            (not (member (car (last (pathname-directory x))) exclude :test #'equal))
+            (flet ((pathname-key (x)
+                     (namestring (truename* x))))
+              (let ((visitedp (gethash (pathname-key x) visited)))
+                (if visitedp nil
+                    (setf (gethash (pathname-key x) visited) t))))))
+       (constantly nil))))
 
   (defun validate-source-registry-directive (directive)
     (or (member directive '(:default-registry))
