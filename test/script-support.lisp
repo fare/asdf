@@ -205,9 +205,41 @@ Some constraints:
 ;; We still want to work despite and host/device funkiness,
 ;; so we do it the hard way.
 (defparameter *test-directory*
-  (truename
-   (make-pathname :name nil :type nil :version nil
-                  :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))
+  ;; the following is annoyingly named "test-getenv" to avoid symbol clash
+  ;; later when we use UIOP.
+  (flet ((test-getenv (x)
+           (declare (ignorable x))
+           #+(or abcl clasp clisp ecl xcl) (ext:getenv x)
+           #+allegro (sys:getenv x)
+           #+clozure (ccl:getenv x)
+           #+cmucl (unix:unix-getenv x)
+           #+scl (cdr (assoc x ext:*environment-list* :test #'string=))
+           #+cormanlisp
+           (let* ((buffer (ct:malloc 1))
+                  (cname (ct:lisp-string-to-c-string x))
+                  (needed-size (win:getenvironmentvariable cname buffer 0))
+                  (buffer1 (ct:malloc (1+ needed-size))))
+             (prog1 (if (zerop (win:getenvironmentvariable cname buffer1 needed-size))
+                        nil
+                      (ct:c-string-to-lisp-string buffer1))
+               (ct:free buffer)
+               (ct:free buffer1)))
+           #+gcl (system:getenv x)
+           #+genera nil
+           #+lispworks (lispworks:environment-variable x)
+           #+mcl (ccl:with-cstrs ((name x))
+                                 (let ((value (_getenv name)))
+                                   (unless (ccl:%null-ptr-p value)
+                                     (ccl:%get-cstring value))))
+           #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
+           #+sbcl (sb-ext:posix-getenv x)
+           #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+           (error "~S is not supported on your implementation" 'getenv)))
+    (or (test-getenv "ASDF_TEST_DIRECTORY")
+        (truename
+         (make-pathname :name nil :type nil :version nil
+                        :defaults (or *load-pathname* *compile-file-pathname* *default-pathname-defaults*))))))
+
 (defun make-sub-pathname (&rest keys &key defaults &allow-other-keys)
   (merge-pathnames (apply 'make-pathname keys) defaults))
 (defparameter *asdf-directory*
