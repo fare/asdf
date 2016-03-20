@@ -21,18 +21,18 @@
   (DBG "Bogus attempt at loading an old ASDF: should issue a warning and ignore")
   (handler-bind
       ((simple-warning
-	 #'(lambda (c)
-	     (when (search "ASDF will ignore this configured system rather than downgrade itself."
-			   (simple-condition-format-control c))
-	       (setf state "Caught warning")))))
+         #'(lambda (c)
+             (when (search "ASDF will ignore this configured system rather than downgrade itself."
+                           (simple-condition-format-control c))
+               (setf state "Caught warning")))))
     (clear-system "asdf")
     (upgrade-asdf))
   (assert-equal state "Caught warning")
   (DBG "2nd bogus attempt at loading same old ASDF: should ignore without a warning")
   (handler-bind
       ((simple-warning
-	 #'(lambda (c)
-	     (error "Should not have issued warning, but did issue:~%  ~A" c))))
+         #'(lambda (c)
+             (error "Should not have issued warning, but did issue:~%  ~A" c))))
     (clear-system "asdf")
     (upgrade-asdf)))
 
@@ -53,7 +53,21 @@
 #-xcl ;; expected-failure: XCL has trouble with the ASDF upgrade
 (load-system :asdf)
 (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
-		       (system-source-file (find-system :asdf)))
+                       (system-source-file (find-system :asdf)))
+
+
+;;; disabling this test on windows since it relies on running make.bat, which
+;;; does not work for me under cygwin. - rpg 2016-03-20
+
+(defun search-makefile (target)
+  (with-open-file (str (merge-pathnames (make-pathname :name "Makefile" :type nil)
+                                        *asdf-directory* ))
+    (let ((line                   
+           (loop for x = (read-line str)
+                 when (search target x)
+                 return (subseq x (length target))
+                 finally (error "Didn't find ~a in Makefile." target))))
+      (mapcar 'parse-native-namestring (split-string line)))))
 
 (DBG "Checking that the bootstrap script and asdf.asd are in synch")
 (defun system-lisp-files (system)
@@ -61,23 +75,14 @@
         :collect (enough-pathname (component-pathname f) *asdf-directory*)))
 
 (defun bootstrap-lisp-files (target)
-  (mapcar
-   'parse-native-namestring
-   (remove-if (lambda (x) (or (emptyp x) #+os-windows (equal x "+")))
-              (split-string ;; don't use make(1), use the bootstrap script
-               (run-program `(;; CMUCL hates ./make.sh -- sigh.
-                              #+os-unix ,(native-namestring (subpathname *asdf-directory* "make.sh"))
-                              #+os-windows "make.bat"
-                              ,target)
-			    #+os-windows :force-shell #+os-windows t
-                            :directory *asdf-directory* :output :string :error-output t)
-               :separator #(#\space #\newline #\return #\tab)))))
+  (let ((target (format nil "~a := " target)))
+    (search-makefile target)))
 
 (defmacro compare-files (system target)
-  `(assert-pathnames-equal (system-lisp-files ,system) (bootstrap-lisp-files ,target)))
+   `(assert-pathnames-equal (system-lisp-files ,system) (bootstrap-lisp-files ,target)))
 
 (DBG "Testing that the Makefile and ASDF agree on the order of UIOP files")
-(compare-files :uiop "driver_files")
+(compare-files :uiop "driver_lisp")
 
 (DBG "Testing that the Makefile and ASDF agree on the order of ASDF/DEFSYSTEM files")
-(compare-files :asdf/defsystem "defsystem_files")
+(compare-files :asdf/defsystem "defsystem_lisp")
