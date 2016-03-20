@@ -33,7 +33,7 @@
                        (let ((asds nil))
                          (declare (special asds))
                          (asdf/source-registry:collect-sub*directories-asd-files
-                          "/Users/rpg/Downloads/asdf-loop\ 2/"
+                          scratch-dir
                           :collect
                           #'(lambda (asd)
                               (let* ((name (pathname-name asd))
