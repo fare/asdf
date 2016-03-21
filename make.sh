@@ -13,7 +13,7 @@ all () {
   build_asdf
 }
 build_asdf () {
-  # That's the only thing that we really need before we may invoke asdf-builder.
+  # That's the only thing that we really need before we may invoke asdf-tools.
   mkdir -p build
   a=build/asdf.lisp
   cat ${header_lisp} ${driver_lisp} ${defsystem_lisp} > ${a}.tmp
