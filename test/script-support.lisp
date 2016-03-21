@@ -231,7 +231,7 @@ Some constraints:
                                  (let ((value (_getenv name)))
                                    (unless (ccl:%null-ptr-p value)
                                      (ccl:%get-cstring value))))
-           #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
+           #+mkcl (#.(or (find-symbol "GETENV" :si) (find-symbol "GETENV" :mk-ext)) x)
            #+sbcl (sb-ext:posix-getenv x)
            #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
            (error "~S is not supported on your implementation" 'getenv)))
