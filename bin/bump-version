@@ -1,7 +1,6 @@
 #! /usr/bin/env perl
 
 use FindBin;
-use File::Slurper qw(read_text write_text);
 use Getopt::Long;
 our $old;
 our $new;
@@ -75,4 +74,25 @@ sub transform_files {
     write_text($filename, $data);
 
   }
+}
+
+# can't reliably find File::Slurper, or File::Slurp, so do it
+# old school.
+sub read_text ($) {
+  my $fn = shift;
+  local $/ = undef;
+  open READFILE, $fn or die "Couldn't open file: $fn";
+  binmode READFILE;
+  my $string = <READFILE>;
+  close READFILE;
+  return $string;
+}
+
+sub write_text ($$) {
+  my $fn = shift;
+  my $data = shift;
+  open WRITEFILE, "> $fn" or die "Couldn't open $fn for writing.";
+  print WRITEFILE $data;
+  close WRITEFILE;
+  return 1;
 }
