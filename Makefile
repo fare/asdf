@@ -124,6 +124,11 @@ archive: build/asdf.lisp
 	mv "build/asdf-${version}.tar.gz" "build/asdf-${version}.tgz"
 	cp "build/asdf.lisp" "build/asdf-${version}.lisp"
 
+publish-archive:
+	rsync --times --chmod=a+rX,ug+w "build/uiop-${version}.tgz" "build/asdf-defsystem-${version}.tgz" \
+"build/asdf-${version}.tgz" "build/asdf-${version}.lisp" common-lisp.net:/project/asdf/public_html/archives
+	ssh common-lisp.net "cd /project/asdf/public_html; ln -sf archives/uiop-${version}.tgz uiop.tgz; ln -sf archives/asdf-defsystem-${version}.tgz asdf-defsystem.tgz; ln -sf archives/asdf-${version}.tgz asdf.tgz; ln -sf archives/asdf-${version}.lisp asdf.lisp"
+
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
 	@wc $(driver_lisp) | sort -n ; echo ; \
