@@ -1,3 +1,17 @@
+cl-asdf (2:3.1.7-1) unstable; urgency=low
+
+  Bug fix and portability release:
+  * Fix compilation on Genera.
+  * Fix UIOP:FILE-EXISTS-P for dotfiles on CCL.
+  * Fix infinite loop in source registry configuration that can occur when
+        there are cycles in the filesystem (typically caused by symlinks)
+        on some CL implementations.
+  * Miscellaneous bug fixes.
+  * Documentation improvements.
+  * Restore original Makefile.
+
+ -- Robert P. Goldman <rpgoldman@sift.net>  Wed, 23 Mar 2016 09:34:14 -0500
+
 cl-asdf (2:3.1.6-1) unstable; urgency=low
 
   Bug fix and portability release:
