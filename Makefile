@@ -32,6 +32,10 @@ else
   endif
 endif
 
+version := $(shell cat "version.lisp-expr")
+#$(info $$version is [${version}])
+version := $(patsubst "%",%,$(version))
+#$(info $$version is [${version}])
 
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests on some platforms
 ## NOT SUPPORTED BY OUR AUTOMATED TESTS:
@@ -106,6 +110,19 @@ defsystem-files:
 # FIXME: needs rewrite
 #archive: build/asdf.lisp
 #	./bin/asdf-builder make-and-publish-archive
+archive: build/asdf.lisp
+	mkdir -p build/uiop 	# UIOP tarball
+	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} build/uiop/
+	tar zcf "build/uiop-${version}.tgz" -C build uiop
+	rm -r build/uiop
+	mkdir -p build/asdf # asdf-defsystem tarball
+	cp -pHux build/asdf.lisp asdf.asd version.lisp-expr header.lisp README.md ${defsystem_lisp} build/asdf/
+	tar zcf "build/asdf-defsystem-${version}.tgz" -C build asdf
+	rm -r build/asdf
+	git archive --worktree-attributes --format=tar -o "build/asdf-${version}.tar" ${version} #asdf-all tarball
+	gzip "build/asdf-${version}.tar"
+	mv "build/asdf-${version}.tar.gz" "build/asdf-${version}.tgz"
+	cp "build/asdf.lisp" "build/asdf-${version}.lisp"
 
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
