@@ -50,13 +50,18 @@ test/fileMissing.lisp
 test/hello-world-example
 
 build-stamp
+
+# Although there is no debian subdir/ in this repo any more, the
+# presence of these lines helps the debian package maintainers, so
+# please leave them here.
+
 debian/cl-asdf.debhelper.log
 debian/cl-asdf.postinst.debhelper
 debian/cl-asdf.prerm.debhelper
 debian/cl-asdf.substvars
 debian/cl-asdf/
-debian/patches/
 debian/files
+
 .pc
 
 /.DS_Store
