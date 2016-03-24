@@ -158,7 +158,7 @@ When you update ASDF, via e.g. `git pull` or a branch switch, you may have to up
 
     make build-asdf-tools
 
-The reason this is not done automatically everytime is because
+The reason this is not done automatically every time is because
 building it depends on a working ASDF;
 but when you're modifying ASDF and testing it, you cannot rely on a working ASDF:
 indeed, a developer may not only make mistakes, but may deliberately

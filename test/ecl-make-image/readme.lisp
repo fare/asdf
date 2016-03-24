@@ -59,7 +59,7 @@
                  :ld-flags
                  (list (namestring (compile-file-pathname "hello_aux.c" :type :object))))
 
-;; This doesnt seem to work
+;; This doesn't seem to work
 ;; (asdf:operate 'asdf:program-op :hellow
 ;;               :ld-flags
 ;;               (list (namestring (compile-file-pathname "hello_aux.c" :type :object))))
