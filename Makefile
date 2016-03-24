@@ -167,7 +167,6 @@ clean:
 	done
 	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example asdf.lisp
 	rm -rf test/hello-world-example.exe test/mkcl_*.dll # needed only on MS-Windows
-	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 	${MAKE} -C doc clean
 
 mrproper:
