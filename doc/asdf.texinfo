@@ -3053,7 +3053,7 @@ the default @code{defsystem} macro takes a @code{:class} keyword argument.
 New component types are defined by subclassing one of the existing
 component classes and specializing methods on the new component class.
 
-@c FIXME: this should perhaps be explained more throughly,
+@c FIXME: this should perhaps be explained more thoroughly,
 @c not only by example ...
 
 As an example, suppose we have some implementation-dependent

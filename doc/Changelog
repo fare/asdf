@@ -1255,7 +1255,7 @@ cl-asdf (1.89-1) unstable; urgency=low
   * Improve duplicate names test: use equal instead of equalp.
     From a comment from Faré.
   * Remove CVS cruft
-  * Seperate CVS version of asdf.lisp from version of package. The tag
+  * Separate CVS version of asdf.lisp from version of package. The tag
     is not the version of the package
 
  -- Peter Van Eynde <pvaneynd@debian.org>  Thu, 22 Sep 2005 12:52:31 +0200
