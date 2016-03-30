@@ -58,7 +58,7 @@ The files that constitute UIOP are, in dependency loading order:
   printing backtraces, handling fatal conditions, using or avoiding debug modes,
   accessing command line arguments or quitting the process.
 
-* [run-program](program.lisp): portably spawns external processes and captures their output.
+* [run-program](run-program.lisp): portably spawns external processes and captures their output.
   Can also capture error-output, inject input, or let it all be interactive.
 
 * [lisp-build](lisp-build.lisp): portably compiles Common Lisp code, handles compilation results,
