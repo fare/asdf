@@ -37,8 +37,6 @@
     (declare (ignore epoch))
     (debian-version-string ver nil rel)))
 
-(defparameter *version* (version-from-file))
-
 ;;; Bumping the version of ASDF
 
 (defparameter *versioned-files*
