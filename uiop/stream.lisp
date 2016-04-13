@@ -369,6 +369,9 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
   (defun copy-file (input output)
     "Copy contents of the INPUT file to the OUTPUT file"
     ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
+    #+allegro
+    (excl.osi:copy-file input output)
+    #-allegro
     (concatenate-files (list input) output))
 
   (defun slurp-stream-string (input &key (element-type 'character) stripped)
