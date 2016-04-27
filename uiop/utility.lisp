@@ -204,7 +204,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
                        #-scl base-char
                        ;; LW6 has BASE-CHAR < SIMPLE-CHAR < CHARACTER
                        ;; LW7 has BASE-CHAR < BMP-CHAR < SIMPLE-CHAR = CHARACTER
-                       #+(and lispworks (not (or lispworks4 lispworks5 lispworks6)))
+                       #+(and lispworks (not (or lispworks4 lispworks5 lispworks6 lispworks7)))
                        lw:bmp-char
                        #+lispworks lw:simple-char
                        character)
