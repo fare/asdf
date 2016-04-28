@@ -159,7 +159,7 @@ Use the preferred lisp implementation"
      (loop :for method :in upgrade-methods
            :for description
              = (format nil "Testing ASDF upgrade on ~(~A~) from ~A to ~A using method ~(~{~A~^:~}~)"
-                       lisp tag *version* method)
+                       lisp tag (version-from-file) method)
            :when (valid-upgrade-test-p lisp tag method) :do
              (success-if (and
                           (extract-tagged-asdf tag)

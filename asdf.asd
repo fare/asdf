@@ -10,7 +10,7 @@
 (in-package :asdf)
 
 #+asdf3
-(defsystem :asdf/prelude
+(defsystem "asdf/prelude"
   ;; Note that it's polite to sort the defsystem forms in dependency order,
   ;; and compulsory to sort them in defsystem-depends-on order.
   :version (:read-file-form "version.lisp-expr")
@@ -20,11 +20,11 @@
   ((:file "header")))
 
 #+asdf3
-(defsystem :asdf/driver
-  :depends-on (:uiop))
+(defsystem "asdf/driver"
+  :depends-on ("uiop"))
 
 #+asdf3
-(defsystem :asdf/defsystem
+(defsystem "asdf/defsystem"
   :licence "MIT"
   :description "The defsystem part of ASDF"
   :long-name "Another System Definition Facility"
@@ -40,7 +40,7 @@
   :build-operation monolithic-concatenate-source-op
   :build-pathname "build/asdf" ;; our target
   :around-compile call-without-redefinition-warnings ;; we need be the same as uiop
-  :depends-on (:asdf/prelude :asdf/driver)
+  :depends-on ("asdf/prelude" "uiop")
   :encoding :utf-8
   :components
   ((:file "upgrade")
@@ -69,7 +69,7 @@
    (:file "user" :depends-on ("interface"))
    (:file "footer" :depends-on ("user"))))
 
-(defsystem :asdf
+(defsystem "asdf"
   :author ("Daniel Barlow")
   :maintainer ("Robert Goldman")
   :licence "MIT"
@@ -84,5 +84,5 @@
   ;; specify separate dependencies on uiop (aka asdf-driver) and asdf/defsystem.
   #+asdf3 :builtin-system-p #+asdf3 t
   :components ((:module "build" :components ((:file "asdf"))))
-  :in-order-to (#+asdf3 (prepare-op (monolithic-concatenate-source-op :asdf/defsystem))))
+  :in-order-to (#+asdf3 (prepare-op (monolithic-concatenate-source-op "asdf/defsystem"))))
 
