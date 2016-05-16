@@ -1459,8 +1459,6 @@ pathname-specifier := pathname | string | symbol
 method-form := (operation-name qual lambda-list @Arest{} body)
 qual := method qualifier?
 
-component-dep-fail-option := :fail | :try-next | :ignore
-
 feature-expression := keyword
                       | (:and @var{feature-expression}*)
                       | (:or @var{feature-expression}*)
