@@ -1861,13 +1861,6 @@ been performed.
 This option was added in ASDF 3.  For more information,
 @xref{required-features, Required features}.
 
-@subsection if-component-dep-fails option
-@cindex :if-component-dep-fails component option
-This option was removed in ASDF 3.
-Its semantics was limited in purpose and dubious to explain,
-and its implementation was breaking a hole into the ASDF object model.
-Please use the @code{if-feature} option instead.
-
 @subsection feature requirement
 This requirement was removed in ASDF 3.1.  Please do not use it.  In
 most cases, @code{:if-feature} (@pxref{if-feature-option}) will provide
