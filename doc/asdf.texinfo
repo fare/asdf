@@ -1441,6 +1441,7 @@ other-component-type := symbol-by-name
 # which is used in :in-order-to
 dependency-def := simple-component-name
                | ( :feature @var{feature-expression} dependency-def )
+                 # (@pxref{The defsystem grammar,,Feature dependencies})
                | ( :version simple-component-name version-specifier )
                | ( :require module-name )
 
@@ -1682,6 +1683,25 @@ rather than @code{#+@emph{implementation-name}}
 to only depend on the specified module on the specific implementation that provides it.
 @xref{if-feature-option}.
 
+@subsection Feature dependencies
+@cindex :feature dependencies
+
+A feature dependency is of the form
+@code{(:feature @var{feature-expression} @var{dependency})}
+If the @var{feature-expression} is satisfied by the running lisp at the
+time the system definition is parsed, then the @var{dependency} will be
+added to the system's dependencies.  If the @var{feature-expression} is
+@emph{not} satisfied, then the feature dependency form is ignored.
+
+Note that this means that @code{:feature} @strong{cannot} be used to
+enforce a feature dependency for the system in question.  I.e., it
+cannot be used to require that a feature hold in order for the system
+definition to be loaded.  E.g., one cannot use @code{(:feature :sbcl)}
+to require that a system only be used on SBCL.
+
+Feature dependencies are not to be confused with the obsolete
+feature requirement (@pxref{The defsystem grammar,,feature requirement}), or
+with @code{if-feature}.
 
 @subsection Using logical pathnames
 @cindex logical pathnames
