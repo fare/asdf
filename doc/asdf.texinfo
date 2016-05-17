@@ -36,11 +36,11 @@ for Common Lisp programs and libraries.
 You can find the latest version of this manual at
 @url{https://common-lisp.net/project/asdf/asdf.html}.
 
-ASDF Copyright @copyright{} 2001-2015 Daniel Barlow and contributors.
+ASDF Copyright @copyright{} 2001-2016 Daniel Barlow and contributors.
 
-This manual Copyright @copyright{} 2001-2015 Daniel Barlow and contributors.
+This manual Copyright @copyright{} 2001-2016 Daniel Barlow and contributors.
 
-This manual revised @copyright{} 2009-2015 Robert P. Goldman and Francois-Rene Rideau.
+This manual revised @copyright{} 2009-2016 Robert P. Goldman and Francois-Rene Rideau.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -678,6 +678,11 @@ may already have configured system-managed libraries for you.
 @c FIXME: this section should be moved elsewhere.  The novice user
 @c should not be burdened with it. [2014/02/27:rpg]
 
+Novices may skip this section.
+@c ``Experts may read it then proceed to ...''
+@c some better section explaining
+@c *central-registry* vs source-registry vs *system-definition-search-functions*,
+@c and .../asdf/tools/cl-source-registry-cache.lisp
 
 The old way to configure ASDF to find your systems is by
 @code{push}ing directory pathnames onto the variable
@@ -702,7 +707,7 @@ search forward for
 
 For example, let's say you want ASDF to find the @file{.asd} file
 @file{/home/me/src/foo/foo.asd}.
-In your lisp initialization file, you could have the following:
+In your Lisp initialization file, you could have the following:
 
 @lisp
 (require "asdf")
@@ -726,7 +731,7 @@ The variable @code{asdf:*central-registry*} is thus a list of
 ``system directory designators''.
 A @dfn{system directory designator} is a form
 which will be evaluated whenever a system is to be found,
-and must evaluate to a directory to look in (or @code{NIL}).
+and must evaluate to a directory to look in (or @code{nil}).
 By ``directory'', we mean
 ``designator for a pathname with a non-empty DIRECTORY component''.
 }
@@ -2015,7 +2020,7 @@ where the @file{.asd} file resides.
 
 ASDF is designed in an object-oriented way from the ground up.
 Both a system's structure and the operations that can be performed on systems
-follow a extensible protocol, allowing programmers to add new behaviours to ASDF.
+follow an extensible protocol, allowing programmers to add new behaviours to ASDF.
 For example, @code{cffi} adds support for special FFI description files
 that interface with C libraries and for wrapper files that embed C code in Lisp.
 @code{asdf-jar} supports creating Java JAR archives in ABCL.
@@ -2710,9 +2715,9 @@ but system @code{foo} was previously loaded from @file{/previous/path/to/foo.asd
 then @var{locate-system} will return the following values:
 @enumerate
 @item
-@var{foundp} will be @code{T},
+@var{foundp} will be @code{t},
 @item
-@var{found-system} will be @code{NIL},
+@var{found-system} will be @code{nil},
 @item
 @var{pathname} will be @code{#p"/current/path/to/foo.asd"},
 @item
@@ -4764,14 +4769,14 @@ while others (like SBCL) will make an attempt at invoking a POSIX shell
 @section Some Utility Functions
 
 The below functions are not exported by ASDF itself, but by UIOP, available since ASDF 3.
-Some of them have precursors in ASDF 2, but we recommend
-you rely on ASDF 3 for active developments.
+Some of them have precursors in ASDF 2, but we recommend that for active developments,
+you should rely on the package UIOP as included in ASDF 3.
 UIOP provides many, many more utility functions, and we recommend
-you read its README and sources for more information.
+you read its @file{README.md} and sources for more information.
 
 
 @defun parse-unix-namestring name @Akey{} type defaults dot-dot ensure-directory @AallowOtherKeys
-Coerce NAME into a PATHNAME using standard Unix syntax.
+Coerce @var{name} into a @var{pathname} using standard Unix syntax.
 
 Unix syntax is used whether or not the underlying system is Unix;
 on non-Unix systems it is only usable for relative pathnames.
@@ -4960,7 +4965,7 @@ which defaults to @code{0}, extracting the first line.
 A number will extract the corresponding line.
 See the documentation for @code{uiop:access-at}.
 
-@item If the object is @code{:forms}, the content is captured as a list of S-expressions,
+@item If the object is @code{:forms}, the content is captured as a list of s-expressions,
 as read by the Lisp reader.
 If the @var{count} argument is provided,
 it is a maximum count of lines to be read.
