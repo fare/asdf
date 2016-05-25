@@ -250,7 +250,7 @@ The behavior in presence of symlinks is not portable. Use IOlib to handle such s
                        #+(or cmucl sbcl scl) (directory-pathname-p x)
                        #+genera (getf (cdr x) :directory)
                        #+lispworks (lw:file-directory-p x)
-                       :when d :collect #+(or abcl allegro xcl) d
+                       :when d :collect #+(or abcl allegro xcl) (ensure-directory-pathname d)
                          #+genera (ensure-directory-pathname (first x))
                        #+(or cmucl lispworks sbcl scl) x)))
       (filter-logical-directory-results
