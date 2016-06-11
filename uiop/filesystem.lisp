@@ -171,11 +171,14 @@ Try to override the defaults to not resolving symlinks, if implementation allows
                                         '(:resolve-symlinks nil))))))
 
   (defun filter-logical-directory-results (directory entries merger)
-    "Given ENTRIES in a DIRECTORY, remove if the directory is logical
-the entries which are physical yet when transformed by MERGER have a different TRUENAME.
-This function is used as a helper to DIRECTORY-FILES to avoid invalid entries when using logical-pathnames."
-    (remove-duplicates ;; on CLISP, querying ~/ will return duplicates
-     (if (logical-pathname-p directory)
+    "If DIRECTORY isn't a logical pathname, return ENTRIES. If it is,
+given ENTRIES in the DIRECTORY, remove the entries which are physical yet
+when transformed by MERGER have a different TRUENAME.
+Also remove duplicates as may appear with some translation rules.
+This function is used as a helper to DIRECTORY-FILES to avoid invalid entries
+when using logical-pathnames."
+    (if (logical-pathname-p directory)
+	(remove-duplicates ;; on CLISP, querying ~/ will return duplicates
          ;; Try hard to not resolve logical-pathname into physical pathnames;
          ;; otherwise logical-pathname users/lovers will be disappointed.
          ;; If directory* could use some implementation-dependent magic,
@@ -189,10 +192,9 @@ This function is used as a helper to DIRECTORY-FILES to avoid invalid entries wh
                               ;; At this point f should already be a truename,
                               ;; but isn't quite in CLISP, for it doesn't have :version :newest
                               (and u (equal (truename* u) (truename* f)) u)))
-               :when p :collect p)
-         entries)
-     :test 'pathname-equal))
-
+	   :when p :collect p)
+	 :test 'pathname-equal)
+	entries))
 
   (defun directory-files (directory &optional (pattern *wild-file*))
     "Return a list of the files in a directory according to the PATTERN.
