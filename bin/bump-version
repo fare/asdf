@@ -67,10 +67,14 @@ sub transform_files {
     my $file = $entry[0];
     print STDERR "Modifying file $file\n";
     print STDERR "Prefix is $entry[1], suffix is $entry[2]\n";
-    my $regex = "(" . $entry[1] . ")" . "([0-9]+\.)+" . "(" . $entry[2] .")";
+    my $regex = "(" . $entry[1] . ")" . "(([0-9]+\.)+[0-9]+)" . "(" . $entry[2] .")";
     my $filename = $asdf_dir . $file;
     my $data = read_text($filename);
-    $data =~ s/$regex/\1$new\3/;
+    my $count = ($data =~ s/$regex/$1$new$4/);
+    if ($count == 0) {
+      die "Unable to replace $regex with $1$new$4";
+    }
+    # print STDERR "Writing $data to $filename\n";
     write_text($filename, $data);
 
   }
