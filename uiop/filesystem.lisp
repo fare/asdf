@@ -178,7 +178,7 @@ Also remove duplicates as may appear with some translation rules.
 This function is used as a helper to DIRECTORY-FILES to avoid invalid entries
 when using logical-pathnames."
     (if (logical-pathname-p directory)
-	(remove-duplicates ;; on CLISP, querying ~/ will return duplicates
+        (remove-duplicates ;; on CLISP, querying ~/ will return duplicates
          ;; Try hard to not resolve logical-pathname into physical pathnames;
          ;; otherwise logical-pathname users/lovers will be disappointed.
          ;; If directory* could use some implementation-dependent magic,
@@ -192,9 +192,9 @@ when using logical-pathnames."
                               ;; At this point f should already be a truename,
                               ;; but isn't quite in CLISP, for it doesn't have :version :newest
                               (and u (equal (truename* u) (truename* f)) u)))
-	   :when p :collect p)
-	 :test 'pathname-equal)
-	entries))
+           :when p :collect p)
+         :test 'pathname-equal)
+        entries))
 
   (defun directory-files (directory &optional (pattern *wild-file*))
     "Return a list of the files in a directory according to the PATTERN.
@@ -213,9 +213,18 @@ but the behavior in presence of symlinks is not portable. Use IOlib to handle su
         (unless (member (pathname-directory pattern) '(() (:relative)) :test 'equal)
           (error "Invalid file pattern ~S for logical directory ~S" pattern directory))
         (setf pattern (make-pathname-logical pattern (pathname-host dir))))
-      (let* ((pat (merge-pathnames* pattern dir))
-             (entries (append (ignore-errors (directory* pat))
-                              #+(or clisp gcl)
+      (let* ((pat (merge-pathnames* pattern dir)) the following complex block is
+             ;; needed because clisp handles "*" pathnames differently from
+             ;; "*.*" -- the former is more more general than the latter.
+             ;; GCL does something odd, too, but I don't know what this is.
+             ;; Looks like it treats "*" and "*.*" as disjoint.
+             ;; [2016/06/23:rpg]
+             (entries (append #-clisp (ignore-errors (directory* pat))
+                              #+clisp
+                              (if (equal :wild (pathname-type pattern))
+                                (ignore-errors (directory* (make-pathname :type nil :defaults pat)))
+                                (ignore-errors (directory* pat)))
+                              #+gcl
                               (when (equal :wild (pathname-type pattern))
                                 (ignore-errors (directory* (make-pathname :type nil :defaults pat)))))))
         (remove-if 'directory-pathname-p
