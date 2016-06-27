@@ -213,7 +213,8 @@ but the behavior in presence of symlinks is not portable. Use IOlib to handle su
         (unless (member (pathname-directory pattern) '(() (:relative)) :test 'equal)
           (error "Invalid file pattern ~S for logical directory ~S" pattern directory))
         (setf pattern (make-pathname-logical pattern (pathname-host dir))))
-      (let* ((pat (merge-pathnames* pattern dir)) the following complex block is
+      (let* ((pat (merge-pathnames* pattern dir))
+             ;; the following complex block is
              ;; needed because clisp handles "*" pathnames differently from
              ;; "*.*" -- the former is more more general than the latter.
              ;; GCL does something odd, too, but I don't know what this is.
