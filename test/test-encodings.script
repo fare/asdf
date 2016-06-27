@@ -59,7 +59,11 @@
       :components ((:file "lambda" :encoding :default))))
   (with-encoding-test (:utf-8)
     (def-test-system :test-encoding-implicit-default
-      :components ((:file "lambda")))))
+        :components ((:file "lambda")))))
+
+#+ecl
+(unless (>= ext:+ecl-version-number+ 160000)
+  (leave-test "This version of ECL is known to have broken encoding support" 0))
 
 ;; Try to load asdf-encodings
 (setf *central-registry*
@@ -82,9 +86,6 @@
   (with-encoding-test (:latin-2)
     (def-test-system :test-encoding-implicit-autodetect
       :components ((:file "lambda")))))
-
-#+ecl
-(leave-test "ECL recently broke its encoding support" 0)
 
 #+sbcl
 (with-encoding-test (:koi8-r)
