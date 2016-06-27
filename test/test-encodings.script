@@ -1,5 +1,5 @@
 ;;; -*- Lisp -*-
-
+(in-package :asdf-test)
 (defparameter *lambda-string* nil)
 
 (defun string-char-codes (s)
@@ -66,7 +66,7 @@
       (list *asdf-directory* ;; be sure that *OUR* asdf is first of any possible ASDF
             *uiop-directory* ;; be sure that ouir uiop is there, too.
             ;; try finding asdf-encodings it right next to asdf.
-            (subpathname *asdf-directory* "../asdf-encodings/")))
+            (subpathname *asdf-directory* "ext/asdf-encodings/")))
 (unless (find-system :asdf-encodings nil)
   ;; try harder by enabling the user's source-registry
   (initialize-source-registry ""))
