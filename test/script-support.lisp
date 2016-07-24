@@ -373,23 +373,20 @@ is bound, write a message and exit on an error.  If
 *asdf-test-debug* is true, enter the debugger."
   (redirect-outputs)
   (let ((result
-          (catch :asdf-test-done
-            (handler-bind
-                ((error (lambda (c)
-                          (ignore-errors
-                           (format *error-output* "~&TEST ABORTED: ~A~&" c))
-                          (finish-outputs*)
-                          (cond
-                            (*debug-asdf*
-                             (format t "~&It's your baby, fix it!~%")
-                             (break))
-                            (t
-                             (ignore-errors
-                              (acall :print-condition-backtrace
-                                     c :count 69 :stream *error-output*))
-                             (leave-test "Script failed" 1))))))
-              (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
-              (leave-test "Script succeeded" 0)))))
+         (catch :asdf-test-done
+           (handler-bind
+               ((serious-condition
+                 (lambda (c)
+                   (ignore-errors
+                     (format *error-output* "~&TEST ABORTED: ~A~&" c))
+                   (finish-outputs*)
+                   (unless *debug-asdf*
+                     (ignore-errors
+                       (acall :print-condition-backtrace
+                              c :count 69 :stream *error-output*))
+                     (leave-test "Script failed" 1)))))
+             (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
+             (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
 
