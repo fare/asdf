@@ -375,7 +375,13 @@ is bound, write a message and exit on an error.  If
   (let ((result
          (catch :asdf-test-done
            (handler-bind
-               ((serious-condition
+               (
+                #+ccl
+                (ccl:process-reset
+                 (lambda (c)
+                   (declare (ignore c))
+                   nil))
+                (serious-condition
                  (lambda (c)
                    (ignore-errors
                      (format *error-output* "~&TEST ABORTED: ~A~&" c))

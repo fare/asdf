@@ -49,9 +49,13 @@ before the image dump hooks are called and before the image is dumped.")
   (defvar *image-dump-hook* nil
     "Functions to call (in order) when before an image is dumped")
 
-  (defvar *fatal-conditions* '(error)
+  (defvar *fatal-conditions* '(SERIOUS-CONDITION)
     "conditions that cause the Lisp image to enter the debugger if interactive,
-or to die if not interactive"))
+or to die if not interactive")
+  (defvar *fatal-condition-exceptions*
+    (list #+ccl 'ccl:process-reset)
+    "Subclasses of condition that would match *FATAL-CONDITIONS* but that
+should not be treated as fatal."))
 
 
 ;;; Exiting properly or im-
@@ -170,7 +174,9 @@ This is designed to abstract away the implementation specific quit forms."
 
   (defun fatal-condition-p (condition)
     "Is the CONDITION fatal? It is if it matches any in *FATAL-CONDITIONS*"
-    (match-any-condition-p condition *fatal-conditions*))
+    (and
+     (not (match-any-condition-p condition *fatal-condition-exceptions*))
+     (match-any-condition-p condition *fatal-conditions*)))
 
   (defun handle-fatal-condition (condition)
     "Handle a fatal CONDITION:
