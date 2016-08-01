@@ -466,10 +466,11 @@ It returns a process-info plist with possible keys:
                 #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
                             ,%error-output)
                 #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
-                #+(or clozure cmu ecl lispworks mkcl sbcl scl)
+                #+(or allegro clozure cmu ecl lispworks mkcl sbcl scl)
                 `(:if-input-does-not-exist ,if-input-does-not-exist
                   :if-output-exists ,if-output-exists
-                  #-lispworks :if-error-exists #+lispworks :if-error-output-exists
+                  #-(or allegro lispworks) :if-error-exists
+                  #+(or allegro lispworks) :if-error-output-exists
                   ,if-error-output-exists)
                 #+lispworks `(:save-exit-status t)
                 #+mkcl `(:directory ,(native-namestring directory))
