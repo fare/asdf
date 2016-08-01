@@ -7,7 +7,8 @@
    #:*image-dumped-p* #:raw-command-line-arguments #:*command-line-arguments*
    #:command-line-arguments #:raw-command-line-arguments #:setup-command-line-arguments #:argv0
    #:*lisp-interaction*
-   #:*fatal-conditions* #:fatal-condition-p #:handle-fatal-condition
+   #:fatal-condition #:fatal-condition-p
+   #:handle-fatal-condition
    #:call-with-fatal-condition-handler #:with-fatal-condition-handler
    #:*image-restore-hook* #:*image-prelude* #:*image-entry-point*
    #:*image-postlude* #:*image-dump-hook*
@@ -49,14 +50,8 @@ before the image dump hooks are called and before the image is dumped.")
   (defvar *image-dump-hook* nil
     "Functions to call (in order) when before an image is dumped")
 
-  (defvar *fatal-conditions* '(SERIOUS-CONDITION)
-    "conditions that cause the Lisp image to enter the debugger if interactive,
-or to die if not interactive")
-  (defvar *fatal-condition-exceptions*
-    (list #+ccl 'ccl:process-reset)
-    "Subclasses of condition that would match *FATAL-CONDITIONS* but that
-should not be treated as fatal."))
-
+  (deftype fatal-condition ()
+    `(and serious-condition #+ccl (not ccl:process-reset))))
 
 ;;; Exiting properly or im-
 (with-upgradability ()
@@ -173,10 +168,8 @@ This is designed to abstract away the implementation specific quit forms."
                     condition)))
 
   (defun fatal-condition-p (condition)
-    "Is the CONDITION fatal? It is if it matches any in *FATAL-CONDITIONS*"
-    (and
-     (not (match-any-condition-p condition *fatal-condition-exceptions*))
-     (match-any-condition-p condition *fatal-conditions*)))
+    "Is the CONDITION fatal?"
+    (typep condition 'fatal-condition))
 
   (defun handle-fatal-condition (condition)
     "Handle a fatal CONDITION:
@@ -191,7 +184,7 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
 
   (defun call-with-fatal-condition-handler (thunk)
     "Call THUNK in a context where fatal conditions are appropriately handled"
-    (handler-bind (((satisfies fatal-condition-p) #'handle-fatal-condition))
+    (handler-bind ((fatal-condition #'handle-fatal-condition))
       (funcall thunk)))
 
   (defmacro with-fatal-condition-handler ((&optional) &body body)

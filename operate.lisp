@@ -220,7 +220,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
           (handler-bind
               ((style-warning #'muffle-warning)
                (missing-component (constantly nil))
-               (serious-condition #'(lambda (e)
+               (uiop:fatal-condition #'(lambda (e)
                           (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
                                   name e))))
             (let ((*verbose-out* (make-broadcast-stream)))
