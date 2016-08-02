@@ -554,8 +554,9 @@ It returns a process-info plist with possible keys:
     (let ((process (getf process-info :process)))
       (declare (ignorable process))
       #+(or allegro lispworks) process
+      #+clasp (si:external-process-pid process)
       #+clozure (ccl::external-process-pid process)
-      #+(or clasp ecl) (si:external-process-pid process)
+      #+ecl (ext:external-process-pid process)
       #+(or cmu scl) (ext:process-pid process)
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
