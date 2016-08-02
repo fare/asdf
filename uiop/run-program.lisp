@@ -584,7 +584,9 @@ It returns a process-info plist with possible keys:
               (if-let ((f (find-symbol* :pid-exit-status :system nil)))
                 (funcall f process :wait t)))
             #+mkcl (mkcl:join-process process)
-            #+sbcl (sb-ext:process-exit-code process)))))
+            #+sbcl (sb-ext:process-exit-code process)
+            #-(or allegro clasp clozure cmu ecl lispworks mkcl sbcl scl)
+            (error "~S not implemented" '%wait-process-result)))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
     (unless ignore-error-status
