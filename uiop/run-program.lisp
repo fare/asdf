@@ -573,7 +573,9 @@ It returns a process-info plist with possible keys:
             #+(or cmu scl) (ext:process-wait process)
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
-            #+allegro (sys:reap-os-subprocess :pid process :wait t)
+            #+allegro (multiple-value-bind (exit-code pid signal)
+                          (sys:reap-os-subprocess :pid process :wait t)
+                        (or signal exit-code))
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
             #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
