@@ -561,7 +561,8 @@ It returns a process-info plist with possible keys:
       #+(or cmu scl) (ext:process-pid process)
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
-      #-(or allegro cmu mkcl sbcl scl) (error "~S not implemented" '%process-info-pid)))
+      #-(or allegro clasp clozure cmu ecl mkcl lispworks sbcl scl)
+      (error "~S not implemented" '%process-info-pid)))
 
   (defun %wait-process-result (process-info)
     (or (getf process-info :exit-code)
