@@ -556,7 +556,7 @@ It returns a process-info plist with possible keys:
       (declare (ignorable process))
       #+(or allegro lispworks) process
       #+clasp (si:external-process-pid process)
-      #+clozure (ccl::external-process-pid process)
+      #+clozure (ccl:external-process-id process)
       #+ecl (ext:external-process-pid process)
       #+(or cmu scl) (ext:process-pid process)
       #+mkcl (mkcl:process-id process)
