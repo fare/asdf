@@ -196,7 +196,7 @@ when using logical-pathnames."
          :test 'pathname-equal)
         entries))
 
-  (defun directory-files (directory &optional (pattern *wild-file*))
+  (defun directory-files (directory &optional (pattern *wild-file-for-directory*))
     "Return a list of the files in a directory according to the PATTERN.
 Subdirectories should NOT be returned.
   PATTERN defaults to a pattern carefully chosen based on the implementation;
@@ -214,20 +214,7 @@ but the behavior in presence of symlinks is not portable. Use IOlib to handle su
           (error "Invalid file pattern ~S for logical directory ~S" pattern directory))
         (setf pattern (make-pathname-logical pattern (pathname-host dir))))
       (let* ((pat (merge-pathnames* pattern dir))
-             ;; the following complex block is
-             ;; needed because clisp handles "*" pathnames differently from
-             ;; "*.*" -- the former is more more general than the latter.
-             ;; GCL does something odd, too, but I don't know what this is.
-             ;; Looks like it treats "*" and "*.*" as disjoint.
-             ;; [2016/06/23:rpg]
-             (entries (append #-clisp (ignore-errors (directory* pat))
-                              #+clisp
-                              (if (equal :wild (pathname-type pattern))
-                                (ignore-errors (directory* (make-pathname :type nil :defaults pat)))
-                                (ignore-errors (directory* pat)))
-                              #+gcl
-                              (when (equal :wild (pathname-type pattern))
-                                (ignore-errors (directory* (make-pathname :type nil :defaults pat)))))))
+             (entries (ignore-errors (directory* pat))))
         (remove-if 'directory-pathname-p
                    (filter-logical-directory-results
                     directory entries

@@ -31,7 +31,8 @@
    ;; Checking constraints
    #:ensure-pathname ;; implemented in filesystem.lisp to accommodate for existence constraints
    ;; Wildcard pathnames
-   #:*wild* #:*wild-file* #:*wild-directory* #:*wild-inferiors* #:*wild-path* #:wilden
+   #:*wild* #:*wild-file* #:*wild-file-for-directory* #:*wild-directory*
+   #:*wild-inferiors* #:*wild-path* #:wilden
    ;; Translate a pathname
    #:relativize-directory-component #:relativize-pathname-directory
    #:directory-separator-for-host #:directorize-pathname-host-device
@@ -608,7 +609,11 @@ given DEFAULTS-PATHNAME as a base pathname."
   (defparameter *wild-file*
     (make-pathname :directory nil :name *wild* :type *wild*
                    :version (or #-(or allegro abcl xcl) *wild*))
-    "A pathname object with wildcards for matching any file in a given directory")
+    "A pathname object with wildcards for matching any file with TRANSLATE-PATHNAME")
+  (defparameter *wild-file-for-directory*
+    (make-pathname :directory nil :name *wild* :type (or #-(or clisp gcl) *wild*)
+                   :version (or #-(or allegro abcl clisp gcl xcl) *wild*))
+    "A pathname object with wildcards for matching any file with DIRECTORY")
   (defparameter *wild-directory*
     (make-pathname :directory `(:relative ,*wild-directory-component*)
                    :name nil :type nil :version nil)
