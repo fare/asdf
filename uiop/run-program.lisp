@@ -549,22 +549,31 @@ It returns a process-info object."
         (if wait
             (prop 'exit-code (first process*))
             (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-              (if (zerop mode)
-                  (prop 'process (first process*))
-                  (destructuring-bind (x err pid) process*
-                    (prop 'process pid)
-                    (prop (ecase mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) x)
-                    (when (eq error-output :stream) (prop 'error-stream err))))))
+              (if (or (plusp mode) (eq error-output :stream))
+                  (destructuring-bind (io err pid) process*
+                    #+lispworks7+ (declare (ignore pid))
+                    (prop 'process #+lispworks7+ io #-lispworks7+ pid)
+                    (when (plusp mode)
+                      (prop (ecase mode
+                              (1 'input-stream)
+                              (2 'output-stream)
+                              (3 'bidir-stream)) io))
+                    (when (eq error-output :stream)
+                      (prop 'error-stream err)))
+                  ;; lispworks6 returns (pid), lispworks7 returns (io,err,pid).
+                  (prop 'process (first process*)))))
         process-info)))
 
   (defun %process-info-pid (process-info)
     (let ((process (slot-value process-info 'process)))
       (declare (ignorable process))
-      #+(or allegro lispworks) process
+      #+allegro process
       #+clasp (si:external-process-pid process)
       #+clozure (ccl:external-process-id process)
       #+ecl (ext:external-process-pid process)
       #+(or cmucl scl) (ext:process-pid process)
+      #+lispworks7+ (sys:pipe-pid process)
+      #+(and lispworks (not lispworks7+)) process
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
       #-(or allegro clasp clozure cmucl ecl mkcl lispworks sbcl scl)
@@ -586,14 +595,9 @@ It returns a process-info object."
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmucl scl) (ext:process-exit-code process)
             #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
-            #+lispworks
-            (if-let ((stream (or (slot-value process-info 'input-stream)
-                                 (slot-value process-info 'output-stream)
-                                 (slot-value process-info 'bidir-stream)
-                                 (slot-value process-info 'error-stream))))
-              (system:pipe-exit-status stream :wait t)
-              (if-let ((f (find-symbol* :pid-exit-status :system nil)))
-                (funcall f process :wait t)))
+            #+lispworks (funcall #+lispworks7+ #'sys:pipe-exit-status
+                                 #-lispworks7+ #'sys:pid-exit-status
+                                 process :wait t)
             #+mkcl (mkcl:join-process process)
             #+sbcl (sb-ext:process-exit-code process)
             #-(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
