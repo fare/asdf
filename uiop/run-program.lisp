@@ -14,6 +14,7 @@
    ;;; run-program
    #:slurp-input-stream #:vomit-output-stream
    #:close-streams #:run-program
+   #:process-info-error-output #:process-info-input #:process-info-output
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
    ))
@@ -595,6 +596,15 @@ It returns a process-info object."
                   ;; lispworks6 returns (pid), lispworks7 returns (io,err,pid).
                   (prop 'process (first process*)))))
         process-info)))
+
+  (defun process-info-error-output (process-info)
+    (slot-value process-info 'error-output-stream))
+  (defun process-info-input (process-info)
+    (or (slot-value process-info 'bidir-stream)
+        (slot-value process-info 'input-stream)))
+  (defun process-info-output (process-info)
+    (or (slot-value process-info 'bidir-stream)
+        (slot-value process-info 'output-stream)))
 
   (defun %process-info-pid (process-info)
     (let ((process (slot-value process-info 'process)))
