@@ -408,6 +408,14 @@ argument to pass to the internal RUN-PROGRAM"
       (integer raw-exit-code) ; negative: signal
       (t -1)))
 
+  (defclass process-info ()
+    ((process :initform nil)
+     (input-stream :initform nil)
+     (output-stream :initform nil)
+     (bidir-stream :initform nil)
+     (error-output-stream :initform nil)
+     (exit-code :initform nil)))
+
   (defun %run-program (command
                        &rest keys
                        &key input (if-input-does-not-exist :error)
@@ -420,8 +428,7 @@ argument to pass to the internal RUN-PROGRAM"
 It spawns a subprocess that runs the specified COMMAND (a list of program and arguments).
 INPUT, OUTPUT and ERROR-OUTPUT specify a portable IO specifer,
 to be normalized by %NORMALIZE-IO-SPECIFIER.
-It returns a process-info plist with possible keys:
-     PROCESS, EXIT-CODE, INPUT-STREAM, OUTPUT-STREAM, BIDIR-STREAM, ERROR-STREAM."
+It returns a process-info object."
     ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
     #-(or cmucl ecl mkcl sbcl)
@@ -478,53 +485,54 @@ It returns a process-info plist with possible keys:
                 #+sbcl `(:search t)
                 #-sbcl keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
-           (process-info-r ()))
-      (flet ((prop (key value) (push key process-info-r) (push value process-info-r)))
+           (process-info (make-instance 'process-info)))
+      (flet ((prop (key value)
+               (setf (slot-value process-info key) value)))
         #+allegro
         (cond
-          (wait (prop :exit-code (first process*)))
+          (wait (prop 'exit-code (first process*)))
           (separate-streams
            (destructuring-bind (in out err pid) process*
-             (prop :process pid)
-             (when (eq input :stream) (prop :input-stream in))
-             (when (eq output :stream) (prop :output-stream out))
-             (when (eq error-output :stream) (prop :error-stream err))))
+             (prop 'process pid)
+             (when (eq input :stream) (prop 'input-stream in))
+             (when (eq output :stream) (prop 'output-stream out))
+             (when (eq error-output :stream) (prop 'error-stream err))))
           (t
-           (prop :process (third process*))
+           (prop 'process (third process*))
            (let ((x (first process*)))
              (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
                (0)
-               (1 (prop :input-stream x))
-               (2 (prop :output-stream x))
-               (3 (prop :bidir-stream x))))
+               (1 (prop 'input-stream x))
+               (2 (prop 'output-stream x))
+               (3 (prop 'bidir-stream x))))
            (when (eq error-output :stream)
-             (prop :error-stream (second process*)))))
+             (prop 'error-stream (second process*)))))
         #+clisp
         (cond
-          (wait (prop :exit-code (clisp-exit-code (first process*))))
+          (wait (prop 'exit-code (clisp-exit-code (first process*))))
           (t
            (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
              (0)
-             (1 (prop :input-stream (first process*)))
-             (2 (prop :output-stream (first process*)))
-             (3 (prop :bidir-stream (pop process*))
-              (prop :input-stream (pop process*))
-              (prop :output-stream (pop process*))))))
+             (1 (prop 'input-stream (first process*)))
+             (2 (prop 'output-stream (first process*)))
+             (3 (prop 'bidir-stream (pop process*))
+              (prop 'input-stream (pop process*))
+              (prop 'output-stream (pop process*))))))
         #+(or clozure cmucl sbcl scl)
         (progn
-          (prop :process process*)
+          (prop 'process process*)
           (when (eq input :stream)
-            (prop :input-stream
+            (prop 'input-stream
                   #+clozure (ccl:external-process-input-stream process*)
                   #+(or cmucl scl) (ext:process-input process*)
                   #+sbcl (sb-ext:process-input process*)))
           (when (eq output :stream)
-            (prop :output-stream
+            (prop 'output-stream
                   #+clozure (ccl:external-process-output-stream process*)
                   #+(or cmucl scl) (ext:process-output process*)
                   #+sbcl (sb-ext:process-output process*)))
           (when (eq error-output :stream)
-            (prop :error-output-stream
+            (prop 'error-output-stream
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmucl scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
@@ -533,24 +541,24 @@ It returns a process-info plist with possible keys:
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
             (cond
               ((zerop mode))
-              ((null process*) (prop :exit-code -1))
-              (t (prop (case mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) stream))))
-          (when code (prop :exit-code code))
-          (when process (prop :process process)))
+              ((null process*) (prop 'exit-code -1))
+              (t (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))))
+          (when code (prop 'exit-code code))
+          (when process (prop 'process process)))
         #+lispworks
         (if wait
-            (prop :exit-code (first process*))
+            (prop 'exit-code (first process*))
             (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
               (if (zerop mode)
-                  (prop :process (first process*))
+                  (prop 'process (first process*))
                   (destructuring-bind (x err pid) process*
-                    (prop :process pid)
-                    (prop (ecase mode (1 :input-stream) (2 :output-stream) (3 :bidir-stream)) x)
-                    (when (eq error-output :stream) (prop :error-stream err))))))
-        (nreverse process-info-r))))
+                    (prop 'process pid)
+                    (prop (ecase mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) x)
+                    (when (eq error-output :stream) (prop 'error-stream err))))))
+        process-info)))
 
   (defun %process-info-pid (process-info)
-    (let ((process (getf process-info :process)))
+    (let ((process (slot-value process-info 'process)))
       (declare (ignorable process))
       #+(or allegro lispworks) process
       #+clasp (si:external-process-pid process)
@@ -563,8 +571,8 @@ It returns a process-info plist with possible keys:
       (error "~S not implemented" '%process-info-pid)))
 
   (defun %wait-process-result (process-info)
-    (or (getf process-info :exit-code)
-        (let ((process (getf process-info :process)))
+    (or (slot-value process-info 'exit-code)
+        (let ((process (slot-value process-info 'process)))
           (when process
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
@@ -579,10 +587,10 @@ It returns a process-info plist with possible keys:
             #+(or cmucl scl) (ext:process-exit-code process)
             #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
             #+lispworks
-            (if-let ((stream (or (getf process-info :input-stream)
-                                 (getf process-info :output-stream)
-                                 (getf process-info :bidir-stream)
-                                 (getf process-info :error-stream))))
+            (if-let ((stream (or (slot-value process-info 'input-stream)
+                                 (slot-value process-info 'output-stream)
+                                 (slot-value process-info 'bidir-stream)
+                                 (slot-value process-info 'error-stream))))
               (system:pipe-exit-status stream :wait t)
               (if-let ((f (find-symbol* :pid-exit-status :system nil)))
                 (funcall f process :wait t)))
@@ -720,9 +728,9 @@ It returns a process-info plist with possible keys:
                            :error-output (if (eq error-output :output) :output reduced-error-output)
                            keys)))
               (labels ((get-stream (stream-name &optional fallbackp)
-                         (or (getf process-info stream-name)
+                         (or (slot-value process-info stream-name)
                              (when fallbackp
-                               (getf process-info :bidir-stream))))
+                               (slot-value process-info 'bidir-stream))))
                        (run-activity (activity stream-name &optional fallbackp)
                          (if-let (stream (get-stream stream-name fallbackp))
                            (funcall activity stream)
@@ -732,11 +740,16 @@ It returns a process-info plist with possible keys:
                 (unwind-protect
                      (ecase activity
                        ((nil))
-                       (:input (run-activity input-activity :input-stream t))
-                       (:output (run-activity output-activity :output-stream t))
-                       (:error-output (run-activity error-output-activity :error-output-stream)))
-                  (loop :for (() val) :on process-info :by #'cddr
-                        :when (streamp val) :do (ignore-errors (close val)))
+                       (:input (run-activity input-activity 'input-stream t))
+                       (:output (run-activity output-activity 'output-stream t))
+                       (:error-output (run-activity error-output-activity 'error-output-stream)))
+                  (dolist (stream
+                            (cons (slot-value process-info 'error-output-stream)
+                                  (if-let (bidir-stream (slot-value process-info 'bidir-stream))
+                                          (list bidir-stream)
+                                          (list (slot-value process-info 'input-stream)
+                                                (slot-value process-info 'output-stream)))))
+                    (when stream (close stream)))
                   (setf exit-code
                         (%check-result (%wait-process-result process-info)
                                        :command command :process process-info
