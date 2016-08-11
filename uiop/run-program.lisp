@@ -353,13 +353,13 @@ for the implementation's underlying run-program function"
       #+os-unix (list command)
       #+os-windows
       (string
-       #+mkcl (list "cmd" "/c" command)
        ;; NB: We do NOT add cmd /c here. You might want to.
        #+(or allegro clisp) command
        ;; On ClozureCL for Windows, we assume you are using
        ;; r15398 or later in 1.9 or later,
        ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
        #+clozure (cons "cmd" (strcat "/c " command))
+       #+mkcl (list "cmd" "/c" command)
        #+sbcl (list (%cmd-shell-pathname) "/c" command)
        ;; NB: On other Windows implementations, this is utterly bogus
        ;; except in the most trivial cases where no quoting is needed.
@@ -472,10 +472,10 @@ It returns a process-info plist with possible keys:
                   #-lispworks :if-error-exists #+lispworks :if-error-output-exists
                   ,if-error-output-exists)
                 #+lispworks `(:save-exit-status t)
+                #+mkcl `(:directory ,(native-namestring directory))
                 #+sbcl `(:search t
                          :if-output-does-not-exist :create
                          :if-error-does-not-exist :create)
-                #+mkcl `(:directory ,(native-namestring directory))
                 #-sbcl keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info-r ()))
@@ -581,8 +581,8 @@ It returns a process-info plist with possible keys:
               (system:pipe-exit-status stream :wait t)
               (if-let ((f (find-symbol* :pid-exit-status :system nil)))
                 (funcall f process :wait t)))
-            #+sbcl (sb-ext:process-exit-code process)
-            #+mkcl (mkcl:join-process process)))))
+            #+mkcl (mkcl:join-process process)
+            #+sbcl (sb-ext:process-exit-code process)))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
     (unless ignore-error-status
