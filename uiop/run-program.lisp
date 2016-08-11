@@ -13,7 +13,7 @@
 
    ;;; run-program
    #:slurp-input-stream #:vomit-output-stream
-   #:close-streams #:run-program #:wait-process
+   #:close-streams #:process-alive-p #:run-program #:wait-process
    #:process-info-error-output #:process-info-input #:process-info-output
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
@@ -643,6 +643,61 @@ It returns a process-info object."
       #+sbcl (sb-ext:process-pid process)
       #-(or abcl allegro clozure cmucl ecl mkcl lispworks sbcl scl)
       (not-implemented-error '%process-info-pid)))
+
+  (defun %process-status (process-info)
+    (if-let (exit-code (slot-value process-info 'exit-code))
+      (return-from %process-status
+        (if-let (signal-code (slot-value process-info 'signal-code))
+          (values :signaled signal-code)
+          (values :exited exit-code))))
+    #-(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+    (not-implemented-error '%process-status)
+    (if-let (process (slot-value process-info 'process))
+      (multiple-value-bind (status code)
+          (progn
+            #+allegro (multiple-value-bind (exit-code pid signal)
+                          (sys:reap-os-subprocess :pid process :wait nil)
+                        (assert pid)
+                        (cond ((null exit-code) :running)
+                              ((null signal) (values :exited exit-code))
+                              (t (values :signaled signal))))
+            #+clozure (ccl:external-process-status process)
+            #+(or cmucl scl) (let ((status (ext:process-status process)))
+                               (values status (if (member status '(:exited :signaled))
+                                                  (ext:process-exit-code process))))
+            #+ecl (ext:external-process-status process)
+            #+lispworks
+            ;; a signal is only returned on LispWorks 7+
+            (multiple-value-bind (exit-code signal)
+                (funcall #+lispworks7+ #'sys:pipe-exit-status
+                         #-lispworks7+ #'sys:pid-exit-status
+                         process :wait nil)
+              (cond ((null exit-code) :running)
+                    ((null signal) (values :exited exit-code))
+                    (t (values :signaled signal))))
+            #+mkcl (let ((status (mk-ext:process-status process))
+                         (code (mk-ext:process-exit-code process)))
+                     (if (stringp code)
+                         (values :signaled (%mkcl-signal-to-number code))
+                         (values status code)))
+            #+sbcl (let ((status (sb-ext:process-status process)))
+                     (values status (if (member status '(:exited :signaled))
+                                        (sb-ext:process-exit-code process)))))
+        (case status
+          (:exited (setf (slot-value process-info 'exit-code) code))
+          (:signaled (let ((%code (%signal-to-exit-code code)))
+                       (setf (slot-value process-info 'exit-code) %code
+                             (slot-value process-info 'signal-code) code))))
+        (values status code))))
+
+  (defun process-alive-p (process-info)
+    "Check if a process has yet to exit."
+    (unless (slot-value process-info 'exit-code)
+      #+abcl (sys:process-alive-p (slot-value process-info 'process))
+      #+(or cmucl scl) (ext:process-alive-p (slot-value process-info 'process))
+      #+sbcl (sb-ext:process-alive-p (slot-value process-info 'process))
+      #-(or abcl cmucl sbcl scl) (member (%process-status process-info)
+                                         '(:running :sleeping))))
 
   (defun wait-process (process-info)
     "Wait for the process to terminate, if it is still running.
