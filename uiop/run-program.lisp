@@ -583,25 +583,28 @@ It returns a process-info object."
     (or (slot-value process-info 'exit-code)
         (let ((process (slot-value process-info 'process)))
           (when process
+            #-(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
+            (error "~S not implemented" '%wait-process)
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
             #+(or cmucl scl) (ext:process-wait process)
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
-            #+allegro (multiple-value-bind (exit-code pid signal)
-                          (sys:reap-os-subprocess :pid process :wait t)
-                        (declare (ignore pid))
-                        (or signal exit-code))
-            #+clozure (nth-value 1 (ccl:external-process-status process))
-            #+(or cmucl scl) (ext:process-exit-code process)
-            #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
-            #+lispworks (funcall #+lispworks7+ #'sys:pipe-exit-status
-                                 #-lispworks7+ #'sys:pid-exit-status
-                                 process :wait t)
-            #+mkcl (mkcl:join-process process)
-            #+sbcl (sb-ext:process-exit-code process)
-            #-(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
-            (error "~S not implemented" '%wait-process-result)))))
+            (let ((exit-code
+                   #+allegro (multiple-value-bind (exit-code pid signal)
+                                 (sys:reap-os-subprocess :pid process :wait t)
+                               (assert pid)
+                               (or signal exit-code))
+                   #+clozure (nth-value 1 (ccl:external-process-status process))
+                   #+(or cmucl scl) (ext:process-exit-code process)
+                   #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
+                   #+lispworks (funcall #+lispworks7+ #'sys:pipe-exit-status
+                                        #-lispworks7+ #'sys:pid-exit-status
+                                        process :wait t)
+                   #+mkcl (mkcl:join-process process)
+                   #+sbcl (sb-ext:process-exit-code process)))
+              (setf (slot-value process-info 'exit-code) exit-code)
+              exit-code)))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
     (unless ignore-error-status
