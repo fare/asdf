@@ -13,7 +13,7 @@
 
    ;;; run-program
    #:slurp-input-stream #:vomit-output-stream
-   #:run-program
+   #:close-streams #:run-program
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
    ))
@@ -648,6 +648,18 @@ It returns a process-info object."
                 'subprocess-error :command command :code exit-code :process process)))
     exit-code)
 
+  (defun close-streams (process-info)
+    "Close any stream that the process might own. Needs to be run
+whenever streams were requested by passing :stream to :input, :output,
+or :error-output."
+    (dolist (stream
+              (cons (slot-value process-info 'error-output-stream)
+                    (if-let (bidir-stream (slot-value process-info 'bidir-stream))
+                      (list bidir-stream)
+                      (list (slot-value process-info 'input-stream)
+                            (slot-value process-info 'output-stream)))))
+      (when stream (close stream))))
+
   (defun %call-with-program-io (gf tval stream-easy-p fun direction spec activep returner
                                 &key element-type external-format &allow-other-keys)
     ;; handle redirection for run-program and system
@@ -785,13 +797,7 @@ It returns a process-info object."
                      (:input (run-activity input-activity 'input-stream t))
                      (:output (run-activity output-activity 'output-stream t))
                      (:error-output (run-activity error-output-activity 'error-output-stream)))
-                (dolist (stream
-                          (cons (slot-value process-info 'error-output-stream)
-                                (if-let (bidir-stream (slot-value process-info 'bidir-stream))
-                                        (list bidir-stream)
-                                        (list (slot-value process-info 'input-stream)
-                                              (slot-value process-info 'output-stream)))))
-                  (when stream (close stream)))
+                (close-streams process-info)
                 (setf exit-code (%wait-process-result process-info)))))))
       (%check-result exit-code
                      :command command :process process-info
