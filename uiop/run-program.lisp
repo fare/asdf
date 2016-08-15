@@ -575,6 +575,7 @@ It returns a process-info plist with possible keys:
             ;; 2- extract result
             #+allegro (multiple-value-bind (exit-code pid signal)
                           (sys:reap-os-subprocess :pid process :wait t)
+                        (declare (ignore pid))
                         (or signal exit-code))
             #+clozure (nth-value 1 (ccl:external-process-status process))
             #+(or cmu scl) (ext:process-exit-code process)
