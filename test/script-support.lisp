@@ -509,7 +509,7 @@ is bound, write a message and exit on an error.  If
 
 (defun compile-asdf-script ()
   (with-test ()
-    (ecase (with-asdf-conditions () (maybe-compile-asdf))
+    (ecase (with-asdf-conditions (t) (maybe-compile-asdf))
       (:not-found
        (leave-test "Testsuite failed: unable to find ASDF source" 3))
       (:previously-compiled
