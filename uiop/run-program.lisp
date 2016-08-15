@@ -398,6 +398,11 @@ argument to pass to the internal RUN-PROGRAM"
            :output
            (error "Wrong specifier ~S for role ~S" specifier role)))))
 
+  (defun %normalize-if-exists (action)
+    (ecase action
+      (:supersede #+clisp :overwrite #-clisp action)
+      ((:append :error) action)))
+
   (defun %interactivep (input output error-output)
     (member :interactive (list input output error-output)))
 
@@ -419,8 +424,8 @@ argument to pass to the internal RUN-PROGRAM"
   (defun %run-program (command
                        &rest keys
                        &key input (if-input-does-not-exist :error)
-                         output (if-output-exists :overwrite)
-                         error-output (if-error-output-exists :overwrite)
+                         output (if-output-exists :supersede)
+                         error-output (if-error-output-exists :supersede)
                          directory wait
                          #+allegro separate-streams
                          &allow-other-keys)
@@ -438,6 +443,7 @@ It returns a process-info object."
            (error "run-program not available"))
     #+(or allegro clasp clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
+           (%if-output-exists (%normalize-if-exists if-output-exists))
            (%input (%normalize-io-specifier input :input))
            (%output (%normalize-io-specifier output :output))
            (%error-output (%normalize-io-specifier error-output :error-output))
@@ -474,9 +480,10 @@ It returns a process-info object."
                 #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
                             ,%error-output)
                 #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
+                #+clisp `(:if-output-exists ,%if-output-exists)
                 #+(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
                 `(:if-input-does-not-exist ,if-input-does-not-exist
-                  :if-output-exists ,if-output-exists
+                  :if-output-exists ,%if-output-exists
                   #-(or allegro lispworks) :if-error-exists
                   #+(or allegro lispworks) :if-error-output-exists
                   ,if-error-output-exists)
@@ -861,8 +868,8 @@ It returns a process-info object."
   (defun run-program (command &rest keys
                        &key ignore-error-status (force-shell nil force-shell-suppliedp)
                          (input nil inputp) (if-input-does-not-exist :error)
-                         output (if-output-exists :overwrite)
-                         (error-output nil error-output-p) (if-error-output-exists :overwrite)
+                         output (if-output-exists :supersede)
+                         (error-output nil error-output-p) (if-error-output-exists :supersede)
                          (element-type #-clozure *default-stream-element-type* #+clozure 'character)
                          (external-format *utf-8-external-format*)
                       &allow-other-keys)
