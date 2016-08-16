@@ -29,6 +29,7 @@
                          (format nil "~a" (namestring (make-sub-pathname :name "loop"
                                                                          :type "asd"
                                                                          :defaults scratch-dir))))
+         (DBG "Testing search for asdf system definitions.")
          (assert-equal (list "loop")
                        (let ((asds nil))
                          (declare (special asds))
@@ -47,10 +48,14 @@
                                                name)))
                                 (push name asds))))
                          asds))
+         (DBG "Resetting source registry.")
          (initialize-source-registry
           `(:source-registry (:tree ,scratch-dir) :ignore-inherited-configuration))
+         (DBG "Looking for the LOOP system")
          (assert (asdf:find-system :loop)))
     ;; clean up
+    (DBG "Cleaning up")
     (uiop:run-program (format nil "rm -r ~a" scratch-dir))))
 
+(DBG "Exiting")
 (exit-lisp 0)
