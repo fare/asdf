@@ -22,6 +22,7 @@
    #:read-file-forms #:read-file-form #:safe-read-file-form
    #:eval-input #:eval-thunk #:standard-eval-thunk
    #:println #:writeln
+   #:file-stream-p #:file-or-synonym-stream-p
    ;; Temporary files
    #:*temporary-directory* #:temporary-directory #:default-temporary-directory
    #:setup-temporary-directory
@@ -706,3 +707,12 @@ For the latter case, we ought pick a random suffix and atomically open it."
   (defmacro with-staging-pathname ((pathname-var &optional (pathname-value pathname-var)) &body body)
     "Trivial syntax wrapper for CALL-WITH-STAGING-PATHNAME"
     `(call-with-staging-pathname ,pathname-value #'(lambda (,pathname-var) ,@body))))
+
+(with-upgradability ()
+  (defun file-stream-p (stream)
+    (typep stream 'file-stream))
+  (defun file-or-synonym-stream-p (stream)
+    (or (file-stream-p stream)
+        (and (typep stream 'synonym-stream)
+             (file-or-synonym-stream-p
+              (symbol-value (synonym-stream-symbol stream)))))))
