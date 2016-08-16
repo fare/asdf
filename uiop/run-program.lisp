@@ -436,11 +436,40 @@ to be normalized by %NORMALIZE-IO-SPECIFIER.
 It returns a process-info object."
     ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
-    #-(or cmucl ecl mkcl sbcl)
-    (assert (not (and wait (member :stream (list input output error-output)))))
     #-(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys input output error-output directory wait ;; ignore
            (not-implemented-error '%run-program))
+    #-(or cmucl ecl mkcl sbcl)
+    (when (and wait (member :stream (list input output error-output)))
+      (parameter-error "~S: I/O parameters cannot be ~S when ~S is ~S on this lisp"
+                       '%run-program :stream :wait t))
+    #+allegro
+    (when (some #'(lambda (stream)
+                    (and (streamp stream)
+                         (not (file-stream-p stream))))
+                (list input output error-output))
+      (parameter-error "~S: Streams passed as I/O parameters need to be file streams on this lisp"
+                       '%run-program))
+    #+(or clisp lispworks)
+    (when (some #'streamp (list input output error-output))
+      (parameter-error "~S: I/O parameters cannot be foreign streams on this lisp"
+                       '%run-program))
+    #+clisp
+    (unless (eq error-output :interactive)
+      (parameter-error "~S: The only admissible value for ~S is ~S on this lisp"
+                       '%run-program :error-output :interactive))
+    #+clisp
+    (when (or (stringp input) (pathnamep input))
+      (unless (file-exists-p input)
+        (parameter-error "~S: Files passed as arguments to ~S need to exist on this lisp"
+                         '%run-program :input)))
+    #+ecl
+    (when (some #'(lambda (stream)
+                    (and (streamp stream)
+                         (not (file-or-synonym-stream-p stream))))
+                (list input output error-output))
+      (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
+                       '%run-program))
     #+(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%if-output-exists (%normalize-if-exists if-output-exists))
@@ -451,11 +480,6 @@ It returns a process-info object."
            (interactive (%interactivep input output error-output))
            (process*
              (nest
-              #+clisp (progn
-                        ;; clisp cannot redirect stderr, so check we don't.
-                        ;; Also, since we now always return a code, we cannot use this code path
-                        ;; if any of the input, output or error-output is :stream.
-                        (assert (eq %error-output :terminal)))
               #-(or allegro mkcl sbcl) (with-current-directory (directory))
               #+(or allegro clisp ecl lispworks mkcl) (multiple-value-list)
               (apply
@@ -493,6 +517,7 @@ It returns a process-info object."
                 #-sbcl keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info (make-instance 'process-info)))
+      #+clisp (declare (ignore %error-output))
       (flet ((prop (key value)
                (setf (slot-value process-info key) value)))
         #+allegro
