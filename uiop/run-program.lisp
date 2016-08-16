@@ -13,7 +13,7 @@
 
    ;;; run-program
    #:slurp-input-stream #:vomit-output-stream
-   #:close-streams #:run-program
+   #:close-streams #:run-program #:wait-process
    #:process-info-error-output #:process-info-input #:process-info-output
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
@@ -620,11 +620,18 @@ It returns a process-info object."
       #-(or allegro clozure cmucl ecl mkcl lispworks sbcl scl)
       (not-implemented-error '%process-info-pid)))
 
-  (defun %wait-process-result (process-info)
+  (defun wait-process (process-info)
+    "Wait for the process to terminate, if it is still running.
+Otherwise, return immediately. An exit code (a number) will be
+returned, with 0 indicating success, and anything else indicating
+failure.
+Any asynchronously spawned process requires this function to be run
+before it is garbage-collected in order to free up resources that
+might otherwise be irrevocably lost."
     (or (slot-value process-info 'exit-code)
         (let ((process (slot-value process-info 'process)))
           #-(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
-          (not-implemented-error '%wait-process-result)
+          (not-implemented-error 'wait-process)
           (when process
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
@@ -808,7 +815,7 @@ or :error-output."
                      (:output (run-activity output-activity 'output-stream t))
                      (:error-output (run-activity error-output-activity 'error-output-stream)))
                 (close-streams process-info)
-                (setf exit-code (%wait-process-result process-info)))))))
+                (setf exit-code (wait-process process-info)))))))
       (%check-result exit-code
                      :command command :process process-info
                      :ignore-error-status ignore-error-status)
@@ -863,14 +870,14 @@ or :error-output."
     "A portable abstraction of a low-level call to libc's system()."
     (declare (ignorable input output error-output directory keys))
     #+(or allegro clozure cmucl (and lispworks os-unix) sbcl scl)
-    (%wait-process-result
+    (wait-process
      (apply '%run-program (%normalize-system-command command) :wait t keys))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
       #+clisp
-      (%wait-process-result
+      (wait-process
        (apply '%run-program %command :wait t
               :input :interactive :output :interactive :error-output :interactive keys))
       #-(or clisp (and lispworks os-windows))
