@@ -367,6 +367,9 @@ code (an integer, 0 for success), up as exit code."
 (defmacro with-test ((&optional) &body body)
   `(call-with-test (lambda () ,@body)))
 
+(deftype test-fatal-condition ()
+    `(and serious-condition #+ccl (not ccl:process-reset)))
+
 (defun call-with-test (thunk)
   "Unless the environment variable DEBUG_ASDF_TEST
 is bound, write a message and exit on an error.  If
@@ -375,13 +378,7 @@ is bound, write a message and exit on an error.  If
   (let ((result
          (catch :asdf-test-done
            (handler-bind
-               (
-                #+ccl
-                (ccl:process-reset
-                 (lambda (c)
-                   (declare (ignore c))
-                   nil))
-                (serious-condition
+               ((test-fatal-condition
                  (lambda (c)
                    (ignore-errors
                      (format *error-output* "~&TEST ABORTED: ~A~&" c))
