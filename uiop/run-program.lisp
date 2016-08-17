@@ -475,9 +475,7 @@ It returns a process-info plist with possible keys:
                   ,if-error-output-exists)
                 #+lispworks `(:save-exit-status t)
                 #+mkcl `(:directory ,(native-namestring directory))
-                #+sbcl `(:search t
-                         :if-output-does-not-exist :create
-                         :if-error-does-not-exist :create)
+                #+sbcl `(:search t)
                 #-sbcl keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info-r ()))
