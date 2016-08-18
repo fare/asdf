@@ -52,8 +52,14 @@ else
 export CL_SOURCE_REGISTRY = ${ASDF_DEVEL_SOURCE_REGISTRY}
 endif
 else # no ASDF_DEVEL_SOURCE_REGISTRY
-export CL_SOURCE_REGISTRY = ${sourceDirectory}/:${sourceDirectory}/uiop/:${sourceDirectory}/ext//:
+export CL_SOURCE_REGISTRY = ${sourceDirectory}/:${sourceDirectory}/uiop/:${sourceDirectory}/ext//
 endif
+#$(error "CL_SOURCE_REGISTRY is ${CL_SOURCE_REGISTRY}")
+sys := $(shell uname -o)
+ifeq ($(sys),Cygwin) 
+CL_SOURCE_REGISTRY := $(shell cygpath -pw "${CL_SOURCE_REGISTRY}")
+endif
+
 
 l ?= sbcl
 
@@ -75,6 +81,8 @@ header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/run-program.lisp uiop/lisp-build.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
 defsystem_lisp := upgrade.lisp component.lisp system.lisp cache.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp output-translations.lisp source-registry.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp package-inferred-system.lisp backward-internals.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
 all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
+
+print-%  : ; @echo $* = $($*)
 
 # Making ASDF itself should be our first, default, target:
 build/asdf.lisp: $(all_lisp)
