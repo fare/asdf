@@ -128,6 +128,17 @@
       (scl:send stream :string-out sequence start end)
       sequence)))
 
+#+lispworks
+(eval-when (:load-toplevel :compile-toplevel :execute)
+  ;; lispworks 3 and earlier cannot be checked for so we always assume
+  ;; at least version 4
+  (unless (member :lispworks4 *features*)
+    (pushnew :lispworks5+ *features*)
+    (unless (member :lispworks5 *features*)
+      (pushnew :lispworks6+ *features*)
+      (unless (member :lispworks6 *features*)
+        (pushnew :lispworks7+ *features*)))))
+
 #.(or #+mcl ;; the #$ doesn't work on other lisps, even protected by #+mcl, so we use this trick
       (read-from-string
        "(eval-when (:load-toplevel :compile-toplevel :execute)
