@@ -198,6 +198,12 @@
                                 (list :error-output :interactive)))))
     (apply #'uiop/run-program::%run-program args)))
 
+;; Skips the test if terminate-process cannot be called
+(defun my-terminate-process (&rest rest)
+  #+ecl (unless (find-symbol* '#:terminate-process :ext nil)
+          (error 'test-skipped :reason "ext:terminate-process missing"))
+  (apply #'terminate-process rest))
+
 ;;; The actual tests
 
 (new-test-suite "%run-program")
@@ -451,7 +457,7 @@
       (handle-result "exit code matches? (no. 2)"
                      (equal (+ 128 15) (wait-process process-info)))))
 
-(new-test-suite "process-alive-p")
+(new-test-suite "process-alive-p / terminate-process")
 
 (define-test
     "not alive (we slept)"
@@ -475,6 +481,30 @@
                            process-info)))))
 
 (define-test
+    "not alive (we terminated it)"
+    (let ((process-info (%run-program "./sleeper.sh 12 2" :wait nil)))
+      (handle-result "alive?"
+                     (process-alive-p process-info))
+      (my-terminate-process process-info :urgent t)
+      (sleep 1)
+      (handle-result "dead?"
+                     (not (process-alive-p process-info)))
+      (wait-process process-info)))
+
+(define-test
+    "not alive (we terminated it repeatedly)"
+    (let ((process-info (%run-program "./sleeper.sh 12 3" :wait nil)))
+      (handle-result "alive?"
+                     (process-alive-p process-info))
+      (my-terminate-process process-info :urgent t)
+      (sleep 1)
+      (my-terminate-process process-info :urgent t)
+      (sleep 1)
+      (handle-result "dead?"
+                     (not (process-alive-p process-info)))
+      (wait-process process-info)))
+
+(define-test
     "multiple processes: proper exit sequence"
     (let ((process-info1 (%run-program "./sleeper.sh 12 1" :wait nil))
           (process-info2 (%run-program "./sleeper.sh 12 2" :wait nil)))
@@ -496,7 +526,7 @@
                      (not (process-alive-p
                            process-info2)))))
 
-(new-test-suite "%process-status")
+(new-test-suite "%process-status / terminate-process")
 
 (define-test
     ":exited (we slept; repeated query)"
@@ -548,6 +578,25 @@
           (uiop/run-program::%process-status process-info)
         (handle-result "exited (no. 2)?" (eq status :exited))
         (handle-result "proper exit status? (no. 2)?" (eql code (+ 128 15))))
+      (wait-process process-info)))
+
+(define-test
+    ":signaled (we terminated it; repeated query)"
+    #+(and lispworks (not lispworks7+))
+    (skip-test "Known to fail")
+    (let* ((process-info (%run-program "./sleeper.sh 12 2" :wait nil))
+           (status (uiop/run-program::%process-status process-info)))
+      (handle-result "running?" (equal :running status))
+      (my-terminate-process process-info :urgent t)
+      (sleep 1)
+      (multiple-value-bind (status code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "signaled?" (eq status :signaled))
+        (handle-result "signal as expected?" (member code '(9 15))))
+      (multiple-value-bind (status code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "signaled (no. 2)?" (eq status :signaled))
+        (handle-result "signal as expected (no. 2)?" (member code '(9 15))))
       (wait-process process-info)))
 
 (fresh-line)
