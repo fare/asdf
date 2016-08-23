@@ -8,6 +8,8 @@
 (DBG "build sample-system. Should load from sample-system/")
 (setf *central-registry* (list (subpathname *test-directory* "sample-system/")))
 
+#+lispworks (lispworks:load-all-patches)
+
 (make-build 'sample-system
             :type :program :monolithic t
             #+ecl :epilogue-code #+ecl '(println "blue sky"))
