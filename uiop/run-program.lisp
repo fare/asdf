@@ -393,7 +393,7 @@ argument to pass to the internal RUN-PROGRAM"
        #+allegro nil
        #+clisp :terminal
        #+(or clozure cmucl ecl mkcl sbcl scl) t)
-      #+(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+      #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
            :output
@@ -442,10 +442,10 @@ to be normalized by %NORMALIZE-IO-SPECIFIER.
 It returns a process-info object."
     ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
-    #-(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    #-(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys input output error-output directory wait ;; ignore
            (not-implemented-error '%run-program))
-    #-(or cmucl ecl mkcl sbcl)
+    #-(or abcl cmucl ecl mkcl sbcl)
     (when (and wait (member :stream (list input output error-output)))
       (parameter-error "~S: I/O parameters cannot be ~S when ~S is ~S on this lisp"
                        '%run-program :stream :wait t))
@@ -456,7 +456,7 @@ It returns a process-info object."
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be file streams on this lisp"
                        '%run-program))
-    #+(or clisp lispworks)
+    #+(or abcl clisp lispworks)
     (when (some #'streamp (list input output error-output))
       (parameter-error "~S: I/O parameters cannot be foreign streams on this lisp"
                        '%run-program))
@@ -476,7 +476,7 @@ It returns a process-info object."
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
                        '%run-program))
-    #+(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    #+(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%if-output-exists (%normalize-if-exists if-output-exists))
            (%input (%normalize-io-specifier input :input))
@@ -489,6 +489,7 @@ It returns a process-info object."
               #-(or allegro mkcl sbcl) (with-current-directory (directory))
               #+(or allegro clisp ecl lispworks mkcl) (multiple-value-list)
               (apply
+               #+abcl #'sys:run-program
                #+allegro 'excl:run-shell-command
                #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
                #+(and allegro os-windows) %command
@@ -505,13 +506,13 @@ It returns a process-info object."
                #+mkcl 'mk-ext:run-program
                #+sbcl 'sb-ext:run-program
                (append
-                #+(or clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
+                #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
                 `(:input ,%input :output ,%output :wait ,wait :allow-other-keys t)
                 #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
                             ,%error-output)
                 #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
                 #+clisp `(:if-output-exists ,%if-output-exists)
-                #+(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+                #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
                 `(:if-input-does-not-exist ,if-input-does-not-exist
                   :if-output-exists ,%if-output-exists
                   #-(or allegro lispworks) :if-error-exists
@@ -556,21 +557,24 @@ It returns a process-info object."
              (3 (prop 'bidir-stream (pop process*))
               (prop 'input-stream (pop process*))
               (prop 'output-stream (pop process*))))))
-        #+(or clozure cmucl sbcl scl)
+        #+(or abcl clozure cmucl sbcl scl)
         (progn
           (prop 'process process*)
           (when (eq input :stream)
             (prop 'input-stream
+                  #+abcl (symbol-call :sys :process-input process*)
                   #+clozure (ccl:external-process-input-stream process*)
                   #+(or cmucl scl) (ext:process-input process*)
                   #+sbcl (sb-ext:process-input process*)))
           (when (eq output :stream)
             (prop 'output-stream
+                  #+abcl (symbol-call :sys :process-output process*)
                   #+clozure (ccl:external-process-output-stream process*)
                   #+(or cmucl scl) (ext:process-output process*)
                   #+sbcl (sb-ext:process-output process*)))
           (when (eq error-output :stream)
             (prop 'error-output-stream
+                  #+abcl (symbol-call :sys :process-error process*)
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmucl scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
@@ -618,6 +622,7 @@ It returns a process-info object."
   (defun %process-info-pid (process-info)
     (let ((process (slot-value process-info 'process)))
       (declare (ignorable process))
+      #+abcl (symbol-call :sys :process-pid process)
       #+allegro process
       #+clozure (ccl:external-process-id process)
       #+ecl (ext:external-process-pid process)
@@ -626,7 +631,7 @@ It returns a process-info object."
       #+(and lispworks (not lispworks7+)) process
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
-      #-(or allegro clozure cmucl ecl mkcl lispworks sbcl scl)
+      #-(or abcl allegro clozure cmucl ecl mkcl lispworks sbcl scl)
       (not-implemented-error '%process-info-pid)))
 
   (defun wait-process (process-info)
@@ -639,7 +644,7 @@ before it is garbage-collected in order to free up resources that
 might otherwise be irrevocably lost."
     (or (slot-value process-info 'exit-code)
         (let ((process (slot-value process-info 'process)))
-          #-(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+          #-(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
           (not-implemented-error 'wait-process)
           (when process
             ;; 1- wait
@@ -648,6 +653,7 @@ might otherwise be irrevocably lost."
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
             (let ((exit-code
+                   #+abcl (sys:process-wait process)
                    #+allegro (multiple-value-bind (exit-code pid signal)
                                  (sys:reap-os-subprocess :pid process :wait t)
                                (assert pid)
@@ -780,7 +786,7 @@ or :error-output."
   (defun %use-run-program (command &rest keys
                            &key input output error-output ignore-error-status &allow-other-keys)
     ;; helper for RUN-PROGRAM when using %run-program
-    #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl)
+    #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl)
     (progn
       command keys input output error-output ignore-error-status ;; ignore
       (not-implemented-error '%use-run-program))
@@ -894,7 +900,7 @@ or :error-output."
               :input :interactive :output :interactive :error-output :interactive keys))
       #-(or clisp (and lispworks os-windows))
       (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
-        #+abcl (ext:run-shell-command %command)
+        #+abcl (ext:run-shell-command %command) ;; FIXME: deprecated
         #+cormanlisp (win32:system %command)
         #+(or clasp ecl) (let ((*standard-input* *stdin*)
                     (*standard-output* *stdout*)
@@ -1001,7 +1007,7 @@ or an indication of failure via the EXIT-CODE of the process"
                      #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
                                (lexicographic<= '< ver '(16 0 1)))
                      #+(and lispworks os-unix) (%interactivep input output error-output)
-                     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
+                     #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)
              command
              :input (default input inputp output)
