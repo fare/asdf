@@ -385,6 +385,7 @@ is bound, write a message and exit on an error.  If
                    (finish-outputs*)
                    (unless *debug-asdf*
                      (ignore-errors
+		       (format *error-output* "~&Backtrace:~%")
                        (acall :print-condition-backtrace
                               c :count 69 :stream *error-output*))
                      (leave-test "Script failed" 1)))))
