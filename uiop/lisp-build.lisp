@@ -667,6 +667,7 @@ it will filter them appropriately."
            (output-file
              (or output-file
                  (apply 'compile-file-pathname* input-file :output-file output-file keywords)))
+           (physical-output-file (physicalize-pathname output-file))
            #+(or clasp ecl)
            (object-file
              (unless (use-ecl-byte-compiler-p)
@@ -677,11 +678,11 @@ it will filter them appropriately."
            (object-file
              (or object-file
                  (compile-file-pathname output-file :fasl-p nil)))
-           (tmp-file (tmpize-pathname output-file))
+           (tmp-file (tmpize-pathname physical-output-file))
            #+sbcl
            (cfasl-file (etypecase emit-cfasl
                          (null nil)
-                         ((eql t) (make-pathname :type "cfasl" :defaults output-file))
+                         ((eql t) (make-pathname :type "cfasl" :defaults physical-output-file))
                          (string (parse-namestring emit-cfasl))
                          (pathname emit-cfasl)))
            #+sbcl
@@ -720,17 +721,23 @@ it will filter them appropriately."
                            #+(or clasp ecl) :lisp-files #+mkcl :lisp-object-files (list object-file))))
                   (or (not compile-check)
                       (apply compile-check input-file
-                             :output-file #-(or clasp ecl) output-file #+(or clasp ecl) tmp-file
+                             :output-file output-truename
                              keywords))))
-           (delete-file-if-exists output-file)
+           (delete-file-if-exists physical-output-file)
            (when output-truename
              #+clasp (when output-truename (rename-file-overwriting-target tmp-file output-truename))
-             #+clisp (when lib-file (rename-file-overwriting-target tmp-lib lib-file))
+             ;; see CLISP bug 677
+             #+clisp
+             (progn
+               (setf tmp-lib (make-pathname :type "lib" :defaults output-truename))
+               (unless lib-file (setf lib-file (make-pathname :type "lib" :defaults physical-output-file)))
+               (rename-file-overwriting-target tmp-lib lib-file))
              #+sbcl (when cfasl-file (rename-file-overwriting-target tmp-cfasl cfasl-file))
-             (rename-file-overwriting-target output-truename output-file)
-             (setf output-truename (truename output-file)))
+             (rename-file-overwriting-target output-truename physical-output-file)
+             (setf output-truename (truename physical-output-file)))
            #+clasp (delete-file-if-exists tmp-file)
-           #+clisp (delete-file-if-exists tmp-lib))
+           #+clisp (progn (delete-file-if-exists tmp-file) ;; this one works around clisp BUG 677
+                          (delete-file-if-exists tmp-lib))) ;; this one is "normal" defensive cleanup
           (t ;; error or failed check
            (delete-file-if-exists output-truename)
            #+clisp (delete-file-if-exists tmp-lib)

@@ -601,13 +601,16 @@ NILs."
   (defun rename-file-overwriting-target (source target)
     "Rename a file, overwriting any previous file with the TARGET name,
 in an atomic way if the implementation allows."
-    #+clisp ;; in recent enough versions of CLISP, :if-exists :overwrite would make it atomic
-    (progn (funcall 'require "syscalls")
-           (symbol-call :posix :copy-file source target :method :rename))
-    #+(and sbcl os-windows) (delete-file-if-exists target) ;; not atomic
-    #-clisp
-    (rename-file source target
-                 #+(or clasp clozure ecl) :if-exists #+clozure :rename-and-delete #+(or clasp ecl) t))
+    (let ((source (ensure-pathname source :namestring :lisp :ensure-physical t :want-file t))
+          (target (ensure-pathname target :namestring :lisp :ensure-physical t :want-file t)))
+      #+clisp ;; in recent enough versions of CLISP, :if-exists :overwrite would make it atomic
+      (progn (funcall 'require "syscalls")
+             (symbol-call :posix :copy-file source target :method :rename))
+      #+(and sbcl os-windows) (delete-file-if-exists target) ;; not atomic
+      #-clisp
+      (rename-file source target
+                   #+(or clasp clozure ecl) :if-exists
+                   #+clozure :rename-and-delete #+(or clasp ecl) t)))
 
   (defun delete-empty-directory (directory-pathname)
     "Delete an empty directory"

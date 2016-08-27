@@ -579,7 +579,11 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
     (loop
       :with prefix-pn = (ensure-absolute-pathname
                          (or prefix "tmp")
-                         (or (ensure-pathname directory :namestring :native :ensure-directory t)
+                         (or (ensure-pathname
+                              directory
+                              :namestring :native
+                              :ensure-directory t
+                              :ensure-physical t)
                              #'temporary-directory))
       :with prefix-nns = (native-namestring prefix-pn)
       :with results = (progn (ensure-directories-exist prefix-pn)
@@ -679,9 +683,9 @@ Further KEYS can be passed to MAKE-PATHNAME."
     "Return a new pathname modified from X by adding a trivial random suffix.
 A new empty file with said temporary pathname is created, to ensure there is no
 clash with any concurrent process attempting the same thing."
-    (let* ((px (ensure-pathname x))
+    (let* ((px (ensure-pathname x :ensure-physical t))
            (prefix (if-let (n (pathname-name px)) (strcat n "-tmp") "tmp"))
-           (directory (translate-logical-pathname (pathname-directory-pathname px))))
+           (directory (pathname-directory-pathname px)))
       (get-temporary-file :directory directory :prefix prefix :type (pathname-type px))))
 
   (defun call-with-staging-pathname (pathname fun)
