@@ -1,5 +1,5 @@
 @echo off
-:: Usage: ./make.sh [keyword=argument ...] <command>
+:: Usage: ./make-asdf.bat [keyword=argument ...] <command>
 :: See the Makefile for the list of acceptable keyword arguments
 
 set here=%~dp0

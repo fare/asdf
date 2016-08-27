@@ -56,13 +56,13 @@
                        (system-source-file (find-system :asdf)))
 
 
-;;; disabling this test on windows since it relies on running make.bat, which
+;;; disabling this test on windows since it relies on running make-asdf.bat, which
 ;;; does not work for me under cygwin. - rpg 2016-03-20
 
 (defun search-makefile (target)
   (with-open-file (str (merge-pathnames (make-pathname :name "Makefile" :type nil)
                                         *asdf-directory* ))
-    (let ((line                   
+    (let ((line
            (loop for x = (read-line str)
                  when (search target x)
                  return (subseq x (length target))
