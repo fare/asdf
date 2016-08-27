@@ -4561,7 +4561,7 @@ to protect any @code{:encoding @emph{encoding}} statement, as in
 @code{#+asdf-unicode :encoding #+asdf-unicode :utf-8}.
 We recommend that you avoid using unprotected @code{:encoding} specifications
 until after ASDF 2.21 or later becomes widespread.
-As of May 2015, all maintained implementations provide ASDF 3,
+As of May 2016, all maintained implementations provide ASDF 3.1,
 so you may prudently start using this and other features without such protection.
 
 While it offers plenty of hooks for extension,
@@ -5534,7 +5534,7 @@ and ensure that ASDF 3 or later is present indeed,
 before they start using ASDF to load anything else.
 
 @item
-Now that all implementations provide ASDF 3 or later (since May 2015),
+Now that all implementations provide ASDF 3.1 or later (since May 2016),
 the simple solution is just to use code as below in your setup,
 and when it fails, upgrade your implementation or replace its ASDF.
 (@pxref{Replacing your implementation's ASDF}):
