@@ -414,6 +414,11 @@ argument to pass to the internal RUN-PROGRAM"
       (integer raw-exit-code) ; negative: signal
       (t -1)))
 
+  #+mkcl
+  (defun %mkcl-signal-to-number (signal)
+    (require :mk-unix)
+    (symbol-value (find-symbol signal :mk-unix)))
+
   (defclass process-info ()
     ((process :initform nil)
      (input-stream :initform nil)
@@ -576,7 +581,11 @@ It returns a process-info object."
               ((zerop mode))
               ((null process*) (prop 'exit-code -1))
               (t (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))))
-          (when code (prop 'exit-code code))
+          (when code (prop 'exit-code
+                           #-mkcl code
+                           #+mkcl (if (stringp code)
+                                      (%mkcl-signal-to-number code)
+                                      code)))
           (when process (prop 'process process)))
         #+lispworks
         (if wait
@@ -653,7 +662,10 @@ might otherwise be irrevocably lost."
                                 #-lispworks7+ #'sys:pid-exit-status
                                 process :wait t)
                      (or signal exit-code))
-                   #+mkcl (mkcl:join-process process)
+                   #+mkcl (let ((exit-code (mkcl:join-process process)))
+                            (if (stringp exit-code)
+                                (%mkcl-signal-to-number exit-code)
+                                (exit-code)))
                    #+sbcl (sb-ext:process-exit-code process)))
               (setf (slot-value process-info 'exit-code) exit-code)
               exit-code)))))
