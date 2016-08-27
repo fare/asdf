@@ -547,7 +547,7 @@ It returns a process-info object."
           (when process (prop 'process process)))
         #+lispworks
         (if wait
-            (prop 'exit-code (first process*))
+            (prop 'exit-code (or (second process*) (first process*)))
             (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
               (if (or (plusp mode) (eq error-output :stream))
                   (destructuring-bind (io err pid) process*
@@ -598,9 +598,13 @@ It returns a process-info object."
                    #+clozure (nth-value 1 (ccl:external-process-status process))
                    #+(or cmucl scl) (ext:process-exit-code process)
                    #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
-                   #+lispworks (funcall #+lispworks7+ #'sys:pipe-exit-status
-                                        #-lispworks7+ #'sys:pid-exit-status
-                                        process :wait t)
+                   #+lispworks
+                   ;; a signal is only returned on LispWorks 7+
+                   (multiple-value-bind (exit-code signal)
+                       (funcall #+lispworks7+ #'sys:pipe-exit-status
+                                #-lispworks7+ #'sys:pid-exit-status
+                                process :wait t)
+                     (or signal exit-code))
                    #+mkcl (mkcl:join-process process)
                    #+sbcl (sb-ext:process-exit-code process)))
               (setf (slot-value process-info 'exit-code) exit-code)
