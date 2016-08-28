@@ -431,6 +431,26 @@
     (handle-result "exit code matches? (no. 2)"
                    (equal 12 (wait-process process-info)))))
 
+(define-test
+    "exit code after signal: synchronous (repeated)"
+    #+(and lispworks (not lispworks7+))
+    (skip-test "Known to fail")
+    (let ((process-info (%run-program "./killer.sh" :wait t)))
+      (handle-result "exit code matches?"
+                     (equal (+ 128 15) (wait-process process-info)))
+      (handle-result "exit code matches? (no. 2)"
+                     (equal (+ 128 15) (wait-process process-info)))))
+
+(define-test
+    "exit code after signal: asynchronous (repeated)"
+    #+(and lispworks (not lispworks7+))
+    (skip-test "Known to fail")
+    (let ((process-info (%run-program "./killer.sh" :wait nil)))
+      (handle-result "exit code matches?"
+                     (equal (+ 128 15) (wait-process process-info)))
+      (handle-result "exit code matches? (no. 2)"
+                     (equal (+ 128 15) (wait-process process-info)))))
+
 (fresh-line)
 (run-tests)
 
