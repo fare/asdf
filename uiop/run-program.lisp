@@ -407,12 +407,8 @@ argument to pass to the internal RUN-PROGRAM"
   (defun %interactivep (input output error-output)
     (member :interactive (list input output error-output)))
 
-  #+clisp
-  (defun clisp-exit-code (raw-exit-code)
-    (typecase raw-exit-code
-      (null 0) ; no error
-      (integer raw-exit-code) ; negative: signal
-      (t -1)))
+  (defun %signal-to-exit-code (signum)
+    (+ 128 signum))
 
   #+mkcl
   (defun %mkcl-signal-to-number (signal)
@@ -425,7 +421,13 @@ argument to pass to the internal RUN-PROGRAM"
      (output-stream :initform nil)
      (bidir-stream :initform nil)
      (error-output-stream :initform nil)
-     (exit-code :initform nil)))
+     ;; For backward-compatibility, to maintain the property (zerop
+     ;; exit-code) <-> success, an exit in response to a signal is
+     ;; encoded as 128+signum.
+     (exit-code :initform nil)
+     ;; If the platform allows it, distinguish exiting with a code
+     ;; >128 from exiting in response to a signal by setting this code
+     (signal-code :initform nil)))
 
   (defun %run-program (command
                        &rest keys
@@ -525,11 +527,16 @@ It returns a process-info object."
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info (make-instance 'process-info)))
       #+clisp (declare (ignore %error-output))
-      (flet ((prop (key value)
-               (setf (slot-value process-info key) value)))
+      (labels ((prop (key value) (setf (slot-value process-info key) value))
+               #+(or allegro clisp ecl lispworks mkcl)
+               (store-codes (exit-code &optional signal-code)
+                 (if signal-code
+                     (progn (prop 'exit-code (%signal-to-exit-code signal-code))
+                            (prop 'signal-code signal-code))
+                     (prop 'exit-code exit-code))))
         #+allegro
         (cond
-          (wait (prop 'exit-code (first process*)))
+          (wait (store-codes (first process*)))
           (separate-streams
            (destructuring-bind (in out err pid) process*
              (prop 'process pid)
@@ -547,16 +554,18 @@ It returns a process-info object."
            (when (eq error-output :stream)
              (prop 'error-stream (second process*)))))
         #+clisp
-        (cond
-          (wait (prop 'exit-code (clisp-exit-code (first process*))))
-          (t
-           (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-             (0)
-             (1 (prop 'input-stream (first process*)))
-             (2 (prop 'output-stream (first process*)))
-             (3 (prop 'bidir-stream (pop process*))
-              (prop 'input-stream (pop process*))
-              (prop 'output-stream (pop process*))))))
+        (if wait
+            (let ((raw-exit-code (or (first process*) 0)))
+              (if (minusp raw-exit-code)
+                  (store-codes 0 (- raw-exit-code))
+                  (store-codes raw-exit-code)))
+            (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
+              (0)
+              (1 (prop 'input-stream (first process*)))
+              (2 (prop 'output-stream (first process*)))
+              (3 (prop 'bidir-stream (pop process*))
+                 (prop 'input-stream (pop process*))
+                 (prop 'output-stream (pop process*)))))
         #+(or abcl clozure cmucl sbcl scl)
         (progn
           (prop 'process process*)
@@ -583,17 +592,18 @@ It returns a process-info object."
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
             (cond
               ((zerop mode))
-              ((null process*) (prop 'exit-code -1))
+              ((null process*) (store-codes -1))
               (t (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))))
-          (when code (prop 'exit-code
-                           #-mkcl code
-                           #+mkcl (if (stringp code)
-                                      (%mkcl-signal-to-number code)
+          (when code
+            (let ((signum #+mkcl (and (stringp code) (%mkcl-signal-to-number code))
+                          #-mkcl (and (eq (ext:external-process-wait process)
+                                          :signaled)
                                       code)))
+              (store-codes code signum)))
           (when process (prop 'process process)))
         #+lispworks
         (if wait
-            (prop 'exit-code (or (second process*) (first process*)))
+            (store-codes (first process*) (second process*))
             (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
               (if (or (plusp mode) (eq error-output :stream))
                   (destructuring-bind (io err pid) process*
@@ -638,43 +648,66 @@ It returns a process-info object."
     "Wait for the process to terminate, if it is still running.
 Otherwise, return immediately. An exit code (a number) will be
 returned, with 0 indicating success, and anything else indicating
-failure.
+failure. If the process exits after receiving a signal, the exit code
+will be the sum of 128 and the (positive) numeric signal code. A second
+value may be returned in this case: the numeric signal code itself.
 Any asynchronously spawned process requires this function to be run
 before it is garbage-collected in order to free up resources that
 might otherwise be irrevocably lost."
-    (or (slot-value process-info 'exit-code)
-        (let ((process (slot-value process-info 'process)))
-          #-(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
-          (not-implemented-error 'wait-process)
-          (when process
-            ;; 1- wait
-            #+clozure (ccl::external-process-wait process)
-            #+(or cmucl scl) (ext:process-wait process)
-            #+sbcl (sb-ext:process-wait process)
-            ;; 2- extract result
-            (let ((exit-code
-                   #+abcl (sys:process-wait process)
-                   #+allegro (multiple-value-bind (exit-code pid signal)
-                                 (sys:reap-os-subprocess :pid process :wait t)
-                               (assert pid)
-                               (or signal exit-code))
-                   #+clozure (nth-value 1 (ccl:external-process-status process))
-                   #+(or cmucl scl) (ext:process-exit-code process)
-                   #+ecl (nth-value 1 (ext:external-process-wait process t))
-                   #+lispworks
-                   ;; a signal is only returned on LispWorks 7+
-                   (multiple-value-bind (exit-code signal)
-                       (funcall #+lispworks7+ #'sys:pipe-exit-status
-                                #-lispworks7+ #'sys:pid-exit-status
-                                process :wait t)
-                     (or signal exit-code))
-                   #+mkcl (let ((exit-code (mkcl:join-process process)))
-                            (if (stringp exit-code)
-                                (%mkcl-signal-to-number exit-code)
-                                (exit-code)))
-                   #+sbcl (sb-ext:process-exit-code process)))
-              (setf (slot-value process-info 'exit-code) exit-code)
-              exit-code)))))
+    (if-let (exit-code (slot-value process-info 'exit-code))
+      (if-let (signal-code (slot-value process-info 'signal-code))
+        (values exit-code signal-code)
+        exit-code)
+      (let ((process (slot-value process-info 'process)))
+        #-(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+        (not-implemented-error 'wait-process)
+        (when process
+          ;; 1- wait
+          #+clozure (ccl::external-process-wait process)
+          #+(or cmucl scl) (ext:process-wait process)
+          #+sbcl (sb-ext:process-wait process)
+          ;; 2- extract result
+          (multiple-value-bind (exit-code signal-code)
+              (progn
+                #+abcl (sys:process-wait process)
+                #+allegro (multiple-value-bind (exit-code pid signal)
+                              (sys:reap-os-subprocess :pid process :wait t)
+                            (assert pid)
+                            (values exit-code signal))
+                #+clozure (multiple-value-bind (status code)
+                              (ccl:external-process-status process)
+                            (if (eq status :signaled)
+                                (values nil code)
+                                code))
+                #+(or cmucl scl) (let ((status (ext:process-status process))
+                                       (code (ext:process-exit-code process)))
+                                   (if (eq status :signaled)
+                                       (values nil code)
+                                       code))
+                #+ecl (multiple-value-bind (status code)
+                          (ext:external-process-wait process t)
+                        (if (eq status :signaled)
+                            (values nil code)
+                            code))
+                #+lispworks (funcall #+lispworks7+ #'sys:pipe-exit-status
+                                     #-lispworks7+ #'sys:pid-exit-status
+                                     process :wait t)
+                #+mkcl (let ((code (mkcl:join-process process)))
+                         (if (stringp code)
+                             (values nil (%mkcl-signal-to-number code))
+                             code))
+                #+sbcl (let ((status (sb-ext:process-status process))
+                             (code (sb-ext:process-exit-code process)))
+                         (if (eq status :signaled)
+                             (values nil code)
+                             code)))
+            (if signal-code
+                (let ((%exit-code (%signal-to-exit-code signal-code)))
+                  (setf (slot-value process-info 'exit-code) %exit-code
+                        (slot-value process-info 'signal-code) signal-code)
+                  (values %exit-code signal-code))
+                (progn (setf (slot-value process-info 'exit-code) exit-code)
+                       exit-code)))))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
     (unless ignore-error-status
