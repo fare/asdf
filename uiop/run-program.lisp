@@ -582,9 +582,9 @@ It returns a process-info object."
   (defun %wait-process-result (process-info)
     (or (slot-value process-info 'exit-code)
         (let ((process (slot-value process-info 'process)))
+          #-(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
+          (error "~S not implemented" '%wait-process)
           (when process
-            #-(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
-            (error "~S not implemented" '%wait-process)
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
             #+(or cmucl scl) (ext:process-wait process)
