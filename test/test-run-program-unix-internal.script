@@ -451,6 +451,105 @@
       (handle-result "exit code matches? (no. 2)"
                      (equal (+ 128 15) (wait-process process-info)))))
 
+(new-test-suite "process-alive-p")
+
+(define-test
+    "not alive (we slept)"
+    (let ((process-info (%run-program "./sleeper.sh 12 1" :wait nil)))
+      (handle-result "alive?"
+                     (process-alive-p process-info))
+      (sleep 2)
+      (handle-result "dead?"
+                     (not (process-alive-p process-info)))
+      (wait-process process-info)))
+
+
+(define-test
+    "not alive (we waited)"
+    (let ((process-info (%run-program "./sleeper.sh 12 1" :wait nil)))
+      (handle-result "alive?"
+                     (process-alive-p process-info))
+      (wait-process process-info)
+      (handle-result "dead?"
+                     (not (process-alive-p
+                           process-info)))))
+
+(define-test
+    "multiple processes: proper exit sequence"
+    (let ((process-info1 (%run-program "./sleeper.sh 12 1" :wait nil))
+          (process-info2 (%run-program "./sleeper.sh 12 2" :wait nil)))
+      (handle-result "#1 alive?"
+                     (process-alive-p process-info1))
+      (handle-result "#2 alive?"
+                     (process-alive-p process-info2))
+      (wait-process process-info1)
+      (handle-result "#1 dead?"
+                     (not (process-alive-p
+                           process-info1)))
+      (handle-result "#2 still alive?"
+                     (process-alive-p process-info2))
+      (wait-process process-info2)
+      (handle-result "#1 still dead?"
+                     (not (process-alive-p
+                           process-info1)))
+      (handle-result "#2 dead?"
+                     (not (process-alive-p
+                           process-info2)))))
+
+(new-test-suite "%process-status")
+
+(define-test
+    ":exited (we slept; repeated query)"
+    (let* ((process-info (%run-program "./sleeper.sh 12 1" :wait nil))
+           (status (uiop/run-program::%process-status process-info)))
+      (handle-result "running?" (equal :running status))
+      (sleep 2)
+      (multiple-value-bind (status exit-code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "exited?" (equal :exited status))
+        (handle-result "proper exit status?" (equal 12 exit-code)))
+      (multiple-value-bind (status exit-code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "exited? (no. 2)" (equal :exited status))
+        (handle-result "proper exit status? (no. 2)" (equal 12 exit-code)))
+      (wait-process process-info)))
+
+(define-test
+    ":exited/:signaled (it killed itself; repeated query)"
+    #+(and lispworks (not lispworks7+))
+    (skip-test "Known to fail")
+    (let* ((process-info (%run-program "./killer.sh" :wait nil)))
+      (sleep 1)
+      (multiple-value-bind (status code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "exited or signaled?"
+                       (member status '(:exited :signaled)))
+        (handle-result "signal/exit code as expected?"
+                       (or (and (eq status :exited) (eql code 143))
+                           (and (eq status :signaled) (eql code 15)))))
+      (multiple-value-bind (status code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "exited or signaled? (no. 2)"
+                       (member status '(:exited :signaled)))
+        (handle-result "signal/exit code as expected? (no. 2)"
+                       (or (and (eq status :exited) (eql code 143))
+                           (and (eq status :signaled) (eql code 15)))))
+      (wait-process process-info)))
+
+(define-test
+    ":exited (it exited >128; repeated query)"
+    (let* ((process-info (%run-program "./killercontainer.sh" :wait nil)))
+      (sleep 1)
+      (multiple-value-bind (status code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "exited?" (eq status :exited))
+        (handle-result "proper exit status?" (eql code (+ 128 15))))
+      (multiple-value-bind (status code)
+          (uiop/run-program::%process-status process-info)
+        (handle-result "exited (no. 2)?" (eq status :exited))
+        (handle-result "proper exit status? (no. 2)?" (eql code (+ 128 15))))
+      (wait-process process-info)))
+
 (fresh-line)
 (run-tests)
 
