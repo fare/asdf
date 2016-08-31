@@ -256,6 +256,7 @@ Issues with using and extending ASDF to define systems
 * How do I mark a source file to be loaded only and not compiled?::
 * How do I work with readtables?::
 * How can I capture ASDF's output?::
+* LOAD-PATHNAME has a weird value::
 
 ASDF development FAQs
 
@@ -5799,6 +5800,7 @@ and only do this from your personal configuration or build scripts.
 * How do I mark a source file to be loaded only and not compiled?::
 * How do I work with readtables?::
 * How can I capture ASDF's output?::
+* LOAD-PATHNAME has a weird value::
 @end menu
 
 @node How can I cater for unit-testing in my system?, How can I cater for documentation generation in my system?, Issues with using and extending ASDF to define systems, Issues with using and extending ASDF to define systems
@@ -6078,7 +6080,7 @@ to eschew using such an important library anymore.
 
 Use from the @code{named-readtables} system the macro @code{named-readtables:defreadtable}.
 
-@node How can I capture ASDF's output?,  , How do I work with readtables?, Issues with using and extending ASDF to define systems
+@node How can I capture ASDF's output?, LOAD-PATHNAME has a weird value, How do I work with readtables?, Issues with using and extending ASDF to define systems
 @subsection How can I capture ASDF's output?
 
 @cindex ASDF output
@@ -6089,7 +6091,36 @@ Output from ASDF and ASDF extensions are sent to the CL stream
 @code{*standard-output*}, so rebinding that stream around calls to
 @code{asdf:operate} should redirect all output from ASDF operations.
 
+@node LOAD-PATHNAME has a weird value,  , How can I capture ASDF's output?, Issues with using and extending ASDF to define systems
+@subsection *LOAD-PATHNAME* and *LOAD-TRUENAME* have weird values, help!
+@vindex *LOAD-PATHNAME*
+@vindex *LOAD-TRUENAME*
 
+Conventional Common Lisp code may use @code{*LOAD-TRUENAME*} or @code{*LOAD-PATHNAME*} to find
+files adjacent to source files.  This will generally @emph{not} work in
+ASDF-loaded systems.  Recall that ASDF relocates the FASL files it
+builds, typically to a special cache directory.  Thus the value of
+@code{*LOAD-PATHNAME*} and @code{*LOAD-TRUENAME*}  at load time, when ASDF is loading your system,
+will typically be a pathname in that cache directory, and useless to you
+for finding other system components.
+
+There are two ways to work around this problem:
+@enumerate
+@findex system-relative-pathname
+@item
+Use the @code{system-relative-pathname} function.  This can readily be
+used from outside the system, but it is probably not good software
+engineering to require a source file @emph{of} a system to know what
+system it is going to be part of.  Contained objects should not have to
+know their containers.
+@item
+Store the pathname at compile time, so that you get the pathname of the
+source file, which is presumably what you want.  To do this, you can
+capture the value of @code{(or *compile-file-pathname* *load-truename*)}
+(or @code{*LOAD-PATHNAME*}, if you prefer)
+in a macro expansion or other compile-time evaluated context.
+
+@end enumerate
 
 @node ASDF development FAQs,  , Issues with using and extending ASDF to define systems, FAQ
 @section ASDF development FAQs
