@@ -48,6 +48,9 @@
 (load-system :test-logical-pathname :force t)
 
 #+abcl (leave-test "ABCL translates logical pathnames in *LOAD-PATHNAME*" 0)
+#+clisp
+(unless (version<= "2.50" (first (split-string (lisp-implementation-version) :separator "-+ ")))
+  (leave-test "CLISP 2.49 translates logical pathnames in *LOAD-PATHNAME*" 0))
 
 (defparameter sys (find-system :test-logical-pathname))
 (assert (logical-pathname-p (component-pathname sys)))
