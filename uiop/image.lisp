@@ -51,7 +51,7 @@ before the image dump hooks are called and before the image is dumped.")
     "Functions to call (in order) when before an image is dumped")
 
   (deftype fatal-condition ()
-    `(and serious-condition #+ccl (not ccl:process-reset))))
+    `(and serious-condition #+clozure (not ccl:process-reset))))
 
 ;;; Exiting properly or im-
 (with-upgradability ()
