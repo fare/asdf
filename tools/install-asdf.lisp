@@ -62,13 +62,13 @@ a command-line executable for LispWorks this way:
   #+(or clasp ecl mkcl) #p"sys:"
   #+clisp (subpathname custom:*lib-directory* "asdf/")
   #+clozure #p"ccl:tools;"
-  #+cmu #p"modules:asdf/"
+  #+cmucl #p"modules:asdf/"
   #+gcl (subpathname system:*system-directory* "../modules/")
   #+lispworks (system:lispworks-dir "load-on-demand/utilities/")
   #+sbcl (subpathname (sb-int:sbcl-homedir-pathname) "contrib/")
   #+scl #p"file://modules/"
   #+xcl ext:*xcl-home*
-  #-(or allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
+  #-(or allegro clasp clisp clozure cmucl ecl gcl lispworks mkcl sbcl scl xcl)
   (error "module-directory not implemented on ~A" (implementation-type)))
 
 (defun module-fasl (name)
@@ -81,9 +81,9 @@ a command-line executable for LispWorks this way:
                (t -1)))))
     (first (sort (directory (merge-pathnames* (strcat name ".*") (module-directory)))
                  #'> :key #'pathname-key)))
-  #+(or clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
+  #+(or clasp clisp clozure cmucl ecl gcl lispworks mkcl sbcl scl xcl)
   (compile-file-pathname (subpathname (truename (module-directory)) name :type "lisp"))
-  #-(or allegro clasp clisp clozure cmu ecl gcl lispworks mkcl sbcl scl xcl)
+  #-(or allegro clasp clisp clozure cmucl ecl gcl lispworks mkcl sbcl scl xcl)
   (error "Not implemented on ~A" (implementation-type)))
 
 (defun uiop-module-fasl () (module-fasl "uiop"))
@@ -154,7 +154,7 @@ a command-line executable for LispWorks this way:
 
 #+(or sbcl mkcl)
 (progn (install-uiop-and-asdf-as-modules) (quit))
-#+(or allegro clasp clisp clozure cmu ecl gcl lispworks scl xcl)
+#+(or allegro clasp clisp clozure cmucl ecl gcl lispworks scl xcl)
 (progn (install-asdf-as-module) (quit))
 #+(or abcl cormanlisp genera  mcl mocl)
 (die 2 "Not supported on ~A" (implementation-type))

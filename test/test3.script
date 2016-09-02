@@ -8,7 +8,7 @@
 (DBG "should load file1 but not file2")
 
 ;;; Use REQUIRE where we boast integration, load-system where not.
-(if (or #+(or abcl clozure cmu ecl mkcl sbcl) t
+(if (or #+(or abcl clozure cmucl ecl mkcl sbcl) t
         #+clisp (find-symbol* '#:*module-provider-functions* :custom nil))
     (funcall 'require :test3)
     (load-system :test3))

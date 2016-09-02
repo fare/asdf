@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 (DBG :foo (current-lisp-file-pathname))
 
-(unless (or #+(or allegro (and clisp os-unix) clozure cmu (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
+(unless (or #+(or allegro (and clisp os-unix) clozure cmucl (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
 
@@ -44,7 +44,7 @@
   (delete-file-if-exists img)
   (DBG "- first create an executable image")
   (make-hello-world 'image)
-  #+cmu
+  #+cmucl
   (unless (probe-file* img)
     (leave-test "CMUCL seemingly can't find the 32-bit compiler and libraries required to dump images. Aborting test." 0))
   (assert (probe-file* img) () "Can't find image file ~S" img)
@@ -81,7 +81,7 @@
 (progn
   (DBG "test program-op")
   (unless (or #+(or clisp clozure (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl) t
-              #+cmu nil ;; uncomment if you have 32-bit gcc support - or can autodetect
+              #+cmucl nil ;; uncomment if you have 32-bit gcc support - or can autodetect
               #+clisp (version-satisfies
                        (first (split-string (lisp-implementation-version) :separator " "))
                        "2.48"))

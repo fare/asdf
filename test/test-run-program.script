@@ -177,14 +177,14 @@ Testing run-program
   (assert-equal (nl "Hello World") (run-program "echo Hello World" :output :string))
 
   (DBG "Test that run-program fails properly with an empty program string")
-  #+(or clozure (and allegro os-unix) cmu (and lispworks os-unix) sbcl scl)
+  #+(or clozure (and allegro os-unix) cmucl (and lispworks os-unix) sbcl scl)
   (signals error (run-program '("") :output :lines))
 
   (DBG "An empty string itself is ok since it is passed to the shell.")
   (assert-equal "" (run-program "" :output :string))
 
   (DBG "Test that run-program fails properly with a nil program list")
-  #+(or clozure (and allegro os-unix) cmu sbcl scl)
+  #+(or clozure (and allegro os-unix) cmucl sbcl scl)
   (signals error (run-program nil :output :lines))
 
   (DBG "Test that run-program fails properly when the executable doesn't exist.")

@@ -9,8 +9,8 @@
   (handler-bind (((or
                    #+allegro simple-warning
                    #+clozure ccl:compiler-warning
-                   #+cmu kernel:simple-style-warning
-                   #-(or allegro clozure cmu) warning)
+                   #+cmucl kernel:simple-style-warning
+                   #-(or allegro clozure cmucl) warning)
                    #'muffle-warning))
     (funcall thunk)))
 

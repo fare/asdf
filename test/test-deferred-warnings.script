@@ -108,12 +108,12 @@
      (:no-error (&rest values) (DBG :ustdf1 values) nil))))
 
 (errors #+(or allegro clozure) compile-file-error
-        #+(or cmu scl) compile-warned-error
+        #+(or cmucl scl) compile-warned-error
         #+sbcl compile-failed-error
         (let ((*compile-file-warnings-behaviour* :error))
           (load-system :undefined-variables :force t)))
 (errors #+(or allegro clozure) compile-file-error
-        #+(or cmu scl) null
+        #+(or cmucl scl) null
         #+sbcl compile-failed-error
         (let ((*compile-file-warnings-behaviour* :warning))
           (load-system :undefined-variables :force t)))

@@ -38,9 +38,9 @@ Some constraints:
 #+(and ecl (not ecl-bytecmp)) (require :cmp)
 
 (declaim (optimize (speed 2) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
-                   #+(or cmu scl) (c::brevity 2)))
+                   #+(or cmucl scl) (c::brevity 2)))
 (proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
-                     #+(or cmu scl) (c::brevity 2) #+(or cmu scl) (ext:inhibit-warnings 3)))
+                     #+(or cmucl scl) (c::brevity 2) #+(or cmucl scl) (ext:inhibit-warnings 3)))
 
 (defparameter *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,
@@ -257,7 +257,7 @@ Some constraints:
       #+(or clasp ecl) (or #+ecl-bytecmp :ecl_bytecodes :ecl)
       #+clisp :clisp
       #+clozure :ccl
-      #+cmu :cmucl
+      #+cmucl :cmucl
       #+corman :cormanlisp
       #+digitool :mcl
       #+gcl :gcl
@@ -338,7 +338,7 @@ Some constraints:
   #+clisp (ext:quit code)
   #+clozure (ccl:quit code)
   #+cormanlisp (win32:exitprocess code)
-  #+(or cmu scl) (unix:unix-exit code)
+  #+(or cmucl scl) (unix:unix-exit code)
   #+gcl (system:quit code)
   #+genera (error "You probably don't want to Halt the Machine. (code: ~S)" code)
   #+lispworks (lispworks:quit :status code :confirm nil :return nil :ignore-errors-p t)
@@ -349,7 +349,7 @@ Some constraints:
              (cond
                (exit `(,exit :code code :abort t))
                (quit* `(,quit* :unix-status code :recklessly-p t))))
-  #-(or abcl allegro clasp clisp clozure cmu ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
+  #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
   (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
 
 
@@ -446,7 +446,7 @@ is bound, write a message and exit on an error.  If
                  #+sbcl
                  ((or sb-c::simple-compiler-note sb-kernel:redefinition-warning)
                    #'muffle-warning)
-                 #-(or cmu scl)
+                 #-(or cmucl scl)
                  ;; style warnings shouldn't abort the compilation [2010/02/03:rpg]
                  (style-warning
                    #'(lambda (w)
@@ -487,7 +487,7 @@ is bound, write a message and exit on an error.  If
             ;; CMUCL: ?
             ;; ECL 11.1.1 has spurious warnings, same with XCL 0.0.0.291.
             ;; SCL has no warning but still raises the warningp flag since 2.20.15 (?)
-            #+(or clasp clisp cmu ecl scl xcl) (good :expected-style-warnings)
+            #+(or clasp clisp cmucl ecl scl xcl) (good :expected-style-warnings)
             (and upgradep (good :unexpected-style-warnings))
             (bad :unexpected-style-warnings)))
           (t (good :success)))))))

@@ -375,7 +375,7 @@ for the implementation's underlying run-program function"
 via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
 or whether it's already taken care of by the implementation's underlying run-program."
     (not (typep specifier '(or null string pathname (member :interactive :output)
-                            #+(or cmu (and sbcl os-unix) scl) (or stream (eql t))
+                            #+(or cmucl (and sbcl os-unix) scl) (or stream (eql t))
                             #+lispworks file-stream)))) ;; not a type!? comm:socket-stream
 
   (defun %normalize-io-specifier (specifier &optional role)
@@ -391,8 +391,8 @@ argument to pass to the internal RUN-PROGRAM"
       ((eql :interactive)
        #+allegro nil
        #+clisp :terminal
-       #+(or clasp clozure cmu ecl mkcl sbcl scl) t)
-      #+(or allegro clasp clozure cmu ecl lispworks mkcl sbcl scl)
+       #+(or clasp clozure cmucl ecl mkcl sbcl scl) t)
+      #+(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
            :output
@@ -424,12 +424,12 @@ It returns a process-info plist with possible keys:
      PROCESS, EXIT-CODE, INPUT-STREAM, OUTPUT-STREAM, BIDIR-STREAM, ERROR-STREAM."
     ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
-    #-(or cmu ecl mkcl sbcl)
+    #-(or cmucl ecl mkcl sbcl)
     (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
+    #-(or allegro clasp clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys directory
            (error "run-program not available"))
-    #+(or allegro clasp clisp clozure cmu ecl (and lispworks os-unix) mkcl sbcl scl)
+    #+(or allegro clasp clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%input (%normalize-io-specifier input :input))
            (%output (%normalize-io-specifier output :output))
@@ -456,18 +456,18 @@ It returns a process-info plist with possible keys:
                  (list (lambda (&rest keys)
                          (apply 'ext:run-program (car %command) :arguments (cdr %command) keys))))
                #+clozure 'ccl:run-program
-               #+(or cmu ecl scl) 'ext:run-program
+               #+(or cmucl ecl scl) 'ext:run-program
                #+lispworks 'system:run-shell-command
                #+lispworks (cons "/usr/bin/env" %command) ; LW wants a full path
                #+mkcl 'mk-ext:run-program
                #+sbcl 'sb-ext:run-program
                (append
-                #+(or clozure cmu ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
+                #+(or clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
                 `(:input ,%input :output ,%output :wait ,wait :allow-other-keys t)
                 #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
                             ,%error-output)
                 #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
-                #+(or allegro clozure cmu ecl lispworks mkcl sbcl scl)
+                #+(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
                 `(:if-input-does-not-exist ,if-input-does-not-exist
                   :if-output-exists ,if-output-exists
                   #-(or allegro lispworks) :if-error-exists
@@ -512,23 +512,23 @@ It returns a process-info plist with possible keys:
              (3 (prop :bidir-stream (pop process*))
               (prop :input-stream (pop process*))
               (prop :output-stream (pop process*))))))
-        #+(or clozure cmu sbcl scl)
+        #+(or clozure cmucl sbcl scl)
         (progn
           (prop :process process*)
           (when (eq input :stream)
             (prop :input-stream
                   #+clozure (ccl:external-process-input-stream process*)
-                  #+(or cmu scl) (ext:process-input process*)
+                  #+(or cmucl scl) (ext:process-input process*)
                   #+sbcl (sb-ext:process-input process*)))
           (when (eq output :stream)
             (prop :output-stream
                   #+clozure (ccl:external-process-output-stream process*)
-                  #+(or cmu scl) (ext:process-output process*)
+                  #+(or cmucl scl) (ext:process-output process*)
                   #+sbcl (sb-ext:process-output process*)))
           (when (eq error-output :stream)
             (prop :error-output-stream
                   #+clozure (ccl:external-process-error-stream process*)
-                  #+(or cmu scl) (ext:process-error process*)
+                  #+(or cmucl scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
         #+(or clasp ecl mkcl)
         (destructuring-bind #+(or clasp ecl) (stream code process) #+mkcl (stream process code) process*
@@ -558,10 +558,10 @@ It returns a process-info plist with possible keys:
       #+clasp (si:external-process-pid process)
       #+clozure (ccl:external-process-id process)
       #+ecl (ext:external-process-pid process)
-      #+(or cmu scl) (ext:process-pid process)
+      #+(or cmucl scl) (ext:process-pid process)
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
-      #-(or allegro clasp clozure cmu ecl mkcl lispworks sbcl scl)
+      #-(or allegro clasp clozure cmucl ecl mkcl lispworks sbcl scl)
       (error "~S not implemented" '%process-info-pid)))
 
   (defun %wait-process-result (process-info)
@@ -570,7 +570,7 @@ It returns a process-info plist with possible keys:
           (when process
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
-            #+(or cmu scl) (ext:process-wait process)
+            #+(or cmucl scl) (ext:process-wait process)
             #+sbcl (sb-ext:process-wait process)
             ;; 2- extract result
             #+allegro (multiple-value-bind (exit-code pid signal)
@@ -578,7 +578,7 @@ It returns a process-info plist with possible keys:
                         (declare (ignore pid))
                         (or signal exit-code))
             #+clozure (nth-value 1 (ccl:external-process-status process))
-            #+(or cmu scl) (ext:process-exit-code process)
+            #+(or cmucl scl) (ext:process-exit-code process)
             #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
             #+lispworks
             (if-let ((stream (or (getf process-info :input-stream)
@@ -590,7 +590,7 @@ It returns a process-info plist with possible keys:
                 (funcall f process :wait t)))
             #+mkcl (mkcl:join-process process)
             #+sbcl (sb-ext:process-exit-code process)
-            #-(or allegro clasp clozure cmu ecl lispworks mkcl sbcl scl)
+            #-(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
             (error "~S not implemented" '%wait-process-result)))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
@@ -649,7 +649,7 @@ It returns a process-info plist with possible keys:
         (typecase activity-spec
           ((or null string pathname (eql :interactive))
            (easy-case))
-          #+(or cmu (and sbcl os-unix) scl) ;; streams are only easy on implementations that try very hard
+          #+(or cmucl (and sbcl os-unix) scl) ;; streams are only easy on implementations that try very hard
           (stream
            (if stream-easy-p (easy-case) (hard-case)))
           (t
@@ -793,7 +793,7 @@ It returns a process-info plist with possible keys:
                   &key input output error-output directory &allow-other-keys)
     "A portable abstraction of a low-level call to libc's system()."
     (declare (ignorable input output error-output directory keys))
-    #+(or allegro clozure cmu (and lispworks os-unix) sbcl scl)
+    #+(or allegro clozure cmucl (and lispworks os-unix) sbcl scl)
     (%wait-process-result
      (apply '%run-program (%normalize-system-command command) :wait t keys))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
@@ -898,7 +898,7 @@ RUN-PROGRAM returns 3 values:
 2- either 0 if the subprocess exited with success status,
 or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
-    #-(or abcl allegro clasp clisp clozure cmu cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
+    #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
     (error "RUN-PROGRAM not implemented for this Lisp")
     ;; per doc string, set FORCE-SHELL to T if we get command as a string.  But
     ;; don't override user's specified preference. [2015/06/29:rpg]
