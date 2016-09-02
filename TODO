@@ -241,6 +241,7 @@
 ** For proper incremental redefinitions, systems probably need to
    depend-on (load-asd-op . primary-system) which itself will
    depend-on all the load-op of defsystem-depends-on in that file.
+   https://bugs.launchpad.net/asdf/+bug/1500578
 
 * Include some ABL test for stassats's (now obsolete?) thing:
    (asdf:enable-asdf-binary-locations-compatibility
