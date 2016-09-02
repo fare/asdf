@@ -391,8 +391,8 @@ argument to pass to the internal RUN-PROGRAM"
       ((eql :interactive)
        #+allegro nil
        #+clisp :terminal
-       #+(or clasp clozure cmucl ecl mkcl sbcl scl) t)
-      #+(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
+       #+(or clozure cmucl ecl mkcl sbcl scl) t)
+      #+(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
            :output
@@ -438,10 +438,10 @@ It returns a process-info object."
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
     #-(or cmucl ecl mkcl sbcl)
     (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clasp clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    #-(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys directory
            (error "run-program not available"))
-    #+(or allegro clasp clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    #+(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%if-output-exists (%normalize-if-exists if-output-exists))
            (%input (%normalize-io-specifier input :input))
@@ -457,7 +457,7 @@ It returns a process-info object."
                         ;; if any of the input, output or error-output is :stream.
                         (assert (eq %error-output :terminal)))
               #-(or allegro mkcl sbcl) (with-current-directory (directory))
-              #+(or allegro clasp clisp ecl lispworks mkcl) (multiple-value-list)
+              #+(or allegro clisp ecl lispworks mkcl) (multiple-value-list)
               (apply
                #+allegro 'excl:run-shell-command
                #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
@@ -543,8 +543,8 @@ It returns a process-info object."
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmucl scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
-        #+(or clasp ecl mkcl)
-        (destructuring-bind #+(or clasp ecl) (stream code process) #+mkcl (stream process code) process*
+        #+(or ecl mkcl)
+        (destructuring-bind #+ecl (stream code process) #+mkcl (stream process code) process*
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
             (cond
               ((zerop mode))
@@ -575,7 +575,6 @@ It returns a process-info object."
     (let ((process (slot-value process-info 'process)))
       (declare (ignorable process))
       #+allegro process
-      #+clasp (si:external-process-pid process)
       #+clozure (ccl:external-process-id process)
       #+ecl (ext:external-process-pid process)
       #+(or cmucl scl) (ext:process-pid process)
@@ -583,13 +582,13 @@ It returns a process-info object."
       #+(and lispworks (not lispworks7+)) process
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
-      #-(or allegro clasp clozure cmucl ecl mkcl lispworks sbcl scl)
+      #-(or allegro clozure cmucl ecl mkcl lispworks sbcl scl)
       (error "~S not implemented" '%process-info-pid)))
 
   (defun %wait-process-result (process-info)
     (or (slot-value process-info 'exit-code)
         (let ((process (slot-value process-info 'process)))
-          #-(or allegro clasp clozure cmucl ecl lispworks mkcl sbcl scl)
+          #-(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
           (error "~S not implemented" '%wait-process)
           (when process
             ;; 1- wait
@@ -604,7 +603,7 @@ It returns a process-info object."
                                (or signal exit-code))
                    #+clozure (nth-value 1 (ccl:external-process-status process))
                    #+(or cmucl scl) (ext:process-exit-code process)
-                   #+(or clasp ecl) (nth-value 1 (ext:external-process-wait process t))
+                   #+ecl (nth-value 1 (ext:external-process-wait process t))
                    #+lispworks
                    ;; a signal is only returned on LispWorks 7+
                    (multiple-value-bind (exit-code signal)
