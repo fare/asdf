@@ -242,8 +242,8 @@ case "$lisp" in
     eval="--eval" ;;
   clasp)
     command="${CLASP:-clasp}"
-    flags=""
-    eval="" ;;
+    flags="--norc --noinit"
+    eval="--eval" ;;
   clisp)
     command="${CLISP:-clisp}"
     flags="-norc --silent -ansi -I "
