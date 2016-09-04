@@ -187,9 +187,9 @@ How do I navigate this source tree?
         * [install-asdf.lisp](install-asdf.lisp) -- replace and update an implementation's ASDF
         * [cl-source-registry-cache.lisp](cl-source-registry-cache.lisp) -- update a cache for the source-registry as a standalone script.
 
-* [build.xcvb](build.xcvb)
-    * The system definition for building ASDF with XCVB.
-      It hasn't been tested or maintained for years and has bitrotten.
+* [Makefile-lisp-scripting](Makefile-lisp-scripting),
+  [make-asdf.sh](make-asdf.sh) and [make-asdf.bat](make-asdf.bat)
+    * Makefile and scripts to invoke the lisp scripting variants of the build system.
 
 * [version.lisp-expr](version.lisp-expr)
     * The current version. Bumped up every time the code changes, using:
