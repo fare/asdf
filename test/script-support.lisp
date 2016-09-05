@@ -258,8 +258,9 @@ Some constraints:
         (:case-sensitive-lower :mlisp)
         (:case-insensitive-upper :alisp))
       #+armedbear :abcl
-      #+(or clasp ecl) (or #+ecl-bytecmp :ecl_bytecodes :ecl)
+      #+ecl (or #+ecl-bytecmp :ecl_bytecodes :ecl)
       #+clisp :clisp
+      #+clasp :clasp
       #+clozure :ccl
       #+cmucl :cmucl
       #+corman :cormanlisp
