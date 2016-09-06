@@ -55,13 +55,18 @@ keywords explicitly."
     "Is the underlying operating system an (emulated?) MacOS 9 or earlier?"
     (featurep :mcl))
 
+  (defun os-haiku-p ()
+    "Is the underlying operating system Haiku?"
+    (featurep :haiku))
+
   (defun detect-os ()
     "Detects the current operating system. Only needs be run at compile-time,
 except on ABCL where it might change between FASL compilation and runtime."
     (loop* :with o
            :for (feature . detect) :in '((:os-unix . os-unix-p) (:os-macosx . os-macosx-p)
                                          (:os-windows . os-windows-p)
-                                         (:genera . os-genera-p) (:os-oldmac . os-oldmac-p))
+                                         (:genera . os-genera-p) (:os-oldmac . os-oldmac-p)
+                                         (:haiku . os-haiku-p))
            :when (and (or (not o) (eq feature :os-macosx)) (funcall detect))
            :do (setf o feature) (pushnew feature *features*)
            :else :do (setf *features* (remove feature *features*))
