@@ -132,8 +132,8 @@ indeed, a developer may not only make mistakes, but may deliberately
 introduce or re-introduce bugs at some place to test code in another place.
 
 
-Debugging it
-------------
+Debugging ASDF
+--------------
 
 To interactively debug ASDF, you may load it in such a way that `M-.` will work,
 by installing the source code, and running:
