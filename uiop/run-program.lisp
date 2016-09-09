@@ -729,7 +729,7 @@ It returns a process-info object."
                (active-error-output-p :error-output)
                (t nil)))
            (wait (not activity))
-           output-result error-output-result exit-code)
+           output-result error-output-result exit-code process-info)
       (with-program-output ((reduced-output output-activity)
                             output :keys keys :setf output-result
                             :stream-easy-p t :active (eq activity :output))
@@ -739,38 +739,38 @@ It returns a process-info object."
           (with-program-input ((reduced-input input-activity)
                                input :keys keys
                                :stream-easy-p t :active (eq activity :input))
-            (let ((process-info
-                    (apply '%run-program command
-                           :wait wait :input reduced-input :output reduced-output
-                           :error-output (if (eq error-output :output) :output reduced-error-output)
-                           keys)))
-              (labels ((get-stream (stream-name &optional fallbackp)
-                         (or (slot-value process-info stream-name)
-                             (when fallbackp
-                               (slot-value process-info 'bidir-stream))))
-                       (run-activity (activity stream-name &optional fallbackp)
-                         (if-let (stream (get-stream stream-name fallbackp))
-                           (funcall activity stream)
-                           (error 'subprocess-error
-                                  :code `(:missing ,stream-name)
-                                  :command command :process process-info))))
-                (unwind-protect
-                     (ecase activity
-                       ((nil))
-                       (:input (run-activity input-activity 'input-stream t))
-                       (:output (run-activity output-activity 'output-stream t))
-                       (:error-output (run-activity error-output-activity 'error-output-stream)))
-                  (dolist (stream
-                            (cons (slot-value process-info 'error-output-stream)
-                                  (if-let (bidir-stream (slot-value process-info 'bidir-stream))
-                                          (list bidir-stream)
-                                          (list (slot-value process-info 'input-stream)
-                                                (slot-value process-info 'output-stream)))))
-                    (when stream (close stream)))
-                  (setf exit-code
-                        (%check-result (%wait-process-result process-info)
-                                       :command command :process process-info
-                                       :ignore-error-status ignore-error-status))))))))
+            (setf process-info
+                  (apply '%run-program command
+                         :wait wait :input reduced-input :output reduced-output
+                         :error-output (if (eq error-output :output) :output reduced-error-output)
+                         keys))
+            (labels ((get-stream (stream-name &optional fallbackp)
+                       (or (slot-value process-info stream-name)
+                           (when fallbackp
+                             (slot-value process-info 'bidir-stream))))
+                     (run-activity (activity stream-name &optional fallbackp)
+                       (if-let (stream (get-stream stream-name fallbackp))
+                         (funcall activity stream)
+                         (error 'subprocess-error
+                                :code `(:missing ,stream-name)
+                                :command command :process process-info))))
+              (unwind-protect
+                   (ecase activity
+                     ((nil))
+                     (:input (run-activity input-activity 'input-stream t))
+                     (:output (run-activity output-activity 'output-stream t))
+                     (:error-output (run-activity error-output-activity 'error-output-stream)))
+                (dolist (stream
+                          (cons (slot-value process-info 'error-output-stream)
+                                (if-let (bidir-stream (slot-value process-info 'bidir-stream))
+                                        (list bidir-stream)
+                                        (list (slot-value process-info 'input-stream)
+                                              (slot-value process-info 'output-stream)))))
+                  (when stream (close stream)))
+                (setf exit-code (%wait-process-result process-info)))))))
+      (%check-result exit-code
+                     :command command :process process-info
+                     :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
 
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
@@ -856,12 +856,12 @@ It returns a process-info object."
         (with-program-error-output ((reduced-error-output)
                                     error-output :keys keys :setf error-output-result)
           (with-program-input ((reduced-input) input :keys keys)
-            (setf exit-code
-                  (%check-result (apply '%system command
-                                        :input reduced-input :output reduced-output
-                                        :error-output reduced-error-output keys)
-                                 :command command
-                                 :ignore-error-status ignore-error-status)))))
+            (setf exit-code (apply '%system command
+                                   :input reduced-input :output reduced-output
+                                   :error-output reduced-error-output keys)))))
+      (%check-result exit-code
+                     :command command
+                     :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
 
   (defun run-program (command &rest keys
