@@ -307,7 +307,7 @@ for all the linkable object files associated with the system or its dependencies
                        :when (funcall test f) :do (collect f))))))
 
   (defun pathname-type-equal-function (type)
-    #'(lambda (p) (equal (pathname-type p) type)))
+    #'(lambda (p) (equalp (pathname-type p) type)))
 
   (defmethod input-files ((o gather-op) (c system))
     (unless (eq (bundle-type o) :no-output-file)
