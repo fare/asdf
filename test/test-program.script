@@ -108,8 +108,8 @@
 #+(or ecl mkcl)
 (progn
   (DBG "Now create an program without UIOP")
-  (assert (probe-file (asdf/bundle::asdf-library-pathname)))
-  (assert (probe-file (asdf/bundle::compiler-library-pathname)))
+  (assert (probe-file (asdf/bundle::system-module-pathname "asdf")))
+  (assert (probe-file (asdf/bundle::system-module-pathname "cmp")))
   (def-test-system hello-no-uiop
     :class program-system
     :no-uiop t
