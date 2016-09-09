@@ -520,41 +520,37 @@ for all the linkable object files associated with the system or its dependencies
   ;;(unless (or #+(or clasp ecl) (use-ecl-byte-compiler-p))
   ;;  (setf *load-system-operation* 'load-bundle-op))
 
-  (defun uiop-library-pathname ()
-    #+clasp (probe-file* (compile-file-pathname "sys:uiop" :output-type :object))
-    #+ecl (or (probe-file* (compile-file-pathname "sys:uiop" :type :lib)) ;; new style
-              (probe-file* (compile-file-pathname "sys:uiop" :type :object))) ;; old style
-    #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;uiop"))
+  (defun system-module-pathname (module)
+    (let ((name (coerce-name module)))
+      (some
+       #'probe-file
+       (list
+        #+clasp (compile-file-pathname (make-pathname :name name :defaults "sys:") :output-type :object)
+        #+ecl (compile-file-pathname (make-pathname :name name :defaults "sys:") :type :lib)
+        #+ecl (compile-file-pathname (make-pathname :name name :defaults "sys:") :type :object)
+        #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:")
+        #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;")))))
 
-  (defun asdf-library-pathname ()
-    #+clasp (probe-file* (compile-file-pathname "sys:asdf" :output-type :object))
-    #+ecl (or (probe-file* (compile-file-pathname "sys:asdf" :type :lib)) ;; new style
-              (probe-file* (compile-file-pathname "sys:asdf" :type :object))) ;; old style
-    #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;asdf"))
-
-  (defun compiler-library-pathname ()
-    #+clasp (compile-file-pathname "sys:cmp" :output-type :lib)
-    #+ecl (compile-file-pathname "sys:cmp" :type :lib)
-    #+mkcl (make-pathname :type (bundle-pathname-type :lib) :defaults #p"sys:cmp"))
-
-  (defun make-library-system (name pathname)
-    (make-instance 'prebuilt-system
-                   :name (coerce-name name) :static-library (resolve-symlinks* pathname)))
+  (defun make-library-system (name &optional (pathname (system-module-pathname name)))
+    "Creates a prebuilt-system if PATHNAME isn't NIL."
+    (when pathname
+      (make-instance 'prebuilt-system
+                     :name (coerce-name name)
+                     :static-library (resolve-symlinks* pathname))))
 
   (defmethod component-depends-on :around ((o image-op) (c system))
     (destructuring-bind ((lib-op . deps)) (call-next-method)
       (flet ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name)))
         `((,lib-op
            ,@(unless (or (no-uiop c) (has-it-p "cmp"))
-               `(,(make-library-system
-                   "cmp" (compiler-library-pathname))))
+               `(,(make-library-system "cmp")))
            ,@(unless (or (no-uiop c) (has-it-p "uiop") (has-it-p "asdf"))
                (cond
                  ((system-source-directory :uiop) `(,(find-system :uiop)))
                  ((system-source-directory :asdf) `(,(find-system :asdf)))
-                 (t `(,@(if-let (uiop (uiop-library-pathname))
+                 (t `(,@(if-let (uiop (system-module-pathname "uiop"))
                           `(,(make-library-system "uiop" uiop)))
-                      ,(make-library-system "asdf" (asdf-library-pathname))))))
+                      ,(make-library-system "asdf")))))
            ,@deps)))))
 
   (defmethod perform ((o link-op) (c system))
