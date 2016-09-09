@@ -371,7 +371,9 @@ Otherwise, using WRITE-SEQUENCE using a buffer of size BUFFER-SIZE."
     ;; Not available on LW personal edition or LW 6.0 on Mac: (lispworks:copy-file i f)
     #+allegro
     (excl.osi:copy-file input output)
-    #-allegro
+    #+ecl
+    (ext:copy-file input output)
+    #-(or allegro ecl)
     (concatenate-files (list input) output))
 
   (defun slurp-stream-string (input &key (element-type 'character) stripped)
