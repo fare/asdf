@@ -540,17 +540,16 @@ for all the linkable object files associated with the system or its dependencies
 
   (defmethod component-depends-on :around ((o image-op) (c system))
     (destructuring-bind ((lib-op . deps)) (call-next-method)
-      (flet ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name)))
+      (labels ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name))
+               (linkable-system (x) (unless (has-it-p x)
+                  (if (system-source-directory x)
+                    `(,(find-system x))
+                    `(,(make-library-system x))))))
         `((,lib-op
-           ,@(unless (or (no-uiop c) (has-it-p "cmp"))
-               `(,(make-library-system "cmp")))
-           ,@(unless (or (no-uiop c) (has-it-p "uiop") (has-it-p "asdf"))
-               (cond
-                 ((system-source-directory :uiop) `(,(find-system :uiop)))
-                 ((system-source-directory :asdf) `(,(find-system :asdf)))
-                 (t `(,@(if-let (uiop (system-module-pathname "uiop"))
-                          `(,(make-library-system "uiop" uiop)))
-                      ,(make-library-system "asdf")))))
+           ,@(unless (no-uiop c)
+               (append (linkable-system "cmp")
+                       (or (linkable-system "uiop")
+                           (linkable-system "asdf"))))
            ,@deps)))))
 
   (defmethod perform ((o link-op) (c system))
