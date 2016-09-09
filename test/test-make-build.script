@@ -1,7 +1,7 @@
 ;;; -*- Lisp -*-
 
 (unless (or #+(or (and clisp os-unix) clozure cmucl
-                  (and ecl (not ecl-bytecmp) (not os-macosx)) lispworks mkcl sbcl scl) t)
+                  (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating executables is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
 
