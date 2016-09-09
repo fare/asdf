@@ -948,8 +948,8 @@ make document-formatting the default operation invoked by @code{make},
 instead of loading.  If the system developer doesn't specify in the
 system definition, the default operation will be loading.
 
-@c FIXME: We seem to export @findex bundle-system also, that some ECL users seem to rely on.
-@c But it's probably better that bundle operations have their own manual chapter at some point.
+@c It's probably better that bundle operations have their own manual
+@c chapter at some point.
 
 
 @c FIXME: There should be a @defun for OPERATE, but there isn't.  Not

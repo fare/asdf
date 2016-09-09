@@ -274,7 +274,6 @@
     asdf/bundle:user-system
     #+sbcl uiop/lisp-build:sb-grovel-unknown-constant-condition
     ;; on some implementations only
-    asdf/bundle:bundle-system
     asdf/bundle:static-library
     uiop/os:parse-file-location-info
     uiop/os:parse-windows-shortcut
