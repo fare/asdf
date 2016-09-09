@@ -729,7 +729,7 @@ It returns a process-info object."
                (active-error-output-p :error-output)
                (t nil)))
            (wait (not activity))
-           output-result error-output-result exit-code)
+           output-result error-output-result exit-code process-info)
       (with-program-output ((reduced-output output-activity)
                             output :keys keys :setf output-result
                             :stream-easy-p t :active (eq activity :output))
@@ -739,11 +739,11 @@ It returns a process-info object."
           (with-program-input ((reduced-input input-activity)
                                input :keys keys
                                :stream-easy-p t :active (eq activity :input))
-            (let ((process-info
+            (setf process-info
                     (apply '%run-program command
                            :wait wait :input reduced-input :output reduced-output
                            :error-output (if (eq error-output :output) :output reduced-error-output)
-                           keys)))
+                           keys))
               (labels ((get-stream (stream-name &optional fallbackp)
                          (or (slot-value process-info stream-name)
                              (when fallbackp
@@ -767,10 +767,10 @@ It returns a process-info object."
                                           (list (slot-value process-info 'input-stream)
                                                 (slot-value process-info 'output-stream)))))
                     (when stream (close stream)))
-                  (setf exit-code
-                        (%check-result (%wait-process-result process-info)
-                                       :command command :process process-info
-                                       :ignore-error-status ignore-error-status))))))))
+                  (setf exit-code (%wait-process-result process-info)))))))
+      (%check-result exit-code
+                     :command command :process process-info
+                     :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
 
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
@@ -856,12 +856,12 @@ It returns a process-info object."
         (with-program-error-output ((reduced-error-output)
                                     error-output :keys keys :setf error-output-result)
           (with-program-input ((reduced-input) input :keys keys)
-            (setf exit-code
-                  (%check-result (apply '%system command
-                                        :input reduced-input :output reduced-output
-                                        :error-output reduced-error-output keys)
-                                 :command command
-                                 :ignore-error-status ignore-error-status)))))
+            (setf exit-code (apply '%system command
+                                   :input reduced-input :output reduced-output
+                                   :error-output reduced-error-output keys)))))
+      (%check-result exit-code
+                     :command command
+                     :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
 
   (defun run-program (command &rest keys
