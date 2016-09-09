@@ -512,13 +512,9 @@ for all the linkable object files associated with the system or its dependencies
 
 #+(or clasp ecl mkcl)
 (with-upgradability ()
-  ;; I think that Juanjo intended for this to be, but it was disabled before 3.1
-  ;; due to implementation bugs in ECL and MKCL that seem to have been fixed since
-  ;; -- see for ECL test-xach-update-bug.script and test-bundle.script,
-  ;; and for MKCL test-logical-pathname.script.
-  ;; We should probably reenable these after consulting with ECL and MKCL maintainers.
-  ;;(unless (or #+(or clasp ecl) (use-ecl-byte-compiler-p))
-  ;;  (setf *load-system-operation* 'load-bundle-op))
+
+  (unless (or #+(or clasp ecl) (use-ecl-byte-compiler-p))
+    (setf *load-system-operation* 'load-bundle-op))
 
   (defun system-module-pathname (module)
     (let ((name (coerce-name module)))
