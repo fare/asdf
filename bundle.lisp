@@ -328,7 +328,6 @@ for all the linkable object files associated with the system or its dependencies
       ((:program)
        'program-op)))
 
-  ;; DEPRECATED. This is originally from asdf-ecl.lisp. Does anyone use it?
   (defun make-build (system &rest args &key (monolithic nil) (type :fasl)
                              (move-here nil move-here-p)
                              &allow-other-keys)
@@ -351,12 +350,7 @@ for all the linkable object files associated with the system or its dependencies
                                             :defaults dest-path)
                 :do (rename-file-overwriting-target f new-f)
                 :collect new-f)
-          files)))
-
-  ;; DEPRECATED. Does anyone use this?
-  (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
-    (declare (ignore force verbose version))
-    (apply #'operate 'deliver-asd-op system args)))
+          files))))
 
 ;;;
 ;;; LOAD-BUNDLE-OP
