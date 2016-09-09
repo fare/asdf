@@ -348,7 +348,10 @@ for all the linkable object files associated with the system or its dependencies
                 :for new-f = (make-pathname :name (pathname-name f)
                                             :type (pathname-type f)
                                             :defaults dest-path)
-                :do (rename-file-overwriting-target f new-f)
+                :do (handler-case (rename-file-overwriting-target f new-f)
+                      (file-error (c)
+                        (copy-file f new-f)
+                        (delete-file-if-exists f)))
                 :collect new-f)
           files))))
 
