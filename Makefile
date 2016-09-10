@@ -121,21 +121,21 @@ defsystem-files:
 archive: build/asdf.lisp
 	mkdir -p build/uiop 	# UIOP tarball
 	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} build/uiop/
-	tar zcf "build/uiop-${version}.tgz" -C build uiop
+	tar zcf "build/uiop-${version}.tar.gz" -C build uiop
 	rm -r build/uiop
 	mkdir -p build/asdf # asdf-defsystem tarball
 	cp -pHux build/asdf.lisp asdf.asd version.lisp-expr header.lisp README.md ${defsystem_lisp} build/asdf/
-	tar zcf "build/asdf-defsystem-${version}.tgz" -C build asdf
+	tar zcf "build/asdf-defsystem-${version}.tar.gz" -C build asdf
 	rm -r build/asdf
 	git archive --worktree-attributes --format=tar -o "build/asdf-${version}.tar" ${version} #asdf-all tarball
 	gzip "build/asdf-${version}.tar"
-	mv "build/asdf-${version}.tar.gz" "build/asdf-${version}.tgz"
+	mv "build/asdf-${version}.tar.gz" "build/asdf-${version}.tar.gz"
 	cp "build/asdf.lisp" "build/asdf-${version}.lisp"
 
 publish-archive:
-	rsync --times --chmod=a+rX,ug+w "build/uiop-${version}.tgz" "build/asdf-defsystem-${version}.tgz" \
-"build/asdf-${version}.tgz" "build/asdf-${version}.lisp" common-lisp.net:/project/asdf/public_html/archives
-	ssh common-lisp.net "cd /project/asdf/public_html; ln -sf archives/uiop-${version}.tgz uiop.tgz; ln -sf archives/asdf-defsystem-${version}.tgz asdf-defsystem.tgz; ln -sf archives/asdf-${version}.tgz asdf.tgz; ln -sf archives/asdf-${version}.lisp asdf.lisp"
+	rsync --times --chmod=a+rX,ug+w "build/uiop-${version}.tar.gz" "build/asdf-defsystem-${version}.tar.gz" \
+"build/asdf-${version}.tar.gz" "build/asdf-${version}.lisp" common-lisp.net:/project/asdf/public_html/archives
+	ssh common-lisp.net "cd /project/asdf/public_html; ln -sf archives/uiop-${version}.tar.gz uiop.tar.gz; ln -sf archives/asdf-defsystem-${version}.tar.gz asdf-defsystem.tar.gz; ln -sf archives/asdf-${version}.tar.gz asdf.tar.gz; ln -sf archives/asdf-${version}.lisp asdf.lisp"
 
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
