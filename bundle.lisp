@@ -350,6 +350,7 @@ for all the linkable object files associated with the system or its dependencies
                                             :defaults dest-path)
                 :do (handler-case (rename-file-overwriting-target f new-f)
                       (file-error (c)
+                        (declare (ignore c))
                         (copy-file f new-f)
                         (delete-file-if-exists f)))
                 :collect new-f)
