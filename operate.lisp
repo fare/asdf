@@ -198,21 +198,31 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
       (require module)))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
-    (unless (length=n-p arguments 1)
-      (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes only one argument~@:>")
+    (unless (and (length=n-p arguments 1)
+		 (typep (car argument) '(or string (and symbol (not null)))))
+      (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes one argument, a string or non-null symbol~@:>")
              (cons combinator arguments) component combinator))
+    ;; :require must be prepared for some implementations providing modules using ASDF,
+    ;; as SBCL used to do, and others may might do. Thus, the system provided in the end
+    ;; would be a downcased name as per module-provide-asdf above. For the same reason,
+    ;; we cannot assume that the system in the end will be of type require-system,
+    ;; but must check whether we can use find-system and short-circuit cl:require.
+    ;; Otherwise, calling cl:require could result in nasty reentrant calls between
+    ;; cl:require and asdf:operate that could potentially blow up the stack.
     (let* ((module (car arguments))
            (name (string-downcase module))
            (system (find-system name nil)))
       (assert module)
-      ;;(unless (typep system '(or null require-system))
-      ;;  (warn "~S depends on ~S but ~S is registered as a ~S"
-      ;;        component (cons combinator arguments) module (type-of system)))
       (or system (let ((system (make-instance 'require-system :name name)))
                    (register-system system)
                    system))))
 
   (defun module-provide-asdf (name)
+    ;; We must use string-downcase, because modules are traditionally specified as symbols,
+    ;; that implementations traditionally normalize as uppercase, for which we seek a system
+    ;; with a name that is traditionally in lowercase. Case is lost along the way. That's fine.
+    ;; We could make complex, non-portable rules to try to preserve case, and just documenting
+    ;; them would be a hell that it would be a disservice to inflict on users.
     (let ((module (string-downcase name)))
       (unless (member module *modules-being-required* :test 'equal)
         (let ((*modules-being-required* (cons module *modules-being-required*))
