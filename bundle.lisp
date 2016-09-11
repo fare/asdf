@@ -511,7 +511,8 @@ for all the linkable object files associated with the system or its dependencies
 #+(or clasp ecl mkcl)
 (with-upgradability ()
 
-  (unless (or #+(or clasp ecl) (use-ecl-byte-compiler-p))
+  #+ecl ;; doesn't work on clasp or mkcl (yet?).
+  (unless (use-ecl-byte-compiler-p)
     (setf *load-system-operation* 'load-bundle-op))
 
   (defun system-module-pathname (module)
