@@ -90,7 +90,8 @@ processed in order by OPERATE."))
        (source-to-target-mappings nil)
        (file-types `(,(compile-file-type)
                      "build-report"
-                     #+(or clasp ecl) (compile-file-type :type :object)
+                     #+clasp (compile-file-type :output-type :object)
+                     #+ecl (compile-file-type :type :object)
                      #+mkcl (compile-file-type :fasl-p nil)
                      #+clisp "lib" #+sbcl "cfasl"
                      #+sbcl "sbcl-warnings" #+clozure "ccl-warnings")))
