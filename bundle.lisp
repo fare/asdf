@@ -548,10 +548,16 @@ for all the linkable object files associated with the system or its dependencies
   (defmethod component-depends-on :around ((o image-op) (c system))
     (destructuring-bind ((lib-op . deps)) (call-next-method)
       (labels ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name))
-               (linkable-system (x) (unless (has-it-p x)
-                  (if (system-source-directory x)
-                    `(,(find-system x))
-                    `(,(make-library-system x))))))
+               (linkable-system (x)
+		 (unless (has-it-p x)
+		   (list
+		    (if (and (system-source-directory x)
+			     #+mkcl ;; avoid bug in mkcl 1.1.10
+			     (let ((s (find-system x)))
+			       (or (not (typep s 'prebuilt-system))
+				   (file-exists-p (prebuilt-system-static-library s)))))
+			(find-system x)
+			(make-library-system x))))))
         `((,lib-op
            ,@(unless (no-uiop c)
                (append (linkable-system "cmp")
