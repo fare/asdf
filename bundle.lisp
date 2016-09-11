@@ -328,7 +328,10 @@ for all the linkable object files associated with the system or its dependencies
       ((:program)
        'program-op)))
 
-  ;; DEPRECATED. This is originally from asdf-ecl.lisp. Does anyone use it?
+  ;; DEPRECATED. This is originally from asdf-ecl.lisp.
+  ;; It must die, and so must any use of initargs in operation,
+  ;; unless keys to the asdf-cache are substantially modified to accommodate for them.
+  ;; Coordinate with the ECL maintainers to get them to stop using it.
   (defun make-build (system &rest args &key (monolithic nil) (type :fasl)
                              (move-here nil move-here-p)
                              &allow-other-keys)
@@ -357,7 +360,10 @@ for all the linkable object files associated with the system or its dependencies
                 :collect new-f)
           files)))
 
-  ;; DEPRECATED. Does anyone use this?
+  ;; DEPRECATED. Apparently, some users of ECL, MKCL and ABCL may still be using it;
+  ;; but at the very least, this function should be renamed, and/or
+  ;; some way of specifying the output directory should be provided.
+  ;; As is, it is not such a useful interface.
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
     (apply #'operate 'deliver-asd-op system args)))
