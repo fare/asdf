@@ -8,7 +8,7 @@
    :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/defsystem)
   (:export
    #:bundle-op #:bundle-type #:program-system
-   #:bundle-pathname-type #:direct-dependency-files
+   #:bundle-system #:bundle-pathname-type #:direct-dependency-files
    #:monolithic-op #:monolithic-bundle-op #:operation-monolithic-p
    #:basic-compile-bundle-op #:prepare-bundle-op
    #:compile-bundle-op #:load-bundle-op #:monolithic-compile-bundle-op #:monolithic-load-bundle-op
