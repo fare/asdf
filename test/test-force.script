@@ -89,7 +89,6 @@
 
 (DBG "Check that require-system of touched .asd will reload the asdf.")
 (DBG "(That's what it does now, but if it could be fixed that'd be nice.)")
-(unset-asdf-cache-entry '(locate-system "test-asdf"))
 (unset-asdf-cache-entry '(find-system "test-asdf"))
 (unset-asdf-cache-entry '(find-system "test-asdf/force"))
 (touch-file "test-asdf.asd" :timestamp (+ 10000 (get-file-stamp file1)))

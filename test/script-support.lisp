@@ -390,7 +390,7 @@ is bound, write a message and exit on an error.  If
                    (finish-outputs*)
                    (unless *debug-asdf*
                      (ignore-errors
-		       (format *error-output* "~&Backtrace:~%")
+                       (format *error-output* "~&Backtrace:~%")
                        (acall :print-condition-backtrace
                               c :count 69 :stream *error-output*))
                      (leave-test "Script failed" 1)))))
@@ -619,18 +619,16 @@ is bound, write a message and exit on an error.  If
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
   (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
     (format t "Comparing directories~%")
-    (acall :call-with-asdf-cache
-             #'(lambda ()
-                 (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
-                   (assert-pathname-equal-helper ;; not always EQUAL (!)
-                    '*test-directory* *test-directory*
-                    '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
-                   (unless (equal *test-directory* x)
-                     (format t "Interestingly, while *test-directory* has components~% ~S~%~
+    (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
+      (assert-pathname-equal-helper ;; not always EQUAL (!)
+       '*test-directory* *test-directory*
+       '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
+      (unless (equal *test-directory* x)
+        (format t "Interestingly, while *test-directory* has components~% ~S~%~
                  ASDF finds the ASDs in~% ~S~%Using the latter.~%"
-                             (pathname-components *test-directory*)
-                             (pathname-components x)))
-                   (setf *test-directory* x)))))
+                (pathname-components *test-directory*)
+                (pathname-components x)))
+      (setf *test-directory* x)))
   t)
 
 (defun frob-packages ()
