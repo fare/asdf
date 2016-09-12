@@ -5,6 +5,20 @@
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
 
+#+(and sbcl openbsd)
+(let ((version (run-program "uname -r" :output '(:string :stripped t))))
+  (when (version-satisfies version "6.0")
+    (DBG "Running on OpenBSD >=6.0. Checking this partition for wxallowed.")
+    (let* ((df-line (second (uiop:run-program
+                             (list "df" "-P" (native-namestring *build-directory*))
+                             :output :lines)))
+           (device (first (split-string df-line))))
+      (dolist (mount-line (uiop:run-program "mount" :output :lines))
+        (let ((mount-device (first (split-string mount-line))))
+          (when (and (string= device mount-device)
+                     (not (search "wxallowed" mount-line)))
+            (leave-test "Skipping test: wxallowed not set" 0)))))))
+
 (assert (find-system :hello-world-example))
 
 ;; Try to load lisp-invocation from xcvb
