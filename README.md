@@ -107,6 +107,10 @@ as in for instance:
 
     make -f Makefile-lisp-scripting t l=sbcl
 
+Or you can make that your local default (assuming GNU make) using:
+
+    ln -s Makefile-lisp-scripting GNUmakefile
+
 These Lisp tools by default use Clozure Common Lisp (CCL) to build and run a binary
 `build/asdf-tools` that will orchestrate the tests.
 By defining and exporting the variable `LISP` to be one of `ccl`, `sbcl` or `allegro`, you
@@ -118,7 +122,7 @@ that points to the executable.
 To use a further Common Lisp implementation, suitably edit the script
 [`tools/asdf-tools`](tools/asdf-tools),
 or, on Windows, the batch file [`tools/asdf-tools.bat`](tools/asdf-tools.bat).
-(Note that as of SBCL 1.2.13, we recommend against using SBCL on Windows.)
+(Note that as of SBCL 1.2.13, we recommend against using SBCL on Windows for that purpose.)
 
 Note that the executable `build/asdf-tools` is being built the first time you test ASDF.
 When you update ASDF, via e.g. `git pull` or a branch switch, you may have to update it, with:
@@ -238,4 +242,4 @@ How do I navigate this source tree?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Saturday, August 27th, 2016.
+Last updated Monday, September 12th, 2016.
