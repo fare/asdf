@@ -199,7 +199,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
     (unless (and (length=n-p arguments 1)
-		 (typep (car argument) '(or string (and symbol (not null)))))
+		 (typep (car arguments) '(or string (and symbol (not null)))))
       (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes one argument, a string or non-null symbol~@:>")
              (cons combinator arguments) component combinator))
     ;; :require must be prepared for some implementations providing modules using ASDF,
@@ -230,9 +230,10 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
           (handler-bind
               ((style-warning #'muffle-warning)
                (missing-component (constantly nil))
-               (uiop:fatal-condition #'(lambda (e)
-                          (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
-                                  name e))))
+               (fatal-condition
+		#'(lambda (e)
+		    (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
+			    name e))))
             (let ((*verbose-out* (make-broadcast-stream)))
               (let ((system (find-system module nil)))
                 (when system
