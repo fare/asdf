@@ -456,6 +456,7 @@
   (assert-equal (multiple-value-list (ensure-gethash 1 h 3)) '(2 t))
   (assert-equal (multiple-value-list (ensure-gethash 1 h '(error "foo"))) '(2 t))
   (signals parse-error (ensure-gethash 2 h '(error parse-error)))
+  (assert-equal (multiple-value-list (ensure-gethash 2 h (lambda () 5))) '(5 nil))
   (assert-equal (multiple-value-list (gethash 3 h nil)) '(nil nil))
   (assert-equal (multiple-value-list (ensure-gethash 3 h nil)) '(nil nil))
   (assert-equal (multiple-value-list (gethash 3 h 4)) '(nil t))

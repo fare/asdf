@@ -9,7 +9,7 @@
   #+(or abcl clasp cmucl clozure ecl mkcl sbcl)
   (:import-from #+abcl :sys #+(or clasp cmucl ecl) :ext #+clozure :ccl #+mkcl :mk-ext #+sbcl sb-ext
 		#:*module-provider-functions*
-		#+(or clasp ecl mkcl) #:*load-hooks*)
+		#+(or clasp ecl) #:*load-hooks*)
   #+mkcl (:import-from :si #:*load-hooks*))
 
 (in-package :asdf/footer)
@@ -36,10 +36,13 @@
       (let ((results (multiple-value-list (funcall provider name))))
 	(when (first results) (register-preloaded-system (coerce-name name)))
 	(values-list results)))
+    (defun wrap-module-provider-function (provider)
+      (ensure-gethash provider *wrapped-module-provider*
+		      (constantly
+		       #'(lambda (module-name)
+			   (wrap-module-provider provider module-name)))))
     (setf *module-provider-functions*
-          (loop :for provider :in *module-provider-functions* :collect
-	    (ensure-gethash provider *wrapped-module-provider*
-			    #'(lambda (module-name) (wrap-module-provider provider module-name)))))))
+	  (mapcar #'wrap-module-provider-function *module-provider-functions*))))
 
 #+cmucl ;; Hook into the CMUCL herald.
 (with-upgradability ()
