@@ -42,6 +42,10 @@ Some constraints:
 (proclaim '(optimize (speed #-gcl 2 #+gcl 1) (safety #-gcl 3 #+gcl 0) #-(or allegro gcl genera) (debug 3)
                      #+(or cmucl scl) (c::brevity 2) #+(or cmucl scl) (ext:inhibit-warnings 3)))
 
+#+clasp
+(unless (assoc "script" core:*load-hooks* :test #'equal)
+  (push (cons "script" 'core:load-source) core:*load-hooks*))
+
 (defparameter *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,
     ;; here's a nice place to say what.
@@ -254,8 +258,9 @@ Some constraints:
         (:case-sensitive-lower :mlisp)
         (:case-insensitive-upper :alisp))
       #+armedbear :abcl
-      #+(or clasp ecl) (or #+ecl-bytecmp :ecl_bytecodes :ecl)
+      #+ecl (or #+ecl-bytecmp :ecl_bytecodes :ecl)
       #+clisp :clisp
+      #+clasp :clasp
       #+clozure :ccl
       #+cmucl :cmucl
       #+corman :cormanlisp

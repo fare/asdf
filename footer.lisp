@@ -9,8 +9,8 @@
   #+(or abcl clasp cmucl clozure ecl mkcl sbcl)
   (:import-from #+abcl :sys #+(or clasp cmucl ecl) :ext #+clozure :ccl #+mkcl :mk-ext #+sbcl sb-ext
 		#:*module-provider-functions*
-		#+(or clasp ecl) #:*load-hooks*)
-  #+mkcl (:import-from :si #:*load-hooks*))
+		#+ecl #:*load-hooks*)
+  #+(or clasp mkcl) (:import-from :si #:*load-hooks*))
 
 (in-package :asdf/footer)
 
