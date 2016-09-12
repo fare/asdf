@@ -1,6 +1,12 @@
 ;;; -*- Lisp -*-
 
-(load-system 'test-asdf/force)
+(clear-system 'test-asdf/force)
+(assert (not (component-loaded-p 'test-asdf/force)))
+
+(require-system 'test-asdf/force)
+(assert (component-loaded-p 'test-asdf/force))
+(assert-equal (asymval :*file3* :test-package) t)
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
 
 (defparameter file1 (test-fasl "file1"))
 (defparameter file1-date (file-write-date file1))
@@ -35,6 +41,11 @@
   (DBG "Check that :force-not :all takes precedence over :force" plan)
   (assert (null plan)))
 
+(let ((plan (traverse 'load-op 'test-asdf/force :force :all
+		      :force-not '(:test-asdf/force :test-asdf/force1))))
+  (DBG "Check that :force-not :all takes precedence over :force" plan)
+  (assert (null plan)))
+
 (let* ((*immutable-systems* (list-to-hash-set '("test-asdf/force1")))
        (plan (traverse 'load-op 'test-asdf/force :force :all :force-not t)))
   (DBG "Check that immutable-systems will block forcing" plan)
@@ -46,9 +57,48 @@
 (touch-file "test-asdf.asd" :timestamp date1)
 (touch-file "file1.lisp" :timestamp date1)
 (touch-file file1 :timestamp date2)
-(load-system 'test-asdf/force)
+(setf test-package::*file1* :modified)
+(DBG "Check the fake dates from touch-file")
+(assert-equal (get-file-stamp "test-asdf.asd") date1)
+(assert-equal (get-file-stamp "file1.lisp") date1)
 (assert-equal (get-file-stamp file1) date2)
 
+(DBG "Check that require-system won't reload")
+(require-system 'test-asdf/force1)
+(assert-equal (get-file-stamp file1) date2)
+(assert-equal test-package::*file1* :modified)
+
+(DBG "Check that load-system will reload")
+(load-system 'test-asdf/force1)
+(assert-equal (get-file-stamp file1) date2)
+(assert-equal test-package::*file1* t)
+
 ;; forced, it should be later
+(DBG "Check that force reloading loads again")
+(setf test-package::*file3* :reset)
 (load-system 'test-asdf/force :force :all)
 (assert-compare (>= (get-file-stamp file1) file1-date))
+(assert-equal test-package::*file3* t)
+
+(DBG "Check that test-asdf was loaded only once all along")
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
+
+(setf test-package::*file3* :reset)
+
+(DBG "Check that require-system of touched .asd will reload the asdf.")
+(DBG "(That's what it does now, but if it could be fixed that'd be nice.)")
+(unset-asdf-cache-entry '(locate-system "test-asdf"))
+(unset-asdf-cache-entry '(find-system "test-asdf"))
+(unset-asdf-cache-entry '(find-system "test-asdf/force"))
+(touch-file "test-asdf.asd" :timestamp (+ 10000 (get-file-stamp file1)))
+(require-system 'test-asdf/force)
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 2)
+(assert-equal test-package::*file3* :reset)
+
+(DBG "Check that require-system of untouched .asd won't reload the asdf.")
+(require-system 'test-asdf/force)
+
+;;; Somehow, it loads the system...
+(with-expected-failure (t)
+  (assert-equal (asymval :*times-loaded* :test-asdf-system) 2)
+  (assert-equal test-package::*file3* :reset))

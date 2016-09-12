@@ -2,6 +2,9 @@
   (:use :cl :asdf))
 (in-package :test-asdf-system)
 
+(defvar *times-loaded* 0)
+(incf *times-loaded*)
+
 (defsystem :test-asdf :class package-inferred-system)
 
 (defsystem :test-asdf/all
