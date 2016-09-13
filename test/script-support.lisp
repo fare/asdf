@@ -316,17 +316,20 @@ Some constraints:
 (defun touch-file (file &key offset timestamp in-filesystem)
   (let* ((base (or timestamp (get-universal-time)))
          (stamp (if offset (+ base offset) base)))
-    (if (and (asymval :*asdf-cache*) (not in-filesystem))
-        (acall :register-file-stamp file stamp)
+    (if in-filesystem
         (multiple-value-bind (sec min hr day month year)
             (decode-universal-time stamp)
-          (unless in-filesystem
-            (error "Y U NO use stamp cache?"))
           (acall :run-program
                  `("touch" "-t" ,(format nil "~4,'0D~2,'0D~2,'0D~2,'0D~2,'0D.~2,'0D"
                                          year month day hr min sec)
                            ,(acall :native-namestring file)))
-          (assert-equal (file-write-date file) stamp)))))
+          (assert-equal (file-write-date file) stamp))
+      ;; else
+      (progn
+        (unless (asymval :*asdf-cache*)
+          (error "Trying to use *ASDF-CACHE* in TOUCH-FILE, but cache is not initialized."))
+        (acall :register-file-stamp file stamp)))))
+
 (defun mark-file-deleted (file)
   (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
   (acall :register-file-stamp (acall :normalize-namestring file) nil))
