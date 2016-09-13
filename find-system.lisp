@@ -9,7 +9,8 @@
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:locate-system #:load-asd
-   #:system-registered-p #:register-system #:registered-systems* #:registered-systems
+   #:system-registered-p #:registered-system #:register-system
+   #:registered-systems* #:registered-systems
    #:clear-system #:map-systems
    #:missing-component #:missing-requires #:missing-parent
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
@@ -51,18 +52,26 @@
            format :format-arguments arguments))
 
   (defun coerce-name (name)
+    "Given a designator for a component NAME, return the name as a string.
+The designator can be a COMPONENT (designing its name; note that a SYSTEM is a component),
+a SYMBOL (designing its name, downcased), or a STRING (designing itself)."
     (typecase name
       (component (component-name name))
-      (symbol (string-downcase (symbol-name name)))
+      (symbol (string-downcase name))
       (string name)
       (t (sysdef-error (compatfmt "~@<Invalid component designator: ~3i~_~A~@:>") name))))
 
   (defun primary-system-name (name)
-    ;; When a system name has slashes, the file with defsystem is named by
-    ;; the first of the slash-separated components.
+    "Given a system designator NAME, return the name of the corresponding primary system,
+after which the .asd file is named. That's the first component when dividing the name
+as a string by / slashes."
     (first (split-string (coerce-name name) :separator "/")))
 
   (defun coerce-filename (name)
+    "Coerce a system designator NAME into a string suitable as a filename component.
+The (current) transformation is to replace characters /:\\ each by --,
+the former being forbidden in a filename component.
+NB: The onus is unhappily on the user to avoid clashes."
     (frob-substrings (coerce-name name) '("/" ":" "\\") "--"))
 
   (defvar *defined-systems* (make-hash-table :test 'equal)
@@ -73,24 +82,35 @@ system definition was last updated, and the second element
 of which is a system object.")
 
   (defun system-registered-p (name)
+    "Return a generalized boolean that is true if a system of given NAME was registered already.
+NAME is a system designator, to be normalized by COERCE-NAME.
+The value returned if true is a pair of a timestamp and a system object."
     (gethash (coerce-name name) *defined-systems*))
 
+  (defun registered-system (name)
+    "Return a system of given NAME was registered already.
+NAME is a system designator, to be normalized by COERCE-NAME.
+The value returned is a system object, or NIL if not found."
+    (cdr (system-registered-p name)))
+
   (defun registered-systems* ()
+    "Return a list containing every registered system (as a system object)."
     (loop :for registered :being :the :hash-values :of *defined-systems*
           :collect (cdr registered)))
 
   (defun registered-systems ()
+    "Return a list of the names of every registered system."
     (mapcar 'coerce-name (registered-systems*)))
 
   (defun register-system (system)
+    "Given a SYSTEM object, register it."
     (check-type system system)
     (let ((name (component-name system)))
       (check-type name string)
       (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
-      (unless (eq system (cdr (gethash name *defined-systems*)))
+      (unless (eq system (registered-system name))
         (setf (gethash name *defined-systems*)
-              (cons (if-let (file (ignore-errors (system-source-file system)))
-                      (get-file-stamp file))
+              (cons (ignore-errors (get-file-stamp (system-source-file system)))
                     system)))))
 
   (defvar *preloaded-systems* (make-hash-table :test 'equal))
@@ -126,7 +146,7 @@ downgrade, before you dump an image, use:
   (defun sysdef-immutable-system-search (requested)
     (let ((name (coerce-name requested)))
       (when (and *immutable-systems* (gethash name *immutable-systems*))
-        (or (cdr (system-registered-p requested))
+        (or (registered-system requested)
             (sysdef-preloaded-system-search name)
             (error 'formatted-system-definition-error
                    :format-control "Requested system ~A is in the *immutable-systems* set, ~
@@ -135,7 +155,7 @@ but not loaded in memory"
 
   (defun register-immutable-system (system-name &key (version t))
     (let* ((system-name (coerce-name system-name))
-           (registered-system (cdr (system-registered-p system-name)))
+           (registered-system (registered-system system-name))
            (default-version? (eql version t))
            (version (cond ((and default-version? registered-system)
                            (component-version registered-system))
@@ -414,7 +434,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
         (unless (equal name primary-name)
           (find-system primary-name nil)))
       (or (and *immutable-systems* (gethash name *immutable-systems*)
-               (or (cdr (system-registered-p name))
+               (or (registered-system name)
                    (sysdef-preloaded-system-search name)))
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)

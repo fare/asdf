@@ -118,7 +118,7 @@ otherwise return a default system name computed from PACKAGE-NAME."
                                      :truename *resolve-symlinks*)))
                 (when (file-pathname-p f)
                   (let ((dependencies (package-inferred-system-file-dependencies f system))
-                        (previous (cdr (system-registered-p system)))
+                        (previous (registered-system system))
                         (around-compile (around-compile-hook top)))
                     (if (same-package-inferred-system-p previous system dir sub around-compile dependencies)
                         previous

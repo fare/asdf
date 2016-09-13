@@ -165,7 +165,8 @@ to load it in current image."
 ;; only tries to load its specified target if it's not loaded yet.
 (with-upgradability ()
   (defun component-loaded-p (component)
-    "has given COMPONENT been successfully loaded in the current image (yet)?"
+    "Has given COMPONENT been successfully loaded in the current image (yet)?
+Note that this returns true even if the component is not up to date."
     (action-already-done-p nil (make-instance 'load-op) (find-component component ())))
 
   (defun already-loaded-systems ()
