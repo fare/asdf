@@ -70,7 +70,7 @@
 
 (DBG "Check that load-system will reload")
 (load-system 'test-asdf/force1)
-(with-expected-failure (#+(or clasp clisp ecl mkcl) t)
+(with-expected-failure (#+(or clasp clisp (and ecl (not ecl-bytecmp)) mkcl) t)
   ;; Why does that fail on these??? Investigate!
   (assert-equal (get-file-stamp file1) date2)
   (assert-equal test-package::*file1* t))
