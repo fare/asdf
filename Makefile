@@ -172,7 +172,9 @@ clean:
 			  -and -not -path \""*/tags/*"\" -print -delete; \
 		done; \
 	     fi; \
+	    echo "Cleaned $$dir"; \
 	done
+	echo "Done with cleaning loop."
 	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example asdf.lisp
 	rm -rf test/hello-world-example.exe test/mkcl_*.dll # needed only on MS-Windows
 	${MAKE} -C doc clean
