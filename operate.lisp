@@ -251,6 +251,16 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
                      :when (eq (first k) 'find-system) :collect (second k))))
         (clrhash *asdf-cache*)
         (dolist (s l) (find-system s nil)))))
-  (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf))
+  (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf)
 
+  ;; The following function's symbol is from asdf/find-system.
+  ;; It is defined here to resolve what would otherwise be forward package references.
+  (defun mark-component-preloaded (component)
+    "Mark a component as preloaded."
+    ;; Recurse to children, so asdf/plan will hopefully be happy.
+    (map () 'mark-component-preloaded (component-children component))
+    ;; Mark the timestamps of the common lisp-action operations as 0.
+    (let ((times (component-operation-times component)))
+      (dolist (o '(load-op compile-op prepare-op))
+        (setf (gethash o times) 0)))))
 

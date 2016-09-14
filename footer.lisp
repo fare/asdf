@@ -14,6 +14,14 @@
 
 (in-package :asdf/footer)
 
+;;;; Register ASDF itself and all its subsystems as preloaded.
+(with-upgradability ()
+  (dolist (s '("asdf" "uiop" "asdf-defsystem" "asdf-package-system"))
+    ;; Don't bother with these system names, no one relies on them anymore:
+    ;; "asdf-utils" "asdf-bundle" "asdf-driver"
+    (register-preloaded-system s :version *asdf-version*)))
+
+
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
 #+(or abcl clasp clisp clozure cmucl ecl mkcl sbcl)
 (with-upgradability ()
