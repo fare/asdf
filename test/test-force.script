@@ -87,19 +87,17 @@
 
 (setf test-package::*file3* :reset)
 
-(DBG "Check that require-system of touched .asd will reload the asdf.")
-(DBG "(That's what it does now, but if it could be fixed that'd be nice.)")
+(DBG "Check that require-system called with touched .asd won't reload the asdf.")
 (unset-asdf-cache-entry '(find-system "test-asdf"))
 (unset-asdf-cache-entry '(find-system "test-asdf/force"))
 (touch-file "test-asdf.asd" :timestamp (+ 10000 (get-file-stamp file1)))
 (require-system 'test-asdf/force)
-(assert-equal (asymval :*times-loaded* :test-asdf-system) 2)
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
 (assert-equal test-package::*file3* :reset)
 
-(DBG "Check that require-system of untouched .asd won't reload the asdf.")
+(DBG "Check that require-system called with untouched .asd won't reload the asdf.")
 (require-system 'test-asdf/force)
 
 ;;; Somehow, it loads the system...
-(with-expected-failure (t)
-  (assert-equal (asymval :*times-loaded* :test-asdf-system) 2)
-  (assert-equal test-package::*file3* :reset))
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
+(assert-equal test-package::*file3* :reset)

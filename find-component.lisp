@@ -50,36 +50,41 @@
 ;;;; Finding components
 
 (with-upgradability ()
-  (defgeneric* (find-component) (base path)
+  (defgeneric* (find-component) (base path &key registered)
     (:documentation "Find a component by resolving the PATH starting from BASE parent"))
   (defgeneric resolve-dependency-combination (component combinator arguments))
 
-  (defmethod find-component ((base string) path)
-    (let ((s (find-system base nil)))
-      (and s (find-component s path))))
+  (defmethod find-component ((base string) path &key registered)
+    (if-let ((s (if registered
+                    (registered-system base)
+                    (find-system base nil))))
+      (find-component s path :registered registered)))
 
-  (defmethod find-component ((base symbol) path)
+  (defmethod find-component ((base symbol) path &key registered)
     (cond
-      (base (find-component (coerce-name base) path))
-      (path (find-component path nil))
+      (base (find-component (coerce-name base) path :registered registered))
+      (path (find-component path nil :registered registered))
       (t    nil)))
 
-  (defmethod find-component ((base cons) path)
-    (find-component (car base) (cons (cdr base) path)))
+  (defmethod find-component ((base cons) path &key registered)
+    (find-component (car base) (cons (cdr base) path) :registered registered))
 
-  (defmethod find-component ((parent parent-component) (name string))
-    (compute-children-by-name parent :only-if-needed-p t) ;; SBCL may miss the u-i-f-r-c method!!!
+  (defmethod find-component ((parent parent-component) (name string) &key registered)
+    (declare (ignorable registered))
+    (compute-children-by-name parent :only-if-needed-p t)
     (values (gethash name (component-children-by-name parent))))
 
-  (defmethod find-component (base (name symbol))
+  (defmethod find-component (base (name symbol) &key registered)
     (if name
-        (find-component base (coerce-name name))
+        (find-component base (coerce-name name) :registered registered)
         base))
 
-  (defmethod find-component ((c component) (name cons))
-    (find-component (find-component c (car name)) (cdr name)))
+  (defmethod find-component ((c component) (name cons) &key registered)
+    (find-component (find-component c (car name) :registered registered)
+                    (cdr name) :registered registered))
 
-  (defmethod find-component ((base t) (actual component))
+  (defmethod find-component ((base t) (actual component) &key registered)
+    (declare (ignorable registered))
     actual)
 
   (defun resolve-dependency-name (component name &optional version)
