@@ -184,7 +184,7 @@ after having found a .asd file? True by default.")
     `(:source-registry
       #+(or clasp ecl sbcl) (:tree ,(resolve-symlinks* (lisp-implementation-directory)))
       :inherit-configuration
-      #+mkcl (:tree ,(translate-logical-pathname "CONTRIB:"))
+      #+mkcl (:tree ,(translate-logical-pathname "SYS:"))
       #+cmucl (:tree #p"modules:")
       #+scl (:tree #p"file://modules/")))
   (defun default-user-source-registry ()
