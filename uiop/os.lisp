@@ -229,6 +229,7 @@ then returning the non-empty string value of the variable"
         (multiple-value-bind (major minor) (sct:get-system-version "System")
           (format nil "~D.~D" major minor))
         #+mcl (subseq s 8) ; strip the leading "Version "
+        #+mkcl (or (mkcl:git-describe-this-mkcl) s)
         s))))
 
   (defun implementation-identifier ()
