@@ -165,7 +165,7 @@ to load it in current image."
 ;; only tries to load its specified target if it's not loaded yet.
 (with-upgradability ()
   (defun component-loaded-p (component)
-    "Has given COMPONENT been successfully loaded in the current image (yet)?
+    "Has the given COMPONENT been successfully loaded in the current image (yet)?
 Note that this returns true even if the component is not up to date."
     (if-let ((component (find-component component () :registered t)))
       (action-already-done-p nil (make-instance 'load-op) component)))
@@ -175,7 +175,7 @@ Note that this returns true even if the component is not up to date."
     (mapcar 'coerce-name (remove-if-not 'component-loaded-p (registered-systems*))))
 
   (defun require-system (system &rest keys &key &allow-other-keys)
-    "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but skip any update to the
+    "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but do not update the
 system or its dependencies if they have already been loaded."
     (unless (component-loaded-p system)
       (apply 'load-system system :force-not (already-loaded-systems) keys))))
@@ -202,7 +202,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
     (unless (and (length=n-p arguments 1)
-		 (typep (car arguments) '(or string (and symbol (not null)))))
+                 (typep (car arguments) '(or string (and symbol (not null)))))
       (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes one argument, a string or non-null symbol~@:>")
              (cons combinator arguments) component combinator))
     ;; :require must be prepared for some implementations providing modules using ASDF,
@@ -234,9 +234,9 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
               ((style-warning #'muffle-warning)
                (missing-component (constantly nil))
                (fatal-condition
-		#'(lambda (e)
-		    (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
-			    name e))))
+                #'(lambda (e)
+                    (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
+                            name e))))
             (let ((*verbose-out* (make-broadcast-stream)))
               (let ((system (find-system module nil)))
                 (when system

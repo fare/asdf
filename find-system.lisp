@@ -95,9 +95,10 @@ The value returned if true is a pair of a timestamp and a system object."
     (gethash (coerce-name name) *defined-systems*))
 
   (defun registered-system (name)
-    "Return a system of given NAME was registered already.
-NAME is a system designator, to be normalized by COERCE-NAME.
-The value returned is a system object, or NIL if not found."
+    "Return a system of given NAME that was registered already,
+if such a system exists.  NAME is a system designator, to be
+normalized by COERCE-NAME. The value returned is a system object,
+or NIL if not found."
     (cdr (system-registered-p name)))
 
   (defun registered-systems* ()
