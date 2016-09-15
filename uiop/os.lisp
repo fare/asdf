@@ -238,7 +238,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
      #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
      (format nil "~(~a~@{~@[-~a~]~}~)"
              (or (implementation-type) (lisp-implementation-type))
-             (or (lisp-version-string) (lisp-implementation-version))
+             (lisp-version-string)
              (or (operating-system) (software-type))
              (or (architecture) (machine-type))))))
 
