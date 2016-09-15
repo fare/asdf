@@ -167,7 +167,8 @@ to load it in current image."
   (defun component-loaded-p (component)
     "Has given COMPONENT been successfully loaded in the current image (yet)?
 Note that this returns true even if the component is not up to date."
-    (action-already-done-p nil (make-instance 'load-op) (find-component component ())))
+    (if-let ((component (find-component component () :registered t)))
+      (action-already-done-p nil (make-instance 'load-op) component)))
 
   (defun already-loaded-systems ()
     "return a list of the names of the systems that have been successfully loaded so far"
@@ -176,7 +177,8 @@ Note that this returns true even if the component is not up to date."
   (defun require-system (system &rest keys &key &allow-other-keys)
     "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but skip any update to the
 system or its dependencies if they have already been loaded."
-    (apply 'load-system system :force-not (already-loaded-systems) keys)))
+    (unless (component-loaded-p system)
+      (apply 'load-system system :force-not (already-loaded-systems) keys))))
 
 
 ;;;; Define the class REQUIRE-SYSTEM, to be hooked into CL:REQUIRE when possible,
@@ -251,6 +253,16 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
                      :when (eq (first k) 'find-system) :collect (second k))))
         (clrhash *asdf-cache*)
         (dolist (s l) (find-system s nil)))))
-  (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf))
+  (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf)
 
+  ;; The following function's symbol is from asdf/find-system.
+  ;; It is defined here to resolve what would otherwise be forward package references.
+  (defun mark-component-preloaded (component)
+    "Mark a component as preloaded."
+    ;; Recurse to children, so asdf/plan will hopefully be happy.
+    (map () 'mark-component-preloaded (component-children component))
+    ;; Mark the timestamps of the common lisp-action operations as 0.
+    (let ((times (component-operation-times component)))
+      (dolist (o '(load-op compile-op prepare-op))
+        (setf (gethash o times) 0)))))
 
