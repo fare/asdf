@@ -8,7 +8,7 @@
    :asdf/cache :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action)
   (:export
-   #:component-operation-time #:mark-operation-done
+   #:component-operation-time
    #:plan #:plan-traversal #:sequential-plan #:*default-plan-class*
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions

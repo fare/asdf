@@ -20,6 +20,7 @@
    #:find-system-if-being-defined
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
+   #:mark-component-preloaded ;; forward reference to asdf/operate
    #:sysdef-immutable-system-search #:register-immutable-system #:*immutable-systems*
    #:*defined-systems* #:clear-defined-systems
    ;; defined in source-registry, but specially mentioned here:
@@ -51,6 +52,9 @@
     (error 'formatted-system-definition-error :format-control
            format :format-arguments arguments))
 
+
+  ;;; Canonicalizing system names
+
   (defun coerce-name (name)
     "Given a designator for a component NAME, return the name as a string.
 The designator can be a COMPONENT (designing its name; note that a SYSTEM is a component),
@@ -73,6 +77,9 @@ The (current) transformation is to replace characters /:\\ each by --,
 the former being forbidden in a filename component.
 NB: The onus is unhappily on the user to avoid clashes."
     (frob-substrings (coerce-name name) '("/" ":" "\\") "--"))
+
+
+  ;;; Registry of Defined Systems
 
   (defvar *defined-systems* (make-hash-table :test 'equal)
     "This is a hash table whose keys are strings, being the
@@ -113,12 +120,19 @@ The value returned is a system object, or NIL if not found."
               (cons (ignore-errors (get-file-stamp (system-source-file system)))
                     system)))))
 
+
+  ;;; Preloaded systems: in the image even if you can't find source files backing them.
+
   (defvar *preloaded-systems* (make-hash-table :test 'equal))
 
+  (declaim (ftype (function (component) t) mark-component-preloaded)) ; defined in asdf/operate
+
   (defun make-preloaded-system (name keys)
-    (apply 'make-instance (getf keys :class 'system)
-           :name name :source-file (getf keys :source-file)
-           (remove-plist-keys '(:class :name :source-file) keys)))
+    (let ((system (apply 'make-instance (getf keys :class 'system)
+                         :name name :source-file (getf keys :source-file)
+                         (remove-plist-keys '(:class :name :source-file) keys))))
+      (mark-component-preloaded system)
+      system))
 
   (defun sysdef-preloaded-system-search (requested)
     (let ((name (coerce-name requested)))
@@ -126,31 +140,42 @@ The value returned is a system object, or NIL if not found."
         (when foundp
           (make-preloaded-system name keys)))))
 
-  (defun register-preloaded-system (system-name &rest keys)
-    (setf (gethash (coerce-name system-name) *preloaded-systems*) keys))
+  (defun ensure-preloaded-system-registered (name)
+    "If there isn't a registered _defined_ system of given NAME,
+and a there is a registered _preloaded_ system of given NAME,
+then define and register said preloaded system."
+    (if-let (system (and (not (registered-system name)) (sysdef-preloaded-system-search name)))
+      (register-system system)))
 
-  (dolist (s '("asdf" "uiop" "asdf-driver" "asdf-defsystem" "asdf-package-system"))
-    ;; don't bother with these, no one relies on them: "asdf-utils" "asdf-bundle"
-    (register-preloaded-system s :version *asdf-version*))
+  (defun ensure-all-preloaded-systems-registered ()
+    (loop :for name :being :the :hash-keys :of *preloaded-systems*
+          :do (ensure-preloaded-system-registered name)))
+  (register-hook-function '*post-upgrade-restart-hook* 'ensure-all-preloaded-systems-registered)
+
+  (defun register-preloaded-system (system-name &rest keys)
+    (setf (gethash (coerce-name system-name) *preloaded-systems*) keys)
+    (ensure-preloaded-system-registered system-name))
+
+
+  ;;; Immutable systems: in the image and can't be reloaded from source.
 
   (defvar *immutable-systems* nil
-    "An hash-set (equal hash-table mapping keys to T) of systems that are immutable,
+    "A hash-set (equal hash-table mapping keys to T) of systems that are immutable,
 i.e. already loaded in memory and not to be refreshed from the filesystem.
 They will be treated specially by find-system, and passed as :force-not argument to make-plan.
 
 If you deliver an image with many systems precompiled, *and* do not want to check the filesystem
 for them every time a user loads an extension, what more risk a problematic upgrade or catastrophic
 downgrade, before you dump an image, use:
-   (setf asdf::*immutable-systems* (uiop:list-to-hash-set (asdf:already-loaded-systems)))")
+   (map () 'asdf:register-immutable-system (asdf:already-loaded-systems))")
 
   (defun sysdef-immutable-system-search (requested)
     (let ((name (coerce-name requested)))
       (when (and *immutable-systems* (gethash name *immutable-systems*))
         (or (registered-system requested)
-            (sysdef-preloaded-system-search name)
             (error 'formatted-system-definition-error
                    :format-control "Requested system ~A is in the *immutable-systems* set, ~
-but not loaded in memory"
+but not even registered as defined"
                    :format-arguments (list name))))))
 
   (defun register-immutable-system (system-name &key (version t))
@@ -161,30 +186,30 @@ but not loaded in memory"
                            (component-version registered-system))
                           (default-version? nil)
                           (t version))))
-      (unless registered-system
-        (register-system (make-preloaded-system system-name (list :version version))))
       (register-preloaded-system system-name :version version)
       (unless *immutable-systems*
         (setf *immutable-systems* (list-to-hash-set nil)))
-      (setf (gethash (coerce-name system-name) *immutable-systems*) t)))
+      (setf (gethash system-name *immutable-systems*) t)))
+
+
+  ;;; Making systems undefined.
 
   (defun clear-system (system)
-    "Clear the entry for a SYSTEM in the database of systems previously loaded,
-unless the system appears in the table of *IMMUTABLE-SYSTEMS*.
-Note that this does NOT in any way cause the code of the system to be unloaded.
-Returns T if cleared or already cleared,
-NIL if not cleared because the system was found to be immutable."
+    "Clear the entry for a SYSTEM in the database of systems previously defined.
+However if the system was registered as PRELOADED (which it is if it is IMMUTABLE),
+then a new system with the same name will be defined and registered in its place
+from which build details may have vanished.
+Note that this does NOT in any way cause any of the code of the system to be unloaded.
+Returns T if cleared or already cleared, NIL if a new system was defined."
     ;; There is no "unload" operation in Common Lisp, and
     ;; a general such operation cannot be portably written,
     ;; considering how much CL relies on side-effects to global data structures.
     (let ((name (coerce-name system)))
-      (unless (and *immutable-systems* (gethash name *immutable-systems*))
-        (remhash (coerce-name name) *defined-systems*)
-        (unset-asdf-cache-entry `(find-system ,name))
-        t)))
+      (remhash name *defined-systems*)
+      (unset-asdf-cache-entry `(find-system ,name))
+      (not (ensure-preloaded-system-registered name))))
 
   (defun clear-defined-systems ()
-    ;; Invalidate all systems but ASDF itself, if registered.
     (loop :for name :being :the :hash-keys :of *defined-systems*
           :unless (equal name "asdf") :do (clear-system name)))
 
@@ -223,8 +248,7 @@ called with an object of type asdf:system."
       (flet ((try (f) (if-let ((x (funcall f name))) (return-from search-for-system-definition x))))
         (try 'find-system-if-being-defined)
         (try 'sysdef-immutable-system-search)
-        (map () #'try *system-definition-search-functions*)
-        (try 'sysdef-preloaded-system-search))))
+        (map () #'try *system-definition-search-functions*))))
 
   (defvar *central-registry* nil
     "A list of 'system directory designators' ASDF uses to find systems.
@@ -420,12 +444,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
              (foundp (and (or found-system pathname previous) t)))
         (check-type found (or null pathname system))
         (unless (check-not-old-asdf-system name pathname)
-          (cond
-            (previous (setf found nil pathname nil))
-            (t
-             (setf found (sysdef-preloaded-system-search "asdf"))
-             (assert (typep found 'system))
-             (setf found-system found pathname nil))))
+          (check-type previous system) ;; asdf is preloaded, so there should be a previous one.
+          (setf found-system nil pathname nil))
         (values foundp found-system pathname previous previous-time))))
 
   (defmethod find-system ((name string) &optional (error-p t))
@@ -433,9 +453,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (let ((primary-name (primary-system-name name)))
         (unless (equal name primary-name)
           (find-system primary-name nil)))
-      (or (and *immutable-systems* (gethash name *immutable-systems*)
-               (or (registered-system name)
-                   (sysdef-preloaded-system-search name)))
+      (or (and *immutable-systems* (gethash name *immutable-systems*) (registered-system name))
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)
             (assert (eq foundp (and (or found-system pathname previous) t)))
@@ -455,9 +473,10 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                                                     (physicalize-pathname pathname)
                                                     (physicalize-pathname previous-pathname))))
                                           (stamp<= stamp previous-time))))))
-                ;; only load when it's a pathname that is different or has newer content, and not an old asdf
+                ;; Only load when it's a pathname that is different or has newer content.
                 (load-asd pathname :name name)))
-            (let ((in-memory (system-registered-p name))) ; try again after loading from disk if needed
+            ;; Try again after having loaded from disk if needed
+            (let ((in-memory (system-registered-p name)))
               (cond
                 (in-memory
                  (when pathname

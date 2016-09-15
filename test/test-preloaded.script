@@ -7,9 +7,9 @@
 
 (DBG "Now let's register it as preloaded. Loading it will work!")
 (register-preloaded-system :this-system-does-not-exist :version "3.14")
-(assert (null (system-registered-p :this-system-does-not-exist))) ;; not yet registered as loaded
-(load-system :this-system-does-not-exist) ;; but now we can load it
-(assert (system-registered-p :this-system-does-not-exist)) ;; and it is loaded indeed!
+;; Eagerly registered since 3.1.7.20. See gitlab merge request 13 for the full story.
+(assert (system-registered-p :this-system-does-not-exist))
+(load-system :this-system-does-not-exist) ;; We can load it indeed, though it's a NOP.
 
 
 (DBG "Now let's load a simple system. It should create a package.")
