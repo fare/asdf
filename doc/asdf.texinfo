@@ -4708,12 +4708,16 @@ and get inspiration (or disinspiration)
 from what it does in @file{header.lisp} and @file{upgrade.lisp}.
 @end defun
 
-@defun register-preloaded-system name @Arest{} keys
+@defun register-preloaded-system name @Arest{} keys @Akeys{} version @AallowOtherKeys{}
 A system with name @var{name},
 created by @code{make-instance} with extra keys @var{keys}
 (e.g. @code{:version}),
 is registered as @emph{preloaded}.
-That is, its code has already been loaded into the current image,
+If @var{version} is @code{t} (default), then the version is copied from the defined system
+of the same name (if registered) or else is @code{nil}
+(this automatic copy of version is only available starting since ASDF 3.1.8).
+
+A preloaded system is considered as having already been loaded into the current image,
 and if at some point some other system @code{:depends-on} it yet no source code is found,
 it is considered as already provided,
 and ASDF will not raise a @code{missing-component} error.
@@ -4722,24 +4726,34 @@ This function is particularly useful if you distribute your code
 as fasls with either @code{compile-bundle-op} or @code{monolithic-compile-bundle-op},
 and want to register systems so that dependencies will work uniformly
 whether you're using your software from source or from fasl.
+
+Note that if the system was already defined or loaded from source code,
+its build information will remain active until you call @code{clear-system} on it,
+at which point a system without build information will be registered in its place.
 @end defun
 
 @defun register-immutable-system name @Arest{} keys
-A system with name @var{name},
-created by @code{make-instance} with extra keys @var{keys}
-(e.g. @code{:version}),
-is registered as @emph{immutable}.
-That is, its code has already been loaded into the current image,
-and if at some point some other system @code{:depends-on} it,
-it is considered as already provided, and
-no attempt will be made to search for an updated version from the source-registry
-or any other method.
-There will be no search for an @file{.asd} file, and no @code{missing-component} error.
+A system with name @var{name} is registered as preloaded,
+and additionally is marked as @emph{immutable}:
+that is, attempts to compile or load it will be succeed
+without actually reading, creating or loading any file,
+as if the system was passed as a @code{force-not} argument
+to all calls to @code{plan} or @code{operate}.
+There will be no search for an updated @file{.asd} file
+to override the loaded version,
+whether from the source-register or any other method.
 
-This function (available since ASDF 3.1.5) is particularly useful if
-you distribute a large body of code as a precompiled image,
+If a @var{version} keyword argument is specified as @code{t} or left unspecified,
+then the version is copied from the defined system
+of the same name (if registered) or else is @code{nil}.
+This automatic copy of version is available starting
+since immutable systems have been available in ASDF 3.1.5.
+
+This function, available since ASDF 3.1.5, is particularly useful
+if you distribute a large body of code as a precompiled image,
 and want to allow users to extend the image with further extension systems,
-but without making thousands of filesystem requests looking for inexistent (or worse, out of date) source code
+but without making thousands of filesystem requests looking for inexistent
+(or worse, out of date) source code
 for all the systems that came bundled with the image but aren't
 distributed as source code to regular users.
 @cindex immutable systems

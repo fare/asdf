@@ -1,5 +1,5 @@
 ;;;; -------------------------------------------------------------------------
-;;;; Stamp cache
+;;;; Session cache
 
 (uiop/package:define-package :asdf/cache
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
@@ -10,10 +10,13 @@
            #:clear-configuration-and-retry #:retry))
 (in-package :asdf/cache)
 
-;;; This stamp cache is useful for:
-;; * consistency of stamps used within a single run
-;; * fewer accesses to the filesystem
-;; * the ability to test with fake timestamps, without touching files
+;;; The ASDF session cache is instrumental in achieving:
+;; * Consistency in the view of the world relied on by ASDF within a given session.
+;;   Inconsistencies in file stamps, definitions, etc., could cause infinite loops
+;;   (a.k.a. stack overflows) and other erratic behavior.
+;; * Speed and reliability of ASDF, with fewer side-effects from access to the filesystem,
+;;   no expensive recomputations of transitive dependencies for input-files or output-files.
+;; * Testability of ASDF with the ability to fake timestamps without actually touching files.
 
 (with-upgradability ()
   (defvar *asdf-cache* nil)
