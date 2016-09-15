@@ -340,7 +340,7 @@ for all the linkable object files associated with the system or its dependencies
                                     (typep move-here '(or pathname string)))
                                (ensure-pathname move-here :namestring :lisp :ensure-directory t)
                                (system-relative-pathname system "asdf-output/")))
-           (operation (apply #'operate operation-name
+           (operation (apply 'operate operation-name
                              system
                              (remove-plist-keys '(:monolithic :type :move-here) args)))
            (system (find-system system))
@@ -366,7 +366,7 @@ for all the linkable object files associated with the system or its dependencies
   ;; As is, it is not such a useful interface.
   (defun bundle-system (system &rest args &key force (verbose t) version &allow-other-keys)
     (declare (ignore force verbose version))
-    (apply #'operate 'deliver-asd-op system args)))
+    (apply 'operate 'deliver-asd-op system args)))
 
 ;;;
 ;;; LOAD-BUNDLE-OP
@@ -530,7 +530,7 @@ for all the linkable object files associated with the system or its dependencies
   (defun system-module-pathname (module)
     (let ((name (coerce-name module)))
       (some
-       #'probe-file
+       'file-exists-p
        (list
         #+clasp (compile-file-pathname (make-pathname :name name :defaults "sys:") :output-type :object)
         #+ecl (compile-file-pathname (make-pathname :name name :defaults "sys:") :type :lib)
@@ -548,21 +548,18 @@ for all the linkable object files associated with the system or its dependencies
   (defmethod component-depends-on :around ((o image-op) (c system))
     (destructuring-bind ((lib-op . deps)) (call-next-method)
       (labels ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name))
-               (linkable-system (x)
+               (ensure-linkable-system (x)
 		 (unless (has-it-p x)
-		   (list
-		    (if (and (system-source-directory x)
-			     #+mkcl ;; avoid bug in mkcl 1.1.10
-			     (let ((s (find-system x)))
-			       (or (not (typep s 'prebuilt-system))
-				   (file-exists-p (prebuilt-system-static-library s)))))
-			(find-system x)
-			(make-library-system x))))))
+                   (or (if-let (s (find-system x))
+                         (and (system-source-directory x)
+                              (list s)))
+                       (if-let (p (system-module-pathname x))
+                         (list (make-library-system x p)))))))
         `((,lib-op
            ,@(unless (no-uiop c)
-               (append (linkable-system "cmp")
-                       (or (linkable-system "uiop")
-                           (linkable-system "asdf"))))
+               (append (ensure-linkable-system "cmp")
+                       (or (ensure-linkable-system "uiop")
+                           (ensure-linkable-system "asdf"))))
            ,@deps)))))
 
   (defmethod perform ((o link-op) (c system))
