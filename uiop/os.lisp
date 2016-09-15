@@ -210,6 +210,7 @@ then returning the non-empty string value of the variable"
                 (excl:ics-target-case (:-ics "8"))
                 (and (member :smp *features*) "S"))
         #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
+        #+clasp (format nil "~A-~A" s (core:lisp-implementation-id))
         #+clisp
         (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
         #+clozure
@@ -221,11 +222,9 @@ then returning the non-empty string value of the variable"
         #+scl (format nil "~A~A" s
                       ;; ANSI upper case vs lower case.
                       (ecase ext:*case-mode* (:upper "") (:lower "l")))
-        #+clasp (format nil "~A-~A"
-                        s (core:lisp-implementation-id))
-        #+(and ecl (not clasp)) (format nil "~A~@[-~A~]" s
-                                       (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-                                         (subseq vcs-id 0 (min (length vcs-id) 8))))
+        #+ecl (format nil "~A~@[-~A~]" s
+                      (let ((vcs-id (ext:lisp-implementation-vcs-id)))
+                        (subseq vcs-id 0 (min (length vcs-id) 8))))
         #+gcl (subseq s (1+ (position #\space s)))
         #+genera
         (multiple-value-bind (major minor) (sct:get-system-version "System")
