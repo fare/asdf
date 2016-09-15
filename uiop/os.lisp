@@ -210,7 +210,6 @@ then returning the non-empty string value of the variable"
                 (excl:ics-target-case (:-ics "8"))
                 (and (member :smp *features*) "S"))
         #+armedbear (format nil "~a-fasl~a" s system::*fasl-version*)
-        #+clasp (format nil "~A-~A" s (core:lisp-implementation-id))
         #+clisp
         (subseq s 0 (position #\space s)) ; strip build information (date, etc.)
         #+clozure
