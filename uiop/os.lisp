@@ -221,16 +221,15 @@ then returning the non-empty string value of the variable"
         #+scl (format nil "~A~A" s
                       ;; ANSI upper case vs lower case.
                       (ecase ext:*case-mode* (:upper "") (:lower "l")))
-        #+clasp (format nil "~A-~A"
-                        s (core:lisp-implementation-id))
-        #+(and ecl (not clasp)) (format nil "~A~@[-~A~]" s
-                                       (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-                                         (subseq vcs-id 0 (min (length vcs-id) 8))))
+        #+ecl (format nil "~A~@[-~A~]" s
+                      (let ((vcs-id (ext:lisp-implementation-vcs-id)))
+                        (subseq vcs-id 0 (min (length vcs-id) 8))))
         #+gcl (subseq s (1+ (position #\space s)))
         #+genera
         (multiple-value-bind (major minor) (sct:get-system-version "System")
           (format nil "~D.~D" major minor))
         #+mcl (subseq s 8) ; strip the leading "Version "
+        #+mkcl (or (mkcl:git-describe-this-mkcl) s)
         s))))
 
   (defun implementation-identifier ()
@@ -240,7 +239,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
      #\_ #'(lambda (x) (find x " /:;&^\\|?<>(){}[]$#`'\""))
      (format nil "~(~a~@{~@[-~a~]~}~)"
              (or (implementation-type) (lisp-implementation-type))
-             (or (lisp-version-string) (lisp-implementation-version))
+             (lisp-version-string)
              (or (operating-system) (software-type))
              (or (architecture) (machine-type))))))
 
