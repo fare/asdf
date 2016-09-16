@@ -23,9 +23,8 @@
 (assert-equal (component-version (registered-system "test-preloaded-dummy")) "1.0")
 
 (DBG "- Dummy `preloaded-system' doesn't get overwritten by `load-system' because there is no alternative in the filesystem")
-(let ((system (registered-system "test-preloaded-dummy")))
-  (load-test-system "test-preloaded-dummy")
-  (assert-equal (component-version (registered-system "test-preloaded-dummy")) "1.0"))
+(load-test-system "test-preloaded-dummy")
+(assert-equal (component-version (registered-system "test-preloaded-dummy")) "1.0")
 
 (DBG "- Function `clear-system' doesn't remove `preloaded-system'")
 (assert (not (clear-system "test-preloaded-dummy")))
