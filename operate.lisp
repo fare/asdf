@@ -203,8 +203,9 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
     (unless (and (length=n-p arguments 1)
                  (typep (car arguments) '(or string (and symbol (not null)))))
-      (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes one argument, a string or non-null symbol~@:>")
-             (cons combinator arguments) component combinator))
+      (parameter-error (compatfmt "~@<In ~S, bad dependency ~S for ~S. ~S takes one argument, a string or non-null symbol~@:>")
+                       'resolve-dependency-combination
+                       (cons combinator arguments) component combinator))
     ;; :require must be prepared for some implementations providing modules using ASDF,
     ;; as SBCL used to do, and others may might do. Thus, the system provided in the end
     ;; would be a downcased name as per module-provide-asdf above. For the same reason,
@@ -212,10 +213,9 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
     ;; but must check whether we can use find-system and short-circuit cl:require.
     ;; Otherwise, calling cl:require could result in nasty reentrant calls between
     ;; cl:require and asdf:operate that could potentially blow up the stack.
-    (let* ((module (car arguments))
+    (let* ((module (car arguments)) ;; NB: we already checked that it was not null
            (name (string-downcase module))
            (system (find-system name nil)))
-      (assert module)
       (or system (let ((system (make-instance 'require-system :name name)))
                    (register-system system)
                    system))))
@@ -259,10 +259,11 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
   ;; It is defined here to resolve what would otherwise be forward package references.
   (defun mark-component-preloaded (component)
     "Mark a component as preloaded."
-    ;; Recurse to children, so asdf/plan will hopefully be happy.
-    (map () 'mark-component-preloaded (component-children component))
-    ;; Mark the timestamps of the common lisp-action operations as 0.
-    (let ((times (component-operation-times component)))
-      (dolist (o '(load-op compile-op prepare-op))
-        (setf (gethash o times) 0)))))
+    (let ((component (find-component component nil :registered t)))
+      ;; Recurse to children, so asdf/plan will hopefully be happy.
+      (map () 'mark-component-preloaded (component-children component))
+      ;; Mark the timestamps of the common lisp-action operations as 0.
+      (let ((times (component-operation-times component)))
+        (dolist (o '(load-op compile-op prepare-op))
+          (setf (gethash o times) 0))))))
 

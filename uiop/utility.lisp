@@ -30,10 +30,11 @@
    #:list-to-hash-set #:ensure-gethash ;; hash-table
    #:ensure-function #:access-at #:access-at-count ;; functions
    #:call-function #:call-functions #:register-hook-function
+   #:lexicographic< #:lexicographic<= ;; version
+   #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
-   #:lexicographic< #:lexicographic<=
-   #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p)) ;; version
+   #:not-implemented-error #:parameter-error))
 (in-package :uiop/utility)
 
 ;;;; Defining functions in a way compatible with hot-upgrade:
@@ -618,4 +619,42 @@ or a string describing the format-control of a simple-condition."
   (defmacro with-muffled-conditions ((conditions) &body body)
     "Shorthand syntax for CALL-WITH-MUFFLED-CONDITIONS"
     `(call-with-muffled-conditions #'(lambda () ,@body) ,conditions)))
+
+;;; Conditions
+
+(with-upgradability ()
+  (define-condition not-implemented-error (error)
+    ((functionality :initarg :functionality)
+     (format-control :initarg :format-control)
+     (format-arguments :initarg :format-arguments))
+    (:report (lambda (condition stream)
+               (format stream "Not implemented: ~s~@[ ~?~]"
+                       (slot-value condition 'functionality)
+                       (slot-value condition 'format-control)
+                       (slot-value condition 'format-arguments)))))
+
+  (defun not-implemented-error (functionality &optional format-control &rest format-arguments)
+    (error 'not-implemented-error
+           :functionality functionality
+           :format-control format-control
+           :format-arguments format-arguments))
+
+  (define-condition parameter-error (error)
+    ((functionality :initarg :functionality)
+     (format-control :initarg :format-control)
+     (format-arguments :initarg :format-arguments))
+    (:report (lambda (condition stream)
+               (apply 'format stream
+                       (slot-value condition 'format-control)
+                       (slot-value condition 'functionality)
+                       (slot-value condition 'format-arguments)))))
+
+  ;; Note that functionality MUST be passed as the second argument to parameter-error, just after
+  ;; the format-control. If you want it to not appear in first position in actual message, use
+  ;; ~* and ~:* to adjust parameter order.
+  (defun parameter-error (format-control functionality &rest format-arguments)
+    (error 'parameter-error
+           :functionality functionality
+           :format-control format-control
+           :format-arguments format-arguments)))
 

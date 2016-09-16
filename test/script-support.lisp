@@ -31,7 +31,8 @@ Some constraints:
    #:leave-test #:def-test-system
    #:action-name #:in-plan-p
    #:test-source #:test-fasl #:resolve-output #:output-location
-   #:quietly #:join-namestrings))
+   #:quietly #:join-namestrings
+   #:clear-cache))
 
 (in-package :asdf-test)
 
@@ -728,6 +729,10 @@ is bound, write a message and exit on an error.  If
     (loop :with separator = (acall :inter-directory-separator)
           :for (n . morep) :on namestrings
           :do (format s "~A~@[~C~]" n (and morep separator)))))
+
+(defun clear-cache ()
+  ;; Or, should we preserve the timestamps?
+  (clrhash (asymval :*asdf-cache*)))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a
