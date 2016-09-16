@@ -125,8 +125,8 @@
           (resolve-dependency-combination component (car dep-spec) (cdr dep-spec)))))
 
   (defmethod resolve-dependency-combination (component combinator arguments)
-    (error (compatfmt "~@<Bad dependency ~S for ~S~@:>")
-           (cons combinator arguments) component))
+    (parameter-error (compatfmt "~@<In ~S, bad dependency ~S for ~S~@:>")
+                     'resolve-dependency-combination (cons combinator arguments) component))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :feature)) arguments)
     (when (featurep (first arguments))

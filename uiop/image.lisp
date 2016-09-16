@@ -232,7 +232,7 @@ depending on whether *LISP-INTERACTION* is set, enter debugger or die"
     #+sbcl sb-ext:*posix-argv*
     #+xcl system:*argv*
     #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-    (error "raw-command-line-arguments not implemented yet"))
+    (not-implemented-error 'raw-command-line-arguments))
 
   (defun command-line-arguments (&optional (arguments (raw-command-line-arguments)))
     "Extract user arguments from command-line invocation of current process.
@@ -422,7 +422,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     ;; Is it meaningful to run these in the current environment?
     ;; only if we also track the object files that constitute the "current" image,
     ;; and otherwise simulate dump-image, including quitting at the end.
-    #-(or clasp ecl mkcl) (error "~S not implemented for your implementation (yet)" 'create-image)
+    #-(or clasp ecl mkcl) (not-implemented-error 'create-image)
     #+(or clasp ecl mkcl)
     (let ((epilogue-code
            (if no-uiop

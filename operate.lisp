@@ -203,8 +203,9 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
     (unless (and (length=n-p arguments 1)
                  (typep (car arguments) '(or string (and symbol (not null)))))
-      (error (compatfmt "~@<Bad dependency ~S for ~S. ~S takes one argument, a string or non-null symbol~@:>")
-             (cons combinator arguments) component combinator))
+      (parameter-error (compatfmt "~@<In ~S, bad dependency ~S for ~S. ~S takes one argument, a string or non-null symbol~@:>")
+                       'resolve-dependency-combination
+                       (cons combinator arguments) component combinator))
     ;; :require must be prepared for some implementations providing modules using ASDF,
     ;; as SBCL used to do, and others may might do. Thus, the system provided in the end
     ;; would be a downcased name as per module-provide-asdf above. For the same reason,
