@@ -4233,23 +4233,30 @@ or namestring in an @code{:include} directive, e.g.:
 @node Output Shell-friendly syntax for configuration, Semantics of Output Translations, Output Configuration Directories, Controlling where ASDF saves compiled files
 @section Shell-friendly syntax for configuration
 
-When considering environment variable @code{ASDF_OUTPUT_TRANSLATIONS}
-ASDF will skip to the next configuration if it's an empty string.
-It will @code{READ} the string as an SEXP in the DSL
-if it begins with a paren @code{(}
-and it will be interpreted as a list of directories.
-Directories should come by pairs, indicating a mapping directive.
+When processing the environment variable
+@code{ASDF_OUTPUT_TRANSLATIONS}:
+@itemize
+@item ASDF will skip to the next configuration if it's an empty string.
+@item ASDF will @code{READ} the string as an SEXP in the DSL, if it
+begins with a parenthesis @code{(}.
+@item Otherwise ASDF will interpret the value as a list of directories
+(see below).
+@end itemize
+
+In the directory list format,
+directories should come in pairs, each pair indicating a mapping directive.
 Entries are separated
-by a @code{:} (colon) on Unix platforms (including cygwin),
+by a @code{:} (colon) on Unix platforms (including Mac and cygwin), and
 by a @code{;} (semicolon) on other platforms (mainly, Windows).
 
 The magic empty entry,
 if it comes in what would otherwise be the first entry in a pair,
 indicates the splicing of inherited configuration.
-If it comes as the second entry in a pair,
-it indicates that the directory specified first is to be left untranslated
+If the second entry in a pair is empty,
+it indicates that the directory in the first entry is to be left untranslated
 (which has the same effect as if the directory had been repeated).
-Thus @code{"/foo:/bar::/baz:"} means that
+
+For example, @code{"/foo:/bar::/baz:"} means that
 things under directory @file{/foo/}
 are translated to be under @file{/bar/},
 then include the inherited configuration,
@@ -4708,7 +4715,7 @@ and get inspiration (or disinspiration)
 from what it does in @file{header.lisp} and @file{upgrade.lisp}.
 @end defun
 
-@defun register-preloaded-system name @Arest{} keys @Akeys{} version @AallowOtherKeys{}
+@defun register-preloaded-system name @Arest{} keys @Akey{} version @AallowOtherKeys{}
 A system with name @var{name},
 created by @code{make-instance} with extra keys @var{keys}
 (e.g. @code{:version}),
