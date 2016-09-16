@@ -439,8 +439,8 @@ It returns a process-info object."
     #-(or cmucl ecl mkcl sbcl)
     (assert (not (and wait (member :stream (list input output error-output)))))
     #-(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (progn command keys directory
-           (error "run-program not available"))
+    (progn command keys input output error-output directory wait ;; ignore
+           (not-implemented-error '%run-program))
     #+(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%if-output-exists (%normalize-if-exists if-output-exists))
@@ -583,13 +583,13 @@ It returns a process-info object."
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
       #-(or allegro clozure cmucl ecl mkcl lispworks sbcl scl)
-      (error "~S not implemented" '%process-info-pid)))
+      (not-implemented-error '%process-info-pid)))
 
   (defun %wait-process-result (process-info)
     (or (slot-value process-info 'exit-code)
         (let ((process (slot-value process-info 'process)))
           #-(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
-          (error "~S not implemented" '%wait-process)
+          (not-implemented-error '%wait-process-result)
           (when process
             ;; 1- wait
             #+clozure (ccl::external-process-wait process)
@@ -717,7 +717,7 @@ It returns a process-info object."
     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl)
     (progn
       command keys input output error-output ignore-error-status ;; ignore
-      (error "Not implemented on this platform"))
+      (not-implemented-error '%use-run-program))
     (assert (not (member :stream (list input output error-output))))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
@@ -841,8 +841,7 @@ It returns a process-info object."
                     (*error-output* *stderr*))
                 (ext:system %command))
         #+gcl (system:system %command)
-        #+genera (error "~S not supported on Genera, cannot run ~S"
-                        '%system %command)
+        #+genera (not-implemented-error '%system)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
         #+mkcl (mkcl:system %command)
         #+xcl (system:%run-shell-command %command))))
@@ -927,7 +926,7 @@ RUN-PROGRAM returns 3 values:
 or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
     #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
-    (error "RUN-PROGRAM not implemented for this Lisp")
+    (not-implemented-error 'run-program)
     ;; per doc string, set FORCE-SHELL to T if we get command as a string.  But
     ;; don't override user's specified preference. [2015/06/29:rpg]
     (when (stringp command)
