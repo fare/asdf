@@ -413,6 +413,24 @@
                      (and (numberp pid) (plusp pid)))
       (wait-process process-info)))
 
+(new-test-suite "wait-process")
+
+(define-test
+    "exit code after exit: synchronous (repeated)"
+    (let ((process-info (%run-program "./exiter.sh 12" :wait t)))
+      (handle-result "exit code matches?"
+                     (equal 12 (wait-process process-info)))
+      (handle-result "exit code matches? (no. 2)"
+                     (equal 12 (wait-process process-info)))))
+
+(define-test
+    "exit code after exit: asynchronous (repeated)"
+  (let ((process-info (%run-program "./sleeper.sh 12 1" :wait nil)))
+    (handle-result "exit code matches?"
+                   (equal 12 (wait-process process-info)))
+    (handle-result "exit code matches? (no. 2)"
+                   (equal 12 (wait-process process-info)))))
+
 (fresh-line)
 (run-tests)
 
