@@ -198,7 +198,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
     (let* ((module (or (required-module s) (coerce-name s)))
            (*modules-being-required* (cons module *modules-being-required*)))
       (assert (null (component-children s)))
-      (require module)))
+      (require #-cmucl module #+cmucl (string-upcase module))))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
     (unless (and (length=n-p arguments 1)
