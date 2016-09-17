@@ -621,18 +621,24 @@ is bound, write a message and exit on an error.  If
   (format t "Being a bit verbose~%")
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
-    (format t "Comparing directories~%")
-    (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
-      (assert-pathname-equal-helper ;; not always EQUAL (!)
-       '*test-directory* *test-directory*
-       '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
-      (unless (equal *test-directory* x)
-        (format t "Interestingly, while *test-directory* has components~% ~S~%~
+  (funcall
+   ;; Old versions of ASDF don't always use with-asdf-cache in locate system, but need it.
+   ;; So we do it for them for the sake of testing upgrade from these old versions.
+   ;; Yet older versions of ASDF don't even have this cache, so then we don't.
+   (or (asym :call-with-asdf-cache) 'funcall)
+   (lambda ()
+     (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
+       (format t "Comparing directories~%")
+       (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
+         (assert-pathname-equal-helper ;; not always EQUAL (!)
+          '*test-directory* *test-directory*
+          '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
+         (unless (equal *test-directory* x)
+           (format t "Interestingly, while *test-directory* has components~% ~S~%~
                  ASDF finds the ASDs in~% ~S~%Using the latter.~%"
-                (pathname-components *test-directory*)
-                (pathname-components x)))
-      (setf *test-directory* x)))
+                   (pathname-components *test-directory*)
+                   (pathname-components x)))
+         (setf *test-directory* x)))))
   t)
 
 (defun frob-packages ()
