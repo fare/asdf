@@ -159,7 +159,7 @@ then define and register said preloaded system."
 This function is run whenever ASDF is upgraded."
     (loop :for name :being :the :hash-keys :of *preloaded-systems*
           :do (ensure-preloaded-system-registered name)))
-  (register-hook-function '*post-upgrade-restart-hook* 'ensure-all-preloaded-systems-registered)
+  (register-hook-function '*post-upgrade-cleanup-hook* 'ensure-all-preloaded-systems-registered)
 
   (defun register-preloaded-system (system-name &rest keys &key (version t) &allow-other-keys)
     "Register a system as being preloaded. If the system has not been loaded from the filesystem
