@@ -6,13 +6,19 @@
   ;; We return a list of entries in reverse chronological order,
   ;; which should also be more or less the order of decreasing relevance.
   '("REQUIRE" ;; a magic tag meaning whatever your implementation provides, if anything
+    "3.1.7" ;; (2016-03-23) more bug fixes, latest release (as of 2016-09-17)
+    "3.1.5" ;; (2015-07-21) more bug fixes
+    "3.0.3" ;; (2013-10-22) the last in the ASDF 3.0 series
+    "2.26")) ;; (2012-10-30), last in ASDF 2 series, still sported by Quicklisp 2016-02-22 (!)
 
-    ;; The 3.1 series provides the asdf3.1 feature, meaning users can rely on
+(defparameter *obsolete-upgrade-test-tags*
+  '(;; The 3.1 series provides the asdf3.1 feature, meaning users can rely on
     ;; all the stabilization work done in 3.0 so far, plus extra developments
     ;; in UIOP, package-inferred-system, and more robustification.
+    ;;(included above) "3.1.7" ;; (2016-03-23) more bug fixes, latest release (as of 2016-09-17)
     "3.1.6" ;; (2015-10-17) more bug fixes
-    "3.1.5" ;; (2015-07-21) more bug fixes
-    "3.1.4" ;; (2014-10-09) more bug fixes, source-registry cache
+    ;;(included above) "3.1.5" ;; (2015-07-21) more bug fixes, what SBCL sports (as of 1.3.9, 2016-08-30)
+    "3.1.4" ;; (2014-10-09) more bug fixes, source-registry cache, in LispWorks 7
     "3.1.3" ;; (2014-07-24) a bug fix release for 3.1.2
     "3.1.2" ;; (2014-05-06) the first ASDF 3.1 release
 
@@ -20,19 +26,18 @@
     ;; with Robert Goldman taking over maintainership at 3.0.2.
     ;; 3.0.0 was just 2.33.10 promoted, but version-satisfies meant it was suddenly
     ;; not compatible with ASDF2 anymore, so we immediately released 3.0.1
-    "3.0.3" ;; (2013-10-22) the last in the ASDF 3.0 series
+    ;;(included above) "3.0.3" ;; (2013-10-22) the last in the ASDF 3.0 series
     "3.0.2" ;; (2013-07-02) the first ASDF 3 in SBCL
-    "3.0.1")) ;; (2013-05-16) the first stable ASDF 3 release
+    "3.0.1" ;; (2013-05-16) the first stable ASDF 3 release
 
-(defparameter *obsolete-upgrade-test-tags*
-  '(;; 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
+    ;; 2.27 to 2.33 are Faré's "stable" ASDF 3 pre-releases
     "2.32" ;; (2013-03-05) the first really stable ASDF 3 pre-release
     "2.27" ;; (2013-02-01) the first ASDF 3 pre-release
 
     ;; The ASDF 2 series
     ;; Note that 2.26.x is where the refactoring that begat ASDF 3 took place.
     ;; 2.26.61 is the last single-file, single-package ASDF.
-    "2.26" ;; (2012-10-30) the last stable ASDF 2 release, long used by Quicklisp, SBCL, etc.
+    ;;(included above) "2.26" ;; (2012-10-30), last in ASDF 2 series, still sported by Quicklisp 2016-02-22 (!), long used by SBCL, etc.
     "2.22" ;; (2012-06-12) used by debian wheezy, etc.
     "2.20" ;; (2012-01-18) in CCL 1.8, Ubuntu 12.04 LTS
     "2.019" ;; (2011-11-29) still included in LispWorks in 2014.
@@ -48,8 +53,12 @@
 
 (defun get-upgrade-tags (&optional (x *upgrade-test-tags*))
   (cond
-    ((eq x :default) *default-upgrade-test-tags*)
-    ((or (eq x :old) (equal x '("old"))) *obsolete-upgrade-test-tags*)
+    ((string-equal x :default)
+     *default-upgrade-test-tags*)
+    ((string-equal x :old)
+     *obsolete-upgrade-test-tags*)
+    ((string-equal x :all)
+     (mappend *default-upgrade-test-tags* *obsolete-upgrade-test-tags*))
     (t x)))
 
 (defun extract-tagged-asdf (tag)
