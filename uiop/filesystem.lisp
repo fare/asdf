@@ -71,7 +71,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
        (or (ignore-errors (truename p))
            ;; this is here because trying to find the truename of a directory pathname WITHOUT supplying
            ;; a trailing directory separator, causes an error on some lisps.
-           #+(or clisp gcl) (if-let (d (ensure-directory-pathname p)) (ignore-errors (truename d)))))))
+           #+(or clisp gcl) (if-let (d (ensure-directory-pathname p nil)) (ignore-errors (truename d)))))))
 
   (defun safe-file-write-date (pathname)
     "Safe variant of FILE-WRITE-DATE that may return NIL rather than raise an error."
@@ -546,7 +546,7 @@ NILs."
     (let ((dir
             #+abcl extensions:*lisp-home*
             #+(or allegro clasp ecl mkcl) #p"SYS:"
-            ;;#+clisp custom:*lib-directory* ; causes failure in asdf-pathname-test(!)
+            #+clisp custom:*lib-directory*
             #+clozure #p"ccl:"
             #+cmucl (ignore-errors (pathname-parent-directory-pathname (truename #p"modules:")))
             #+gcl system::*system-directory*
