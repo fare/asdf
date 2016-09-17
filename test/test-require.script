@@ -159,18 +159,26 @@
 (assert-equal (component-version (registered-system "require-system/ordinary")) "2.0")
 
 
-;;; We can't actually test portably loading an implementation-dependent module,
-;;; because we don't know what modules does implementations ship, so we'll only
-;;; test the feature on implementations that support hooking ASDF into CL:REQUIRE
-;;; Which is most of the interesting ones, anyway.
+;;; ASDF assumes that if a same-named system can be found by find-system, then
+;;; it overrides any same-named implementation-dependent module (after downcasing)
+;;; specified via (:require ...), so as to avoid recursive calls to asdf:operate from
+;;; within plan execution, and any double-loading or infinite loop that could result.
+;;;
+;;; That means that we can't "just" test the (:require ...) feature portably by
+;;; relying on the ASDF hook into CL:REQUIRE that many implementations provide.
+
+#+clisp
+(defparameter *dynmod-list*
+  (mapcar 'pathname-name
+          (directory-files (subpathname (lisp-implementation-directory) "dynmod/") "*.lisp")))
 
 (defparameter *mod*
   (or
    #+abcl :abcl-contrib
    #+allegro :yacc
-   #+clisp "zlib" ;; Has to be lower case!
+   #+clisp (first (remove "asdf" *dynmod-list* :test 'equal))
    #+(or clozure cmucl) :defsystem
-   #+ecl :ecl-curl
+   #+ecl :serve-event ;; loads faster than :ecl-quicklisp
    #+lispworks "comm"
    #+mkcl :walker
    #+sbcl :sb-md5
@@ -179,14 +187,23 @@
 (unless *mod*
   (leave-test "This implementation doesn't provide a known module" 0))
 
+;; Prevent ASDF from finding the modules as ASDF systems on ECL, MKCL, SBCL (and maybe more).
+(setf asdf::*system-definition-search-functions*
+      (remove 'asdf::sysdef-source-registry-search asdf::*system-definition-search-functions*))
+(asdf::clear-defined-systems)
+(clear-cache)
+
+
 (defun has-module-p (x)
   ;; note that the spec is case-sensitive, but we'll cast a wider net.
   (and (member x *modules* :test 'string-equal) t))
 
+(DBG :before *modules*)
 (assert (not (find-system *mod* nil)))
 (assert (not (has-module-p *mod*)))
 
 (eval `(def-test-system :require-test :depends-on ((:require ,*mod*))))
 
 (load-system :require-test)
+(DBG :after *modules*)
 (assert (has-module-p *mod*))
