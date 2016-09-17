@@ -127,7 +127,7 @@ or NIL if not found."
   (defvar *preloaded-systems* (make-hash-table :test 'equal)
     "Registration table for preloaded systems.")
 
-  (declaim (ftype (function (component) t) mark-component-preloaded)) ; defined in asdf/operate
+  (declaim (ftype (function (t) t) mark-component-preloaded)) ; defined in asdf/operate
 
   (defun make-preloaded-system (name keys)
     "Make a preloaded system of given NAME with build information from KEYS"
