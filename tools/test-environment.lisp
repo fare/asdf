@@ -228,8 +228,9 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
          (output (if (eq output *stdout*) :interactive output)))
     (log! log "~A" (print-process-spec command nil))
     (multiple-value-bind (out err code)
-        (run `((>& 2 1) ,@(when interactive '(rlwrap)) ,@command
-               ,@(when log `((>> ,log)))) ;; unhappily, | tee -a log eats error codes :-(
+        (run `(,@(when interactive '(rlwrap))
+               ,@command
+               ,@(when log `((>> ,log) (>& 2 1)))) ;; unhappily, | tee -a log eats error codes :-(
              :input interactive :output output :error-output (or interactive :output) :on-error nil)
       (declare (ignore out err))
       (let ((okp (eql code 0)))
