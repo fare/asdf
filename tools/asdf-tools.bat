@@ -1,6 +1,6 @@
 @echo off
 
-::: By default. We use CCL.
+::: By default. We use CCL, because SBCL doesn't have a good enough run-program on Windows.
 if "%LISP%" == "" goto ccl
 if "%LISP%" == "allegro" goto allegro
 if "%LISP%" == "ccl" goto ccl

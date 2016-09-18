@@ -1,12 +1,15 @@
 #| -*- Lisp -*-
 case "$LISP" in
-  # CCL is our default because it is the single free software implementation that has
-  # decent portable support on all of Windows, Linux (x64, x86, ARM), MacOS X
-  ""|ccl) exec ${CCL:-ccl} --no-init --load "$0" -- "$@" ;;
+  # SBCL is our default on Unix, because while CCL has better support on Windows and MacOS,
+  # SBCL still runs decently on MacOS and CCL has a background thread that eats input
+  # (and still puts the tty in raw mode if using single-threaded-ccl) which defeats
+  # the purpose of `make load`. See: https://bugs.launchpad.net/asdf/+bug/1624909
 
   allegro) ${ALLEGRO:-alisp} -qq -e "(setf *load-verbose* nil)" -L "$0" -- "$@" ;;
 
-  sbcl) exec ${SBCL:-sbcl} --noinform --no-userinit --no-sysinit --script "$0" "$@" ;;
+  ccl) exec ${CCL:-ccl} --no-init --load "$0" -- "$@" ;;
+
+  ""|sbcl) exec ${SBCL:-sbcl} --noinform --no-userinit --no-sysinit --script "$0" "$@" ;;
 
   # Let cl-launch choose its preferred Lisp
   cl-launch) cl-launch -Q -sp asdf-tools -r entry-point -- "$@" ;;
