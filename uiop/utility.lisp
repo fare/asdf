@@ -518,6 +518,7 @@ up to the given equality TEST"
 ;;; Version handling
 (with-upgradability ()
   (defun unparse-version (version-list)
+    "From a parsed version (being a list of natural integers), compute the version string"
     (format nil "~{~D~^.~}" version-list))
 
   (defun parse-version (version-string &optional on-error)
@@ -548,6 +549,7 @@ in that it doesn't print back to itself, but the list is returned anyway."
         version-list)))
 
   (defun lexicographic< (< x y)
+    "Lexicographically compare two lists of real numbers"
     (cond ((null y) nil)
           ((null x) t)
           ((funcall < (car x) (car y)) t)
@@ -555,14 +557,17 @@ in that it doesn't print back to itself, but the list is returned anyway."
           (t (lexicographic< < (cdr x) (cdr y)))))
 
   (defun lexicographic<= (< x y)
+    "<= variant of lexicographic<"
     (not (lexicographic< < y x)))
 
   (defun version< (version1 version2)
+    "Compare two version strings"
     (let ((v1 (parse-version version1 nil))
           (v2 (parse-version version2 nil)))
       (lexicographic< '< v1 v2)))
 
   (defun version<= (version1 version2)
+    "Compare two version strings"
     (not (version< version2 version1)))
 
   (defun version-compatible-p (provided-version required-version)
@@ -581,10 +586,10 @@ with later being determined by a lexicographical comparison of minor numbers."
   (defparameter +simple-condition-format-control-slot+
     #+abcl 'system::format-control
     #+allegro 'excl::format-control
+    #+(or clasp ecl mkcl) 'si::format-control
     #+clisp 'system::$format-control
     #+clozure 'ccl::format-control
     #+(or cmucl scl) 'conditions::format-control
-    #+(or clasp ecl mkcl) 'si::format-control
     #+(or gcl lispworks) 'conditions::format-string
     #+sbcl 'sb-kernel:format-control
     #-(or abcl allegro clasp clisp clozure cmucl ecl gcl lispworks mkcl sbcl scl) nil
@@ -634,6 +639,10 @@ or a string describing the format-control of a simple-condition."
                        (slot-value condition 'format-arguments)))))
 
   (defun not-implemented-error (functionality &optional format-control &rest format-arguments)
+    "Signal an error because some FUNCTIONALITY is not implemented in the current version
+of the software on the current platform; it may or may not be implemented in different combinations
+of version of the software and of the underlying platform. Optionally, report a formatted error
+message."
     (error 'not-implemented-error
            :functionality functionality
            :format-control format-control
@@ -653,6 +662,9 @@ or a string describing the format-control of a simple-condition."
   ;; the format-control. If you want it to not appear in first position in actual message, use
   ;; ~* and ~:* to adjust parameter order.
   (defun parameter-error (format-control functionality &rest format-arguments)
+    "Signal an error because some FUNCTIONALITY or its specific implementation on a given underlying
+platform does not accept a given parameter or combination of parameters. Report a formatted error
+message, that takes the functionality as its first argument (that can be skipped with ~*)."
     (error 'parameter-error
            :functionality functionality
            :format-control format-control
