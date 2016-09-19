@@ -108,7 +108,8 @@ based on supplied KEYS."
   (defmethod system-source-file ((system-name string))
     (system-source-file (find-system system-name)))
   (defmethod system-source-file ((system-name symbol))
-    (system-source-file (find-system system-name)))
+    (when system-name
+      (system-source-file (find-system system-name))))
 
   (defun system-source-directory (system-designator)
     "Return a pathname object corresponding to the directory

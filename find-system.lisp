@@ -123,6 +123,14 @@ or NIL if not found."
               (cons (ignore-errors (get-file-stamp (system-source-file system)))
                     system)))))
 
+  (defun map-systems (fn)
+    "Apply FN to each defined system.
+
+FN should be a function of one argument. It will be
+called with an object of type asdf:system."
+    (loop :for registered :being :the :hash-values :of *defined-systems*
+          :do (funcall fn (cdr registered))))
+
 
   ;;; Preloaded systems: in the image even if you can't find source files backing them.
 
@@ -224,14 +232,6 @@ Returns T if system was or is now undefined, NIL if a new preloaded system was r
 Preloaded systems (including immutable ones) will be reset, other systems will be de-registered."
     (loop :for name :being :the :hash-keys :of *defined-systems*
           :unless (member name '("asdf" "uiop") :test 'equal) :do (clear-system name)))
-
-  (defun map-systems (fn)
-    "Apply FN to each defined system.
-
-FN should be a function of one argument. It will be
-called with an object of type asdf:system."
-    (loop :for registered :being :the :hash-values :of *defined-systems*
-          :do (funcall fn (cdr registered))))
 
 
   ;;; Searching for system definitions
@@ -443,9 +443,7 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
              (ensure-gethash
               (list (namestring pathname) version) *old-asdf-systems*
               #'(lambda ()
-                 (let ((old-pathname
-                         (if-let (pair (system-registered-p "asdf"))
-                           (system-source-file (cdr pair)))))
+                 (let ((old-pathname (system-source-file (registered-system "asdf"))))
                    (warn "~@<~
         You are using ASDF version ~A ~:[(probably from (require \"asdf\") ~
         or loaded by quicklisp)~;from ~:*~S~] and have an older version of ASDF ~
@@ -493,8 +491,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
              (found-system (and (typep found 'system) found))
              (pathname (ensure-pathname
                         (or (and (typep found '(or pathname string)) (pathname found))
-                            (and found-system (system-source-file found-system))
-                            (and previous (system-source-file previous)))
+                            (system-source-file found-system)
+                            (system-source-file previous))
                         :want-absolute t :resolve-symlinks *resolve-symlinks*))
              (foundp (and (or found-system pathname previous) t)))
         (check-type found (or null pathname system))
@@ -517,7 +515,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)
             (assert (eq foundp (and (or found-system pathname previous) t)))
-            (let ((previous-pathname (and previous (system-source-file previous)))
+            (let ((previous-pathname (system-source-file previous))
                   (system (or previous found-system)))
               (when (and found-system (not previous))
                 (register-system found-system))
