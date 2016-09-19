@@ -51,42 +51,56 @@
 
 (with-upgradability ()
   (defgeneric* (find-component) (base path &key registered)
-    (:documentation "Find a component by resolving the PATH starting from BASE parent"))
-  (defgeneric resolve-dependency-combination (component combinator arguments))
+    (:documentation "Find a component by resolving the PATH starting from BASE parent.
+If REGISTERED is true, only search currently registered systems."))
+  (defgeneric resolve-dependency-combination (component combinator arguments)
+    (:documentation "Resolve dependency (COMBINATOR . ARGUMENTS) in the context of COMPONENT"))
 
+  ;; Methods for find-component
+
+  ;; If the base component is a string, resolve it as a system, then if not nil follow the path.
   (defmethod find-component ((base string) path &key registered)
     (if-let ((s (if registered
                     (registered-system base)
                     (find-system base nil))))
       (find-component s path :registered registered)))
 
+  ;; If the base component is a symbol, coerce it to a name if not nil, and resolve that.
+  ;; If nil, use the path as base if not nil, or else return nil.
   (defmethod find-component ((base symbol) path &key registered)
     (cond
       (base (find-component (coerce-name base) path :registered registered))
       (path (find-component path nil :registered registered))
       (t    nil)))
 
+  ;; If the base component is a cons cell, resolve its car, and add its cdr to the path.
   (defmethod find-component ((base cons) path &key registered)
     (find-component (car base) (cons (cdr base) path) :registered registered))
 
+  ;; If the base component is a parent-component and the path a string, find the named child.
   (defmethod find-component ((parent parent-component) (name string) &key registered)
     (declare (ignorable registered))
     (compute-children-by-name parent :only-if-needed-p t)
     (values (gethash name (component-children-by-name parent))))
 
+  ;; If the path is a symbol, coerce it to a name if non-nil, or else just return the base.
   (defmethod find-component (base (name symbol) &key registered)
     (if name
         (find-component base (coerce-name name) :registered registered)
         base))
 
+  ;; If the path is a cons, first resolve its car as path, then its cdr.
   (defmethod find-component ((c component) (name cons) &key registered)
     (find-component (find-component c (car name) :registered registered)
                     (cdr name) :registered registered))
 
+  ;; If the path is a component, return it, disregarding the base.
   (defmethod find-component ((base t) (actual component) &key registered)
     (declare (ignorable registered))
     actual)
 
+  ;; Resolve dependency NAME in the context of a COMPONENT, with given optional VERSION constraint.
+  ;; This (private) function is used below by RESOLVE-DEPENDENCY-SPEC and by the :VERSION spec.
   (defun resolve-dependency-name (component name &optional version)
     (loop
       (restart-case
@@ -117,13 +131,16 @@
               (unset-asdf-cache-entry `(find-system ,name))
               (unset-asdf-cache-entry `(locate-system ,name))))))))
 
-
+  ;; Resolve dependency specification DEP-SPEC in the context of COMPONENT.
+  ;; This is notably used by MAP-DIRECT-DEPENDENCIES to process the results of COMPONENT-DEPENDS-ON
+  ;; and by PARSE-DEFSYSTEM to process DEFSYSTEM-DEPENDS-ON.
   (defun resolve-dependency-spec (component dep-spec)
     (let ((component (find-component () component)))
       (if (atom dep-spec)
           (resolve-dependency-name component dep-spec)
           (resolve-dependency-combination component (car dep-spec) (cdr dep-spec)))))
 
+  ;; Methods for RESOLVE-DEPENDENCY-COMBINATION to parse lists as dependency specifications.
   (defmethod resolve-dependency-combination (component combinator arguments)
     (parameter-error (compatfmt "~@<In ~S, bad dependency ~S for ~S~@:>")
                      'resolve-dependency-combination (cons combinator arguments) component))
