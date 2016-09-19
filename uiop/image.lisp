@@ -318,7 +318,7 @@ of the function will be returned rather than interpreted as a boolean designatin
                           (call-function entry-point)
                           t))))
         (if lisp-interaction
-            (apply 'values results)
+            (values-list results)
             (shell-boolean-exit (first results)))))))
 
 

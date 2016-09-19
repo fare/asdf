@@ -89,7 +89,7 @@ The macro expansion has relatively low overhead in space or time."
          (e "~&  ~S => " expression)
          (let ((results (multiple-value-list (funcall thunk))))
            (e "~{~S~^ ~}~%" results)
-           (apply 'values results))))
+           (values-list results))))
     (map () #'z (list *standard-output* *error-output* *trace-output*))
     (e "~A~%" tag)
     (loop :for (expression . thunk) :in expressions-thunks
