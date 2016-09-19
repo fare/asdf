@@ -29,20 +29,26 @@
   (define-condition invalid-source-registry (invalid-configuration warning)
     ((format :initform (compatfmt "~@<Invalid source registry ~S~@[ in ~S~]~@{ ~@?~}~@:>"))))
 
-  ;; Using ack 1.2 exclusions
+  ;; Default list of directories under which the source-registry tree search won't recurse
   (defvar *default-source-registry-exclusions*
-    '(".bzr" ".cdv"
+    '(;;-- Using ack 1.2 exclusions
+      ".bzr" ".cdv"
       ;; "~.dep" "~.dot" "~.nib" "~.plst" ; we don't support ack wildcards
       ".git" ".hg" ".pc" ".svn" "CVS" "RCS" "SCCS" "_darcs"
       "_sgbak" "autom4te.cache" "cover_db" "_build"
-      "debian")) ;; debian often builds stuff under the debian directory... BAD.
+      ;;-- debian often builds stuff under the debian directory... BAD.
+      "debian"))
 
+  ;; Actual list of directories under which the source-registry tree search won't recurse
   (defvar *source-registry-exclusions* *default-source-registry-exclusions*)
 
+  ;; The state of the source-registry after search in configured locations
   (defvar *source-registry* nil
     "Either NIL (for uninitialized), or an equal hash-table, mapping
 system names to pathnames of .asd files")
 
+  ;; Saving the user-provided parameter to the source-registry, if any,
+  ;; so we can recompute the source-registry after code upgrade.
   (defvar *source-registry-parameter* nil)
 
   (defun source-registry-initialized-p ()
@@ -69,6 +75,8 @@ system names to pathnames of .asd files")
     "Should :tree entries of the source-registry recurse in subdirectories
 after having found a .asd file? True by default.")
 
+  ;; When walking down a filesystem tree, if in a directory there is a .cl-source-registry.cache,
+  ;; read its contents instead of further recursively querying the filesystem.
   (defun process-source-registry-cache (directory collect)
     (let ((cache (ignore-errors
                   (safe-read-file-form (subpathname directory ".cl-source-registry.cache")))))
@@ -93,6 +101,9 @@ after having found a .asd file? True by default.")
                     (if visitedp nil
                         (setf (gethash (pathname-key x) visited) t)))))))
       (collect-sub*directories directory #'collectp #'recursep (constantly nil)))))
+
+
+  ;;; Validate the configuration forms
 
   (defun validate-source-registry-directive (directive)
     (or (member directive '(:default-registry))
@@ -120,6 +131,9 @@ after having found a .asd file? True by default.")
     (validate-configuration-directory
      directory :source-registry 'validate-source-registry-directive
                :invalid-form-reporter 'invalid-source-registry))
+
+
+  ;;; Parse the configuration string
 
   (defun parse-source-registry-string (string &key location)
     (cond
@@ -213,6 +227,9 @@ after having found a .asd file? True by default.")
   (defun environment-source-registry ()
     (getenv "CL_SOURCE_REGISTRY"))
 
+
+  ;;; Process the source-registry configuration
+
   (defgeneric* (process-source-registry) (spec &key inherit register))
 
   (defun* (inherit-source-registry) (inherit &key register)
@@ -271,6 +288,8 @@ after having found a .asd file? True by default.")
       (dolist (directive (cdr (validate-source-registry-form form)))
         (process-source-registry-directive directive :inherit inherit :register register))))
 
+
+  ;; Flatten the user-provided configuration into an ordered list of directories and trees
   (defun flatten-source-registry (&optional (parameter *source-registry-parameter*))
     (remove-duplicates
      (while-collecting (collect)
@@ -284,7 +303,8 @@ after having found a .asd file? True by default.")
      :test 'equal :from-end t))
 
   ;; Will read the configuration and initialize all internal variables.
-  (defun compute-source-registry (&optional (parameter *source-registry-parameter*) (registry *source-registry*))
+  (defun compute-source-registry (&optional (parameter *source-registry-parameter*)
+                                    (registry *source-registry*))
     (dolist (entry (flatten-source-registry parameter))
       (destructuring-bind (directory &key recurse exclude) entry
         (let* ((h (make-hash-table :test 'equal))) ; table to detect duplicates
