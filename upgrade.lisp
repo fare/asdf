@@ -152,9 +152,4 @@ previously-loaded version of ASDF."
     (let ((*load-print* nil)
           (*compile-print* nil))
       (handler-bind (((or style-warning) #'muffle-warning))
-        (symbol-call :asdf :load-system :asdf :verbose nil))))
-
-  ;; Register the upgrade-configuration function from UIOP,
-  ;; to ensure configuration is upgraded as needed.
-  (register-hook-function '*post-upgrade-cleanup-hook* 'upgrade-configuration))
-
+        (symbol-call :asdf :load-system :asdf :verbose nil)))))

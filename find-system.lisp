@@ -154,13 +154,6 @@ then define and register said preloaded system."
     (if-let (system (and (not (registered-system name)) (sysdef-preloaded-system-search name)))
       (register-system system)))
 
-  (defun ensure-all-preloaded-systems-registered ()
-    "Make sure all registered preloaded systems are defined.
-This function is run whenever ASDF is upgraded."
-    (loop :for name :being :the :hash-keys :of *preloaded-systems*
-          :do (ensure-preloaded-system-registered name)))
-  (register-hook-function '*post-upgrade-cleanup-hook* 'ensure-all-preloaded-systems-registered)
-
   (defun register-preloaded-system (system-name &rest keys &key (version t) &allow-other-keys)
     "Register a system as being preloaded. If the system has not been loaded from the filesystem
 yet, or if its build information is later cleared with CLEAR-SYSTEM, a dummy system will be
@@ -230,9 +223,7 @@ Returns T if system was or is now undefined, NIL if a new preloaded system was r
     "Clear all currently registered defined systems.
 Preloaded systems (including immutable ones) will be reset, other systems will be de-registered."
     (loop :for name :being :the :hash-keys :of *defined-systems*
-          :unless (equal name "asdf") :do (clear-system name)))
-
-  (register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
+          :unless (member name '("asdf" "uiop") :test 'equal) :do (clear-system name)))
 
   (defun map-systems (fn)
     "Apply FN to each defined system.

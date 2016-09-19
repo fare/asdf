@@ -262,11 +262,19 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
 (with-upgradability ()
   (defun restart-upgraded-asdf ()
     ;; If we're in the middle of something, restart it.
-    (when *asdf-cache*
-      (let ((l (loop :for k :being :the hash-keys :of *asdf-cache*
-                     :when (eq (first k) 'find-system) :collect (second k))))
-        (clrhash *asdf-cache*)
-        (dolist (s l) (find-system s nil)))))
+    (let ((systems-being-defined
+           (when *asdf-cache*
+             (prog1
+                 (loop :for k :being :the hash-keys :of *asdf-cache*
+                   :when (eq (first k) 'find-system) :collect (second k))
+               (clrhash *asdf-cache*)))))
+      ;; Regardless, clear defined systems, since they might be invalid
+      ;; after an incompatible ASDF upgrade.
+      (clear-defined-systems)
+      ;; The configuration also may have to be upgraded.
+      (upgrade-configuration)
+      ;; If we were in the middle of an operation, be sure to restore the system being defined.
+      (dolist (s systems-being-defined) (find-system s nil))))
   (register-hook-function '*post-upgrade-cleanup-hook* 'restart-upgraded-asdf)
 
   ;; The following function's symbol is from asdf/find-system.
