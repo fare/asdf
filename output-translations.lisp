@@ -22,6 +22,7 @@
    ))
 (in-package :asdf/output-translations)
 
+;; We are using a macro, for portability to some retarded implementations.
 (when-upgrading () (undefine-function '(setf output-translations)))
 
 (with-upgradability ()
@@ -35,8 +36,10 @@ Each mapping is a pair of a source pathname and destination pathname,
 and the order is by decreasing length of namestring of the source pathname.")
 
   (defun output-translations ()
+    "Return the configured output-translations, if any"
     (car *output-translations*))
 
+  ;; Set the output-translations, by sorting the provided new-value.
   (defun set-output-translations (new-value)
     (setf *output-translations*
           (list
@@ -51,6 +54,7 @@ and the order is by decreasing length of namestring of the source pathname.")
   (defun* ((setf output-translations)) (new-value) (set-output-translations new-value))
 
   (defun output-translations-initialized-p ()
+    "Have the output-translations been initialized yet?"
     (and *output-translations* t))
 
   (defun clear-output-translations ()
@@ -58,6 +62,9 @@ and the order is by decreasing length of namestring of the source pathname.")
     (setf *output-translations* '())
     (values))
   (register-clear-configuration-hook 'clear-output-translations)
+
+
+  ;;; Validation of the configuration directives...
 
   (defun validate-output-translations-directive (directive)
     (or (member directive '(:enable-user-cache :disable-cache nil))
@@ -87,6 +94,8 @@ and the order is by decreasing length of namestring of the source pathname.")
      directory :output-translations 'validate-output-translations-directive
                :invalid-form-reporter 'invalid-output-translation))
 
+
+  ;;; Parse the ASDF_OUTPUT_TRANSLATIONS environment variable and/or some file contents
   (defun parse-output-translations-string (string &key location)
     (cond
       ((or (null string) (equal string ""))
@@ -128,6 +137,8 @@ and the order is by decreasing length of namestring of the source pathname.")
                  (push :ignore-inherited-configuration directives))
                (return `(:output-translations ,@(nreverse directives)))))))))
 
+
+  ;; The default sources of configuration for output-translations
   (defparameter* *default-output-translations*
     '(environment-output-translations
       user-output-translations-pathname
@@ -135,6 +146,8 @@ and the order is by decreasing length of namestring of the source pathname.")
       system-output-translations-pathname
       system-output-translations-directory-pathname))
 
+  ;; Compulsory implementation-dependent wrapping for the translations:
+  ;; handle implementation-provided systems.
   (defun wrapping-output-translations ()
     `(:output-translations
     ;; Some implementations have precompiled ASDF systems,
@@ -151,9 +164,11 @@ and the order is by decreasing length of namestring of the source pathname.")
       ;; We enable the user cache by default, and here is the place we do:
       :enable-user-cache))
 
+  ;; Relative pathnames of output-translations configuration to XDG configuration directory
   (defparameter *output-translations-file* (parse-unix-namestring "common-lisp/asdf-output-translations.conf"))
   (defparameter *output-translations-directory* (parse-unix-namestring "common-lisp/asdf-output-translations.conf.d/"))
 
+  ;; Locating various configuration pathnames, depending on input or output intent.
   (defun user-output-translations-pathname (&key (direction :input))
     (xdg-config-pathname *output-translations-file* direction))
   (defun system-output-translations-pathname (&key (direction :input))
@@ -166,6 +181,9 @@ and the order is by decreasing length of namestring of the source pathname.")
                          :direction direction))
   (defun environment-output-translations ()
     (getenv "ASDF_OUTPUT_TRANSLATIONS"))
+
+
+  ;;; Processing the configuration.
 
   (defgeneric process-output-translations (spec &key inherit collect))
 
@@ -227,6 +245,9 @@ and the order is by decreasing length of namestring of the source pathname.")
     (dolist (directive (cdr (validate-output-translations-form form)))
       (process-output-translations-directive directive :inherit inherit :collect collect)))
 
+
+  ;;; Top-level entry-points to configure output-translations
+
   (defun compute-output-translations (&optional parameter)
     "read the configuration, return it"
     (remove-duplicates
@@ -235,8 +256,11 @@ and the order is by decreasing length of namestring of the source pathname.")
         `(wrapping-output-translations ,parameter ,@*default-output-translations*) :collect #'c))
      :test 'equal :from-end t))
 
+  ;; Saving the user-provided parameter to output-translations, if any,
+  ;; so we can recompute the translations after code upgrade.
   (defvar *output-translations-parameter* nil)
 
+  ;; Main entry-point for users.
   (defun initialize-output-translations (&optional (parameter *output-translations-parameter*))
     "read the configuration, initialize the internal configuration variable,
 return the configuration"
@@ -258,6 +282,8 @@ effectively disabling the output translation facility."
         (output-translations)
         (initialize-output-translations)))
 
+
+  ;; Top-level entry-point to _use_ output-translations
   (defun* (apply-output-translations) (path)
     (etypecase path
       (logical-pathname
@@ -278,11 +304,14 @@ effectively disabling the output translation facility."
               :return (translate-pathname* p absolute-source destination root source)
               :finally (return p)))))
 
+
   ;; Hook into uiop's output-translation mechanism
   #-cormanlisp
   (setf *output-translation-function* 'apply-output-translations)
 
-  #+abcl
+
+  ;;; Implementation-dependent hacks
+  #+abcl ;; ABCL: make it possible to use systems provided in the ABCL jar.
   (defun translate-jar-pathname (source wildcard)
     (declare (ignore wildcard))
     (flet ((normalize-device (pathname)
