@@ -20,6 +20,10 @@
 (in-package :asdf/backward-interface)
 
 (with-upgradability ()
+  ;; These conditions from ASDF 1 and 2 are used by many packages in Quicklisp;
+  ;; but ASDF3 replaced them with somewhat different variants of uiop:compile-condition
+  ;; that do not involve ASDF actions.
+  ;; TODO: find the offenders and stop them.
   (define-condition operation-error (error) ;; Bad, backward-compatible name
     ;; Used by SBCL, cffi-tests, clsql-mysql, clsql-uffi, qt, elephant, uffi-tests, sb-grovel
     ((component :reader error-component :initarg :component)
@@ -36,8 +40,16 @@
     (component-sideway-dependencies component))
 
   (defgeneric operation-forced (operation)) ;; Used by swank.asd for swank-loader.
+  ;; swank.asd looks at where the operation was forced to actually reload swank.
+  ;; But the only reason the action would be performed again is because it was forced;
+  ;; so the check is redundant. More generally, if you have to do it when the operation was forced,
+  ;; you should do it when not, and vice-versa, because it really shouldn't matter.
+  ;; Thus, the backward-compatible thing to do is to always return T.
   (defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))
 
+
+  ;; These old interfaces from ASDF1 have never been very meaningful
+  ;; but are still used in obscure places.
   (defgeneric operation-on-warnings (operation))
   (defgeneric operation-on-failure (operation))
   (defgeneric (setf operation-on-warnings) (x operation))
@@ -64,6 +76,9 @@ or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
 if that's whay you mean." ;;)
     (system-source-file x))
 
+
+  ;; TRAVERSE is the function used to compute a plan in ASDF 1 and 2.
+  ;; It was never officially exposed but some people still used it.
   (defgeneric* (traverse) (operation component &key &allow-other-keys)
     (:documentation
      "Generate and return a plan for performing OPERATION on COMPONENT.
@@ -79,6 +94,7 @@ processed in order by OPERATE."))
 
 ;;;; ASDF-Binary-Locations compatibility
 ;; This remains supported for legacy user, but not recommended for new users.
+;; We suspect there are no more legacy users in 2016.
 (with-upgradability ()
   (defun enable-asdf-binary-locations-compatibility
       (&key
