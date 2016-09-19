@@ -23,22 +23,28 @@
 
 (with-upgradability ()
   (defclass bundle-op (basic-compile-op)
+    ;; NB: use of instance-allocated slots for operations is DEPRECATED
+    ;; and only supported in a temporary fashion for backward compatibility.
+    ;; Supported replacement: Define slots on program-system instead.
     ((build-args :initarg :args :initform nil :accessor extra-build-args)
      (name-suffix :initarg :name-suffix :initform nil)
      (bundle-type :initform :no-output-file :reader bundle-type)
-     #+(or clasp ecl) (lisp-files :initform nil :accessor extra-object-files)))
+     #+(or clasp ecl) (lisp-files :initform nil :accessor extra-object-files))
+    (:documentation "base class for operations that bundle outputs from multiple components"))
 
   (defclass monolithic-op (operation) ()
     (:documentation "A MONOLITHIC operation operates on a system *and all of its
 dependencies*.  So, for example, a monolithic concatenate operation will
 concatenate together a system's components and all of its dependencies, but a
 simple concatenate operation will concatenate only the components of the system
-itself.")) ;; operation on a system and its dependencies
+itself."))
 
   (defclass monolithic-bundle-op (monolithic-op bundle-op)
-    ;; Old style way of specifying prologue and epilogue on ECL: in the monolithic operation
+    ;; Old style way of specifying prologue and epilogue on ECL: in the monolithic operation.
+    ;; DEPRECATED. Supported replacement: Define slots on program-system instead.
     ((prologue-code :initform nil :accessor prologue-code)
-     (epilogue-code :initform nil :accessor epilogue-code)))
+     (epilogue-code :initform nil :accessor epilogue-code))
+    (:documentation "operations that are both monolithic-op and bundle-op"))
 
   (defclass program-system (system)
     ;; New style (ASDF3.1) way of specifying prologue and epilogue on ECL: in the system
@@ -73,6 +79,11 @@ itself.")) ;; operation on a system and its dependencies
   (defun operation-monolithic-p (op)
     (typep op 'monolithic-op))
 
+  ;; Dependencies of a gather-op are the actions of the dependent operation
+  ;; (from gather-op reader, defaulting to lib-op or compile-op depending
+  ;; on the operation being monolithic or not) for all the (sorted) required components
+  ;; for loading the system, recursing either to other systems or sub-components
+  ;; depending on it being monolithic or not.
   (defmethod component-depends-on ((o gather-op) (s system))
     (let* ((mono (operation-monolithic-p o))
            (deps
@@ -85,16 +96,19 @@ itself.")) ;; operation on a system and its dependencies
       `((,(make-operation (or (gather-op o) (if mono 'lib-op 'compile-op))) ,@deps)
         ,@(call-next-method))))
 
-  ;; create a single fasl for the entire library
+  ;; Create a single fasl for the entire library
   (defclass basic-compile-bundle-op (bundle-op)
     ((gather-type :initform #-(or clasp ecl mkcl) :fasl #+(or clasp ecl mkcl) :object
                   :allocation :class)
-     (bundle-type :initform :fasl :allocation :class)))
+     (bundle-type :initform :fasl :allocation :class))
+    (:documentation "Base class for compiling into a bundle"))
 
+  ;; Analog to prepare-op, for load-bundle-op and compile-bundle-op
   (defclass prepare-bundle-op (sideway-operation)
     ((sideway-operation
       :initform #+(or clasp ecl mkcl) 'load-bundle-op #-(or clasp ecl mkcl) 'load-op
-      :allocation :class)))
+      :allocation :class))
+    (:documentation "Operation class for loading the bundles of a system's dependencies"))
 
   (defclass lib-op (link-op gather-op non-propagating-operation)
     ((gather-type :initform :object :allocation :class)
@@ -104,7 +118,7 @@ for all the linkable object files associated with the system. Compare with DLL-O
 
 On most implementations, these object files only include extensions to the runtime
 written in C or another language with a compiler producing linkable object files.
-On CLASP, ECL, MKCL, these object files also include the contents of Lisp files
+On CLASP, ECL, MKCL, these object files _also_ include the contents of Lisp files
 themselves. In any case, this operation will produce what you need to further build
 a static runtime for your system, or a dynamic library to load in an existing runtime."))
 
@@ -186,6 +200,7 @@ for all the linkable object files associated with the system or its dependencies
     ((bundle-type :initform :program))
     (:documentation "create an executable file from the system and its dependencies"))
 
+  ;; From the ASDF-internal bundle-type identifier, get a filesystem-usable pathname type.
   (defun bundle-pathname-type (bundle-type)
     (etypecase bundle-type
       ((or null string) ;; pass through nil or string literal
@@ -212,6 +227,7 @@ for all the linkable object files associated with the system or its dependencies
       ((eql :program) ;; the type of an executable program
        (os-cond ((os-unix-p) nil) ((os-windows-p) "exe")))))
 
+  ;; Compute the output-files for a given bundle action
   (defun bundle-output-files (o c)
     (let ((bundle-type (bundle-type o)))
       (unless (or (eq bundle-type :no-output-file) ;; NIL already means something regarding type.
@@ -236,14 +252,19 @@ for all the linkable object files associated with the system or its dependencies
       (setf *image-entry-point* (ensure-function (component-entry-point c)))))
 
   (defclass compiled-file (file-component)
-    ((type :initform #-(or clasp ecl mkcl) (compile-file-type) #+(or clasp ecl mkcl) "fasb")))
+    ((type :initform #-(or clasp ecl mkcl) (compile-file-type) #+(or clasp ecl mkcl) "fasb"))
+    (:documentation "Class for a file that is already compiled,
+e.g. as part of the implementation, of an outer build system that calls into ASDF,
+or of opaque libraries shipped along the source code."))
 
   (defclass precompiled-system (system)
-    ((build-pathname :initarg :fasl)))
+    ((build-pathname :initarg :fasl))
+    (:documentation "Class For a system that is delivered as a precompiled fasl"))
 
   (defclass prebuilt-system (system)
     ((build-pathname :initarg :static-library :initarg :lib
-                     :accessor prebuilt-system-static-library))))
+                     :accessor prebuilt-system-static-library))
+    (:documentation "Class for a system that comes precompiled with a static library file")))
 
 
 ;;;
@@ -259,6 +280,7 @@ for all the linkable object files associated with the system or its dependencies
                                          &key (name-suffix nil name-suffix-p)
                                          &allow-other-keys)
     (declare (ignore initargs name-suffix))
+    ;; TODO: make that class slots or methods, not instance slots
     (unless name-suffix-p
       (setf (slot-value instance 'name-suffix)
             (unless (typep instance 'program-op)
@@ -298,8 +320,8 @@ for all the linkable object files associated with the system or its dependencies
 ;;;
 (with-upgradability ()
   (defun direct-dependency-files (o c &key (test 'identity) (key 'output-files) &allow-other-keys)
-    ;; This file selects output files from direct dependencies;
-    ;; your component-depends-on method better gathered the correct dependencies in the correct order.
+    ;; This function selects output files from direct dependencies;
+    ;; your component-depends-on method must gather the correct dependencies in the correct order.
     (while-collecting (collect)
       (map-direct-dependencies
        t o c #'(lambda (sub-o sub-c)
@@ -315,6 +337,7 @@ for all the linkable object files associated with the system or its dependencies
        o c :key 'output-files
            :test (pathname-type-equal-function (bundle-pathname-type (gather-type o))))))
 
+  ;; Find the operation that produces a given bundle-type
   (defun select-bundle-operation (type &optional monolithic)
     (ecase type
       ((:dll :shared-library)
@@ -332,6 +355,7 @@ for all the linkable object files associated with the system or its dependencies
   ;; It must die, and so must any use of initargs in operation,
   ;; unless keys to the asdf-cache are substantially modified to accommodate for them.
   ;; Coordinate with the ECL maintainers to get them to stop using it.
+  ;; SUPPORTED REPLACEMENT: Use program-op and program-system
   (defun make-build (system &rest args &key (monolithic nil) (type :fasl)
                              (move-here nil move-here-p)
                              &allow-other-keys)
@@ -538,7 +562,7 @@ for all the linkable object files associated with the system or its dependencies
         #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:")
         #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;")))))
 
-  (defun make-library-system (name &optional (pathname (system-module-pathname name)))
+  (defun make-prebuilt-system (name &optional (pathname (system-module-pathname name)))
     "Creates a prebuilt-system if PATHNAME isn't NIL."
     (when pathname
       (make-instance 'prebuilt-system
@@ -554,7 +578,7 @@ for all the linkable object files associated with the system or its dependencies
                          (and (system-source-directory x)
                               (list s)))
                        (if-let (p (system-module-pathname x))
-                         (list (make-library-system x p)))))))
+                         (list (make-prebuilt-system x p)))))))
         `((,lib-op
            ,@(unless (no-uiop c)
                (append (ensure-linkable-system "cmp")
