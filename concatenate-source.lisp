@@ -22,27 +22,40 @@
 ;;; Concatenate sources
 ;;;
 (with-upgradability ()
+  ;; Base classes for both regular and monolithic concatenate-source operations
   (defclass basic-concatenate-source-op (bundle-op)
     ((bundle-type :initform "lisp")))
   (defclass basic-load-concatenated-source-op (basic-load-op selfward-operation) ())
   (defclass basic-compile-concatenated-source-op (basic-compile-op selfward-operation) ())
   (defclass basic-load-compiled-concatenated-source-op (basic-load-op selfward-operation) ())
 
-  (defclass concatenate-source-op (basic-concatenate-source-op non-propagating-operation) ())
+  ;; Regular concatenate-source operations
+  (defclass concatenate-source-op (basic-concatenate-source-op non-propagating-operation) ()
+    (:documentation "Operation to concatenate all sources in a system into a single file"))
   (defclass load-concatenated-source-op (basic-load-concatenated-source-op)
-    ((selfward-operation :initform '(prepare-op concatenate-source-op) :allocation :class)))
+    ((selfward-operation :initform '(prepare-op concatenate-source-op) :allocation :class))
+    (:documentation "Operation to load the result of concatenate-source-op as source"))
   (defclass compile-concatenated-source-op (basic-compile-concatenated-source-op)
-    ((selfward-operation :initform '(prepare-op concatenate-source-op) :allocation :class)))
+    ((selfward-operation :initform '(prepare-op concatenate-source-op) :allocation :class))
+    (:documentation "Operation to compile the result of concatenate-source-op"))
   (defclass load-compiled-concatenated-source-op (basic-load-compiled-concatenated-source-op)
-    ((selfward-operation :initform '(prepare-op compile-concatenated-source-op) :allocation :class)))
+    ((selfward-operation :initform '(prepare-op compile-concatenated-source-op) :allocation :class))
+    (:documentation "Operation to load the result of compile-concatenated-source-op"))
 
-  (defclass monolithic-concatenate-source-op (basic-concatenate-source-op monolithic-bundle-op non-propagating-operation) ())
+  (defclass monolithic-concatenate-source-op
+      (basic-concatenate-source-op monolithic-bundle-op non-propagating-operation) ()
+    (:documentation "Operation to concatenate all sources in a system and its dependencies
+into a single file"))
   (defclass monolithic-load-concatenated-source-op (basic-load-concatenated-source-op)
-    ((selfward-operation :initform 'monolithic-concatenate-source-op :allocation :class)))
+    ((selfward-operation :initform 'monolithic-concatenate-source-op :allocation :class))
+    (:documentation "Operation to load the result of monolithic-concatenate-source-op as source"))
   (defclass monolithic-compile-concatenated-source-op (basic-compile-concatenated-source-op)
-    ((selfward-operation :initform 'monolithic-concatenate-source-op :allocation :class)))
-  (defclass monolithic-load-compiled-concatenated-source-op (basic-load-compiled-concatenated-source-op)
-    ((selfward-operation :initform 'monolithic-compile-concatenated-source-op :allocation :class)))
+    ((selfward-operation :initform 'monolithic-concatenate-source-op :allocation :class))
+    (:documentation "Operation to compile the result of monolithic-concatenate-source-op"))
+  (defclass monolithic-load-compiled-concatenated-source-op
+      (basic-load-compiled-concatenated-source-op)
+    ((selfward-operation :initform 'monolithic-compile-concatenated-source-op :allocation :class))
+    (:documentation "Operation to load the result of monolithic-compile-concatenated-source-op"))
 
   (defmethod input-files ((operation basic-concatenate-source-op) (s system))
     (loop :with encoding = (or (component-encoding s) *default-encoding*)
