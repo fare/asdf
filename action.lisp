@@ -22,29 +22,48 @@
 (in-package :asdf/action)
 
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute) ;; LispWorks issues spurious warning
-  (deftype action () '(cons operation component)) ;; a step to be performed while building
+
+  (deftype action ()
+    "A pair of operation and component uniquely identifies a node in the dependency graph
+of steps to be performed while building a system."
+    '(cons operation component))
 
   (deftype operation-designator ()
-    ;; an operation designates itself,
-    ;; nil designates a context-dependent current operation, and
-    ;; class-name or class designates an instance of the designated class.
+    "An operation designates itself. NIL designates a context-dependent current operation,
+and a class-name or class designates the canonical instance of the designated class."
     '(or operation null symbol class)))
 
+
+;;; TODO: These should be moved to asdf/plan and be made simple defuns.
 (with-upgradability ()
   (defgeneric traverse-actions (actions &key &allow-other-keys))
   (defgeneric traverse-sub-actions (operation component &key &allow-other-keys))
   (defgeneric required-components (component &key &allow-other-keys)))
 
-;;;; Reified representation for storage or debugging. Note: dropping original-initargs
+
+;;;; Reified representation for storage or debugging. Note: it drops the operation-original-initargs
 (with-upgradability ()
   (defun action-path (action)
+    "A readable data structure that identifies the action."
     (destructuring-bind (o . c) action (cons (type-of o) (component-find-path c))))
   (defun find-action (path)
+    "Reconstitute an action from its action-path"
     (destructuring-bind (o . c) path (cons (make-operation o) (find-component () c)))))
 
 
 ;;;; Convenience methods
 (with-upgradability ()
+  ;; A macro that defines convenience methods for a gf that dispatches on operation and component.
+  ;; The convenience methods allow users to call the gf with operation and/or component designators,
+  ;; that the methods will resolve into actual operation and component objects, so that the users
+  ;; can interact using readable designators, but developers only have to write methods that handle
+  ;; operation and component objects.
+  ;; FUNCTION is the function name
+  ;; FORMALS its list of arguments, which must include OPERATION and COMPONENT.
+  ;; IF-NO-OPERATION is a form (defaults to NIL) describing what to do if no operation is found.
+  ;; IF-NO-COMPONENT is a form (defaults to NIL) describing what to do if no component is found.
+  ;; If OPERATION-INITARGS initargs is true, then for backward compatibility the function has
+  ;; a &rest argument that is passed into the operation's initargs if and when it is created.
   (defmacro define-convenience-action-methods
       (function formals &key if-no-operation if-no-component operation-initargs)
     (let* ((rest (gensym "REST"))
@@ -94,12 +113,18 @@ You can put together sentences using this phrase."))
   (defmethod action-description (operation component)
     (format nil (compatfmt "~@<~A on ~A~@:>")
             (type-of operation) component))
-  (defgeneric* (explain) (operation component))
+
+  ;; This is for compatibility with ASDF 1, and is deprecated.
+  ;; TODO: move it to backward-interface
+  (defgeneric* (explain) (operation component)
+    (:documentation "Display a message describing an action"))
   (defmethod explain ((o operation) (c component))
     (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c)))
   (define-convenience-action-methods explain (operation component))
 
   (defun format-action (stream action &optional colon-p at-sign-p)
+    "FORMAT helper to display an action's action-description.
+Use it in FORMAT control strings as ~/asdf-action:format-action/"
     (assert (null colon-p)) (assert (null at-sign-p))
     (destructuring-bind (operation . component) action
       (princ (action-description operation component) stream))))
@@ -260,10 +285,22 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
 
 ;;;; Inputs, Outputs, and invisible dependencies
 (with-upgradability ()
-  (defgeneric* (output-files) (operation component))
-  (defgeneric* (input-files) (operation component))
+  (defgeneric* (output-files) (operation component)
+    (:documentation "Methods of this function return two values: a list of output files
+corresponding to this action, and a boolean indicating if they have already been subjected
+to relevant output translations and should not be further translated.
+
+Methods on PERFORM *must* call this gf to determine where their outputs are to be located.
+They may rely on the order of the files to discriminate between outputs.
+"))
+  (defgeneric* (input-files) (operation component)
+    (:documentation "A list of input files corresponding to this action.
+
+Methods on PERFORM *must* call this gf to determine where their inputs are located.
+They may rely on the order of the files to discriminate between inputs.
+"))
   (defgeneric* (operation-done-p) (operation component)
-    (:documentation "Returns a boolean, which is NIL if the action is forced to be performed again"))
+    (:documentation "Returns a boolean which is NIL if the action is forced to be performed again"))
   (define-convenience-action-methods output-files (operation component))
   (define-convenience-action-methods input-files (operation component))
   (define-convenience-action-methods operation-done-p (operation component))
@@ -271,8 +308,8 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
   (defmethod operation-done-p ((o operation) (c component))
     t)
 
+  ;; Translate output files, unless asked not to. Memoize the result.
   (defmethod output-files :around (operation component)
-    "Translate output files, unless asked not to. Memoize the result."
     operation component ;; hush genera, not convinced by declare ignorable(!)
     (do-asdf-cache `(output-files ,operation ,component)
       (values
@@ -297,14 +334,19 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
       (assert (length=n-p files 1))
       (first files)))
 
+  ;; Memoize input files.
   (defmethod input-files :around (operation component)
-    "memoize input files."
     (do-asdf-cache `(input-files ,operation ,component)
       (call-next-method)))
 
+  ;; By default an action has no input-files.
   (defmethod input-files ((o operation) (c component))
     nil)
 
+  ;; An action with a selfward-operation by default gets its input-files from the output-files of
+  ;; the actions using selfward-operations it depends on (and the same component),
+  ;; or if there are none, on the component-pathname of the component if it's a file
+  ;; -- and then on the results of the next-method.
   (defmethod input-files ((o selfward-operation) (c component))
     `(,@(or (loop :for dep-o :in (ensure-list (selfward-operation o))
                   :append (or (output-files dep-o c) (input-files dep-o c)))
@@ -315,23 +357,31 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
 
 ;;;; Done performing
 (with-upgradability ()
-  (defgeneric component-operation-time (operation component)) ;; ASDF4: hide it behind plan-action-stamp
-  (defgeneric (setf component-operation-time) (time operation component))
+  ;; ASDF4: hide it behind plan-action-stamp
+  (defgeneric component-operation-time (operation component)
+    (:documentation "Return the timestamp for when an action was last performed"))
+  (defgeneric (setf component-operation-time) (time operation component)
+    (:documentation "Update the timestamp for when an action was last performed"))
   (define-convenience-action-methods component-operation-time (operation component))
 
-  (defgeneric mark-operation-done (operation component)) ;; ASDF4: hide it behind (setf plan-action-stamp)
+  ;; ASDF4: hide it behind (setf plan-action-stamp)
+  (defgeneric mark-operation-done (operation component)
+    (:documentation "Mark a action as having been just done.
+
+Updates the action's COMPONENT-OPERATION-TIME to match the COMPUTE-ACTION-STAMP
+using the JUST-DONE flag."))
   (defgeneric compute-action-stamp (plan operation component &key just-done)
     (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
 Takes two keywords JUST-DONE and PLAN:
-JUST-DONE is a boolean that is true if the action was just successfully performed,
-at which point we want compute the actual stamp and warn if files are missing;
-otherwise we are making plans, anticipating the effects of the action.
-PLAN is a plan object modelling future effects of actions,
-or NIL to denote what actually happened.
+* JUST-DONE is a boolean that is true if the action was just successfully performed,
+  at which point we want compute the actual stamp and warn if files are missing;
+  otherwise we are making plans, anticipating the effects of the action.
+* PLAN is a plan object modelling future effects of actions,
+  or NIL to denote what actually happened.
 Returns two values:
 * a STAMP saying when it was done or will be done,
-  or T if the action has involves files that need to be recomputed.
+  or T if the action involves files that need to be recomputed.
 * a boolean DONE-P that indicates whether the action has actually been done,
   and both its output-files and its in-image side-effects are up to date."))
 
@@ -362,8 +412,8 @@ in some previous image, or T if it needs to be done.")
 
 ;;;; Perform
 (with-upgradability ()
-  (defgeneric* (perform-with-restarts) (operation component))
-  (defgeneric* (perform) (operation component))
+  (defgeneric* (perform) (operation component)
+    (:documentation "PERFORM an action, consuming its input-files and building its output-files"))
   (define-convenience-action-methods perform (operation component))
 
   (defmethod perform :before ((o operation) (c component))
@@ -380,10 +430,12 @@ in some previous image, or T if it needs to be done.")
        (compatfmt "~@<Required method ~S not implemented for ~/asdf-action:format-action/~@:>")
        'perform (cons o c))))
 
+  ;; The restarts of the perform-with-restarts variant matter in an interactive context.
+  ;; The retry strategies of p-w-r itself, and/or the background workers of a multiprocess build
+  ;; may call perform directly rather than call p-w-r.
+  (defgeneric* (perform-with-restarts) (operation component)
+    (:documentation "PERFORM an action in a context where suitable restarts were setup."))
   (defmethod perform-with-restarts (operation component)
-    ;; TOO verbose, especially as the default. Add your own :before method
-    ;; to perform-with-restart or perform if you want that:
-    #|(explain operation component)|#
     (perform operation component))
   (defmethod perform-with-restarts :around (operation component)
     (loop
