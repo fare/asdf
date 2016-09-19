@@ -19,36 +19,45 @@
 (with-upgradability ()
   (defgeneric* (operate) (operation component &key &allow-other-keys)
     (:documentation
-     "Operate does three things:
+     "Operate does mainly four things for the user:
 
-1. It creates an instance of OPERATION-CLASS using any keyword parameters as initargs.
-2. It finds the  asdf-system specified by SYSTEM (possibly loading it from disk).
-3. It then calls MAKE-PLAN with the operation and system as arguments
+1. Resolves the OPERATION designator into an operation object.
+   OPERATION is typically a symbol denoting an operation class, instantiated with MAKE-OPERATION.
+2. Resolves the COMPONENT designator into a component object.
+   COMPONENT is typically a string or symbol naming a system, loaded from disk using FIND-SYSTEM.
+3. It then calls MAKE-PLAN with the operation and system as arguments.
+4. Finally calls PERFORM-PLAN on the resulting plan to actually build the system.
 
-The operation of making a plan is wrapped in WITH-COMPILATION-UNIT and error
-handling code.  If a VERSION argument is supplied, then operate also ensures
-that the system found satisfies it using the VERSION-SATISFIES method.
-
-Note that dependencies may cause the operation to invoke other operations on the system
-or its components: the new operations will be created with the same initargs as the original one.
+The entire computation is wrapped in WITH-COMPILATION-UNIT and error handling code.
+If a VERSION argument is supplied, then operate also ensures that the system found satisfies it
+using the VERSION-SATISFIES method.
+If a PLAN-CLASS argument is supplied, that class is used for the plan.
 
 The :FORCE or :FORCE-NOT argument to OPERATE can be:
   T to force the inside of the specified system to be rebuilt (resp. not),
     without recursively forcing the other systems we depend on.
   :ALL to force all systems including other systems we depend on to be rebuilt (resp. not).
   (SYSTEM1 SYSTEM2 ... SYSTEMN) to force systems named in a given list
-:FORCE has precedence over :FORCE-NOT; builtin systems cannot be forced."))
+:FORCE-NOT has precedence over :FORCE; builtin systems cannot be forced.
 
-  (define-convenience-action-methods
-      operate (operation component &key)
-      ;; I'd like to at least remove-plist-keys :force :force-not :verbose,
-      ;; but swank.asd relies on :force (!).
-      :operation-initargs t ;; backward-compatibility with ASDF1. Yuck.
-      :if-no-component (error 'missing-component :requires component))
+For backward compatibility, all keyword arguments are passed to MAKE-OPERATION
+when instantiating a new operation, that will in turn be inherited by new operations.
+But do NOT depend on it, for this is deprecated behavior."))
 
+  (define-convenience-action-methods operate (operation component &key)
+    ;; I'd like to at least remove-plist-keys :force :force-not :verbose,
+    ;; but swank.asd relies on :force (!).
+    :operation-initargs t ;; backward-compatibility with ASDF1. Deprecated.
+    :if-no-component (error 'missing-component :requires component))
+
+  ;; TODO: actually, the use as a hash-set is write-only, so it can be reduced to a boolean,
+  ;; and then possibly replaced by checking for say *asdf-cache*.
   (defvar *systems-being-operated* nil
-    "A boolean indicating that some systems are being operated on")
+    "A hash-set of names of systems being operated on, or NIL")
 
+  ;; This method ensures that an ASDF upgrade is attempted as the very first thing,
+  ;; with suitable state preservation in case in case it actually happens,
+  ;; and that a few suitable dynamic bindings are established.
   (defmethod operate :around (operation component &rest keys
                               &key verbose
                                 (on-warnings *compile-file-warnings-behaviour*)
@@ -104,15 +113,16 @@ The :FORCE or :FORCE-NOT argument to OPERATE can be:
 (with-upgradability ()
   (defvar *load-system-operation* 'load-op
     "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
-You may override it with e.g. ASDF:LOAD-FASL-OP from asdf-bundle
+You may override it with e.g. ASDF:LOAD-BUNDLE-OP from asdf/bundle
 or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
 
 The default operation may change in the future if we implement a
 component-directed strategy for how to load or compile systems.")
 
+  ;; In prepare-op for a system, propagate *load-system-operation* rather than load-op
   (defmethod component-depends-on ((o prepare-op) (s system))
-    (loop :for (o . cs) :in (call-next-method)
-          :collect (cons (if (eq o 'load-op) *load-system-operation* o) cs)))
+    (loop :for (do . dc) :in (call-next-method)
+          :collect (cons (if (eq do 'load-op) *load-system-operation* do) dc)))
 
   (defclass build-op (non-propagating-operation) ()
     (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
@@ -183,6 +193,8 @@ system or its dependencies if they have already been loaded."
 
 ;;;; Define the class REQUIRE-SYSTEM, to be hooked into CL:REQUIRE when possible,
 ;; i.e. for ABCL, CLISP, ClozureCL, CMUCL, ECL, MKCL and SBCL
+;; Note that despite the two being homonyms, the _function_ require-system
+;; and the _class_ require-system are quite distinct entities, fulfilling independent purposes.
 (with-upgradability ()
   (defvar *modules-being-required* nil)
 
@@ -198,6 +210,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
     (let* ((module (or (required-module s) (coerce-name s)))
            (*modules-being-required* (cons module *modules-being-required*)))
       (assert (null (component-children s)))
+      ;; CMUCL likes its module names to be all upcase.
       (require #-cmucl module #+cmucl (string-upcase module))))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
@@ -212,7 +225,8 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
     ;; we cannot assume that the system in the end will be of type require-system,
     ;; but must check whether we can use find-system and short-circuit cl:require.
     ;; Otherwise, calling cl:require could result in nasty reentrant calls between
-    ;; cl:require and asdf:operate that could potentially blow up the stack.
+    ;; cl:require and asdf:operate that could potentially blow up the stack,
+    ;; all the while defeating the consistency of the dependency graph.
     (let* ((module (car arguments)) ;; NB: we already checked that it was not null
            (name (string-downcase module))
            (system (find-system name nil)))
