@@ -326,11 +326,13 @@ actually-existing directory."
       ((directory-pathname-p pathspec)
        pathspec)
       (t
-       (make-pathname :directory (append (or (normalize-pathname-directory-component
-                                              (pathname-directory pathspec))
-                                             (list :relative))
-                                         (list (file-namestring pathspec)))
-                      :name nil :type nil :version nil :defaults pathspec)))))
+       (handler-case
+           (make-pathname :directory (append (or (normalize-pathname-directory-component
+                                                  (pathname-directory pathspec))
+                                                 (list :relative))
+                                             (list (file-namestring pathspec)))
+                          :name nil :type nil :version nil :defaults pathspec)
+         (error (c) (call-function on-error (compatfmt "~@<error while trying to create a directory pathname for ~S: ~A~@:>") pathspec c)))))))
 
 
 ;;; Parsing filenames
