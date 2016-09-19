@@ -137,7 +137,8 @@
         </p><p>
           ASDF is also not a tool to build or run Common Lisp software from the Unix command-line.
           For that, you want <a href="http://cliki.net/cl-launch">cl-launch</a>,
-          or perhaps <a href="http://www.xach.com/lisp/buildapp/">buildapp</a>.
+          <a href="http://www.xach.com/lisp/buildapp/">buildapp</a>, or
+          <a href="https://github.com/roswell/roswell">roswell</a>.
         </p><p>
           If you're unsatisfied with ASDF,
           beside helping with our
@@ -160,7 +161,7 @@
             </li>
             <li>Drew McDermott's
               <a href="http://cs-www.cs.yale.edu/homes/dvm/"><tt>YTools</tt></a>
-              (the polar opposite, trying to maintain coherence
+              (the polar opposite of XCVB, trying to maintain coherence
               of the current Lisp image at a fine grain).
             </li>
             <li>Dmitriy Ivanov's
@@ -179,11 +180,16 @@
             <li>Peter von Etter's
               <a href="http://www.cliki.net/faslpath"><tt>faslpath</tt></a>
               (a much simpler system establishing a mapping between packages and files,
-              abandoned but see <tt>asdf-package-system</tt> and <tt>quick-build</tt> above).
+              abandoned but see <tt>asdf-package-system</tt> and <tt>quick-build</tt> above),
             </li>
             <li>Alexander Kahl's
               <a href="http://www.cliki.net/evol"><tt>evol</tt></a>
               (a reimplementation in Lisp of the GNU autotools stack, abandoned),
+            </li>
+            <li>Google's
+              <a href="https://github.com/qitab/bazelisp"><tt>bazelisp</tt></a>
+              (building Lisp applications deterministically with
+              <a href="https://bazel.io/">Bazel</a>).
             </li>
           </ul>
           There are probably more.
@@ -448,7 +454,8 @@ Corman Common Lisp <admin@cormanlisp.com>
         <p>
           While bug fixes are useful, they are not usually as valuable as test cases:
           small easy fixes will be obvious from the test case,
-          and large fixes written by someone who isn't a maintainer or working tightly with one
+          and large fixes written by someone who isn't
+          either a maintainer or working tightly with one
           will probably not be correct and not fit the codebase:
           any modification at one point is likely to have repercussions
           at other unobvious places in the codebase,
@@ -582,7 +589,7 @@ Corman Common Lisp <admin@cormanlisp.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2016 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2016-08-27</div>
+        <div id="timestamp">Last updated 2016-09-19</div>
     </div>
   </body>
 </html>
