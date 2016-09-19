@@ -350,7 +350,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     (setf *image-dump-hook* dump-hook)
     (call-image-dump-hook)
     (setf *image-restored-p* nil)
-    #-(or clisp clozure cmucl lispworks sbcl scl)
+    #-(or clisp clozure (and cmucl executable) lispworks sbcl scl)
     (when executable
       (error "Dumping an executable is not supported on this implementation! Aborting."))
     #+allegro
@@ -384,8 +384,10 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
       (setf ext:*batch-mode* nil)
       (setf ext::*gc-run-time* 0)
       (apply 'ext:save-lisp filename
-             #+cmucl :executable #+cmucl t
-             (when executable '(:init-function restore-image :process-command-line nil))))
+             :allow-other-keys t ;; hush SCL and old versions of CMUCL
+             #+(and cmucl executable) :executable #+(and cmucl executable) t
+             (when executable '(:init-function restore-image :process-command-line nil
+                                :quiet t :load-init-file nil :site-init nil))))
     #+gcl
     (progn
       (si::set-hole-size 500) (si::gbc nil) (si::sgc-on t)
