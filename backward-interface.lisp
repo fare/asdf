@@ -16,7 +16,8 @@
    #:operation-on-failure #:operation-on-warnings #:on-failure #:on-warnings
    #:component-property
    #:run-shell-command
-   #:system-definition-pathname))
+   #:system-definition-pathname
+   #:explain))
 (in-package :asdf/backward-interface)
 
 (with-upgradability ()
@@ -180,10 +181,12 @@ Please use UIOP:RUN-PROGRAM instead."
           ((integer 0 255) exit-code)
           (t 255))))))
 
+
 (with-upgradability ()
   (defvar *asdf-verbose* nil)) ;; backward-compatibility with ASDF2 only. Unused.
 
-;; backward-compatibility methods. Do NOT use in new code. NOT SUPPORTED.
+
+;;; backward-compatibility methods. Do NOT use in new code. NOT SUPPORTED.
 (with-upgradability ()
   (defgeneric component-property (component property))
   (defgeneric (setf component-property) (new-value component property))
@@ -198,3 +201,15 @@ Please use UIOP:RUN-PROGRAM instead."
           (setf (slot-value c 'properties)
                 (acons property new-value (slot-value c 'properties)))))
     new-value))
+
+
+;;; This method survives from ASDF 1, but really it is superseded by action-description.
+(with-upgradability ()
+  (defgeneric* (explain) (operation component)
+    (:documentation "Display a message describing an action.
+DEPRECATED. Use ASDF:ACTION-DESCRIPTION and/or ASDF::FORMAT-ACTION instead."))
+  (defmethod explain ((o operation) (c component))
+    (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c)))
+  (define-convenience-action-methods explain (operation component)))
+
+

@@ -8,7 +8,7 @@
    :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
   (:export
    #:action #:define-convenience-action-methods
-   #:explain #:action-description
+   #:action-description
    #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation #:non-propagating-operation
    #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
@@ -106,14 +106,6 @@ You can put together sentences using this phrase."))
   (defmethod action-description (operation component)
     (format nil (compatfmt "~@<~A on ~A~@:>")
             (type-of operation) component))
-
-  ;; This is for compatibility with ASDF 1, and is deprecated.
-  ;; TODO: move it to backward-interface
-  (defgeneric* (explain) (operation component)
-    (:documentation "Display a message describing an action"))
-  (defmethod explain ((o operation) (c component))
-    (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c)))
-  (define-convenience-action-methods explain (operation component))
 
   (defun format-action (stream action &optional colon-p at-sign-p)
     "FORMAT helper to display an action's action-description.
