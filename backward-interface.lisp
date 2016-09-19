@@ -52,9 +52,7 @@
   ;; More generally, if you have to do something when the operation was forced,
   ;; you should also do it when not, and vice-versa, because it really shouldn't matter.
   ;; Thus, the backward-compatible thing to do is to always return T.
-  ;;
-  ;; TODO: change this function to a defun that always returns T.
-  (defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))
+  (defmethod operation-forced ((o operation)) t)
 
 
   ;; These old interfaces from ASDF1 have never been very meaningful
