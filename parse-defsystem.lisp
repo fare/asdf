@@ -19,18 +19,17 @@
 ;;; Pathname
 (with-upgradability ()
   (defun determine-system-directory (pathname)
-    ;; The defsystem macro calls this function to determine
-    ;; the pathname of a system as follows:
-    ;; 1. if the pathname argument is an pathname object (NOT a namestring),
+    ;; The defsystem macro calls this function to determine the pathname of a system as follows:
+    ;; 1. If the pathname argument is an pathname object (NOT a namestring),
     ;;    that is already an absolute pathname, return it.
-    ;; 2. otherwise, the directory containing the LOAD-PATHNAME
+    ;; 2. Otherwise, the directory containing the LOAD-PATHNAME
     ;;    is considered (as deduced from e.g. *LOAD-PATHNAME*), and
     ;;    if it is indeed available and an absolute pathname, then
     ;;    the PATHNAME argument is normalized to a relative pathname
     ;;    as per PARSE-UNIX-NAMESTRING (with ENSURE-DIRECTORY T)
     ;;    and merged into that DIRECTORY as per SUBPATHNAME.
-    ;;    Note: avoid *COMPILE-FILE-PATHNAME* because .asd is loaded,
-    ;;    and may be from within the EVAL-WHEN of a file compilation.
+    ;;    Note: avoid *COMPILE-FILE-PATHNAME* because the .asd is loaded as source,
+    ;;    but may be from within the EVAL-WHEN of a file compilation.
     ;; If no absolute pathname was found, we return NIL.
     (check-type pathname (or null string pathname))
     (pathname-directory-pathname
@@ -44,6 +43,7 @@
 
 ;;; Component class
 (with-upgradability ()
+  ;; What :file gets interpreted as, unless overridden by a :default-component-class
   (defvar *default-component-class* 'cl-source-file)
 
   (defun class-for-type (parent type)
@@ -51,7 +51,7 @@
           (and (eq type :file)
                (coerce-class
                 (or (loop :for p = parent :then (component-parent p) :while p
-                            :thereis (module-default-component-class p))
+                      :thereis (module-default-component-class p))
                     *default-component-class*)
                 :package :asdf/interface :super 'component :error nil))
           (sysdef-error "don't recognize component type ~S" type))))
@@ -90,6 +90,9 @@
       (sysdef-error-component ":components must be NIL or a list of components."
                               type name components)))
 
+  ;; Given a form used as :version specification, in the context of a system definition
+  ;; in a file at PATHNAME, for given COMPONENT with given PARENT, normalize the form
+  ;; to an acceptable ASDF-format version.
   (defun* (normalize-version) (form &key pathname component parent)
     (labels ((invalid (&optional (continuation "using NIL instead"))
                (warn (compatfmt "~@<Invalid :version specifier ~S~@[ for component ~S~]~@[ in ~S~]~@[ from file ~S~]~@[, ~A~]~@:>")
@@ -298,6 +301,7 @@ system names contained using COERCE-NAME. Return the result."
                ;; cache defsystem-depends-on in canonical form
                (when checked-defsystem-depends-on
                  `(:defsystem-depends-on ,checked-defsystem-depends-on)))))
+        ;; This works hand in hand with asdf/find-system:find-system-if-being-defined:
         (set-asdf-cache-entry `(find-system ,name) (list system))
         ;; We change-class AFTER we loaded the defsystem-depends-on
         ;; since the class might be defined as part of those.
