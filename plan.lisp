@@ -514,12 +514,13 @@ initialized with SEED."
          (typep c (plan-component-type plan))
          (call-next-method)))
 
-  (defmethod traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
+  (defun (traverse-actions) (actions &rest keys &key plan-class &allow-other-keys)
     "Given a list of actions, build a plan with these actions as roots."
     (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
       (loop* :for (o . c) :in actions :do (traverse-action plan o c t))
       plan))
 
+  (defgeneric traverse-sub-actions (operation component &key &allow-other-keys))
   (define-convenience-action-methods traverse-sub-actions (operation component &key))
   (defmethod traverse-sub-actions ((operation operation) (component component)
                                    &rest keys &key &allow-other-keys)
@@ -532,7 +533,7 @@ initialized with SEED."
              :when (and (typep o keep-operation) (typep c keep-component))
              :collect (cons o c))))
 
-  (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
+  (defun (required-components) (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
     "Given a SYSTEM and a GOAL-OPERATION (default LOAD-OP), traverse the dependencies and
 return a list of the components involved in building the desired action."
     (remove-duplicates

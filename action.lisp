@@ -15,7 +15,6 @@
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
-   #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
    #:action-path #:find-action #:stamp #:done-p
    #:operation-definition-warning #:operation-definition-error ;; condition
    ))
@@ -32,13 +31,6 @@ of steps to be performed while building a system."
     "An operation designates itself. NIL designates a context-dependent current operation,
 and a class-name or class designates the canonical instance of the designated class."
     '(or operation null symbol class)))
-
-
-;;; TODO: These should be moved to asdf/plan and be made simple defuns.
-(with-upgradability ()
-  (defgeneric traverse-actions (actions &key &allow-other-keys))
-  (defgeneric traverse-sub-actions (operation component &key &allow-other-keys))
-  (defgeneric required-components (component &key &allow-other-keys)))
 
 
 ;;;; Reified representation for storage or debugging. Note: it drops the operation-original-initargs

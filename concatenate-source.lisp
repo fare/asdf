@@ -6,7 +6,7 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation
    :asdf/system :asdf/find-system
-   :asdf/action :asdf/lisp-action :asdf/bundle)
+   :asdf/action :asdf/lisp-action :asdf/plan :asdf/bundle)
   (:export
    #:concatenate-source-op
    #:load-concatenated-source-op
