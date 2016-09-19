@@ -25,6 +25,7 @@
 ;;;; Hook ASDF into the implementation's REQUIRE and other entry points.
 #+(or abcl clasp clisp clozure cmucl ecl mkcl sbcl)
 (with-upgradability ()
+  ;; Hook into CL:REQUIRE.
   #-clisp (pushnew 'module-provide-asdf *module-provider-functions*)
   #+clisp (if-let (x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom nil)))
             (eval `(pushnew 'module-provide-asdf ,x)))
@@ -61,15 +62,17 @@
 
 ;;;; Done!
 (with-upgradability ()
-  #+allegro
+  #+allegro ;; restore *w-o-n-r-c* setting as saved in uiop/common-lisp
   (when (boundp 'excl:*warn-on-nested-reader-conditionals*)
     (setf excl:*warn-on-nested-reader-conditionals* uiop/common-lisp::*acl-warn-save*))
 
+  ;; Advertise the features we provide.
   (dolist (f '(:asdf :asdf2 :asdf3 :asdf3.1 :asdf-package-system)) (pushnew f *features*))
 
   ;; Provide both lowercase and uppercase, to satisfy more people, especially LispWorks users.
   (provide "asdf") (provide "ASDF")
 
+  ;; Finally, call a function that will cleanup in case this is an upgrade of an older ASDF.
   (cleanup-upgraded-asdf))
 
 (when *load-verbose*
