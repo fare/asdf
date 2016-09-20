@@ -116,7 +116,7 @@ based on supplied KEYS."
 in which the system specification (.asd file) is located."
     (pathname-directory-pathname (system-source-file system-designator)))
 
-  (defun (system-relative-pathname) (system name &key type)
+  (defun* (system-relative-pathname) (system name &key type)
     "Given a SYSTEM, and a (Unix-style relative path) NAME of a file (or directory) of given TYPE,
 return the absolute pathname of a corresponding file under that system's source code pathname."
     (subpathname (system-source-directory system) name :type type))
