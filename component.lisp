@@ -46,15 +46,15 @@
   (defgeneric component-name (component)
     (:documentation "Name of the COMPONENT, unique relative to its parent"))
   (defgeneric component-system (component)
-    (:documentation "Find the top-level system containing COMPONENT"))
+    (:documentation "Top-level system containing the COMPONENT"))
   (defgeneric component-pathname (component)
-    (:documentation "Extracts the pathname applicable for a particular COMPONENT."))
+    (:documentation "Pathname of the COMPONENT if any, or NIL."))
   (defgeneric (component-relative-pathname) (component)
     ;; in ASDF4, rename that to component-specified-pathname ?
-    (:documentation "Returns a pathname for the COMPONENT argument,
-intended to be interpreted relative to the pathname of that component's parent.
-Despite the function's name, the return value may be an absolute pathname,
-because an absolute pathname may be interpreted relative to another pathname in a degenerate way."))
+    (:documentation "Specified pathname of the COMPONENT,
+intended to be merged with the pathname of that component's parent if any, using merged-pathnames*.
+Despite the function's name, the return value can be an absolute pathname, in which case the merge
+will leave it unmodified."))
   (defgeneric component-external-format (component)
     (:documentation "The external-format of the COMPONENT.
 By default, deduced from the COMPONENT-ENCODING."))
@@ -62,14 +62,14 @@ By default, deduced from the COMPONENT-ENCODING."))
     (:documentation "The encoding of the COMPONENT. By default, only :utf-8 is supported.
 Use asdf-encodings to support more encodings."))
   (defgeneric version-satisfies (component version)
-    (:documentation "Check whether a COMPONENT satisfies the constraint of being no less recent
-than specified VERSION."))
+    (:documentation "Check whether a COMPONENT satisfies the constraint of being at least as recent
+as the specified VERSION, which must be a string of dot-separated natural numbers, or NIL."))
   (defgeneric component-version (component)
     (:documentation "Return the version of a COMPONENT, which must be a string of dot-separated
-natural integers, or NIL."))
+natural numbers, or NIL."))
   (defgeneric (setf component-version) (new-version component)
     (:documentation "Updates the version of a COMPONENT, which must be a string of dot-separated
-natural integers, or NIL."))
+natural numbers, or NIL."))
   (defgeneric component-parent (component)
     (:documentation "The parent of a child COMPONENT,
 or NIL for top-level components (a.k.a. systems)"))
@@ -187,7 +187,7 @@ a PARENT-COMPONENT."))
     ((type :initform "java")))
   (defclass static-file (source-file)
     ((type :initform nil))
-    (:documentation "Component for a file that is copied as is in the build output"))
+    (:documentation "Component for a file to be included as is in the build output"))
   (defclass doc-file (static-file) ())
   (defclass html-file (doc-file)
     ((type :initform "html")))
@@ -233,7 +233,7 @@ typically but not necessarily representing the files in a subdirectory of the bu
 ;;;; component pathnames
 (with-upgradability ()
   (defgeneric* (component-parent-pathname) (component)
-    (:documentation "The pathname of a component's parent"))
+    (:documentation "The pathname of the COMPONENT's parent, if any, or NIL"))
   (defmethod component-parent-pathname (component)
     (component-pathname (component-parent component)))
 
@@ -291,8 +291,10 @@ typically but not necessarily representing the files in a subdirectory of the bu
 ;;;; around-compile-hook
 (with-upgradability ()
   (defgeneric around-compile-hook (component)
-    (:documentation "An optional user-specifiable function to call around actions that compile code
-from the component, as passed to the function in as a thunk in unique argument."))
+    (:documentation "An optional hook function that will be called with one argument, a thunk.
+The hook function must call the thunk, that will compile code from the component, and may or may not
+also evaluate the compiled results. The hook function may establish dynamic variable bindings around
+this compilation, or check its results, etc."))
   (defmethod around-compile-hook ((c component))
     (cond
       ((slot-boundp c 'around-compile)

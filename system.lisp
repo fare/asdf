@@ -104,7 +104,7 @@ based on supplied KEYS."
 ;;;; Pathnames
 
 (with-upgradability ()
-  ;; Resolve a system designator to a system before to extract its system-source-file
+  ;; Resolve a system designator to a system before extracting its system-source-file
   (defmethod system-source-file ((system-name string))
     (system-source-file (find-system system-name)))
   (defmethod system-source-file ((system-name symbol))

@@ -518,11 +518,11 @@ up to the given equality TEST"
 ;;; Version handling
 (with-upgradability ()
   (defun unparse-version (version-list)
-    "From a parsed version (being a list of natural integers), compute the version string"
+    "From a parsed version (a list of natural numbers), compute the version string"
     (format nil "~{~D~^.~}" version-list))
 
   (defun parse-version (version-string &optional on-error)
-    "Parse a VERSION-STRING as a series of natural integers separated by dots.
+    "Parse a VERSION-STRING as a series of natural numbers separated by dots.
 Return a (non-null) list of integers if the string is valid;
 otherwise return NIL.
 
@@ -548,17 +548,19 @@ in that it doesn't print back to itself, but the list is returned anyway."
           (call-function on-error "~S: ~S contains leading zeros" 'parse-version version-string))
         version-list)))
 
-  (defun lexicographic< (< x y)
-    "Lexicographically compare two lists of real numbers"
+  (defun lexicographic< (element< x y)
+    "Lexicographically compare two lists of using the function element< to compare elements.
+element< is a strict total order; the resulting order on X and Y will also be strict."
     (cond ((null y) nil)
           ((null x) t)
-          ((funcall < (car x) (car y)) t)
-          ((funcall < (car y) (car x)) nil)
-          (t (lexicographic< < (cdr x) (cdr y)))))
+          ((funcall element< (car x) (car y)) t)
+          ((funcall element< (car y) (car x)) nil)
+          (t (lexicographic< element< (cdr x) (cdr y)))))
 
-  (defun lexicographic<= (< x y)
-    "<= variant of lexicographic<"
-    (not (lexicographic< < y x)))
+  (defun lexicographic<= (element< x y)
+    "Lexicographically compare two lists of using the function element< to compare elements.
+element< is a strict total order; the resulting order on X and Y will be a non-strict total order."
+    (not (lexicographic< element< y x)))
 
   (defun version< (version1 version2)
     "Compare two version strings"
