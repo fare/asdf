@@ -238,7 +238,8 @@ initialized with SEED."
     ;;   in the current image, or NIL if it hasn't.
     ;; Note that if e.g. LOAD-OP only depends on up-to-date files, but
     ;; hasn't been done in the current image yet, then it can have a non-T timestamp,
-    ;; yet a NIL done-in-image-p flag.
+    ;; yet a NIL done-in-image-p flag: we can predict what timestamp it will have once loaded,
+    ;; i.e. that of the input-files.
     (nest
      (block ())
      (let ((dep-stamp ; collect timestamp from dependencies (or T if forced or out-of-date)

@@ -72,6 +72,7 @@ itself."))
     (:documentation "Abstract operation for linking files together"))
 
   (defclass gather-op (bundle-op)
+    ;; TODO: rename the slot and reader gather-op to gather-operation
     ((gather-op :initform nil :allocation :class :reader gather-op)
      (gather-type :initform :no-output-file :allocation :class :reader gather-type))
     (:documentation "Abstract operation for gathering many input files from a system"))
@@ -80,10 +81,11 @@ itself."))
     (typep op 'monolithic-op))
 
   ;; Dependencies of a gather-op are the actions of the dependent operation
-  ;; (from gather-op reader, defaulting to lib-op or compile-op depending
-  ;; on the operation being monolithic or not) for all the (sorted) required components
-  ;; for loading the system, recursing either to other systems or sub-components
-  ;; depending on it being monolithic or not.
+  ;; for all the (sorted) required components for loading the system.
+  ;; Monolithic operations typically use lib-op as the dependent operation,
+  ;; and all system-level dependencies as required components.
+  ;; Non-monolithic operations typically use compile-op as the dependent operation,
+  ;; and all transitive sub-components as required components (excluding other systems).
   (defmethod component-depends-on ((o gather-op) (s system))
     (let* ((mono (operation-monolithic-p o))
            (deps
@@ -264,7 +266,7 @@ or of opaque libraries shipped along the source code."))
   (defclass prebuilt-system (system)
     ((build-pathname :initarg :static-library :initarg :lib
                      :accessor prebuilt-system-static-library))
-    (:documentation "Class for a system that comes precompiled with a static library file")))
+    (:documentation "Class for a system delivered with a linkable static library (.a/.lib)")))
 
 
 ;;;

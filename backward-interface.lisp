@@ -36,24 +36,37 @@
   (define-condition compile-warned (compile-error) ())
 
   (defun component-load-dependencies (component)
+    "DEPRECATED. Please use COMPONENT-SIDEWAY-DEPENDENCIES instead."
     ;; Old deprecated name for the same thing. Please update your software.
     (component-sideway-dependencies component))
 
-  (defgeneric operation-forced (operation)) ;; Used by swank.asd for swank-loader.
-  ;; swank.asd looks at where the operation was forced to actually reload swank.
-  ;; But the only reason the action would be performed again is because it was forced;
-  ;; so the check is redundant. More generally, if you have to do it when the operation was forced,
-  ;; you should do it when not, and vice-versa, because it really shouldn't matter.
+  (defgeneric operation-forced (operation)
+    (:documentation "DEPRECATED. Assume it's (constantly t) instead."))
+  ;; This method exists for backward compatibility with swank.asd, its only user,
+  ;; that still uses it as of 2016-09-21.
+  ;;
+  ;; The magic PERFORM method in swank.asd only actually loads swank if it sees that
+  ;; the operation was forced. But except for the first time, the only reason the action
+  ;; would be performed to begin with is because it was forced; and the first time over,
+  ;; it doesn't hurt that :reload t :delete t should be used. So the check is redundant.
+  ;; More generally, if you have to do something when the operation was forced,
+  ;; you should also do it when not, and vice-versa, because it really shouldn't matter.
   ;; Thus, the backward-compatible thing to do is to always return T.
+  ;;
+  ;; TODO: change this function to a defun that always returns T.
   (defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))
 
 
   ;; These old interfaces from ASDF1 have never been very meaningful
   ;; but are still used in obscure places.
-  (defgeneric operation-on-warnings (operation))
-  (defgeneric operation-on-failure (operation))
-  (defgeneric (setf operation-on-warnings) (x operation))
-  (defgeneric (setf operation-on-failure) (x operation))
+  (defgeneric operation-on-warnings (operation)
+    (:documentation "DEPRECATED. Please use UIOP:*COMPILE-FILE-WARNINGS-BEHAVIOUR* instead."))
+  (defgeneric operation-on-failure (operation)
+    (:documentation "DEPRECATED. Please use UIOP:*COMPILE-FILE-FAILURE-BEHAVIOUR* instead."))
+  (defgeneric (setf operation-on-warnings) (x operation)
+    (:documentation "DEPRECATED. Please SETF UIOP:*COMPILE-FILE-WARNINGS-BEHAVIOUR* instead."))
+  (defgeneric (setf operation-on-failure) (x operation)
+    (:documentation "DEPRECATED. Please SETF UIOP:*COMPILE-FILE-FAILURE-BEHAVIOUR* instead."))
   (defmethod operation-on-warnings ((o operation))
     *compile-file-warnings-behaviour*)
   (defmethod operation-on-failure ((o operation))
@@ -67,12 +80,11 @@
     ;; As of 2.014.8, we mean to make this function obsolete,
     ;; but that won't happen until all clients have been updated.
     ;;(cerror "Use ASDF:SYSTEM-SOURCE-FILE instead"
-    "Function ASDF:SYSTEM-DEFINITION-PATHNAME is obsolete.
-It used to expose ASDF internals with subtle differences with respect to
-user expectations, that have been refactored away since.
-We recommend you use ASDF:SYSTEM-SOURCE-FILE instead
-for a mostly compatible replacement that we're supporting,
-or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
+    "DEPRECATED. This function used to expose ASDF internals with subtle
+differences with respect to user expectations, that have been refactored
+away since. We recommend you use ASDF:SYSTEM-SOURCE-FILE instead for a
+mostly compatible replacement that we're supporting, or even
+ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
 if that's whay you mean." ;;)
     (system-source-file x))
 
