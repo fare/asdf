@@ -53,16 +53,17 @@ and a class-name or class designates the canonical instance of the designated cl
 
 ;;;; Convenience methods
 (with-upgradability ()
-  ;; A macro that defines convenience methods for a gf that dispatches on operation and component.
-  ;; The convenience methods allow users to call the gf with operation and/or component designators,
-  ;; that the methods will resolve into actual operation and component objects, so that the users
-  ;; can interact using readable designators, but developers only have to write methods that handle
-  ;; operation and component objects.
-  ;; FUNCTION is the function name
-  ;; FORMALS its list of arguments, which must include OPERATION and COMPONENT.
+  ;; A macro that defines convenience methods for a generic function (gf) that
+  ;; dispatches on operation and component.  The convenience methods allow users
+  ;; to call the gf with operation and/or component designators, that the
+  ;; methods will resolve into actual operation and component objects, so that
+  ;; the users can interact using readable designators, but developers only have
+  ;; to write methods that handle operation and component objects.
+  ;; FUNCTION is the generic function name
+  ;; FORMALS is its list of arguments, which must include OPERATION and COMPONENT.
   ;; IF-NO-OPERATION is a form (defaults to NIL) describing what to do if no operation is found.
   ;; IF-NO-COMPONENT is a form (defaults to NIL) describing what to do if no component is found.
-  ;; If OPERATION-INITARGS initargs is true, then for backward compatibility the function has
+  ;; If OPERATION-INITARGS is true, then for backward compatibility the function has
   ;; a &rest argument that is passed into the operation's initargs if and when it is created.
   (defmacro define-convenience-action-methods
       (function formals &key if-no-operation if-no-component operation-initargs)
@@ -286,21 +287,21 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
 ;;;; Inputs, Outputs, and invisible dependencies
 (with-upgradability ()
   (defgeneric* (output-files) (operation component)
-    (:documentation "Methods of this function return two values: a list of output files
+    (:documentation "Methods for this function return two values: a list of output files
 corresponding to this action, and a boolean indicating if they have already been subjected
 to relevant output translations and should not be further translated.
 
-Methods on PERFORM *must* call this gf to determine where their outputs are to be located.
+Methods on PERFORM *must* call this function to determine where their outputs are to be located.
 They may rely on the order of the files to discriminate between outputs.
 "))
   (defgeneric* (input-files) (operation component)
     (:documentation "A list of input files corresponding to this action.
 
-Methods on PERFORM *must* call this gf to determine where their inputs are located.
+Methods on PERFORM *must* call this function to determine where their inputs are located.
 They may rely on the order of the files to discriminate between inputs.
 "))
   (defgeneric* (operation-done-p) (operation component)
-    (:documentation "Returns a boolean which is NIL if the action is forced to be performed again"))
+    (:documentation "Returns a boolean which is NIL if the action must be performed (again)."))
   (define-convenience-action-methods output-files (operation component))
   (define-convenience-action-methods input-files (operation component))
   (define-convenience-action-methods operation-done-p (operation component))
@@ -434,7 +435,7 @@ in some previous image, or T if it needs to be done.")
   ;; The retry strategies of p-w-r itself, and/or the background workers of a multiprocess build
   ;; may call perform directly rather than call p-w-r.
   (defgeneric* (perform-with-restarts) (operation component)
-    (:documentation "PERFORM an action in a context where suitable restarts were setup."))
+    (:documentation "PERFORM an action in a context where suitable restarts are in place."))
   (defmethod perform-with-restarts (operation component)
     (perform operation component))
   (defmethod perform-with-restarts :around (operation component)
