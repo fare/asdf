@@ -276,7 +276,7 @@ directive.")
 this function tries to locate the Windows FOLDER for one of
 :LOCAL-APPDATA, :APPDATA or :COMMON-APPDATA.
      Returns NIL when the folder is not defined (e.g., not on Windows)."
-    (or #+(and lispworks mswindows) (sys:get-folder-path folder)
+    (or #+(and lispworks os-windows) (sys:get-folder-path folder)
         ;; read-windows-registry HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders\AppData
         (ecase folder
           (:local-appdata (or (getenv-absolute-directory "LOCALAPPDATA")

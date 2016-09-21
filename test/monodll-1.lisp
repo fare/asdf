@@ -1,6 +1,6 @@
 (defpackage :test-asdf/monodll-1 (:use)) ;; dummy, for package-inferred-system dependencies.
 
-#+(and ecl (not clasp))
+#+ecl
 (ffi:clines "
 extern int always_7();
 

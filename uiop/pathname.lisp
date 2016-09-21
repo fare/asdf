@@ -186,8 +186,8 @@ when merging, making or parsing pathnames"
     ;; MCL has issues with make-pathname, nil and defaulting
     (declare (ignorable defaults))
     #.`(make-pathname :directory nil :name nil :type nil :version nil
-                      :device (or #+(and mkcl unix) :unspecific)
-                      :host (or #+cmucl lisp::*unix-host* #+(and mkcl unix) "localhost")
+                      :device (or #+(and mkcl os-unix) :unspecific)
+                      :host (or #+cmucl lisp::*unix-host* #+(and mkcl os-unix) "localhost")
                       #+scl ,@'(:scheme nil :scheme-specific-part nil
                                 :username nil :password nil :parameters nil :query nil :fragment nil)
                       ;; the default shouldn't matter, but we really want something physical
@@ -225,7 +225,7 @@ on ABCL, Genera and XCL, where it remains unchanged for it doubles as current-di
         (or (and (null p1) (null p2))
             (and (pathnamep p1) (pathnamep p2)
                  (and (=? pathname-host)
-                      #-(and mkcl unix) (=? pathname-device)
+                      #-(and mkcl os-unix) (=? pathname-device)
                       (=? normalize-pathname-directory-component pathname-directory)
                       (=? pathname-name)
                       (=? pathname-type)

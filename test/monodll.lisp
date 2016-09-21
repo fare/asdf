@@ -1,6 +1,6 @@
 (defpackage :test-asdf/monodll (:use :test-asdf/monodll-1)) ;; dummy, for package-inferred-system dependencies.
 
-#+(and ecl (not clasp))
+#+ecl
 (ffi:clines "
 extern int always_42();
 

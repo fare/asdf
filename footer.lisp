@@ -27,7 +27,7 @@
 (with-upgradability ()
   ;; Hook into CL:REQUIRE.
   #-clisp (pushnew 'module-provide-asdf *module-provider-functions*)
-  #+clisp (if-let (x (and #+clisp (find-symbol* '#:*module-provider-functions* :custom nil)))
+  #+clisp (if-let (x (find-symbol* '#:*module-provider-functions* :custom nil))
             (eval `(pushnew 'module-provide-asdf ,x)))
 
   #+(or clasp ecl mkcl)

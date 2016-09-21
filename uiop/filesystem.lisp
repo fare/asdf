@@ -136,9 +136,9 @@ or the original (parsed) pathname if it is false (the default)."
             (probe-file p)
             (and
              #+(or cmucl scl) (unix:unix-stat (ext:unix-namestring p))
-             #+(and lispworks unix) (system:get-file-stat p)
+             #+(and lispworks os-unix) (system:get-file-stat p)
              #+sbcl (sb-unix:unix-stat (sb-ext:native-namestring p))
-             #-(or cmucl (and lispworks unix) sbcl scl) (file-write-date p)
+             #-(or cmucl (and lispworks os-unix) sbcl scl) (file-write-date p)
              p))))))
 
   (defun directory-exists-p (x)

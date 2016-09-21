@@ -393,13 +393,13 @@
            (lambda-string (string lambda-char)))
       (assert (= 1 (character-type-index lambda-char)))
       (assert-equal (strings-common-element-type (list #\a nil (strcat "hello, " lambda-string "world")))
-                    #-lispworks 'character #+lispworks7 'lw:bmp-char #+(and lispworks (not lispworks7)) 'lw:simple-char)
+                    #-lispworks 'character #+lispworks7+ 'lw:bmp-char #+(and lispworks (not lispworks7+)) 'lw:simple-char)
       (when (< 65536 char-code-limit)
         (let* ((amagi (format nil "~a~a" (code-char #x120BC) (code-char #x12104))))
-          (assert (= #+lispworks7 2 #-lispworks7 1 (character-type-index (first-char amagi))))
+          (assert (= #+lispworks7+ 2 #-lispworks7+ 1 (character-type-index (first-char amagi))))
           (assert-equal (strings-common-element-type (list #\a nil amagi lambda-string))
-                        #+(or (not lispworks) lispworks7) 'character
-                        #+(and lispworks (not lispworks7)) 'lw:simple-char))))))
+                        #+(or (not lispworks) lispworks7+) 'character
+                        #+(and lispworks (not lispworks7+)) 'lw:simple-char))))))
 
 (assert-equal +crlf+ (map 'string 'code-char '(13 10)))
 (assert-equal +lf+ (map 'string 'code-char '(10)))
