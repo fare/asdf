@@ -22,25 +22,25 @@
 (with-upgradability ()
   (defclass cl-source-file (source-file)
     ((type :initform "lisp"))
-    (:documentation "Component class for a Common Lisp source file (using type .lisp)"))
+    (:documentation "Component class for a Common Lisp source file (using type \"lisp\")"))
   (defclass cl-source-file.cl (cl-source-file)
     ((type :initform "cl"))
-    (:documentation "Component class for a Common Lisp source file using type .cl"))
+    (:documentation "Component class for a Common Lisp source file using type \"cl\""))
   (defclass cl-source-file.lsp (cl-source-file)
     ((type :initform "lsp"))
-    (:documentation "Component class for a Common Lisp source file using type .lsp")))
+    (:documentation "Component class for a Common Lisp source file using type \"lsp\"")))
 
 
 ;;;; Operation classes
 (with-upgradability ()
   (defclass basic-load-op (operation) ()
-    (:documentation "Base class for operations that evaluate the load-time effects of a file"))
+    (:documentation "Base class for operations that apply the load-time effects of a file"))
   (defclass basic-compile-op (operation)
     ;; NB: These slots are deprecated. They are for backward compatibility only,
     ;; and will be removed at some point in the future.
     ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
      (flags :initarg :flags :accessor compile-op-flags :initform nil))
-    (:documentation "Base class for operations that evaluate the compile-time effects of a file")))
+    (:documentation "Base class for operations that apply the compile-time effects of a file")))
 
 
 ;;; Our default operations: loading into the current lisp image
@@ -89,10 +89,10 @@ If the tests fail, an error will be signaled.")))
   (defmethod action-description ((o compile-op) (c parent-component))
     (format nil (compatfmt "~@<completing compilation for ~3i~_~A~@:>") c))
   (defgeneric call-with-around-compile-hook (component thunk)
-    (:documentation "A method to be called around the perform'ing of actions that evaluate the
-compile-time side-effects of file i.e. compile-op or load-source-op. This method can notably use
-to setup readtables and other variables that control reading, macroexpanding and compiling, etc.
-Note that it will NOT be called around the performing of load-op."))
+    (:documentation "A method to be called around the PERFORM'ing of actions that apply the
+compile-time side-effects of file (i.e., COMPILE-OP or LOAD-SOURCE-OP). This method can be used
+to setup readtables and other variables that control reading, macroexpanding, and compiling, etc.
+Note that it will NOT be called around the performing of LOAD-OP."))
   (defmethod call-with-around-compile-hook ((c component) function)
     (call-around-hook (around-compile-hook c) function))
   (defun perform-lisp-compilation (o c)
@@ -129,10 +129,10 @@ Note that it will NOT be called around the performing of load-op."))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
   (defun report-file-p (f)
-    "Is F a build report file containing e.g. warnings to check?"
+    "Is F a build report file containing, e.g., warnings to check?"
     (equalp (pathname-type f) "build-report"))
   (defun perform-lisp-warnings-check (o c)
-    "Check the warnings associated to the dependencies of an action."
+    "Check the warnings associated with the dependencies of an action."
     (let* ((expected-warnings-files (remove-if-not #'warnings-file-p (input-files o c)))
            (actual-warnings-files (loop :for w :in expected-warnings-files
                                         :when (get-file-stamp w)
@@ -148,7 +148,8 @@ Note that it will NOT be called around the performing of load-op."))
   (defmethod perform ((o compile-op) (c cl-source-file))
     (perform-lisp-compilation o c))
   (defun lisp-compilation-output-files (o c)
-    "Compute the output-files for compiling the Lisp file for the specified action (O . C)"
+    "Compute the output-files for compiling the Lisp file for the specified action (O . C),
+an OPERATION and a COMPONENT."
     (let* ((i (first (input-files o c)))
            (f (compile-file-pathname
                i #+clasp :output-type #+ecl :type #+(or clasp ecl) :fasl
@@ -205,7 +206,8 @@ Note that it will NOT be called around the performing of load-op."))
                             (component-name c)))
           (perform (find-operation o 'compile-op) c)))))
   (defun perform-lisp-load-fasl (o c)
-    "Perform the loading of a FASL associated to specified action (O . C)"
+    "Perform the loading of a FASL associated to specified action (O . C),
+an OPERATION and a COMPONENT."
     (if-let (fasl (first (input-files o c)))
       (load* fasl)))
   (defmethod perform ((o load-op) (c cl-source-file))
@@ -251,4 +253,3 @@ Note that it will NOT be called around the performing of load-op."))
   (defmethod operation-done-p ((o test-op) (c system))
     "Testing a system is _never_ done."
     nil))
-
