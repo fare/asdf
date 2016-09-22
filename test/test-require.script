@@ -175,7 +175,7 @@
 (defparameter *mod*
   (or
    #+abcl :abcl-contrib
-   #+allegro :yacc
+   #+allegro :sax
    #+clisp (first (remove "asdf" *dynmod-list* :test 'equal))
    #+(or clozure cmucl) :defsystem
    #+ecl :serve-event ;; loads faster than :ecl-quicklisp
