@@ -54,7 +54,8 @@
     (:documentation "Find a component by resolving the PATH starting from BASE parent.
 If REGISTERED is true, only search currently registered systems."))
   (defgeneric resolve-dependency-combination (component combinator arguments)
-    (:documentation "Resolve dependency (COMBINATOR . ARGUMENTS) in the context of COMPONENT"))
+    (:documentation "Return a component satisfying the dependency specification (COMBINATOR . ARGUMENTS)
+in the context of COMPONENT"))
 
   ;; Methods for find-component
 
