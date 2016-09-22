@@ -4251,16 +4251,18 @@ by a @code{;} (semicolon) on other platforms (mainly, Windows).
 
 The magic empty entry,
 if it comes in what would otherwise be the first entry in a pair,
-indicates the splicing of inherited configuration.
+indicates the splicing of inherited configuration;
+the next entry (if any) then starts a new pair.
 If the second entry in a pair is empty,
 it indicates that the directory in the first entry is to be left untranslated
 (which has the same effect as if the directory had been repeated).
 
-For example, @code{"/foo:/bar::/baz:"} means that
-things under directory @file{/foo/}
-are translated to be under @file{/bar/},
-then include the inherited configuration,
-then specify that things under directory @file{/baz/} are not translated.
+For example, @code{"/foo:/bar::/baz:"} means:
+specify that outputs for things under directory @file{/foo/}
+are translated to be under @file{/bar/};
+then include the inherited configuration;
+then specify that outputs for things under directory @file{/baz/} are not translated.
+
 
 @node Semantics of Output Translations, Output Caching Results, Output Shell-friendly syntax for configuration, Controlling where ASDF saves compiled files
 @section Semantics of Output Translations

@@ -29,7 +29,9 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
               (string rev)
               (cons (format nil "~{~D~^.~}" rev))
               (null "1.0"))))))
-  ;; Important: define *p-a-v* /before/ *a-v* so that it initializes correctly.
+  ;; This (private) variable contains a list of versions of previously loaded variants of ASDF,
+  ;; from which ASDF was upgraded.
+  ;; Important: define *p-a-v* /before/ *a-v* so that they initialize correctly.
   (defvar *previous-asdf-versions*
     (let ((previous (asdf-version)))
       (when previous
@@ -39,18 +41,31 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
             (rename-package :asdf away)
             (when *load-verbose*
               (format t "~&; Renamed old ~A package away to ~A~%" :asdf away)))))
-        (list previous)))
+      (list previous)))
+  ;; This public variable will be bound shortly to the currently loaded version of ASDF.
   (defvar *asdf-version* nil)
-  ;; We need to clear systems from versions yet older than the below:
+  ;; We need to clear systems from versions older than the one in this (private) parameter:
   (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.
+  ;; Semi-private variable: a designator for a stream on which to output ASDF progress messages
   (defvar *verbose-out* nil)
+  ;; Private function by which ASDF outputs progress messages and warning messages:
   (defun asdf-message (format-string &rest format-args)
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
+  ;; Private hook for functions to run after ASDF has upgraded itself from an older variant:
   (defvar *post-upgrade-cleanup-hook* ())
+  ;; Private hook for functions to run after ASDF is restarted, whether by starting a process
+  ;; from a dumped image or after upgrading from an older variant:
+  ;; TODO: understand what happened with that hook, why functions are registered on it but it is
+  ;; never called anymore. This is a bug that should be fixed before next release (3.1.8)!
   (defvar *post-upgrade-restart-hook* ())
+  ;; Private function to detect whether the current upgrade counts as an incompatible
+  ;; data schema upgrade implying the need to drop data.
   (defun upgrading-p (&optional (oldest-compatible-version *oldest-forward-compatible-asdf-version*))
     (and *previous-asdf-versions*
          (version< (first *previous-asdf-versions*) oldest-compatible-version)))
+  ;; Private variant of defparameter that works in presence of incompatible upgrades:
+  ;; behaves like defvar in a compatible upgrade (e.g. reloading system after simple code change),
+  ;; but behaves like defparameter if in presence of an incompatible upgrade.
   (defmacro defparameter* (var value &optional docstring (version *oldest-forward-compatible-asdf-version*))
     (let* ((name (string-trim "*" var))
            (valfun (intern (format nil "%~A-~A-~A" :compute name :value))))
@@ -59,6 +74,9 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
          (defvar ,var (,valfun) ,@(ensure-list docstring))
          (when (upgrading-p ,version)
            (setf ,var (,valfun))))))
+  ;; Private macro to declare sections of code that are only compiled and run when upgrading.
+  ;; The use of eval portably ensures that the code will not have adverse compile-time side-effects,
+  ;; whereas the use of handler-bind portably ensures that it will not issue warnings when it runs.
   (defmacro when-upgrading ((&key (version *oldest-forward-compatible-asdf-version*)
                                (upgrading-p `(upgrading-p ,version)) when) &body body)
     "A wrapper macro for code that should only be run when upgrading a
@@ -67,6 +85,7 @@ previously-loaded version of ASDF."
        (when (and ,upgrading-p ,@(when when `(,when)))
          (handler-bind ((style-warning #'muffle-warning))
            (eval '(progn ,@body))))))
+  ;; Only now can we safely update the version.
   (let* (;; For bug reporting sanity, please always bump this version when you modify this file.
          ;; Please also modify asdf.asd to reflect this change. make bump-version v=3.4.5.67.8
          ;; can help you do these changes in synch (look at the source for documentation).
@@ -86,6 +105,7 @@ previously-loaded version of ASDF."
                 (compatfmt "~&~@<; ~@;Upgrading ASDF ~@[from version ~A ~]to version ~A~@:>~%")
                 existing-version asdf-version)))))
 
+;;; Upon upgrade, specially frob some functions and classes that are being incompatibly redefined
 (when-upgrading ()
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
           ;; NB: it's too late to do anything about functions in UIOP!
@@ -98,7 +118,7 @@ previously-loaded version of ASDF."
     (loop :for name :in redefined-functions
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym
-              ;; On CLISP we seem to be unable to fmakunbound and define a function in the same fasl. Sigh.
+              ;; CLISP seemingly can't fmakunbound and define a function in the same fasl. Sigh.
               #-clisp (fmakunbound sym)))
     (labels ((asym (x) (multiple-value-bind (s p) (if (consp x) (values (car x) (cadr x)) (values x :asdf))
                          (find-symbol* s p nil)))
@@ -110,8 +130,9 @@ previously-loaded version of ASDF."
 
 
 ;;; Self-upgrade functions
-
 (with-upgradability ()
+  ;; This private function is called at the end of asdf/footer and ensures that,
+  ;; *if* this loading of ASDF was an upgrade, then all registered cleanup functions will be called.
   (defun cleanup-upgraded-asdf (&optional (old-version (first *previous-asdf-versions*)))
     (let ((new-version (asdf-version)))
       (unless (equal old-version new-version)
@@ -138,5 +159,7 @@ previously-loaded version of ASDF."
       (handler-bind (((or style-warning) #'muffle-warning))
         (symbol-call :asdf :load-system :asdf :verbose nil))))
 
+  ;; Register the upgrade-configuration function from UIOP,
+  ;; to ensure configuration is upgraded as needed.
   (register-hook-function '*post-upgrade-cleanup-hook* 'upgrade-configuration))
 

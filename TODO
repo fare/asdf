@@ -4,8 +4,9 @@
 ** Already, swank-asdf doesn't support anything older than 2.014.6
    (as provided by the first 2011 iteration of Quicklisp), and
    I (fare) am pushing for swank-asdf to not support anything older
-   than 3.0 (since no maintained implementation has anything older,
-   with the LispWorks 7.0 release being last to upgrade, in May 2015).
+   than 3.1.2 (since no maintained implementation has anything older,
+   with the LispWorks 7.0 release being last to upgrade, in May 2015;
+   or CLISP hg in May 2016, though it hasn't been released since 2010).
 ** Maybe remove old versions from upgrade tests; or maybe not:
    if we support old versions in any way,
    it should be for upgrade only, and "punt" is acceptable.
@@ -13,6 +14,8 @@
    Clear all the code in the header, and/or
    move a few elements to asdf/upgrade.
 ** Upgrade tests might be split in two test sets: short and long.
+** Make tests stateless and/or make any modifications private,
+   so that they can be run in parallel.
 
 * Moving toward cross-compilation (ASDF 3.2? 4?)
    This would allow to get most of the benefits of XCVB

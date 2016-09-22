@@ -32,17 +32,28 @@
 
 ;;;; Generic plan traversal class
 (with-upgradability ()
-  (defclass plan () ())
+  (defclass plan () ()
+    (:documentation "Base class for a plan based on which ASDF can build a system"))
   (defclass plan-traversal (plan)
-    ((system :initform nil :initarg :system :accessor plan-system)
+    (;; The system for which the plan is computed
+     (system :initform nil :initarg :system :accessor plan-system)
+     ;; Table of systems specified via :force arguments
      (forced :initform nil :initarg :force :accessor plan-forced)
+     ;; Table of systems specified via :force-not argument (and/or immutable)
      (forced-not :initform nil :initarg :force-not :accessor plan-forced-not)
+     ;; Counts of total actions in plan
      (total-action-count :initform 0 :accessor plan-total-action-count)
+     ;; Count of actions that need to be performed
      (planned-action-count :initform 0 :accessor plan-planned-action-count)
+     ;; Count of actions that need to be performed that have a non-empty list of output-files.
      (planned-output-action-count :initform 0 :accessor plan-planned-output-action-count)
+     ;; Table that to actions already visited while walking the dependencies associates status
      (visited-actions :initform (make-hash-table :test 'equal) :accessor plan-visited-actions)
-     (visiting-action-set :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
-     (visiting-action-list :initform () :accessor plan-visiting-action-list))))
+     ;; Actions that depend on those being currently walked through, to detect circularities
+     (visiting-action-set ;; as a set
+      :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
+     (visiting-action-list :initform () :accessor plan-visiting-action-list)) ;; as a list
+    (:documentation "Base class for plans that simply traverse dependencies")))
 
 
 ;;;; Planned action status
@@ -72,12 +83,15 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defmethod action-planned-p ((action-status t))
     t) ; default method for non planned-action-status objects
 
-  ;; TODO: eliminate NODE-FOR, use CONS.
-  ;; Supposes cleaner protocol for operation initargs passed to MAKE-OPERATION.
+  ;; TODO: either confirm there are no operation-original-initargs, eliminate NODE-FOR,
+  ;; and use (CONS O C); or keep the operation initargs, and here use MAKE-OPERATION.
   ;; However, see also component-operation-time and mark-operation-done
-  (defun node-for (o c) (cons (type-of o) c))
+  (defun node-for (o c)
+    "Given operation O and component C, return an object to use as key in action-indexed tables."
+    (cons (type-of o) c))
 
   (defun action-already-done-p (plan operation component)
+    "According to this plan, is this action already done and up to date?"
     (action-done-p (plan-action-status plan operation component)))
 
   (defmethod plan-action-status ((plan null) (o operation) (c component))
@@ -95,28 +109,41 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
 ;;;; forcing
 (with-upgradability ()
-  (defgeneric action-forced-p (plan operation component))
-  (defgeneric action-forced-not-p (plan operation component))
+  (defgeneric action-forced-p (plan operation component)
+    (:documentation "Is this action forced to happen in this plan?"))
+  (defgeneric action-forced-not-p (plan operation component)
+    (:documentation "Is this action forced to not happen in this plan?
+Takes precedence over action-forced-p."))
 
-  (defun normalize-forced-systems (x system)
-    (etypecase x
-      ((or (member nil :all) hash-table function) x)
-      (cons (list-to-hash-set (mapcar #'coerce-name x)))
+  (defun normalize-forced-systems (force system)
+    "Given a SYSTEM on which operate is called and the specified FORCE argument,
+extract a hash-set of systems that are forced, or a predicate on system names,
+or NIL if none are forced, or :ALL if all are."
+    (etypecase force
+      ((or (member nil :all) hash-table function) force)
+      (cons (list-to-hash-set (mapcar #'coerce-name force)))
       ((eql t) (when system (list-to-hash-set (list (coerce-name system)))))))
 
-  (defun normalize-forced-not-systems (x system)
+  (defun normalize-forced-not-systems (force-not system)
+    "Given a SYSTEM on which operate is called, the specified FORCE-NOT argument,
+and the set of IMMUTABLE systems, extract a hash-set of systems that are effectively forced-not,
+or predicate on system names, or NIL if none are forced, or :ALL if all are."
     (let ((requested
-            (etypecase x
-              ((or (member nil :all) hash-table function) x)
-              (cons (list-to-hash-set (mapcar #'coerce-name x)))
+            (etypecase force-not
+              ((or (member nil :all) hash-table function) force-not)
+              (cons (list-to-hash-set (mapcar #'coerce-name force-not)))
               ((eql t) (if system (let ((name (coerce-name system)))
                                     #'(lambda (x) (not (equal x name))))
-                           t)))))
+                           :all)))))
       (if (and *immutable-systems* requested)
-          #'(lambda (x) (or (call-function requested x) (call-function *immutable-systems* x)))
+          #'(lambda (x) (or (call-function requested x)
+                            (call-function *immutable-systems* x)))
           (or *immutable-systems* requested))))
 
+  ;; TODO: shouldn't we be looking up the primary system name, rather than the system name?
   (defun action-override-p (plan operation component override-accessor)
+    "Given a plan, an action, and a function that given the plan accesses a set of overrides
+(i.e. force or force-not), see if the override applies to the current action."
     (declare (ignore operation))
     (call-function (funcall override-accessor plan)
                    (coerce-name (component-system (find-component () component)))))
@@ -126,7 +153,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
      ;; Did the user ask us to re-perform the action?
      (action-override-p plan operation component 'plan-forced)
      ;; You really can't force a builtin system and :all doesn't apply to it,
-     ;; except it it's the specifically the system currently being built.
+     ;; except if it's the specifically the system currently being built.
      (not (let ((system (component-system component)))
             (and (builtin-system-p system)
                  (not (eq system (plan-system plan))))))))
@@ -147,17 +174,21 @@ the action of OPERATION on COMPONENT in the PLAN"))
 (with-upgradability ()
   (defgeneric action-valid-p (plan operation component)
     (:documentation "Is this action valid to include amongst dependencies?"))
+  ;; :if-feature will invalidate actions on components for which the features don't apply.
   (defmethod action-valid-p ((plan t) (o operation) (c component))
     (if-let (it (component-if-feature c)) (featurep it) t))
+  ;; If either the operation or component was resolved to nil, the action is invalid.
   (defmethod action-valid-p ((plan t) (o null) (c t)) nil)
   (defmethod action-valid-p ((plan t) (o t) (c null)) nil)
+  ;; If the plan is null, i.e., we're looking at reality,
+  ;; then any action with actual operation and component objects is valid.
   (defmethod action-valid-p ((plan null) (o operation) (c component)) t))
 
 ;;;; Is the action needed in this image?
 (with-upgradability ()
   (defgeneric needed-in-image-p (operation component)
-    (:documentation "Is the action of OPERATION on COMPONENT needed in the current image to be meaningful,
-    or could it just as well have been done in another Lisp image?"))
+    (:documentation "Is the action of OPERATION on COMPONENT needed in the current image
+to be meaningful, or could it just as well have been done in another Lisp image?"))
 
   (defmethod needed-in-image-p ((o operation) (c component))
     ;; We presume that actions that modify the filesystem don't need be run
@@ -170,6 +201,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
 ;;;; Visiting dependencies of an action and computing action stamps
 (with-upgradability ()
   (defun (map-direct-dependencies) (plan operation component fun)
+    "Call FUN on all the valid dependencies of the given action in the given plan"
     (loop* :for (dep-o-spec . dep-c-specs) :in (component-depends-on operation component)
            :for dep-o = (find-operation operation dep-o-spec)
            :when dep-o
@@ -179,6 +211,9 @@ the action of OPERATION on COMPONENT in the PLAN"))
                        :do (funcall fun dep-o dep-c))))
 
   (defun (reduce-direct-dependencies) (plan operation component combinator seed)
+    "Reduce the direct dependencies to a value computed by iteratively calling COMBINATOR
+for each dependency action on the dependency's operation and component and an accumulator
+initialized with SEED."
     (map-direct-dependencies
      plan operation component
      #'(lambda (dep-o dep-c)
@@ -186,6 +221,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
     seed)
 
   (defun (direct-dependencies) (plan operation component)
+    "Compute a list of the direct dependencies of the action within the plan"
     (reduce-direct-dependencies plan operation component #'acons nil))
 
   ;; In a distant future, get-file-stamp, component-operation-time and latest-stamp
@@ -204,7 +240,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
     ;;   in the current image, or NIL if it hasn't.
     ;; Note that if e.g. LOAD-OP only depends on up-to-date files, but
     ;; hasn't been done in the current image yet, then it can have a non-T timestamp,
-    ;; yet a NIL done-in-image-p flag.
+    ;; yet a NIL done-in-image-p flag: we can predict what timestamp it will have once loaded,
+    ;; i.e. that of the input-files.
     (nest
      (block ())
      (let ((dep-stamp ; collect timestamp from dependencies (or T if forced or out-of-date)
@@ -265,11 +302,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
 
 ;;;; Generic support for plan-traversal
 (with-upgradability ()
-  (defgeneric plan-record-dependency (plan operation component))
-
-  (defgeneric call-while-visiting-action (plan operation component function)
-    (:documentation "Detect circular dependencies"))
-
   (defmethod initialize-instance :after ((plan plan-traversal)
                                          &key force force-not system
                                          &allow-other-keys)
@@ -277,15 +309,35 @@ the action of OPERATION on COMPONENT in the PLAN"))
       (setf forced (normalize-forced-systems force system))
       (setf forced-not (normalize-forced-not-systems force-not system))))
 
-  (defmethod (setf plan-action-status) (new-status (plan plan-traversal) (o operation) (c component))
-    (setf (gethash (node-for o c) (plan-visited-actions plan)) new-status))
+  (defgeneric plan-actions (plan)
+    (:documentation "Extract from a plan a list of actions to perform in sequence"))
+  (defmethod plan-actions ((plan list))
+    plan)
 
-  (defmethod plan-action-status ((plan plan-traversal) (o operation) (c component))
-    (or (and (action-forced-not-p plan o c) (plan-action-status nil o c))
-        (values (gethash (node-for o c) (plan-visited-actions plan)))))
+  (defmethod (setf plan-action-status) (new-status (p plan-traversal) (o operation) (c component))
+    (setf (gethash (node-for o c) (plan-visited-actions p)) new-status))
 
-  (defmethod action-valid-p ((plan plan-traversal) (o operation) (s system))
-    (and (not (action-forced-not-p plan o s)) (call-next-method)))
+  (defmethod plan-action-status ((p plan-traversal) (o operation) (c component))
+    (or (and (action-forced-not-p p o c) (plan-action-status nil o c))
+        (values (gethash (node-for o c) (plan-visited-actions p)))))
+
+  (defmethod action-valid-p ((p plan-traversal) (o operation) (s system))
+    (and (not (action-forced-not-p p o s)) (call-next-method)))
+
+  (defgeneric plan-record-dependency (plan operation component)
+    (:documentation "Record an action as a dependency in the current plan")))
+
+
+;;;; Detection of circular dependencies
+(with-upgradability ()
+  (define-condition circular-dependency (system-definition-error)
+    ((actions :initarg :actions :reader circular-dependency-actions))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
+                       (circular-dependency-actions c)))))
+
+  (defgeneric call-while-visiting-action (plan operation component function)
+    (:documentation "Detect circular dependencies"))
 
   (defmethod call-while-visiting-action ((plan plan-traversal) operation component fun)
     (with-accessors ((action-set plan-visiting-action-set)
@@ -299,20 +351,15 @@ the action of OPERATION on COMPONENT in the PLAN"))
         (unwind-protect
              (funcall fun)
           (pop action-list)
-          (setf (gethash action action-set) nil))))))
+          (setf (gethash action action-set) nil)))))
+
+  ;; Syntactic sugar for call-while-visiting-action
+  (defmacro while-visiting-action ((p o c) &body body)
+    `(call-while-visiting-action ,p ,o ,c #'(lambda () ,@body))))
 
 
 ;;;; Actual traversal: traverse-action
 (with-upgradability ()
-  (define-condition circular-dependency (system-definition-error)
-    ((actions :initarg :actions :reader circular-dependency-actions))
-    (:report (lambda (c s)
-               (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
-                       (circular-dependency-actions c)))))
-
-  (defmacro while-visiting-action ((p o c) &body body)
-    `(call-while-visiting-action ,p ,o ,c #'(lambda () ,@body)))
-
   (defgeneric traverse-action (plan operation component needed-in-image-p))
 
   ;; TRAVERSE-ACTION, in the context of a given PLAN object that accumulates dependency data,
@@ -379,14 +426,13 @@ the action of OPERATION on COMPONENT in the PLAN"))
 ;;;; Sequential plans (the default)
 (with-upgradability ()
   (defclass sequential-plan (plan-traversal)
-    ((actions-r :initform nil :accessor plan-actions-r)))
+    ((actions-r :initform nil :accessor plan-actions-r))
+    (:documentation "Simplest, default plan class, accumulating a sequence of actions"))
 
-  (defgeneric plan-actions (plan))
-  (defmethod plan-actions ((plan list))
-    plan)
   (defmethod plan-actions ((plan sequential-plan))
     (reverse (plan-actions-r plan)))
 
+  ;; No need to record a dependency to build a full graph, just accumulate nodes in order.
   (defmethod plan-record-dependency ((plan sequential-plan) (o operation) (c component))
     (values))
 
@@ -395,17 +441,20 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (when (action-planned-p new-status)
       (push (cons o c) (plan-actions-r p)))))
 
+
 ;;;; High-level interface: traverse, perform-plan, plan-operates-on-p
 (with-upgradability ()
   (defgeneric make-plan (plan-class operation component &key &allow-other-keys)
-    (:documentation
-     "Generate and return a plan for performing OPERATION on COMPONENT."))
+    (:documentation "Generate and return a plan for performing OPERATION on COMPONENT."))
   (define-convenience-action-methods make-plan (plan-class operation component &key))
 
-  (defgeneric perform-plan (plan &key))
-  (defgeneric plan-operates-on-p (plan component))
+  (defgeneric perform-plan (plan &key)
+    (:documentation "Actually perform a plan and build the requested actions"))
+  (defgeneric plan-operates-on-p (plan component)
+    (:documentation "Does this PLAN include any operation on given COMPONENT?"))
 
-  (defvar *default-plan-class* 'sequential-plan)
+  (defvar *default-plan-class* 'sequential-plan
+    "The default plan class to use when building with ASDF")
 
   (defmethod make-plan (plan-class (o operation) (c component) &rest keys &key &allow-other-keys)
     (let ((plan (apply 'make-instance (or plan-class *default-plan-class*)
@@ -445,12 +494,16 @@ the action of OPERATION on COMPONENT in the PLAN"))
     ((action-filter :initform t :initarg :action-filter :reader plan-action-filter)
      (component-type :initform t :initarg :component-type :reader plan-component-type)
      (keep-operation :initform t :initarg :keep-operation :reader plan-keep-operation)
-     (keep-component :initform t :initarg :keep-component :reader plan-keep-component)))
+     (keep-component :initform t :initarg :keep-component :reader plan-keep-component))
+    (:documentation "A variant of SEQUENTIAL-PLAN that only records a subset of actions."))
 
   (defmethod initialize-instance :after ((plan filtered-sequential-plan)
                                          &key force force-not
-                                           other-systems)
+                                         other-systems)
     (declare (ignore force force-not))
+    ;; Ignore force and force-not, rely on other-systems:
+    ;; force traversal of what we're interested in, i.e. current system or also others;
+    ;; force-not traversal of what we're not interested in, i.e. other systems unless other-systems.
     (with-slots (forced forced-not action-filter system) plan
       (setf forced (normalize-forced-systems (if other-systems :all t) system))
       (setf forced-not (normalize-forced-not-systems (if other-systems nil t) system))
@@ -462,6 +515,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
          (call-next-method)))
 
   (defmethod traverse-actions (actions &rest keys &key plan-class &allow-other-keys)
+    "Given a list of actions, build a plan with these actions as roots."
     (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
       (loop* :for (o . c) :in actions :do (traverse-action plan o c t))
       plan))
@@ -479,6 +533,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
              :collect (cons o c))))
 
   (defmethod required-components (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
+    "Given a SYSTEM and a GOAL-OPERATION (default LOAD-OP), traverse the dependencies and
+return a list of the components involved in building the desired action."
     (remove-duplicates
      (mapcar 'cdr (plan-actions
                    (apply 'traverse-sub-actions goal-operation system

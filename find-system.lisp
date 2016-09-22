@@ -82,11 +82,13 @@ NB: The onus is unhappily on the user to avoid clashes."
   ;;; Registry of Defined Systems
 
   (defvar *defined-systems* (make-hash-table :test 'equal)
-    "This is a hash table whose keys are strings, being the
-names of the systems, and whose values are pairs, the first
+    "This is a hash table whose keys are strings -- the
+names of systems -- and whose values are pairs, the first
 element of which is a universal-time indicating when the
 system definition was last updated, and the second element
-of which is a system object.")
+of which is a system object.
+  A system is referred to as \"registered\" if it is present
+in this table.")
 
   (defun system-registered-p (name)
     "Return a generalized boolean that is true if a system of given NAME was registered already.
@@ -225,6 +227,8 @@ Returns T if system was or is now undefined, NIL if a new preloaded system was r
       (not (ensure-preloaded-system-registered name))))
 
   (defun clear-defined-systems ()
+    "Clear all currently registered defined systems.
+Preloaded systems (including immutable ones) will be reset, other systems will be de-registered."
     (loop :for name :being :the :hash-keys :of *defined-systems*
           :unless (equal name "asdf") :do (clear-system name)))
 
@@ -236,28 +240,41 @@ Returns T if system was or is now undefined, NIL if a new preloaded system was r
 FN should be a function of one argument. It will be
 called with an object of type asdf:system."
     (loop :for registered :being :the :hash-values :of *defined-systems*
-          :do (funcall fn (cdr registered)))))
+          :do (funcall fn (cdr registered))))
 
-;;; for the sake of keeping things reasonably neat, we adopt a
-;;; convention that functions in this list are prefixed SYSDEF-
-(with-upgradability ()
-  (defvar *system-definition-search-functions* '())
 
+  ;;; Searching for system definitions
+
+  ;; For the sake of keeping things reasonably neat, we adopt a convention that
+  ;; only symbols are to be pushed to this list (rather than e.g. function objects),
+  ;; which makes upgrade easier. Also, the name of these symbols shall start with SYSDEF-
+  (defvar *system-definition-search-functions* '()
+    "A list that controls the ways that ASDF looks for system definitions.
+It contains symbols to be funcalled in order, with a requested system name as argument,
+until one returns a non-NIL result (if any), which must then be a fully initialized system object
+with that name.")
+
+  ;; Initialize and/or upgrade the *system-definition-search-functions*
+  ;; so it doesn't contain obsolete symbols, and does contain the current ones.
   (defun cleanup-system-definition-search-functions ()
     (setf *system-definition-search-functions*
           (append
            ;; Remove known-incompatible sysdef functions from old versions of asdf.
-           (remove-if #'(lambda (x) (member x '(contrib-sysdef-search sysdef-find-asdf sysdef-preloaded-system-search)))
-                      *system-definition-search-functions*)
+           ;; Order matters, so we can't just use set-difference.
+           (let ((obsolete
+                  '(contrib-sysdef-search sysdef-find-asdf sysdef-preloaded-system-search)))
+             (remove-if #'(lambda (x) (member x obsolete)) *system-definition-search-functions*))
            ;; Tuck our defaults at the end of the list if they were absent.
            ;; This is imperfect, in case they were removed on purpose,
-           ;; but then it will be the responsibility of whoever does that
+           ;; but then it will be the responsibility of whoever removes these symmbols
            ;; to upgrade asdf before he does such a thing rather than after.
            (remove-if #'(lambda (x) (member x *system-definition-search-functions*))
                       '(sysdef-central-registry-search
                         sysdef-source-registry-search)))))
   (cleanup-system-definition-search-functions)
 
+  ;; This (private) function does the search for a system definition using *s-d-s-f*;
+  ;; it is to be called by locate-system.
   (defun search-for-system-definition (system)
     ;; Search for valid definitions of the system available in the current session.
     ;; Previous definitions as registered in *defined-systems* MUST NOT be considered;
@@ -272,6 +289,11 @@ called with an object of type asdf:system."
         (try 'sysdef-immutable-system-search)
         (map () #'try *system-definition-search-functions*))))
 
+
+  ;;; The legacy way of finding a system: the *central-registry*
+
+  ;; This variable contains a list of directories to be lazily searched for the requested asd
+  ;; by sysdef-central-registry-search.
   (defvar *central-registry* nil
     "A list of 'system directory designators' ASDF uses to find systems.
 
@@ -283,10 +305,13 @@ which evaluates to a pathname. For example:
                 #p\"/home/me/cl/systems/\"
                 #p\"/usr/share/common-lisp/systems/\"))
 
-This is for backward compatibility.
-Going forward, we recommend new users should be using the source-registry.
-")
+This variable is for backward compatibility.
+Going forward, we recommend new users should be using the source-registry.")
 
+  ;; Function to look for an asd file of given NAME under a directory provided by DEFAULTS.
+  ;; Return the truename of that file if it is found and TRUENAME is true.
+  ;; Return NIL if the file is not found.
+  ;; On Windows, follow shortcuts to .asd files.
   (defun probe-asd (name defaults &key truename)
     (block nil
       (when (directory-pathname-p defaults)
@@ -309,6 +334,7 @@ Going forward, we recommend new users should be using the source-registry.
               (when (probe-file* shortcut)
                 (ensure-pathname (parse-windows-shortcut shortcut) :namestring :native)))))))))
 
+  ;; Function to push onto *s-d-s-f* to use the *central-registry*
   (defun sysdef-central-registry-search (system)
     (let ((name (primary-system-name system))
           (to-remove nil)
@@ -356,10 +382,15 @@ Going forward, we recommend new users should be using the source-registry.
                             (list new)
                             (subseq *central-registry* (1+ position))))))))))
 
+
+  ;;; Methods for find-system
+
+  ;; Reject NIL as a system designator.
   (defmethod find-system ((name null) &optional (error-p t))
     (when error-p
       (sysdef-error (compatfmt "~@<NIL is not a valid system name~@:>"))))
 
+  ;; Default method for find-system: resolve the argument using COERCE-NAME.
   (defmethod find-system (name &optional (error-p t))
     (find-system (coerce-name name) error-p))
 
@@ -376,7 +407,10 @@ Going forward, we recommend new users should be using the source-registry.
   (defun load-asd (pathname
                    &key name (external-format (encoding-external-format (detect-encoding pathname)))
                    &aux (readtable *readtable*) (print-pprint-dispatch *print-pprint-dispatch*))
-    ;; Tries to load system definition with canonical NAME from PATHNAME.
+    "Load system definitions from PATHNAME.
+NAME if supplied is the name of a system expected to be defined in that file.
+
+Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
     (with-asdf-cache ()
       (with-standard-io-syntax
         (let ((*package* (find-package :asdf-user))
@@ -401,6 +435,9 @@ Going forward, we recommend new users should be using the source-registry.
 
   (defvar *old-asdf-systems* (make-hash-table :test 'equal))
 
+  ;; (Private) function to check that a system that was found isn't an asdf downgrade.
+  ;; Returns T if everything went right, NIL if the system was an ASDF of the same or older version,
+  ;; that shall not be loaded. Also issue a warning if it was a strictly older version of ASDF.
   (defun check-not-old-asdf-system (name pathname)
     (or (not (equal name "asdf"))
         (null pathname)
@@ -475,6 +512,11 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (setf found-system nil pathname nil))
         (values foundp found-system pathname previous previous-time))))
 
+  ;; Main method for find-system: first, make sure the computation is memoized in a session cache.
+  ;; unless the system is immutable, use locate-system to find the primary system;
+  ;; reconcile the finding (if any) with any previous definition (in a previous session,
+  ;; preloaded, with a previous configuration, or before filesystem changes), and
+  ;; load a found .asd if appropriate. Finally, update registration table and return results.
   (defmethod find-system ((name string) &optional (error-p t))
     (with-asdf-cache (:key `(find-system ,name))
       (let ((primary-name (primary-system-name name)))

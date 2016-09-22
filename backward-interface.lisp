@@ -20,6 +20,10 @@
 (in-package :asdf/backward-interface)
 
 (with-upgradability ()
+  ;; These conditions from ASDF 1 and 2 are used by many packages in Quicklisp;
+  ;; but ASDF3 replaced them with somewhat different variants of uiop:compile-condition
+  ;; that do not involve ASDF actions.
+  ;; TODO: find the offenders and stop them.
   (define-condition operation-error (error) ;; Bad, backward-compatible name
     ;; Used by SBCL, cffi-tests, clsql-mysql, clsql-uffi, qt, elephant, uffi-tests, sb-grovel
     ((component :reader error-component :initarg :component)
@@ -32,16 +36,37 @@
   (define-condition compile-warned (compile-error) ())
 
   (defun component-load-dependencies (component)
+    "DEPRECATED. Please use COMPONENT-SIDEWAY-DEPENDENCIES instead."
     ;; Old deprecated name for the same thing. Please update your software.
     (component-sideway-dependencies component))
 
-  (defgeneric operation-forced (operation)) ;; Used by swank.asd for swank-loader.
+  (defgeneric operation-forced (operation)
+    (:documentation "DEPRECATED. Assume it's (constantly t) instead."))
+  ;; This method exists for backward compatibility with swank.asd, its only user,
+  ;; that still uses it as of 2016-09-21.
+  ;;
+  ;; The magic PERFORM method in swank.asd only actually loads swank if it sees that
+  ;; the operation was forced. But except for the first time, the only reason the action
+  ;; would be performed to begin with is because it was forced; and the first time over,
+  ;; it doesn't hurt that :reload t :delete t should be used. So the check is redundant.
+  ;; More generally, if you have to do something when the operation was forced,
+  ;; you should also do it when not, and vice-versa, because it really shouldn't matter.
+  ;; Thus, the backward-compatible thing to do is to always return T.
+  ;;
+  ;; TODO: change this function to a defun that always returns T.
   (defmethod operation-forced ((o operation)) (getf (operation-original-initargs o) :force))
 
-  (defgeneric operation-on-warnings (operation))
-  (defgeneric operation-on-failure (operation))
-  (defgeneric (setf operation-on-warnings) (x operation))
-  (defgeneric (setf operation-on-failure) (x operation))
+
+  ;; These old interfaces from ASDF1 have never been very meaningful
+  ;; but are still used in obscure places.
+  (defgeneric operation-on-warnings (operation)
+    (:documentation "DEPRECATED. Please use UIOP:*COMPILE-FILE-WARNINGS-BEHAVIOUR* instead."))
+  (defgeneric operation-on-failure (operation)
+    (:documentation "DEPRECATED. Please use UIOP:*COMPILE-FILE-FAILURE-BEHAVIOUR* instead."))
+  (defgeneric (setf operation-on-warnings) (x operation)
+    (:documentation "DEPRECATED. Please SETF UIOP:*COMPILE-FILE-WARNINGS-BEHAVIOUR* instead."))
+  (defgeneric (setf operation-on-failure) (x operation)
+    (:documentation "DEPRECATED. Please SETF UIOP:*COMPILE-FILE-FAILURE-BEHAVIOUR* instead."))
   (defmethod operation-on-warnings ((o operation))
     *compile-file-warnings-behaviour*)
   (defmethod operation-on-failure ((o operation))
@@ -55,15 +80,17 @@
     ;; As of 2.014.8, we mean to make this function obsolete,
     ;; but that won't happen until all clients have been updated.
     ;;(cerror "Use ASDF:SYSTEM-SOURCE-FILE instead"
-    "Function ASDF:SYSTEM-DEFINITION-PATHNAME is obsolete.
-It used to expose ASDF internals with subtle differences with respect to
-user expectations, that have been refactored away since.
-We recommend you use ASDF:SYSTEM-SOURCE-FILE instead
-for a mostly compatible replacement that we're supporting,
-or even ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
+    "DEPRECATED. This function used to expose ASDF internals with subtle
+differences with respect to user expectations, that have been refactored
+away since. We recommend you use ASDF:SYSTEM-SOURCE-FILE instead for a
+mostly compatible replacement that we're supporting, or even
+ASDF:SYSTEM-SOURCE-DIRECTORY or ASDF:SYSTEM-RELATIVE-PATHNAME
 if that's whay you mean." ;;)
     (system-source-file x))
 
+
+  ;; TRAVERSE is the function used to compute a plan in ASDF 1 and 2.
+  ;; It was never officially exposed but some people still used it.
   (defgeneric* (traverse) (operation component &key &allow-other-keys)
     (:documentation
      "Generate and return a plan for performing OPERATION on COMPONENT.
@@ -79,6 +106,7 @@ processed in order by OPERATE."))
 
 ;;;; ASDF-Binary-Locations compatibility
 ;; This remains supported for legacy user, but not recommended for new users.
+;; We suspect there are no more legacy users in 2016.
 (with-upgradability ()
   (defun enable-asdf-binary-locations-compatibility
       (&key
