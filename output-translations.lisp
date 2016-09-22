@@ -22,7 +22,6 @@
    ))
 (in-package :asdf/output-translations)
 
-;; We are using a macro, for portability to some retarded implementations.
 (when-upgrading () (undefine-function '(setf output-translations)))
 
 (with-upgradability ()
