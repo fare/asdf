@@ -82,11 +82,13 @@ NB: The onus is unhappily on the user to avoid clashes."
   ;;; Registry of Defined Systems
 
   (defvar *defined-systems* (make-hash-table :test 'equal)
-    "This is a hash table whose keys are strings, being the
-names of the systems, and whose values are pairs, the first
+    "This is a hash table whose keys are strings -- the
+names of systems -- and whose values are pairs, the first
 element of which is a universal-time indicating when the
 system definition was last updated, and the second element
-of which is a system object.")
+of which is a system object.
+  A system is referred to as \"registered\" if it is present
+in this table.")
 
   (defun system-registered-p (name)
     "Return a generalized boolean that is true if a system of given NAME was registered already.
@@ -405,7 +407,7 @@ Going forward, we recommend new users should be using the source-registry.")
   (defun load-asd (pathname
                    &key name (external-format (encoding-external-format (detect-encoding pathname)))
                    &aux (readtable *readtable*) (print-pprint-dispatch *print-pprint-dispatch*))
-    "Load systems definitions from PATHNAME.
+    "Load system definitions from PATHNAME.
 NAME if supplied is the name of a system expected to be defined in that file.
 
 Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
