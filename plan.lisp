@@ -41,7 +41,7 @@
      (forced :initform nil :initarg :force :accessor plan-forced)
      (forced-not :initform nil :initarg :force-not :accessor plan-forced-not)
      ;; Counts of total actions in plan, actions that need to be performed,
-     ;; actions that need to be performed that have a non-empty list of output-files.
+     ;; actions that need to be performed are those that have a non-empty list of output-files.
      (total-action-count :initform 0 :accessor plan-total-action-count)
      (planned-action-count :initform 0 :accessor plan-planned-action-count)
      (planned-output-action-count :initform 0 :accessor plan-planned-output-action-count)
