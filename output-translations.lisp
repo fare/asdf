@@ -22,6 +22,8 @@
    ))
 (in-package :asdf/output-translations)
 
+;; (setf output-translations) at some point used to be a macro for the sake of
+;; obsolete versions of GCL. Make sure that macro doesn't come to haunt us.
 (when-upgrading () (undefine-function '(setf output-translations)))
 
 (with-upgradability ()

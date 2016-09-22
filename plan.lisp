@@ -37,13 +37,15 @@
   (defclass plan-traversal (plan)
     (;; The system for which the plan is computed
      (system :initform nil :initarg :system :accessor plan-system)
-     ;; Tables of systems specified via :force and :force-not arguments
+     ;; Table of systems specified via :force arguments
      (forced :initform nil :initarg :force :accessor plan-forced)
+     ;; Table of systems specified via :force-not argument (and/or immutable)
      (forced-not :initform nil :initarg :force-not :accessor plan-forced-not)
-     ;; Counts of total actions in plan, actions that need to be performed,
-     ;; actions that need to be performed are those that have a non-empty list of output-files.
+     ;; Counts of total actions in plan
      (total-action-count :initform 0 :accessor plan-total-action-count)
+     ;; Count of actions that need to be performed
      (planned-action-count :initform 0 :accessor plan-planned-action-count)
+     ;; Count of actions that need to be performed that have a non-empty list of output-files.
      (planned-output-action-count :initform 0 :accessor plan-planned-output-action-count)
      ;; Table that to actions already visited while walking the dependencies associates status
      (visited-actions :initform (make-hash-table :test 'equal) :accessor plan-visited-actions)

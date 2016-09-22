@@ -54,7 +54,7 @@ and support for them may be discontinued at any moment.
   ;; A memoizing way of creating instances of operation.
   (defun make-operation (operation-class &rest initargs)
     "This function creates and memoizes an instance of OPERATION-CLASS.
-All operations MUST created through this function.
+All operation instances MUST be created through this function.
 
 Use of INITARGS is for backward compatibility and may be discontinued at any time."
     (let ((class (coerce-class operation-class
