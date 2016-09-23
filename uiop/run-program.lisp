@@ -1169,8 +1169,7 @@ or an indication of failure via the EXIT-CODE of the process"
         (setf force-shell t)))
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
-                     #+(or clasp clisp) (or (not ignore-error-status) t)
-                     #+clisp (member error-output '(:interactive :output))
+                     #+(or clasp clisp) t
                      ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
                      #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
                                (lexicographic<= '< ver '(16 0 1)))
