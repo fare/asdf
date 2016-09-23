@@ -13,8 +13,8 @@
 
    ;;; run-program
    #:slurp-input-stream #:vomit-output-stream
-   #:close-streams #:process-alive-p #:run-program #:terminate-process
-   #:wait-process
+   #:close-streams #:launch-program #:process-alive-p #:run-program
+   #:terminate-process #:wait-process
    #:process-info-error-output #:process-info-input #:process-info-output
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
@@ -1052,6 +1052,50 @@ race conditions."
                      :command command
                      :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
+
+  (defun launch-program (command &rest keys &key
+                                              input (if-input-does-not-exist :error)
+                                              output (if-output-exists :supersede)
+                                              error-output (if-error-output-exists :supersede)
+                                              (element-type #-clozure *default-stream-element-type*
+                                                            #+clozure 'character)
+                                              (external-format *utf-8-external-format*)
+                                              &allow-other-keys)
+    "Launch program specified by COMMAND,
+either a list of strings specifying a program and list of arguments,
+or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on
+Windows) _asynchronously_.
+
+If OUTPUT is a pathname, a string designating a pathname, or NIL
+designating the null device, the file at that path is used as output.
+If it's :INTERACTIVE, output is inherited from the current process;
+beware that this may be different from your *STANDARD-OUTPUT*, and
+under SLIME will be on your *inferior-lisp* buffer.  If it's T, output
+goes to your current *STANDARD-OUTPUT* stream.  If it's :STREAM, a new
+stream will be made available that can be accessed via
+PROCESS-INFO-OUTPUT and read from. Otherwise, OUTPUT should be a value
+that the underlying lisp implementation knows how to handle.
+
+ERROR-OUTPUT is similar to OUTPUT. T designates the *ERROR-OUTPUT*,
+:OUTPUT means redirecting the error output to the output stream,
+and :STREAM causes a stream to be made available via
+PROCESS-INFO-ERROR-OUTPUT.
+
+INPUT is similar to OUTPUT, except that T designates the
+*STANDARD-INPUT* and a stream requested through the :STREAM keyword
+would be available through PROCESS-INFO-INPUT.
+
+ELEMENT-TYPE and EXTERNAL-FORMAT are passed on to your Lisp
+implementation, when applicable, for creation of the output stream.
+
+LAUNCH-PROGRAM returns a process-info object."
+    (apply '%run-program command
+           :wait nil
+           :input input :if-input-does-not-exist if-input-does-not-exist
+           :output output :if-output-exists if-output-exists
+           :error-output error-output :if-error-output-exists if-error-output-exists
+           :element-type element-type :external-format external-format
+           keys))
 
   (defun run-program (command &rest keys
                        &key ignore-error-status (force-shell nil force-shell-suppliedp)
