@@ -1099,7 +1099,7 @@ in which case NIL is returned.
 INPUT is similar to OUTPUT, except that VOMIT-OUTPUT-STREAM is used,
 no value is returned, and T designates the *STANDARD-INPUT*.
 
-Use ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
+ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
 to your Lisp implementation, when applicable, for creation of the output stream.
 
 One and only one of the stream slurping or vomiting may or may not happen
