@@ -790,6 +790,7 @@ or :error-output."
   ;; via %run-program, e.g., will stop the shell /bin/sh that is used
   ;; to run the command (via `sh -c command`) but not the actual
   ;; command.
+  #+os-unix
   (defun %posix-send-signal (process-info signal)
     #+allegro (excl.osi:kill (slot-value process-info 'process) signal)
     #+clozure (ccl:signal-external-process (slot-value process-info 'process)
@@ -799,6 +800,13 @@ or :error-output."
     #-(or allegro clozure cmucl sbcl scl)
     (if-let (pid (process-info-pid process-info))
       (%run-program (format nil "kill -~a ~a" signal pid) :wait t)))
+
+  ;;; this function never gets called on Windows, but the compiler cannot tell
+  ;;; that. [2016/09/25:rpg]
+  #+os-windows
+  (defun %posix-send-signal (process-info signal)
+    (declare (ignore process-info signal))
+    (values))
 
   (defun terminate-process (process-info &key urgent)
     "Cause the process to exit. To that end, the process may or may
