@@ -409,12 +409,12 @@
                     :wait t :output *output-file* :directory temporary-directory)
       (check-output in-string)))
 
-(new-test-suite "%process-info-pid")
+(new-test-suite "process-info-pid")
 
 (define-test
     "basic functionality"
     (let* ((process-info (%run-program "./sleeper.sh 12 1" :wait nil))
-           (pid (uiop/run-program::%process-info-pid process-info)))
+           (pid (process-info-pid process-info)))
       (handle-result "obtainable and plausible?"
                      (and (numberp pid) (plusp pid)))
       (wait-process process-info)))

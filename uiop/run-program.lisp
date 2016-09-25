@@ -16,6 +16,7 @@
    #:close-streams #:launch-program #:process-alive-p #:run-program
    #:terminate-process #:wait-process
    #:process-info-error-output #:process-info-input #:process-info-output
+   #:process-info-pid
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
    ))
@@ -630,7 +631,7 @@ It returns a process-info object."
     (or (slot-value process-info 'bidir-stream)
         (slot-value process-info 'output-stream)))
 
-  (defun %process-info-pid (process-info)
+  (defun process-info-pid (process-info)
     (let ((process (slot-value process-info 'process)))
       (declare (ignorable process))
       #+abcl (symbol-call :sys :process-pid process)
@@ -643,7 +644,7 @@ It returns a process-info object."
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
       #-(or abcl allegro clozure cmucl ecl mkcl lispworks sbcl scl)
-      (not-implemented-error '%process-info-pid)))
+      (not-implemented-error 'process-info-pid)))
 
   (defun %process-status (process-info)
     (if-let (exit-code (slot-value process-info 'exit-code))
@@ -796,7 +797,7 @@ or :error-output."
     #+(or cmucl scl) (ext:process-kill (slot-value process-info 'process) signal)
     #+sbcl (sb-ext:process-kill (slot-value process-info 'process) signal)
     #-(or allegro clozure cmucl sbcl scl)
-    (if-let (pid (%process-info-pid process-info))
+    (if-let (pid (process-info-pid process-info))
       (%run-program (format nil "kill -~a ~a" signal pid) :wait t)))
 
   (defun terminate-process (process-info &key urgent)
@@ -814,7 +815,7 @@ race conditions."
     #-(or abcl ecl lispworks7+ mkcl)
     (os-cond
      ((os-unix-p) (%posix-send-signal process-info (if urgent 9 15)))
-     ((os-windows-p) (if-let (pid (%process-info-pid process-info))
+     ((os-windows-p) (if-let (pid (process-info-pid process-info))
                        (%run-program (format nil "taskkill ~a /pid ~a"
                                              (if urgent "/f" "") pid))))
      (t (not-implemented-error 'terminate-process))))
