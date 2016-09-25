@@ -13,7 +13,10 @@
 
    ;;; run-program
    #:slurp-input-stream #:vomit-output-stream
-   #:run-program
+   #:close-streams #:launch-program #:process-alive-p #:run-program
+   #:terminate-process #:wait-process
+   #:process-info-error-output #:process-info-input #:process-info-output
+   #:process-info-pid
    #:subprocess-error
    #:subprocess-error-code #:subprocess-error-command #:subprocess-error-process
    ))
@@ -376,7 +379,7 @@ via SLURP-INPUT-STREAM or VOMIT-OUTPUT-STREAM (return T),
 or whether it's already taken care of by the implementation's underlying run-program."
     (not (typep specifier '(or null string pathname (member :interactive :output)
                             #+(or cmucl (and sbcl os-unix) scl) (or stream (eql t))
-                            #+lispworks file-stream)))) ;; not a type!? comm:socket-stream
+                            #+lispworks file-stream))))
 
   (defun %normalize-io-specifier (specifier &optional role)
     "Normalizes a portable I/O specifier for %RUN-PROGRAM into an implementation-dependent
@@ -392,7 +395,7 @@ argument to pass to the internal RUN-PROGRAM"
        #+allegro nil
        #+clisp :terminal
        #+(or clozure cmucl ecl mkcl sbcl scl) t)
-      #+(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+      #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
            :output
@@ -406,12 +409,13 @@ argument to pass to the internal RUN-PROGRAM"
   (defun %interactivep (input output error-output)
     (member :interactive (list input output error-output)))
 
-  #+clisp
-  (defun clisp-exit-code (raw-exit-code)
-    (typecase raw-exit-code
-      (null 0) ; no error
-      (integer raw-exit-code) ; negative: signal
-      (t -1)))
+  (defun %signal-to-exit-code (signum)
+    (+ 128 signum))
+
+  #+mkcl
+  (defun %mkcl-signal-to-number (signal)
+    (require :mk-unix)
+    (symbol-value (find-symbol signal :mk-unix)))
 
   (defclass process-info ()
     ((process :initform nil)
@@ -419,7 +423,13 @@ argument to pass to the internal RUN-PROGRAM"
      (output-stream :initform nil)
      (bidir-stream :initform nil)
      (error-output-stream :initform nil)
-     (exit-code :initform nil)))
+     ;; For backward-compatibility, to maintain the property (zerop
+     ;; exit-code) <-> success, an exit in response to a signal is
+     ;; encoded as 128+signum.
+     (exit-code :initform nil)
+     ;; If the platform allows it, distinguish exiting with a code
+     ;; >128 from exiting in response to a signal by setting this code
+     (signal-code :initform nil)))
 
   (defun %run-program (command
                        &rest keys
@@ -436,12 +446,41 @@ to be normalized by %NORMALIZE-IO-SPECIFIER.
 It returns a process-info object."
     ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
-    #-(or cmucl ecl mkcl sbcl)
-    (assert (not (and wait (member :stream (list input output error-output)))))
-    #-(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (progn command keys directory
-           (error "run-program not available"))
-    #+(or allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    #-(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    (progn command keys input output error-output directory wait ;; ignore
+           (not-implemented-error '%run-program))
+    #-(or abcl cmucl ecl mkcl sbcl)
+    (when (and wait (member :stream (list input output error-output)))
+      (parameter-error "~S: I/O parameters cannot be ~S when ~S is ~S on this lisp"
+                       '%run-program :stream :wait t))
+    #+allegro
+    (when (some #'(lambda (stream)
+                    (and (streamp stream)
+                         (not (file-stream-p stream))))
+                (list input output error-output))
+      (parameter-error "~S: Streams passed as I/O parameters need to be file streams on this lisp"
+                       '%run-program))
+    #+(or abcl clisp lispworks)
+    (when (some #'streamp (list input output error-output))
+      (parameter-error "~S: I/O parameters cannot be foreign streams on this lisp"
+                       '%run-program))
+    #+clisp
+    (unless (eq error-output :interactive)
+      (parameter-error "~S: The only admissible value for ~S is ~S on this lisp"
+                       '%run-program :error-output :interactive))
+    #+clisp
+    (when (or (stringp input) (pathnamep input))
+      (unless (file-exists-p input)
+        (parameter-error "~S: Files passed as arguments to ~S need to exist on this lisp"
+                         '%run-program :input)))
+    #+ecl
+    (when (some #'(lambda (stream)
+                    (and (streamp stream)
+                         (not (file-or-synonym-stream-p stream))))
+                (list input output error-output))
+      (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
+                       '%run-program))
+    #+(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%if-output-exists (%normalize-if-exists if-output-exists))
            (%input (%normalize-io-specifier input :input))
@@ -451,14 +490,10 @@ It returns a process-info object."
            (interactive (%interactivep input output error-output))
            (process*
              (nest
-              #+clisp (progn
-                        ;; clisp cannot redirect stderr, so check we don't.
-                        ;; Also, since we now always return a code, we cannot use this code path
-                        ;; if any of the input, output or error-output is :stream.
-                        (assert (eq %error-output :terminal)))
               #-(or allegro mkcl sbcl) (with-current-directory (directory))
               #+(or allegro clisp ecl lispworks mkcl) (multiple-value-list)
               (apply
+               #+abcl #'sys:run-program
                #+allegro 'excl:run-shell-command
                #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
                #+(and allegro os-windows) %command
@@ -475,13 +510,13 @@ It returns a process-info object."
                #+mkcl 'mk-ext:run-program
                #+sbcl 'sb-ext:run-program
                (append
-                #+(or clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
+                #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
                 `(:input ,%input :output ,%output :wait ,wait :allow-other-keys t)
                 #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
                             ,%error-output)
                 #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
                 #+clisp `(:if-output-exists ,%if-output-exists)
-                #+(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+                #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
                 `(:if-input-does-not-exist ,if-input-does-not-exist
                   :if-output-exists ,%if-output-exists
                   #-(or allegro lispworks) :if-error-exists
@@ -493,11 +528,17 @@ It returns a process-info object."
                 #-sbcl keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info (make-instance 'process-info)))
-      (flet ((prop (key value)
-               (setf (slot-value process-info key) value)))
+      #+clisp (declare (ignore %error-output))
+      (labels ((prop (key value) (setf (slot-value process-info key) value))
+               #+(or allegro clisp ecl lispworks mkcl)
+               (store-codes (exit-code &optional signal-code)
+                 (if signal-code
+                     (progn (prop 'exit-code (%signal-to-exit-code signal-code))
+                            (prop 'signal-code signal-code))
+                     (prop 'exit-code exit-code))))
         #+allegro
         (cond
-          (wait (prop 'exit-code (first process*)))
+          (wait (store-codes (first process*)))
           (separate-streams
            (destructuring-bind (in out err pid) process*
              (prop 'process pid)
@@ -515,31 +556,36 @@ It returns a process-info object."
            (when (eq error-output :stream)
              (prop 'error-stream (second process*)))))
         #+clisp
-        (cond
-          (wait (prop 'exit-code (clisp-exit-code (first process*))))
-          (t
-           (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-             (0)
-             (1 (prop 'input-stream (first process*)))
-             (2 (prop 'output-stream (first process*)))
-             (3 (prop 'bidir-stream (pop process*))
-              (prop 'input-stream (pop process*))
-              (prop 'output-stream (pop process*))))))
-        #+(or clozure cmucl sbcl scl)
+        (if wait
+            (let ((raw-exit-code (or (first process*) 0)))
+              (if (minusp raw-exit-code)
+                  (store-codes 0 (- raw-exit-code))
+                  (store-codes raw-exit-code)))
+            (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
+              (0)
+              (1 (prop 'input-stream (first process*)))
+              (2 (prop 'output-stream (first process*)))
+              (3 (prop 'bidir-stream (pop process*))
+                 (prop 'input-stream (pop process*))
+                 (prop 'output-stream (pop process*)))))
+        #+(or abcl clozure cmucl sbcl scl)
         (progn
           (prop 'process process*)
           (when (eq input :stream)
             (prop 'input-stream
+                  #+abcl (symbol-call :sys :process-input process*)
                   #+clozure (ccl:external-process-input-stream process*)
                   #+(or cmucl scl) (ext:process-input process*)
                   #+sbcl (sb-ext:process-input process*)))
           (when (eq output :stream)
             (prop 'output-stream
+                  #+abcl (symbol-call :sys :process-output process*)
                   #+clozure (ccl:external-process-output-stream process*)
                   #+(or cmucl scl) (ext:process-output process*)
                   #+sbcl (sb-ext:process-output process*)))
           (when (eq error-output :stream)
             (prop 'error-output-stream
+                  #+abcl (symbol-call :sys :process-error process*)
                   #+clozure (ccl:external-process-error-stream process*)
                   #+(or cmucl scl) (ext:process-error process*)
                   #+sbcl (sb-ext:process-error process*))))
@@ -548,13 +594,18 @@ It returns a process-info object."
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
             (cond
               ((zerop mode))
-              ((null process*) (prop 'exit-code -1))
+              ((null process*) (store-codes -1))
               (t (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))))
-          (when code (prop 'exit-code code))
+          (when code
+            (let ((signum #+mkcl (and (stringp code) (%mkcl-signal-to-number code))
+                          #-mkcl (and (eq (ext:external-process-wait process)
+                                          :signaled)
+                                      code)))
+              (store-codes code signum)))
           (when process (prop 'process process)))
         #+lispworks
         (if wait
-            (prop 'exit-code (or (second process*) (first process*)))
+            (store-codes (first process*) (second process*))
             (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
               (if (or (plusp mode) (eq error-output :stream))
                   (destructuring-bind (io err pid) process*
@@ -571,9 +622,19 @@ It returns a process-info object."
                   (prop 'process (first process*)))))
         process-info)))
 
-  (defun %process-info-pid (process-info)
+  (defun process-info-error-output (process-info)
+    (slot-value process-info 'error-output-stream))
+  (defun process-info-input (process-info)
+    (or (slot-value process-info 'bidir-stream)
+        (slot-value process-info 'input-stream)))
+  (defun process-info-output (process-info)
+    (or (slot-value process-info 'bidir-stream)
+        (slot-value process-info 'output-stream)))
+
+  (defun process-info-pid (process-info)
     (let ((process (slot-value process-info 'process)))
       (declare (ignorable process))
+      #+abcl (symbol-call :sys :process-pid process)
       #+allegro process
       #+clozure (ccl:external-process-id process)
       #+ecl (ext:external-process-pid process)
@@ -582,39 +643,128 @@ It returns a process-info object."
       #+(and lispworks (not lispworks7+)) process
       #+mkcl (mkcl:process-id process)
       #+sbcl (sb-ext:process-pid process)
-      #-(or allegro clozure cmucl ecl mkcl lispworks sbcl scl)
-      (error "~S not implemented" '%process-info-pid)))
+      #-(or abcl allegro clozure cmucl ecl mkcl lispworks sbcl scl)
+      (not-implemented-error 'process-info-pid)))
 
-  (defun %wait-process-result (process-info)
-    (or (slot-value process-info 'exit-code)
-        (let ((process (slot-value process-info 'process)))
-          #-(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
-          (error "~S not implemented" '%wait-process)
-          (when process
-            ;; 1- wait
-            #+clozure (ccl::external-process-wait process)
-            #+(or cmucl scl) (ext:process-wait process)
-            #+sbcl (sb-ext:process-wait process)
-            ;; 2- extract result
-            (let ((exit-code
-                   #+allegro (multiple-value-bind (exit-code pid signal)
-                                 (sys:reap-os-subprocess :pid process :wait t)
-                               (assert pid)
-                               (or signal exit-code))
-                   #+clozure (nth-value 1 (ccl:external-process-status process))
-                   #+(or cmucl scl) (ext:process-exit-code process)
-                   #+ecl (nth-value 1 (ext:external-process-wait process t))
-                   #+lispworks
-                   ;; a signal is only returned on LispWorks 7+
-                   (multiple-value-bind (exit-code signal)
-                       (funcall #+lispworks7+ #'sys:pipe-exit-status
-                                #-lispworks7+ #'sys:pid-exit-status
-                                process :wait t)
-                     (or signal exit-code))
-                   #+mkcl (mkcl:join-process process)
-                   #+sbcl (sb-ext:process-exit-code process)))
-              (setf (slot-value process-info 'exit-code) exit-code)
-              exit-code)))))
+  (defun %process-status (process-info)
+    (if-let (exit-code (slot-value process-info 'exit-code))
+      (return-from %process-status
+        (if-let (signal-code (slot-value process-info 'signal-code))
+          (values :signaled signal-code)
+          (values :exited exit-code))))
+    #-(or allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+    (not-implemented-error '%process-status)
+    (if-let (process (slot-value process-info 'process))
+      (multiple-value-bind (status code)
+          (progn
+            #+allegro (multiple-value-bind (exit-code pid signal)
+                          (sys:reap-os-subprocess :pid process :wait nil)
+                        (assert pid)
+                        (cond ((null exit-code) :running)
+                              ((null signal) (values :exited exit-code))
+                              (t (values :signaled signal))))
+            #+clozure (ccl:external-process-status process)
+            #+(or cmucl scl) (let ((status (ext:process-status process)))
+                               (values status (if (member status '(:exited :signaled))
+                                                  (ext:process-exit-code process))))
+            #+ecl (ext:external-process-status process)
+            #+lispworks
+            ;; a signal is only returned on LispWorks 7+
+            (multiple-value-bind (exit-code signal)
+                (funcall #+lispworks7+ #'sys:pipe-exit-status
+                         #-lispworks7+ #'sys:pid-exit-status
+                         process :wait nil)
+              (cond ((null exit-code) :running)
+                    ((null signal) (values :exited exit-code))
+                    (t (values :signaled signal))))
+            #+mkcl (let ((status (mk-ext:process-status process))
+                         (code (mk-ext:process-exit-code process)))
+                     (if (stringp code)
+                         (values :signaled (%mkcl-signal-to-number code))
+                         (values status code)))
+            #+sbcl (let ((status (sb-ext:process-status process)))
+                     (values status (if (member status '(:exited :signaled))
+                                        (sb-ext:process-exit-code process)))))
+        (case status
+          (:exited (setf (slot-value process-info 'exit-code) code))
+          (:signaled (let ((%code (%signal-to-exit-code code)))
+                       (setf (slot-value process-info 'exit-code) %code
+                             (slot-value process-info 'signal-code) code))))
+        (values status code))))
+
+  (defun process-alive-p (process-info)
+    "Check if a process has yet to exit."
+    (unless (slot-value process-info 'exit-code)
+      #+abcl (sys:process-alive-p (slot-value process-info 'process))
+      #+(or cmucl scl) (ext:process-alive-p (slot-value process-info 'process))
+      #+sbcl (sb-ext:process-alive-p (slot-value process-info 'process))
+      #-(or abcl cmucl sbcl scl) (member (%process-status process-info)
+                                         '(:running :sleeping))))
+
+  (defun wait-process (process-info)
+    "Wait for the process to terminate, if it is still running.
+Otherwise, return immediately. An exit code (a number) will be
+returned, with 0 indicating success, and anything else indicating
+failure. If the process exits after receiving a signal, the exit code
+will be the sum of 128 and the (positive) numeric signal code. A second
+value may be returned in this case: the numeric signal code itself.
+Any asynchronously spawned process requires this function to be run
+before it is garbage-collected in order to free up resources that
+might otherwise be irrevocably lost."
+    (if-let (exit-code (slot-value process-info 'exit-code))
+      (if-let (signal-code (slot-value process-info 'signal-code))
+        (values exit-code signal-code)
+        exit-code)
+      (let ((process (slot-value process-info 'process)))
+        #-(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+        (not-implemented-error 'wait-process)
+        (when process
+          ;; 1- wait
+          #+clozure (ccl::external-process-wait process)
+          #+(or cmucl scl) (ext:process-wait process)
+          #+sbcl (sb-ext:process-wait process)
+          ;; 2- extract result
+          (multiple-value-bind (exit-code signal-code)
+              (progn
+                #+abcl (sys:process-wait process)
+                #+allegro (multiple-value-bind (exit-code pid signal)
+                              (sys:reap-os-subprocess :pid process :wait t)
+                            (assert pid)
+                            (values exit-code signal))
+                #+clozure (multiple-value-bind (status code)
+                              (ccl:external-process-status process)
+                            (if (eq status :signaled)
+                                (values nil code)
+                                code))
+                #+(or cmucl scl) (let ((status (ext:process-status process))
+                                       (code (ext:process-exit-code process)))
+                                   (if (eq status :signaled)
+                                       (values nil code)
+                                       code))
+                #+ecl (multiple-value-bind (status code)
+                          (ext:external-process-wait process t)
+                        (if (eq status :signaled)
+                            (values nil code)
+                            code))
+                #+lispworks (funcall #+lispworks7+ #'sys:pipe-exit-status
+                                     #-lispworks7+ #'sys:pid-exit-status
+                                     process :wait t)
+                #+mkcl (let ((code (mkcl:join-process process)))
+                         (if (stringp code)
+                             (values nil (%mkcl-signal-to-number code))
+                             code))
+                #+sbcl (let ((status (sb-ext:process-status process))
+                             (code (sb-ext:process-exit-code process)))
+                         (if (eq status :signaled)
+                             (values nil code)
+                             code)))
+            (if signal-code
+                (let ((%exit-code (%signal-to-exit-code signal-code)))
+                  (setf (slot-value process-info 'exit-code) %exit-code
+                        (slot-value process-info 'signal-code) signal-code)
+                  (values %exit-code signal-code))
+                (progn (setf (slot-value process-info 'exit-code) exit-code)
+                       exit-code)))))))
 
   (defun %check-result (exit-code &key command process ignore-error-status)
     (unless ignore-error-status
@@ -622,6 +772,61 @@ It returns a process-info object."
         (cerror "IGNORE-ERROR-STATUS"
                 'subprocess-error :command command :code exit-code :process process)))
     exit-code)
+
+  (defun close-streams (process-info)
+    "Close any stream that the process might own. Needs to be run
+whenever streams were requested by passing :stream to :input, :output,
+or :error-output."
+    (dolist (stream
+              (cons (slot-value process-info 'error-output-stream)
+                    (if-let (bidir-stream (slot-value process-info 'bidir-stream))
+                      (list bidir-stream)
+                      (list (slot-value process-info 'input-stream)
+                            (slot-value process-info 'output-stream)))))
+      (when stream (close stream))))
+
+  ;; WARNING: For signals other than SIGTERM and SIGKILL this may not
+  ;; do what you expect it to. Sending SIGSTOP to a process spawned
+  ;; via %run-program, e.g., will stop the shell /bin/sh that is used
+  ;; to run the command (via `sh -c command`) but not the actual
+  ;; command.
+  #+os-unix
+  (defun %posix-send-signal (process-info signal)
+    #+allegro (excl.osi:kill (slot-value process-info 'process) signal)
+    #+clozure (ccl:signal-external-process (slot-value process-info 'process)
+                                           signal :error-if-exited nil)
+    #+(or cmucl scl) (ext:process-kill (slot-value process-info 'process) signal)
+    #+sbcl (sb-ext:process-kill (slot-value process-info 'process) signal)
+    #-(or allegro clozure cmucl sbcl scl)
+    (if-let (pid (process-info-pid process-info))
+      (%run-program (format nil "kill -~a ~a" signal pid) :wait t)))
+
+  ;;; this function never gets called on Windows, but the compiler cannot tell
+  ;;; that. [2016/09/25:rpg]
+  #+os-windows
+  (defun %posix-send-signal (process-info signal)
+    (declare (ignore process-info signal))
+    (values))
+
+  (defun terminate-process (process-info &key urgent)
+    "Cause the process to exit. To that end, the process may or may
+not be sent a signal, which it will find harder (or even impossible)
+to ignore if URGENT is T. On some platforms, it may also be subject to
+race conditions."
+    (declare (ignorable urgent))
+    #+abcl (sys:process-kill (slot-value process-info 'process))
+    #+ecl (symbol-call :ext :terminate-process
+                       (slot-value process-info 'process) urgent)
+    #+lispworks7+ (sys:pipe-kill-process (slot-value process-info 'process))
+    #+mkcl (mk-ext:terminate-process (slot-value process-info 'process)
+                                     :force urgent)
+    #-(or abcl ecl lispworks7+ mkcl)
+    (os-cond
+     ((os-unix-p) (%posix-send-signal process-info (if urgent 9 15)))
+     ((os-windows-p) (if-let (pid (process-info-pid process-info))
+                       (%run-program (format nil "taskkill ~a /pid ~a"
+                                             (if urgent "/f" "") pid))))
+     (t (not-implemented-error 'terminate-process))))
 
   (defun %call-with-program-io (gf tval stream-easy-p fun direction spec activep returner
                                 &key element-type external-format &allow-other-keys)
@@ -714,10 +919,10 @@ It returns a process-info object."
   (defun %use-run-program (command &rest keys
                            &key input output error-output ignore-error-status &allow-other-keys)
     ;; helper for RUN-PROGRAM when using %run-program
-    #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl)
+    #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl)
     (progn
       command keys input output error-output ignore-error-status ;; ignore
-      (error "Not implemented on this platform"))
+      (not-implemented-error '%use-run-program))
     (assert (not (member :stream (list input output error-output))))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
@@ -760,14 +965,8 @@ It returns a process-info object."
                      (:input (run-activity input-activity 'input-stream t))
                      (:output (run-activity output-activity 'output-stream t))
                      (:error-output (run-activity error-output-activity 'error-output-stream)))
-                (dolist (stream
-                          (cons (slot-value process-info 'error-output-stream)
-                                (if-let (bidir-stream (slot-value process-info 'bidir-stream))
-                                        (list bidir-stream)
-                                        (list (slot-value process-info 'input-stream)
-                                              (slot-value process-info 'output-stream)))))
-                  (when stream (close stream)))
-                (setf exit-code (%wait-process-result process-info)))))))
+                (close-streams process-info)
+                (setf exit-code (wait-process process-info)))))))
       (%check-result exit-code
                      :command command :process process-info
                      :ignore-error-status ignore-error-status)
@@ -822,27 +1021,26 @@ It returns a process-info object."
     "A portable abstraction of a low-level call to libc's system()."
     (declare (ignorable input output error-output directory keys))
     #+(or allegro clozure cmucl (and lispworks os-unix) sbcl scl)
-    (%wait-process-result
+    (wait-process
      (apply '%run-program (%normalize-system-command command) :wait t keys))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
       #+clisp
-      (%wait-process-result
+      (wait-process
        (apply '%run-program %command :wait t
               :input :interactive :output :interactive :error-output :interactive keys))
       #-(or clisp (and lispworks os-windows))
       (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
-        #+abcl (ext:run-shell-command %command)
+        #+abcl (ext:run-shell-command %command) ;; FIXME: deprecated
         #+cormanlisp (win32:system %command)
         #+(or clasp ecl) (let ((*standard-input* *stdin*)
                     (*standard-output* *stdout*)
                     (*error-output* *stderr*))
                 (ext:system %command))
         #+gcl (system:system %command)
-        #+genera (error "~S not supported on Genera, cannot run ~S"
-                        '%system %command)
+        #+genera (not-implemented-error '%system)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
         #+mkcl (mkcl:system %command)
         #+xcl (system:%run-shell-command %command))))
@@ -863,6 +1061,50 @@ It returns a process-info object."
                      :command command
                      :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
+
+  (defun launch-program (command &rest keys &key
+                                              input (if-input-does-not-exist :error)
+                                              output (if-output-exists :supersede)
+                                              error-output (if-error-output-exists :supersede)
+                                              (element-type #-clozure *default-stream-element-type*
+                                                            #+clozure 'character)
+                                              (external-format *utf-8-external-format*)
+                                              &allow-other-keys)
+    "Launch program specified by COMMAND,
+either a list of strings specifying a program and list of arguments,
+or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on
+Windows) _asynchronously_.
+
+If OUTPUT is a pathname, a string designating a pathname, or NIL
+designating the null device, the file at that path is used as output.
+If it's :INTERACTIVE, output is inherited from the current process;
+beware that this may be different from your *STANDARD-OUTPUT*, and
+under SLIME will be on your *inferior-lisp* buffer.  If it's T, output
+goes to your current *STANDARD-OUTPUT* stream.  If it's :STREAM, a new
+stream will be made available that can be accessed via
+PROCESS-INFO-OUTPUT and read from. Otherwise, OUTPUT should be a value
+that the underlying lisp implementation knows how to handle.
+
+ERROR-OUTPUT is similar to OUTPUT. T designates the *ERROR-OUTPUT*,
+:OUTPUT means redirecting the error output to the output stream,
+and :STREAM causes a stream to be made available via
+PROCESS-INFO-ERROR-OUTPUT.
+
+INPUT is similar to OUTPUT, except that T designates the
+*STANDARD-INPUT* and a stream requested through the :STREAM keyword
+would be available through PROCESS-INFO-INPUT.
+
+ELEMENT-TYPE and EXTERNAL-FORMAT are passed on to your Lisp
+implementation, when applicable, for creation of the output stream.
+
+LAUNCH-PROGRAM returns a process-info object."
+    (apply '%run-program command
+           :wait nil
+           :input input :if-input-does-not-exist if-input-does-not-exist
+           :output output :if-output-exists if-output-exists
+           :error-output error-output :if-error-output-exists if-error-output-exists
+           :element-type element-type :external-format external-format
+           keys))
 
   (defun run-program (command &rest keys
                        &key ignore-error-status (force-shell nil force-shell-suppliedp)
@@ -910,7 +1152,7 @@ in which case NIL is returned.
 INPUT is similar to OUTPUT, except that VOMIT-OUTPUT-STREAM is used,
 no value is returned, and T designates the *STANDARD-INPUT*.
 
-Use ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
+ELEMENT-TYPE and EXTERNAL-FORMAT are passed on
 to your Lisp implementation, when applicable, for creation of the output stream.
 
 One and only one of the stream slurping or vomiting may or may not happen
@@ -927,7 +1169,7 @@ RUN-PROGRAM returns 3 values:
 or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
     #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
-    (error "RUN-PROGRAM not implemented for this Lisp")
+    (not-implemented-error 'run-program)
     ;; per doc string, set FORCE-SHELL to T if we get command as a string.  But
     ;; don't override user's specified preference. [2015/06/29:rpg]
     (when (stringp command)
@@ -936,13 +1178,12 @@ or an indication of failure via the EXIT-CODE of the process"
         (setf force-shell t)))
     (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
       (apply (if (or force-shell
-                     #+(or clasp clisp) (or (not ignore-error-status) t)
-                     #+clisp (member error-output '(:interactive :output))
+                     #+(or clasp clisp) t
                      ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
                      #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
                                (lexicographic<= '< ver '(16 0 1)))
                      #+(and lispworks os-unix) (%interactivep input output error-output)
-                     #+(or abcl cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
+                     #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                  '%use-system '%use-run-program)
              command
              :input (default input inputp output)
