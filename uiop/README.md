@@ -144,4 +144,4 @@ and a small subset of the functionality from ALEXANDRIA or FARE-UTILS.
 We recommend you use UIOP instead of any of the above, where applicable,
 since UIOP is more portable, more robust, more ubiquitous, better designed,
 better documented, etc. If you see any way in which UIOP isn't superior,
-we're interested in improving it so it become so.
+please tell us: we're interested in improving it so it become so.

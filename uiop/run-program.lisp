@@ -382,7 +382,7 @@ or whether it's already taken care of by the implementation's underlying run-pro
                             #+lispworks file-stream))))
 
   (defun %normalize-io-specifier (specifier &optional role)
-    "Normalizes a portable I/O specifier for %RUN-PROGRAM into an implementation-dependent
+    "Normalizes a portable I/O specifier for LAUNCH-PROGRAM into an implementation-dependent
 argument to pass to the internal RUN-PROGRAM"
     (declare (ignorable role))
     (etypecase specifier
@@ -431,55 +431,81 @@ argument to pass to the internal RUN-PROGRAM"
      ;; >128 from exiting in response to a signal by setting this code
      (signal-code :initform nil)))
 
-  (defun %run-program (command
-                       &rest keys
-                       &key input (if-input-does-not-exist :error)
-                         output (if-output-exists :supersede)
-                         error-output (if-error-output-exists :supersede)
-                         directory wait
-                         #+allegro separate-streams
-                         &allow-other-keys)
-    "A portable abstraction of a low-level call to the implementation's run-program or equivalent.
-It spawns a subprocess that runs the specified COMMAND (a list of program and arguments).
-INPUT, OUTPUT and ERROR-OUTPUT specify a portable IO specifer,
-to be normalized by %NORMALIZE-IO-SPECIFIER.
-It returns a process-info object."
+  (defun launch-program (command &rest keys
+                         &key
+                           input (if-input-does-not-exist :error)
+                           output (if-output-exists :supersede)
+                           error-output (if-error-output-exists :supersede)
+                           (element-type #-clozure *default-stream-element-type*
+                                         #+clozure 'character)
+                           (external-format *utf-8-external-format*)
+                           directory wait
+                           #+allegro separate-streams
+                           &allow-other-keys)
+    "Launch program specified by COMMAND,
+either a list of strings specifying a program and list of arguments,
+or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on
+Windows) _asynchronously_.
+
+If OUTPUT is a pathname, a string designating a pathname, or NIL
+designating the null device, the file at that path is used as output.
+If it's :INTERACTIVE, output is inherited from the current process;
+beware that this may be different from your *STANDARD-OUTPUT*, and
+under SLIME will be on your *inferior-lisp* buffer.  If it's T, output
+goes to your current *STANDARD-OUTPUT* stream.  If it's :STREAM, a new
+stream will be made available that can be accessed via
+PROCESS-INFO-OUTPUT and read from. Otherwise, OUTPUT should be a value
+that the underlying lisp implementation knows how to handle.
+
+ERROR-OUTPUT is similar to OUTPUT. T designates the *ERROR-OUTPUT*,
+:OUTPUT means redirecting the error output to the output stream,
+and :STREAM causes a stream to be made available via
+PROCESS-INFO-ERROR-OUTPUT.
+
+INPUT is similar to OUTPUT, except that T designates the
+*STANDARD-INPUT* and a stream requested through the :STREAM keyword
+would be available through PROCESS-INFO-INPUT.
+
+ELEMENT-TYPE and EXTERNAL-FORMAT are passed on to your Lisp
+implementation, when applicable, for creation of the output stream.
+
+LAUNCH-PROGRAM returns a PROCESS-INFO object."
     ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
     #-(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (progn command keys input output error-output directory wait ;; ignore
-           (not-implemented-error '%run-program))
+    (progn command keys input output error-output directory wait element-type external-format ;; ignore
+           (not-implemented-error 'launch-program))
     #-(or abcl cmucl ecl mkcl sbcl)
     (when (and wait (member :stream (list input output error-output)))
       (parameter-error "~S: I/O parameters cannot be ~S when ~S is ~S on this lisp"
-                       '%run-program :stream :wait t))
+                       'launch-program :stream :wait t))
     #+allegro
     (when (some #'(lambda (stream)
                     (and (streamp stream)
                          (not (file-stream-p stream))))
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be file streams on this lisp"
-                       '%run-program))
+                       'launch-program))
     #+(or abcl clisp lispworks)
     (when (some #'streamp (list input output error-output))
       (parameter-error "~S: I/O parameters cannot be foreign streams on this lisp"
-                       '%run-program))
+                       'launch-program))
     #+clisp
     (unless (eq error-output :interactive)
       (parameter-error "~S: The only admissible value for ~S is ~S on this lisp"
-                       '%run-program :error-output :interactive))
+                       'launch-program :error-output :interactive))
     #+clisp
     (when (or (stringp input) (pathnamep input))
       (unless (file-exists-p input)
         (parameter-error "~S: Files passed as arguments to ~S need to exist on this lisp"
-                         '%run-program :input)))
+                         'launch-program :input)))
     #+ecl
     (when (some #'(lambda (stream)
                     (and (streamp stream)
                          (not (file-or-synonym-stream-p stream))))
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
-                       '%run-program))
+                       'launch-program))
     #+(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%if-output-exists (%normalize-if-exists if-output-exists))
@@ -511,7 +537,9 @@ It returns a process-info object."
                #+sbcl 'sb-ext:run-program
                (append
                 #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
-                `(:input ,%input :output ,%output :wait ,wait :allow-other-keys t)
+                `(:input ,%input :output ,%output :wait ,wait
+                  :element-type ,element-type :external-format ,external-format
+                  :allow-other-keys t)
                 #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
                             ,%error-output)
                 #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
@@ -621,6 +649,10 @@ It returns a process-info object."
                   ;; lispworks6 returns (pid), lispworks7 returns (io,err,pid).
                   (prop 'process (first process*)))))
         process-info)))
+
+  (defun %run-program (command &rest keys &key &allow-other-keys)
+    "DEPRECATED. Use LAUNCH-PROGRAM instead."
+    (apply 'launch-program command keys))
 
   (defun process-info-error-output (process-info)
     (slot-value process-info 'error-output-stream))
@@ -787,7 +819,7 @@ or :error-output."
 
   ;; WARNING: For signals other than SIGTERM and SIGKILL this may not
   ;; do what you expect it to. Sending SIGSTOP to a process spawned
-  ;; via %run-program, e.g., will stop the shell /bin/sh that is used
+  ;; via LAUNCH-PROGRAM, e.g., will stop the shell /bin/sh that is used
   ;; to run the command (via `sh -c command`) but not the actual
   ;; command.
   #+os-unix
@@ -918,13 +950,13 @@ race conditions."
                 ,@body)
             :error-output ,error-output-form ,active (place-setter ,setf) ,keys))
 
-  (defun %use-run-program (command &rest keys
+  (defun %use-launch-program (command &rest keys
                            &key input output error-output ignore-error-status &allow-other-keys)
-    ;; helper for RUN-PROGRAM when using %run-program
+    ;; helper for RUN-PROGRAM when using LAUNCH-PROGRAM
     #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl)
     (progn
       command keys input output error-output ignore-error-status ;; ignore
-      (not-implemented-error '%use-run-program))
+      (not-implemented-error '%use-launch-program))
     (assert (not (member :stream (list input output error-output))))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
@@ -947,7 +979,7 @@ race conditions."
                                input :keys keys
                                :stream-easy-p t :active (eq activity :input))
             (setf process-info
-                  (apply '%run-program command
+                  (apply 'launch-program command
                          :wait wait :input reduced-input :output reduced-output
                          :error-output (if (eq error-output :output) :output reduced-error-output)
                          keys))
@@ -1024,23 +1056,23 @@ race conditions."
     (declare (ignorable input output error-output directory keys))
     #+(or allegro clozure cmucl (and lispworks os-unix) sbcl scl)
     (wait-process
-     (apply '%run-program (%normalize-system-command command) :wait t keys))
+     (apply 'launch-program (%normalize-system-command command) :wait t keys))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
       #+clisp
       (wait-process
-       (apply '%run-program %command :wait t
+       (apply 'launch-program %command :wait t
               :input :interactive :output :interactive :error-output :interactive keys))
       #-(or clisp (and lispworks os-windows))
       (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
         #+abcl (ext:run-shell-command %command) ;; FIXME: deprecated
         #+cormanlisp (win32:system %command)
         #+(or clasp ecl) (let ((*standard-input* *stdin*)
-                    (*standard-output* *stdout*)
-                    (*error-output* *stderr*))
-                (ext:system %command))
+                               (*standard-output* *stdout*)
+                               (*error-output* *stderr*))
+                           (ext:system %command))
         #+gcl (system:system %command)
         #+genera (not-implemented-error '%system)
         #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
@@ -1063,50 +1095,6 @@ race conditions."
                      :command command
                      :ignore-error-status ignore-error-status)
       (values output-result error-output-result exit-code)))
-
-  (defun launch-program (command &rest keys &key
-                                              input (if-input-does-not-exist :error)
-                                              output (if-output-exists :supersede)
-                                              error-output (if-error-output-exists :supersede)
-                                              (element-type #-clozure *default-stream-element-type*
-                                                            #+clozure 'character)
-                                              (external-format *utf-8-external-format*)
-                                              &allow-other-keys)
-    "Launch program specified by COMMAND,
-either a list of strings specifying a program and list of arguments,
-or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on
-Windows) _asynchronously_.
-
-If OUTPUT is a pathname, a string designating a pathname, or NIL
-designating the null device, the file at that path is used as output.
-If it's :INTERACTIVE, output is inherited from the current process;
-beware that this may be different from your *STANDARD-OUTPUT*, and
-under SLIME will be on your *inferior-lisp* buffer.  If it's T, output
-goes to your current *STANDARD-OUTPUT* stream.  If it's :STREAM, a new
-stream will be made available that can be accessed via
-PROCESS-INFO-OUTPUT and read from. Otherwise, OUTPUT should be a value
-that the underlying lisp implementation knows how to handle.
-
-ERROR-OUTPUT is similar to OUTPUT. T designates the *ERROR-OUTPUT*,
-:OUTPUT means redirecting the error output to the output stream,
-and :STREAM causes a stream to be made available via
-PROCESS-INFO-ERROR-OUTPUT.
-
-INPUT is similar to OUTPUT, except that T designates the
-*STANDARD-INPUT* and a stream requested through the :STREAM keyword
-would be available through PROCESS-INFO-INPUT.
-
-ELEMENT-TYPE and EXTERNAL-FORMAT are passed on to your Lisp
-implementation, when applicable, for creation of the output stream.
-
-LAUNCH-PROGRAM returns a process-info object."
-    (apply '%run-program command
-           :wait nil
-           :input input :if-input-does-not-exist if-input-does-not-exist
-           :output output :if-output-exists if-output-exists
-           :error-output error-output :if-error-output-exists if-error-output-exists
-           :element-type element-type :external-format external-format
-           keys))
 
   (defun run-program (command &rest keys
                        &key ignore-error-status (force-shell nil force-shell-suppliedp)
@@ -1186,7 +1174,7 @@ or an indication of failure via the EXIT-CODE of the process"
                                (lexicographic<= '< ver '(16 0 1)))
                      #+(and lispworks os-unix) (%interactivep input output error-output)
                      #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
-                 '%use-system '%use-run-program)
+                 '%use-system '%use-launch-program)
              command
              :input (default input inputp output)
              :error-output (default error-output error-output-p output)
