@@ -123,6 +123,14 @@ or NIL if not found."
               (cons (ignore-errors (get-file-stamp (system-source-file system)))
                     system)))))
 
+  (defun map-systems (fn)
+    "Apply FN to each defined system.
+
+FN should be a function of one argument. It will be
+called with an object of type asdf:system."
+    (loop :for registered :being :the :hash-values :of *defined-systems*
+          :do (funcall fn (cdr registered))))
+
 
   ;;; Preloaded systems: in the image even if you can't find source files backing them.
 
@@ -153,13 +161,6 @@ and a there is a registered _preloaded_ system of given NAME,
 then define and register said preloaded system."
     (if-let (system (and (not (registered-system name)) (sysdef-preloaded-system-search name)))
       (register-system system)))
-
-  (defun ensure-all-preloaded-systems-registered ()
-    "Make sure all registered preloaded systems are defined.
-This function is run whenever ASDF is upgraded."
-    (loop :for name :being :the :hash-keys :of *preloaded-systems*
-          :do (ensure-preloaded-system-registered name)))
-  (register-hook-function '*post-upgrade-restart-hook* 'ensure-all-preloaded-systems-registered)
 
   (defun register-preloaded-system (system-name &rest keys &key (version t) &allow-other-keys)
     "Register a system as being preloaded. If the system has not been loaded from the filesystem
@@ -230,17 +231,7 @@ Returns T if system was or is now undefined, NIL if a new preloaded system was r
     "Clear all currently registered defined systems.
 Preloaded systems (including immutable ones) will be reset, other systems will be de-registered."
     (loop :for name :being :the :hash-keys :of *defined-systems*
-          :unless (equal name "asdf") :do (clear-system name)))
-
-  (register-hook-function '*post-upgrade-cleanup-hook* 'clear-defined-systems nil)
-
-  (defun map-systems (fn)
-    "Apply FN to each defined system.
-
-FN should be a function of one argument. It will be
-called with an object of type asdf:system."
-    (loop :for registered :being :the :hash-values :of *defined-systems*
-          :do (funcall fn (cdr registered))))
+          :unless (member name '("asdf" "uiop") :test 'equal) :do (clear-system name)))
 
 
   ;;; Searching for system definitions
@@ -452,9 +443,7 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
              (ensure-gethash
               (list (namestring pathname) version) *old-asdf-systems*
               #'(lambda ()
-                 (let ((old-pathname
-                         (if-let (pair (system-registered-p "asdf"))
-                           (system-source-file (cdr pair)))))
+                 (let ((old-pathname (system-source-file (registered-system "asdf"))))
                    (warn "~@<~
         You are using ASDF version ~A ~:[(probably from (require \"asdf\") ~
         or loaded by quicklisp)~;from ~:*~S~] and have an older version of ASDF ~
@@ -502,8 +491,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
              (found-system (and (typep found 'system) found))
              (pathname (ensure-pathname
                         (or (and (typep found '(or pathname string)) (pathname found))
-                            (and found-system (system-source-file found-system))
-                            (and previous (system-source-file previous)))
+                            (system-source-file found-system)
+                            (system-source-file previous))
                         :want-absolute t :resolve-symlinks *resolve-symlinks*))
              (foundp (and (or found-system pathname previous) t)))
         (check-type found (or null pathname system))
@@ -526,7 +515,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
           (multiple-value-bind (foundp found-system pathname previous previous-time)
               (locate-system name)
             (assert (eq foundp (and (or found-system pathname previous) t)))
-            (let ((previous-pathname (and previous (system-source-file previous)))
+            (let ((previous-pathname (system-source-file previous))
                   (system (or previous found-system)))
               (when (and found-system (not previous))
                 (register-system found-system))

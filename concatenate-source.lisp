@@ -6,7 +6,7 @@
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation
    :asdf/system :asdf/find-system
-   :asdf/action :asdf/lisp-action :asdf/bundle)
+   :asdf/action :asdf/lisp-action :asdf/plan :asdf/bundle)
   (:export
    #:concatenate-source-op
    #:load-concatenated-source-op
@@ -24,7 +24,7 @@
 (with-upgradability ()
   ;; Base classes for both regular and monolithic concatenate-source operations
   (defclass basic-concatenate-source-op (bundle-op)
-    ((bundle-type :initform "lisp")))
+    ((bundle-type :initform "lisp" :allocation :class)))
   (defclass basic-load-concatenated-source-op (basic-load-op selfward-operation) ())
   (defclass basic-compile-concatenated-source-op (basic-compile-op selfward-operation) ())
   (defclass basic-load-compiled-concatenated-source-op (basic-load-op selfward-operation) ())

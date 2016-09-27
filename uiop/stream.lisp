@@ -496,7 +496,7 @@ within an WITH-SAFE-IO-SYNTAX using the specified PACKAGE."
             :for form = (read input nil eof)
             :until (eq form eof)
             :do (setf results (multiple-value-list (eval form)))
-            :finally (return (apply 'values results)))))
+            :finally (return (values-list results)))))
 
   (defun eval-thunk (thunk)
     "Evaluate a THUNK of code:
@@ -622,7 +622,7 @@ Finally, the file will be deleted, unless the KEEP argument when CALL-FUNCTION'e
                  ((not okp) nil)
                  (after (return (call-function after okp)))
                  ((and want-pathname-p (not want-stream-p)) (return (call-function thunk okp)))
-                 (t (return (apply 'values results)))))
+                 (t (return (values-list results)))))
           (when (and okp (not (call-function keep)))
             (ignore-errors (delete-file-if-exists okp))))))
 

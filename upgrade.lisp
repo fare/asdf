@@ -9,7 +9,7 @@
    #:asdf-version #:*previous-asdf-versions* #:*asdf-version*
    #:asdf-message #:*verbose-out*
    #:upgrading-p #:when-upgrading #:upgrade-asdf #:defparameter*
-   #:*post-upgrade-cleanup-hook* #:*post-upgrade-restart-hook* #:cleanup-upgraded-asdf
+   #:*post-upgrade-cleanup-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
    #:intern*)
   (:import-from :uiop/package #:intern* #:find-symbol*))
@@ -53,11 +53,6 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
     (when *verbose-out* (apply 'format *verbose-out* format-string format-args)))
   ;; Private hook for functions to run after ASDF has upgraded itself from an older variant:
   (defvar *post-upgrade-cleanup-hook* ())
-  ;; Private hook for functions to run after ASDF is restarted, whether by starting a process
-  ;; from a dumped image or after upgrading from an older variant:
-  ;; TODO: understand what happened with that hook, why functions are registered on it but it is
-  ;; never called anymore. This is a bug that should be fixed before next release (3.1.8)!
-  (defvar *post-upgrade-restart-hook* ())
   ;; Private function to detect whether the current upgrade counts as an incompatible
   ;; data schema upgrade implying the need to drop data.
   (defun upgrading-p (&optional (oldest-compatible-version *oldest-forward-compatible-asdf-version*))
@@ -157,9 +152,4 @@ previously-loaded version of ASDF."
     (let ((*load-print* nil)
           (*compile-print* nil))
       (handler-bind (((or style-warning) #'muffle-warning))
-        (symbol-call :asdf :load-system :asdf :verbose nil))))
-
-  ;; Register the upgrade-configuration function from UIOP,
-  ;; to ensure configuration is upgraded as needed.
-  (register-hook-function '*post-upgrade-cleanup-hook* 'upgrade-configuration))
-
+        (symbol-call :asdf :load-system :asdf :verbose nil)))))

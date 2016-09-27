@@ -2,7 +2,7 @@
 
 (load-system 'test-mutual-redefinition-1)
 (defun current-system-source-file (x)
-  (system-source-file (cdr (gethash x asdf/find-system:*defined-systems*))))
+  (system-source-file (asdf::registered-system x)))
 
 (with-asdf-cache ()
   (DBG "loading test-mutual-redefinition-1")

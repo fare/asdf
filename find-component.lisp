@@ -129,8 +129,7 @@ in the context of COMPONENT"))
                      (equal (missing-requires c) name))))
           (unless (component-parent component)
             (let ((name (coerce-name name)))
-              (unset-asdf-cache-entry `(find-system ,name))
-              (unset-asdf-cache-entry `(locate-system ,name))))))))
+              (unset-asdf-cache-entry `(find-system ,name))))))))
 
   ;; Resolve dependency specification DEP-SPEC in the context of COMPONENT.
   ;; This is notably used by MAP-DIRECT-DEPENDENCIES to process the results of COMPONENT-DEPENDS-ON

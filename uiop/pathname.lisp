@@ -337,6 +337,8 @@ actually-existing directory."
 
 ;;; Parsing filenames
 (with-upgradability ()
+  (declaim (ftype function ensure-pathname)) ; forward reference
+
   (defun split-unix-namestring-directory-components
       (unix-namestring &key ensure-directory dot-dot)
     "Splits the path string UNIX-NAMESTRING, returning four values:

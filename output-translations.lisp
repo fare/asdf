@@ -49,7 +49,9 @@ and the order is by decreasing length of namestring of the source pathname.")
                                  (etypecase (car x)
                                    ((eql t) -1)
                                    (pathname
-                                    (let ((directory (pathname-directory (car x))))
+                                    (let ((directory
+                                           (normalize-pathname-directory-component
+                                            (pathname-directory (car x)))))
                                       (if (listp directory) (length directory) 0))))))))
     new-value)
   (defun* ((setf output-translations)) (new-value) (set-output-translations new-value))

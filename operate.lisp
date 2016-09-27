@@ -8,7 +8,6 @@
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export
    #:operate #:oos
-   #:*systems-being-operated*
    #:build-op #:make
    #:load-system #:load-systems #:load-systems*
    #:compile-system #:test-system #:require-system
@@ -50,10 +49,8 @@ But do NOT depend on it, for this is deprecated behavior."))
     :operation-initargs t ;; backward-compatibility with ASDF1. Deprecated.
     :if-no-component (error 'missing-component :requires component))
 
-  ;; TODO: actually, the use as a hash-set is write-only, so it can be reduced to a boolean,
-  ;; and then possibly replaced by checking for say *asdf-cache*.
-  (defvar *systems-being-operated* nil
-    "A hash-set of names of systems being operated on, or NIL")
+  (defvar *in-operate* nil
+    "Are we in operate?")
 
   ;; This method ensures that an ASDF upgrade is attempted as the very first thing,
   ;; with suitable state preservation in case in case it actually happens,
@@ -62,36 +59,36 @@ But do NOT depend on it, for this is deprecated behavior."))
                               &key verbose
                                 (on-warnings *compile-file-warnings-behaviour*)
                                 (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
-    (let* ((systems-being-operated *systems-being-operated*)
-           (*systems-being-operated* (or systems-being-operated (make-hash-table :test 'equal)))
+    (nest
+     (with-asdf-cache ())
+     (let ((in-operate *in-operate*)
+           (*in-operate* t)
            (operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
-             (etypecase operation
-               (operation (let ((name (type-of operation))
-                                (initargs (operation-original-initargs operation)))
-                            #'(lambda () (apply 'make-operation name :original-initargs initargs initargs))))
-               ((or symbol string) (constantly operation))))
+            (etypecase operation
+              (operation (let ((name (type-of operation))
+                               (initargs (operation-original-initargs operation)))
+                           #'(lambda () (apply 'make-operation name :original-initargs initargs initargs))))
+              ((or symbol string) (constantly operation))))
            (component-path (typecase component ;; to remake the component after ASDF upgrade
                              (component (component-find-path component))
-                             (t component))))
-      ;; Before we operate on any system, make sure ASDF is up-to-date,
-      ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
-      (unless systems-being-operated
-        (when (upgrade-asdf)
-          ;; If we were upgraded, restart OPERATE the hardest of ways, for
-          ;; its function may have been redefined, its symbol uninterned, its package deleted.
-          (return-from operate
-            (apply 'operate (funcall operation-remaker) component-path keys))))
+                             (t component)))))
+     ;; Before we operate on any system, make sure ASDF is up-to-date,
+     ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
+     (progn
+       (unless in-operate
+         (when (upgrade-asdf)
+           ;; If we were upgraded, restart OPERATE the hardest of ways, for
+           ;; its function may have been redefined, its symbol uninterned, its package deleted.
+           (return-from operate
+             (apply 'operate (funcall operation-remaker) component-path keys)))))
       ;; Setup proper bindings around any operate call.
-      (with-asdf-cache ()
-        (let* ((*verbose-out* (and verbose *standard-output*))
-               (*compile-file-warnings-behaviour* on-warnings)
-               (*compile-file-failure-behaviour* on-failure))
-          (call-next-method)))))
+     (let* ((*verbose-out* (and verbose *standard-output*))
+            (*compile-file-warnings-behaviour* on-warnings)
+            (*compile-file-failure-behaviour* on-failure))
+       (call-next-method))))
 
   (defmethod operate :before ((operation operation) (component component)
                               &key version &allow-other-keys)
-    (let ((system (component-system component)))
-      (setf (gethash (coerce-name system) *systems-being-operated*) system))
     (unless (version-satisfies component version)
       (error 'missing-component-of-version :requires component :version version)))
 
@@ -178,7 +175,7 @@ to load it in current image."
     "Has the given COMPONENT been successfully loaded in the current image (yet)?
 Note that this returns true even if the component is not up to date."
     (if-let ((component (find-component component () :registered t)))
-      (action-already-done-p nil (make-instance 'load-op) component)))
+      (action-already-done-p nil (make-operation 'load-op) component)))
 
   (defun already-loaded-systems ()
     "return a list of the names of the systems that have been successfully loaded so far"
@@ -262,12 +259,20 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
 (with-upgradability ()
   (defun restart-upgraded-asdf ()
     ;; If we're in the middle of something, restart it.
-    (when *asdf-cache*
-      (let ((l (loop :for k :being :the hash-keys :of *asdf-cache*
-                     :when (eq (first k) 'find-system) :collect (second k))))
-        (clrhash *asdf-cache*)
-        (dolist (s l) (find-system s nil)))))
-  (register-hook-function '*post-upgrade-restart-hook* 'restart-upgraded-asdf)
+    (let ((systems-being-defined
+           (when *asdf-cache*
+             (prog1
+                 (loop :for k :being :the hash-keys :of *asdf-cache*
+                   :when (eq (first k) 'find-system) :collect (second k))
+               (clrhash *asdf-cache*)))))
+      ;; Regardless, clear defined systems, since they might be invalid
+      ;; after an incompatible ASDF upgrade.
+      (clear-defined-systems)
+      ;; The configuration also may have to be upgraded.
+      (upgrade-configuration)
+      ;; If we were in the middle of an operation, be sure to restore the system being defined.
+      (dolist (s systems-being-defined) (find-system s nil))))
+  (register-hook-function '*post-upgrade-cleanup-hook* 'restart-upgraded-asdf)
 
   ;; The following function's symbol is from asdf/find-system.
   ;; It is defined here to resolve what would otherwise be forward package references.

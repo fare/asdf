@@ -8,14 +8,13 @@
    :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
   (:export
    #:action #:define-convenience-action-methods
-   #:explain #:action-description
+   #:action-description
    #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation #:non-propagating-operation
    #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
-   #:traverse-actions #:traverse-sub-actions #:required-components ;; in plan
    #:action-path #:find-action #:stamp #:done-p
    #:operation-definition-warning #:operation-definition-error ;; condition
    ))
@@ -32,13 +31,6 @@ of steps to be performed while building a system."
     "An operation designates itself. NIL designates a context-dependent current operation,
 and a class-name or class designates the canonical instance of the designated class."
     '(or operation null symbol class)))
-
-
-;;; TODO: These should be moved to asdf/plan and be made simple defuns.
-(with-upgradability ()
-  (defgeneric traverse-actions (actions &key &allow-other-keys))
-  (defgeneric traverse-sub-actions (operation component &key &allow-other-keys))
-  (defgeneric required-components (component &key &allow-other-keys)))
 
 
 ;;;; Reified representation for storage or debugging. Note: it drops the operation-original-initargs
@@ -114,14 +106,6 @@ You can put together sentences using this phrase."))
   (defmethod action-description (operation component)
     (format nil (compatfmt "~@<~A on ~A~@:>")
             (type-of operation) component))
-
-  ;; This is for compatibility with ASDF 1, and is deprecated.
-  ;; TODO: move it to backward-interface
-  (defgeneric* (explain) (operation component)
-    (:documentation "Display a message describing an action"))
-  (defmethod explain ((o operation) (c component))
-    (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c)))
-  (define-convenience-action-methods explain (operation component))
 
   (defun format-action (stream action &optional colon-p at-sign-p)
     "FORMAT helper to display an action's action-description.
