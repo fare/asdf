@@ -135,7 +135,8 @@
                                     (setf error-status 'general)
                                     (setf error-description (format nil "~a" c))
                                     (return-from test-case))))
-                  ,@body))
+                  ,@body)
+                (format t "~&~T...completed successfully.~%"))
               (case error-status
                 (failed (incf *number-of-failed-tests*))
                 (unsupported (report-result "" "NOT SUPPORTED"))
