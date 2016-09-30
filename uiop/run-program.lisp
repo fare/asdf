@@ -857,8 +857,8 @@ race conditions."
     (os-cond
      ((os-unix-p) (%posix-send-signal process-info (if urgent 9 15)))
      ((os-windows-p) (if-let (pid (process-info-pid process-info))
-                       (run-program (format nil "taskkill ~a /pid ~a"
-                                            (if urgent "/f" "") pid)
+                       (run-program (format nil "taskkill ~:[~;/f ~]/pid ~a"
+                                            urgent pid)
                                     :ignore-error-status t)))
      (t (not-implemented-error 'terminate-process))))
 
@@ -1062,9 +1062,15 @@ race conditions."
       #+(and lispworks os-windows)
       (system:call-system %command :current-directory directory :wait t)
       #+clisp
-      (wait-process
-       (apply 'launch-program %command :wait t
-              :input :interactive :output :interactive :error-output :interactive keys))
+      (let ((raw-exit-code
+             (or
+              #.`(#+os-windows ,@'(ext:run-shell-command %command)
+                  #+os-unix ,@'(ext:run-program "/bin/sh" :arguments `("-c" ,%command))
+                  :wait t :input :terminal :output :terminal)
+              0)))
+        (if (minusp raw-exit-code)
+            (- 128 raw-exit-code)
+            raw-exit-code))
       #-(or clisp (and lispworks os-windows))
       (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
         #+abcl (ext:run-shell-command %command) ;; FIXME: deprecated
