@@ -439,7 +439,7 @@ argument to pass to the internal RUN-PROGRAM"
                            (element-type #-clozure *default-stream-element-type*
                                          #+clozure 'character)
                            (external-format *utf-8-external-format*)
-                           directory wait
+                           directory
                            #+allegro separate-streams
                            &allow-other-keys)
     "Launch program specified by COMMAND,
@@ -470,15 +470,10 @@ ELEMENT-TYPE and EXTERNAL-FORMAT are passed on to your Lisp
 implementation, when applicable, for creation of the output stream.
 
 LAUNCH-PROGRAM returns a PROCESS-INFO object."
-    ;; NB: these implementations have Unix vs Windows set at compile-time.
     (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
-    #-(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (progn command keys input output error-output directory wait element-type external-format ;; ignore
+    #-(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    (progn command keys input output error-output directory element-type external-format ;; ignore
            (not-implemented-error 'launch-program))
-    #-(or abcl cmucl ecl mkcl sbcl)
-    (when (and wait (member :stream (list input output error-output)))
-      (parameter-error "~S: I/O parameters cannot be ~S when ~S is ~S on this lisp"
-                       'launch-program :stream :wait t))
     #+allegro
     (when (some #'(lambda (stream)
                     (and (streamp stream)
@@ -506,7 +501,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
                        'launch-program))
-    #+(or abcl allegro clisp clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
            (%if-output-exists (%normalize-if-exists if-output-exists))
            (%input (%normalize-io-specifier input :input))
@@ -517,18 +512,12 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
            (process*
              (nest
               #-(or allegro mkcl sbcl) (with-current-directory (directory))
-              #+(or allegro clisp ecl lispworks mkcl) (multiple-value-list)
+              #+(or allegro ecl lispworks mkcl) (multiple-value-list)
               (apply
                #+abcl #'sys:run-program
                #+allegro 'excl:run-shell-command
                #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
                #+(and allegro os-windows) %command
-               #+clisp
-               (etypecase %command
-                 #+os-windows
-                 (string (lambda (&rest keys) (apply 'ext:run-shell-command %command keys)))
-                 (list (lambda (&rest keys)
-                         (apply 'ext:run-program (car %command) :arguments (cdr %command) keys))))
                #+clozure 'ccl:run-program
                #+(or cmucl ecl scl) 'ext:run-program
                #+lispworks 'system:run-shell-command
@@ -537,13 +526,11 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                #+sbcl 'sb-ext:run-program
                (append
                 #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
-                `(:input ,%input :output ,%output :wait ,wait
-                  :element-type ,element-type :external-format ,external-format
+                `(:input ,%input :output ,%output
+                  #.(or #+(or allegro lispworks) :error-output :error) ,%error-output
+                  :wait nil :element-type ,element-type :external-format ,external-format
                   :allow-other-keys t)
-                #-clisp `(#+(or allegro lispworks) :error-output #-(or allegro lispworks) :error
-                            ,%error-output)
                 #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
-                #+clisp `(:if-output-exists ,%if-output-exists)
                 #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
                 `(:if-input-does-not-exist ,if-input-does-not-exist
                   :if-output-exists ,%if-output-exists
@@ -556,17 +543,9 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                 #-sbcl keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info (make-instance 'process-info)))
-      #+clisp (declare (ignore %error-output))
-      (labels ((prop (key value) (setf (slot-value process-info key) value))
-               #+(or allegro clisp ecl lispworks mkcl)
-               (store-codes (exit-code &optional signal-code)
-                 (if signal-code
-                     (progn (prop 'exit-code (%signal-to-exit-code signal-code))
-                            (prop 'signal-code signal-code))
-                     (prop 'exit-code exit-code))))
+      (labels ((prop (key value) (setf (slot-value process-info key) value)))
         #+allegro
         (cond
-          (wait (store-codes (first process*)))
           (separate-streams
            (destructuring-bind (in out err pid) process*
              (prop 'process pid)
@@ -583,19 +562,6 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                (3 (prop 'bidir-stream x))))
            (when (eq error-output :stream)
              (prop 'error-stream (second process*)))))
-        #+clisp
-        (if wait
-            (let ((raw-exit-code (or (first process*) 0)))
-              (if (minusp raw-exit-code)
-                  (store-codes 0 (- raw-exit-code))
-                  (store-codes raw-exit-code)))
-            (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-              (0)
-              (1 (prop 'input-stream (first process*)))
-              (2 (prop 'output-stream (first process*)))
-              (3 (prop 'bidir-stream (pop process*))
-                 (prop 'input-stream (pop process*))
-                 (prop 'output-stream (pop process*)))))
         #+(or abcl clozure cmucl sbcl scl)
         (progn
           (prop 'process process*)
@@ -619,36 +585,27 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                   #+sbcl (sb-ext:process-error process*))))
         #+(or ecl mkcl)
         (destructuring-bind #+ecl (stream code process) #+mkcl (stream process code) process*
+          (declare (ignore code))
           (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-            (cond
-              ((zerop mode))
-              ((null process*) (store-codes -1))
-              (t (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))))
-          (when code
-            (let ((signum #+mkcl (and (stringp code) (%mkcl-signal-to-number code))
-                          #-mkcl (and (eq (ext:external-process-wait process)
-                                          :signaled)
-                                      code)))
-              (store-codes code signum)))
-          (when process (prop 'process process)))
+            (unless (zerop mode)
+              (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream)))
+          (prop 'process process))
         #+lispworks
-        (if wait
-            (store-codes (first process*) (second process*))
-            (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-              (if (or (plusp mode) (eq error-output :stream))
-                  (destructuring-bind (io err pid) process*
-                    #+lispworks7+ (declare (ignore pid))
-                    (prop 'process #+lispworks7+ io #-lispworks7+ pid)
-                    (when (plusp mode)
-                      (prop (ecase mode
-                              (1 'input-stream)
-                              (2 'output-stream)
-                              (3 'bidir-stream)) io))
-                    (when (eq error-output :stream)
-                      (prop 'error-stream err)))
-                  ;; lispworks6 returns (pid), lispworks7 returns (io,err,pid).
-                  (prop 'process (first process*)))))
-        process-info)))
+        (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
+          (if (or (plusp mode) (eq error-output :stream))
+              (destructuring-bind (io err pid) process*
+                #+lispworks7+ (declare (ignore pid))
+                (prop 'process #+lispworks7+ io #-lispworks7+ pid)
+                (when (plusp mode)
+                  (prop (ecase mode
+                          (1 'input-stream)
+                          (2 'output-stream)
+                          (3 'bidir-stream)) io))
+                (when (eq error-output :stream)
+                  (prop 'error-stream err)))
+              ;; lispworks6 returns (pid), lispworks7 returns (io err pid) of which we keep io
+              (prop 'process (first process*)))))
+      process-info))
 
   (defun %run-program (command &rest keys &key &allow-other-keys)
     "DEPRECATED. Use LAUNCH-PROGRAM instead."
@@ -967,7 +924,6 @@ race conditions."
                (active-input-p :input)
                (active-error-output-p :error-output)
                (t nil)))
-           (wait (not activity))
            output-result error-output-result exit-code process-info)
       (with-program-output ((reduced-output output-activity)
                             output :keys keys :setf output-result
@@ -980,7 +936,7 @@ race conditions."
                                :stream-easy-p t :active (eq activity :input))
             (setf process-info
                   (apply 'launch-program command
-                         :wait wait :input reduced-input :output reduced-output
+                         :input reduced-input :output reduced-output
                          :error-output (if (eq error-output :output) :output reduced-error-output)
                          keys))
             (labels ((get-stream (stream-name &optional fallbackp)
