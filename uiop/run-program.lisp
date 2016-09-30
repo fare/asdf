@@ -799,7 +799,8 @@ or :error-output."
     #+sbcl (sb-ext:process-kill (slot-value process-info 'process) signal)
     #-(or allegro clozure cmucl sbcl scl)
     (if-let (pid (process-info-pid process-info))
-      (%run-program (format nil "kill -~a ~a" signal pid) :wait t)))
+      (run-program (format nil "kill -~a ~a" signal pid)
+                   :ignore-error-status t)))
 
   ;;; this function never gets called on Windows, but the compiler cannot tell
   ;;; that. [2016/09/25:rpg]
@@ -824,8 +825,9 @@ race conditions."
     (os-cond
      ((os-unix-p) (%posix-send-signal process-info (if urgent 9 15)))
      ((os-windows-p) (if-let (pid (process-info-pid process-info))
-                       (%run-program (format nil "taskkill ~a /pid ~a"
-                                             (if urgent "/f" "") pid))))
+                       (run-program (format nil "taskkill ~a /pid ~a"
+                                            (if urgent "/f" "") pid)
+                                    :ignore-error-status t)))
      (t (not-implemented-error 'terminate-process))))
 
   (defun %call-with-program-io (gf tval stream-easy-p fun direction spec activep returner
