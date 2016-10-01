@@ -41,20 +41,21 @@
     ;; Old deprecated name for the same thing. Please update your software.
     (component-sideway-dependencies component))
 
-  (defgeneric operation-forced (operation)
-    (:documentation "DEPRECATED. Assume it's (constantly t) instead."))
-  ;; This method exists for backward compatibility with swank.asd, its only user,
-  ;; that still uses it as of 2016-09-21.
-  ;;
-  ;; The magic PERFORM method in swank.asd only actually loads swank if it sees that
-  ;; the operation was forced. But except for the first time, the only reason the action
-  ;; would be performed to begin with is because it was forced; and the first time over,
-  ;; it doesn't hurt that :reload t :delete t should be used. So the check is redundant.
-  ;; More generally, if you have to do something when the operation was forced,
-  ;; you should also do it when not, and vice-versa, because it really shouldn't matter.
-  ;; Thus, the backward-compatible thing to do is to always return T.
-  (defmethod operation-forced ((o operation)) t)
-
+  (defun* (operation-forced) (operation)
+    "DEPRECATED. Assume it's (constantly nil) instead -- until it disappears."
+    ;; This function exists for backward compatibility with swank.asd, its only user,
+    ;; that still abuses it as of 2016-10-01.
+    ;;
+    ;; The magic PERFORM method in swank.asd only actually loads swank if it sees
+    ;; that the operation was forced. But it actually fails, badly, in that case.
+    ;; The correctness criterion for a build specification (which is _not_
+    ;; specific to ASDF) requires that the effects of a build step must NOT depend
+    ;; on whether the step was "forced" or not. Therefore it is correct that this
+    ;; method should return constantly the same result. Since returning T currently
+    ;; causes massive failure in SLIME, it shall be constantly NIL.
+    ;; see also https://bugs.launchpad.net/asdf/+bug/1629582
+    (declare (ignore operation))
+    nil)
 
   ;; These old interfaces from ASDF1 have never been very meaningful
   ;; but are still used in obscure places.
