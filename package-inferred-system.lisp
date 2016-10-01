@@ -94,9 +94,8 @@ the DEFPACKAGE-FORM uses it or imports a symbol from it."
     "Return the name of the SYSTEM providing PACKAGE-NAME, if such exists,
 otherwise return a default system name computed from PACKAGE-NAME."
     (check-type package-name string)
-    (if-let ((system-name (gethash package-name *package-inferred-systems*)))
-      system-name
-      (string-downcase package-name)))
+    (or (gethash package-name *package-inferred-systems*)
+        (string-downcase package-name)))
 
   ;; Given a file in package-inferred-system style, find its dependencies
   (defun package-inferred-system-file-dependencies (file &optional system)
