@@ -914,7 +914,9 @@ race conditions."
     (progn
       command keys input output error-output ignore-error-status ;; ignore
       (not-implemented-error '%use-launch-program))
-    (assert (not (member :stream (list input output error-output))))
+    (when (member :stream (list input output error-output))
+      (parameter-error "~S: ~S is not allowed as synchronous I/O redirection argument"
+                       'run-program :stream))
     (let* ((active-input-p (%active-io-specifier-p input))
            (active-output-p (%active-io-specifier-p output))
            (active-error-output-p (%active-io-specifier-p error-output))
@@ -988,7 +990,9 @@ race conditions."
                        (string (parse-native-namestring spec))
                        (pathname spec)
                        ((eql :output)
-                        (assert (equal operator " 2>"))
+                        (unless (equal operator " 2>")
+                          (parameter-error "~S: only the ~S argument can be ~S"
+                                           'run-program :error-output :output))
                         (return-from redirect '(" 2>&1"))))))
                (when pathname
                  (list operator " "
