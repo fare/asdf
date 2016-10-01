@@ -42,13 +42,13 @@
 ;;; Helpers
 (defvar *input-file*
   (subpathname *build-directory*
-                    (strcat (implementation-identifier) "-" "input")))
+               (strcat (implementation-identifier) "-" "input")))
 (defvar *output-file*
   (subpathname *build-directory*
-                    (strcat (implementation-identifier) "-" "output")))
+               (strcat (implementation-identifier) "-" "output")))
 (defvar *error-output-file*
   (subpathname *build-directory*
-                    (strcat (implementation-identifier) "-" "error-output")))
+               (strcat (implementation-identifier) "-" "error-output")))
 
 ;;; Test setup and execution
 
@@ -75,12 +75,11 @@
     (setf *suites* (reverse (mapcar #'reverse *suites*)))
     (setf *suites-reversed* nil)
     (dolist (suite *suites*)
-      (progn
-        (format t "~a~%" (first suite))
-        (dolist (test (cdr suite))
-          (funcall test)
-          (dolist (file (list *input-file* *output-file* *error-output-file*))
-            (delete-file-if-exists file)))))))
+      (format t "~a~%" (first suite))
+      (dolist (test (cdr suite))
+        (funcall test)
+        (dolist (file (list *input-file* *output-file* *error-output-file*))
+          (delete-file-if-exists file))))))
 
 
 ;; Defines a test that is automatically numbered. Within its body, the
@@ -252,98 +251,96 @@
 
 (define-test
     ":input <file> (file e.)"
-  (progn
-    (let ((in-string (format nil "A line.~%And another.~%")))
-      (create-file-from-string *input-file* in-string))
-    (%run-program "cat" :wait t :input *input-file*
-                  :if-input-does-not-exist :create)))
+    (progn
+      (let ((in-string (format nil "A line.~%And another.~%")))
+        (create-file-from-string *input-file* in-string))
+      (%run-program "cat" :wait t :input *input-file*
+                    :if-input-does-not-exist :create)))
 
 (define-test
     ":input <file> (as pathname; file e.)"
-  (progn
-    (let ((in-string (format nil "A line.~%And another.~%")))
-      (create-file-from-string *input-file* in-string))
-    (%run-program "cat" :wait t :input (truename *input-file*)
-                  :if-input-does-not-exist :create)))
+    (progn
+      (let ((in-string (format nil "A line.~%And another.~%")))
+        (create-file-from-string *input-file* in-string))
+      (%run-program "cat" :wait t :input (truename *input-file*)
+                    :if-input-does-not-exist :create)))
 
 (define-test
     ":input <file> :output <file> (files e.)"
-  (progn
     (let ((in-string (format nil "A line.~%And another.~%")))
       (create-file-from-string *input-file* in-string)
       (create-file-from-string *output-file* "")
       (%run-program "cat" :wait t :input *input-file* :output *output-file*)
-      (check-output in-string))))
+      (check-output in-string)))
 
 (define-test
     ":input <file> :output <file> (files e./m.)"
-  (progn
     (let ((in-string (format nil "A line.~%And another.~%")))
       (create-file-from-string *input-file* in-string)
       (delete-file-if-exists *output-file*)
       (%run-program "cat" :wait t :input *input-file*
                     :output *output-file*)
-      (check-output in-string))))
+      (check-output in-string)))
 
 (define-test
     ":input <file> :output <file> (files e.), :i-o-e :append"
-  (progn
-    (let ((in-string1 (format nil "A line.~%"))
-          (in-string2 (format nil "And another.~%")))
-      (delete-file-if-exists *output-file*)
-      (create-file-from-string *input-file* in-string1)
-      (%run-program "cat" :wait t :input *input-file*
-                    :output *output-file*)
-      (create-file-from-string *input-file* in-string2)
-      (%run-program "cat" :wait t :input *input-file*
-                    :output *output-file*
-                    :if-output-exists :append)
-      (check-output (concatenate 'string in-string1 in-string2)))))
+    (progn
+      (let ((in-string1 (format nil "A line.~%"))
+            (in-string2 (format nil "And another.~%")))
+        (delete-file-if-exists *output-file*)
+        (create-file-from-string *input-file* in-string1)
+        (%run-program "cat" :wait t :input *input-file*
+                      :output *output-file*)
+        (create-file-from-string *input-file* in-string2)
+        (%run-program "cat" :wait t :input *input-file*
+                      :output *output-file*
+                      :if-output-exists :append)
+        (check-output (concatenate 'string in-string1 in-string2)))))
 
 (define-test
     ":output <fstream> :error-output <fstream>"
-  (progn
-    (with-open-file (output *output-file* :direction :output
-                            :if-exists :supersede
-                            #+clozure :sharing #+clozure :lock)
-      (with-open-file (error-output *error-output-file* :direction :output
-                                    :if-exists :supersede
-                                    #+clozure :sharing #+clozure :lock)
-        (%run-program (format nil "./exiter.sh 0 ~a ~a"
-                              output-string error-string)
-                      :wait t :output output :error-output error-output)))
-    (check-output (format nil "~a~%" output-string))
-    (check-error-output (format nil "~a~%" error-string))))
+    (progn
+      (with-open-file (output *output-file* :direction :output
+                              :if-exists :supersede
+                              #+clozure :sharing #+clozure :lock)
+        (with-open-file (error-output *error-output-file* :direction :output
+                                      :if-exists :supersede
+                                      #+clozure :sharing #+clozure :lock)
+          (%run-program (format nil "./exiter.sh 0 ~a ~a"
+                                output-string error-string)
+                        :wait t :output output :error-output error-output)))
+      (check-output (format nil "~a~%" output-string))
+      (check-error-output (format nil "~a~%" error-string))))
 
 (define-test
     ":input <file> :output <sstream>"
-  (let ((in-string (format nil "A line.~%And another.~%")))
-    (create-file-from-string *input-file* in-string)
-    (with-output-to-string (out-stream)
-      (%run-program "cat" :wait t :input *input-file* :output out-stream)
-      (check-strings in-string (get-output-stream-string out-stream)))))
+    (let ((in-string (format nil "A line.~%And another.~%")))
+      (create-file-from-string *input-file* in-string)
+      (with-output-to-string (out-stream)
+        (%run-program "cat" :wait t :input *input-file* :output out-stream)
+        (check-strings in-string (get-output-stream-string out-stream)))))
 
 (define-test
     ":input <sstream> :output <sstream>"
-  (let ((in-string (format nil "A line.~%And another.~%")))
-    (with-output-to-string (out-stream nil)
-      (with-input-from-string (in-stream in-string)
-        (%run-program "cat" :wait t :input in-stream :output out-stream))
-      (check-strings in-string (get-output-stream-string out-stream)))))
+    (let ((in-string (format nil "A line.~%And another.~%")))
+      (with-output-to-string (out-stream nil)
+        (with-input-from-string (in-stream in-string)
+          (%run-program "cat" :wait t :input in-stream :output out-stream))
+        (check-strings in-string (get-output-stream-string out-stream)))))
 
 (define-test
     ":input <file> :output :stream"
-  (let ((in-string (format nil "A line.~%And another.~%")))
-    (with-open-file (input *input-file* :direction :output
-                           :if-exists :supersede)
-      (format input in-string))
-    (let* ((process (%run-program "cat" :wait t :input *input-file*
-                                  :output :stream))
-           (output (process-info-output process))
-           (out-string (make-string (length in-string))))
-      (read-sequence out-string output)
-      (check-strings in-string out-string)
-      (close-streams process))))
+    (let ((in-string (format nil "A line.~%And another.~%")))
+      (with-open-file (input *input-file* :direction :output
+                             :if-exists :supersede)
+        (format input in-string))
+      (let* ((process (%run-program "cat" :wait t :input *input-file*
+                                    :output :stream))
+             (output (process-info-output process))
+             (out-string (make-string (length in-string))))
+        (read-sequence out-string output)
+        (check-strings in-string out-string)
+        (close-streams process))))
 
 (define-test
     ":input <file> :output :stream :wait nil"
@@ -364,41 +361,41 @@
 
 (define-test
     ":input <fstream-synonym> :output <file>"
-  (let ((in-string (format nil "A line.~%And another.~%")))
-    (with-open-file (input *input-file* :direction :output
-                           :if-exists :supersede)
-      (format input in-string))
-    (create-file-from-string *output-file* "")
-    (with-open-file (input *input-file* :direction :input
-                           :if-does-not-exist :error)
-      (let* ((*dynamic-input* input)
-             (input-synonym (make-synonym-stream '*dynamic-input*)))
-        (%run-program "cat" :wait t
-                      :input input-synonym
-                      :output *output-file*))
-      (check-output in-string))))
-
-(define-test
-    ":input <sstream-synonym> :output <file>"
-  (progn
-    (create-file-from-string *output-file* "")
     (let ((in-string (format nil "A line.~%And another.~%")))
-      (with-input-from-string (input in-string)
+      (with-open-file (input *input-file* :direction :output
+                             :if-exists :supersede)
+        (format input in-string))
+      (create-file-from-string *output-file* "")
+      (with-open-file (input *input-file* :direction :input
+                             :if-does-not-exist :error)
         (let* ((*dynamic-input* input)
                (input-synonym (make-synonym-stream '*dynamic-input*)))
           (%run-program "cat" :wait t
                         :input input-synonym
-                        :output *output-file*)))
-      (check-output in-string))))
+                        :output *output-file*))
+        (check-output in-string))))
+
+(define-test
+    ":input <sstream-synonym> :output <file>"
+    (progn
+      (create-file-from-string *output-file* "")
+      (let ((in-string (format nil "A line.~%And another.~%")))
+        (with-input-from-string (input in-string)
+          (let* ((*dynamic-input* input)
+                 (input-synonym (make-synonym-stream '*dynamic-input*)))
+            (%run-program "cat" :wait t
+                          :input input-synonym
+                          :output *output-file*)))
+        (check-output in-string))))
 
 (define-test
     ":directory"
     (let* ((in-string (format nil "A line.~%And another.~%"))
            (temporary-directory
             (subpathname *build-directory*
-                              (format nil "test-run-program-unix/~a"
-                                      (implementation-identifier))
-                              :type :directory))
+                         (format nil "test-run-program-unix/~a"
+                                 (implementation-identifier))
+                         :type :directory))
            (relative-filename "input")
            (temporary-file (subpathname temporary-directory relative-filename)))
       (ensure-directories-exist temporary-directory)
@@ -431,11 +428,11 @@
 
 (define-test
     "exit code after exit: asynchronous (repeated)"
-  (let ((process-info (%run-program "./sleeper.sh 12 1" :wait nil)))
-    (handle-result "exit code matches?"
-                   (equal 12 (wait-process process-info)))
-    (handle-result "exit code matches? (no. 2)"
-                   (equal 12 (wait-process process-info)))))
+    (let ((process-info (%run-program "./sleeper.sh 12 1" :wait nil)))
+      (handle-result "exit code matches?"
+                     (equal 12 (wait-process process-info)))
+      (handle-result "exit code matches? (no. 2)"
+                     (equal 12 (wait-process process-info)))))
 
 (define-test
     "exit code after signal: synchronous (repeated)"
