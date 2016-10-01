@@ -470,7 +470,6 @@ ELEMENT-TYPE and EXTERNAL-FORMAT are passed on to your Lisp
 implementation, when applicable, for creation of the output stream.
 
 LAUNCH-PROGRAM returns a PROCESS-INFO object."
-    (declare (ignorable directory if-input-does-not-exist if-output-exists if-error-output-exists))
     #-(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (progn command keys input output error-output directory element-type external-format ;; ignore
            (not-implemented-error 'launch-program))
@@ -529,18 +528,17 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                 `(:input ,%input :output ,%output
                   #.(or #+(or allegro lispworks) :error-output :error) ,%error-output
                   :wait nil :element-type ,element-type :external-format ,external-format
-                  :allow-other-keys t)
-                #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
-                #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
-                `(:if-input-does-not-exist ,if-input-does-not-exist
+                  :if-input-does-not-exist ,if-input-does-not-exist
                   :if-output-exists ,%if-output-exists
                   #-(or allegro lispworks) :if-error-exists
-                  #+(or allegro lispworks) :if-error-output-exists
-                  ,if-error-output-exists)
+                  #+(or allegro lispworks) :if-error-output-exists ,if-error-output-exists
+                  :allow-other-keys t)
+                #+allegro `(:directory ,directory)
+                #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
                 #+lispworks `(:save-exit-status t)
                 #+mkcl `(:directory ,(native-namestring directory))
                 #+sbcl `(:search t)
-                #-sbcl keys
+                #-sbcl keys ;; on SBCL, don't pass :directory nil but remove it from the keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
            (process-info (make-instance 'process-info)))
       (labels ((prop (key value) (setf (slot-value process-info key) value)))
@@ -1126,8 +1124,8 @@ or an indication of failure via the EXIT-CODE of the process"
     (declare (ignorable ignore-error-status))
     #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
     (not-implemented-error 'run-program)
-    ;; per doc string, set FORCE-SHELL to T if we get command as a string.  But
-    ;; don't override user's specified preference. [2015/06/29:rpg]
+    ;; Per doc string, set FORCE-SHELL to T if we get command as a string.
+    ;; But don't override user's specified preference. [2015/06/29:rpg]
     (when (stringp command)
       (unless force-shell-suppliedp
         #-(and sbcl os-windows) ;; force-shell t isn't working properly on windows as of sbcl 1.2.16
