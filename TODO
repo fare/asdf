@@ -25,13 +25,16 @@
 ** Need to further split asdf:perform in two parts:
    A part that runs on the host and specifies (as SEXP or string to read)
    forms that must be evaluated on the target machine, not the host:
-   (asdf:perform-forms target operation component)
+   (asdf:perform-forms target operation component &key input-files output-files)
    The default implementation can fallback to running the
-   (asdf:perform operation component) on the target,
-   which if it is on specially crafted operation and component objects
-   that do not require recreating the component hierarchy and plan,
-   but still require loading the defsystem-depends-on dependencies:
-   on the target:
+   (asdf:perform operation component) on the target.
+   To ensure isolation, it would run in an isolated process in which
+   just the specially crafted operation and component objects are defined,
+   though the defsystem-depends-on dependencies are also loaded;
+   the action would be run in a temporary directory, that would contain
+   only a read-only copy of the declared input-files, and some writable
+   output directory for the output files, that would afterwards be
+   copied to their actual destination.
 
    ;; null means the target is the current host.
    ;; Or should the base class be plan-traversal or such?

@@ -225,9 +225,10 @@ How do I navigate this source tree?
 * [build/](build/)
     * where the `Makefile` and `asdf-tools` store their output files, including
         * `asdf.lisp` -- the current one-file deliverable of ASDF
-        * `asdf-XXX.lisp` -- for upgrade test purposes, old versions
+        * `asdf-*.lisp` -- for upgrade test purposes, old versions
+        * `asdf-tools` -- the executable for asdf-tools (.exe on Windows)
         * `results/` -- logs of tests that have been run
-        * `fasls/` -- output files while running tests.
+        * `fasls/` -- output files while running tests
 
 * [ext/](ext/)
     * external dependencies, that can be populated with `make ext`
@@ -242,4 +243,4 @@ How do I navigate this source tree?
     * plenty of ideas for how to further improve ASDF.
 
 
-Last updated Monday, September 12th, 2016.
+Last updated Sunday, October 2nd, 2016.

@@ -208,11 +208,41 @@
           <tt>:asdf</tt>, <tt>"ASDF"</tt> or <tt>'asdf</tt> as an argument.)
           All these implementations provide ASDF 3.1 in their latest version,
 	  but your software distribution might have an older version.
+        </p><p>
           As for remaining implementations,
           they are obsolete and/or mostly unmaintained;
-	  GCL is maintained but its maintainer doesn't seem to care about ASDF.
-          CormanLisp was recently open-sourced, but its bundled ASDF has
-    not yet been updated from 1.x.
+          ASDF was made to run with each of them at some point,
+          but some hacking is probably required to make the latest ASDF work well
+          with the latest release of these implementations:
+          <ul><li>
+	      GCL is somewhat maintained but its maintainer doesn't seem to care about ASDF,
+              and hasn't replied for years to requests for bug fixes and
+              for providing ASDF via <tt>(require "asdf")</tt>
+            </li><li>
+              CormanLisp was recently open-sourced;
+              its bundled ASDF has not yet been updated from 1.x;
+              ASDF 3.1 should work fine with it, but a few features were disabled
+              because CormanLisp is insufficiently compliant with the CLHS,
+              and requires some work in this regard.
+            </li><li>
+              MCL similarly was open-sourced, but never bundled ASDF;
+              ASDF 3.1 should work just fine with it,
+              but Rosetta is not supported in the latest versions of MacOS X,
+              so a lot of work is required to make something out of it
+              — at which point, you might just use CCL.
+            </li><li>
+              XCL is now an abandoned experiment. It provides some old ASDF 2;
+              but you can replace it with ASDF 3.1, which works well with it,
+              inasmuch as anything works at all with XCL.
+            </li><li>
+              Genera and SCL were never open-source and never bundled ASDF,
+              but should otherwise just work with a recent ASDF 3.1,
+              if you somehow have a license and a working version.
+            </li><li>
+              Mocl has its own heavily modified variant of ASDF2, and
+              to make it work with unmodified ASDF 3.x would require
+              ASDF to be taught about natively supporting cross-compilation.
+          </li></ul>
         </p>
         <table border="1">
           <tr><th></th>
@@ -232,9 +262,10 @@
             </td>
             <td align="left">
               <a href="https://github.com/sharplispers/cormanlisp">CormanLisp</a>,
-              <a title="GNU Common Lisp" href="https://www.gnu.org/software/gcl/">GCL</a>
+              <a title="GNU Common Lisp" href="https://www.gnu.org/software/gcl/">GCL</a>,
+              <a title="Macintosh Common Lisp" href="https://en.wikipedia.org/wiki/Macintosh_Common_Lisp">MCL</a>
             </td>
-            <td align="left">MCL, XCL</td></tr>
+            <td align="left">XCL</td></tr>
           <tr><th align="left">Proprietary</th>
             <td align="left">
               <a href="http://franz.com/products/allegro-common-lisp/">Allegro</a>,
@@ -606,7 +637,7 @@ Corman Common Lisp <admin@cormanlisp.com>
         <a class="nav" href="http://common-lisp.net/" title="Common-Lisp.net"> <img src="http://common-lisp.net/project/cl-containers/shared/buttons/lisp-lizard.png" width="80" height="15" title="Common-Lisp.net" alt="Common-Lisp.net button" /></a>
         <p><span class="copyright"Copyright &copy; 2001-2016 Daniel Barlow and contributors</span></p>
         <p>ASDF has an <a href="http://www.opensource.org/licenses/mit-license.php">MIT style</a> license</p>
-        <div id="timestamp">Last updated 2016-09-19</div>
+        <div id="timestamp">Last updated 2016-10-02</div>
     </div>
   </body>
 </html>
