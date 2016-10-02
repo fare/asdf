@@ -471,7 +471,8 @@ implementation, when applicable, for creation of the output stream.
 
 LAUNCH-PROGRAM returns a PROCESS-INFO object."
     #-(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (progn command keys input output error-output directory element-type external-format ;; ignore
+    (progn command keys input output error-output directory element-type external-format
+           if-input-does-not-exist if-output-exists if-error-output-exists ;; ignore
            (not-implemented-error 'launch-program))
     #+allegro
     (when (some #'(lambda (stream)

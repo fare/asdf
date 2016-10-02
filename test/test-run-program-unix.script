@@ -185,18 +185,6 @@
   (with-open-file (output name :direction :output :if-exists :supersede)
     (format output string)))
 
-;; Wrapper that keeps us from special-casing CLISP since it
-;; always requires :error-output :interactive to be set.
-(defun %launch-program (command &rest named-pairs
-                        &key (error-output nil error-output-set)
-                          &allow-other-keys)
-  (declare (ignore error-output #-clisp error-output-set))
-  (let ((args (append (list command)
-                      named-pairs
-                      #+clisp (unless error-output-set
-                                (list :error-output :interactive)))))
-    (apply #'launch-program args)))
-
 ;; Skips the test if terminate-process cannot be called
 (defun my-terminate-process (&rest rest)
   #+ecl (unless (find-symbol* '#:terminate-process :ext nil)
