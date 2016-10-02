@@ -211,6 +211,8 @@
           As for remaining implementations,
           they are obsolete and/or mostly unmaintained;
 	  GCL is maintained but its maintainer doesn't seem to care about ASDF.
+          CormanLisp was recently open-sourced, but its bundled ASDF has
+    not yet been updated from 1.x.
         </p>
         <table border="1">
           <tr><th></th>
@@ -218,13 +220,28 @@
             <th align="left">No ASDF</th>
             <th align="left">Unmaintained</th></tr>
           <tr><th align="left">Free</th>
-            <td align="left"><tt>abcl ccl clasp clisp cmucl ecl mkcl sbcl</tt></td>
-            <td align="left"><tt>gcl</tt></td>
-            <td align="left"><tt>mcl xcl</tt></td></tr>
+            <td align="left">
+              <a href="http://abcl.org/" title="Armed Bear Common Lisp">ABCL</a>,
+              <a href="http://ccl.clozure.com/" title="Clozure Common Lisp">CCL</a>,
+              <a href="https://github.com/drmeister/clasp">Clasp</a>,
+              <a href="http://clisp.org/">CLISP</a>,
+              <a href="http://cmucl.org/">CMUCL</a>,
+              <a href="https://common-lisp.net/project/ecl/" title="Embeddable Common Lisp">ECL</a>,
+              <a href="https://common-lisp.net/project/mkcl/" title="ManKai Common Lisp">MKCL</a>,
+              <a href="http://www.sbcl.org/" title="Steel Bank Common Lisp">SBCL</a>
+            </td>
+            <td align="left">
+              <a href="https://github.com/sharplispers/cormanlisp">CormanLisp</a>,
+              <a title="GNU Common Lisp" href="https://www.gnu.org/software/gcl/">GCL</a>
+            </td>
+            <td align="left">MCL, XCL</td></tr>
           <tr><th align="left">Proprietary</th>
-            <td align="left"><tt>allegro lispworks</tt></td>
+            <td align="left">
+              <a href="http://franz.com/products/allegro-common-lisp/">Allegro</a>,
+              <a href="http://www.lispworks.com/">LispWorks</a>
+            </td>
             <td align="left"></td>
-            <td align="left"><tt>cormanlisp genera mocl scl</tt></td></tr>
+            <td align="left">Genera, mocl, SCL</td></tr>
         </table>
         <p>
           To deal with an implementation that does not yet provide ASDF 3.1, we provide
