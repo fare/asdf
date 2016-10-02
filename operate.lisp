@@ -44,9 +44,6 @@ when instantiating a new operation, that will in turn be inherited by new operat
 But do NOT depend on it, for this is deprecated behavior."))
 
   (define-convenience-action-methods operate (operation component &key)
-    ;; I'd like to at least remove-plist-keys :force :force-not :verbose,
-    ;; but swank.asd relies on :force (!).
-    :operation-initargs t ;; backward-compatibility with ASDF1. Deprecated.
     :if-no-component (error 'missing-component :requires component))
 
   (defvar *in-operate* nil
@@ -65,9 +62,8 @@ But do NOT depend on it, for this is deprecated behavior."))
            (*in-operate* t)
            (operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
             (etypecase operation
-              (operation (let ((name (type-of operation))
-                               (initargs (operation-original-initargs operation)))
-                           #'(lambda () (apply 'make-operation name :original-initargs initargs initargs))))
+              (operation (let ((name (type-of operation)))
+                           #'(lambda () (make-operation name))))
               ((or symbol string) (constantly operation))))
            (component-path (typecase component ;; to remake the component after ASDF upgrade
                              (component (component-find-path component))
@@ -78,7 +74,7 @@ But do NOT depend on it, for this is deprecated behavior."))
        (unless in-operate
          (when (upgrade-asdf)
            ;; If we were upgraded, restart OPERATE the hardest of ways, for
-           ;; its function may have been redefined, its symbol uninterned, its package deleted.
+           ;; its function may have been redefined.
            (return-from operate
              (apply 'operate (funcall operation-remaker) component-path keys)))))
       ;; Setup proper bindings around any operate call.
@@ -284,5 +280,5 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
       ;; Mark the timestamps of the common lisp-action operations as 0.
       (let ((times (component-operation-times component)))
         (dolist (o '(load-op compile-op prepare-op))
-          (setf (gethash o times) 0))))))
+          (setf (gethash (make-operation o) times) 0))))))
 

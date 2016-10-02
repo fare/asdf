@@ -12,7 +12,7 @@
    #:plan #:plan-traversal #:sequential-plan #:*default-plan-class*
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions
-   #:node-for #:needed-in-image-p
+   #:needed-in-image-p
    #:action-index #:action-planned-p #:action-valid-p
    #:plan-record-dependency
    #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
@@ -83,13 +83,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defmethod action-planned-p ((action-status t))
     t) ; default method for non planned-action-status objects
 
-  ;; TODO: either confirm there are no operation-original-initargs, eliminate NODE-FOR,
-  ;; and use (CONS O C); or keep the operation initargs, and here use MAKE-OPERATION.
-  ;; However, see also component-operation-time and mark-operation-done
-  (defun node-for (o c)
-    "Given operation O and component C, return an object to use as key in action-indexed tables."
-    (cons (type-of o) c))
-
   (defun action-already-done-p (plan operation component)
     "According to this plan, is this action already done and up to date?"
     (action-done-p (plan-action-status plan operation component)))
@@ -99,11 +92,10 @@ the action of OPERATION on COMPONENT in the PLAN"))
       (make-instance 'action-status :stamp stamp :done-p done-p)))
 
   (defmethod (setf plan-action-status) (new-status (plan null) (o operation) (c component))
-    (let ((to (type-of o))
-          (times (component-operation-times c)))
+    (let ((times (component-operation-times c)))
       (if (action-done-p new-status)
-          (remhash to times)
-          (setf (gethash to times) (action-stamp new-status))))
+          (remhash o times)
+          (setf (gethash o times) (action-stamp new-status))))
     new-status))
 
 
@@ -315,11 +307,11 @@ initialized with SEED."
     plan)
 
   (defmethod (setf plan-action-status) (new-status (p plan-traversal) (o operation) (c component))
-    (setf (gethash (node-for o c) (plan-visited-actions p)) new-status))
+    (setf (gethash (cons o c) (plan-visited-actions p)) new-status))
 
   (defmethod plan-action-status ((p plan-traversal) (o operation) (c component))
     (or (and (action-forced-not-p p o c) (plan-action-status nil o c))
-        (values (gethash (node-for o c) (plan-visited-actions p)))))
+        (values (gethash (cons o c) (plan-visited-actions p)))))
 
   (defmethod action-valid-p ((p plan-traversal) (o operation) (s system))
     (and (not (action-forced-not-p p o s)) (call-next-method)))
