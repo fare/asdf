@@ -44,8 +44,8 @@ Some constraints:
                      #+(or cmucl scl) (c::brevity 2) #+(or cmucl scl) (ext:inhibit-warnings 3)))
 
 #+clasp
-(unless (assoc "script" core:*load-hooks* :test #'equal)
-  (push (cons "script" 'core:load-source) core:*load-hooks*))
+(unless (assoc "script" si:*load-hooks* :test #'equal)
+  (push (cons "script" 'si:load-source) si:*load-hooks*))
 
 (defparameter *trace-symbols*
   `(;; If you want to trace some stuff while debugging ASDF,

@@ -16,7 +16,7 @@ usage () {
     echo "    allegro_s, allegro8_s, allegromodern_s, allegromodern8_s (SMP variants)"
     echo "    allegro_64, allegro8_64, allegromodern_64, allegromodern8_64 (64-bit variants),"
     echo "    allegro_64_s, allegro8_64_s, allegromodern_64_s, allegromodern8_64_s, (SMP, 64-bit variants)"
-    echo "    clisp, cmucl, ecl, gcl, sbcl, scl and xcl."
+    echo "    clasp, clisp, cmucl, ecl, gcl, sbcl, scl and xcl."
     echo " To configure the script, you may set environment variables to point to the various lisp runtimes."
     echo " Allegro CL is a special case: instead of setting environment variables for the specific runtime"
     echo "   locations, you may simply specify the Allegro install directories using these variables:"
