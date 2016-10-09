@@ -773,51 +773,6 @@ or :error-output."
                             (slot-value process-info 'output-stream)))))
       (when stream (close stream))))
 
-  ;; WARNING: For signals other than SIGTERM and SIGKILL this may not
-  ;; do what you expect it to. Sending SIGSTOP to a process spawned
-  ;; via LAUNCH-PROGRAM, e.g., will stop the shell /bin/sh that is used
-  ;; to run the command (via `sh -c command`) but not the actual
-  ;; command.
-  #+os-unix
-  (defun %posix-send-signal (process-info signal)
-    #+allegro (excl.osi:kill (slot-value process-info 'process) signal)
-    #+clozure (ccl:signal-external-process (slot-value process-info 'process)
-                                           signal :error-if-exited nil)
-    #+(or cmucl scl) (ext:process-kill (slot-value process-info 'process) signal)
-    #+sbcl (sb-ext:process-kill (slot-value process-info 'process) signal)
-    #-(or allegro clozure cmucl sbcl scl)
-    (if-let (pid (process-info-pid process-info))
-      (run-program (format nil "kill -~a ~a" signal pid)
-                   :ignore-error-status t)))
-
-  ;;; this function never gets called on Windows, but the compiler cannot tell
-  ;;; that. [2016/09/25:rpg]
-  #+os-windows
-  (defun %posix-send-signal (process-info signal)
-    (declare (ignore process-info signal))
-    (values))
-
-  (defun terminate-process (process-info &key urgent)
-    "Cause the process to exit. To that end, the process may or may
-not be sent a signal, which it will find harder (or even impossible)
-to ignore if URGENT is T. On some platforms, it may also be subject to
-race conditions."
-    (declare (ignorable urgent))
-    #+abcl (sys:process-kill (slot-value process-info 'process))
-    #+ecl (symbol-call :ext :terminate-process
-                       (slot-value process-info 'process) urgent)
-    #+lispworks7+ (sys:pipe-kill-process (slot-value process-info 'process))
-    #+mkcl (mk-ext:terminate-process (slot-value process-info 'process)
-                                     :force urgent)
-    #-(or abcl ecl lispworks7+ mkcl)
-    (os-cond
-     ((os-unix-p) (%posix-send-signal process-info (if urgent 9 15)))
-     ((os-windows-p) (if-let (pid (process-info-pid process-info))
-                       (run-program (format nil "taskkill ~:[~;/f ~]/pid ~a"
-                                            urgent pid)
-                                    :ignore-error-status t)))
-     (t (not-implemented-error 'terminate-process))))
-
   (defun %call-with-program-io (gf tval stream-easy-p fun direction spec activep returner
                                 &key element-type external-format &allow-other-keys)
     ;; handle redirection for run-program and system
@@ -1147,4 +1102,51 @@ or an indication of failure via the EXIT-CODE of the process"
              :if-output-exists if-output-exists
              :if-error-output-exists if-error-output-exists
              :element-type element-type :external-format external-format
-             keys))))
+             keys)))
+
+  ;; WARNING: For signals other than SIGTERM and SIGKILL this may not
+  ;; do what you expect it to. Sending SIGSTOP to a process spawned
+  ;; via LAUNCH-PROGRAM, e.g., will stop the shell /bin/sh that is used
+  ;; to run the command (via `sh -c command`) but not the actual
+  ;; command.
+  #+os-unix
+  (defun %posix-send-signal (process-info signal)
+    #+allegro (excl.osi:kill (slot-value process-info 'process) signal)
+    #+clozure (ccl:signal-external-process (slot-value process-info 'process)
+                                           signal :error-if-exited nil)
+    #+(or cmucl scl) (ext:process-kill (slot-value process-info 'process) signal)
+    #+sbcl (sb-ext:process-kill (slot-value process-info 'process) signal)
+    #-(or allegro clozure cmucl sbcl scl)
+    (if-let (pid (process-info-pid process-info))
+      (run-program (format nil "kill -~a ~a" signal pid)
+                   :ignore-error-status t)))
+
+  ;;; this function never gets called on Windows, but the compiler cannot tell
+  ;;; that. [2016/09/25:rpg]
+  #+os-windows
+  (defun %posix-send-signal (process-info signal)
+    (declare (ignore process-info signal))
+    (values))
+
+  (defun terminate-process (process-info &key urgent)
+    "Cause the process to exit. To that end, the process may or may
+not be sent a signal, which it will find harder (or even impossible)
+to ignore if URGENT is T. On some platforms, it may also be subject to
+race conditions."
+    (declare (ignorable urgent))
+    #+abcl (sys:process-kill (slot-value process-info 'process))
+    ;; On ECL, this will only work on versions later than 2016-09-06,
+    ;; but we still want to compile on earlier versions, so we use symbol-call
+    #+ecl (symbol-call :ext :terminate-process (slot-value process-info 'process) urgent)
+    #+lispworks7+ (sys:pipe-kill-process (slot-value process-info 'process))
+    #+mkcl (mk-ext:terminate-process (slot-value process-info 'process)
+                                     :force urgent)
+    #-(or abcl ecl lispworks7+ mkcl)
+    (os-cond
+     ((os-unix-p) (%posix-send-signal process-info (if urgent 9 15)))
+     ((os-windows-p) (if-let (pid (process-info-pid process-info))
+                       (run-program (format nil "taskkill ~:[~;/f ~]/pid ~a"
+                                            urgent pid)
+                                    :ignore-error-status t)))
+     (t (not-implemented-error 'terminate-process)))))
+
