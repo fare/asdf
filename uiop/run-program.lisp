@@ -401,11 +401,6 @@ argument to pass to the internal RUN-PROGRAM"
            :output
            (error "Wrong specifier ~S for role ~S" specifier role)))))
 
-  (defun %normalize-if-exists (action)
-    (ecase action
-      (:supersede #+clisp :overwrite #-clisp action)
-      ((:append :error) action)))
-
   (defun %interactivep (input output error-output)
     (member :interactive (list input output error-output)))
 
@@ -430,6 +425,13 @@ argument to pass to the internal RUN-PROGRAM"
      ;; If the platform allows it, distinguish exiting with a code
      ;; >128 from exiting in response to a signal by setting this code
      (signal-code :initform nil)))
+
+  (defun %handle-if-exists (file if-exists)
+    (when (or (stringp file) (pathnamep file))
+      (ecase if-exists
+        ((:append :supersede :error)
+         (with-open-file (dummy file :direction :output :if-exists if-exists)
+           (declare (ignorable dummy)))))))
 
   (defun %handle-if-does-not-exist (file if-does-not-exist)
     (when (or (stringp file) (pathnamep file))
@@ -464,6 +466,12 @@ goes to your current *STANDARD-OUTPUT* stream.  If it's :STREAM, a new
 stream will be made available that can be accessed via
 PROCESS-INFO-OUTPUT and read from. Otherwise, OUTPUT should be a value
 that the underlying lisp implementation knows how to handle.
+
+IF-OUTPUT-EXISTS, which is only meaningful if OUTPUT is a string or a
+pathname, can take the values :ERROR, :APPEND, and :SUPERSEDE (the
+default). The meaning of these values and their effect on the case
+where OUTPUT does not exist, is analogous to the IF-EXISTS parameter
+to OPEN with :DIRECTION :OUTPUT.
 
 ERROR-OUTPUT is similar to OUTPUT. T designates the *ERROR-OUTPUT*,
 :OUTPUT means redirecting the error output to the output stream,
@@ -510,9 +518,9 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
                        'launch-program))
     (%handle-if-does-not-exist input if-input-does-not-exist)
+    (%handle-if-exists output if-output-exists)
     #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let* ((%command (%normalize-command command))
-           (%if-output-exists (%normalize-if-exists if-output-exists))
            (%input (%normalize-io-specifier input :input))
            (%output (%normalize-io-specifier output :output))
            (%error-output (%normalize-io-specifier error-output :error-output))
@@ -539,7 +547,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                   #.(or #+(or allegro lispworks) :error-output :error) ,%error-output
                   :wait nil :element-type ,element-type :external-format ,external-format
                   :if-input-does-not-exist :error
-                  :if-output-exists ,%if-output-exists
+                  :if-output-exists :append
                   #-(or allegro lispworks) :if-error-exists
                   #+(or allegro lispworks) :if-error-output-exists ,if-error-output-exists
                   :allow-other-keys t)
@@ -960,7 +968,7 @@ or :error-output."
                (when pathname
                  (list operator " "
                        (escape-shell-token (native-namestring pathname)))))))
-      (let* ((redirections (append (redirect in " <") (redirect out " >") (redirect err " 2>")))
+      (let* ((redirections (append (redirect in " <") (redirect out " >>") (redirect err " 2>")))
              (normalized (%normalize-system-command command))
              (directory (or directory #+(or abcl xcl) (getcwd)))
              (chdir (when directory
@@ -975,10 +983,12 @@ or :error-output."
 
   (defun %system (command &rest keys &key directory
                                        input if-input-does-not-exist
-                                       output error-output &allow-other-keys)
+                                       output if-output-exists
+                                       error-output &allow-other-keys)
     "A portable abstraction of a low-level call to libc's system()."
-    (declare (ignorable output error-output directory keys))
+    (declare (ignorable error-output directory keys))
     (%handle-if-does-not-exist input if-input-does-not-exist)
+    (%handle-if-exists output if-output-exists)
     #+(or allegro clozure cmucl (and lispworks os-unix) sbcl scl)
     (wait-process
      (apply 'launch-program (%normalize-system-command command) :wait t keys))
@@ -1064,6 +1074,12 @@ will be the first value returned by RUN-PROGRAM.
 E.g., using :OUTPUT :STRING will have it return the entire output stream as a string.
 And using :OUTPUT '(:STRING :STRIPPED T) will have it return the same string
 stripped of any ending newline.
+
+IF-OUTPUT-EXISTS, which is only meaningful if OUTPUT is a string or a
+pathname, can take the values :ERROR, :APPEND, and :SUPERSEDE (the
+default). The meaning of these values and their effect on the case
+where OUTPUT does not exist, is analogous to the IF-EXISTS parameter
+to OPEN with :DIRECTION :OUTPUT.
 
 ERROR-OUTPUT is similar to OUTPUT, except that the resulting value is returned
 as the second value of RUN-PROGRAM. T designates the *ERROR-OUTPUT*.

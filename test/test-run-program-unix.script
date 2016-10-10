@@ -262,7 +262,7 @@
                    :if-input-does-not-exist :create)))
 
 (define-test
-    ":input <file> :output <file> (files e.)"
+    ":input <file> :output <file> (files e.) :i-o-e :supersede"
     (let ((in-string (format nil "A line.~%And another.~%")))
       (create-file-from-string *input-file* in-string)
       (create-file-from-string *output-file* "")
@@ -270,7 +270,37 @@
       (check-output in-string)))
 
 (define-test
-    ":input <file> :output <file> (files e./m.)"
+    ":input <file> :output <file> (files e.) :i-o-e :error"
+    (progn
+      (let ((in-string1 (format nil "A line.~%"))
+            (in-string2 (format nil "And another.~%")))
+        (delete-file-if-exists *output-file*)
+        (create-file-from-string *input-file* in-string1)
+        (run-program "cat" :input *input-file*
+                     :output *output-file*)
+        (create-file-from-string *input-file* in-string2)
+        (with-expected-failure (t)
+          (run-program "cat" :input *input-file*
+                       :output *output-file* :if-output-exists :error))
+        (check-output in-string1))))
+
+(define-test
+    ":input <file> :output <file> (files e.) :i-o-e :append"
+    (progn
+      (let ((in-string1 (format nil "A line.~%"))
+            (in-string2 (format nil "And another.~%")))
+        (delete-file-if-exists *output-file*)
+        (create-file-from-string *input-file* in-string1)
+        (run-program "cat" :input *input-file*
+                     :output *output-file*)
+        (create-file-from-string *input-file* in-string2)
+        (run-program "cat" :input *input-file*
+                     :output *output-file*
+                     :if-output-exists :append)
+        (check-output (concatenate 'string in-string1 in-string2)))))
+
+(define-test
+    ":input <file> :output <file> (files e./m.) :i-o-e :supersede"
     (let ((in-string (format nil "A line.~%And another.~%")))
       (create-file-from-string *input-file* in-string)
       (delete-file-if-exists *output-file*)
