@@ -231,6 +231,21 @@
       (check-error-output (format nil "~a~%" error-string))))
 
 (define-test
+    ":input <file> (file m.) :i-i-d-n-e :error"
+    (progn
+      (delete-file-if-exists *input-file*)
+      (with-expected-failure (t)
+        (run-program "cat" :input *input-file*
+                     :if-input-does-not-exist :error))))
+
+(define-test
+    ":input <file> (file m.) :i-i-d-n-e :create"
+    (progn
+      (delete-file-if-exists *input-file*)
+      (run-program "cat" :input *input-file*
+                   :if-input-does-not-exist :create)))
+
+(define-test
     ":input <file> (file e.)"
     (progn
       (let ((in-string (format nil "A line.~%And another.~%")))
