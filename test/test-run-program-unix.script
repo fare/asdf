@@ -309,6 +309,37 @@
       (check-output in-string)))
 
 (define-test
+    ":input <file> :error-output <file> (files e.), :i-e-o-e :error"
+    (progn
+      (let ((in-string1 (format nil "A line.~%"))
+            (in-string2 (format nil "And another.~%")))
+        (delete-file-if-exists *output-file*)
+        (create-file-from-string *input-file* in-string1)
+        (run-program "./cat-to-stderr.sh" :input *input-file*
+                     :error-output *error-output-file*)
+        (create-file-from-string *input-file* in-string2)
+        (with-expected-failure (t)
+          (run-program "./cat-to-stderr.sh" :input *input-file*
+                       :error-output *error-output-file*
+                       :if-error-output-exists :error))
+        (check-error-output in-string1))))
+
+(define-test
+    ":input <file> :error-output <file> (files e.), :i-e-o-e :append"
+    (progn
+      (let ((in-string1 (format nil "A line.~%"))
+            (in-string2 (format nil "And another.~%")))
+        (delete-file-if-exists *output-file*)
+        (create-file-from-string *input-file* in-string1)
+        (run-program "./cat-to-stderr.sh" :input *input-file*
+                     :error-output *error-output-file*)
+        (create-file-from-string *input-file* in-string2)
+        (run-program "./cat-to-stderr.sh" :input *input-file*
+                     :error-output *error-output-file*
+                     :if-error-output-exists :append)
+        (check-error-output (concatenate 'string in-string1 in-string2)))))
+
+(define-test
     ":output <fstream> :error-output <fstream>"
     (progn
       (with-open-file (output *output-file* :direction :output
