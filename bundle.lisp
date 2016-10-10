@@ -303,7 +303,7 @@ or of opaque libraries shipped along the source code."))
              :force :force-not :plan-class) ;; TODO: refactor so we don't mix plan and operation arguments
            (operation-original-initargs instance))))
 
-  (defgeneric* (trivial-system-p) (component))
+  (defgeneric trivial-system-p (component))
 
   (defun user-system-p (s)
     (and (typep s 'system)

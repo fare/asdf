@@ -16,7 +16,7 @@
 (in-package :asdf/operate)
 
 (with-upgradability ()
-  (defgeneric* (operate) (operation component &key &allow-other-keys)
+  (defgeneric operate (operation component &key &allow-other-keys)
     (:documentation
      "Operate does mainly four things for the user:
 
@@ -208,7 +208,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
            (*modules-being-required* (cons module *modules-being-required*)))
       (assert (null (component-children s)))
       ;; CMUCL likes its module names to be all upcase.
-      (require #-cmucl module #+cmucl (string-upcase module))))
+      (require (nest #+cmucl (string-upcase) module))))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
     (unless (and (length=n-p arguments 1)

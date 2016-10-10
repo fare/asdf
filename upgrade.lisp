@@ -44,8 +44,12 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
       (list previous)))
   ;; This public variable will be bound shortly to the currently loaded version of ASDF.
   (defvar *asdf-version* nil)
-  ;; We need to clear systems from versions older than the one in this (private) parameter:
-  (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.
+  ;; We need to clear systems from versions older than the one in this (private) parameter.
+  ;; The latest incompatible defclass is 2.32.13 renaming a slot in component;
+  ;; the latest incompatible defgeneric is TBD;
+  ;; there is a defgeneric => defun in 3.1.7.27 so lacking per-function fmakunbound for now,
+  ;; this will be our cut-off version.
+  (defparameter *oldest-forward-compatible-asdf-version* "3.1.7.27")
   ;; Semi-private variable: a designator for a stream on which to output ASDF progress messages
   (defvar *verbose-out* nil)
   ;; Private function by which ASDF outputs progress messages and warning messages:
@@ -103,13 +107,23 @@ previously-loaded version of ASDF."
 ;;; Upon upgrade, specially frob some functions and classes that are being incompatibly redefined
 (when-upgrading ()
   (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
-          ;; NB: it's too late to do anything about functions in UIOP!
-          ;; If you introduce some critically incompatibility there, you must change name.
-          '()) ;; empty now that we don't unintern, but wholly punt on ASDF 2.26 or earlier.
+         ;; NB: it's too late to do anything about functions in UIOP!
+         ;; If you introduce some critical incompatibility there, you must change the function name.
+         ;; TODO: We should probably remove a few of these functions now that we wholly punt
+         ;; on ASDF 2.26 or earlier; however determining which for sure is a huge pain,
+         ;; because it requires inspecting each and every release since 2.27 or so.
+         ;; Note that we don't include the defgeneric=>defun, because they are
+         ;; done directly with defun* and need not trigger a punt on data.
+         ;; So these are only for defun=>defgeneric, modified defgeneric and *method removed*.
+         '(#:component-depends-on #:output-files #:input-files #:operation-done-p
+           #:perform #:perform-with-restarts #:traverse #:explain #:operate
+           #:trivial-system-p #:component-relative-pathname #:source-file-type
+           #:component-parent-pathname #:find-component #:process-source-registry
+           #:find-system #:system-source-file))
         (redefined-classes
-          ;; redefining the classes causes interim circularities
-          ;; with the old ASDF during upgrade, and many implementations bork
-          '((#:compile-concatenated-source-op (#:operation) ()))))
+         ;; redefining the classes causes interim circularities
+         ;; with the old ASDF during upgrade, and many implementations bork
+         '((#:compile-concatenated-source-op (#:operation) ()))))
     (loop :for name :in redefined-functions
           :for sym = (find-symbol* name :asdf nil) :do
             (when sym

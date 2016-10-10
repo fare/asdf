@@ -74,7 +74,7 @@ if that's whay you mean." ;;)
 
   ;; TRAVERSE is the function used to compute a plan in ASDF 1 and 2.
   ;; It was never officially exposed but some people still used it.
-  (defgeneric* (traverse) (operation component &key &allow-other-keys)
+  (defgeneric traverse (operation component &key &allow-other-keys)
     (:documentation
      "Generate and return a plan for performing OPERATION on COMPONENT.
 
@@ -189,7 +189,7 @@ Please use UIOP:RUN-PROGRAM instead."
 
 ;;; This method survives from ASDF 1, but really it is superseded by action-description.
 (with-upgradability ()
-  (defgeneric* (explain) (operation component)
+  (defgeneric explain (operation component)
     (:documentation "Display a message describing an action.
 DEPRECATED. Use ASDF:ACTION-DESCRIPTION and/or ASDF::FORMAT-ACTION instead."))
   (defmethod explain ((o operation) (c component))

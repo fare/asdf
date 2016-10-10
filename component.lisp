@@ -49,7 +49,7 @@
     (:documentation "Top-level system containing the COMPONENT"))
   (defgeneric component-pathname (component)
     (:documentation "Pathname of the COMPONENT if any, or NIL."))
-  (defgeneric* (component-relative-pathname) (component)
+  (defgeneric component-relative-pathname (component)
     ;; in ASDF4, rename that to component-specified-pathname ?
     (:documentation "Specified pathname of the COMPONENT,
 intended to be merged with the pathname of that component's parent if any, using merged-pathnames*.
@@ -78,7 +78,7 @@ or NIL for top-level components (a.k.a. systems)"))
 
   ;; Deprecated: Backward compatible way of computing the FILE-TYPE of a component.
   ;; TODO: find users, have them stop using that, remove it for ASDF4.
-  (defgeneric* (source-file-type) (component system)
+  (defgeneric source-file-type (component system)
     (:documentation "DEPRECATED. Use the FILE-TYPE of a COMPONENT instead."))
 
   (define-condition system-definition-error (error) ()
@@ -232,7 +232,7 @@ typically but not necessarily representing the files in a subdirectory of the bu
 
 ;;;; component pathnames
 (with-upgradability ()
-  (defgeneric* (component-parent-pathname) (component)
+  (defgeneric component-parent-pathname (component)
     (:documentation "The pathname of the COMPONENT's parent, if any, or NIL"))
   (defmethod component-parent-pathname (component)
     (component-pathname (component-parent component)))

@@ -50,7 +50,7 @@
 ;;;; Finding components
 
 (with-upgradability ()
-  (defgeneric* (find-component) (base path &key registered)
+  (defgeneric find-component (base path &key registered)
     (:documentation "Find a component by resolving the PATH starting from BASE parent.
 If REGISTERED is true, only search currently registered systems."))
   (defgeneric resolve-dependency-combination (component combinator arguments)

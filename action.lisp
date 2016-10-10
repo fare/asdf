@@ -117,7 +117,7 @@ Use it in FORMAT control strings as ~/asdf-action:format-action/"
 
 ;;;; Dependencies
 (with-upgradability ()
-  (defgeneric* (component-depends-on) (operation component) ;; ASDF4: rename to component-dependencies
+  (defgeneric component-depends-on (operation component) ;; ASDF4: rename to component-dependencies
     (:documentation
      "Returns a list of dependencies needed by the component to perform
     the operation.  A dependency has one of the following forms:
@@ -270,7 +270,7 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
 
 ;;;; Inputs, Outputs, and invisible dependencies
 (with-upgradability ()
-  (defgeneric* (output-files) (operation component)
+  (defgeneric output-files (operation component)
     (:documentation "Methods for this function return two values: a list of output files
 corresponding to this action, and a boolean indicating if they have already been subjected
 to relevant output translations and should not be further translated.
@@ -278,13 +278,13 @@ to relevant output translations and should not be further translated.
 Methods on PERFORM *must* call this function to determine where their outputs are to be located.
 They may rely on the order of the files to discriminate between outputs.
 "))
-  (defgeneric* (input-files) (operation component)
+  (defgeneric input-files (operation component)
     (:documentation "A list of input files corresponding to this action.
 
 Methods on PERFORM *must* call this function to determine where their inputs are located.
 They may rely on the order of the files to discriminate between inputs.
 "))
-  (defgeneric* (operation-done-p) (operation component)
+  (defgeneric operation-done-p (operation component)
     (:documentation "Returns a boolean which is NIL if the action must be performed (again)."))
   (define-convenience-action-methods output-files (operation component))
   (define-convenience-action-methods input-files (operation component))
@@ -294,8 +294,7 @@ They may rely on the order of the files to discriminate between inputs.
     t)
 
   ;; Translate output files, unless asked not to. Memoize the result.
-  (defmethod output-files :around (operation component)
-    operation component ;; hush genera, not convinced by declare ignorable(!)
+  (defmethod output-files :around ((operation t) (component t))
     (do-asdf-cache `(output-files ,operation ,component)
       (values
        (multiple-value-bind (pathnames fixedp) (call-next-method)
@@ -397,7 +396,7 @@ in some previous image, or T if it needs to be done.")
 
 ;;;; Perform
 (with-upgradability ()
-  (defgeneric* (perform) (operation component)
+  (defgeneric perform (operation component)
     (:documentation "PERFORM an action, consuming its input-files and building its output-files"))
   (define-convenience-action-methods perform (operation component))
 
@@ -418,7 +417,7 @@ in some previous image, or T if it needs to be done.")
   ;; The restarts of the perform-with-restarts variant matter in an interactive context.
   ;; The retry strategies of p-w-r itself, and/or the background workers of a multiprocess build
   ;; may call perform directly rather than call p-w-r.
-  (defgeneric* (perform-with-restarts) (operation component)
+  (defgeneric perform-with-restarts (operation component)
     (:documentation "PERFORM an action in a context where suitable restarts are in place."))
   (defmethod perform-with-restarts (operation component)
     (perform operation component))
