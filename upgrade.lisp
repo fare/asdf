@@ -46,10 +46,8 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defvar *asdf-version* nil)
   ;; We need to clear systems from versions older than the one in this (private) parameter.
   ;; The latest incompatible defclass is 2.32.13 renaming a slot in component;
-  ;; the latest incompatible defgeneric is TBD;
-  ;; there is a defgeneric => defun in 3.1.7.27 so lacking per-function fmakunbound for now,
-  ;; this will be our cut-off version.
-  (defparameter *oldest-forward-compatible-asdf-version* "3.1.7.27")
+  ;; the latest incompatible gf change is in 3.1.7.20 (see redefined-functions below).
+  (defparameter *oldest-forward-compatible-asdf-version* "3.1.7.20")
   ;; Semi-private variable: a designator for a stream on which to output ASDF progress messages
   (defvar *verbose-out* nil)
   ;; Private function by which ASDF outputs progress messages and warning messages:
@@ -106,20 +104,20 @@ previously-loaded version of ASDF."
 
 ;;; Upon upgrade, specially frob some functions and classes that are being incompatibly redefined
 (when-upgrading ()
-  (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
+  (let ((redefined-functions ;; List of functions that changes incompatibly since 2.27:
+         ;; gf signature changed (should NOT happen), defun that became a generic function,
+         ;; method removed that will mess up with new ones (especially :around :before :after,
+         ;; more specific or call-next-method'ed method) and/or semantics otherwise modified. Oops.
          ;; NB: it's too late to do anything about functions in UIOP!
          ;; If you introduce some critical incompatibility there, you must change the function name.
-         ;; TODO: We should probably remove a few of these functions now that we wholly punt
-         ;; on ASDF 2.26 or earlier; however determining which for sure is a huge pain,
-         ;; because it requires inspecting each and every release since 2.27 or so.
-         ;; Note that we don't include the defgeneric=>defun, because they are
+         ;; Note that we don't need do anything about functions that changed incompatibly
+         ;; from ASDF 2.26 or earlier: we wholly punt on the entire ASDF package in such an upgrade.
+         ;; Also note that we don't include the defgeneric=>defun, because they are
          ;; done directly with defun* and need not trigger a punt on data.
-         ;; So these are only for defun=>defgeneric, modified defgeneric and *method removed*.
-         '(#:component-depends-on #:output-files #:input-files #:operation-done-p
-           #:perform #:perform-with-restarts #:traverse #:explain #:operate
-           #:trivial-system-p #:component-relative-pathname #:source-file-type
-           #:component-parent-pathname #:find-component #:process-source-registry
-           #:find-system #:system-source-file))
+         ;; See discussion at https://gitlab.common-lisp.net/asdf/asdf/merge_requests/36
+         '(#:component-depends-on #:input-files ;; methods removed before 3.1.2
+           #:find-component ;; gf modified in 3.1.7.20
+           ))
         (redefined-classes
          ;; redefining the classes causes interim circularities
          ;; with the old ASDF during upgrade, and many implementations bork
