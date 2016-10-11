@@ -47,14 +47,43 @@
 ;; This time we found it, but it was skipped because the version was the same
 (assert-equal nil (system-source-file (find-system :asdf)))
 
+
 ;; But if we cheat on our version, that should work
 (setf asdf::*asdf-version* "3.0")
 (clear-system "asdf")
-#-xcl ;; expected-failure: XCL has trouble with the ASDF upgrade
-(load-system :asdf)
-(assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
-                       (system-source-file (find-system :asdf)))
+(defparameter *count* 0)
+(defmethod operation-done-p :after ((load-op operation) (c system))
+  (incf *count*))
+(operation-done-p 'load-op "asdf")
+(assert-equal *count* 1)
+(with-expected-failure (#+xcl t)
+  ;; expected-failure: XCL has trouble with the ASDF upgrade
+  (load-system :asdf)
+  (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
+                         (system-source-file (find-system :asdf))))
 
+;; Upgrading from an old-enough version redefined away the operation-done-p method!
+(setf *count* 2)
+(operation-done-p 'load-op "asdf")
+(assert-equal *count* 2)
+
+;; The data-punting upgrade will mess up component identity, so clear the cache
+(clear-cache)
+
+(setf asdf::*asdf-version* asdf/upgrade::*oldest-forward-compatible-asdf-version*)
+(clear-system "asdf")
+(setf *count* 3)
+(defmethod operation-done-p :after ((load-op operation) (c system))
+  (incf *count*))
+(operation-done-p 'load-op "asdf")
+(assert-equal *count* 4)
+(with-expected-failure (#+xcl t)
+  ;; expected-failure: XCL has trouble with the ASDF upgrade
+  (load-system :asdf))
+;; Upgrading from an recent-enough version, the operation-done-p method was preserved!
+(setf *count* 5)
+(operation-done-p 'load-op "asdf")
+(assert-equal *count* 6)
 
 ;;; disabling this test on windows since it relies on running make-asdf.bat, which
 ;;; does not work for me under cygwin. - rpg 2016-03-20
