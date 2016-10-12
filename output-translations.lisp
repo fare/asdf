@@ -22,9 +22,9 @@
    ))
 (in-package :asdf/output-translations)
 
-;; (setf output-translations) at some point used to be a macro for the sake of
-;; obsolete versions of GCL. Make sure that macro doesn't come to haunt us.
-(when-upgrading () (undefine-function '(setf output-translations)))
+;; (setf output-translations) between 2.27 and 3.0.3 was using a defsetf macro
+;; for the sake of obsolete versions of GCL 2.6. Make sure it doesn't come to haunt us.
+(when-upgrading (:version "3.1.2") (fmakunbound '(setf output-translations)))
 
 (with-upgradability ()
   (define-condition invalid-output-translation (invalid-configuration warning)

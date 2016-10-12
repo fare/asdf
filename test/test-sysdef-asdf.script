@@ -51,11 +51,13 @@
 ;; But if we cheat on our version, that should work
 (setf asdf::*asdf-version* "3.0")
 (clear-system "asdf")
-(defparameter *count* 0)
-(defmethod input-files :after ((load-op operation) (c system))
-  (incf *count*))
+(def-test-system "fooey")
+(defparameter *ticks* 0)
+(defun tick () (incf *ticks*))
+(defmethod input-files :after ((load-op operation) (c system)) (tick))
 (input-files 'load-op "asdf")
-(assert-equal *count* 3)
+(assert-equal *ticks* 3)
+(assert (find-system "fooey" nil))
 (with-expected-failure (#+xcl t)
   ;; expected-failure: XCL has trouble with the ASDF upgrade
   (load-system :asdf)
@@ -63,29 +65,35 @@
                          (system-source-file (find-system :asdf))))
 
 ;; Upgrading from an old-enough version redefined away the input-files method!
-(setf *count* 4)
+(setf *ticks* 4)
 (input-files 'load-op "asdf")
-(assert-equal *count* 4)
+(assert-equal *ticks* 4)
+;; It also cleared away previously defined systems
+(assert (not (find-system "fooey" nil)))
+
 
 ;; The data-punting upgrade will mess up component identity, so clear the cache
 (clear-cache)
 
 (setf asdf::*asdf-version* asdf/upgrade::*oldest-forward-compatible-asdf-version*)
 (clear-system "asdf")
-(setf *count* 5)
+(def-test-system "fooey")
+(setf *ticks* 5)
 (defmethod input-files :after ((load-op operation) (c system))
-  (incf *count*))
+  (incf *ticks*))
 (input-files 'load-op "uiop")
-(assert-equal *count* 8)
+(assert-equal *ticks* 8)
 (with-expected-failure (#+xcl t)
   ;; expected-failure: XCL has trouble with the ASDF upgrade
   (load-system :asdf))
-;; Upgrading from an recent-enough version, the input-files method was preserved!
+;; Upgrading from a recent-enough version, the input-files method was preserved!
 ;; But we need to clear the cache for it not to be short-circuited.
 (clear-cache)
-(setf *count* 9)
-(input-files 'load-op "uiop")
-(assert-equal *count* 12)
+(assert (find-system "fooey" nil))
+
+(setf *ticks* 9)
+(eval '(input-files 'load-op "uiop"))
+(assert-equal *ticks* 12)
 
 ;;; disabling this test on windows since it relies on running make-asdf.bat, which
 ;;; does not work for me under cygwin. - rpg 2016-03-20

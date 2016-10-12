@@ -123,11 +123,10 @@ previously-loaded version of ASDF."
          ;; with the old ASDF during upgrade, and many implementations bork
          '((#:compile-concatenated-source-op (#:operation) ()))))
     (loop :for name :in redefined-functions
-          :for sym = (find-symbol* name :asdf nil) :do
-            (when sym
-              ;; CLISP seemingly can't fmakunbound and define a function in the same fasl. Sigh.
-              #-clisp (fmakunbound sym)))
-    (labels ((asym (x) (multiple-value-bind (s p) (if (consp x) (values (car x) (cadr x)) (values x :asdf))
+      :for sym = (find-symbol* name :asdf nil)
+      :do (when sym (fmakunbound sym)))
+    (labels ((asym (x) (multiple-value-bind (s p)
+                           (if (consp x) (values (car x) (cadr x)) (values x :asdf))
                          (find-symbol* s p nil)))
              (asyms (l) (mapcar #'asym l)))
       (loop* :for (name superclasses slots) :in redefined-classes
