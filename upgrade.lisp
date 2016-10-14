@@ -35,13 +35,15 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defvar *previous-asdf-versions*
     (let ((previous (asdf-version)))
       (when previous
-        ;; Punt on hard package upgrade: from ASDF1 or ASDF2
+        ;; Punt on upgrade from ASDF1 or ASDF2, by renaming (or deleting) the package.
         (when (version< previous "2.27") ;; 2.27 is the first to have the :asdf3 feature.
           (let ((away (format nil "~A-~A" :asdf previous)))
-            (rename-package :asdf away)
+            #-allegro (rename-package :asdf away)
+            #+allegro (delete-package :asdf) ;; rename-package fails badly on allegro
             (when *load-verbose*
-              (format t "~&; Renamed old ~A package away to ~A~%" :asdf away)))))
-      (list previous)))
+              #-allegro (format t "~&; Renamed old ~A package away to ~A~%" :asdf away)
+              #-allegro (format t "~&; Deleted old ~A package~%" :asdf))))
+        (list previous))))
   ;; This public variable will be bound shortly to the currently loaded version of ASDF.
   (defvar *asdf-version* nil)
   ;; We need to clear systems from versions older than the one in this (private) parameter.
