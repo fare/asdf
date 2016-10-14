@@ -71,8 +71,8 @@
 
 (DBG "Checking that the bootstrap script and asdf.asd are in synch")
 (defun system-lisp-files (system)
-  (loop :for f :in (required-components system :keep-component 'cl-source-file)
-        :collect (enough-pathname (component-pathname f) *asdf-directory*)))
+  (loop :for f :in (input-files 'concatenate-source-op system)
+    :collect (enough-pathname f *asdf-directory*)))
 
 (defun bootstrap-lisp-files (target)
   (let ((target (format nil "~a := " target)))

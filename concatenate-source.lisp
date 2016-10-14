@@ -63,7 +63,7 @@ into a single file"))
           :with around-compile = (around-compile-hook s)
           :with other-around-compile = '()
           :for c :in (required-components
-                      s :goal-operation 'compile-op
+                      s :goal-operation 'load-op
                         :keep-operation 'compile-op
                         :other-systems (operation-monolithic-p operation))
           :append
