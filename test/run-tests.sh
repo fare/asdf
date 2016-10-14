@@ -420,6 +420,9 @@ valid_upgrade_test_p () {
         abcl:1.*|abcl:2.00[0-9]:*|abcl:201[0-9]:*|abcl:2.2[0-3]:*) : ;;
         # ccl fasl numbering broke loading of old asdf 2.0
         ccl:2.0[01]*) : ;;
+        # Allegro ships with versions 3*, so give up testing 2
+        # Also, unpatched Allegro 10 has bug updating from 2.26 and before
+        allegro*:[12].*) : ;;
         # My old ubuntu 10.04LTS clisp 2.44.1 came wired in
         # with an antique ASDF 1.374 from CLC that can't be downgraded.
         # More recent CLISPs work.
