@@ -44,9 +44,9 @@
   :encoding :utf-8
   :components
   ((:file "upgrade")
+   (:file "cache" :depends-on ("upgrade"))
    (:file "component" :depends-on ("upgrade"))
    (:file "system" :depends-on ("component"))
-   (:file "cache" :depends-on ("upgrade"))
    (:file "find-system" :depends-on ("system" "cache"))
    (:file "find-component" :depends-on ("find-system"))
    (:file "operation" :depends-on ("find-system"))
@@ -54,14 +54,14 @@
    (:file "lisp-action" :depends-on ("action"))
    (:file "plan" :depends-on ("lisp-action"))
    (:file "operate" :depends-on ("plan"))
-   (:file "output-translations" :depends-on ("operate"))
-   (:file "source-registry" :depends-on ("find-system"))
    (:file "parse-defsystem" :depends-on ("cache" "system" "lisp-action" "operate"))
    (:file "bundle" :depends-on ("lisp-action" "operate" "parse-defsystem"))
    (:file "concatenate-source" :depends-on ("plan" "parse-defsystem" "bundle"))
+   (:file "output-translations" :depends-on ("operate"))
+   (:file "source-registry" :depends-on ("find-system"))
    (:file "package-inferred-system" :depends-on ("system" "find-system" "parse-defsystem"))
-   (:file "backward-internals" :depends-on ("find-system" "parse-defsystem"))
    (:file "backward-interface" :depends-on ("operate" "output-translations"))
+   (:file "backward-internals" :depends-on ("find-system" "parse-defsystem"))
    (:file "interface" :depends-on
           ("parse-defsystem" "concatenate-source"
            "output-translations" "source-registry" "package-inferred-system"

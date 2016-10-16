@@ -35,17 +35,19 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   (defvar *previous-asdf-versions*
     (let ((previous (asdf-version)))
       (when previous
-        ;; Punt on hard package upgrade: from ASDF1 or ASDF2
+        ;; Punt on upgrade from ASDF1 or ASDF2, by renaming (or deleting) the package.
         (when (version< previous "2.27") ;; 2.27 is the first to have the :asdf3 feature.
           (let ((away (format nil "~A-~A" :asdf previous)))
             (rename-package :asdf away)
             (when *load-verbose*
-              (format t "~&; Renamed old ~A package away to ~A~%" :asdf away)))))
-      (list previous)))
+              (format t "~&; Renamed old ~A package away to ~A~%" :asdf away))))
+        (list previous))))
   ;; This public variable will be bound shortly to the currently loaded version of ASDF.
   (defvar *asdf-version* nil)
-  ;; We need to clear systems from versions older than the one in this (private) parameter:
-  (defparameter *oldest-forward-compatible-asdf-version* "2.33") ;; 2.32.13 renames a slot in component.
+  ;; We need to clear systems from versions older than the one in this (private) parameter.
+  ;; The latest incompatible defclass is 2.32.13 renaming a slot in component;
+  ;; the latest incompatible gf change is in 3.1.7.20 (see redefined-functions below).
+  (defparameter *oldest-forward-compatible-asdf-version* "3.1.7.20")
   ;; Semi-private variable: a designator for a stream on which to output ASDF progress messages
   (defvar *verbose-out* nil)
   ;; Private function by which ASDF outputs progress messages and warning messages:
@@ -102,20 +104,29 @@ previously-loaded version of ASDF."
 
 ;;; Upon upgrade, specially frob some functions and classes that are being incompatibly redefined
 (when-upgrading ()
-  (let ((redefined-functions ;; gf signature and/or semantics changed incompatibly. Oops.
-          ;; NB: it's too late to do anything about functions in UIOP!
-          ;; If you introduce some critically incompatibility there, you must change name.
-          '()) ;; empty now that we don't unintern, but wholly punt on ASDF 2.26 or earlier.
+  (let ((redefined-functions ;; List of functions that changes incompatibly since 2.27:
+         ;; gf signature changed (should NOT happen), defun that became a generic function,
+         ;; method removed that will mess up with new ones (especially :around :before :after,
+         ;; more specific or call-next-method'ed method) and/or semantics otherwise modified. Oops.
+         ;; NB: it's too late to do anything about functions in UIOP!
+         ;; If you introduce some critical incompatibility there, you must change the function name.
+         ;; Note that we don't need do anything about functions that changed incompatibly
+         ;; from ASDF 2.26 or earlier: we wholly punt on the entire ASDF package in such an upgrade.
+         ;; Also note that we don't include the defgeneric=>defun, because they are
+         ;; done directly with defun* and need not trigger a punt on data.
+         ;; See discussion at https://gitlab.common-lisp.net/asdf/asdf/merge_requests/36
+         '(#:component-depends-on #:input-files ;; methods removed before 3.1.2
+           #:find-component ;; gf modified in 3.1.7.20
+           ))
         (redefined-classes
-          ;; redefining the classes causes interim circularities
-          ;; with the old ASDF during upgrade, and many implementations bork
-          '((#:compile-concatenated-source-op (#:operation) ()))))
+         ;; redefining the classes causes interim circularities
+         ;; with the old ASDF during upgrade, and many implementations bork
+         '((#:compile-concatenated-source-op (#:operation) ()))))
     (loop :for name :in redefined-functions
-          :for sym = (find-symbol* name :asdf nil) :do
-            (when sym
-              ;; CLISP seemingly can't fmakunbound and define a function in the same fasl. Sigh.
-              #-clisp (fmakunbound sym)))
-    (labels ((asym (x) (multiple-value-bind (s p) (if (consp x) (values (car x) (cadr x)) (values x :asdf))
+      :for sym = (find-symbol* name :asdf nil)
+      :do (when sym (fmakunbound sym)))
+    (labels ((asym (x) (multiple-value-bind (s p)
+                           (if (consp x) (values (car x) (cadr x)) (values x :asdf))
                          (find-symbol* s p nil)))
              (asyms (l) (mapcar #'asym l)))
       (loop* :for (name superclasses slots) :in redefined-classes

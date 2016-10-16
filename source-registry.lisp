@@ -230,7 +230,7 @@ after having found a .asd file? True by default.")
 
   ;;; Process the source-registry configuration
 
-  (defgeneric* (process-source-registry) (spec &key inherit register))
+  (defgeneric process-source-registry (spec &key inherit register))
 
   (defun* (inherit-source-registry) (inherit &key register)
     (when inherit

@@ -12,7 +12,7 @@
    ;; magic helper to define debugging functions:
    #:uiop-debug #:load-uiop-debug-utility #:*uiop-debug-utility*
    #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
-   #:undefine-function #:undefine-functions #:defun* #:defgeneric*
+   #:defun* #:defgeneric*
    #:nest #:if-let ;; basic flow control
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
    #:remove-plist-keys #:remove-plist-key ;; plists
@@ -43,24 +43,6 @@
 ;; even if the signature and/or generic-ness of the function has changed.
 ;; For a generic function, this invalidates any previous DEFMETHOD.
 (eval-when (:load-toplevel :compile-toplevel :execute)
-  (defun undefine-function (function-spec)
-    (cond
-      ((symbolp function-spec)
-       ;; undefining the previous function is the portable way
-       ;; of overriding any incompatible previous gf,
-       ;; but CLISP needs extra help with getting rid of previous methods.
-       #+clisp
-       (let ((f (and (fboundp function-spec) (fdefinition function-spec))))
-         (when (typep f 'clos:standard-generic-function)
-           (loop :for m :in (clos:generic-function-methods f)
-                 :do (remove-method f m))))
-       (fmakunbound function-spec))
-      ((and (consp function-spec) (eq (car function-spec) 'setf)
-            (consp (cdr function-spec)) (null (cddr function-spec)))
-       (fmakunbound function-spec))
-      (t (error "bad function spec ~S" function-spec))))
-  (defun undefine-functions (function-spec-list)
-    (map () 'undefine-function function-spec-list))
   (macrolet
       ((defdef (def* def)
          `(defmacro ,def* (name formals &rest rest)
@@ -72,8 +54,8 @@
               `(progn
                  ;; We usually try to do it only for the functions that need it,
                  ;; which happens in asdf/upgrade - however, for ECL, we need this hammer.
-                 ,@(when (or supersede #+(or clasp ecl) t)
-                     `((undefine-function ',name)))
+                 ,@(when supersede
+                     `((fmakunbound ',name)))
                  ,@(when (and #+(or clasp ecl) (symbolp name)) ; fails for setf functions on ecl
                      `((declaim (notinline ,name))))
                  (,',def ,name ,formals ,@rest))))))

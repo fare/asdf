@@ -13,18 +13,9 @@
         :collect (enough-namestring! p b)))
 
 (defun system-source-files (system &key monolithic)
-  (let* ((sys (find-system system))
-         (components
-           (required-components system
-                                :other-systems monolithic
-                                :goal-operation 'load-op
-                                :keep-operation 'load-op
-                                :keep-component 'file-component))
-         (dir (ensure-pathname
-               (system-source-directory sys)
-               :want-absolute t :want-directory t))
-         (pathnames (mapcar 'component-pathname components)))
-    (enough-namestrings dir pathnames)))
+  (let ((system (find-system system)))
+    (enough-namestrings (system-source-directory system)
+                        (input-files 'concatenate-source-op system))))
 
 
 ;;; Making release tarballs for asdf, asdf/defsystem, uiop.

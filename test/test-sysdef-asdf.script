@@ -47,14 +47,53 @@
 ;; This time we found it, but it was skipped because the version was the same
 (assert-equal nil (system-source-file (find-system :asdf)))
 
+
 ;; But if we cheat on our version, that should work
 (setf asdf::*asdf-version* "3.0")
 (clear-system "asdf")
-#-xcl ;; expected-failure: XCL has trouble with the ASDF upgrade
-(load-system :asdf)
-(assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
-                       (system-source-file (find-system :asdf)))
+(def-test-system "fooey")
+(defparameter *ticks* 0)
+(defun tick () (incf *ticks*))
+(defmethod input-files :after ((load-op operation) (c system)) (tick))
+(input-files 'load-op "asdf")
+(assert-equal *ticks* 3)
+(assert (find-system "fooey" nil))
+(with-expected-failure (#+xcl t)
+  ;; expected-failure: XCL has trouble with the ASDF upgrade
+  (load-system :asdf)
+  (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
+                         (system-source-file (find-system :asdf))))
 
+;; Upgrading from an old-enough version redefined away the input-files method!
+(setf *ticks* 4)
+(input-files 'load-op "asdf")
+(assert-equal *ticks* 4)
+;; It also cleared away previously defined systems
+(assert (not (find-system "fooey" nil)))
+
+
+;; The data-punting upgrade will mess up component identity, so clear the cache
+(clear-cache)
+
+(setf asdf::*asdf-version* asdf/upgrade::*oldest-forward-compatible-asdf-version*)
+(clear-system "asdf")
+(def-test-system "fooey")
+(setf *ticks* 5)
+(defmethod input-files :after ((load-op operation) (c system))
+  (incf *ticks*))
+(input-files 'load-op "uiop")
+(assert-equal *ticks* 8)
+(with-expected-failure (#+xcl t)
+  ;; expected-failure: XCL has trouble with the ASDF upgrade
+  (load-system :asdf))
+;; Upgrading from a recent-enough version, the input-files method was preserved!
+;; But we need to clear the cache for it not to be short-circuited.
+(clear-cache)
+(assert (find-system "fooey" nil))
+
+(setf *ticks* 9)
+(eval '(input-files 'load-op "uiop"))
+(assert-equal *ticks* 12)
 
 ;;; disabling this test on windows since it relies on running make-asdf.bat, which
 ;;; does not work for me under cygwin. - rpg 2016-03-20
@@ -71,8 +110,8 @@
 
 (DBG "Checking that the bootstrap script and asdf.asd are in synch")
 (defun system-lisp-files (system)
-  (loop :for f :in (required-components system :keep-component 'cl-source-file)
-        :collect (enough-pathname (component-pathname f) *asdf-directory*)))
+  (loop :for f :in (input-files 'concatenate-source-op system)
+    :collect (enough-pathname f *asdf-directory*)))
 
 (defun bootstrap-lisp-files (target)
   (let ((target (format nil "~a := " target)))
