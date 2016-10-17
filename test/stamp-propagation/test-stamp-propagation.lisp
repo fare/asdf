@@ -37,6 +37,7 @@
                              #+asdf :asdf))
 (defvar *default-defsystem* (first *defsystems*))
 (defvar asdf::*asdf-cache* nil) ;; if defparameter instead of defvar, disable any surrounding cache
+(defvar asdf::*asdf-session* nil) ;; if defparameter instead of defvar, disable any surrounding cache
 
 (defun lisppath (filename) (asdf::subpathname *tsp* filename))
 (defun faslpath (lisppath &optional (defsystem *default-defsystem*))
@@ -51,8 +52,11 @@
 
 (defun use-cache-p (defsystem)
   (and (eq defsystem :asdf)
-       (asdf:version-satisfies (asdf:asdf-version) "2.27")
-       asdf::*asdf-cache*))
+       (cond
+         ((asdf:version-satisfies (asdf:asdf-version) "3.1.7.30")
+          asdf::*asdf-session*)
+         ((asdf:version-satisfies (asdf:asdf-version) "2.27")
+          asdf::*asdf-cache*))))
 
 #+allegro
 (excl:defsystem :test-stamp-propagation
@@ -92,7 +96,6 @@
    "file2.lisp"))
 
 (defun reload (&optional (defsystem *default-defsystem*))
-  (format t "~&ASDF-CACHE before ~S~%" asdf::*asdf-cache*)
   (setf *eval-notes* nil)
   (setf *compile-verbose* t *load-verbose* t)
   (ecase defsystem
@@ -118,7 +121,6 @@
      #+allegro (excl:load-system :test-stamp-propagation)
      #+lispworks (scm:load-system :test-stamp-propagation)
      #+genera (sct:load-system :test-stamp-propagation)))
-  (format t "~&ASDF-CACHE after ~S~%" asdf::*asdf-cache*)
   (let ((n (eval-notes)))
     (format t "~&EVAL-NOTES ~S~%" n)
     n))
@@ -143,7 +145,7 @@
 (defun clear-fasls (&optional (defsystem *default-defsystem*))
   (loop :for file :in '("file1.lisp" "file2.lisp")
         :for faslpath = (faslpath file defsystem)
-        :do (if (and (eq defsystem :asdf) asdf::*asdf-cache*)
+        :do (if (use-cache-p defsystem)
                 (mark-file-deleted faslpath)
                 (delete-file-if-exists faslpath))))
 
@@ -153,7 +155,7 @@
    :test 'equal :from-end t))
 
 (defun adjust-stamp-cache (base l1 f1 l2 f2)
-  (clrhash asdf::*asdf-cache*)
+  (clrhash (asdf::asdf-cache))
   (touch-file (lisppath "file1.lisp") :timestamp base :offset l1)
   (touch-file (faslpath "file1.lisp") :timestamp base :offset f1)
   (dolist (l (asdf:output-files 'asdf:compile-op '(:test-stamp-propagation "file1")))

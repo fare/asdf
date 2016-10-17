@@ -393,7 +393,7 @@ Going forward, we recommend new users should be using the source-registry.")
     ;; This function explicitly MUST NOT find definitions merely registered in previous sessions.
     ;; NB: this function depends on a corresponding side-effect in parse-defsystem;
     ;; the precise protocol between the two functions may change in the future (or not).
-    (first (gethash `(find-system ,(coerce-name name)) *asdf-cache*)))
+    (first (gethash `(find-system ,(coerce-name name)) (asdf-cache))))
 
   (defun load-asd (pathname
                    &key name (external-format (encoding-external-format (detect-encoding pathname)))
@@ -402,7 +402,7 @@ Going forward, we recommend new users should be using the source-registry.")
 NAME if supplied is the name of a system expected to be defined in that file.
 
 Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
-    (with-asdf-cache ()
+    (with-asdf-session ()
       (with-standard-io-syntax
         (let ((*package* (find-package :asdf-user))
               ;; Note that our backward-compatible *readtable* is
@@ -479,7 +479,7 @@ PATHNAME when not null is a path from which to load the system,
 either associated with FOUND-SYSTEM, or with the PREVIOUS system.
 PREVIOUS when not null is a previously loaded SYSTEM object of same name.
 PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded."
-    (with-asdf-cache () ;; NB: We don't cache the results. We once used to, but it wasn't useful,
+    (with-asdf-session () ;; NB: We don't cache the results. We once used to, but it wasn't useful,
       ;; and keeping a negative cache was a bug (see lp#1335323), which required
       ;; explicit invalidation in clear-system and find-system (when unsucccessful).
       (let* ((name (coerce-name name))
@@ -507,7 +507,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ;; preloaded, with a previous configuration, or before filesystem changes), and
   ;; load a found .asd if appropriate. Finally, update registration table and return results.
   (defmethod find-system ((name string) &optional (error-p t))
-    (with-asdf-cache (:key `(find-system ,name))
+    (with-asdf-session (:key `(find-system ,name))
       (let ((primary-name (primary-system-name name)))
         (unless (equal name primary-name)
           (find-system primary-name nil)))

@@ -21,7 +21,7 @@
 (DBG "Correctly failed to find system.")
 (defvar *attempts* 0)
 (assert
- (with-asdf-cache (:override t)
+ (with-asdf-session (:override t)
    (handler-bind
        ((asdf:missing-component
          #'(lambda (c)
@@ -45,12 +45,8 @@
 (def-test-system test-missing-dependency
   :depends-on ("test-asdf/force1")
   :components ((:file "file2")))
-;; (trace find-system)
-;; (trace find-component)
-;; (trace asdf::component-find-path)
-;; (trace operate)
 (setf *attempts* 0)
-(with-asdf-cache (:override t)
+(with-asdf-session (:override t)
   (flet ((handle-missing (c)
            (if (zerop *attempts*)
                (let ((missing (asdf::missing-requires c)))

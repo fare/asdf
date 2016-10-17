@@ -337,12 +337,12 @@ Some constraints:
           (assert-equal (file-write-date file) stamp))
       ;; else
       (progn
-        (unless (asymval :*asdf-cache*)
-          (error "Trying to use *ASDF-CACHE* in TOUCH-FILE, but cache is not initialized."))
+        (unless (asymval :*asdf-session*)
+          (error "Trying to use the ASDF session cache in TOUCH-FILE, but it is not initialized."))
         (acall :register-file-stamp file stamp)))))
 
 (defun mark-file-deleted (file)
-  (unless (asymval :*asdf-cache*) (error "Y U NO use asdf cache?"))
+  (unless (asymval :*asdf-session*) (error "Y U NO use asdf session?"))
   (acall :register-file-stamp (acall :normalize-namestring file) nil))
 
 (defun hash-table->alist (table)
@@ -408,7 +408,7 @@ is bound, write a message and exit on an error.  If
                        (acall :print-condition-backtrace
                               c :count 69 :stream *error-output*))
                      (leave-test "Script failed" 1)))))
-             (funcall (or (asym :call-with-asdf-cache) 'funcall) thunk)
+             (funcall (or (asym :call-with-asdf-session) 'funcall) thunk)
              (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
@@ -632,10 +632,10 @@ is bound, write a message and exit on an error.  If
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
   (funcall
-   ;; Old versions of ASDF don't always use with-asdf-cache in locate system, but need it.
+   ;; Old versions of ASDF don't always use with-asdf-session in locate system, but need it.
    ;; So we do it for them for the sake of testing upgrade from these old versions.
-   ;; Yet older versions of ASDF don't even have this cache, so then we don't.
-   (or (asym :call-with-asdf-cache) 'funcall)
+   ;; Yet older versions of ASDF don't even have this session cache, so then we don't.
+   (or (asym :call-with-asdf-session) (asym :call-with-asdf-cache) 'funcall)
    (lambda ()
      (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
        (format t "Comparing directories~%")
@@ -680,7 +680,7 @@ is bound, write a message and exit on an error.  If
 (defun debug-asdf ()
   (setf *debug-asdf* t)
   (setf *quit-when-done* nil)
-  (setf *package* (find-package :asdf-test)))
+  (frob-packages))
 
 (defun just-load-asdf-fasl () (load-asdf-fasl))
 
@@ -748,7 +748,7 @@ is bound, write a message and exit on an error.  If
 
 (defun clear-cache ()
   ;; Or, should we preserve the timestamps?
-  (clrhash (asymval :*asdf-cache*)))
+  (clrhash (acall :asdf-cache)))
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

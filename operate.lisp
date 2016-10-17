@@ -57,7 +57,7 @@ But do NOT depend on it, for this is deprecated behavior."))
                                 (on-warnings *compile-file-warnings-behaviour*)
                                 (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
     (nest
-     (with-asdf-cache ())
+     (with-asdf-session ())
      (let ((in-operate *in-operate*)
            (*in-operate* t)
            (operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
@@ -249,11 +249,11 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
   (defun restart-upgraded-asdf ()
     ;; If we're in the middle of something, restart it.
     (let ((systems-being-defined
-           (when *asdf-cache*
+           (when *asdf-session*
              (prog1
-                 (loop :for k :being :the hash-keys :of *asdf-cache*
+                 (loop :for k :being :the hash-keys :of (asdf-cache)
                    :when (eq (first k) 'find-system) :collect (second k))
-               (clrhash *asdf-cache*)))))
+               (clrhash (asdf-cache))))))
       ;; Regardless, clear defined systems, since they might be invalid
       ;; after an incompatible ASDF upgrade.
       (clear-defined-systems)

@@ -6249,24 +6249,17 @@ Here's the procedure for experimenting with tests in a REPL:
 ;; Load the test script support.
 (load "script-support.lisp")
 
-;; Initialize the script support.
-;; This will also change your *package* to asdf-test.
+;; Initialize the script support for interaction.
+;; This will also change your *package* to asdf-test
+;; after frobbing the asdf-test package to make it usable.
 ;; NB: this function is also available from package cl-user,
 ;; and also available with the shorter name da in both packages.
-(asdf-test::debug-asdf)
-
-;; In case you modified ASDF since you last tested it,
-;; you need to update asdf.lisp itself by evaluating 'make' in a shell,
-;; or (require "asdf") (asdf:load-system :asdf) in another CL REPL,
-;; if not done in this REPL above.
-;; *Then*, in this REPL, you need to evaluate:
-;(asdf-test::compile-load-asdf)
+(asdf-test:debug-asdf)
 
 ;; Now, you may experiment with test code from a .script file.
 ;; See the instructions given at the end of your failing test
 ;; to identify which form is needed, e.g.
-(frob-packages)
-(asdf::with-asdf-cache () (load "test-utilities.script"))
+(run-test-script "test-utilities.script")
 @end example
 
 

@@ -156,7 +156,7 @@ do_tests () {
         echo "or more interactively (and maybe with rlwrap or in emacs), start with:" >&2
         echo "(cd test ; $icmd )" >&2
         echo "then copy/paste:" >&2
-        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(frob-packages) #.(asdf::with-asdf-cache () (load \"$i\")))" >&2
+        echo "'(#.(load \"script-support.lisp\") #.(asdf-test::da) #.(load-asdf) #.(frob-packages) #.(asdf::with-asdf-session () (load \"$i\")))" >&2
       fi
       echo >&2
       echo >&2

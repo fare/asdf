@@ -169,7 +169,7 @@
                          (logical-pathname-p module-pathname))
                      (and (stringp file-pathname) (find #\. file-pathname)))
           (incf system-count)
-          (with-asdf-cache (:override t)
+          (with-asdf-session (:override t)
             (clear-system :test-system)
             (let* ((system (let ((*verbose-out* nil))
                              (eval system-definition)))

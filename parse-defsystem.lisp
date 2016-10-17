@@ -288,7 +288,7 @@ system names contained using COERCE-NAME. Return the result."
     ;; that is registered to a different location to find-system,
     ;; we also need to remember it in the asdf-cache.
     (nest
-     (with-asdf-cache ())
+     (with-asdf-session ())
      (let* ((name (coerce-name name))
             (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))))
      (flet ((fix-case (x) (if (logical-pathname-p source-file) (string-downcase x) x))))

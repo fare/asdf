@@ -3,7 +3,7 @@
 (defun current-system-source-file (x)
   (system-source-file (asdf::registered-system x)))
 
-(with-asdf-cache ()
+(with-asdf-session (:override t)
   (DBG "loading test-mutual-redefinition-1")
   (let ((warned-p nil))
     (handler-bind ((bad-system-name (lambda (c)
@@ -28,7 +28,7 @@
    (test-source "test-mutual-redefinition-1.asd")
    (current-system-source-file "test-mutual-redefinition-2"))
 
-  (with-asdf-cache (:override t)
+  (with-asdf-session (:override t)
     (DBG "loading test-mutual-redefinition-2 in a different cache session")
     (load-system 'test-mutual-redefinition-2)
     (assert-pathname-equal

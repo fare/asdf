@@ -5,9 +5,10 @@
   (:recycle :asdf/session :asdf/cache)
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
-           #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
+           #:asdf-cache #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
            #:do-asdf-cache #:normalize-namestring
-           #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*
+           #:call-with-asdf-session #:with-asdf-session
+           #:*asdf-session* #:*asdf-session-class* #:caching-session
            #:clear-configuration-and-retry #:retry))
 (in-package :asdf/session)
 
@@ -20,29 +21,35 @@
 ;; * Testability of ASDF with the ability to fake timestamps without actually touching files.
 
 (with-upgradability ()
-  ;; The session cache variable.
-  ;; NIL when outside a session, an equal hash-table when inside a session.
-  (defvar *asdf-cache* nil)
+  ;; The session variable.
+  ;; NIL when outside a session.
+  (defvar *asdf-session* nil)
+  (defparameter* *asdf-session-class* 'caching-session)
+  (defclass caching-session ()
+    ((cache :initform (make-hash-table :test 'equal) :reader session-cache)))
+
+  (defun asdf-cache ()
+    (session-cache *asdf-session*))
 
   ;; Set a session cache entry for KEY to a list of values VALUE-LIST, when inside a session.
   ;; Return those values.
   (defun set-asdf-cache-entry (key value-list)
-    (values-list (if *asdf-cache*
-                     (setf (gethash key *asdf-cache*) value-list)
+    (values-list (if *asdf-session*
+                     (setf (gethash key (asdf-cache)) value-list)
                      value-list)))
 
   ;; Unset the session cache entry for KEY, when inside a session.
   (defun unset-asdf-cache-entry (key)
-    (when *asdf-cache*
-      (remhash key *asdf-cache*)))
+    (when *asdf-session*
+      (remhash key (session-cache *asdf-session*))))
 
   ;; Consult the session cache entry for KEY if present and in a session;
   ;; if not present, compute it by calling the THUNK,
   ;; and set the session cache entry accordingly, if in a session.
   ;; Return the values from the cache and/or the thunk computation.
   (defun consult-asdf-cache (key &optional thunk)
-    (if *asdf-cache*
-        (multiple-value-bind (results foundp) (gethash key *asdf-cache*)
+    (if *asdf-session*
+        (multiple-value-bind (results foundp) (gethash key (session-cache *asdf-session*))
           (if foundp
               (values-list results)
               (set-asdf-cache-entry key (multiple-value-list (call-function thunk)))))
@@ -58,13 +65,13 @@
   ;; Second, if a new session was started, establish restarts for retrying the overall computation.
   ;; Finally, consult the cache if a KEY was specified with the THUNK as a fallback when the cache
   ;; entry isn't found, or just call the THUNK if no KEY was specified.
-  (defun call-with-asdf-cache (thunk &key override key)
+  (defun call-with-asdf-session (thunk &key override key)
     (let ((fun (if key #'(lambda () (consult-asdf-cache key thunk)) thunk)))
-      (if (and *asdf-cache* (not override))
+      (if (and *asdf-session* (not override))
           (funcall fun)
           (loop
             (restart-case
-                (let ((*asdf-cache* (make-hash-table :test 'equal)))
+                (let ((*asdf-session* (make-instance *asdf-session-class*)))
                   (return (funcall fun)))
               (retry ()
                 :report (lambda (s)
@@ -74,9 +81,9 @@
                           (format s (compatfmt "~@<Retry ASDF operation after resetting the configuration.~@:>")))
                 (clear-configuration)))))))
 
-  ;; Syntactic sugar for call-with-asdf-cache
-  (defmacro with-asdf-cache ((&key key override) &body body)
-    `(call-with-asdf-cache #'(lambda () ,@body) :override ,override :key ,key))
+  ;; Syntactic sugar for call-with-asdf-session
+  (defmacro with-asdf-session ((&key key override) &body body)
+    `(call-with-asdf-session #'(lambda () ,@body) :override ,override :key ,key))
 
 
   ;;; Define specific accessor for file (date) stamp.
