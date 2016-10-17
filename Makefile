@@ -134,8 +134,8 @@ archive: build/asdf.lisp
 
 publish-archive:
 	rsync --times --chmod=a+rX,ug+w "build/uiop-${version}.tar.gz" "build/asdf-defsystem-${version}.tar.gz" \
-"build/asdf-${version}.tar.gz" "build/asdf-${version}.lisp" common-lisp.net:/project/asdf/public_html/archives
-	ssh common-lisp.net "cd /project/asdf/public_html; ln -sf archives/uiop-${version}.tar.gz uiop.tar.gz; ln -sf archives/asdf-defsystem-${version}.tar.gz asdf-defsystem.tar.gz; ln -sf archives/asdf-${version}.tar.gz asdf.tar.gz; ln -sf archives/asdf-${version}.lisp asdf.lisp"
+"build/asdf-${version}.tar.gz" "build/asdf-${version}.lisp" common-lisp.net:/project/asdf/public_html/archives/
+	ssh common-lisp.net "cd /project/asdf/public_html/archives/; ln -sf uiop-${version}.tar.gz uiop.tar.gz; ln -sf asdf-defsystem-${version}.tar.gz asdf-defsystem.tar.gz; ln -sf asdf-${version}.tar.gz asdf.tar.gz; ln -sf asdf-${version}.lisp asdf.lisp"
 
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
