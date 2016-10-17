@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
    :asdf/component :asdf/system :asdf/operation :asdf/action
    :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
   (:export
@@ -86,13 +86,15 @@ But do NOT depend on it, for this is deprecated behavior."))
   (defmethod operate :before ((operation operation) (component component)
                               &key version &allow-other-keys)
     (unless (version-satisfies component version)
-      (error 'missing-component-of-version :requires component :version version)))
+      (error 'missing-component-of-version :requires component :version version))
+    (when *plan*
+      (plan-record-dependency *plan* operation component)))
 
   (defmethod operate ((operation operation) (component component)
                       &rest keys &key plan-class &allow-other-keys)
-    (let ((plan (apply 'make-plan plan-class operation component keys)))
-      (apply 'perform-plan plan keys)
-      (values operation plan)))
+    (let ((*plan* (apply 'make-plan plan-class operation component #|:parent *plan*|# keys)))
+      (apply 'perform-plan *plan* keys)
+      (values operation *plan*)))
 
   (defun oos (operation component &rest args &key &allow-other-keys)
     (apply 'operate operation component args))

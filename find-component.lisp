@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/find-component
   (:recycle :asdf/find-component :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
    :asdf/component :asdf/system :asdf/find-system)
   (:export
    #:find-component

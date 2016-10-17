@@ -7,11 +7,11 @@
   (:recycle :asdf/plan :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/operation :asdf/system
-   :asdf/cache :asdf/find-system :asdf/find-component
+   :asdf/session :asdf/find-system :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action)
   (:export
    #:component-operation-time
-   #:plan #:plan-traversal #:sequential-plan #:*default-plan-class*
+   #:plan #:plan-traversal #:sequential-plan #:*default-plan-class* #:*plan*
    #:planned-action-status #:plan-action-status #:action-already-done-p
    #:circular-dependency #:circular-dependency-actions
    #:needed-in-image-p
@@ -55,7 +55,10 @@
      (visiting-action-set ;; as a set
       :initform (make-hash-table :test 'equal) :accessor plan-visiting-action-set)
      (visiting-action-list :initform () :accessor plan-visiting-action-list)) ;; as a list
-    (:documentation "Base class for plans that simply traverse dependencies")))
+    (:documentation "Base class for plans that simply traverse dependencies"))
+
+  (defvar *plan* nil
+    "The plan currently being executed"))
 
 
 ;;;; Planned action status
@@ -467,11 +470,11 @@ initialized with SEED."
     (apply 'perform-plan (plan-actions plan) keys))
 
   (defmethod perform-plan ((steps list) &key force &allow-other-keys)
-    (loop* :for action :in steps
-           :as o = (action-operation action)
-           :as c = (action-component action)
-           :when (or force (not (nth-value 1 (compute-action-stamp nil o c))))
-           :do (perform-with-restarts o c)))
+    (loop :for action :in steps
+          :as o = (action-operation action)
+          :as c = (action-component action)
+          :unless (nth-value 1 (compute-action-stamp nil o c))
+          :do (perform-with-restarts o c)))
 
   (defmethod plan-operates-on-p ((plan plan-traversal) (component-path list))
     (plan-operates-on-p (plan-actions plan) component-path))

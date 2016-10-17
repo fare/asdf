@@ -655,7 +655,7 @@ is bound, write a message and exit on an error.  If
   (format t "Frob packages~%")
   (use-package :asdf :asdf-test)
   (when (find-package :uiop) (use-package :uiop :asdf-test))
-  (when (find-package :asdf/cache) (use-package :asdf/cache :asdf-test))
+  (when (find-package :asdf/session) (use-package :asdf/session :asdf-test))
   (setf *package* (find-package :asdf-test))
   t)
 

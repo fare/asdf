@@ -5,7 +5,7 @@
   (:recycle :asdf/parse-defsystem :asdf/defsystem :asdf)
   (:nicknames :asdf/defsystem) ;; previous name, to be compatible with, in case anyone cares
   (:use :uiop/common-lisp :asdf/driver :asdf/upgrade
-   :asdf/cache :asdf/component :asdf/system
+   :asdf/session :asdf/component :asdf/system
    :asdf/find-system :asdf/find-component :asdf/action :asdf/lisp-action :asdf/operate)
   (:import-from :asdf/system #:depends-on #:weakly-depends-on)
   (:export

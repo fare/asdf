@@ -5,7 +5,7 @@
   (:nicknames :asdf-action)
   (:recycle :asdf/action :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
+   :asdf/component :asdf/system #:asdf/session :asdf/find-system :asdf/find-component :asdf/operation)
   (:import-from :asdf/operation #:check-operation-constructor)
   #-clisp (:unintern #:required-components #:traverse-action #:traverse-sub-actions)
   (:export

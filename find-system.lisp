@@ -4,7 +4,7 @@
 (uiop/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-    :asdf/cache :asdf/component :asdf/system)
+    :asdf/session :asdf/component :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename

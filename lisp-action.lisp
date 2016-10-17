@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
    :asdf/component :asdf/system :asdf/find-component :asdf/find-system
    :asdf/operation :asdf/action)
   (:export

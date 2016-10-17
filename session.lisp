@@ -1,14 +1,15 @@
 ;;;; -------------------------------------------------------------------------
 ;;;; Session cache
 
-(uiop/package:define-package :asdf/cache
+(uiop/package:define-package :asdf/session
+  (:recycle :asdf/session :asdf/cache)
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
   (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
            #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
            #:do-asdf-cache #:normalize-namestring
            #:call-with-asdf-cache #:with-asdf-cache #:*asdf-cache*
            #:clear-configuration-and-retry #:retry))
-(in-package :asdf/cache)
+(in-package :asdf/session)
 
 ;;; The ASDF session cache is used to memoize some computations. It is instrumental in achieving:
 ;; * Consistency in the view of the world relied on by ASDF within a given session.
