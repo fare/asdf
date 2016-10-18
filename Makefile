@@ -78,8 +78,8 @@ SCL ?= scl
 XCL ?= xcl
 
 header_lisp := header.lisp
-driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/lisp-build.lisp uiop/run-program.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp version.lisp-expr
-defsystem_lisp := upgrade.lisp cache.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp output-translations.lisp source-registry.lisp package-inferred-system.lisp backward-interface.lisp backward-internals.lisp interface.lisp user.lisp footer.lisp version.lisp-expr
+driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/lisp-build.lisp uiop/run-program.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
+defsystem_lisp := upgrade.lisp cache.lisp component.lisp system.lisp find-system.lisp find-component.lisp operation.lisp action.lisp lisp-action.lisp plan.lisp operate.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp output-translations.lisp source-registry.lisp package-inferred-system.lisp backward-interface.lisp backward-internals.lisp interface.lisp user.lisp footer.lisp
 all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 
 print-%  : ; @echo $* = $($*)
@@ -118,16 +118,19 @@ defsystem-files:
 # FIXME: needs rewrite
 #archive: build/asdf.lisp
 #	./bin/asdf-builder make-and-publish-archive
+
 archive: build/asdf.lisp
-	mkdir -p build/uiop 	# UIOP tarball
-	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} build/uiop/
-	tar zcf "build/uiop-${version}.tar.gz" -C build uiop
-	rm -r build/uiop
-	mkdir -p build/asdf # asdf-defsystem tarball
-	cp -pHux build/asdf.lisp asdf.asd version.lisp-expr header.lisp README.md ${defsystem_lisp} build/asdf/
-	tar zcf "build/asdf-defsystem-${version}.tar.gz" -C build asdf
-	rm -r build/asdf
-	git archive --worktree-attributes --format=tar -o "build/asdf-${version}.tar" ${version} #asdf-all tarball
+	$(eval UIOPDIR := "uiop-$(version)")
+	mkdir -p build/$(UIOPDIR) 	# UIOP tarball
+	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} version.lisp-expr build/$(UIOPDIR)
+	tar zcf "build/uiop-${version}.tar.gz" -C build $(UIOPDIR)
+	rm -r build/$(UIOPDIR)
+	$(eval ASDFDIR := "asdf-$(version)")
+	mkdir -p build/$(ASDFDIR) # asdf-defsystem tarball
+	cp -pHux build/asdf.lisp asdf.asd version.lisp-expr header.lisp README.md ${defsystem_lisp} build/$(ASDFDIR)
+	tar zcf "build/asdf-defsystem-${version}.tar.gz" -C build $(ASDFDIR)
+	rm -r build/$(ASDFDIR)
+	git archive --worktree-attributes --prefix="asdf-$(version)/" --format=tar -o "build/asdf-${version}.tar" ${version} #asdf-all tarball
 	gzip "build/asdf-${version}.tar"
 	cp "build/asdf.lisp" "build/asdf-${version}.lisp"
 
