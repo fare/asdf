@@ -52,8 +52,14 @@ else
 export CL_SOURCE_REGISTRY = ${ASDF_DEVEL_SOURCE_REGISTRY}
 endif
 else # no ASDF_DEVEL_SOURCE_REGISTRY
-export CL_SOURCE_REGISTRY = ${sourceDirectory}/:${sourceDirectory}/uiop/:${sourceDirectory}/ext//:
+export CL_SOURCE_REGISTRY = ${sourceDirectory}/:${sourceDirectory}/uiop/:${sourceDirectory}/ext//
 endif
+#$(error "CL_SOURCE_REGISTRY is ${CL_SOURCE_REGISTRY}")
+sys := $(shell uname -o)
+ifeq ($(sys),Cygwin)
+CL_SOURCE_REGISTRY := $(shell cygpath -pw "${CL_SOURCE_REGISTRY}")
+endif
+
 
 l ?= sbcl
 
@@ -111,23 +117,24 @@ defsystem-files:
 #archive: build/asdf.lisp
 #	./bin/asdf-builder make-and-publish-archive
 archive: build/asdf.lisp
-	mkdir -p build/uiop 	# UIOP tarball
-	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} build/uiop/
-	tar zcf "build/uiop-${version}.tgz" -C build uiop
-	rm -r build/uiop
-	mkdir -p build/asdf # asdf-defsystem tarball
-	cp -pHux build/asdf.lisp asdf.asd version.lisp-expr header.lisp README.md ${defsystem_lisp} build/asdf/
-	tar zcf "build/asdf-defsystem-${version}.tgz" -C build asdf
-	rm -r build/asdf
-	git archive --worktree-attributes --format=tar -o "build/asdf-${version}.tar" ${version} #asdf-all tarball
+	$(eval UIOPDIR := "uiop-$(version)")
+	mkdir -p build/$(UIOPDIR) 	# UIOP tarball
+	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} version.lisp-expr build/$(UIOPDIR)
+	tar zcf "build/uiop-${version}.tar.gz" -C build $(UIOPDIR)
+	rm -r build/$(UIOPDIR)
+	$(eval ASDFDIR := "asdf-$(version)")
+	mkdir -p build/$(ASDFDIR) # asdf-defsystem tarball
+	cp -pHux build/asdf.lisp asdf.asd version.lisp-expr header.lisp README.md ${defsystem_lisp} build/$(ASDFDIR)
+	tar zcf "build/asdf-defsystem-${version}.tar.gz" -C build $(ASDFDIR)
+	rm -r build/$(ASDFDIR)
+	git archive --worktree-attributes --prefix="asdf-$(version)/" --format=tar -o "build/asdf-${version}.tar" ${version} #asdf-all tarball
 	gzip "build/asdf-${version}.tar"
-	mv "build/asdf-${version}.tar.gz" "build/asdf-${version}.tgz"
 	cp "build/asdf.lisp" "build/asdf-${version}.lisp"
 
 publish-archive:
-	rsync --times --chmod=a+rX,ug+w "build/uiop-${version}.tgz" "build/asdf-defsystem-${version}.tgz" \
-"build/asdf-${version}.tgz" "build/asdf-${version}.lisp" common-lisp.net:/project/asdf/public_html/archives
-	ssh common-lisp.net "cd /project/asdf/public_html; ln -sf archives/uiop-${version}.tgz uiop.tgz; ln -sf archives/asdf-defsystem-${version}.tgz asdf-defsystem.tgz; ln -sf archives/asdf-${version}.tgz asdf.tgz; ln -sf archives/asdf-${version}.lisp asdf.lisp"
+	rsync --times --chmod=a+rX,ug+w "build/uiop-${version}.tar.gz" "build/asdf-defsystem-${version}.tar.gz" \
+"build/asdf-${version}.tar.gz" "build/asdf-${version}.lisp" common-lisp.net:/project/asdf/public_html/archives
+	ssh common-lisp.net "cd /project/asdf/public_html; ln -sf archives/uiop-${version}.tar.gz uiop.tar.gz; ln -sf archives/asdf-defsystem-${version}.tar.gz asdf-defsystem.tar.gz; ln -sf archives/asdf-${version}.tar.gz asdf.tar.gz; ln -sf archives/asdf-${version}.lisp asdf.lisp"
 
 ### Count lines separately for asdf-driver and asdf itself:
 wc:
@@ -167,7 +174,6 @@ clean:
 	done
 	rm -rf build/ LICENSE test/try-reloading-dependency.asd test/hello-world-example asdf.lisp
 	rm -rf test/hello-world-example.exe test/mkcl_*.dll # needed only on MS-Windows
-	rm -rf .pc/ build-stamp debian/patches/ debian/debhelper.log debian/cl-asdf/ # debian crap
 	${MAKE} -C doc clean
 
 mrproper:
