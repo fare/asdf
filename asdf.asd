@@ -45,23 +45,23 @@
   :components
   ((:file "upgrade")
    (:file "session" :depends-on ("upgrade"))
-   (:file "component" :depends-on ("upgrade"))
+   (:file "component" :depends-on ("session"))
+   (:file "operation" :depends-on ("session"))
    (:file "system" :depends-on ("component"))
-   (:file "find-system" :depends-on ("system" "session"))
+   (:file "action" :depends-on ("session" "system" "operation"))
+   (:file "find-system" :depends-on ("session" "system" "action"))
    (:file "find-component" :depends-on ("find-system"))
-   (:file "operation" :depends-on ("find-system"))
-   (:file "action" :depends-on ("find-component" "operation"))
-   (:file "lisp-action" :depends-on ("action"))
-   (:file "plan" :depends-on ("lisp-action"))
+   (:file "lisp-action" :depends-on ("action" "find-system"))
+   (:file "plan" :depends-on ("lisp-action" "find-component"))
    (:file "operate" :depends-on ("plan"))
-   (:file "parse-defsystem" :depends-on ("session" "system" "lisp-action" "operate"))
+   (:file "parse-defsystem" :depends-on ("system" "lisp-action" "operate"))
    (:file "bundle" :depends-on ("lisp-action" "operate" "parse-defsystem"))
    (:file "concatenate-source" :depends-on ("plan" "parse-defsystem" "bundle"))
+   (:file "package-inferred-system" :depends-on ("find-system" "parse-defsystem"))
    (:file "output-translations" :depends-on ("operate"))
    (:file "source-registry" :depends-on ("find-system"))
-   (:file "package-inferred-system" :depends-on ("system" "find-system" "parse-defsystem"))
-   (:file "backward-interface" :depends-on ("operate" "output-translations"))
    (:file "backward-internals" :depends-on ("find-system" "parse-defsystem"))
+   (:file "backward-interface" :depends-on ("output-translations"))
    (:file "interface" :depends-on
           ("parse-defsystem" "concatenate-source"
            "output-translations" "source-registry" "package-inferred-system"
@@ -85,4 +85,3 @@
   #+asdf3 :builtin-system-p #+asdf3 t
   :components ((:module "build" :components ((:file "asdf"))))
   :in-order-to (#+asdf3 (prepare-op (monolithic-concatenate-source-op "asdf/defsystem"))))
-

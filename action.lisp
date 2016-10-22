@@ -3,15 +3,15 @@
 
 (uiop/package:define-package :asdf/action
   (:nicknames :asdf-action)
-  (:recycle :asdf/action :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/component :asdf/system #:asdf/session :asdf/find-system :asdf/find-component :asdf/operation)
+  (:recycle :asdf/action :asdf/plan :asdf)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component :asdf/operation)
   (:import-from :asdf/operation #:check-operation-constructor)
   #-clisp (:unintern #:required-components #:traverse-action #:traverse-sub-actions)
   (:export
    #:action #:define-convenience-action-methods
-   #:action-description
-   #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation #:non-propagating-operation
+   #:action-description #:format-action
+   #:downward-operation #:upward-operation #:sideway-operation #:selfward-operation
+   #:non-propagating-operation
    #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
@@ -20,7 +20,9 @@
    #:perform #:perform-with-restarts #:retry #:accept
    #:action-path #:find-action #:stamp #:done-p
    #:operation-definition-warning #:operation-definition-error ;; condition
-   ))
+   #:action-valid-p
+   #:circular-dependency #:circular-dependency-actions
+   #:call-while-visiting-action #:while-visiting-action))
 (in-package :asdf/action)
 
 (eval-when (#-lispworks :compile-toplevel :load-toplevel :execute) ;; LispWorks issues spurious warning
@@ -461,3 +463,40 @@ in some previous image, or T if it needs to be done.")
                     (action-description operation component)))
           (mark-operation-done operation component)
           (return))))))
+
+
+;;;; Detection of circular dependencies
+(with-upgradability ()
+  (defun (action-valid-p) (operation component)
+    "Is this action valid to include amongst dependencies?"
+    ;; If either the operation or component was resolved to nil, the action is invalid.
+    ;; :if-feature will invalidate actions on components for which the features don't apply.
+    (and operation component
+         (if-let (it (component-if-feature component)) (featurep it) t)))
+
+  (define-condition circular-dependency (system-definition-error)
+    ((actions :initarg :actions :reader circular-dependency-actions))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
+                       (circular-dependency-actions c)))))
+
+  (defun call-while-visiting-action (operation component fun)
+    "Detect circular dependencies"
+    (when (action-valid-p operation component)
+      (with-accessors ((action-set visiting-action-set)
+                       (action-list visiting-action-list)) *asdf-session*
+        (let ((action (cons operation component)))
+          (when (gethash action action-set)
+            (error 'circular-dependency :actions
+                   (member action (reverse action-list) :test 'equal)))
+          (setf (gethash action action-set) t)
+          (push action action-list)
+          (unwind-protect
+               (funcall fun)
+            (pop action-list)
+            (setf (gethash action action-set) nil))))))
+
+  ;; Syntactic sugar for call-while-visiting-action
+  (defmacro while-visiting-action ((o c) &body body)
+    `(call-while-visiting-action ,o ,c #'(lambda () ,@body))))
+

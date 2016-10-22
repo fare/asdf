@@ -32,7 +32,7 @@ Some constraints:
    #:action-name #:in-plan-p
    #:test-source #:test-fasl #:resolve-output #:output-location
    #:quietly #:join-namestrings
-   #:clear-cache))
+   #:reset-session #:reset-session-visited))
 
 (in-package :asdf-test)
 
@@ -741,14 +741,14 @@ is bound, write a message and exit on an error.  If
     (assert (asymval '#:*file3* :test-package))))
 
 (defun join-namestrings (namestrings)
-  (with-output-to-string (s)
-    (loop :with separator = (acall :inter-directory-separator)
-          :for (n . morep) :on namestrings
-          :do (format s "~A~@[~C~]" n (and morep separator)))))
+  (format nil (format nil "~~{~~A~~^~A~~}" (acall :inter-directory-separator)) namestrings))
 
-(defun clear-cache ()
-  ;; Or, should we preserve the timestamps?
-  (clrhash (acall :asdf-cache)))
+(defun reset-session ()
+  (set (asym :*asdf-session*) nil))
+
+(defun reset-session-visited ()
+  (clrhash (acall '#:visited-actions (asymval '#:*asdf-session*))))
+
 
 ;; These are shorthands for interactive debugging of test scripts:
 (!a

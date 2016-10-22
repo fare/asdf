@@ -2,31 +2,59 @@
 ;;;; Session cache
 
 (uiop/package:define-package :asdf/session
-  (:recycle :asdf/session :asdf/cache)
+  (:recycle :asdf/session :asdf/cache :asdf/component
+            :asdf/action :asdf/find-system :asdf/plan :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade)
-  (:export #:get-file-stamp #:compute-file-stamp #:register-file-stamp
-           #:asdf-cache #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
-           #:do-asdf-cache #:normalize-namestring
-           #:call-with-asdf-session #:with-asdf-session
-           #:*asdf-session* #:*asdf-session-class* #:caching-session
-           #:clear-configuration-and-retry #:retry))
+  (:export
+   #:get-file-stamp #:compute-file-stamp #:register-file-stamp
+   #:asdf-cache #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
+   #:do-asdf-cache #:normalize-namestring
+   #:call-with-asdf-session #:with-asdf-session
+   #:*asdf-session* #:*asdf-session-class* #:session #:session-plan
+   #:visited-actions #:visiting-action-set #:visiting-action-list
+   #:total-action-count #:planned-action-count #:planned-output-action-count
+   #:clear-configuration-and-retry #:retry
+   ;; conditions
+   #:system-definition-error ;; top level, moved here because this is the earliest place for it.
+   #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error))
 (in-package :asdf/session)
 
-;;; The ASDF session cache is used to memoize some computations. It is instrumental in achieving:
-;; * Consistency in the view of the world relied on by ASDF within a given session.
-;;   Inconsistencies in file stamps, system definitions, etc., could cause infinite loops
-;;   (a.k.a. stack overflows) and other erratic behavior.
-;; * Speed and reliability of ASDF, with fewer side-effects from access to the filesystem, and
-;;   no expensive recomputations of transitive dependencies for some input-files or output-files.
-;; * Testability of ASDF with the ability to fake timestamps without actually touching files.
 
 (with-upgradability ()
   ;; The session variable.
   ;; NIL when outside a session.
   (defvar *asdf-session* nil)
-  (defparameter* *asdf-session-class* 'caching-session)
-  (defclass caching-session ()
-    ((cache :initform (make-hash-table :test 'equal) :reader session-cache)))
+  (defparameter* *asdf-session-class* 'session
+    "The default class for sessions")
+
+  (defclass session ()
+    (;; The ASDF session cache is used to memoize some computations.
+     ;; It is instrumental in achieving:
+     ;; * Consistency in the view of the world relied on by ASDF within a given session.
+     ;;   Inconsistencies in file stamps, system definitions, etc., could cause infinite loops
+     ;;   (a.k.a. stack overflows) and other erratic behavior.
+     ;; * Speed and reliability of ASDF, with fewer side-effects from access to the filesystem, and
+     ;;   no expensive recomputations of transitive dependencies for input-files or output-files.
+     ;; * Testability of ASDF with the ability to fake timestamps without actually touching files.
+     (cache
+      :initform (make-hash-table :test 'equal) :reader session-cache
+      :documentation "Memoize expensive computations")
+     (plan
+      :initform nil :accessor session-plan
+      :documentation "Dependency graph of actions")
+     ;; Table that to actions already visited while walking the dependencies associates status
+     (visited-actions :initform (make-hash-table :test 'equal) :accessor visited-actions)
+     ;; Actions that depend on those being currently walked through, to detect circularities
+     (visiting-action-set ;; as a set
+      :initform (make-hash-table :test 'equal) :accessor visiting-action-set)
+     (visiting-action-list :initform () :accessor visiting-action-list) ;; as a list
+     ;; Counts of total actions in plan
+     (total-action-count :initform 0 :accessor total-action-count)
+     ;; Count of actions that need to be performed
+     (planned-action-count :initform 0 :accessor planned-action-count)
+     ;; Count of actions that need to be performed that have a non-empty list of output-files.
+     (planned-output-action-count :initform 0 :accessor planned-output-action-count))
+    (:documentation "An ASDF session with a cache to memoize some computations"))
 
   (defun asdf-cache ()
     (session-cache *asdf-session*))
@@ -112,5 +140,26 @@
   (defun get-file-stamp (file)
     (when file
       (let ((namestring (normalize-namestring file)))
-        (do-asdf-cache `(get-file-stamp ,namestring) (compute-file-stamp namestring))))))
+        (do-asdf-cache `(get-file-stamp ,namestring) (compute-file-stamp namestring)))))
 
+
+  ;;; Conditions
+
+  (define-condition system-definition-error (error) ()
+    ;; [this use of :report should be redundant, but unfortunately it's not.
+    ;; cmucl's lisp::output-instance prefers the kernel:slot-class-print-function
+    ;; over print-object; this is always conditions::%print-condition for
+    ;; condition objects, which in turn does inheritance of :report options at
+    ;; run-time.  fortunately, inheritance means we only need this kludge here in
+    ;; order to fix all conditions that build on it.  -- rgr, 28-Jul-02.]
+    #+cmucl (:report print-object))
+
+  (define-condition formatted-system-definition-error (system-definition-error)
+    ((format-control :initarg :format-control :reader format-control)
+     (format-arguments :initarg :format-arguments :reader format-arguments))
+    (:report (lambda (c s)
+               (apply 'format s (format-control c) (format-arguments c)))))
+
+  (defun sysdef-error (format &rest arguments)
+    (error 'formatted-system-definition-error :format-control
+           format :format-arguments arguments)))

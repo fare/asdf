@@ -73,7 +73,7 @@
 
 
 ;; The data-punting upgrade will mess up component identity, so clear the cache
-(clear-cache)
+(reset-session)
 
 (setf asdf::*asdf-version* asdf/upgrade::*oldest-forward-compatible-asdf-version*)
 (clear-system "asdf")
@@ -88,15 +88,13 @@
   (load-system :asdf))
 ;; Upgrading from a recent-enough version, the input-files method was preserved!
 ;; But we need to clear the cache for it not to be short-circuited.
-(clear-cache)
+(reset-session)
+
 (assert (find-system "fooey" nil))
 
 (setf *ticks* 9)
 (eval '(input-files 'load-op "uiop"))
 (assert-equal *ticks* 12)
-
-;;; disabling this test on windows since it relies on running make-asdf.bat, which
-;;; does not work for me under cygwin. - rpg 2016-03-20
 
 (defun bootstrap-lisp-files (file line-prefix)
   (with-input-file (input (subpathname *asdf-directory* file))

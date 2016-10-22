@@ -323,9 +323,9 @@ or of opaque libraries shipped along the source code."))
     ;; your component-depends-on method must gather the correct dependencies in the correct order.
     (while-collecting (collect)
       (map-direct-dependencies
-       t o c #'(lambda (sub-o sub-c)
-                 (loop :for f :in (funcall key sub-o sub-c)
-                       :when (funcall test f) :do (collect f))))))
+       o c #'(lambda (sub-o sub-c)
+               (loop :for f :in (funcall key sub-o sub-c)
+                 :when (funcall test f) :do (collect f))))))
 
   (defun pathname-type-equal-function (type)
     #'(lambda (p) (equalp (pathname-type p) type)))
@@ -441,7 +441,7 @@ or of opaque libraries shipped along the source code."))
                                                        :keep-operation 'basic-load-op))
                  (while-collecting (x) ;; resolve the sideway-dependencies of s
                    (map-direct-dependencies
-                    t 'load-op s
+                    'load-op s
                     #'(lambda (o c)
                         (when (and (typep o 'load-op) (typep c 'system))
                           (x c)))))))
@@ -496,7 +496,6 @@ which is probably not what you want; you probably need to tweak your output tran
     (perform-lisp-load-fasl o s))
 
   (defmethod component-depends-on ((o load-bundle-op) (s precompiled-system))
-    #+xcl (declare (ignorable o))
     `((load-op ,s) ,@(call-next-method))))
 
 #| ;; Example use:

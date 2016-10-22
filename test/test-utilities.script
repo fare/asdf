@@ -242,15 +242,7 @@
     asdf/component:version
     asdf/operation:feature
     asdf/plan:index
-    asdf/plan:forced
-    asdf/plan:forced-not
-    asdf/plan:planned-action-count
-    asdf/plan:planned-output-action-count
     asdf/plan:planned-p
-    asdf/plan:total-action-count
-    asdf/plan:visited-actions
-    asdf/plan:visiting-action-set
-    asdf/plan:visiting-action-list
     asdf/system:bug-tracker
     asdf/system:build-pathname
     asdf/system:system-defsystem-depends-on

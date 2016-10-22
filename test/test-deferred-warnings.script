@@ -45,15 +45,18 @@
   (let ((*compile-file-warnings-behaviour* :ignore))
     (load-system :use-foo-only :force t)))
 
+(reset-session)
 (handler-bind
     ((error (lambda (c) (DBG :cfwbi-ufww c))))
   (load-system :use-foo-with-wrapper :force t))
 
+(reset-session)
 (handler-bind
     ((error (lambda (c) (DBG :cfwbi-usfo c))))
   (let ((*compile-file-warnings-behaviour* :ignore))
     (load-system :use-setf-foo-only :force t)))
 
+(reset-session)
 (DBG :tdw1 *warnings-file-type*)
 (assert
  (handler-case
@@ -67,6 +70,7 @@
 (unless *warnings-file-type*
   (leave-test "Your Lisp does not support deferred-warnings" 0))
 
+(reset-session)
 (assert
  (handler-case
      (let ((*compile-file-warnings-behaviour* :error))
@@ -74,6 +78,7 @@
        nil)
    (compile-warned-error () t)))
 
+(reset-session)
 (assert
  (handler-case
      (let ((*compile-file-warnings-behaviour* :error))
@@ -81,16 +86,19 @@
        nil)
    (compile-warned-error () t)))
 
+(reset-session)
 (let ((*compile-file-warnings-behaviour* :error))
   (load-system :use-then-defun-foo))
 
 (setf *compile-file-warnings-behaviour* :error)
 
+(reset-session)
 (load-system :use-setf-then-defun-foo)
 
 ;; FIXME: on CCL, the defmacro warning is found while loading the defmacro fasl.
 ;; We should probably beef up the detection in reify-deferred-warnings,
 ;; possibly file a bug.
+(reset-session)
 (with-expected-failure (#+clozure "CCL warns while loading, not compiling")
   (assert
    (handler-case
@@ -99,6 +107,7 @@
      ;;(t (c) (DBG :utdf0 c))
      (:no-error (&rest values) (DBG :utdf1 values) nil))))
 
+(reset-session)
 (with-expected-failure (#+clozure "CCL warns while loading, not compiling")
   (assert
    (handler-case
@@ -107,11 +116,14 @@
      ;;(t (c) (DBG :ustdf0 c))
      (:no-error (&rest values) (DBG :ustdf1 values) nil))))
 
+(reset-session)
 (errors #+(or allegro clozure) compile-file-error
         #+(or cmucl scl) compile-warned-error
         #+sbcl compile-failed-error
         (let ((*compile-file-warnings-behaviour* :error))
           (load-system :undefined-variables :force t)))
+
+(reset-session)
 (errors #+(or allegro clozure) compile-file-error
         #+(or cmucl scl) null
         #+sbcl compile-failed-error

@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
    :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
    :asdf/lisp-action :asdf/plan :asdf/operate :asdf/output-translations)
   (:export

@@ -87,14 +87,27 @@ But do NOT depend on it, for this is deprecated behavior."))
                               &key version &allow-other-keys)
     (unless (version-satisfies component version)
       (error 'missing-component-of-version :requires component :version version))
-    (when *plan*
-      (plan-record-dependency *plan* operation component)))
+    (record-dependency nil operation component))
+
+  (defun ensure-plan (operation component
+                      &rest keys &key plan-class &allow-other-keys)
+    (declare (ignore operation))
+    (let ((session-plan (session-plan *asdf-session*)))
+      (cond
+        (session-plan
+         ;; TODO: ensure compatibility between force in the two plans.
+         session-plan)
+        (t
+         (let ((new (apply 'make-instance (or plan-class *plan-class*)
+                           :system (component-system component) keys)))
+           (setf (session-plan *asdf-session*) new)
+           new)))))
 
   (defmethod operate ((operation operation) (component component)
                       &rest keys &key plan-class &allow-other-keys)
-    (let ((*plan* (apply 'make-plan plan-class operation component #|:parent *plan*|# keys)))
-      (apply 'perform-plan *plan* keys)
-      (values operation *plan*)))
+    (let ((plan (apply 'make-plan plan-class operation component keys)))
+      (apply 'perform-plan plan keys)
+      (values operation plan)))
 
   (defun oos (operation component &rest args &key &allow-other-keys)
     (apply 'operate operation component args))

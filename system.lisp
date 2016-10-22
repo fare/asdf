@@ -5,12 +5,12 @@
   (:recycle :asdf :asdf/system)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/component)
   (:export
-   #:system #:proto-system
+   #:system #:proto-system #:undefined-system #:reset-system
    #:system-source-file #:system-source-directory #:system-relative-pathname
-   #:reset-system
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
-   #:system-defsystem-depends-on #:system-depends-on #:system-weakly-depends-on
+   #:definition-dependencies #:system-defsystem-depends-on
+   #:system-depends-on #:system-weakly-depends-on
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
    #:homepage #:system-homepage
@@ -59,7 +59,7 @@ NB: This interface is subject to change. Please contact ASDF maintainers if you 
   (defclass proto-system () ; slots to keep when resetting a system
     ;; To preserve identity for all objects, we'd need keep the components slots
     ;; but also to modify parse-component-form to reset the recycled objects.
-    ((name) (source-file) #|(children) (children-by-names)|#)
+    ((name) (source-file))
     (:documentation "PROTO-SYSTEM defines the elements of identity that are preserved when
 a SYSTEM is redefined and its class is modified."))
 
@@ -85,19 +85,24 @@ a SYSTEM is redefined and its class is modified."))
      (entry-point
       :initform nil :initarg :entry-point :accessor component-entry-point)
      (source-file :initform nil :initarg :source-file :accessor system-source-file)
+     ;; This slot contains the *declared* defsystem-depends-on dependencies
      (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on
                            :initform nil)
+     ;; This slot contains the *inferred* dependencies of define-op
+     (definition-dependencies :initform nil :accessor definition-dependencies)
      ;; these two are specially set in parse-component-form, so have no :INITARGs.
      (depends-on :reader system-depends-on :initform nil)
      (weakly-depends-on :reader system-weakly-depends-on :initform nil))
     (:documentation "SYSTEM is the base class for top-level components that users may request
 ASDF to build."))
 
+  (defclass undefined-system (system) ()
+    (:documentation "System that was not defined yet."))
 
   (defun reset-system (system &rest keys &key &allow-other-keys)
     "Erase any data from a SYSTEM except its basic identity, then reinitialize it
 based on supplied KEYS."
-    (change-class (change-class system 'proto-system) 'system)
+    (change-class (change-class system 'proto-system) 'undefined-system)
     (apply 'reinitialize-instance system keys)))
 
 

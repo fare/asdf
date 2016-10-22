@@ -16,36 +16,43 @@
 (assert file1)
 (assert file1-date)
 
+(reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force t)))
   (DBG "Check that :force t forces the current system but not its dependencies" plan)
   (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file3")))
   (assert (not (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1")))))
 
+(reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force :all)))
   (DBG "Check that :force :all forces the current system and its dependencies" plan)
   (assert plan)
   (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file3")))
   (assert (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1"))))
 
+(reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force :all :force-not t)))
   (DBG "Check that :force-not takes precedence over :force, with t means \"all but current system\"" plan)
   (assert plan)
   (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file3")))
   (assert (not (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1")))))
 
+(reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force-not :all)))
   (DBG "Check that :force-not :all means \"all systems\"" plan)
   (assert (null plan)))
 
+(reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force :all :force-not :all)))
   (DBG "Check that :force-not :all takes precedence over :force" plan)
   (assert (null plan)))
 
+(reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force :all
 		      :force-not '(:test-asdf/force :test-asdf/force1))))
   (DBG "Check that :force-not :all takes precedence over :force" plan)
   (assert (null plan)))
 
+(reset-session-visited)
 (let* ((*immutable-systems* (list-to-hash-set '("test-asdf/force1")))
        (plan (traverse 'load-op 'test-asdf/force :force :all :force-not t)))
   (DBG "Check that immutable-systems will block forcing" plan)
@@ -63,11 +70,13 @@
 (assert-equal (get-file-stamp "file1.lisp") date1)
 (assert-equal (get-file-stamp file1) date2)
 
+(reset-session-visited)
 (DBG "Check that require-system won't reload")
 (require-system 'test-asdf/force1)
 (assert-equal (get-file-stamp file1) date2)
 (assert-equal test-package::*file1* :modified)
 
+(reset-session-visited)
 (DBG "Check that load-system will reload")
 (load-system 'test-asdf/force1)
 ;; FIXME: It is unclear why this fails (at least on mkcl even randomly)
@@ -77,6 +86,7 @@
   (assert-equal test-package::*file1* t))
 
 ;; forced, it should be later
+(reset-session-visited)
 (DBG "Check that force reloading loads again")
 (setf test-package::*file3* :reset)
 (load-system 'test-asdf/force :force :all)
@@ -88,6 +98,7 @@
 
 (setf test-package::*file3* :reset)
 
+(reset-session-visited)
 (DBG "Check that require-system called with touched .asd won't reload the asdf.")
 (unset-asdf-cache-entry '(find-system "test-asdf"))
 (unset-asdf-cache-entry '(find-system "test-asdf/force"))
@@ -96,6 +107,7 @@
 (assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
 (assert-equal test-package::*file3* :reset)
 
+(reset-session-visited)
 (DBG "Check that require-system called with untouched .asd won't reload the asdf.")
 (require-system 'test-asdf/force)
 

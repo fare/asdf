@@ -1,7 +1,6 @@
 ;;; -*- Lisp -*-
 
-;; Disable cache between those two very different compilations.
-(setf asdf/session:*asdf-session* nil)
+(setf asdf/session:*asdf-session* nil) ;; disable cache between those two very different compilations.
 #-(and ecl ecl-bytecmp)
 (setf asdf::*load-system-operation* 'load-bundle-op) ;; This triggers a bug on ECL no more!
 

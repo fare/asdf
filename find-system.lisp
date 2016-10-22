@@ -4,16 +4,15 @@
 (uiop/package:define-package :asdf/find-system
   (:recycle :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-    :asdf/session :asdf/component :asdf/system)
+    :asdf/session :asdf/component :asdf/operation :asdf/action :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
    #:coerce-name #:primary-system-name #:coerce-filename
-   #:find-system #:locate-system #:load-asd
+   #:find-system #:locate-system #:load-asd #:define-op
    #:system-registered-p #:registered-system #:register-system
    #:registered-systems* #:registered-systems
    #:clear-system #:map-systems
    #:missing-component #:missing-requires #:missing-parent
-   #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error
    #:load-system-definition-error #:error-name #:error-pathname #:error-condition
    #:*system-definition-search-functions* #:search-for-system-definition
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
@@ -34,12 +33,6 @@
     ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)
      (parent :initform nil :reader missing-parent :initarg :parent)))
 
-  (define-condition formatted-system-definition-error (system-definition-error)
-    ((format-control :initarg :format-control :reader format-control)
-     (format-arguments :initarg :format-arguments :reader format-arguments))
-    (:report (lambda (c s)
-               (apply 'format s (format-control c) (format-arguments c)))))
-
   (define-condition load-system-definition-error (system-definition-error)
     ((name :initarg :name :reader error-name)
      (pathname :initarg :pathname :reader error-pathname)
@@ -47,11 +40,6 @@
     (:report (lambda (c s)
                (format s (compatfmt "~@<Error while trying to load definition for system ~A from pathname ~A: ~3i~_~A~@:>")
                        (error-name c) (error-pathname c) (error-condition c)))))
-
-  (defun sysdef-error (format &rest arguments)
-    (error 'formatted-system-definition-error :format-control
-           format :format-arguments arguments))
-
 
   ;;; Canonicalizing system names
 
@@ -117,7 +105,7 @@ or NIL if not found."
     (check-type system system)
     (let ((name (component-name system)))
       (check-type name string)
-      (asdf-message (compatfmt "~&~@<; ~@;Registering ~3i~_~A~@:>~%") system)
+      (asdf-message (compatfmt "~&~@<; ~@;Registering system ~3i~_~A~@:>~%") name)
       (unless (eq system (registered-system name))
         (setf (gethash name *defined-systems*)
               (cons (ignore-errors (get-file-stamp (system-source-file system)))
@@ -395,6 +383,17 @@ Going forward, we recommend new users should be using the source-registry.")
     ;; the precise protocol between the two functions may change in the future (or not).
     (first (gethash `(find-system ,(coerce-name name)) (asdf-cache))))
 
+  (defclass define-op (non-propagating-operation) ()
+    (:documentation "An operation to record dependencies on loading a .asd file."))
+
+  (defmethod component-depends-on ((o define-op) (s system))
+    `((load-op ,@(system-defsystem-depends-on s))
+      ,@(loop* :for (o . c) :in (definition-dependencies s) :collect (list o c))
+      ,@(call-next-method)))
+
+  (defmethod component-depends-on ((o operation) (c undefined-system))
+    (sysdef-error "Trying to use undefined or incompletely defined system ~A" (coerce-name c)))
+
   (defun load-asd (pathname
                    &key name (external-format (encoding-external-format (detect-encoding pathname)))
                    &aux (readtable *readtable*) (print-pprint-dispatch *print-pprint-dispatch*))
@@ -402,27 +401,37 @@ Going forward, we recommend new users should be using the source-registry.")
 NAME if supplied is the name of a system expected to be defined in that file.
 
 Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
-    (with-asdf-session ()
-      (with-standard-io-syntax
-        (let ((*package* (find-package :asdf-user))
-              ;; Note that our backward-compatible *readtable* is
-              ;; a global readtable that gets globally side-effected. Ouch.
-              ;; Same for the *print-pprint-dispatch* table.
-              ;; We should do something about that for ASDF3 if possible, or else ASDF4.
-              (*readtable* readtable)
-              (*print-pprint-dispatch* print-pprint-dispatch)
-              (*print-readably* nil)
-              (*default-pathname-defaults*
-                ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
-                (pathname-directory-pathname (physicalize-pathname pathname))))
-          (handler-bind
-              (((and error (not missing-component))
-                 #'(lambda (condition)
-                     (error 'load-system-definition-error
-                            :name name :pathname pathname :condition condition))))
-            (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
-                          name pathname)
-            (load* pathname :external-format external-format))))))
+    (nest
+     (with-asdf-session ())
+     (with-standard-io-syntax)
+     (let* ((primary-name (primary-system-name (or name (pathname-name pathname))))
+            (*package* (find-package :asdf-user))
+            ;; Note that our backward-compatible *readtable* is
+            ;; a global readtable that gets globally side-effected. Ouch.
+            ;; Same for the *print-pprint-dispatch* table.
+            ;; We should do something about that for ASDF3 if possible, or else ASDF4.
+            (*readtable* readtable)
+            (*print-pprint-dispatch* print-pprint-dispatch)
+            (*print-readably* nil)
+            (*default-pathname-defaults*
+             ;; resolve logical-pathnames so they won't wreak havoc in parsing namestrings.
+             (pathname-directory-pathname (physicalize-pathname pathname)))
+            (operation (make-operation 'define-op))
+            (system (or (registered-system primary-name)
+                        (let ((system
+                               (make-instance 'undefined-system
+                                              :name primary-name :source-file pathname)))
+                          (register-system system)
+                          system)))))
+     (while-visiting-action (operation system))
+     (handler-bind
+         (((and error (not missing-component))
+           #'(lambda (condition)
+               (error 'load-system-definition-error
+                      :name name :pathname pathname :condition condition))))
+       (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
+                     name pathname)
+       (load* pathname :external-format external-format))))
 
   (defvar *old-asdf-systems* (make-hash-table :test 'equal))
 
