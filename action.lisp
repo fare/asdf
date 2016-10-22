@@ -359,12 +359,13 @@ using the JUST-DONE flag."))
   (defgeneric compute-action-stamp (plan operation component &key just-done)
     (:documentation "Has this action been successfully done already,
 and at what known timestamp has it been done at or will it be done at?
-Takes two keywords JUST-DONE and PLAN:
+* PLAN is a plan object modelling future effects of actions,
+  or NIL to denote what actually happened.
+* OPERATION and COMPONENT denote the action.
+Takes keyword JUST-DONE:
 * JUST-DONE is a boolean that is true if the action was just successfully performed,
   at which point we want compute the actual stamp and warn if files are missing;
   otherwise we are making plans, anticipating the effects of the action.
-* PLAN is a plan object modelling future effects of actions,
-  or NIL to denote what actually happened.
 Returns two values:
 * a STAMP saying when it was done or will be done,
   or T if the action involves files that need to be recomputed.
