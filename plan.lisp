@@ -222,7 +222,7 @@ initialized with SEED."
 
   (defun* (direct-dependencies) (plan operation component)
     "Compute a list of the direct dependencies of the action within the plan"
-    (reduce-direct-dependencies plan operation component #'acons nil))
+    (reverse (reduce-direct-dependencies plan operation component #'acons nil)))
 
   ;; In a distant future, get-file-stamp, component-operation-time and latest-stamp
   ;; shall also be parametrized by the plan, or by a second model object,

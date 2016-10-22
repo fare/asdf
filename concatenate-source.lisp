@@ -64,7 +64,7 @@ into a single file"))
           :with other-around-compile = '()
           :for c :in (required-components
                       s :goal-operation 'load-op
-                        :keep-operation 'compile-op
+                        :keep-operation 'load-op
                         :other-systems (operation-monolithic-p operation))
           :append
           (when (typep c 'cl-source-file)
