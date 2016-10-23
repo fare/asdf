@@ -4,14 +4,12 @@
 (uiop/package:define-package :asdf/operate
   (:recycle :asdf/operate :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
-   :asdf/component :asdf/system :asdf/operation :asdf/action
-   :asdf/find-system :asdf/find-component :asdf/lisp-action :asdf/plan)
+        :asdf/component :asdf/system :asdf/system-registry :asdf/find-component
+        :asdf/operation :asdf/action :asdf/lisp-action :asdf/plan)
   (:export
-   #:operate #:oos
-   #:build-op #:make
+   #:operate #:oos #:build-op #:make
    #:load-system #:load-systems #:load-systems*
-   #:compile-system #:test-system #:require-system
-   #:module-provide-asdf
+   #:compile-system #:test-system #:require-system #:module-provide-asdf
    #:component-loaded-p #:already-loaded-systems))
 (in-package :asdf/operate)
 

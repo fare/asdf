@@ -4,7 +4,7 @@
 
 (uiop/package:define-package :asdf/source-registry
   (:recycle :asdf/source-registry :asdf)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/find-system)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/system :asdf/system-registry)
   (:export
    #:*source-registry-parameter* #:*default-source-registries*
    #:invalid-source-registry

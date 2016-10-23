@@ -6,8 +6,8 @@
   ;; that used to live there before 3.2.0.
   (:recycle :asdf/plan :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
-        :asdf/component :asdf/operation :asdf/action :asdf/lisp-action :asdf/system
-        :asdf/find-component :asdf/find-system)
+        :asdf/component :asdf/operation :asdf/action :asdf/lisp-action
+        :asdf/system :asdf/system-registry :asdf/find-component)
   (:export
    #:component-operation-time
    #:plan #:plan-traversal #:sequential-plan #:*plan-class*
@@ -48,7 +48,7 @@
     (:documentation "Returns the ACTION-STATUS associated to
 the action of OPERATION on COMPONENT in the PLAN"))
 
-  (defgeneric (setf action-status) (new-status session operation component)
+  (defgeneric (setf action-status) (new-status plan operation component)
     (:documentation "Sets the ACTION-STATUS associated to
 the action of OPERATION on COMPONENT in the PLAN"))
 
@@ -285,17 +285,7 @@ initialized with SEED."
         (values (gethash (cons o c) (visited-actions *asdf-session*)))))
 
   (defgeneric record-dependency (plan operation component)
-    (:documentation "Record an action as a dependency in the current plan"))
-
-  (defmethod record-dependency ((plan null) (operation t) (component t))
-    (let* ((action (first (visiting-action-list *asdf-session*)))
-           (parent-operation (action-operation action))
-           (parent-component (action-component action)))
-      (when (and parent-operation parent-component)
-        (unless (and (typep parent-operation 'define-op) (typep parent-component 'system))
-          (cerror "Invalid recursive use of (OPERATE ~S ~S) while visiting ~S"
-                  operation component action))
-        (push action (definition-dependencies parent-component))))))
+    (:documentation "Record an action as a dependency in the current plan")))
 
 
 ;;;; Actual traversal: traverse-action
@@ -420,15 +410,12 @@ initialized with SEED."
       (with-compilation-unit () ;; backward-compatibility.
         (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
 
-  (defmethod perform-plan ((plan t) &rest keys &key &allow-other-keys)
-    (apply 'perform-plan (plan-actions plan) keys))
-
-  (defmethod perform-plan ((steps list) &key force &allow-other-keys)
-    (loop :for action :in steps
+  (defmethod perform-plan ((plan t) &key &allow-other-keys)
+    (loop :for action :in (plan-actions plan)
       :as o = (action-operation action)
-      :as c = (action-component action)
-      :when (or force (not (nth-value 1 (compute-action-stamp nil o c))))
-      :do (perform-with-restarts o c)))
+      :as c = (action-component action) :do
+      (unless (nth-value 1 (compute-action-stamp plan o c))
+        (perform-with-restarts o c))))
 
   (defmethod plan-operates-on-p ((plan plan-traversal) (component-path list))
     (plan-operates-on-p (plan-actions plan) component-path))

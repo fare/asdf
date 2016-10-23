@@ -1,6 +1,8 @@
 ;;; -*- Lisp -*-
 (in-package :asdf-test)
 
+(reset-session)
+
 (DBG "Consider a system that does not exist. Loading it fails.")
 (assert (null (find-system :this-system-does-not-exist nil)))
 (errors missing-component (load-system :this-system-does-not-exist))

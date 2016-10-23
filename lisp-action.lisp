@@ -4,8 +4,7 @@
 (uiop/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
-   :asdf/component :asdf/system :asdf/find-system
-   :asdf/operation :asdf/action)
+   :asdf/component :asdf/system :asdf/operation :asdf/action)
   (:export
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp

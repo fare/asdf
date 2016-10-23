@@ -1,9 +1,10 @@
 (defpackage :test-asdf-system
-  (:use :cl :asdf))
+  (:use :cl :asdf :uiop))
 (in-package :test-asdf-system)
 
 (defvar *times-loaded* 0)
 (incf *times-loaded*)
+;;(format! t "Times that test-asdf.asd was loaded: ~D~%" *times-loaded*)
 
 (defsystem :test-asdf :class package-inferred-system)
 
@@ -75,7 +76,10 @@
 
 (defsystem :test-asdf/force
   :depends-on (:test-asdf/force1)
-  :components ((:file "file3")))
+  :components ((:file "file4")))
 
 (defsystem :test-asdf/force1
+  ;; Importantly, this depends on a system that is NOT defined in the same file,
+  ;; so that we can check that forcing causes one file to be reloaded but not the other.
+  :depends-on (:file3-only)
   :components ((:file "file1")))

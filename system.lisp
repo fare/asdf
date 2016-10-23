@@ -2,8 +2,8 @@
 ;;;; Systems
 
 (uiop/package:define-package :asdf/system
-  (:recycle :asdf :asdf/system)
-  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/component)
+  (:recycle :asdf :asdf/system :asdf/find-system)
+  (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component)
   (:export
    #:system #:proto-system #:undefined-system #:reset-system
    #:system-source-file #:system-source-directory #:system-relative-pathname
@@ -18,6 +18,7 @@
    #:mailto #:system-mailto
    #:long-name #:system-long-name
    #:source-control #:system-source-control
+   #:coerce-name #:primary-system-name #:coerce-filename
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
@@ -104,6 +105,33 @@ ASDF to build."))
 based on supplied KEYS."
     (change-class (change-class system 'proto-system) 'undefined-system)
     (apply 'reinitialize-instance system keys)))
+
+
+;;; Canonicalizing system names
+
+(with-upgradability ()
+  (defun coerce-name (name)
+    "Given a designator for a component NAME, return the name as a string.
+The designator can be a COMPONENT (designing its name; note that a SYSTEM is a component),
+a SYMBOL (designing its name, downcased), or a STRING (designing itself)."
+    (typecase name
+      (component (component-name name))
+      (symbol (string-downcase name))
+      (string name)
+      (t (sysdef-error (compatfmt "~@<Invalid component designator: ~3i~_~A~@:>") name))))
+
+  (defun primary-system-name (name)
+    "Given a system designator NAME, return the name of the corresponding primary system,
+after which the .asd file is named. That's the first component when dividing the name
+as a string by / slashes."
+    (first (split-string (coerce-name name) :separator "/")))
+
+  (defun coerce-filename (name)
+    "Coerce a system designator NAME into a string suitable as a filename component.
+The (current) transformation is to replace characters /:\\ each by --,
+the former being forbidden in a filename component.
+NB: The onus is unhappily on the user to avoid clashes."
+    (frob-substrings (coerce-name name) '("/" ":" "\\") "--")))
 
 
 ;;;; Pathnames

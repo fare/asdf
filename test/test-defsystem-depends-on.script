@@ -44,16 +44,14 @@
 
 (progn
   (reset-session)
-  (signals asdf:missing-dependency (def-test-system unloadable-system
-                                     :defsystem-depends-on (nonexistent-system)))
+  (signals missing-dependency (def-test-system unloadable-system
+                                  :defsystem-depends-on (nonexistent-system)))
   (assert (not (system-registered-p "unloadable-system"))))
 
 (progn
-  (signals asdf:missing-dependency (find-system "test-defsystem-depends-on-missing-system"))
-  (assert (typep (asdf::registered-system "test-defsystem-depends-on-missing-system")
-                 'asdf::undefined-system)))
+  (signals missing-dependency (find-system "test-defsystem-depends-on-missing-system"))
+  (assert (not (asdf::registered-system "test-defsystem-depends-on-missing-system"))))
 
 (progn
   (signals asdf::system-definition-error (find-system "test-defsystem-depends-on-circular"))
-  (assert (typep (asdf::registered-system "test-defsystem-depends-on-circular")
-                 'asdf::undefined-system)))
+  (assert (not (asdf::registered-system "test-defsystem-depends-on-circular"))))

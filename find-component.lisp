@@ -2,15 +2,15 @@
 ;;;; Finding components
 
 (uiop/package:define-package :asdf/find-component
-  (:recycle :asdf/find-component :asdf)
+  (:recycle :asdf/find-component :asdf/find-system :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
-   :asdf/component :asdf/system :asdf/find-system)
+   :asdf/component :asdf/system :asdf/system-registry)
   (:export
    #:find-component
    #:resolve-dependency-name #:resolve-dependency-spec
    #:resolve-dependency-combination
    ;; Conditions
-   #:missing-component #:missing-component-of-version #:retry
+   #:missing-component #:missing-requires #:missing-parent #:missing-component-of-version #:retry
    #:missing-dependency #:missing-dependency-of-version
    #:missing-requires #:missing-parent
    #:missing-required-by #:missing-version))
@@ -19,6 +19,10 @@
 ;;;; Missing component conditions
 
 (with-upgradability ()
+  (define-condition missing-component (system-definition-error)
+    ((requires :initform "(unnamed)" :reader missing-requires :initarg :requires)
+     (parent :initform nil :reader missing-parent :initarg :parent)))
+
   (define-condition missing-component-of-version (missing-component)
     ((version :initform nil :reader missing-version :initarg :version)))
 

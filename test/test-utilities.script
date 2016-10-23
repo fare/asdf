@@ -255,8 +255,8 @@
     ;; restarts
     asdf/action:accept
     asdf/find-component:retry
-    asdf/find-system:coerce-entry-to-directory
-    asdf/find-system:remove-entry-from-registry
+    asdf/system-registry:coerce-entry-to-directory
+    asdf/system-registry:remove-entry-from-registry
     asdf/lisp-action:try-recompiling
     ;; types
     asdf/bundle:user-system
@@ -272,8 +272,8 @@
     ;; backward compatibility upgrade only
     asdf/backward-interface:on-failure
     asdf/backward-interface:on-warnings
-    asdf/find-system:contrib-sysdef-search
-    asdf/find-system:sysdef-find-asdf
+    asdf/system-registry:contrib-sysdef-search
+    asdf/system-registry:sysdef-find-asdf
     ;; restart
     asdf/session:clear-configuration-and-retry
     ))

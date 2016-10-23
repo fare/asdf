@@ -6,7 +6,9 @@
 (require-system 'test-asdf/force)
 (assert (component-loaded-p 'test-asdf/force))
 (assert-equal (asymval :*file3* :test-package) t)
+(assert-equal (asymval :*file4* :test-package) t)
 (assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
+(assert-equal (asymval :*file3-only-asd-loaded* :asdf-user) 1)
 
 (defparameter file1 (test-fasl "file1"))
 (defparameter file1-date (file-write-date file1))
@@ -19,21 +21,24 @@
 (reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force t)))
   (DBG "Check that :force t forces the current system but not its dependencies" plan)
-  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file3")))
+  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file4")))
+  (assert (not (asdf::plan-operates-on-p plan '("file3-only" "file3"))))
   (assert (not (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1")))))
 
 (reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force :all)))
   (DBG "Check that :force :all forces the current system and its dependencies" plan)
   (assert plan)
-  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file3")))
+  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file4")))
+  (assert (asdf::plan-operates-on-p plan '("file3-only" "file3")))
   (assert (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1"))))
 
 (reset-session-visited)
 (let ((plan (traverse 'load-op 'test-asdf/force :force :all :force-not t)))
   (DBG "Check that :force-not takes precedence over :force, with t means \"all but current system\"" plan)
   (assert plan)
-  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file3")))
+  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file4")))
+  (assert (not (asdf::plan-operates-on-p plan '("file3-only" "file3"))))
   (assert (not (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1")))))
 
 (reset-session-visited)
@@ -53,11 +58,13 @@
   (assert (null plan)))
 
 (reset-session-visited)
-(let* ((*immutable-systems* (list-to-hash-set '("test-asdf/force1")))
-       (plan (traverse 'load-op 'test-asdf/force :force :all :force-not t)))
+(let* ((asdf::*immutable-systems* (list-to-hash-set '("test-asdf/force1")))
+       (plan (traverse 'load-op 'test-asdf/force :force :all)))
   (DBG "Check that immutable-systems will block forcing" plan)
   (assert plan)
-  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file3")))
+  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file4")))
+  ;; transitively included via force1 test-asdf/only, which blocks the traversal
+  (assert (not (asdf::plan-operates-on-p plan '("file3-only" "file3"))))
   (assert (not (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1")))))
 
 ;; unforced, date should stay same
@@ -78,23 +85,24 @@
 
 (reset-session-visited)
 (DBG "Check that load-system will reload")
+(setf test-package::*file1* nil)
+(assert (not test-package::*file1*))
 (load-system 'test-asdf/force1)
-;; FIXME: It is unclear why this fails (at least on mkcl even randomly)
-#-mkcl
-(with-expected-failure (#+(or clasp clisp (and ecl (not ecl-bytecmp))) t)
-  (assert-equal (get-file-stamp file1) date2)
-  (assert-equal test-package::*file1* t))
+(assert test-package::*file1*)
 
 ;; forced, it should be later
 (reset-session-visited)
 (DBG "Check that force reloading loads again")
 (setf test-package::*file3* :reset)
 (load-system 'test-asdf/force :force :all)
-(assert-compare (>= (get-file-stamp file1) file1-date))
+(assert-compare (>= (- (get-file-stamp file1) file1-date) 0))
 (assert-equal test-package::*file3* t)
 
-(DBG "Check that test-asdf was loaded only once all along")
-(assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
+(DBG "Check that test-asdf.asd was loaded each time it was forced")
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 3)
+(DBG "Check that file3-only.asd was loaded only twice, with the :force :all")
+(assert-equal (asymval :*file3-only-asd-loaded* :asdf-user) 2)
+
 
 (setf test-package::*file3* :reset)
 
@@ -104,7 +112,7 @@
 (unset-asdf-cache-entry '(find-system "test-asdf/force"))
 (touch-file "test-asdf.asd" :timestamp (+ 10000 (get-file-stamp file1)))
 (require-system 'test-asdf/force)
-(assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 3)
 (assert-equal test-package::*file3* :reset)
 
 (reset-session-visited)
@@ -112,5 +120,5 @@
 (require-system 'test-asdf/force)
 
 ;;; Somehow, it loads the system...
-(assert-equal (asymval :*times-loaded* :test-asdf-system) 1)
+(assert-equal (asymval :*times-loaded* :test-asdf-system) 3)
 (assert-equal test-package::*file3* :reset)

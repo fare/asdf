@@ -3,6 +3,20 @@
 (format! t "~%Using ASDF ~A~%" (asdf-version))
 (assert (version< "3.0" (asdf-version))) ;; check that we have a recent enough ASDF
 
+(DBG "Let's define some methods on input-files, to later check what an upgrade does to them.")
+(def-test-system "fooey")
+(defparameter *ticks* 0)
+(defun tick () (incf *ticks*))
+(defsystem "foo")
+(defmethod input-files :after ((o load-op) (c system)) (tick))
+(assert-equal *ticks* 0)
+(input-files 'load-op "foo")
+(assert-equal *ticks* 1)
+(input-files 'load-op "foo")
+(assert-equal *ticks* 1) ;; It was cached.
+(assert (find-system "fooey" nil))
+
+
 (DBG "Try load ASDF with an empty configuration")
 (initialize-source-registry
  '(:source-registry :ignore-inherited-configuration))
@@ -35,6 +49,7 @@
              (error "Should not have issued warning, but did issue:~%  ~A" c))))
     (clear-system "asdf")
     (upgrade-asdf)))
+(assert-equal nil (system-source-file (find-system :asdf)))
 
 (DBG "Load ASDF with proper configuration: should find asdf.asd from the source above")
 (initialize-source-registry
@@ -43,26 +58,34 @@
    (:directory ,*uiop-directory*)
    :ignore-inherited-configuration))
 (clear-system "asdf")
-(load-system :asdf)
-;; This time we found it, but it was skipped because the version was the same
-(assert-equal nil (system-source-file (find-system :asdf)))
 
+(with-asdf-session (:override t)
+  (with-expected-failure (#+xcl t)
+    ;; expected-failure: XCL has trouble with the ASDF upgrade
+    (load-system :asdf)
+    (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
+                           (system-source-file (find-system :asdf))))
 
-;; But if we cheat on our version, that should work
-(setf asdf::*asdf-version* "3.0")
-(clear-system "asdf")
-(def-test-system "fooey")
-(defparameter *ticks* 0)
-(defun tick () (incf *ticks*))
-(defmethod input-files :after ((load-op operation) (c system)) (tick))
-(input-files 'load-op "asdf")
-(assert-equal *ticks* 3)
+  (DBG "Loading from the same version shouldn't have reset methods")
+  (setf *ticks* 2)
+  (input-files 'load-op "foo")
+  (assert-equal *ticks* 3))
+
+(DBG "Loading from an ancient version WILL reset methods")
 (assert (find-system "fooey" nil))
+(defparameter *current-version* (asdf-version))
+(setf asdf::*asdf-version* "2.0" asdf/upgrade::*previous-asdf-versions* '("2.0"))
+(assert (asdf/upgrade::upgrading-p))
+(clear-system "asdf")
+(reset-session)
+
 (with-expected-failure (#+xcl t)
   ;; expected-failure: XCL has trouble with the ASDF upgrade
   (load-system :asdf)
+  (assert-equal (asdf-version) *current-version*)
   (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
                          (system-source-file (find-system :asdf))))
+
 
 ;; Upgrading from an old-enough version redefined away the input-files method!
 (setf *ticks* 4)

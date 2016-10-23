@@ -5,7 +5,7 @@
   (:recycle :asdf/package-inferred-system :asdf/package-system :asdf)
   (:use :uiop/common-lisp :uiop
         :asdf/upgrade :asdf/session
-        :asdf/component :asdf/system :asdf/find-system :asdf/lisp-action
+        :asdf/component :asdf/system :asdf/system-registry :asdf/lisp-action
         :asdf/parse-defsystem)
   (:export
    #:package-inferred-system #:sysdef-package-inferred-system-search
