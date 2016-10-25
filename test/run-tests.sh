@@ -308,7 +308,7 @@ if ! type "$command" > /dev/null ; then
     exit 43
 fi
 
-ASDFDIR="$(cd $(dirname $0)/.. ; /bin/pwd)"
+ASDFDIR="$(cd $(dirname $0)/.. ; command pwd)"
 : ${bcmd:=$command $flags} ${icmd:=$command $flags} # batch and interactive
 if [ -z "${DEBUG_ASDF_TEST}" ] ; then
   bcmd="$bcmd $nodebug"
