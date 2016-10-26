@@ -426,6 +426,14 @@ argument to pass to the internal RUN-PROGRAM"
      ;; >128 from exiting in response to a signal by setting this code
      (signal-code :initform nil)))
 
+;;;---------------------------------------------------------------------------
+;;; The following two helper functions take care of handling the IF-EXISTS and
+;;; IF-DOES-NOT-EXIST arguments for RUN-PROGRAM. In particular, they process the
+;;; :ERROR, :APPEND, and :SUPERSEDE arguments *here*, allowing the master
+;;; function to treat input and output files unconditionally for reading and
+;;; writing.
+;;;---------------------------------------------------------------------------
+
   (defun %handle-if-exists (file if-exists)
     (when (or (stringp file) (pathnamep file))
       (ecase if-exists
@@ -520,6 +528,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
                        'launch-program))
+    ;; see comments for these functions
     (%handle-if-does-not-exist input if-input-does-not-exist)
     (%handle-if-exists output if-output-exists)
     (%handle-if-exists error-output if-error-output-exists)
@@ -992,6 +1001,7 @@ or :error-output."
                                        &allow-other-keys)
     "A portable abstraction of a low-level call to libc's system()."
     (declare (ignorable directory keys))
+    ;; see comments for these functions
     (%handle-if-does-not-exist input if-input-does-not-exist)
     (%handle-if-exists output if-output-exists)
     (%handle-if-exists error-output if-error-output-exists)
