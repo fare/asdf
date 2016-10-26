@@ -56,7 +56,7 @@ export CL_SOURCE_REGISTRY = ${sourceDirectory}/:${sourceDirectory}/uiop/:${sourc
 endif
 #$(error "CL_SOURCE_REGISTRY is ${CL_SOURCE_REGISTRY}")
 sys := $(shell uname -o)
-ifeq ($(sys),Cygwin) 
+ifeq ($(sys),Cygwin)
 CL_SOURCE_REGISTRY := $(shell cygpath -pw "${CL_SOURCE_REGISTRY}")
 endif
 
