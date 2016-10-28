@@ -17,7 +17,7 @@
    #:action-status #:action-stamp #:action-done-p
    #:action-operation #:action-component #:make-action
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
-   #:perform #:perform-with-restarts #:retry #:accept
+   #:perform #:perform-with-restarts #:retry #:accept #:*action*
    #:action-path #:find-action #:stamp #:done-p
    #:operation-definition-warning #:operation-definition-error ;; condition
    #:action-valid-p
@@ -426,6 +426,11 @@ in some previous image, or T if it needs to be done.")
     (:documentation "PERFORM an action, consuming its input-files and building its output-files"))
   (define-convenience-action-methods perform (operation component))
 
+  (defvar *action* nil
+    "Action being performed")
+  (defmethod perform :around ((o operation) (c component))
+    (let ((*action* (cons o c)))
+      (call-next-method)))
   (defmethod perform :before ((o operation) (c component))
     (ensure-all-directories-exist (output-files o c)))
   (defmethod perform :after ((o operation) (c component))

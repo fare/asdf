@@ -51,24 +51,26 @@
                 (and (typep operation 'load-op)
                      (typep component 'system)
                      (equal "asdf" (coerce-name component))))
-      (let* ((action (first (visiting-action-list *asdf-session*)))
-             (parent-operation (car action))
-             (parent-component (cdr action)))
-        (when (and parent-operation parent-component)
+      (when *action*
+        (let ((parent-operation (car *action*))
+              (parent-component (cdr *action*)))
           (unless (and (typep parent-operation 'define-op) (typep parent-component 'system))
             (error "Invalid recursive use of (OPERATE ~S ~S) while visiting ~S ~
 - please use proper dependencies instead."
-                   operation component action))
-          (push action (definition-dependencies parent-component))))))
+                   operation component *action*))
+          (let ((action (cons operation component)))
+            (unless (gethash action (definition-dependency-set parent-component))
+              (push (cons operation component) (definition-dependency-list parent-component))
+              (setf (gethash action (definition-dependency-set parent-component)) t)))))))
 
   (defmethod component-depends-on ((o define-op) (s system))
     `(;;NB: 1- ,@(system-defsystem-depends-on s)) ; Should be already included in the below.
       ;; 2- We don't call-next-method to avoid other methods
-      ,@(loop* :for (o . c) :in (definition-dependencies s) :collect (list o c))))
+      ,@(loop* :for (o . c) :in (definition-dependency-list s) :collect (list o c))))
 
   (defmethod component-depends-on ((o operation) (s system))
     `(,@(when (and (not (typep o 'define-op))
-                   (or (system-source-file s) (definition-dependencies s)))
+                   (or (system-source-file s) (definition-dependency-list s)))
               `((define-op ,(primary-system-name s))))
       ,@(call-next-method)))
 
@@ -104,7 +106,7 @@
                       :name (coerce-name s) :pathname pathname :condition condition))))
        (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
                      (coerce-name s) pathname)
-       ;; dependencies will depend on what's loaded via definition-dependencies
+       ;; dependencies will depend on what's loaded via definition-dependency-list
        (unset-asdf-cache-entry `(component-depends-on ,o ,s))
        (load* pathname :external-format (encoding-external-format (detect-encoding pathname))))))
 

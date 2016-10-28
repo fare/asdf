@@ -9,7 +9,7 @@
    #:system-source-file #:system-source-directory #:system-relative-pathname
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
-   #:definition-dependencies #:system-defsystem-depends-on
+   #:definition-dependency-list #:definition-dependency-set #:system-defsystem-depends-on
    #:system-depends-on #:system-weakly-depends-on
    #:component-build-pathname #:build-pathname
    #:component-entry-point #:entry-point
@@ -89,8 +89,11 @@ a SYSTEM is redefined and its class is modified."))
      ;; This slot contains the *declared* defsystem-depends-on dependencies
      (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on
                            :initform nil)
-     ;; This slot contains the *inferred* dependencies of define-op
-     (definition-dependencies :initform nil :accessor definition-dependencies)
+     ;; These slots contains the *inferred* dependencies of define-op, as list and as set
+     (definition-dependency-list
+         :initform nil :accessor definition-dependency-list)
+     (definition-dependency-set
+         :initform (list-to-hash-set nil) :accessor definition-dependency-set)
      ;; these two are specially set in parse-component-form, so have no :INITARGs.
      (depends-on :reader system-depends-on :initform nil)
      (weakly-depends-on :reader system-weakly-depends-on :initform nil))
