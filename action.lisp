@@ -6,6 +6,7 @@
   (:recycle :asdf/action :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
    :asdf/component :asdf/system #:asdf/cache :asdf/find-system :asdf/find-component :asdf/operation)
+  (:import-from :asdf/operation #:check-operation-constructor)
   (:export
    #:action #:define-convenience-action-methods
    #:action-description
@@ -232,6 +233,7 @@ dependencies.")))
     (:documentation "Error condition related to definition of incorrect OPERATION objects."))
 
   (defmethod initialize-instance :before ((o operation) &key)
+    (check-operation-constructor)
     (unless (typep o '(or downward-operation upward-operation sideway-operation
                           selfward-operation non-propagating-operation))
       (warn 'operation-definition-warning

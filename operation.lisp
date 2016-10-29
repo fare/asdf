@@ -40,6 +40,13 @@ and support for them may be discontinued at any moment.
     (unless (slot-boundp o 'original-initargs)
       (setf (operation-original-initargs o) initargs)))
 
+  (defvar *in-make-operation* nil)
+
+  (defun check-operation-constructor ()
+    "Enforce that OPERATION instances must be created with MAKE-OPERATION."
+    (unless *in-make-operation*
+      (sysdef-error "OPERATION instances must only be created through MAKE-OPERATION.")))
+
   (defmethod print-object ((o operation) stream)
     (print-unreadable-object (o stream :type t :identity nil)
       (ignore-errors
@@ -58,7 +65,8 @@ All operation instances MUST be created through this function.
 
 Use of INITARGS is for backward compatibility and may be discontinued at any time."
     (let ((class (coerce-class operation-class
-                               :package :asdf/interface :super 'operation :error 'sysdef-error)))
+                               :package :asdf/interface :super 'operation :error 'sysdef-error))
+          (*in-make-operation* t))
       (ensure-gethash (cons class initargs) *operations*
                       (list* 'make-instance class initargs))))
 
