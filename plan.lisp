@@ -11,8 +11,8 @@
   (:export
    #:component-operation-time
    #:plan #:plan-traversal #:sequential-plan #:*plan-class*
-   #:action-status #:action-already-done-p
-   #:planned-action-status #:action-index #:action-planned-p
+   #:action-status #:action-stamp #:action-done-p #:action-index #:action-planned-p
+   #:action-already-done-p #:+action-status-out-of-date+
    #:circular-dependency #:circular-dependency-actions
    #:needed-in-image-p
    #:record-dependency
@@ -24,8 +24,8 @@
    #:plan-actions-r
    #:required-components #:filtered-sequential-plan
    #:plan-system
-   #:plan-action-filter #:plan-component-type #:plan-keep-operation #:plan-keep-component
-   #:traverse-actions #:traverse-sub-actions))
+   #:plan-component-type #:plan-keep-operation #:plan-keep-component
+   ))
 (in-package :asdf/plan)
 
 ;;;; Generic plan traversal class
@@ -33,7 +33,13 @@
   (defclass plan () ()
     (:documentation "Base class for a plan based on which ASDF can build a system"))
   (defclass plan-traversal (plan)
-    (;; The system for which the plan is computed
+    (;; Can this plan be performed? A plan that has different force and force-not settings than the
+     ;; session plan can only be used for read-only queries that do not cause the status of any
+     ;; action to be raised.
+     (performable-p :initform nil :initarg :performable-p :reader plan-performable-p)
+     ;; The parent plan from which this plan inherits forced status, etc.
+     (parent :initform nil :initarg :parent :reader plan-parent)
+     ;; The system for which the plan is computed
      (system :initform nil :initarg :system :accessor plan-system)
      ;; Table of systems specified via :force arguments
      (forced :initform nil :initarg :force :accessor forced)
@@ -44,6 +50,37 @@
 
 ;;;; Planned action status
 (with-upgradability ()
+  (defclass action-status ()
+    ((stamp
+      :initarg :stamp :reader action-stamp
+      :documentation "STAMP associated with the ACTION if it has been completed already
+in some previous image, or T if it needs to be done.")
+     (done-p
+      :initarg :done-p :reader action-done-p
+      :documentation "a boolean, true iff the action was already done (before any planned action).")
+     (planned-p
+      :initarg :planned-p :initform nil :reader action-planned-p
+      :documentation "a boolean, true iff the action was included in the plan.")
+     (index
+      :initarg :index :initform nil :reader action-index
+      :documentation "an integer, counting all traversed actions in traversal order, or NIL."))
+    (:documentation "Status of an action in a plan"))
+
+  (defparameter +action-status-out-of-date+ (make-instance 'action-status :stamp t :done-p nil))
+
+  (defun make-action-status (&key stamp done-p planned-p index)
+    (if (eq stamp t)
+        +action-status-out-of-date+
+        (make-instance 'action-status :stamp stamp :done-p done-p :planned-p planned-p :index index)))
+
+  (defmethod print-object ((status action-status) stream)
+    (print-unreadable-object (status stream :type t)
+      (with-slots (stamp done-p planned-p index) status
+        (format stream "~{~S~^ ~}"
+                `(:stamp ,stamp :done-p ,done-p
+                         ,@(when planned-p `(:planned-p ,planned-p))
+                         ,@(when index `(:index ,index)))))))
+
   (defgeneric action-status (plan operation component)
     (:documentation "Returns the ACTION-STATUS associated to
 the action of OPERATION on COMPONENT in the PLAN"))
@@ -52,30 +89,13 @@ the action of OPERATION on COMPONENT in the PLAN"))
     (:documentation "Sets the ACTION-STATUS associated to
 the action of OPERATION on COMPONENT in the PLAN"))
 
-  (defclass planned-action-status (action-status)
-    ((planned-p
-      :initarg :planned-p :reader action-planned-p
-      :documentation "a boolean, true iff the action was included in the plan.")
-     (index
-      :initarg :index :reader action-index
-      :documentation "an integer, counting all traversed actions in traversal order."))
-    (:documentation "Status of an action in a plan"))
-
-  (defmethod print-object ((status planned-action-status) stream)
-    (print-unreadable-object (status stream :type t :identity nil)
-      (with-slots (stamp done-p planned-p index) status
-        (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p :planned-p planned-p :index index))))
-
-  (defmethod action-planned-p ((action-status t))
-    t) ; default method for non planned-action-status objects
-
   (defun action-already-done-p (plan operation component)
     "According to this plan, is this action already done and up to date?"
     (action-done-p (action-status plan operation component)))
 
   (defmethod action-status ((plan null) (o operation) (c component))
     (multiple-value-bind (stamp done-p) (component-operation-time o c)
-      (make-instance 'action-status :stamp stamp :done-p done-p)))
+      (make-action-status :stamp stamp :done-p done-p)))
 
   (defmethod (setf action-status) (new-status (plan null) (o operation) (c component))
     (let ((times (component-operation-times c)))
@@ -83,7 +103,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
           (remhash o times)
           (setf (gethash o times) (action-stamp new-status))))
     new-status))
-
 
 ;;;; forcing
 (with-upgradability ()
@@ -281,7 +300,8 @@ initialized with SEED."
     (setf (gethash (cons o c) (visited-actions *asdf-session*)) new-status))
 
   (defmethod action-status ((p plan) (o operation) (c component))
-    (or (and (action-forced-not-p p o c) (action-status nil o c))
+    (if (action-forced-not-p p o c)
+        (action-status nil o c)
         (values (gethash (cons o c) (visited-actions *asdf-session*)))))
 
   (defgeneric record-dependency (plan operation component)
@@ -310,13 +330,43 @@ initialized with SEED."
   (defmethod action-status :around ((plan plan) operation component)
     ;; TODO: should we instead test something like:
     ;; (action-forced-not-p plan operation (primary-system component))
-      (if (action-forced-not-p plan operation component)
-          (let ((status (action-status nil operation component)))
-            (if (and (eq (type-of status) 'action-status) (action-done-p status))
-                status
-                (let ((stamp (and status (action-stamp status))))
-                  (make-instance 'action-status :done-p t :stamp stamp))))
-          (call-next-method)))
+    (if (action-forced-not-p plan operation component)
+        (let ((status (action-status nil operation component)))
+          (if (and status (action-done-p status))
+              status
+              (let ((stamp (and status (action-stamp status))))
+                (make-action-status :done-p t :stamp stamp))))
+        (call-next-method)))
+
+  ;; Different traversals:
+  ;; * Get the dependencies (filtered), don't change any status
+  ;; * Check whether some (defsystem-depends-on ?) dependencies are up to date
+  ;; * Check that some dependencies are up-to-date, though not necessarily in image
+  ;; * Check that some dependencies are up-to-date and in image, or add them to the plan
+
+  (defun action-up-to-date-p (plan operation component)
+    "Check whether a node is up-to-date, and mark it so if such. But don't add anything to the plan."
+    (while-visiting-action (operation component) ; maintain context, handle circularity.
+      (block nil
+        ;; Do NOT record the dependency: it might be out of date.
+        (let ((status (action-status plan operation component)))
+          (when status
+            (return (not (eq (action-stamp status) t)))))
+        (let* ((dependencies-up-to-date-p
+                (block nil
+                  (map-direct-dependencies ; recursively traverse dependencies
+                   operation component
+                   #'(lambda (o c) (unless (action-up-to-date-p plan o c) (return nil))))
+                  t))
+               (status
+                (if dependencies-up-to-date-p
+                    ;; If it's all up-to-date
+                    (multiple-value-bind (stamp done-p)
+                        (compute-action-stamp plan operation component) ; compute action stamp TODO: no plan!
+                      (make-action-status :stamp stamp :done-p done-p))
+                    +action-status-out-of-date+)))
+          (setf (action-status plan operation component) status)
+          (not (eq (action-stamp status) t))))))
 
   (defmethod traverse-action (plan operation component needed-in-image-p)
     (while-visiting-action (operation component) ; maintain context, handle circularity.
@@ -346,7 +396,7 @@ initialized with SEED."
                            (t
                             (setf (action-status plan operation component) ; update status:
                                   (make-instance
-                                   'planned-action-status
+                                   'action-status
                                    :stamp stamp ; computed stamp
                                    :done-p (and done-p (not add-to-plan-p)) ; done *and* up-to-date?
                                    :planned-p add-to-plan-p ; included in list of things to be done?
@@ -431,8 +481,7 @@ initialized with SEED."
 ;;; files required by a bundling operation.
 (with-upgradability ()
   (defclass filtered-sequential-plan (sequential-plan)
-    ((action-filter :initform t :initarg :action-filter :reader plan-action-filter)
-     (component-type :initform t :initarg :component-type :reader plan-component-type)
+    ((component-type :initform t :initarg :component-type :reader plan-component-type)
      (keep-operation :initform t :initarg :keep-operation :reader plan-keep-operation)
      (keep-component :initform t :initarg :keep-component :reader plan-keep-component))
     (:documentation "A variant of SEQUENTIAL-PLAN that only records a subset of actions."))
@@ -444,49 +493,49 @@ initialized with SEED."
     ;; Ignore force and force-not, rely on other-systems:
     ;; force traversal of what we're interested in, i.e. current system or also others;
     ;; force-not traversal of what we're not interested in, i.e. other systems unless other-systems.
-    (with-slots (forced forced-not action-filter system) plan
-      (setf forced (normalize-forced-systems (if other-systems :all t) system))
-      (setf forced-not (normalize-forced-not-systems (if other-systems nil t) system))
-      (setf action-filter (ensure-function action-filter))))
-
-  (defmethod action-status :around ((plan filtered-sequential-plan) o c)
-    (if (and (funcall (plan-action-filter plan) o c)
-             (typep c (plan-component-type plan)))
-        (call-next-method)
-        (make-instance 'action-status :done-p t :stamp nil)))
-
-  (defun* (traverse-actions) (actions &rest keys &key plan-class &allow-other-keys)
-    "Given a list of actions, build a plan with these actions as roots."
-    (let ((plan (apply 'make-instance (or plan-class 'filtered-sequential-plan) keys)))
-      (loop* :for action :in actions
-             :as o = (action-operation action)
-             :as c = (action-component action)
-             :do (traverse-action plan o c t))
-      plan))
-
-  (defgeneric traverse-sub-actions (operation component &key &allow-other-keys))
-  (define-convenience-action-methods traverse-sub-actions (operation component &key))
-  (defmethod traverse-sub-actions ((operation operation) (component component)
-                                   &rest keys &key &allow-other-keys)
-    (apply 'traverse-actions (direct-dependencies operation component)
-           :system (component-system component) keys))
+    (with-slots (forced forced-not system) plan
+      (setf forced :all)
+      (setf forced-not (normalize-forced-not-systems (if other-systems nil t) system))))
 
   (defmethod plan-actions ((plan filtered-sequential-plan))
     (with-slots (keep-operation keep-component) plan
-      (loop* :for action :in (call-next-method)
-             :as o = (action-operation action)
-             :as c = (action-component action)
-             :when (and (typep o keep-operation) (typep c keep-component))
-             :collect (make-action o c))))
+      (loop :for action :in (call-next-method)
+        :as o = (action-operation action)
+        :as c = (action-component action)
+        :when (and (typep o keep-operation) (typep c keep-component))
+        :collect (cons o c))))
+
+  (defun collect-action-dependencies (plan operation component)
+    (while-visiting-action (operation component) ; maintain context, handle circularity.
+      (let ((action (make-action operation component)))
+        (unless (gethash action (visited-actions *asdf-session*))
+          (setf (gethash action (visited-actions *asdf-session*)) t)
+          (when (and (typep component (plan-component-type plan))
+                     (not (action-forced-not-p plan operation component)))
+            (map-direct-dependencies operation component
+                                     #'(lambda (o c) (collect-action-dependencies plan o c)))
+            (push action (plan-actions-r plan)))))))
+
+  (defgeneric collect-dependencies (operation component &key &allow-other-keys)
+    (:documentation "Given an action, build a plan for all of its dependencies."))
+  (define-convenience-action-methods collect-dependencies (operation component &key))
+  (defmethod collect-dependencies ((operation operation) (component component)
+                                   &rest keys &key &allow-other-keys)
+    (let ((plan (apply 'make-instance 'filtered-sequential-plan
+                       :system (component-system component) :force :all keys)))
+      (loop :for action :in (direct-dependencies operation component)
+        :do (collect-action-dependencies plan (action-operation action) (action-component action)))
+      (plan-actions plan)))
 
   (defun* (required-components) (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
     "Given a SYSTEM and a GOAL-OPERATION (default LOAD-OP), traverse the dependencies and
 return a list of the components involved in building the desired action."
-    (with-asdf-session (:override t)
-      (remove-duplicates
-       (mapcar 'action-component
-               (plan-actions
-                (apply 'traverse-sub-actions goal-operation system
-                       (remove-plist-key :goal-operation keys))))
-       :from-end t))))
+    (let ((cache (and *asdf-session* (session-cache *asdf-session*))))
+      (with-asdf-session (:override t)
+        (when cache (setf (session-cache *asdf-session*) cache))
+        (remove-duplicates
+         (mapcar 'action-component
+                 (apply 'collect-dependencies goal-operation system
+                        (remove-plist-key :goal-operation keys)))
+         :from-end t)))))
 

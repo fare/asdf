@@ -1,5 +1,5 @@
 ;;;; -------------------------------------------------------------------------
-;;;; Session cache
+;;;; Session
 
 (uiop/package:define-package :asdf/session
   (:recycle :asdf/session :asdf/cache :asdf/component
@@ -10,7 +10,7 @@
    #:asdf-cache #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
    #:do-asdf-cache #:normalize-namestring
    #:call-with-asdf-session #:with-asdf-session
-   #:*asdf-session* #:*asdf-session-class* #:session #:session-plan
+   #:*asdf-session* #:*asdf-session-class* #:session #:session-cache #:session-plan
    #:visited-actions #:visiting-action-set #:visiting-action-list
    #:total-action-count #:planned-action-count #:planned-output-action-count
    #:clear-configuration-and-retry #:retry
@@ -36,8 +36,8 @@
      ;; * Speed and reliability of ASDF, with fewer side-effects from access to the filesystem, and
      ;;   no expensive recomputations of transitive dependencies for input-files or output-files.
      ;; * Testability of ASDF with the ability to fake timestamps without actually touching files.
-     (cache
-      :initform (make-hash-table :test 'equal) :reader session-cache
+     (session-cache
+      :initform (make-hash-table :test 'equal) :accessor session-cache
       :documentation "Memoize expensive computations")
      (plan
       :initform nil :accessor session-plan

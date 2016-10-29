@@ -87,6 +87,8 @@ But do NOT depend on it, for this is deprecated behavior."))
       (error 'missing-component-of-version :requires component :version version))
     (record-dependency nil operation component))
 
+  ;; TODO: have plans accept parent plans and delegate force and force-not.
+  ;; Ensure that only the toplevel session plan can specify force and force-not arguments.
   (defun ensure-plan (operation component
                       &rest keys &key plan-class &allow-other-keys)
     (declare (ignore operation))
@@ -97,6 +99,7 @@ But do NOT depend on it, for this is deprecated behavior."))
          session-plan)
         (t
          (let ((new (apply 'make-instance (or plan-class *plan-class*)
+                           :performable-p t
                            :system (component-system component) keys)))
            (setf (session-plan *asdf-session*) new)
            new)))))

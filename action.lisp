@@ -14,7 +14,6 @@
    #:non-propagating-operation
    #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
-   #:action-status #:action-stamp #:action-done-p
    #:action-operation #:action-component #:make-action
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept #:*action*
@@ -394,21 +393,6 @@ Returns two values:
   or T if the action involves files that need to be recomputed.
 * a boolean DONE-P that indicates whether the action has actually been done,
   and both its output-files and its in-image side-effects are up to date."))
-
-  (defclass action-status ()
-    ((stamp
-      :initarg :stamp :reader action-stamp
-      :documentation "STAMP associated with the ACTION if it has been completed already
-in some previous image, or T if it needs to be done.")
-     (done-p
-      :initarg :done-p :reader action-done-p
-      :documentation "a boolean, true iff the action was already done (before any planned action)."))
-    (:documentation "Status of an action"))
-
-  (defmethod print-object ((status action-status) stream)
-    (print-unreadable-object (status stream :type t)
-      (with-slots (stamp done-p) status
-        (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p))))
 
   (defmethod component-operation-time ((o operation) (c component))
     (gethash o (component-operation-times c)))
