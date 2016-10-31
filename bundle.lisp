@@ -90,10 +90,7 @@ itself."))
            (deps
              (required-components
               s :other-systems mono :component-type (if mono 'system '(not system))
-                :goal-operation (find-operation o 'load-op)
-                :keep-operation 'compile-op)))
-      ;; NB: the explicit make-operation on ECL and MKCL
-      ;; ensures that we drop the original-initargs and its magic flags when recursing.
+              :goal-operation 'load-op :keep-operation 'load-op)))
       `((,(or (gather-operation o) (if mono 'lib-op 'compile-op)) ,@deps)
         ,@(call-next-method))))
 

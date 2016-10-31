@@ -98,30 +98,38 @@
 ;;; disabling this test on windows since it relies on running make-asdf.bat, which
 ;;; does not work for me under cygwin. - rpg 2016-03-20
 
-(defun search-makefile (target)
-  (with-open-file (str (merge-pathnames (make-pathname :name "Makefile" :type nil)
-                                        *asdf-directory* ))
-    (let ((line
-           (loop for x = (read-line str)
-                 when (search target x)
-                 return (subseq x (length target))
-                 finally (error "Didn't find ~a in Makefile." target))))
-      (mapcar 'parse-native-namestring (split-string line)))))
+(defun bootstrap-lisp-files (file line-prefix)
+  (with-input-file (input (subpathname *asdf-directory* file))
+    (loop :for line = (read-line input)
+      :when (string-prefix-p line-prefix line)
+      :return (subseq line (length line-prefix))
+      :finally (error "Didn't find ~a in ~a" line-prefix file))))
 
 (DBG "Checking that the bootstrap script and asdf.asd are in synch")
 (defun system-lisp-files (system)
   (loop :for f :in (input-files 'concatenate-source-op system)
     :collect (enough-pathname f *asdf-directory*)))
 
-(defun bootstrap-lisp-files (target)
-  (let ((target (format nil "~a := " target)))
-    (search-makefile target)))
-
-(defmacro compare-files (system target)
-   `(assert-pathnames-equal (system-lisp-files ,system) (bootstrap-lisp-files ,target)))
-
 (DBG "Testing that the Makefile and ASDF agree on the order of UIOP files")
-(compare-files :uiop "driver_lisp")
-
-(DBG "Testing that the Makefile and ASDF agree on the order of ASDF/DEFSYSTEM files")
-(compare-files :asdf/defsystem "defsystem_lisp")
+(loop
+  :with errors = ()
+  :for (file prefix-fmt value-fmt backslash) :in
+  '(("Makefile" "~A := " "~{~A~^ ~}")
+    ("make-asdf.sh" "~A=" "\"~{~A~^ ~}\"")
+    ("make-asdf.bat" "set ~A=" "~{~A~^ + ~}" t)) :do
+  (format t "~%Expecting to find in ~A the following lines:~%" file)
+  (loop
+    :for (system variable-name) :in
+    '((:uiop "driver_lisp")
+      (:asdf/defsystem "defsystem_lisp"))
+    :for files = (system-lisp-files system)
+    :for prefix = (format nil prefix-fmt variable-name)
+    :for expected0 = (format nil value-fmt files)
+    :for expected = (if backslash (substitute #\\ #\/ expected0) expected0)
+    :for found = (bootstrap-lisp-files file prefix)
+    :do (format t "~A~A~%" prefix expected)
+    :unless (equal expected found)
+    :do (push (format nil "In ~A expected:~%~A~A~%~%but found:~%~A~A~%~%~%"
+                      file prefix expected prefix found)
+              errors))
+  :finally (when errors (error (reduce/strcat (reverse errors)))))
