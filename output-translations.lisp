@@ -24,6 +24,7 @@
 
 ;; (setf output-translations) between 2.27 and 3.0.3 was using a defsetf macro
 ;; for the sake of obsolete versions of GCL 2.6. Make sure it doesn't come to haunt us.
+#-mkcl ; mkcl 1.1.9 can't fmakunbound a setf function.
 (when-upgrading (:version "3.1.2") (fmakunbound '(setf output-translations)))
 
 (with-upgradability ()
@@ -54,7 +55,7 @@ and the order is by decreasing length of namestring of the source pathname.")
                                             (pathname-directory (car x)))))
                                       (if (listp directory) (length directory) 0))))))))
     new-value)
-  (defun* ((setf output-translations)) (new-value) (set-output-translations new-value))
+  (defun (setf output-translations) (new-value) (set-output-translations new-value))
 
   (defun output-translations-initialized-p ()
     "Have the output-translations been initialized yet?"
