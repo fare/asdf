@@ -88,9 +88,17 @@ itself."))
   (defmethod component-depends-on ((o gather-operation) (s system))
     (let* ((mono (operation-monolithic-p o))
            (deps
-             (required-components
-              s :other-systems mono :component-type (if mono 'system '(not system))
-              :goal-operation 'load-op :keep-operation 'load-op)))
+            ;; Required-components only looks at the dependencies of an action, excluding the action
+            ;; itself, so it may be safely used by an action recursing on its dependencies (which
+            ;; may or may not be an overdesigned API, since in practice we never use it that way).
+            ;; Therefore, if we use :goal-operation 'load-op :keep-operation 'load-op, which looks
+            ;; cleaner, we will miss the load-op on the requested system itself, which doesn't
+            ;; matter for a regular system, but matters, a lot, for a package-inferred-system.
+            ;; Using load-op as the goal operation and compile-op as the keep-operation works
+            ;; for our needs of gathering all the files we want to include in a bundle.
+            (required-components
+             s :other-systems mono :component-type (if mono 'system '(not system))
+             :goal-operation 'load-op :keep-operation 'compile-op)))
       `((,(or (gather-operation o) (if mono 'lib-op 'compile-op)) ,@deps)
         ,@(call-next-method))))
 
