@@ -64,7 +64,7 @@ into a single file"))
           :with other-around-compile = '()
           :for c :in (required-components  ;; see note about similar call to required-components
                       s :goal-operation 'load-op ;;  in bundle.lisp
-                        :keep-operation 'compile-op
+                        :keep-operation 'basic-compile-op
                         :other-systems (operation-monolithic-p operation))
           :append
           (when (typep c 'cl-source-file)
