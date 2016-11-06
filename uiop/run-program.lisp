@@ -475,8 +475,9 @@ either a list of strings specifying a program and list of arguments,
 or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on
 Windows) _asynchronously_.
 
-If OUTPUT is a pathname, a string designating a pathname, or NIL
-designating the null device, the file at that path is used as output.
+If OUTPUT is a pathname, a string designating a pathname, or NIL (the
+default) designating the null device, the file at that path is used as
+output.
 If it's :INTERACTIVE, output is inherited from the current process;
 beware that this may be different from your *STANDARD-OUTPUT*, and
 under SLIME will be on your *inferior-lisp* buffer.  If it's T, output
@@ -1065,9 +1066,9 @@ or :error-output."
 
   (defun run-program (command &rest keys
                        &key ignore-error-status (force-shell nil force-shell-suppliedp)
-                         (input nil inputp) (if-input-does-not-exist :error)
+                         input (if-input-does-not-exist :error)
                          output (if-output-exists :supersede)
-                         (error-output nil error-output-p) (if-error-output-exists :supersede)
+                         error-output (if-error-output-exists :supersede)
                          (element-type #-clozure *default-stream-element-type* #+clozure 'character)
                          (external-format *utf-8-external-format*)
                       &allow-other-keys)
@@ -1084,8 +1085,8 @@ specified to be NIL.
 Signal a continuable SUBPROCESS-ERROR if the process wasn't successful (exit-code 0),
 unless IGNORE-ERROR-STATUS is specified.
 
-If OUTPUT is a pathname, a string designating a pathname, or NIL designating the null device,
-the file at that path is used as output.
+If OUTPUT is a pathname, a string designating a pathname, or NIL (the default)
+designating the null device, the file at that path is used as output.
 If it's :INTERACTIVE, output is inherited from the current process;
 beware that this may be different from your *STANDARD-OUTPUT*,
 and under SLIME will be on your *inferior-lisp* buffer.
@@ -1147,23 +1148,23 @@ or an indication of failure via the EXIT-CODE of the process"
       (unless force-shell-suppliedp
         #-(and sbcl os-windows) ;; force-shell t isn't working properly on windows as of sbcl 1.2.16
         (setf force-shell t)))
-    (flet ((default (x xp output) (cond (xp x) ((eq output :interactive) :interactive))))
-      (apply (if (or force-shell
-                     #+(or clasp clisp) t
-                     ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
-                     #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
-                               (lexicographic<= '< ver '(16 0 1)))
-                     #+(and lispworks os-unix) (%interactivep input output error-output)
-                     #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
-                 '%use-system '%use-launch-program)
-             command
-             :input (default input inputp output)
-             :error-output (default error-output error-output-p output)
-             :if-input-does-not-exist if-input-does-not-exist
-             :if-output-exists if-output-exists
-             :if-error-output-exists if-error-output-exists
-             :element-type element-type :external-format external-format
-             keys)))
+    (apply (if (or force-shell
+                   #+(or clasp clisp) t
+                   ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
+                   #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
+                                   (lexicographic<= '< ver '(16 0 1)))
+                   #+(and lispworks os-unix) (%interactivep input output error-output)
+                   #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
+               '%use-system '%use-launch-program)
+           command
+           :input input
+           :output output
+           :error-output error-output
+           :if-input-does-not-exist if-input-does-not-exist
+           :if-output-exists if-output-exists
+           :if-error-output-exists if-error-output-exists
+           :element-type element-type :external-format external-format
+           keys))
 
   ;; WARNING: For signals other than SIGTERM and SIGKILL this may not
   ;; do what you expect it to. Sending SIGSTOP to a process spawned
