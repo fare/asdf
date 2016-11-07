@@ -15,7 +15,7 @@
    #:find-system-if-being-defined
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
-   #:mark-component-preloaded ;; forward reference to asdf/operate
+   #:mark-component-preloaded ;; forward reference to asdf/find-system
    #:sysdef-immutable-system-search #:register-immutable-system #:*immutable-systems*
    #:*defined-systems* #:clear-defined-systems
    ;; defined in source-registry, but specially mentioned here:
@@ -81,7 +81,7 @@ called with an object of type asdf:system."
   (defvar *preloaded-systems* (make-hash-table :test 'equal)
     "Registration table for preloaded systems.")
 
-  (declaim (ftype (function (t) t) mark-component-preloaded)) ; defined in asdf/operate
+  (declaim (ftype (function (t) t) mark-component-preloaded)) ; defined in asdf/find-system
 
   (defun make-preloaded-system (name keys)
     "Make a preloaded system of given NAME with build information from KEYS"

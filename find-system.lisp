@@ -246,5 +246,19 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                     (load-asd pathname :name name)))))
             ;; Try again after having loaded from disk if needed
             (or (registered-system name)
-                (when error-p (error 'missing-component :requires name))))))))
+                (when error-p (error 'missing-component :requires name)))))))
+
+  ;; Resolved forward reference for asdf/system-registry.
+  (defun mark-component-preloaded (component)
+    "Mark a component as preloaded."
+    (let ((component (find-component component nil :registered t)))
+      ;; Recurse to children, so asdf/plan will hopefully be happy.
+      (map () 'mark-component-preloaded (component-children component))
+      ;; Mark the timestamps of the common lisp-action operations as 0.
+      (let ((times (component-operation-times component)))
+        (dolist (o `(,@(when (and (typep component 'system)
+                                          (equal (coerce-name component) (primary-system-name component)))
+                         '(define-op))
+                       prepare-op compile-op load-op))
+          (setf (gethash (make-operation o) times) 0))))))
 
