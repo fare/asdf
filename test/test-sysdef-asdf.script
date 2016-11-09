@@ -108,7 +108,7 @@
 (DBG "Checking that the bootstrap script and asdf.asd are in synch")
 (defun system-lisp-files (system)
   (loop :for f :in (input-files 'concatenate-source-op system)
-    :collect (enough-pathname f *asdf-directory*)))
+    :collect (unix-namestring (enough-pathname f *asdf-directory*))))
 
 (DBG "Testing that the Makefile and ASDF agree on the order of UIOP files")
 (loop

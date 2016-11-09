@@ -88,9 +88,19 @@ itself."))
   (defmethod component-depends-on ((o gather-operation) (s system))
     (let* ((mono (operation-monolithic-p o))
            (deps
-             (required-components
-              s :other-systems mono :component-type (if mono 'system '(not system))
-              :goal-operation 'load-op :keep-operation 'load-op)))
+            ;; Required-components only looks at the dependencies of an action, excluding the action
+            ;; itself, so it may be safely used by an action recursing on its dependencies (which
+            ;; may or may not be an overdesigned API, since in practice we never use it that way).
+            ;; Therefore, if we use :goal-operation 'load-op :keep-operation 'load-op, which looks
+            ;; cleaner, we will miss the load-op on the requested system itself, which doesn't
+            ;; matter for a regular system, but matters, a lot, for a package-inferred-system.
+            ;; Using load-op as the goal operation and basic-compile-op as the keep-operation works
+            ;; for our needs of gathering all the files we want to include in a bundle.
+            ;; Note that we use basic-compile-op rather than compile-op so it will still work on
+            ;; systems when *load-system-operation* is load-bundle-op.
+            (required-components
+             s :other-systems mono :component-type (if mono 'system '(not system))
+             :goal-operation 'load-op :keep-operation 'basic-compile-op)))
       `((,(or (gather-operation o) (if mono 'lib-op 'compile-op)) ,@deps)
         ,@(call-next-method))))
 
@@ -120,6 +130,9 @@ On CLASP, ECL, MKCL, these object files _also_ include the contents of Lisp file
 themselves. In any case, this operation will produce what you need to further build
 a static runtime for your system, or a dynamic library to load in an existing runtime."))
 
+  ;; What works: On ECL (and CLASP?), we link the .a output of lib-op into a .so;
+  ;; on MKCL, we link the many .o files from the system directly into the .so;
+  ;; on other implementations, we combine (usually concatenate) the .fasl files into one.
   (defclass compile-bundle-op (basic-compile-bundle-op selfward-operation
                                #+(or clasp ecl mkcl) link-op #-(or clasp ecl) gather-operation)
     ((selfward-operation :initform '(prepare-bundle-op #+(or clasp ecl) lib-op)
@@ -476,9 +489,11 @@ or of opaque libraries shipped along the source code."))
            (version (component-version s))
            (dependencies
              (if (operation-monolithic-p o)
+                 ;; We want only dependencies, and we use basic-load-op rather than load-op so that
+                 ;; this will keep working on systems when *load-system-operation* is load-bundle-op
                  (remove-if-not 'builtin-system-p
                                 (required-components s :component-type 'system
-                                                       :keep-operation 'load-op))
+                                                       :keep-operation 'basic-load-op))
                  (while-collecting (x) ;; resolve the sideway-dependencies of s
                    (map-direct-dependencies
                     t 'load-op s
@@ -488,7 +503,8 @@ or of opaque libraries shipped along the source code."))
            (depends-on (mapcar 'coerce-name dependencies)))
       (when (pathname-equal asd (system-source-file s))
         (cerror "overwrite the asd file"
-                "~/asdf-action:format-action/ is going to overwrite the system definition file ~S which is probably not what you want; you probably need to tweak your output translations."
+                "~/asdf-action:format-action/ is going to overwrite the system definition file ~S ~
+which is probably not what you want; you probably need to tweak your output translations."
                 (cons o s) asd))
       (with-open-file (s asd :direction :output :if-exists :supersede
                              :if-does-not-exist :create)

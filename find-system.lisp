@@ -200,8 +200,8 @@ contact maintainers if you need a stable API to do more than that.")
 but not even registered as defined"
                    :format-arguments (list name))))))
 
-(defun register-immutable-system (system-name &rest keys)
-  "Register SYSTEM-NAME as preloaded and immutable.
+  (defun register-immutable-system (system-name &rest keys)
+    "Register SYSTEM-NAME as preloaded and immutable.
 It will automatically be considered as passed to FORCE-NOT in a plan."
     (let ((system-name (coerce-name system-name)))
       (apply 'register-preloaded-system system-name keys)

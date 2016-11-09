@@ -52,7 +52,6 @@
 #+(or ecl mkcl)
 (progn
   (DBG "On ECL and MKCL, test dll-op and monolithic-dll-op")
-  #+ecl (trace c::builder)
   (DBG "Test the pre-compiled system feature")
   (require 'sockets)
   (progn
@@ -68,8 +67,7 @@
     (let* (#+(and mkcl os-windows) (compiler::*builder-default-libraries* (list (namestring dll))))
       (operate 'load-op :test-asdf/dll-user)))
   (DBG "Test that the DLL works")
-  (assert-equal (test-package::sample-function) 42)
-
+  (assert-equal (sample-function) 42)
   (DBG "Create a DLL via monolithic-dll-op")
   (nest
    #+(and mkcl os-windows)
@@ -82,6 +80,6 @@
     (si:load-foreign-module dll)
     (let* (#+(and mkcl os-windows) (compiler::*builder-default-libraries* (list (namestring dll))))
       (operate 'load-op :test-asdf/monodll-user)))
-  (assert-equal (test-package::always-42) 42))
+  (assert-equal (always-42) 42))
 
 ;;; TODO: test prebuilt-system.

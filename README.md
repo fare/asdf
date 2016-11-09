@@ -144,8 +144,7 @@ by installing the source code, and running:
 
     (asdf:load-system :uiop) ;; loading uiop is simple
     (map () 'load ;; loading asdf/defsystem is tricky
-     (mapcar 'asdf:component-pathname
-      (asdf::required-components :asdf/defsystem :keep-component 'asdf:cl-source-file)))
+     (asdf:input-files :concatenate-source-op "asdf/defsystem"))
 
 Note that the above can be adapted in a general recipe to get all the files in a system, in order.
 To also have the files in systems it transitively depends on, add the `:other-systems t` keyword
