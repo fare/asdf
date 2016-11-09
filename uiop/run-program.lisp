@@ -973,9 +973,9 @@ or :error-output."
              (os-cond
               ((os-unix-p) (cons "exec" command))
               ((os-windows-p)
-               #+(or allegro sbcl clisp)
+               #+(or allegro clisp sbcl)
                (cons (%cmd-shell-pathname) (cons "/c" command))
-               #-(or allegro sbcl clisp) command)
+               #-(or allegro clisp sbcl) command)
               (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
