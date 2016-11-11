@@ -24,13 +24,6 @@
       (leave-test
        "This test is not meant to be run on versions of CMU CL that predate 21B" 0))))
 
-#+ecl
-(unless (version-satisfies
-         (lisp-implementation-version)
-         "16.1.2")
-  (leave-test
-   "This test is not meant to be run on versions of ECL that predate 16.1.2" 0))
-
 #+mkcl
 (unless (version-satisfies (lisp-implementation-version) "1.1.10")
   (leave-test
