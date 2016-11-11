@@ -965,17 +965,17 @@ or :error-output."
       (string
        (os-cond
         ((os-windows-p)
-         #+(or allegro clisp)
+         #+(or allegro clisp ecl)
          (strcat (%cmd-shell-pathname) " /c " command)
-         #-(or allegro clisp) command)
+         #-(or allegro clisp ecl) command)
         (t command)))
       (list (escape-shell-command
              (os-cond
               ((os-unix-p) (cons "exec" command))
               ((os-windows-p)
-               #+(or allegro clisp sbcl)
+               #+(or allegro clisp ecl sbcl)
                (cons (%cmd-shell-pathname) (cons "/c" command))
-               #-(or allegro clisp sbcl) command)
+               #-(or allegro clisp ecl sbcl) command)
               (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
