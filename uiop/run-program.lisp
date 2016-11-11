@@ -1019,7 +1019,7 @@ or :error-output."
     (%handle-if-exists error-output if-error-output-exists)
     #+(or allegro clozure cmucl (and lispworks os-unix) sbcl scl)
     (wait-process
-     (apply 'launch-program (%normalize-system-command command) :wait t keys))
+     (apply 'launch-program (%normalize-system-command command) keys))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
       #+(and lispworks os-windows)
