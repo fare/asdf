@@ -1153,7 +1153,7 @@ or an indication of failure via the EXIT-CODE of the process"
                    #+(or clasp clisp) t
                    ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
                    #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
-                                   (lexicographic<= '< ver '(16 0 1)))
+                                   (lexicographic<= '< ver '(16 0 0)))
                    #+(and lispworks os-unix) (%interactivep input output error-output)
                    #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                '%use-system '%use-launch-program)
