@@ -1017,9 +1017,10 @@ or :error-output."
     (%handle-if-does-not-exist input if-input-does-not-exist)
     (%handle-if-exists output if-output-exists)
     (%handle-if-exists error-output if-error-output-exists)
-    #+(or allegro clozure cmucl ecl (and lispworks os-unix) sbcl scl)
-    (let (#+ecl (version (parse-version (lisp-implementation-version))))
+    #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) sbcl scl)
+    (let (#+(or abcl ecl) (version (parse-version (lisp-implementation-version))))
       (nest
+       #+abcl (unless (lexicographic< '< version '(1 4 0)))
        #+ecl (unless (lexicographic<= '< version '(16 0 0)))
        (return-from %system
          (wait-process
@@ -1040,7 +1041,7 @@ or :error-output."
             raw-exit-code))
       #-(or clisp (and lispworks os-windows))
       (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
-        #+abcl (ext:run-shell-command %command) ;; FIXME: deprecated
+        #+abcl (ext:run-shell-command %command)
         #+cormanlisp (win32:system %command)
         #+(or clasp ecl) (let ((*standard-input* *stdin*)
                                (*standard-output* *stdout*)
