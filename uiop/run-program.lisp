@@ -1012,11 +1012,8 @@ or :error-output."
                                        error-output if-error-output-exists
                                        &allow-other-keys)
     "A portable abstraction of a low-level call to libc's system()."
-    (declare (ignorable directory keys))
-    ;; see comments for these functions
-    (%handle-if-does-not-exist input if-input-does-not-exist)
-    (%handle-if-exists output if-output-exists)
-    (%handle-if-exists error-output if-error-output-exists)
+    (declare (ignorable keys directory input if-input-does-not-exist output
+                        if-output-exists error-output if-error-output-exists))
     #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
     (let (#+(or abcl ecl mkcl) (version (parse-version (lisp-implementation-version))))
       (nest
@@ -1028,6 +1025,10 @@ or :error-output."
           (apply 'launch-program (%normalize-system-command command) keys)))))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
+      ;; see comments for these functions
+      (%handle-if-does-not-exist input if-input-does-not-exist)
+      (%handle-if-exists output if-output-exists)
+      (%handle-if-exists error-output if-error-output-exists)
       #+abcl (ext:run-shell-command %command)
       #+(or clasp ecl) (let ((*standard-input* *stdin*)
                              (*standard-output* *stdout*)
