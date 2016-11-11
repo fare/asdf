@@ -14,6 +14,7 @@
    #:component-depends-on
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-status #:action-stamp #:action-done-p
+   #:action-operation #:action-component #:make-action
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
    #:action-path #:find-action #:stamp #:done-p
@@ -33,16 +34,26 @@ of steps to be performed while building a system."
 and a class-name or class designates the canonical instance of the designated class."
     '(or operation null symbol class)))
 
+;;; these are pseudo accessors -- let us abstract away the CONS cell representation of plan
+;;; actions.
+(with-upgradability ()
+  (defun make-action (operation component)
+    (cons operation component))
+  (defun action-operation (action)
+    (car action))
+  (defun action-component (action)
+    (cdr action)))
 
 ;;;; Reified representation for storage or debugging. Note: it drops the operation-original-initargs
 (with-upgradability ()
   (defun action-path (action)
     "A readable data structure that identifies the action."
-    (destructuring-bind (o . c) action (cons (type-of o) (component-find-path c))))
+    (let ((o (action-operation action))
+          (c (action-component action)))
+      (cons (type-of o) (component-find-path c))))
   (defun find-action (path)
     "Reconstitute an action from its action-path"
-    (destructuring-bind (o . c) path (cons (make-operation o) (find-component () c)))))
-
+    (destructuring-bind (o . c) path (make-action (make-operation o) (find-component () c)))))
 
 ;;;; Convenience methods
 (with-upgradability ()
@@ -92,7 +103,7 @@ and a class-name or class designates the canonical instance of the designated cl
            (defmethod ,function (,@prefix (,operation operation) ,component ,@suffix ,@more-args)
              (if (typep ,component 'component)
                  (error "No defined method for ~S on ~/asdf-action:format-action/"
-                        ',function (cons ,operation ,component))
+                        ',function (make-action ,operation ,component))
                  (if-let (,found (find-component () ,component))
                     ,(next-method operation found)
                     ,if-no-component))))))))
@@ -415,7 +426,7 @@ in some previous image, or T if it needs to be done.")
                      selfward-operation non-propagating-operation))
       (sysdef-error
        (compatfmt "~@<Required method ~S not implemented for ~/asdf-action:format-action/~@:>")
-       'perform (cons o c))))
+       'perform (make-action o c))))
 
   ;; The restarts of the perform-with-restarts variant matter in an interactive context.
   ;; The retry strategies of p-w-r itself, and/or the background workers of a multiprocess build
