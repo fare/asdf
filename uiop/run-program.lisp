@@ -1017,11 +1017,12 @@ or :error-output."
     (%handle-if-does-not-exist input if-input-does-not-exist)
     (%handle-if-exists output if-output-exists)
     (%handle-if-exists error-output if-error-output-exists)
-    #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) sbcl scl)
-    (let (#+(or abcl ecl) (version (parse-version (lisp-implementation-version))))
+    #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    (let (#+(or abcl ecl mkcl) (version (parse-version (lisp-implementation-version))))
       (nest
        #+abcl (unless (lexicographic< '< version '(1 4 0)))
        #+ecl (unless (lexicographic<= '< version '(16 0 0)))
+       #+mkcl (unless (lexicographic<= '< version '(1 1 9)))
        (return-from %system
          (wait-process
           (apply 'launch-program (%normalize-system-command command) keys)))))
