@@ -385,7 +385,7 @@ or whether it's already taken care of by the implementation's underlying run-pro
     "Normalizes a portable I/O specifier for LAUNCH-PROGRAM into an implementation-dependent
 argument to pass to the internal RUN-PROGRAM"
     (declare (ignorable role))
-    (etypecase specifier
+    (typecase specifier
       (null (or #+(or allegro lispworks) (null-device-pathname)))
       (string (parse-native-namestring specifier))
       (pathname specifier)
@@ -394,12 +394,21 @@ argument to pass to the internal RUN-PROGRAM"
       ((eql :interactive)
        #+allegro nil
        #+clisp :terminal
-       #+(or abcl clozure cmucl ecl mkcl sbcl scl) t)
-      #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+       #+(or abcl clozure cmucl ecl mkcl sbcl scl) t
+       #-(or abcl clozure cmucl ecl mkcl sbcl scl allegro clisp)
+       (not-implemented-error :interactive-output
+                              "On this lisp implementation, cannot interpret ~a value of ~a"
+                              specifier role))
       ((eql :output)
        (if (eq role :error-output)
-           :output
-           (error "Wrong specifier ~S for role ~S" specifier role)))))
+          (or
+             #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)  :output
+             (not-implemented-error :error-output-redirect
+                                    "Can't send ~a to ~a on this lisp implementation."
+                                    role specifier))))
+      (otherwise
+       (parameter-error "Incorrect I/O specifier ~S for ~S"
+                        specifier role))))
 
   (defun %interactivep (input output error-output)
     (member :interactive (list input output error-output)))
