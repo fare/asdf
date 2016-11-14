@@ -394,7 +394,7 @@ argument to pass to the internal RUN-PROGRAM"
       ((eql :interactive)
        #+allegro nil
        #+clisp :terminal
-       #+(or clozure cmucl ecl mkcl sbcl scl) t)
+       #+(or abcl clozure cmucl ecl mkcl sbcl scl) t)
       #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
       ((eql :output)
        (if (eq role :error-output)
