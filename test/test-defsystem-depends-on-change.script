@@ -1,0 +1,55 @@
+;;; -*- Lisp -*-
+;; Testing proper stratification of defsystem-depends-on changes.
+
+(DBG "Test that when a defsystem-depends-on (indirect) dependency changes, the system is recompiled, yet that dependencies of the old definition that are not dependencies of the new definition are not recompiled.")
+
+;; disable cache between those compilations.
+(setf asdf/session:*asdf-session* nil)
+
+(defparameter tddoc "test-defsystem-depends-on-change")
+(defparameter talc "test-asdf-location-change")
+
+
+(DBG "Load the system, using xach-foo-1")
+(push (subpathname *test-directory* "xach-foo-1/") *central-registry*)
+(load-system tddoc)
+(assert-equal asdf-user::*tddoc* 1)
+(assert-equal test-asdf-system::*times-loaded* 1)
+(assert-equal test-asdf-system::*ta/dcc* 1)
+(assert-equal test-asdf-system::*ta/dcd* 1)
+(assert-equal test-asdf-system::*ta/dca* 0)
+(assert-pathname-equal
+ (subpathname *test-directory* "test-defsystem-depends-on-change.asd")
+ (system-source-file tddoc))
+(assert-pathname-equal
+ (subpathname *test-directory* "xach-foo-1/test-asdf-location-change.asd")
+ (system-source-file talc))
+
+(DBG "Load it again: there should be no changes")
+(load-system "test-defsystem-depends-on-change")
+(assert-equal asdf-user::*tddoc* 1)
+(assert-equal test-asdf-system::*times-loaded* 1)
+(assert-equal test-asdf-system::*ta/dcc* 1)
+(assert-equal test-asdf-system::*ta/dcd* 1)
+(assert-equal test-asdf-system::*ta/dca* 0)
+(assert-pathname-equal
+ (subpathname *test-directory* "test-defsystem-depends-on-change.asd")
+ (system-source-file tddoc))
+(assert-pathname-equal
+ (subpathname *test-directory* "xach-foo-1/test-asdf-location-change.asd")
+ (system-source-file talc))
+
+(DBG "Now, change a defsystem-depends-on dependency and try again")
+(setf (first *central-registry*) (subpathname *test-directory* "xach-foo-2/"))
+(load-system "test-defsystem-depends-on-change")
+(assert-equal asdf-user::*tddoc* 2)
+(assert-equal test-asdf-system::*times-loaded* 1) ;; from test-asdf.asd
+(assert-equal test-asdf-system::*ta/dcc* 2)
+(assert-equal test-asdf-system::*ta/dcd* 1)
+(assert-equal test-asdf-system::*ta/dca* 1)
+(assert-pathname-equal
+ (subpathname *test-directory* "test-defsystem-depends-on-change.asd")
+ (system-source-file tddoc))
+(assert-pathname-equal
+ (subpathname *test-directory* "xach-foo-2/test-asdf-location-change.asd")
+ (system-source-file talc))

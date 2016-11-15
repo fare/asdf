@@ -83,3 +83,19 @@
   ;; so that we can check that forcing causes one file to be reloaded but not the other.
   :depends-on (:file3-only)
   :components ((:file "file1")))
+
+;; These are used by test-defsystem-depends-on-change.asd, test-defsystem-depends-on-change.script
+(defvar *ta/dcc* 0)
+(defsystem "test-asdf/dep-can-change"
+  :depends-on ("test-asdf-location-change")
+  :perform (load-op (o c) (incf *ta/dcc*)))
+
+(defvar *ta/dcd* 0)
+(defsystem "test-asdf/dep-can-disappear"
+  :depends-on ("test-asdf-location-change")
+  :perform (load-op (o c) (incf *ta/dcd*)))
+
+(defvar *ta/dca* 0)
+(defsystem "test-asdf/dep-can-appear"
+  :depends-on ("test-asdf-location-change")
+  :perform (load-op (o c) (incf *ta/dca*)))
