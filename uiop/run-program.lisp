@@ -405,7 +405,8 @@ argument to pass to the internal RUN-PROGRAM"
              #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)  :output
              (not-implemented-error :error-output-redirect
                                     "Can't send ~a to ~a on this lisp implementation."
-                                    role specifier))))
+                                    role specifier))
+          (parameter-error "~S IO specifier invalid for ~S" specifier role)))
       (otherwise
        (parameter-error "Incorrect I/O specifier ~S for ~S"
                         specifier role))))
