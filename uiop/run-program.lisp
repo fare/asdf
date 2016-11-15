@@ -392,10 +392,10 @@ argument to pass to the internal RUN-PROGRAM"
       (stream specifier)
       ((eql :stream) :stream)
       ((eql :interactive)
-       #+allegro nil
+       #+(or allegro lispworks) nil
        #+clisp :terminal
        #+(or abcl clozure cmucl ecl mkcl sbcl scl) t
-       #-(or abcl clozure cmucl ecl mkcl sbcl scl allegro clisp)
+       #-(or abcl clozure cmucl ecl mkcl sbcl scl allegro lispworks clisp)
        (not-implemented-error :interactive-output
                               "On this lisp implementation, cannot interpret ~a value of ~a"
                               specifier role))
