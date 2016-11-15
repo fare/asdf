@@ -965,17 +965,17 @@ or :error-output."
       (string
        (os-cond
         ((os-windows-p)
-         #+(or allegro clisp)
+         #+(or allegro clisp ecl)
          (strcat (%cmd-shell-pathname) " /c " command)
-         #-(or allegro clisp) command)
+         #-(or allegro clisp ecl) command)
         (t command)))
       (list (escape-shell-command
              (os-cond
               ((os-unix-p) (cons "exec" command))
               ((os-windows-p)
-               #+(or allegro sbcl clisp)
+               #+(or allegro clisp ecl sbcl)
                (cons (%cmd-shell-pathname) (cons "/c" command))
-               #-(or allegro sbcl clisp) command)
+               #-(or allegro clisp ecl sbcl) command)
               (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
@@ -1012,18 +1012,28 @@ or :error-output."
                                        error-output if-error-output-exists
                                        &allow-other-keys)
     "A portable abstraction of a low-level call to libc's system()."
-    (declare (ignorable directory keys))
-    ;; see comments for these functions
-    (%handle-if-does-not-exist input if-input-does-not-exist)
-    (%handle-if-exists output if-output-exists)
-    (%handle-if-exists error-output if-error-output-exists)
-    #+(or allegro clozure cmucl (and lispworks os-unix) sbcl scl)
-    (wait-process
-     (apply 'launch-program (%normalize-system-command command) :wait t keys))
+    (declare (ignorable keys directory input if-input-does-not-exist output
+                        if-output-exists error-output if-error-output-exists))
+    #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
+    (let (#+(or abcl ecl mkcl) (version (parse-version (lisp-implementation-version))))
+      (nest
+       #+abcl (unless (lexicographic< '< version '(1 4 0)))
+       #+ecl (unless (lexicographic<= '< version '(16 0 0)))
+       #+mkcl (unless (lexicographic<= '< version '(1 1 9)))
+       (return-from %system
+         (wait-process
+          (apply 'launch-program (%normalize-system-command command) keys)))))
     #+(or abcl clasp clisp cormanlisp ecl gcl genera (and lispworks os-windows) mkcl xcl)
     (let ((%command (%redirected-system-command command input output error-output directory)))
-      #+(and lispworks os-windows)
-      (system:call-system %command :current-directory directory :wait t)
+      ;; see comments for these functions
+      (%handle-if-does-not-exist input if-input-does-not-exist)
+      (%handle-if-exists output if-output-exists)
+      (%handle-if-exists error-output if-error-output-exists)
+      #+abcl (ext:run-shell-command %command)
+      #+(or clasp ecl) (let ((*standard-input* *stdin*)
+                             (*standard-output* *stdout*)
+                             (*error-output* *stderr*))
+                         (ext:system %command))
       #+clisp
       (let ((raw-exit-code
              (or
@@ -1034,19 +1044,14 @@ or :error-output."
         (if (minusp raw-exit-code)
             (- 128 raw-exit-code)
             raw-exit-code))
-      #-(or clisp (and lispworks os-windows))
-      (with-current-directory ((os-cond ((not (os-unix-p)) directory)))
-        #+abcl (ext:run-shell-command %command) ;; FIXME: deprecated
-        #+cormanlisp (win32:system %command)
-        #+(or clasp ecl) (let ((*standard-input* *stdin*)
-                               (*standard-output* *stdout*)
-                               (*error-output* *stderr*))
-                           (ext:system %command))
-        #+gcl (system:system %command)
-        #+genera (not-implemented-error '%system)
-        #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
-        #+mkcl (mkcl:system %command)
-        #+xcl (system:%run-shell-command %command))))
+      #+cormanlisp (win32:system %command)
+      #+gcl (system:system %command)
+      #+genera (not-implemented-error '%system)
+      #+(and lispworks os-windows)
+      (system:call-system %command :current-directory directory :wait t)
+      #+mcl (ccl::with-cstrs ((%%command %command)) (_system %%command))
+      #+mkcl (mkcl:system %command)
+      #+xcl (system:%run-shell-command %command)))
 
   (defun %use-system (command &rest keys
                       &key input output error-output ignore-error-status &allow-other-keys)
@@ -1153,7 +1158,7 @@ or an indication of failure via the EXIT-CODE of the process"
                    #+(or clasp clisp) t
                    ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
                    #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
-                                   (lexicographic<= '< ver '(16 0 1)))
+                                   (lexicographic<= '< ver '(16 0 0)))
                    #+(and lispworks os-unix) (%interactivep input output error-output)
                    #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
                '%use-system '%use-launch-program)
