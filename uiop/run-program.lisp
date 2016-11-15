@@ -392,21 +392,22 @@ argument to pass to the internal RUN-PROGRAM"
       (stream specifier)
       ((eql :stream) :stream)
       ((eql :interactive)
-       #+allegro nil
+       #+(or allegro lispworks) nil
        #+clisp :terminal
        #+(or abcl clozure cmucl ecl mkcl sbcl scl) t
-       #-(or abcl clozure cmucl ecl mkcl sbcl scl allegro clisp)
+       #-(or abcl clozure cmucl ecl mkcl sbcl scl allegro lispworks clisp)
        (not-implemented-error :interactive-output
                               "On this lisp implementation, cannot interpret ~a value of ~a"
                               specifier role))
       ((eql :output)
-       (if (eq role :error-output)
-          (or
-             #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)  :output
-             (not-implemented-error :error-output-redirect
-                                    "Can't send ~a to ~a on this lisp implementation."
-                                    role specifier))
-          (parameter-error "~S IO specifier invalid for ~S" specifier role)))
+       (cond ((eq role :error-output)
+              #+(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+              :output
+              #-(or abcl allegro clozure cmucl ecl lispworks mkcl sbcl scl)
+              (not-implemented-error :error-output-redirect
+                                     "Can't send ~a to ~a on this lisp implementation."
+                                     role specifier))
+             (t (parameter-error "~S IO specifier invalid for ~S" specifier role))))
       (otherwise
        (parameter-error "Incorrect I/O specifier ~S for ~S"
                         specifier role))))
