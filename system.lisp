@@ -18,7 +18,7 @@
    #:mailto #:system-mailto
    #:long-name #:system-long-name
    #:source-control #:system-source-control
-   #:coerce-name #:primary-system-name #:coerce-filename
+   #:coerce-name #:primary-system-name #:primary-system-p #:coerce-filename
    #:find-system #:builtin-system-p)) ;; forward-reference, defined in find-system
 (in-package :asdf/system)
 
@@ -123,11 +123,21 @@ a SYMBOL (designing its name, downcased), or a STRING (designing itself)."
       (string name)
       (t (sysdef-error (compatfmt "~@<Invalid component designator: ~3i~_~A~@:>") name))))
 
-  (defun primary-system-name (name)
+  (defun primary-system-name (system-designator)
     "Given a system designator NAME, return the name of the corresponding primary system,
 after which the .asd file is named. That's the first component when dividing the name
-as a string by / slashes."
-    (first (split-string (coerce-name name) :separator "/")))
+as a string by / slashes. A component designates its system."
+    (etypecase system-designator
+      (string (if-let (p (position #\/ system-designator))
+                (subseq system-designator 0 p) system-designator))
+      (component (primary-system-name (coerce-name (component-system system-designator))))))
+
+  (defun primary-system-p (system)
+    "Given a system designator SYSTEM, return T if it designates a primary system, or else NIL.
+Also return NIL if system is neither a SYSTEM nor a string designating one."
+    (typecase system
+      (string (not (find #\/ system)))
+      (system (primary-system-p (coerce-name system)))))
 
   (defun coerce-filename (name)
     "Coerce a system designator NAME into a string suitable as a filename component.

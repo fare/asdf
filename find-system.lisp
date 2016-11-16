@@ -256,9 +256,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       (map () 'mark-component-preloaded (component-children component))
       ;; Mark the timestamps of the common lisp-action operations as 0.
       (let ((times (component-operation-times component)))
-        (dolist (o `(,@(when (and (typep component 'system)
-                                          (equal (coerce-name component) (primary-system-name component)))
-                         '(define-op))
+        (dolist (o `(,@(when (primary-system-p component) '(define-op))
                        prepare-op compile-op load-op))
           (setf (gethash (make-operation o) times) 0))))))
 
