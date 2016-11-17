@@ -3,19 +3,21 @@
 (format! t "~%Using ASDF ~A~%" (asdf-version))
 (assert (version< "3.0" (asdf-version))) ;; check that we have a recent enough ASDF
 
-(DBG "Let's define some methods on input-files, to later check what an upgrade does to them.")
-(def-test-system "fooey")
-(defparameter *ticks* 0)
-(defun tick () (incf *ticks*))
-(defsystem "foo")
-(defmethod input-files :after ((o load-op) (c system)) (tick))
-(assert-equal *ticks* 0)
-(input-files 'load-op "foo")
-(assert-equal *ticks* 1)
-(input-files 'load-op "foo")
-(assert-equal *ticks* 1) ;; It was cached.
-(assert (find-system "fooey" nil))
+(setf *asdf-session* nil)
 
+(DBG "Let's define some methods on input-files, to later check what an upgrade does to them.")
+(with-asdf-session (:override t)
+  (def-test-system "fooey")
+  (defparameter *ticks* 0)
+  (defun tick () (incf *ticks*))
+  (defsystem "foo")
+  (defmethod input-files :after ((o load-op) (c system)) (tick))
+  (assert-equal *ticks* 0)
+  (input-files 'load-op "foo")
+  (assert-equal *ticks* 1)
+  (input-files 'load-op "foo")
+  (assert-equal *ticks* 1) ;; It was cached.
+  (assert (find-system "fooey" nil)))
 
 (DBG "Try load ASDF with an empty configuration")
 (initialize-source-registry
@@ -60,8 +62,7 @@
 (clear-system "asdf")
 
 (with-asdf-session (:override t)
-  (with-expected-failure (#+xcl t)
-    ;; expected-failure: XCL has trouble with the ASDF upgrade
+  (with-expected-failure (#+xcl t)    ;; expected-failure: XCL has trouble with the ASDF upgrade
     (load-system :asdf)
     (assert-pathname-equal (subpathname *asdf-directory* "asdf.asd")
                            (system-source-file (find-system :asdf))))

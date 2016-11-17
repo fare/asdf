@@ -8,8 +8,7 @@
         :asdf/find-component :asdf/system-registry :asdf/plan :asdf/operate)
   (:export
    #:find-system #:locate-system #:load-asd #:define-op
-   #:load-system-definition-error #:error-name #:error-pathname #:error-condition
-   ))
+   #:load-system-definition-error #:error-name #:error-pathname #:error-condition))
 (in-package :asdf/find-system)
 
 (with-upgradability ()

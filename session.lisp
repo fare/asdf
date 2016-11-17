@@ -10,7 +10,8 @@
    #:asdf-cache #:set-asdf-cache-entry #:unset-asdf-cache-entry #:consult-asdf-cache
    #:do-asdf-cache #:normalize-namestring
    #:call-with-asdf-session #:with-asdf-session
-   #:*asdf-session* #:*asdf-session-class* #:session #:session-cache #:session-plan
+   #:*asdf-session* #:*asdf-session-class* #:session #:toplevel-asdf-session
+   #:session-cache #:session-plan #:asdf-upgraded-p
    #:visited-actions #:visiting-action-set #:visiting-action-list
    #:total-action-count #:planned-action-count #:planned-output-action-count
    #:clear-configuration-and-retry #:retry
@@ -36,9 +37,15 @@
      ;; * Speed and reliability of ASDF, with fewer side-effects from access to the filesystem, and
      ;;   no expensive recomputations of transitive dependencies for input-files or output-files.
      ;; * Testability of ASDF with the ability to fake timestamps without actually touching files.
+     (ancestor
+      :initform nil :initarg :ancestor :reader session-ancestor
+      :documentation "Top level session that this is part of")
      (session-cache
-      :initform (make-hash-table :test 'equal) :accessor session-cache
+      :initform (make-hash-table :test 'equal) :initarg :session-cache :reader session-cache
       :documentation "Memoize expensive computations")
+     (asdf-upgraded-p
+      :initform nil :initarg :asdf-upgraded-p :accessor asdf-upgraded-p
+      :documentation "Was ASDF already upgraded in this session - only valid for toplevel-asdf-session.")
      (plan
       :initform nil :accessor session-plan
       :documentation "Dependency graph of actions")
@@ -55,6 +62,9 @@
      ;; Count of actions that need to be performed that have a non-empty list of output-files.
      (planned-output-action-count :initform 0 :accessor planned-output-action-count))
     (:documentation "An ASDF session with a cache to memoize some computations"))
+
+  (defun toplevel-asdf-session ()
+    (when *asdf-session* (or (session-ancestor *asdf-session*) *asdf-session*)))
 
   (defun asdf-cache ()
     (session-cache *asdf-session*))
@@ -93,13 +103,18 @@
   ;; Second, if a new session was started, establish restarts for retrying the overall computation.
   ;; Finally, consult the cache if a KEY was specified with the THUNK as a fallback when the cache
   ;; entry isn't found, or just call the THUNK if no KEY was specified.
-  (defun call-with-asdf-session (thunk &key override key)
+  (defun call-with-asdf-session (thunk &key override key override-cache)
     (let ((fun (if key #'(lambda () (consult-asdf-cache key thunk)) thunk)))
-      (if (and *asdf-session* (not override))
+      (if (and (not override) *asdf-session*)
           (funcall fun)
           (loop
             (restart-case
-                (let ((*asdf-session* (make-instance *asdf-session-class*)))
+                (let ((*asdf-session*
+                       (apply 'make-instance *asdf-session-class*
+                              (when *asdf-session*
+                                `(:ancestor ,(toplevel-asdf-session)
+                                  ,@(unless override-cache
+                                      `(:session-cache ,(session-cache *asdf-session*))))))))
                   (return (funcall fun)))
               (retry ()
                 :report (lambda (s)
@@ -107,11 +122,13 @@
               (clear-configuration-and-retry ()
                 :report (lambda (s)
                           (format s (compatfmt "~@<Retry ASDF operation after resetting the configuration.~@:>")))
+                (clrhash (session-cache *asdf-session*))
                 (clear-configuration)))))))
 
   ;; Syntactic sugar for call-with-asdf-session
-  (defmacro with-asdf-session ((&key key override) &body body)
-    `(call-with-asdf-session #'(lambda () ,@body) :override ,override :key ,key))
+  (defmacro with-asdf-session ((&key key override override-cache) &body body)
+    `(call-with-asdf-session
+      #'(lambda () ,@body) :override ,override :key ,key :override-cache ,override-cache))
 
 
   ;;; Define specific accessor for file (date) stamp.

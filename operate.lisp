@@ -44,9 +44,6 @@ But do NOT depend on it, for this is deprecated behavior."))
   (define-convenience-action-methods operate (operation component &key)
     :if-no-component (error 'missing-component :requires component))
 
-  (defvar *in-operate* nil
-    "Are we in operate?")
-
   ;; This method ensures that an ASDF upgrade is attempted as the very first thing,
   ;; with suitable state preservation in case in case it actually happens,
   ;; and that a few suitable dynamic bindings are established.
@@ -56,9 +53,7 @@ But do NOT depend on it, for this is deprecated behavior."))
                                 (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
     (nest
      (with-asdf-session ())
-     (let ((in-operate *in-operate*)
-           (*in-operate* t)
-           (operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
+     (let ((operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
             (etypecase operation
               (operation (let ((name (type-of operation)))
                            #'(lambda () (make-operation name))))
@@ -69,12 +64,14 @@ But do NOT depend on it, for this is deprecated behavior."))
      ;; Before we operate on any system, make sure ASDF is up-to-date,
      ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
      (progn
-       (unless in-operate
+       (unless (asdf-upgraded-p (toplevel-asdf-session))
+         (setf (asdf-upgraded-p (toplevel-asdf-session)) t)
          (when (upgrade-asdf)
            ;; If we were upgraded, restart OPERATE the hardest of ways, for
            ;; its function may have been redefined.
            (return-from operate
-             (apply 'operate (funcall operation-remaker) component-path keys)))))
+             (with-asdf-session (:override t)
+               (apply 'operate (funcall operation-remaker) component-path keys))))))
       ;; Setup proper bindings around any operate call.
      (let* ((*verbose-out* (and verbose *standard-output*))
             (*compile-file-warnings-behaviour* on-warnings)

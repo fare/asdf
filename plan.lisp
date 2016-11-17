@@ -530,12 +530,10 @@ initialized with SEED."
   (defun* (required-components) (system &rest keys &key (goal-operation 'load-op) &allow-other-keys)
     "Given a SYSTEM and a GOAL-OPERATION (default LOAD-OP), traverse the dependencies and
 return a list of the components involved in building the desired action."
-    (let ((cache (and *asdf-session* (session-cache *asdf-session*))))
-      (with-asdf-session (:override t)
-        (when cache (setf (session-cache *asdf-session*) cache))
-        (remove-duplicates
-         (mapcar 'action-component
-                 (apply 'collect-dependencies goal-operation system
-                        (remove-plist-key :goal-operation keys)))
-         :from-end t)))))
+    (with-asdf-session (:override t)
+      (remove-duplicates
+       (mapcar 'action-component
+               (apply 'collect-dependencies goal-operation system
+                      (remove-plist-key :goal-operation keys)))
+       :from-end t))))
 

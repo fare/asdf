@@ -1,9 +1,12 @@
 ;;-*- Lisp -*-
 
+(setf *asdf-session* nil)
+
 (defun current-system-source-file (x)
   (system-source-file (asdf::registered-system x)))
 
 (with-asdf-session (:override t)
+  (terpri)
   (DBG "loading test-mutual-redefinition-1")
   (let ((warned-p nil))
     (handler-bind ((bad-system-name (lambda (c)
@@ -19,7 +22,8 @@
    (test-source "test-mutual-redefinition-1.asd")
    (current-system-source-file "test-mutual-redefinition-2"))
 
-  (DBG "loading test-mutual-redefinition-2 in the same cache session")
+  (terpri)
+  (DBG "loading test-mutual-redefinition-2 in the same cache session. It shouldn't affect asd paths")
   (load-system 'test-mutual-redefinition-2)
   (assert-pathname-equal
    (test-source "test-mutual-redefinition-1.asd")
@@ -29,6 +33,7 @@
    (current-system-source-file "test-mutual-redefinition-2")))
 
 (with-asdf-session (:override t)
+  (terpri)
   (DBG "loading test-mutual-redefinition-2 in a different cache session")
   (load-system 'test-mutual-redefinition-2)
   (assert-pathname-equal

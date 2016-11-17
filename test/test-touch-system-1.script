@@ -4,6 +4,7 @@
 ;;; system that can be found using *system-definition-search-functions*
 (defun system-registered-time (name)
   (car (asdf::system-registered-p name)))
+(setf (asdf-upgraded-p *asdf-session*) t)
 
 (defparameter test1.asd (nth-value 2 (locate-system :test1)))
 (assert-pathname-equal test1.asd (test-source "test1.asd"))
