@@ -1,11 +1,17 @@
 ;;-*- Lisp -*-
 
-(load-system 'test-mutual-redefinition-1)
 (defun current-system-source-file (x)
   (system-source-file (asdf::registered-system x)))
 
 (with-asdf-cache ()
   (DBG "loading test-mutual-redefinition-1")
+  (let ((warned-p nil))
+    (handler-bind ((bad-system-name (lambda (c)
+                                      (assert-equal (component-name c) "test-mutual-redefinition-2")
+                                      (assert-equal (pathname-name (system-source-file c)) "test-mutual-redefinition-1")
+                                      (setf warned-p t))))
+      (load-system 'test-mutual-redefinition-1))
+    (assert warned-p))
   (assert-pathname-equal
    (test-source "test-mutual-redefinition-1.asd")
    (current-system-source-file "test-mutual-redefinition-1"))
