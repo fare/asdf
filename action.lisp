@@ -16,7 +16,7 @@
    #:input-files #:output-files #:output-file #:operation-done-p
    #:action-operation #:action-component #:make-action
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
-   #:perform #:perform-with-restarts #:retry #:accept #:*action*
+   #:perform #:perform-with-restarts #:retry #:accept
    #:action-path #:find-action #:stamp #:done-p
    #:operation-definition-warning #:operation-definition-error ;; condition
    #:action-valid-p
@@ -50,9 +50,10 @@ and a class-name or class designates the canonical instance of the designated cl
 (with-upgradability ()
   (defun action-path (action)
     "A readable data structure that identifies the action."
-    (let ((o (action-operation action))
-          (c (action-component action)))
-      (cons (type-of o) (component-find-path c))))
+    (when action
+      (let ((o (action-operation action))
+            (c (action-component action)))
+        (cons (type-of o) (component-find-path c)))))
   (defun find-action (path)
     "Reconstitute an action from its action-path"
     (destructuring-bind (o . c) path (make-action (make-operation o) (find-component () c)))))
@@ -110,7 +111,7 @@ and a class-name or class designates the canonical instance of the designated cl
                     ,if-no-component))))))))
 
 
-;;;; self-description
+;;;; Self-description
 (with-upgradability ()
   (defgeneric action-description (operation component)
     (:documentation "returns a phrase that describes performing this operation
@@ -126,6 +127,42 @@ Use it in FORMAT control strings as ~/asdf-action:format-action/"
     (assert (null colon-p)) (assert (null at-sign-p))
     (destructuring-bind (operation . component) action
       (princ (action-description operation component) stream))))
+
+
+;;;; Detection of circular dependencies
+(with-upgradability ()
+  (defun (action-valid-p) (operation component)
+    "Is this action valid to include amongst dependencies?"
+    ;; If either the operation or component was resolved to nil, the action is invalid.
+    ;; :if-feature will invalidate actions on components for which the features don't apply.
+    (and operation component
+         (if-let (it (component-if-feature component)) (featurep it) t)))
+
+  (define-condition circular-dependency (system-definition-error)
+    ((actions :initarg :actions :reader circular-dependency-actions))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
+                       (circular-dependency-actions c)))))
+
+  (defun call-while-visiting-action (operation component fun)
+    "Detect circular dependencies"
+    (with-asdf-session ()
+      (with-accessors ((action-set visiting-action-set)
+                       (action-list visiting-action-list)) *asdf-session*
+        (let ((action (cons operation component)))
+          (when (gethash action action-set)
+            (error 'circular-dependency :actions
+                   (member action (reverse action-list) :test 'equal)))
+          (setf (gethash action action-set) t)
+          (push action action-list)
+          (unwind-protect
+               (funcall fun)
+            (pop action-list)
+            (setf (gethash action action-set) nil))))))
+
+  ;; Syntactic sugar for call-while-visiting-action
+  (defmacro while-visiting-action ((o c) &body body)
+    `(call-while-visiting-action ,o ,c #'(lambda () ,@body))))
 
 
 ;;;; Dependencies
@@ -410,11 +447,8 @@ Returns two values:
     (:documentation "PERFORM an action, consuming its input-files and building its output-files"))
   (define-convenience-action-methods perform (operation component))
 
-  (defvar *action* nil
-    "Action being performed")
   (defmethod perform :around ((o operation) (c component))
-    (let ((*action* (cons o c)))
-      (call-next-method)))
+    (while-visiting-action (o c) (call-next-method)))
   (defmethod perform :before ((o operation) (c component))
     (ensure-all-directories-exist (output-files o c)))
   (defmethod perform :after ((o operation) (c component))
@@ -452,40 +486,3 @@ Returns two values:
                     (action-description operation component)))
           (mark-operation-done operation component)
           (return))))))
-
-
-;;;; Detection of circular dependencies
-(with-upgradability ()
-  (defun (action-valid-p) (operation component)
-    "Is this action valid to include amongst dependencies?"
-    ;; If either the operation or component was resolved to nil, the action is invalid.
-    ;; :if-feature will invalidate actions on components for which the features don't apply.
-    (and operation component
-         (if-let (it (component-if-feature component)) (featurep it) t)))
-
-  (define-condition circular-dependency (system-definition-error)
-    ((actions :initarg :actions :reader circular-dependency-actions))
-    (:report (lambda (c s)
-               (format s (compatfmt "~@<Circular dependency: ~3i~_~S~@:>")
-                       (circular-dependency-actions c)))))
-
-  (defun call-while-visiting-action (operation component fun)
-    "Detect circular dependencies"
-    (when (action-valid-p operation component)
-      (with-accessors ((action-set visiting-action-set)
-                       (action-list visiting-action-list)) *asdf-session*
-        (let ((action (cons operation component)))
-          (when (gethash action action-set)
-            (error 'circular-dependency :actions
-                   (member action (reverse action-list) :test 'equal)))
-          (setf (gethash action action-set) t)
-          (push action action-list)
-          (unwind-protect
-               (funcall fun)
-            (pop action-list)
-            (setf (gethash action action-set) nil))))))
-
-  ;; Syntactic sugar for call-while-visiting-action
-  (defmacro while-visiting-action ((o c) &body body)
-    `(call-while-visiting-action ,o ,c #'(lambda () ,@body))))
-

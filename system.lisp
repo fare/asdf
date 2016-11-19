@@ -60,7 +60,14 @@ NB: This interface is subject to change. Please contact ASDF maintainers if you 
   (defclass proto-system () ; slots to keep when resetting a system
     ;; To preserve identity for all objects, we'd need keep the components slots
     ;; but also to modify parse-component-form to reset the recycled objects.
-    ((name) (source-file))
+    ((name)
+     (source-file)
+     ;; These two slots contains the *inferred* dependencies of define-op,
+     ;; from loading the .asd file, as list and as set.
+     (definition-dependency-list
+         :initform nil :accessor definition-dependency-list)
+     (definition-dependency-set
+         :initform (list-to-hash-set nil) :accessor definition-dependency-set))
     (:documentation "PROTO-SYSTEM defines the elements of identity that are preserved when
 a SYSTEM is redefined and its class is modified."))
 
@@ -89,11 +96,6 @@ a SYSTEM is redefined and its class is modified."))
      ;; This slot contains the *declared* defsystem-depends-on dependencies
      (defsystem-depends-on :reader system-defsystem-depends-on :initarg :defsystem-depends-on
                            :initform nil)
-     ;; These slots contains the *inferred* dependencies of define-op, as list and as set
-     (definition-dependency-list
-         :initform nil :accessor definition-dependency-list)
-     (definition-dependency-set
-         :initform (list-to-hash-set nil) :accessor definition-dependency-set)
      ;; these two are specially set in parse-component-form, so have no :INITARGs.
      (depends-on :reader system-depends-on :initform nil)
      (weakly-depends-on :reader system-weakly-depends-on :initform nil))

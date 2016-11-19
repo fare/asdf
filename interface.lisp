@@ -123,7 +123,7 @@
    #:missing-dependency
    #:missing-dependency-of-version
    #:circular-dependency        ; errors
-   #:duplicate-names #:non-toplevel-system #:non-system-system #:bad-system-name
+   #:duplicate-names #:non-toplevel-system #:non-system-system #:bad-system-name #:system-out-of-date
    #:package-inferred-system-missing-package-error
    #:operation-definition-warning #:operation-definition-error
 

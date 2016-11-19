@@ -8,7 +8,7 @@
         :asdf/find-component :asdf/system-registry :asdf/plan :asdf/operate)
   (:export
    #:find-system #:locate-system #:load-asd #:define-op
-   #:load-system-definition-error #:error-name #:error-pathname #:error-condition))
+   #:load-system-definition-error #:error-name #:error-pathname #:error-condition #:system-out-of-date))
 (in-package :asdf/find-system)
 
 (with-upgradability ()
@@ -19,6 +19,13 @@
     (:report (lambda (c s)
                (format s (compatfmt "~@<Error while trying to load definition for system ~A from pathname ~A: ~3i~_~A~@:>")
                        (error-name c) (error-pathname c) (error-condition c)))))
+
+  (define-condition system-out-of-date (condition)
+    ;; NB: not an error, not a warning, but a normal expected condition
+    ((name :initarg :name :reader component-name))
+    (:documentation "condition signaled when a system is detected as being out of date")
+    (:report (lambda (c s)
+               (format s "system ~A is out of date" (component-name c)))))
 
 
   ;;; Methods for find-system
@@ -50,13 +57,13 @@
                 (and (typep operation 'load-op)
                      (typep component 'system)
                      (equal "asdf" (coerce-name component))))
-      (when *action*
-        (let ((parent-operation (car *action*))
-              (parent-component (cdr *action*)))
+      (if-let ((action (first (visiting-action-list *asdf-session*))))
+        (let ((parent-operation (action-operation action))
+              (parent-component (action-component action)))
           (unless (and (typep parent-operation 'define-op) (typep parent-component 'system))
             (error "Invalid recursive use of (OPERATE ~S ~S) while visiting ~S ~
 - please use proper dependencies instead."
-                   operation component *action*))
+                   operation component action))
           (let ((action (cons operation component)))
             (unless (gethash action (definition-dependency-set parent-component))
               (push (cons operation component) (definition-dependency-list parent-component))
@@ -106,8 +113,8 @@
        (asdf-message (compatfmt "~&~@<; ~@;Loading system definition~@[ for ~A~] from ~A~@:>~%")
                      (coerce-name s) pathname)
        ;; dependencies will depend on what's loaded via definition-dependency-list
-       (unset-asdf-cache-entry `(component-depends-on ,o ,s))
-       (load* pathname :external-format (encoding-external-format (detect-encoding pathname))))))
+       (unset-asdf-cache-entry `(component-depends-on ,o ,s)))
+     (load* pathname :external-format (encoding-external-format (detect-encoding pathname)))))
 
   (defun load-asd (pathname &key name)
     "Load system definitions from PATHNAME.
@@ -123,7 +130,9 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
             (progn
               ;; We already determine this to be obsolete ---
               ;; or should we move some tests from find-system to check for up-to-date-ness here?
-              (setf (component-operation-time operation system) nil)
+              (setf (component-operation-time operation system) nil
+                    (definition-dependency-list system) nil
+                    (definition-dependency-set system) (list-to-hash-set nil))
               (do-it operation system))
             (let ((system (make-instance 'undefined-system
                                          :name primary-name :source-file pathname)))
@@ -214,38 +223,58 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ;; preloaded, with a previous configuration, or before filesystem changes), and
   ;; load a found .asd if appropriate. Finally, update registration table and return results.
   (defmethod find-system ((name string) &optional (error-p t))
-    (with-asdf-session (:key `(find-system ,name))
-      (let ((primary-name (primary-system-name name)))
-        (unless (equal name primary-name)
-          (find-system primary-name nil)))
-      (or (and *immutable-systems* (gethash name *immutable-systems*) (registered-system name))
-          (multiple-value-bind (foundp found-system pathname previous previous-time)
-              (locate-system name)
-            (assert (eq foundp (and (or found-system pathname previous) t)))
-            (let ((previous-pathname (system-source-file previous))
-                  (system (or previous found-system)))
-              (when (and found-system (not previous))
-                (register-system found-system))
-              (when (and system pathname)
-                (setf (system-source-file system) pathname))
-              (if-let ((stamp (get-file-stamp pathname)))
-                (let ((up-to-date-p
-                       (and previous
-                            (or (pathname-equal pathname previous-pathname)
-                                (and pathname previous-pathname
-                                     (pathname-equal
-                                      (physicalize-pathname pathname)
-                                      (physicalize-pathname previous-pathname))))
-                            (stamp<= stamp previous-time)
-                            ;; TODO: check that all dependencies are up-to-date.
-                            ;; This necessitates traversing them without triggering
-                            ;; the adding of nodes to the plan.
-                            )))
-                  (unless up-to-date-p
-                    (load-asd pathname :name name)))))
-            ;; Try again after having loaded from disk if needed
-            (or (registered-system name)
-                (when error-p (error 'missing-component :requires name)))))))
+    (nest
+     (with-asdf-session (:key `(find-system ,name)))
+     (let* ((name-primary-p (primary-system-p name))
+            (primary-system (unless name-primary-p (find-system (primary-system-name name) nil)))))
+     (or (and *immutable-systems* (gethash name *immutable-systems*) (registered-system name)))
+     (multiple-value-bind (foundp found-system pathname previous previous-time)
+         (locate-system name)
+       (assert (eq foundp (and (or found-system pathname previous) t))))
+     (let ((previous-pathname (system-source-file previous))
+           (system (or previous found-system)))
+       (when (and found-system (not previous))
+         (register-system found-system))
+       (when (and system pathname)
+         (setf (system-source-file system) pathname))
+       (if-let ((stamp (get-file-stamp pathname)))
+         (let ((up-to-date-p
+                (and previous
+                     (or (pathname-equal pathname previous-pathname)
+                         (and pathname previous-pathname
+                              (pathname-equal
+                               (physicalize-pathname pathname)
+                               (physicalize-pathname previous-pathname))))
+                     (stamp<= stamp previous-time)
+                     ;; TODO: check that all dependencies are up-to-date.
+                     ;; This necessitates traversing them without triggering
+                     ;; the adding of nodes to the plan.
+                     (loop :with plan = (or (and *asdf-session*
+                                                 (session-plan *asdf-session*))
+                                            (make-instance *plan-class*))
+                       :for action :in (definition-dependency-list previous)
+                       :always (handler-bind
+                                   ((system-out-of-date
+                                     (lambda (c) (declare (ignore c)) (return nil))))
+                                 (action-up-to-date-p plan
+                                                      (action-operation action)
+                                                      (action-component action)))
+                       :finally
+                       (let ((o (make-operation 'define-op))
+                             (s (if name-primary-p previous primary-system)))
+                         (when s
+                           (multiple-value-bind (stamp done-p)
+                               (compute-action-stamp plan o s)
+                             (return (and (stamp<= stamp (component-operation-time o s))
+                                          done-p)))))))))
+           (unless up-to-date-p
+             (restart-case
+                 (signal 'system-out-of-date :name name)
+               (continue () :report "continue"))
+             (load-asd pathname :name name)))))
+     ;; Try again after having loaded from disk if needed
+     (or (registered-system name)
+         (when error-p (error 'missing-component :requires name)))))
 
   ;; Resolved forward reference for asdf/system-registry.
   (defun mark-component-preloaded (component)

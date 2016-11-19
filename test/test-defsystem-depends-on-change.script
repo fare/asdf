@@ -8,10 +8,12 @@
 
 (defparameter tddoc "test-defsystem-depends-on-change")
 (defparameter talc "test-asdf-location-change")
+(defparameter asdf-user::*tddoc* 0)
 
 
 (DBG "Load the system, using xach-foo-1")
 (push (subpathname *test-directory* "xach-foo-1/") *central-registry*)
+(clear-system tddoc)
 (load-system tddoc)
 (assert-equal asdf-user::*tddoc* 1)
 (assert-equal test-asdf-system::*times-loaded* 1)
@@ -39,9 +41,12 @@
  (subpathname *test-directory* "xach-foo-1/test-asdf-location-change.asd")
  (system-source-file talc))
 
+
 (DBG "Now, change a defsystem-depends-on dependency and try again")
 (setf (first *central-registry*) (subpathname *test-directory* "xach-foo-2/"))
+(DBG :before asdf-user::*tddoc* test-asdf-system::*times-loaded* test-asdf-system::*ta/dcc* test-asdf-system::*ta/dcd* test-asdf-system::*ta/dca*)
 (load-system "test-defsystem-depends-on-change")
+(DBG :after asdf-user::*tddoc* test-asdf-system::*times-loaded* test-asdf-system::*ta/dcc* test-asdf-system::*ta/dcd* test-asdf-system::*ta/dca*)
 (assert-equal asdf-user::*tddoc* 2)
 (assert-equal test-asdf-system::*times-loaded* 1) ;; from test-asdf.asd
 (assert-equal test-asdf-system::*ta/dcc* 2)

@@ -18,7 +18,7 @@
    #:record-dependency
    #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
    #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies
-   #:compute-action-stamp #:traverse-action
+   #:compute-action-stamp #:traverse-action #:action-up-to-date-p
    #:make-plan #:plan-actions #:perform-plan #:plan-operates-on-p
    #:planned-p #:index #:forced #:forced-not
    #:plan-actions-r
@@ -73,6 +73,9 @@ in some previous image, or T if it needs to be done.")
         +action-status-out-of-date+
         (make-instance 'action-status :stamp stamp :done-p done-p :planned-p planned-p :index index)))
 
+  (defun action-status-out-of-date-p (status)
+    (eq (action-stamp status) t))
+
   (defmethod print-object ((status action-status) stream)
     (print-unreadable-object (status stream :type t)
       (with-slots (stamp done-p planned-p index) status
@@ -103,6 +106,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
           (remhash o times)
           (setf (gethash o times) (action-stamp new-status))))
     new-status))
+
 
 ;;;; forcing
 (with-upgradability ()
@@ -346,8 +350,9 @@ initialized with SEED."
 
   (defun action-up-to-date-p (plan operation component)
     "Check whether a node is up-to-date, and mark it so if such. But don't add anything to the plan."
-    (while-visiting-action (operation component) ; maintain context, handle circularity.
-      (block nil
+    (block nil
+      (unless (action-valid-p operation component) (return nil))
+      (while-visiting-action (operation component) ; maintain context, handle circularity.
         ;; Do NOT record the dependency: it might be out of date.
         (let ((status (action-status plan operation component)))
           (when status
@@ -369,12 +374,13 @@ initialized with SEED."
           (not (eq (action-stamp status) t))))))
 
   (defmethod traverse-action (plan operation component needed-in-image-p)
-    (while-visiting-action (operation component) ; maintain context, handle circularity.
-      (block nil
-        ;; Record the dependency. This hook is needed by POIU, which tracks a full dependency graph,
-        ;; instead of just a dependency order as in vanilla ASDF.
-        ;; TODO: It is also needed to detect OPERATE-in-PERFORM.
-        (record-dependency plan operation component)
+    (block nil
+      (unless (action-valid-p operation component) (return nil))
+      ;; Record the dependency. This hook is needed by POIU, which tracks a full dependency graph,
+      ;; instead of just a dependency order as in vanilla ASDF.
+      ;; TODO: It is also needed to detect OPERATE-in-PERFORM.
+      (record-dependency plan operation component)
+      (while-visiting-action (operation component) ; maintain context, handle circularity.
         ;; needed-in-image distinguishes b/w things that must happen in the
         ;; current image and those things that simply need to have been done in a previous one.
         (let* ((aniip (needed-in-image-p operation component)) ; action-specific needed-in-image
@@ -451,6 +457,8 @@ initialized with SEED."
     (with-asdf-session ()
       (let ((plan (apply 'make-instance (or plan-class *plan-class*)
                          :system (component-system c) keys)))
+        (when (and (null (session-plan *asdf-session*)) (plan-performable-p plan))
+          (setf (session-plan *asdf-session*) plan))
         (traverse-action plan o c t)
         plan)))
 
@@ -506,15 +514,16 @@ initialized with SEED."
         :collect (cons o c))))
 
   (defun collect-action-dependencies (plan operation component)
-    (while-visiting-action (operation component) ; maintain context, handle circularity.
-      (let ((action (make-action operation component)))
-        (unless (gethash action (visited-actions *asdf-session*))
-          (setf (gethash action (visited-actions *asdf-session*)) t)
-          (when (and (typep component (plan-component-type plan))
-                     (not (action-forced-not-p plan operation component)))
-            (map-direct-dependencies operation component
-                                     #'(lambda (o c) (collect-action-dependencies plan o c)))
-            (push action (plan-actions-r plan)))))))
+    (when (action-valid-p operation component)
+      (while-visiting-action (operation component) ; maintain context, handle circularity.
+        (let ((action (make-action operation component)))
+          (unless (gethash action (visited-actions *asdf-session*))
+            (setf (gethash action (visited-actions *asdf-session*)) t)
+            (when (and (typep component (plan-component-type plan))
+                       (not (action-forced-not-p plan operation component)))
+              (map-direct-dependencies operation component
+                                       #'(lambda (o c) (collect-action-dependencies plan o c)))
+              (push action (plan-actions-r plan))))))))
 
   (defgeneric collect-dependencies (operation component &key &allow-other-keys)
     (:documentation "Given an action, build a plan for all of its dependencies."))
