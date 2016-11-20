@@ -2124,21 +2124,16 @@ Operations are invoked on systems via @code{operate}.
 @code{operate} invokes @var{operation} on @var{system}.
 @code{oos} is a synonym for @code{operate} (it stands for operate-on-system).
 
-@var{operation} is a symbol that is passed,
 along with the supplied @var{initargs},
 to @code{make-operation} (which will call @code{make-instance})
 to create the operation object.
 @var{component} is a component designator,
 usually a string or symbol that designates a system,
 sometimes a list of strings or symbols that designate a subcomponent of a system.
+@var{operation} is a symbol that is passed,
 
-The @var{initargs} are passed to the @code{make-instance} call
-when creating the operation object.
-@c We probably want to deprecate that, because
-@c (1) there is a mix of flags for operate, for the operation-class, for the plan-class, etc.
-@c (2) flags to operations have never been well-supported, anyway.
-@c The future solution probably involves having an explicit :operation-options keyword or some such
-@c (if operation options are not wholly eliminated), a separate :plan-options, etc.
+@var{initargs} for operations are now deprecated, and will be removed.
+For more details, @pxref{make-operation}.
 Note that dependencies may cause the operation
 to invoke other operations on the system or its components:
 the new operations will be created
@@ -2176,6 +2171,20 @@ To see what @code{operate} would do, you can use:
 
 @end deffn
 
+@defun @code{make-operation} @var{operation-class} @Arest{} @var{initargs}
+@anchor{make-operation}
+
+The @var{initargs} are passed to @code{make-instance} call
+when creating the operation object.
+
+@strong{Note:}@var{initargs} for @code{operation}s are now deprecated,
+and will be removed from ASDF in the near future.
+
+@strong{Note:} @code{operation} instances must @strong{never} be created
+using @code{make-instance} directly: only through
+@code{make-operation}. Attempts to directly make @code{operation}
+instances will cause a run-time error.
+@end defun
 
 
 @node Predefined operations of ASDF, Creating new operations, Operations, Operations
