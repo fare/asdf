@@ -11,10 +11,16 @@
       (return (subseq x 0 (1- (length x)))))
     x))
 
-
-(DBG "Testing echo ok 1 via run-program as a list")
-(assert-equal "ok 1"
-              (dewindowize (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
+(os-cond
+ ((os-unix-p)
+  (DBG "Testing echo ok 1 via run-program as a list")
+  (assert-equal "ok 1"
+                (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
+ ((os-windows-p)
+  (DBG "Testing ipconfig /all via run-progam as a string")
+  (run-program "ipconfig /all")
+  (DBG "Testing ipconfig /all via run-progam as a list")
+  (run-program '("ipconfig" "/all"))))
 
 #+(and sbcl os-windows)
 (leave-test "SBCL won't let us pass unquoted arguments to cmd.exe" 0)
