@@ -338,15 +338,6 @@ Programmers are encouraged to define their own methods for this generic function
                        (subprocess-error-command condition)
                        (subprocess-error-code condition)))))
 
-  ;;; find CMD.exe on windows
-  (defun %cmd-shell-pathname ()
-    (os-cond
-     ((os-windows-p)
-      (strcat (native-namestring (getenv-absolute-directory "WINDIR"))
-              "System32\\cmd.exe"))
-     (t
-      (error "CMD.EXE is not the command shell for this OS."))))
-
   ;;; Internal helpers for run-program
   (defun %normalize-command (command)
     "Given a COMMAND as a list or string, transform it in a format suitable
@@ -362,7 +353,7 @@ for the implementation's underlying run-program function"
        ;; r15398 or later in 1.9 or later,
        ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
        #+clozure (cons "cmd" (strcat "/c " command))
-       #+sbcl (cons (%cmd-shell-pathname) (strcat "/c " command))
+       #+sbcl (cons "cmd" (strcat "/c " command))
        ;; NB: On other Windows implementations, this is utterly bogus
        ;; except in the most trivial cases where no quoting is needed.
        ;; Use at your own risk.
@@ -965,7 +956,7 @@ or :error-output."
        (os-cond
         ((os-windows-p)
          #+(or allegro clisp ecl)
-         (strcat (%cmd-shell-pathname) " /c " command)
+         (strcat "cmd" " /c " command)
          #-(or allegro clisp ecl) command)
         (t command)))
       (list (escape-shell-command
@@ -973,7 +964,7 @@ or :error-output."
               ((os-unix-p) (cons "exec" command))
               ((os-windows-p)
                #+(or allegro clisp ecl sbcl)
-               (list* (%cmd-shell-pathname) "/c" command)
+               (list* "cmd" "/c" command)
                #-(or allegro clisp ecl sbcl) command)
               (t command))))))
 
