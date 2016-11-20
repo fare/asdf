@@ -200,7 +200,10 @@
         <h3>Supported Implementations</h3>
         <p>
 	  ASDF 3 now supports all CL implementations
-          that seem to have any current user base, and then some.
+          that seem to have any current user base, and then some.  The one
+          exception is ECL on Windows, which appears to have bugs that preclude
+          full functioning of ASDF and UIOP. ASDF will run on Windows ECL, but
+          we cannot provide support for this platform.
         </p><p>
           Most implementations provide ASDF as a module,
           and you can simply <tt>(require "asdf")</tt>.
