@@ -3,13 +3,9 @@
 
 ;; On Windows, normalize away CRLF into jut the unixy LF.
 (defun dewindowize (x)
-  (block ()
-    (setf x (remove (code-char 13) x))
-    ;; Some buggy implementations output extra space on Windows;
-    ;; Implementations that rely on shell redirection on Windows also do, as a limitation.
-    (when (eql #\space (last-char x))
-      (return (subseq x 0 (1- (length x)))))
-    x))
+  ;; Some buggy implementations output extra space on Windows;
+  ;; Implementations that rely on shell redirection on Windows also do, as a limitation.
+  (string-trim " " (remove (code-char 13) x)))
 
 (os-cond
  ((os-unix-p)
@@ -22,9 +18,6 @@
   (DBG "Testing ipconfig /all via run-progam as a list")
   (run-program '("ipconfig" "/all"))))
 
-#+(and sbcl os-windows)
-(leave-test "SBCL won't let us pass unquoted arguments to cmd.exe" 0)
-
 (DBG "Testing echo ok 1 via run-program as a string")
 (assert-equal "ok 1"
               (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
@@ -32,41 +25,44 @@
 ;;; test asdf run-shell-command function
 (setf *verbose-out* nil)
 (DBG "Testing true via run-shell-command")
-(assert-equal 0 (run-shell-command "true"))
+(assert-equal 0 (run-shell-command "exit 0"))
 (DBG "Testing false via run-shell-command")
-(assert-equal 1 (run-shell-command "false"))
+(assert-equal 1 (run-shell-command "exit 1"))
 (DBG "Testing bad shell command via run-shell-command")
 (unless (< 0 (run-shell-command "./bad-shell-command"))
   (error "Failed to capture exit status indicating shell command failure."))
 
+(chdir *test-directory*)
+
 #+os-unix
 (progn
-  (chdir *test-directory*)
-
   (DBG "Testing good shell command in current directory via run-shell-command")
-  (assert-equal 0 (run-shell-command "./good-shell-command"))
+  (assert-equal 0 (run-shell-command "./good-shell-command")))
 
-  ;; this test checks for a problem there was in allegro -- :output :interactive
-  ;; would try to open T as a stream for INPUT.
-  (assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell t :output :interactive)))
-  (assert-equal '(nil nil 0) (multiple-value-list (run-program "true" :force-shell nil :output :interactive)))
-  (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell t :output :interactive :ignore-error-status t)))
-  (assert-equal '(nil nil 1) (multiple-value-list (run-program "false" :force-shell nil :output :interactive :ignore-error-status t)))
-  (assert-equal
-   '("foo" "bar baz" 42)
-   (multiple-value-list
-    (run-program "cat ; echo bar  baz >&2 ; exit 42"
-                 :input '("foo") :output :string :error-output '(:string :stripped t)
-                 :ignore-error-status t)))
-  (assert-equal
-   '(("foo" "bar" "baz" "quux") nil 0)
-   (multiple-value-list
-    (run-program "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
-                 :output :lines :error-output :output))))
+;; This test checks for a problem there was in allegro -- :output :interactive
+;; would try to open T as a stream for INPUT.
+(assert-equal '(nil nil 0) (multiple-value-list (run-program "exit 0" :force-shell t :output :interactive)))
+(assert-equal '(nil nil 0) (multiple-value-list (run-program "exit 0" :force-shell nil :output :interactive)))
+(assert-equal '(nil nil 1) (multiple-value-list (run-program "exit 1" :force-shell t :output :interactive :ignore-error-status t)))
+(assert-equal '(nil nil 1) (multiple-value-list (run-program "exit 1" :force-shell nil :output :interactive :ignore-error-status t)))
+(assert-equal
+ '("foo" "bar baz" 42)
+ (multiple-value-bind (o e c)
+     (run-program #+os-unix "cat ; echo bar  baz >&2 ; exit 42"
+		  #+os-windows "findstr \"^\" & echo bar baz >&2 & exit 42"
+		  :input '("foo") :output '(:string :stripped t) :error-output '(:string :stripped t)
+		  :ignore-error-status t)
+   (DBG "aaa" o e c)
+   (list (dewindowize o) (dewindowize e) c)))
+(assert-equal
+ '(("foo" "bar" "baz" "quux") nil 0)
+ (multiple-value-bind (o e c)
+     (run-program #+os-unix "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
+		       #+os-windows "echo foo & echo bar >&2 & echo baz & echo quux >& 2"
+		       :output :lines :error-output :output)
+   (list (mapcar 'dewindowize o) e c)))
 
-#-(and sbcl os-windows)
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1")))
-  (untrace)
   (DBG "Testing awkward legacy output capture via run-shell-command")
   (assert-equal
    (dewindowize
@@ -90,10 +86,6 @@
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
                                    (run-program "echo ok" :output t :error-output :output)))))
-
-#|
-Testing run-program
-|#
 
 ;; We add a newline to the end of a string and return it.
 ;; We do it in this specific manner so that under unix, windows and macos,
