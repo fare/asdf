@@ -362,12 +362,11 @@ for the implementation's underlying run-program function"
        ;; r15398 or later in 1.9 or later,
        ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
        #+clozure (cons "cmd" (strcat "/c " command))
-       #+mkcl (list "cmd" "/c" command)
-       #+sbcl (list (%cmd-shell-pathname) "/c" command)
+       #+sbcl (cons (%cmd-shell-pathname) (strcat "/c " command))
        ;; NB: On other Windows implementations, this is utterly bogus
        ;; except in the most trivial cases where no quoting is needed.
        ;; Use at your own risk.
-       #-(or allegro clisp clozure mkcl sbcl) (list "cmd" "/c" command))
+       #-(or allegro clisp clozure sbcl) (list "cmd" "/c" command))
       #+os-windows
       (list
        #+allegro (escape-windows-command command)
@@ -974,7 +973,7 @@ or :error-output."
               ((os-unix-p) (cons "exec" command))
               ((os-windows-p)
                #+(or allegro clisp ecl sbcl)
-               (cons (%cmd-shell-pathname) (cons "/c" command))
+               (list* (%cmd-shell-pathname) "/c" command)
                #-(or allegro clisp ecl sbcl) command)
               (t command))))))
 
