@@ -473,5 +473,5 @@
 (progn
   (DBG "Checking CMUCL user-homedir-pathname issue.")
   (assert (pathname-match-p
-	   (uiop/common-lisp:user-homedir-pathname)
-	   (getenv-pathname "HOME"))))
+           (uiop/common-lisp:user-homedir-pathname)
+           (getenv-pathname "HOME" :want-directory t))))
