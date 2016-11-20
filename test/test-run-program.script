@@ -25,11 +25,9 @@
 #+(and sbcl os-windows)
 (leave-test "SBCL won't let us pass unquoted arguments to cmd.exe" 0)
 
-#-(and sbcl os-windows)
-(progn
- (DBG "Testing echo ok 1 via run-program as a string")
- (assert-equal "ok 1"
-               (dewindowize (run-program "echo ok 1" :output '(:string :stripped t)))))
+(DBG "Testing echo ok 1 via run-program as a string")
+(assert-equal "ok 1"
+              (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
 
 ;;; test asdf run-shell-command function
 (setf *verbose-out* nil)
