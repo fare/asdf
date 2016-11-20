@@ -14,8 +14,12 @@
 
 (defun system-source-files (system &key monolithic)
   (let ((system (find-system system)))
-    (enough-namestrings (system-source-directory system)
-                        (input-files 'concatenate-source-op system))))
+    (enough-namestrings
+     (system-source-directory system)
+     (input-files (if monolithic
+		      'monolithic-concatenate-source-op
+		      'concatenate-source-op)
+		  system))))
 
 
 ;;; Making release tarballs for asdf, asdf/defsystem, uiop.

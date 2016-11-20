@@ -8,7 +8,7 @@ set driver_lisp=uiop\package.lisp + uiop\common-lisp.lisp + uiop\utility.lisp + 
 set defsystem_lisp=upgrade.lisp + cache.lisp + component.lisp + system.lisp + find-system.lisp + find-component.lisp + operation.lisp + action.lisp + lisp-action.lisp + plan.lisp + operate.lisp + parse-defsystem.lisp + bundle.lisp + concatenate-source.lisp + output-translations.lisp + source-registry.lisp + package-inferred-system.lisp + backward-interface.lisp + backward-internals.lisp + interface.lisp + user.lisp + footer.lisp
 
 %~d0
-cd %~p0
+cd "%~p0"
 
 if "%~1"=="" goto all
 if "%~1"=="all" goto all
@@ -19,8 +19,8 @@ if "%~1"=="noext" goto noext
 if "%~1"=="driver_files" goto driver_files
 if "%~1"=="defsystem_files" goto defsystem_files
 
-call %0 build_asdf_tools
-%here%\build\asdf-tools.exe env %*
+call "%0" build_asdf_tools
+"%here%\build\asdf-tools.exe" env %*
 goto end
 
 
@@ -40,9 +40,9 @@ goto end
 
 :build_asdf_tools
 :: Building a binary for asdf-tools
- if exists build\asdf-tools.exe goto end
- call %0 build_asdf
- %here%\tools\asdf-tools.bat build-asdf-tools
+ if exist build\asdf-tools.exe goto end
+ call "%0" build_asdf
+ "%here%\tools\asdf-tools.bat" build-asdf-tools
  goto end
 
 :clobber
