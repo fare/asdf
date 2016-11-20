@@ -39,6 +39,7 @@
   (DBG "Testing good shell command in current directory via run-shell-command")
   (assert-equal 0 (run-shell-command "./good-shell-command")))
 
+(DBG "Testing exit status with :output :interactive")
 ;; This test checks for a problem there was in allegro -- :output :interactive
 ;; would try to open T as a stream for INPUT.
 (assert-equal '(nil nil 0) (multiple-value-list (run-program "exit 0" :force-shell t :output :interactive)))
