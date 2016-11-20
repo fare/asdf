@@ -469,9 +469,9 @@
 (test-pathname-parsing)
 
 ;;; test for CMUCL issue with search lists versus pathnames
-(DBG "Checking CMUCL user-homedir-pathname issue.")
-(assert
- (multiple-value-bind (value error)
-     (ignore-errors
-      (pathname-match-p (uiop::user-homedir-pathname) (uiop:getenv "HOME")))
-   (null error)))
+#+os-unix
+(progn
+  (DBG "Checking CMUCL user-homedir-pathname issue.")
+  (assert (pathname-match-p
+	   (uiop/common-lisp:user-homedir-pathname)
+	   (getenv-pathname "HOME"))))
