@@ -1,4 +1,5 @@
 ;;; -*- Lisp -*-
+(in-package :asdf-test)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #-(or xcl gcl) (push :asdf-test-logical-pathname *features*)
@@ -472,6 +473,6 @@
 #+os-unix
 (progn
   (DBG "Checking CMUCL user-homedir-pathname issue.")
-  (assert (pathname-match-p
+  (assert (pathname-equal
            (uiop/common-lisp:user-homedir-pathname)
            (getenv-pathname "HOME" :want-directory t))))
