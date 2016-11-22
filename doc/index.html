@@ -200,10 +200,10 @@
         <h3>Supported Implementations</h3>
         <p>
 	  ASDF 3 now supports all CL implementations
-          that seem to have any current user base, and then some.  The one
-          exception is ECL on Windows, which appears to have bugs that preclude
-          full functioning of ASDF and UIOP. ASDF will run on Windows ECL, but
-          we cannot provide support for this platform.
+          that seem to have any current user base, and then some.
+          But ASDF does not magically turn broken implementations into working ones,
+          and some ASDF or UIOP features may not work
+          on less-maintained implementations that do not support them (see below).
         </p><p>
           Most implementations provide ASDF as a module,
           and you can simply <tt>(require "asdf")</tt>.
@@ -218,15 +218,37 @@
           but some hacking is probably required to make the latest ASDF work well
           with the latest release of these implementations:
           <ul><li>
+              CLISP is generally well-tested with ASDF, though it has a few minor bugs.
+              The implementation has received only minimal maintenance since 2010,
+              and the last official release ships with an antique version of ASDF;
+              however ASDF has been recently updated in its source control system,
+              and there is hope of a new release some day soon.
+              If needs be, you can replace CLISP's provided ASDF with a newer one,
+              or use an upgrade on top of that.
+            </li><li>
+              CormanLisp was recently open-sourced.
+              Its bundled ASDF has not yet been updated from 1.x;
+              ASDF 3.1 should work fine with it, but several features were disabled
+              because CormanLisp was insufficiently compliant with the CLHS,
+              and requires some work in this regard.
+              Ask the new CormanLisp maintainers for updates.
+            </li><li>
+              ECL is generally well-tested with ASDF, but
+              its bytecode compiler doesn't support the bundle operations, and
+              support for Windows seems to be less stable.
+              For instance, as of November 2016,
+              <code>cl:require</code> and <code>ext:system</code> (and thus <code>uiop:run-program</code>)
+              seem not to be working correctly on Windows.
+            </li><li>
 	      GCL is somewhat maintained but its maintainer doesn't seem to care about ASDF,
-              and hasn't replied for years to requests for bug fixes and
+              and hasn't replied for years to requests for bug fixes or
               for providing ASDF via <tt>(require "asdf")</tt>
             </li><li>
-              CormanLisp was recently open-sourced;
-              its bundled ASDF has not yet been updated from 1.x;
-              ASDF 3.1 should work fine with it, but a few features were disabled
-              because CormanLisp is insufficiently compliant with the CLHS,
-              and requires some work in this regard.
+              Genera was never open-source and never bundled ASDF,
+              but should otherwise just work with a recent ASDF 3.1,
+              if you somehow have a license and a working version.
+              There are rumors of people doing active development with it
+              and having minor patches to improve ASDF on it.
             </li><li>
               MCL similarly was open-sourced, but never bundled ASDF;
               ASDF 3.1 should work just fine with it,
@@ -234,17 +256,18 @@
               so a lot of work is required to make something out of it
               — at which point, you might just use CCL.
             </li><li>
-              XCL is now an abandoned experiment. It provides some old ASDF 2;
-              but you can replace it with ASDF 3.1, which works well with it,
-              inasmuch as anything works at all with XCL.
+              Mocl has its own heavily modified variant of ASDF2, and
+              is the only implementation not currently supported by ASDF3.
+              To make it work with ASDF 3 would require ASDF to be taught about
+              natively supporting cross-compilation.
             </li><li>
-              Genera and SCL were never open-source and never bundled ASDF,
-              but should otherwise just work with a recent ASDF 3.1,
+              SCL was seemingly abandoned and never open-sourced.
+              It never bundled ASDF, but should otherwise just work with a recent ASDF 3.1,
               if you somehow have a license and a working version.
             </li><li>
-              Mocl has its own heavily modified variant of ASDF2, and
-              to make it work with unmodified ASDF 3.x would require
-              ASDF to be taught about natively supporting cross-compilation.
+              XCL is now an abandoned experiment.  It provides some old ASDF 2;
+              but you can replace it with ASDF 3.1, which works well with it,
+              inasmuch as anything works at all with XCL.
           </li></ul>
         </p>
         <table border="1">
