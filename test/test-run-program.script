@@ -50,9 +50,12 @@
  '("foo" "bar baz" 42)
  (multiple-value-bind (o e c)
      (run-program #+os-unix "cat ; echo bar  baz >&2 ; exit 42"
-		  #+os-windows "findstr \"^\" & echo bar baz >&2 & exit 42"
-		  :input '("foo") :output '(:string :stripped t) :error-output '(:string :stripped t)
-		  :ignore-error-status t)
+                  #+os-windows "findstr \"^\" & echo bar baz >&2 & exit 42"
+                  ;; On some versions of windows, findstr hangs indefinitely
+                  ;; when passed input without a trailing newline
+                  :input '("foo" :terpri t)
+                  :output '(:string :stripped t) :error-output '(:string :stripped t)
+                  :ignore-error-status t)
    (DBG "aaa" o e c)
    (list (dewindowize o) (dewindowize e) c)))
 (assert-equal
