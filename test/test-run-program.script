@@ -42,10 +42,18 @@
 (DBG "Testing exit status with :output :interactive")
 ;; This test checks for a problem there was in allegro -- :output :interactive
 ;; would try to open T as a stream for INPUT.
-(assert-equal '(nil nil 0) (multiple-value-list (run-program "exit 0" :force-shell t :output :interactive)))
-(assert-equal '(nil nil 0) (multiple-value-list (run-program "exit 0" :force-shell nil :output :interactive)))
-(assert-equal '(nil nil 1) (multiple-value-list (run-program "exit 1" :force-shell t :output :interactive :ignore-error-status t)))
-(assert-equal '(nil nil 1) (multiple-value-list (run-program "exit 1" :force-shell nil :output :interactive :ignore-error-status t)))
+(loop
+   :for (program . exit-code) :in
+   #+os-unix '(("true" . 0) ("false" . 1))
+   #+os-windows '(("cmd /c exit 0" . 0) ("cmd /c exit 1" . 1))
+   :do (loop
+          :for force-shell :in '(t nil)
+          :do (assert-equal `(nil nil ,exit-code)
+                            (multiple-value-list
+                             (run-program program
+                                          :ignore-error-status t
+                                          :force-shell force-shell
+                                          :output :interactive)))))
 (assert-equal
  '("foo" "bar baz" 42)
  (multiple-value-bind (o e c)
