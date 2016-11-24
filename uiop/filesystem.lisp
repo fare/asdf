@@ -90,7 +90,7 @@ a CL pathname satisfying all the specified constraints as per ENSURE-PATHNAME"
   (defun probe-file* (p &key truename)
     "when given a pathname P (designated by a string as per PARSE-NAMESTRING),
 probes the filesystem for a file or directory with given pathname.
-If it exists, return its truename is ENSURE-PATHNAME is true,
+If it exists, return its truename if TRUENAME is true,
 or the original (parsed) pathname if it is false (the default)."
     (values
      (ignore-errors
