@@ -338,15 +338,6 @@ Programmers are encouraged to define their own methods for this generic function
                        (subprocess-error-command condition)
                        (subprocess-error-code condition)))))
 
-  ;;; find CMD.exe on windows
-  (defun %cmd-shell-pathname ()
-    (os-cond
-     ((os-windows-p)
-      (strcat (native-namestring (getenv-absolute-directory "WINDIR"))
-              "System32\\cmd.exe"))
-     (t
-      (error "CMD.EXE is not the command shell for this OS."))))
-
   ;;; Internal helpers for run-program
   (defun %normalize-command (command)
     "Given a COMMAND as a list or string, transform it in a format suitable
@@ -356,18 +347,22 @@ for the implementation's underlying run-program function"
       #+os-unix (list command)
       #+os-windows
       (string
-       ;; NB: We do NOT add cmd /c here. You might want to.
-       #+(or allegro clisp) command
+       ;; NB: We add cmd /c here. Behavior without going through cmd is not well specified
+       ;; when the command contains spaces or special characters:
+       ;; IIUC, the system will use space as a separator, but the argv-decoding libraries won't,
+       ;; and you're supposed to use an extra argument to CreateProcess to bridge the gap,
+       ;; but neither allegro nor clisp provide access to that argument.
+       #+(or allegro clisp) (strcat "cmd /c " command)
        ;; On ClozureCL for Windows, we assume you are using
        ;; r15398 or later in 1.9 or later,
        ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
-       #+clozure (cons "cmd" (strcat "/c " command))
-       #+mkcl (list "cmd" "/c" command)
-       #+sbcl (list (%cmd-shell-pathname) "/c" command)
+       ;; On SBCL, we assume the patch from https://bugs.launchpad.net/sbcl/+bug/1503496
+       #+(or clozure sbcl) (cons "cmd" (strcat "/c " command))
        ;; NB: On other Windows implementations, this is utterly bogus
        ;; except in the most trivial cases where no quoting is needed.
        ;; Use at your own risk.
-       #-(or allegro clisp clozure mkcl sbcl) (list "cmd" "/c" command))
+       #-(or allegro clisp clozure sbcl)
+       (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S" '%normalize-command command))
       #+os-windows
       (list
        #+allegro (escape-windows-command command)
@@ -816,7 +811,9 @@ or :error-output."
       (when stream (close stream))))
 
   (defun %call-with-program-io (gf tval stream-easy-p fun direction spec activep returner
-                                &key element-type external-format &allow-other-keys)
+                                &key
+                                  (element-type #-clozure *default-stream-element-type* #+clozure 'character)
+                                  (external-format *utf-8-external-format*) &allow-other-keys)
     ;; handle redirection for run-program and system
     ;; SPEC is the specification for the subprocess's input or output or error-output
     ;; TVAL is the value used if the spec is T
@@ -966,7 +963,7 @@ or :error-output."
        (os-cond
         ((os-windows-p)
          #+(or allegro clisp ecl)
-         (strcat (%cmd-shell-pathname) " /c " command)
+         (strcat "cmd" " /c " command)
          #-(or allegro clisp ecl) command)
         (t command)))
       (list (escape-shell-command
@@ -974,7 +971,7 @@ or :error-output."
               ((os-unix-p) (cons "exec" command))
               ((os-windows-p)
                #+(or allegro clisp ecl sbcl)
-               (cons (%cmd-shell-pathname) (cons "/c" command))
+               (list* "cmd" "/c" command)
                #-(or allegro clisp ecl sbcl) command)
               (t command))))))
 
@@ -1007,9 +1004,9 @@ or :error-output."
           ((os-windows-p) `(,@chdir ,@redirections " " ,normalized)))))))
 
   (defun %system (command &rest keys &key directory
-                                       input if-input-does-not-exist
-                                       output if-output-exists
-                                       error-output if-error-output-exists
+                                       input (if-input-does-not-exist :error)
+                                       output (if-output-exists :supersede)
+                                       error-output (if-error-output-exists :supersede)
                                        &allow-other-keys)
     "A portable abstraction of a low-level call to libc's system()."
     (declare (ignorable keys directory input if-input-does-not-exist output
@@ -1077,7 +1074,7 @@ or :error-output."
                          error-output (if-error-output-exists :supersede)
                          (element-type #-clozure *default-stream-element-type* #+clozure 'character)
                          (external-format *utf-8-external-format*)
-                      &allow-other-keys)
+                       &allow-other-keys)
     "Run program specified by COMMAND,
 either a list of strings specifying a program and list of arguments,
 or a string specifying a shell command (/bin/sh on Unix, CMD.EXE on Windows);
@@ -1145,32 +1142,23 @@ RUN-PROGRAM returns 3 values:
 1- the result of the ERROR-OUTPUT slurping if any, or NIL
 2- either 0 if the subprocess exited with success status,
 or an indication of failure via the EXIT-CODE of the process"
-    (declare (ignorable ignore-error-status))
+    (declare (ignorable input output error-output if-input-does-not-exist if-output-exists
+                        if-error-output-exists element-type external-format ignore-error-status))
     #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl lispworks mcl mkcl sbcl scl xcl)
     (not-implemented-error 'run-program)
-    ;; Per doc string, set FORCE-SHELL to T if we get command as a string.
-    ;; But don't override user's specified preference. [2015/06/29:rpg]
-    (when (stringp command)
-      (unless force-shell-suppliedp
-        #-(and sbcl os-windows) ;; force-shell t isn't working properly on windows as of sbcl 1.2.16
-        (setf force-shell t)))
     (apply (if (or force-shell
-                   #+(or clasp clisp) t
+                   ;; Per doc string, set FORCE-SHELL to T if we get command as a string.
+                   ;; But don't override user's specified preference. [2015/06/29:rpg]
+                   (and (stringp command)
+                        (or (not force-shell-suppliedp)
+                            #-(or allegro clisp clozure sbcl) (os-cond ((os-windows-p) t))))
+                   #+(or clasp clisp cormanlisp gcl (and lispworks os-windows) mcl xcl) t
                    ;; A race condition in ECL <= 16.0.0 prevents using ext:run-program
                    #+ecl #.(if-let (ver (parse-version (lisp-implementation-version)))
                                    (lexicographic<= '< ver '(16 0 0)))
-                   #+(and lispworks os-unix) (%interactivep input output error-output)
-                   #+(or cormanlisp gcl (and lispworks os-windows) mcl xcl) t)
+                   #+(and lispworks os-unix) (%interactivep input output error-output))
                '%use-system '%use-launch-program)
-           command
-           :input input
-           :output output
-           :error-output error-output
-           :if-input-does-not-exist if-input-does-not-exist
-           :if-output-exists if-output-exists
-           :if-error-output-exists if-error-output-exists
-           :element-type element-type :external-format external-format
-           keys))
+           command keys))
 
   ;; WARNING: For signals other than SIGTERM and SIGKILL this may not
   ;; do what you expect it to. Sending SIGSTOP to a process spawned

@@ -109,7 +109,7 @@ as in for instance:
 
 Or you can make that your local default (assuming GNU make) using:
 
-    ln -s Makefile-lisp-scripting GNUmakefile
+    echo "include Makefile-lisp-scripting" > GNUmakefile
 
 These Lisp tools by default use Clozure Common Lisp (CCL) to build and run a binary
 `build/asdf-tools` that will orchestrate the tests.

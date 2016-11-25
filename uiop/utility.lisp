@@ -82,7 +82,7 @@ to supersede any previous definition."
   (defvar *uiop-debug-utility*
     '(or (ignore-errors
           (symbol-call :asdf :system-relative-pathname :uiop "contrib/debug.lisp"))
-      (symbol-call :uiop/pathname :subpathname (user-homedir-pathname) "cl/asdf/uiop/contrib/debug.lisp"))
+      (symbol-call :uiop/pathname :subpathname (user-homedir-pathname) "common-lisp/asdf/uiop/contrib/debug.lisp"))
     "form that evaluates to the pathname to your favorite debugging utilities")
 
   (defmacro uiop-debug (&rest keys)

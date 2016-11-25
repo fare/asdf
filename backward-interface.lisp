@@ -155,6 +155,7 @@ output to *VERBOSE-OUT*.  Returns the shell's exit code.
 PLEASE DO NOT USE.
 Deprecated function, for backward-compatibility only.
 Please use UIOP:RUN-PROGRAM instead."
+    #-(and ecl os-windows)
     (let ((command (apply 'format nil control-string args)))
       (asdf-message "; $ ~A~%" command)
       (let ((exit-code
@@ -163,7 +164,10 @@ Please use UIOP:RUN-PROGRAM instead."
                                                  :output *verbose-out*)))))
         (typecase exit-code
           ((integer 0 255) exit-code)
-          (t 255))))))
+          (t 255))))
+    #+(and ecl os-windows)
+    (not-implemented-error "run-shell-command" "for ECL on Windows.")
+    ))
 
 
 (with-upgradability ()
