@@ -362,7 +362,7 @@ for the implementation's underlying run-program function"
        ;; except in the most trivial cases where no quoting is needed.
        ;; Use at your own risk.
        #-(or allegro clisp clozure sbcl)
-       (parameter-error "~S doesn't support string commands on Windows: ~S" '%normalize-command command))
+       (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S" '%normalize-command command))
       #+os-windows
       (list
        #+allegro (escape-windows-command command)
