@@ -12,6 +12,8 @@
 ;;; and reloading of "file2," but /not/ of system Y.
 ;;;---------------------------------------------------------------------------
 
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 (def-test-system :test-module-excessive-depend
   :components ((:file "file1")
                (:module "quux"

@@ -80,7 +80,7 @@ XCL ?= xcl
 
 header_lisp := header.lisp
 driver_lisp := uiop/package.lisp uiop/common-lisp.lisp uiop/utility.lisp uiop/version.lisp uiop/os.lisp uiop/pathname.lisp uiop/filesystem.lisp uiop/stream.lisp uiop/image.lisp uiop/lisp-build.lisp uiop/launch-program.lisp uiop/run-program.lisp uiop/configuration.lisp uiop/backward-driver.lisp uiop/driver.lisp
-defsystem_lisp := upgrade.lisp session.lisp component.lisp operation.lisp system.lisp system-registry.lisp action.lisp lisp-action.lisp find-component.lisp plan.lisp operate.lisp find-system.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp package-inferred-system.lisp output-translations.lisp source-registry.lisp backward-internals.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
+defsystem_lisp := upgrade.lisp session.lisp component.lisp operation.lisp system.lisp system-registry.lisp action.lisp lisp-action.lisp find-component.lisp forcing.lisp plan.lisp operate.lisp find-system.lisp parse-defsystem.lisp bundle.lisp concatenate-source.lisp package-inferred-system.lisp output-translations.lisp source-registry.lisp backward-internals.lisp backward-interface.lisp interface.lisp user.lisp footer.lisp
 all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 
 print-%  : ; @echo $* = $($*)

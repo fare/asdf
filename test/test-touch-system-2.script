@@ -3,6 +3,8 @@
 ;;; test system definition reloading if touched
 ;;; system that canNOT be found using *system-definition-search-functions*
 
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 (defun system-registered-time (name)
   (car (asdf::system-registered-p name)))
 

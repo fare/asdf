@@ -4,8 +4,8 @@
 (uiop/package:define-package :asdf/bundle
   (:recycle :asdf/bundle :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade
-   :asdf/component :asdf/system :asdf/find-system :asdf/find-component :asdf/operation
-   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/defsystem)
+   :asdf/component :asdf/system :asdf/operation
+   :asdf/action :asdf/lisp-action :asdf/plan :asdf/operate :asdf/parse-defsystem)
   (:export
    #:bundle-op #:bundle-type #:program-system
    #:bundle-system #:bundle-pathname-type #:direct-dependency-files

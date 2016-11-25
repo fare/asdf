@@ -1,6 +1,5 @@
 ;;; -*- Lisp -*-
 
-#+(and sbcl os-windows) (trace sb-ext:run-program)
 (proclaim '(optimize (debug 3) (speed 1) (safety 3) (compilation-speed 0)))
 
 (defun getcwd-from-run-program ()

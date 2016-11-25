@@ -87,8 +87,12 @@
 ;; These are used by test-defsystem-depends-on-change.asd, test-defsystem-depends-on-change.script
 (defvar *ta/dcc* 0)
 (defsystem "test-asdf/dep-can-change"
-  :depends-on ("test-asdf-location-change")
+  :depends-on ("test-asdf-location-change" "test-asdf/dep-forced")
+  :components ((:file "show-progress"))
   :perform (load-op (o c) (incf *ta/dcc*)))
+
+(defsystem "test-asdf/dep-forced"
+  :components ((:file "file1")))
 
 (defvar *ta/dcd* 0)
 (defsystem "test-asdf/dep-can-disappear"

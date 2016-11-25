@@ -5,7 +5,7 @@
   (:recycle :asdf/operate :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
         :asdf/component :asdf/system :asdf/system-registry :asdf/find-component
-        :asdf/operation :asdf/action :asdf/lisp-action :asdf/plan)
+        :asdf/operation :asdf/action :asdf/lisp-action :asdf/forcing :asdf/plan)
   (:export
    #:operate #:oos #:build-op #:make
    #:load-system #:load-systems #:load-systems*
@@ -14,7 +14,7 @@
 (in-package :asdf/operate)
 
 (with-upgradability ()
-  (defgeneric operate (operation component &key &allow-other-keys)
+  (defgeneric operate (operation component &key)
     (:documentation
      "Operate does mainly four things for the user:
 
@@ -29,6 +29,7 @@ The entire computation is wrapped in WITH-COMPILATION-UNIT and error handling co
 If a VERSION argument is supplied, then operate also ensures that the system found satisfies it
 using the VERSION-SATISFIES method.
 If a PLAN-CLASS argument is supplied, that class is used for the plan.
+If a PLAN-OPTIONS argument is supplied, the options are passed to the plan.
 
 The :FORCE or :FORCE-NOT argument to OPERATE can be:
   T to force the inside of the specified system to be rebuilt (resp. not),
@@ -50,61 +51,50 @@ But do NOT depend on it, for this is deprecated behavior."))
   (defmethod operate :around (operation component &rest keys
                               &key verbose
                                 (on-warnings *compile-file-warnings-behaviour*)
-                                (on-failure *compile-file-failure-behaviour*) &allow-other-keys)
+                                (on-failure *compile-file-failure-behaviour*))
     (nest
      (with-asdf-session ())
-     (let ((operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
-            (etypecase operation
-              (operation (let ((name (type-of operation)))
-                           #'(lambda () (make-operation name))))
-              ((or symbol string) (constantly operation))))
-           (component-path (typecase component ;; to remake the component after ASDF upgrade
-                             (component (component-find-path component))
-                             (t component)))))
-     ;; Before we operate on any system, make sure ASDF is up-to-date,
-     ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
-     (progn
+     (let* ((operation-remaker ;; how to remake the operation after ASDF was upgraded (if it was)
+             (etypecase operation
+               (operation (let ((name (type-of operation)))
+                            #'(lambda () (make-operation name))))
+               ((or symbol string) (constantly operation))))
+            (component-path (typecase component ;; to remake the component after ASDF upgrade
+                              (component (component-find-path component))
+                              (t component)))
+            (system-name (labels ((first-name (x)
+                                    (etypecase x
+                                      ((or string symbol) x) ; NB: includes the NIL case.
+                                      (cons (or (first-name (car x)) (first-name (cdr x)))))))
+                           (coerce-name (first-name component-path)))))
+       (apply 'make-forcing :performable-p t :system system-name keys)
+       ;; Before we operate on any system, make sure ASDF is up-to-date,
+       ;; for if an upgrade is ever attempted at any later time, there may be BIG trouble.
        (unless (asdf-upgraded-p (toplevel-asdf-session))
          (setf (asdf-upgraded-p (toplevel-asdf-session)) t)
          (when (upgrade-asdf)
            ;; If we were upgraded, restart OPERATE the hardest of ways, for
            ;; its function may have been redefined.
            (return-from operate
-             (with-asdf-session (:override t)
+             (with-asdf-session (:override t :override-cache t)
                (apply 'operate (funcall operation-remaker) component-path keys))))))
       ;; Setup proper bindings around any operate call.
      (let* ((*verbose-out* (and verbose *standard-output*))
             (*compile-file-warnings-behaviour* on-warnings)
-            (*compile-file-failure-behaviour* on-failure))
-       (call-next-method))))
+            (*compile-file-failure-behaviour* on-failure)))
+     (call-next-method)))
 
   (defmethod operate :before ((operation operation) (component component)
-                              &key version &allow-other-keys)
+                              &key version)
     (unless (version-satisfies component version)
       (error 'missing-component-of-version :requires component :version version))
     (record-dependency nil operation component))
 
-  ;; TODO: have plans accept parent plans and delegate force and force-not.
-  ;; Ensure that only the toplevel session plan can specify force and force-not arguments.
-  (defun ensure-plan (operation component
-                      &rest keys &key plan-class &allow-other-keys)
-    (declare (ignore operation))
-    (let ((session-plan (session-plan *asdf-session*)))
-      (cond
-        (session-plan
-         ;; TODO: ensure compatibility between force in the two plans.
-         session-plan)
-        (t
-         (let ((new (apply 'make-instance (or plan-class *plan-class*)
-                           :performable-p t
-                           :system (component-system component) keys)))
-           (setf (session-plan *asdf-session*) new)
-           new)))))
-
   (defmethod operate ((operation operation) (component component)
-                      &rest keys &key plan-class &allow-other-keys)
-    (let ((plan (apply 'make-plan plan-class operation component keys)))
-      (apply 'perform-plan plan keys)
+                      &key plan-class plan-options)
+    (let ((plan (apply 'make-plan plan-class operation component
+                       :forcing (forcing *asdf-session*) plan-options)))
+      (perform-plan plan)
       (values operation plan)))
 
   (defun oos (operation component &rest args &key &allow-other-keys)
@@ -251,7 +241,11 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
             (let ((*verbose-out* (make-broadcast-stream)))
               (let ((system (find-system system-name nil)))
                 (when system
-                  (require-system system-name :verbose nil)
+                  ;; Do not use require-system after all, use load-system:
+                  ;; on the one hand, REQUIRE already uses *MODULES* not to load something twice,
+                  ;; on the other hand, REQUIRE-SYSTEM uses FORCE-NOT which may conflict with
+                  ;; the toplevel session forcing settings.
+                  (load-system system :verbose nil)
                   t)))))))))
 
 

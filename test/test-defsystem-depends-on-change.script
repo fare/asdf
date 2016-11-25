@@ -45,7 +45,7 @@
 (DBG "Now, change a defsystem-depends-on dependency and try again")
 (setf (first *central-registry*) (subpathname *test-directory* "xach-foo-2/"))
 (DBG :before asdf-user::*tddoc* test-asdf-system::*times-loaded* test-asdf-system::*ta/dcc* test-asdf-system::*ta/dcd* test-asdf-system::*ta/dca*)
-(load-system "test-defsystem-depends-on-change")
+(load-system "test-defsystem-depends-on-change" :force '("test-asdf/dep-forced"))
 (DBG :after asdf-user::*tddoc* test-asdf-system::*times-loaded* test-asdf-system::*ta/dcc* test-asdf-system::*ta/dcd* test-asdf-system::*ta/dca*)
 (assert-equal asdf-user::*tddoc* 2)
 (assert-equal test-asdf-system::*times-loaded* 1) ;; from test-asdf.asd

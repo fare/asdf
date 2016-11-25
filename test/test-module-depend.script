@@ -1,5 +1,7 @@
 ;;; -*- Lisp -*-
 
+(setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
+
 (load-system 'test-module-depend)
 
 ;; test that it compiled

@@ -8,10 +8,11 @@
    #:loaded-systems ; makes for annoying SLIME completion
    #:output-files-for-system-and-operation) ; ASDF-BINARY-LOCATION function we use to detect ABL
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
-   :asdf/component :asdf/system :asdf/system-registry :asdf/find-system :asdf/find-component
+   :asdf/component :asdf/system :asdf/system-registry :asdf/find-component
    :asdf/operation :asdf/action :asdf/lisp-action
    :asdf/output-translations :asdf/source-registry
-   :asdf/plan :asdf/operate :asdf/parse-defsystem :asdf/bundle :asdf/concatenate-source
+   :asdf/forcing :asdf/plan :asdf/operate :asdf/find-system :asdf/parse-defsystem
+   :asdf/bundle :asdf/concatenate-source
    :asdf/backward-internals :asdf/backward-interface :asdf/package-inferred-system)
   ;; Note: (1) we are NOT automatically reexporting everything from previous packages.
   ;; (2) we only reexport UIOP functionality when backward-compatibility requires it.

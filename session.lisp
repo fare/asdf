@@ -11,7 +11,7 @@
    #:do-asdf-cache #:normalize-namestring
    #:call-with-asdf-session #:with-asdf-session
    #:*asdf-session* #:*asdf-session-class* #:session #:toplevel-asdf-session
-   #:session-cache #:session-plan #:asdf-upgraded-p
+   #:session-cache #:forcing #:asdf-upgraded-p
    #:visited-actions #:visiting-action-set #:visiting-action-list
    #:total-action-count #:planned-action-count #:planned-output-action-count
    #:clear-configuration-and-retry #:retry
@@ -46,9 +46,9 @@
      (asdf-upgraded-p
       :initform nil :initarg :asdf-upgraded-p :accessor asdf-upgraded-p
       :documentation "Was ASDF already upgraded in this session - only valid for toplevel-asdf-session.")
-     (plan
-      :initform nil :accessor session-plan
-      :documentation "Dependency graph of actions")
+     (forcing
+      :initform nil :initarg :forcing :accessor forcing
+      :documentation "Forcing parameters for the session")
      ;; Table that to actions already visited while walking the dependencies associates status
      (visited-actions :initform (make-hash-table :test 'equal) :accessor visited-actions)
      ;; Actions that depend on those being currently walked through, to detect circularities
@@ -103,7 +103,7 @@
   ;; Second, if a new session was started, establish restarts for retrying the overall computation.
   ;; Finally, consult the cache if a KEY was specified with the THUNK as a fallback when the cache
   ;; entry isn't found, or just call the THUNK if no KEY was specified.
-  (defun call-with-asdf-session (thunk &key override key override-cache)
+  (defun call-with-asdf-session (thunk &key override key override-cache override-forcing)
     (let ((fun (if key #'(lambda () (consult-asdf-cache key thunk)) thunk)))
       (if (and (not override) *asdf-session*)
           (funcall fun)
@@ -113,6 +113,8 @@
                        (apply 'make-instance *asdf-session-class*
                               (when *asdf-session*
                                 `(:ancestor ,(toplevel-asdf-session)
+                                  ,@(unless override-forcing
+                                      `(:forcing ,(forcing *asdf-session*)))
                                   ,@(unless override-cache
                                       `(:session-cache ,(session-cache *asdf-session*))))))))
                   (return (funcall fun)))
@@ -126,9 +128,11 @@
                 (clear-configuration)))))))
 
   ;; Syntactic sugar for call-with-asdf-session
-  (defmacro with-asdf-session ((&key key override override-cache) &body body)
+  (defmacro with-asdf-session ((&key key override override-cache override-forcing) &body body)
     `(call-with-asdf-session
-      #'(lambda () ,@body) :override ,override :key ,key :override-cache ,override-cache))
+      #'(lambda () ,@body)
+      :override ,override :key ,key
+      :override-cache ,override-cache :override-forcing ,override-forcing))
 
 
   ;;; Define specific accessor for file (date) stamp.

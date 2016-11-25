@@ -7,7 +7,7 @@
   (:recycle :asdf/plan :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
         :asdf/component :asdf/operation :asdf/action :asdf/lisp-action
-        :asdf/system :asdf/system-registry :asdf/find-component)
+        :asdf/system :asdf/system-registry :asdf/find-component :asdf/forcing)
   (:export
    #:component-operation-time
    #:plan #:plan-traversal #:sequential-plan #:*plan-class*
@@ -16,14 +16,12 @@
    #:circular-dependency #:circular-dependency-actions
    #:needed-in-image-p
    #:record-dependency
-   #:normalize-forced-systems #:action-forced-p #:action-forced-not-p
    #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies
    #:compute-action-stamp #:traverse-action #:action-up-to-date-p
    #:make-plan #:plan-actions #:perform-plan #:plan-operates-on-p
-   #:planned-p #:index #:forced #:forced-not
+   #:planned-p #:index
    #:plan-actions-r
    #:required-components #:filtered-sequential-plan
-   #:plan-system
    #:plan-component-type #:plan-keep-operation #:plan-keep-component
    ))
 (in-package :asdf/plan)
@@ -33,18 +31,9 @@
   (defclass plan () ()
     (:documentation "Base class for a plan based on which ASDF can build a system"))
   (defclass plan-traversal (plan)
-    (;; Can this plan be performed? A plan that has different force and force-not settings than the
-     ;; session plan can only be used for read-only queries that do not cause the status of any
-     ;; action to be raised.
-     (performable-p :initform nil :initarg :performable-p :reader plan-performable-p)
-     ;; The parent plan from which this plan inherits forced status, etc.
-     (parent :initform nil :initarg :parent :reader plan-parent)
-     ;; The system for which the plan is computed
-     (system :initform nil :initarg :system :accessor plan-system)
-     ;; Table of systems specified via :force arguments
-     (forced :initform nil :initarg :force :accessor forced)
-     ;; Table of systems specified via :force-not argument (and/or immutable)
-     (forced-not :initform nil :initarg :force-not :accessor forced-not))
+    (;; The forcing parameters for this plan. Also indicates whether the plan is performable,
+     ;; in which case the forcing is the same as for the entire session.
+     (forcing :initform (forcing (toplevel-asdf-session)) :initarg :forcing :reader forcing))
     (:documentation "Base class for plans that simply traverse dependencies")))
 
 
@@ -106,69 +95,6 @@ the action of OPERATION on COMPONENT in the PLAN"))
           (remhash o times)
           (setf (gethash o times) (action-stamp new-status))))
     new-status))
-
-
-;;;; forcing
-(with-upgradability ()
-  (defgeneric action-forced-p (plan operation component)
-    (:documentation "Is this action forced to happen in this plan?"))
-  (defgeneric action-forced-not-p (plan operation component)
-    (:documentation "Is this action forced to not happen in this plan?
-Takes precedence over action-forced-p."))
-
-  (defun normalize-forced-systems (force system)
-    "Given a SYSTEM on which operate is called and the specified FORCE argument,
-extract a hash-set of systems that are forced, or a predicate on system names,
-or NIL if none are forced, or :ALL if all are."
-    (etypecase force
-      ((or (member nil :all) hash-table function) force)
-      (cons (list-to-hash-set (mapcar #'coerce-name force)))
-      ((eql t) (when system (list-to-hash-set (list (coerce-name system)))))))
-
-  (defun normalize-forced-not-systems (force-not system)
-    "Given a SYSTEM on which operate is called, the specified FORCE-NOT argument,
-and the set of IMMUTABLE systems, extract a hash-set of systems that are effectively forced-not,
-or predicate on system names, or NIL if none are forced, or :ALL if all are."
-    (let ((requested
-            (etypecase force-not
-              ((or (member nil :all) hash-table function) force-not)
-              (cons (list-to-hash-set (mapcar #'coerce-name force-not)))
-              ((eql t) (if system (let ((name (coerce-name system)))
-                                    #'(lambda (x) (not (equal x name))))
-                           :all)))))
-      (if (and *immutable-systems* requested)
-          #'(lambda (x) (or (call-function requested x)
-                            (call-function *immutable-systems* x)))
-          (or *immutable-systems* requested))))
-
-  ;; TODO: shouldn't we be looking up the primary system name, rather than the system name?
-  (defun action-override-p (plan operation component override-accessor)
-    "Given a plan, an action, and a function that given the plan accesses a set of overrides
-(i.e. force or force-not), see if the override applies to the current action."
-    (declare (ignore operation))
-    (call-function (funcall override-accessor plan)
-                   (coerce-name (component-system (find-component () component)))))
-
-  (defmethod action-forced-p (plan operation component)
-    (and
-     ;; Did the user ask us to re-perform the action?
-     (action-override-p plan operation component 'forced)
-     ;; You really can't force a builtin system and :all doesn't apply to it,
-     ;; except if it's the specifically the system currently being built.
-     (not (let ((system (component-system component)))
-            (and (builtin-system-p system)
-                 (not (eq system (plan-system plan))))))))
-
-  (defmethod action-forced-not-p (plan operation component)
-    ;; Did the user ask us to not re-perform the action?
-    ;; NB: force-not takes precedence over force, as it should
-    (action-override-p plan operation component 'forced-not))
-
-  (defmethod action-forced-p ((plan null) (operation operation) (component component))
-    nil)
-
-  (defmethod action-forced-not-p ((plan null) (operation operation) (component component))
-    nil))
 
 
 ;;;; Is the action needed in this image?
@@ -276,7 +202,8 @@ initialized with SEED."
      ;; Any race condition is intrinsic to the limited timestamp resolution.
      (if (or just-done ;; The done-stamp is valid: if we're just done, or
              ;; if all filesystem effects are up-to-date and there's no invalidating reason.
-             (and all-present up-to-date-p (operation-done-p o c) (not (action-forced-p plan o c))))
+             (and all-present up-to-date-p (operation-done-p o c)
+                  (not (action-forced-p (forcing (or plan *asdf-session*)) o c))))
          (values done-stamp ;; return the hard-earned timestamp
                  (or just-done
                      out-op ;; a file-creating op is done when all files are up to date
@@ -287,14 +214,10 @@ initialized with SEED."
 
 
 ;;;; Generic support for plan-traversal
-(with-upgradability ()
-  (defmethod initialize-instance :after ((plan plan-traversal)
-                                         &key force force-not system
-                                         &allow-other-keys)
-    (with-slots (forced forced-not) plan
-      (setf forced (normalize-forced-systems force system))
-      (setf forced-not (normalize-forced-not-systems force-not system))))
+(when-upgrading (:version "3.1.7.35")
+  (defmethod initialize-instance :after ((plan plan-traversal) &key &allow-other-keys)))
 
+(with-upgradability ()
   (defgeneric plan-actions (plan)
     (:documentation "Extract from a plan a list of actions to perform in sequence"))
   (defmethod plan-actions ((plan list))
@@ -304,7 +227,7 @@ initialized with SEED."
     (setf (gethash (cons o c) (visited-actions *asdf-session*)) new-status))
 
   (defmethod action-status ((p plan) (o operation) (c component))
-    (if (action-forced-not-p p o c)
+    (if (action-forced-not-p (forcing p) o c)
         (action-status nil o c)
         (values (gethash (cons o c) (visited-actions *asdf-session*)))))
 
@@ -334,7 +257,7 @@ initialized with SEED."
   (defmethod action-status :around ((plan plan) operation component)
     ;; TODO: should we instead test something like:
     ;; (action-forced-not-p plan operation (primary-system component))
-    (if (action-forced-not-p plan operation component)
+    (if (action-forced-not-p (forcing plan) operation component)
         (let ((status (action-status nil operation component)))
           (if (and status (action-done-p status))
               status
@@ -455,20 +378,18 @@ initialized with SEED."
 
   (defmethod make-plan (plan-class (o operation) (c component) &rest keys &key &allow-other-keys)
     (with-asdf-session ()
-      (let ((plan (apply 'make-instance (or plan-class *plan-class*)
-                         :system (component-system c) keys)))
-        (when (and (null (session-plan *asdf-session*)) (plan-performable-p plan))
-          (setf (session-plan *asdf-session*) plan))
+      (let ((plan (apply 'make-instance (or plan-class *plan-class*) keys)))
         (traverse-action plan o c t)
         plan)))
 
   (defmethod perform-plan :around ((plan t) &key)
+    (assert (performable-p (forcing plan)))
     (let ((*package* *package*)
           (*readtable* *readtable*))
       (with-compilation-unit () ;; backward-compatibility.
         (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
 
-  (defmethod perform-plan ((plan t) &key &allow-other-keys)
+  (defmethod perform-plan ((plan t) &key)
     (loop :for action :in (plan-actions plan)
       :as o = (action-operation action)
       :as c = (action-component action) :do
@@ -495,15 +416,12 @@ initialized with SEED."
     (:documentation "A variant of SEQUENTIAL-PLAN that only records a subset of actions."))
 
   (defmethod initialize-instance :after ((plan filtered-sequential-plan)
-                                         &key force force-not
-                                         other-systems)
-    (declare (ignore force force-not))
+                                         &key system other-systems)
     ;; Ignore force and force-not, rely on other-systems:
     ;; force traversal of what we're interested in, i.e. current system or also others;
     ;; force-not traversal of what we're not interested in, i.e. other systems unless other-systems.
-    (with-slots (forced forced-not system) plan
-      (setf forced :all)
-      (setf forced-not (normalize-forced-not-systems (if other-systems nil t) system))))
+    (setf (slot-value plan 'forcing)
+          (make-forcing :system system :force :all :force-not (if other-systems nil t))))
 
   (defmethod plan-actions ((plan filtered-sequential-plan))
     (with-slots (keep-operation keep-component) plan
@@ -520,7 +438,7 @@ initialized with SEED."
           (unless (gethash action (visited-actions *asdf-session*))
             (setf (gethash action (visited-actions *asdf-session*)) t)
             (when (and (typep component (plan-component-type plan))
-                       (not (action-forced-not-p plan operation component)))
+                       (not (action-forced-not-p (forcing plan) operation component)))
               (map-direct-dependencies operation component
                                        #'(lambda (o c) (collect-action-dependencies plan o c)))
               (push action (plan-actions-r plan))))))))
@@ -531,7 +449,7 @@ initialized with SEED."
   (defmethod collect-dependencies ((operation operation) (component component)
                                    &rest keys &key &allow-other-keys)
     (let ((plan (apply 'make-instance 'filtered-sequential-plan
-                       :system (component-system component) :force :all keys)))
+                       :system (component-system component) keys)))
       (loop :for action :in (direct-dependencies operation component)
         :do (collect-action-dependencies plan (action-operation action) (action-component action)))
       (plan-actions plan)))

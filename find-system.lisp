@@ -249,9 +249,7 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                      ;; TODO: check that all dependencies are up-to-date.
                      ;; This necessitates traversing them without triggering
                      ;; the adding of nodes to the plan.
-                     (loop :with plan = (or (and *asdf-session*
-                                                 (session-plan *asdf-session*))
-                                            (make-instance *plan-class*))
+                     (loop :with plan = (make-instance *plan-class*)
                        :for action :in (definition-dependency-list previous)
                        :always (handler-bind
                                    ((system-out-of-date

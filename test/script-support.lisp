@@ -408,7 +408,7 @@ is bound, write a message and exit on an error.  If
                        (acall :print-condition-backtrace
                               c :count 69 :stream *error-output*))
                      (leave-test "Script failed" 1)))))
-             (funcall (or (asym :call-with-asdf-session) 'funcall) thunk)
+             (funcall thunk)
              (leave-test "Script succeeded" 0)))))
     (when *quit-when-done*
       (exit-lisp result))))
@@ -631,24 +631,27 @@ is bound, write a message and exit on an error.  If
   (format t "Being a bit verbose~%")
   (when (asym :*asdf-verbose*) (setf (asymval :*asdf-verbose*) t))
   (when (asym :*verbose-out*) (setf (asymval :*verbose-out*) *standard-output*))
-  (funcall
-   ;; Old versions of ASDF don't always use with-asdf-session in locate system, but need it.
-   ;; So we do it for them for the sake of testing upgrade from these old versions.
-   ;; Yet older versions of ASDF don't even have this session cache, so then we don't.
-   (or (asym :call-with-asdf-session) (asym :call-with-asdf-cache) 'funcall)
-   (lambda ()
-     (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
-       (format t "Comparing directories~%")
-       (let ((x (acall :pathname-directory-pathname (nth-value 2 (acall :locate-system :test-asdf)))))
-         (assert-pathname-equal-helper ;; not always EQUAL (!)
-          '*test-directory* *test-directory*
-          '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
-         (unless (equal *test-directory* x)
-           (format t "Interestingly, while *test-directory* has components~% ~S~%~
-                 ASDF finds the ASDs in~% ~S~%Using the latter.~%"
-                   (pathname-components *test-directory*)
-                   (pathname-components x)))
-         (setf *test-directory* x)))))
+  (when (and (asym :locate-system) (asym :pathname-directory-pathname) (asym :pathname-equal))
+    (format t "Comparing directories~%")
+    (let ((x (acall
+              :pathname-directory-pathname
+              ;; Some old versions of ASDF want locate-system to be surrounded by with-asdf-cache
+              ;; so we do it for them for the sake of testing upgrade from these old versions.
+              ;; Yet older versions of ASDF don't even have this session cache, so then we don't.
+              ;; Newer versions of ASDF implicitly use with-asdf-session (successor of the cache)
+              ;; without our having to wrap it.
+              (funcall
+               (or (asym :call-with-asdf-cache) 'funcall)
+               (lambda () (nth-value 2 (acall :locate-system :test-asdf)))))))
+      (assert-pathname-equal-helper ;; not always EQUAL (!)
+       '*test-directory* *test-directory*
+       '(:pathname-directory-pathname (nth-value 2 (:locate-system :test-asdf))) x)
+      (unless (equal *test-directory* x)
+        (format t "Interestingly, while *test-directory* has components~% ~S~%~
+              ASDF finds the ASDs in~% ~S~%Using the latter.~%"
+                (pathname-components *test-directory*)
+                (pathname-components x)))
+      (setf *test-directory* x)))
   t)
 
 (defun frob-packages ()
