@@ -4,7 +4,7 @@
 
 set here=%~dp0
 set header_lisp=header.lisp
-set driver_lisp=uiop\package.lisp + uiop\common-lisp.lisp + uiop\utility.lisp + uiop\os.lisp + uiop\pathname.lisp + uiop\filesystem.lisp + uiop\stream.lisp + uiop\image.lisp + uiop\lisp-build.lisp + uiop\run-program.lisp + uiop\configuration.lisp + uiop\backward-driver.lisp + uiop\driver.lisp
+set driver_lisp=uiop\package.lisp + uiop\common-lisp.lisp + uiop\utility.lisp + uiop\os.lisp + uiop\pathname.lisp + uiop\filesystem.lisp + uiop\stream.lisp + uiop\image.lisp + uiop\lisp-build.lisp + uiop\launch-program.lisp + uiop\run-program.lisp + uiop\configuration.lisp + uiop\backward-driver.lisp + uiop\driver.lisp
 set defsystem_lisp=upgrade.lisp + cache.lisp + component.lisp + system.lisp + find-system.lisp + find-component.lisp + operation.lisp + action.lisp + lisp-action.lisp + plan.lisp + operate.lisp + parse-defsystem.lisp + bundle.lisp + concatenate-source.lisp + output-translations.lisp + source-registry.lisp + package-inferred-system.lisp + backward-interface.lisp + backward-internals.lisp + interface.lisp + user.lisp + footer.lisp
 
 %~d0
