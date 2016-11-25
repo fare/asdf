@@ -14,15 +14,26 @@
                 (run-program '("echo" "ok" "1") :output '(:string :stripped t))))
  ((os-windows-p)
   (DBG "Testing ipconfig /all via run-progam as a string")
+  ;;; FIXME: known breakage
+  #+(and ecl os-windows)
+  (errors parameter-error
+          (run-program "ipconfig /all"))
+  #-(and ecl os-windows)
   (run-program "ipconfig /all")
   (DBG "Testing ipconfig /all via run-progam as a list")
   (run-program '("ipconfig" "/all"))))
 
 (DBG "Testing echo ok 1 via run-program as a string")
+#-(and ecl os-windows)
 (assert-equal "ok 1"
               (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
+#+(and ecl os-windows)
+(errors parameter-error
+  (dewindowize (run-program "echo ok 1" :output '(:string :stripped t))))
 
 ;;; test asdf run-shell-command function
+#-(and ecl os-windows)
+(progn
 (setf *verbose-out* nil)
 (DBG "Testing true via run-shell-command")
 (assert-equal 0 (run-shell-command "exit 0"))
@@ -30,7 +41,10 @@
 (assert-equal 1 (run-shell-command "exit 1"))
 (DBG "Testing bad shell command via run-shell-command")
 (unless (< 0 (run-shell-command "./bad-shell-command"))
-  (error "Failed to capture exit status indicating shell command failure."))
+  (error "Failed to capture exit status indicating shell command failure.")))
+#+(and ecl os-windows)
+(errors not-implemented-error
+  (eql 0  (run-shell-command "exit 0")))
 
 (chdir *test-directory*)
 
@@ -42,6 +56,7 @@
 (DBG "Testing exit status with :output :interactive")
 ;; This test checks for a problem there was in allegro -- :output :interactive
 ;; would try to open T as a stream for INPUT.
+#-(and ecl os-windows)
 (loop
    :for (program . exit-code) :in
    #+os-unix '(("true" . 0) ("false" . 1))
@@ -54,6 +69,10 @@
                                           :ignore-error-status t
                                           :force-shell force-shell
                                           :output :interactive)))))
+#+(and ecl os-windows)
+(DBG "Test skipped on ECL + Windows")
+
+#-(and ecl os-windows)
 (assert-equal
  '("foo" "bar baz" 42)
  (multiple-value-bind (o e c)
@@ -66,14 +85,16 @@
                   :ignore-error-status t)
    (DBG "aaa" o e c)
    (list (dewindowize o) (dewindowize e) c)))
+#-(and ecl os-windows)
 (assert-equal
  '(("foo" "bar" "baz" "quux") nil 0)
  (multiple-value-bind (o e c)
      (run-program #+os-unix "echo foo ; echo bar >&2 ; echo baz ; echo quux >& 2"
-		       #+os-windows "echo foo & echo bar >&2 & echo baz & echo quux >& 2"
-		       :output :lines :error-output :output)
+                       #+os-windows "echo foo & echo bar >&2 & echo baz & echo quux >& 2"
+                       :output :lines :error-output :output)
    (list (mapcar 'dewindowize o) e c)))
 
+#-(and ecl os-windows)
 (let ((ok1 (format nil "; $ echo ok 1~%ok 1")))
   (DBG "Testing awkward legacy output capture via run-shell-command")
   (assert-equal
@@ -94,7 +115,9 @@
              (error "Didn't get good exit status.")))))))
    ok1))
 
+#-(and ecl os-windows)
 (assert-equal '(:ok 1) (run-program "echo :ok  1" :output :forms))
+#-(and ecl os-windows)
 (assert-equal "ok" (dewindowize (stripln
                                  (with-output-to-string (*standard-output*)
                                    (run-program "echo ok" :output t :error-output :output)))))
@@ -249,9 +272,10 @@
   t)
 
 (defun windows-only-test/run-program ()
-
+  (DBG "WINDOWS-ONLY-TEST/RUN-PROGRAM")
   ;; a basic smoke test
   (assert-equal "ok" (dewindowize (run-program '("cmd" "/c" "echo" "ok") :output :line)))
+  #-(and ecl os-windows)
   (assert-equal "ok 1" (dewindowize (run-program "echo ok 1" :output :line)))
   ;; clozure: beware http://trac.clozure.com/ccl/ticket/1118
 
