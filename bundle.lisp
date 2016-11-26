@@ -35,7 +35,7 @@ concatenate together a system's components and all of its dependencies, but a
 simple concatenate operation will concatenate only the components of the system
 itself."))
 
-  (defclass monolithic-bundle-op (monolithic-op bundle-op)
+  (defclass monolithic-bundle-op (bundle-op monolithic-op)
     ;; Old style way of specifying prologue and epilogue on ECL: in the monolithic operation.
     ;; DEPRECATED. Supported replacement: Define slots on program-system instead.
     ((prologue-code :initform nil :accessor prologue-code)
@@ -165,7 +165,7 @@ for all the linkable object files associated with the system. Compare with LIB-O
     (:documentation "produce an asd file for delivering the system as a single fasl"))
 
 
-  (defclass monolithic-deliver-asd-op (monolithic-bundle-op deliver-asd-op)
+  (defclass monolithic-deliver-asd-op (deliver-asd-op monolithic-bundle-op)
     ((selfward-operation
       ;; TODO: implement link-op on all implementations, and make that
       ;; '(monolithic-compile-bundle-op monolithic-lib-op #-(or clasp ecl mkcl) monolithic-dll-op)
@@ -174,7 +174,7 @@ for all the linkable object files associated with the system. Compare with LIB-O
     (:documentation "produce fasl and asd files for combined system and dependencies."))
 
   (defclass monolithic-compile-bundle-op
-      (monolithic-bundle-op basic-compile-bundle-op
+      (basic-compile-bundle-op monolithic-bundle-op
        #+(or clasp ecl mkcl) link-op gather-operation non-propagating-operation)
     ((gather-operation
       :initform #-(or clasp ecl mkcl) 'compile-bundle-op #+(or clasp ecl mkcl) 'lib-op
@@ -184,16 +184,16 @@ for all the linkable object files associated with the system. Compare with LIB-O
       :allocation :class))
     (:documentation "Create a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-load-bundle-op (monolithic-bundle-op load-bundle-op)
+  (defclass monolithic-load-bundle-op (load-bundle-op monolithic-bundle-op)
     ((selfward-operation :initform 'monolithic-compile-bundle-op :allocation :class))
     (:documentation "Load a single fasl for the system and its dependencies."))
 
-  (defclass monolithic-lib-op (monolithic-bundle-op lib-op non-propagating-operation)
+  (defclass monolithic-lib-op (lib-op monolithic-bundle-op non-propagating-operation)
     ((gather-type :initform :static-library :allocation :class))
     (:documentation "Compile the system and produce a linkable static library (.a/.lib)
 for all the linkable object files associated with the system or its dependencies. See LIB-OP."))
 
-  (defclass monolithic-dll-op (monolithic-bundle-op dll-op non-propagating-operation)
+  (defclass monolithic-dll-op (dll-op monolithic-bundle-op non-propagating-operation)
     ((gather-type :initform :static-library :allocation :class))
     (:documentation "Compile the system and produce a dynamic loadable library (.so/.dll)
 for all the linkable object files associated with the system or its dependencies. See LIB-OP"))

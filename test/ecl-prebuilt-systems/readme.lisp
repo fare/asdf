@@ -31,13 +31,7 @@
                      :defaults *load-truename*)
       asdf:*central-registry*)
 
-(asdf:make-build :hellow
-                 :type :program
-                 :move-here "./"
-                 :prologue-code "printf(\"Good morning sunshine!\");"
-                 :epilogue-code '(progn
-                                  (format t "~%Good bye sunshine.~%")
-                                  (ext:quit 0)))
+(asdf:make "hellow")
 
 ;;
 ;; * Test the program
