@@ -10,7 +10,7 @@
 (DBG "Now let's register it as preloaded. Loading it will work!")
 (register-preloaded-system :this-system-does-not-exist :version "3.14")
 ;; Eagerly registered since 3.1.7.20. See gitlab merge request 13 for the full story.
-(assert (system-registered-p :this-system-does-not-exist))
+(assert (registered-system :this-system-does-not-exist))
 (load-system :this-system-does-not-exist) ;; We can load it indeed, though it's a NOP.
 
 
@@ -26,10 +26,10 @@
 (DBG "Destroy the package, clear the system, and register it as immutable. Try loading it again.")
 (DBG "The package should NOT be back, because it's immutable thus it's NOT going to be loaded.")
 (delete-package :test-package) (clear-system :test-asdf/1)
-(assert (null (system-registered-p :test-asdf/1))) ;; not registered as loaded
+(assert (null (registered-system :test-asdf/1))) ;; not registered as loaded
 (register-immutable-system :test-asdf/1)
-(assert (system-registered-p :test-asdf/1)) ;; now it's registered as loaded
+(assert (registered-system :test-asdf/1)) ;; now it's registered as loaded
 (load-system :test-asdf/1)
-(assert (system-registered-p :test-asdf/1)) ;; and it is "loaded" indeed!
+(assert (registered-system :test-asdf/1)) ;; and it is "loaded" indeed!
 (assert (null (find-package :test-package))) ;; but the source code wasn't loaded
 

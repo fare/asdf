@@ -47,7 +47,7 @@
   (reset-session)
   (signals missing-dependency (def-test-system unloadable-system
                                   :defsystem-depends-on (nonexistent-system)))
-  (assert (not (system-registered-p "unloadable-system"))))
+  (assert (not (registered-system "unloadable-system"))))
 
 (progn
   (signals missing-dependency

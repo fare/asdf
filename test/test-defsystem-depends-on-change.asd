@@ -1,6 +1,6 @@
 (defvar *tddoc* 0)
 (incf *tddoc*)
-(format t "tddoc loaded ~D times.~%" *tddoc*)
+(format t "tddoc loaded ~D time~:P.~%" *tddoc*)
 
 (if (= *tddoc* 1)
     (defsystem "test-defsystem-depends-on-change"

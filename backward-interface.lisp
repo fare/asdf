@@ -4,8 +4,9 @@
 (uiop/package:define-package :asdf/backward-interface
   (:recycle :asdf/backward-interface :asdf)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session
-   :asdf/component :asdf/system :asdf/find-system :asdf/operation :asdf/action
-   :asdf/lisp-action :asdf/plan :asdf/operate :asdf/output-translations)
+   :asdf/component :asdf/system :asdf/system-registry :asdf/operation :asdf/action
+   :asdf/lisp-action :asdf/plan :asdf/operate
+   :asdf/find-system :asdf/parse-defsystem :asdf/output-translations)
   (:export
    #:*asdf-verbose*
    #:operation-error #:compile-error #:compile-failed #:compile-warned
@@ -15,7 +16,7 @@
    #:operation-on-failure #:operation-on-warnings #:on-failure #:on-warnings
    #:component-property
    #:run-shell-command
-   #:system-definition-pathname
+   #:system-definition-pathname #:system-registered-p
    #:explain))
 (in-package :asdf/backward-interface)
 
@@ -208,3 +209,14 @@ DEPRECATED. Use ASDF:ACTION-DESCRIPTION and/or ASDF::FORMAT-ACTION instead."))
     (define-convenience-action-methods explain (operation component)))
   (defmethod explain ((o operation) (c component))
     (asdf-message (compatfmt "~&~@<; ~@;~A~:>~%") (action-description o c))))
+
+(with-asdf-deprecation (:style-warning "3.3")
+  (defun system-registered-p (name)
+    "DEPRECATED. Return a generalized boolean that is true if a system of given NAME was registered already.
+NAME is a system designator, to be normalized by COERCE-NAME.
+The value returned if true is a pair of a timestamp and a system object."
+    (if-let (system (registered-system name))
+      (cons (if-let (primary-system (registered-system (primary-system-name name)))
+              (component-operation-time 'define-op primary-system))
+            system))))
+

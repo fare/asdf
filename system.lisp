@@ -132,6 +132,7 @@ as a string by / slashes. A component designates its system."
     (etypecase system-designator
       (string (if-let (p (position #\/ system-designator))
                 (subseq system-designator 0 p) system-designator))
+      (symbol (primary-system-name (coerce-name system-designator)))
       (component (primary-system-name (coerce-name (component-system system-designator))))))
 
   (defun primary-system-p (system)

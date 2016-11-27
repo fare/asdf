@@ -10,7 +10,7 @@
 (defparameter talc "test-asdf-location-change")
 (defparameter asdf-user::*tddoc* 0)
 
-
+(terpri)(terpri)
 (DBG "Load the system, using xach-foo-1")
 (push (subpathname *test-directory* "xach-foo-1/") *central-registry*)
 (clear-system tddoc)
@@ -27,6 +27,8 @@
  (subpathname *test-directory* "xach-foo-1/test-asdf-location-change.asd")
  (system-source-file talc))
 
+
+(terpri)(terpri)
 (DBG "Load it again: there should be no changes")
 (load-system "test-defsystem-depends-on-change")
 (assert-equal asdf-user::*tddoc* 1)

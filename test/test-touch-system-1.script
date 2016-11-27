@@ -6,7 +6,9 @@
 (setf asdf::*asdf-session* (make-instance asdf::*asdf-session-class*))
 
 (defun system-registered-time (name)
-  (car (asdf::system-registered-p name)))
+  (asdf::component-operation-time
+   'asdf::define-op
+   (registered-system (primary-system-name name))))
 (setf (asdf-upgraded-p *asdf-session*) t)
 
 (defparameter test1.asd (nth-value 2 (locate-system :test1)))

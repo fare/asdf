@@ -41,7 +41,7 @@
 
   (defun find-system-if-being-defined (name)
     ;; This function finds systems being defined *in the current ASDF session*, as embodied by
-    ;; its session cache, even before they are fully defined and registered in *defined-systems*.
+    ;; its session cache, even before they are fully defined and registered in *registered-systems*.
     ;; The purpose of this function is to prevent races between two files that might otherwise
     ;; try overwrite each other's system objects, resulting in infinite loops and stack overflow.
     ;; This function explicitly MUST NOT find definitions merely registered in previous sessions.
@@ -199,10 +199,9 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       ;; and keeping a negative cache was a bug (see lp#1335323), which required
       ;; explicit invalidation in clear-system and find-system (when unsucccessful).
       (let* ((name (coerce-name name))
-             (in-memory (system-registered-p name)) ; load from disk if absent or newer on disk
-             (previous (cdr in-memory))
-             (previous (and (typep previous 'system) previous))
-             (previous-time (car in-memory))
+             (previous (registered-system name)) ; load from disk if absent or newer on disk
+             (primary (registered-system (primary-system-name name)))
+             (previous-time (and previous primary (component-operation-time 'define-op primary)))
              (found (search-for-system-definition name))
              (found-system (and (typep found 'system) found))
              (pathname (ensure-pathname

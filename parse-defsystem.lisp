@@ -13,7 +13,8 @@
    #:class-for-type #:*default-component-class*
    #:determine-system-directory #:parse-component-form
    #:non-toplevel-system #:non-system-system #:bad-system-name
-   #:sysdef-error-component #:check-component-input))
+   #:sysdef-error-component #:check-component-input
+   #:explain))
 (in-package :asdf/parse-defsystem)
 
 ;;; Pathname
@@ -307,13 +308,11 @@ system names contained using COERCE-NAME. Return the result."
                             :collect :it)))
                (load-systems* deps)
                dep-forms))
-            (registered (system-registered-p name))
-            (registered! (if registered
-                             (rplaca registered (get-file-stamp source-file))
-                             (register-system
-                              (make-instance 'system :name name :source-file source-file))))
-            (system (reset-system (cdr registered!)
-                                  :name name :source-file source-file))
+            (system (or (find-system-if-being-defined name)
+                        (if-let (registered (registered-system name))
+                          (reset-system registered :name name :source-file source-file)
+                          (register-system (make-instance 'undefined-system
+                                                          :name name :source-file source-file)))))
             (component-options
              (append
               (remove-plist-keys '(:defsystem-depends-on :class) options)

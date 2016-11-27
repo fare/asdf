@@ -6,7 +6,7 @@
 
 (setf asdf::*asdf-session* nil)
 (setf *central-registry* nil)
-(asdf::clear-defined-systems)
+(asdf::clear-registered-systems)
 
 (assert-equal nil (find-system "test-asdf/force1" nil))
 (errors missing-component (find-system "test-asdf/force1" t))

@@ -261,7 +261,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
                (clrhash (asdf-cache))))))
       ;; Regardless, clear defined systems, since they might be invalid
       ;; after an incompatible ASDF upgrade.
-      (clear-defined-systems)
+      (clear-registered-systems)
       ;; The configuration also may have to be upgraded.
       (upgrade-configuration)
       ;; If we were in the middle of an operation, be sure to restore the system being defined.

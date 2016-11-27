@@ -159,7 +159,8 @@
    #:clear-source-registry
    #:ensure-source-registry
    #:process-source-registry
-   #:system-registered-p #:registered-systems #:already-loaded-systems
+   #:system-registered-p ;; DEPRECATED
+   #:registered-system #:registered-systems #:already-loaded-systems
    #:resolve-location
    #:asdf-message
    #:*user-cache*

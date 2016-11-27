@@ -190,7 +190,7 @@
 ;; Prevent ASDF from finding the modules as ASDF systems on ECL, MKCL, SBCL (and maybe more).
 (setf asdf::*system-definition-search-functions*
       (remove 'asdf::sysdef-source-registry-search asdf::*system-definition-search-functions*))
-(asdf::clear-defined-systems)
+(asdf::clear-registered-systems)
 (reset-session)
 
 

@@ -7,17 +7,16 @@
     :asdf/session :asdf/component :asdf/system)
   (:export
    #:remove-entry-from-registry #:coerce-entry-to-directory
-   #:system-registered-p #:registered-system #:register-system
+   #:registered-system #:register-system
    #:registered-systems* #:registered-systems
    #:clear-system #:map-systems
    #:*system-definition-search-functions* #:search-for-system-definition
    #:*central-registry* #:probe-asd #:sysdef-central-registry-search
-   #:find-system-if-being-defined
    #:contrib-sysdef-search #:sysdef-find-asdf ;; backward compatibility symbols, functions removed
    #:sysdef-preloaded-system-search #:register-preloaded-system #:*preloaded-systems*
-   #:mark-component-preloaded ;; forward reference to asdf/find-system
+   #:find-system-if-being-defined #:mark-component-preloaded ;; forward references to asdf/find-system
    #:sysdef-immutable-system-search #:register-immutable-system #:*immutable-systems*
-   #:*defined-systems* #:clear-defined-systems
+   #:*registered-systems* #:clear-registered-systems
    ;; defined in source-registry, but specially mentioned here:
    #:sysdef-source-registry-search))
 (in-package :asdf/system-registry)
@@ -25,32 +24,22 @@
 (with-upgradability ()
   ;;; Registry of Defined Systems
 
-  (defvar *defined-systems* (make-hash-table :test 'equal)
-    "This is a hash table whose keys are strings -- the
-names of systems -- and whose values are pairs, the first
-element of which is a universal-time indicating when the
-system definition was last updated, and the second element
-of which is a system object.
-  A system is referred to as \"registered\" if it is present
-in this table.")
-
-  (defun system-registered-p (name)
-    "Return a generalized boolean that is true if a system of given NAME was registered already.
-NAME is a system designator, to be normalized by COERCE-NAME.
-The value returned if true is a pair of a timestamp and a system object."
-    (gethash (coerce-name name) *defined-systems*))
+  (defvar *registered-systems* (make-hash-table :test 'equal)
+    "This is a hash table whose keys are strings -- the names of systems --
+and whose values are systems.
+A system is referred to as \"registered\" if it is present in this table.")
 
   (defun registered-system (name)
     "Return a system of given NAME that was registered already,
 if such a system exists.  NAME is a system designator, to be
 normalized by COERCE-NAME. The value returned is a system object,
 or NIL if not found."
-    (cdr (system-registered-p name)))
+    (gethash (coerce-name name) *registered-systems*))
 
   (defun registered-systems* ()
     "Return a list containing every registered system (as a system object)."
-    (loop :for registered :being :the :hash-values :of *defined-systems*
-          :collect (cdr registered)))
+    (loop :for registered :being :the :hash-values :of *registered-systems*
+          :collect registered))
 
   (defun registered-systems ()
     "Return a list of the names of every registered system."
@@ -62,18 +51,15 @@ or NIL if not found."
     (let ((name (component-name system)))
       (check-type name string)
       (asdf-message (compatfmt "~&~@<; ~@;Registering system ~3i~_~A~@:>~%") name)
-      (unless (eq system (registered-system name))
-        (setf (gethash name *defined-systems*)
-              (cons (ignore-errors (get-file-stamp (system-source-file system)))
-                    system)))))
+      (setf (gethash name *registered-systems*) system)))
 
   (defun map-systems (fn)
     "Apply FN to each defined system.
 
 FN should be a function of one argument. It will be
 called with an object of type asdf:system."
-    (loop :for registered :being :the :hash-values :of *defined-systems*
-          :do (funcall fn (cdr registered))))
+    (loop :for registered :being :the :hash-values :of *registered-systems*
+          :do (funcall fn registered)))
 
 
   ;;; Preloaded systems: in the image even if you can't find source files backing them.
@@ -167,14 +153,14 @@ Returns T if system was or is now undefined, NIL if a new preloaded system was r
     ;; a general such operation cannot be portably written,
     ;; considering how much CL relies on side-effects to global data structures.
     (let ((name (coerce-name system)))
-      (remhash name *defined-systems*)
+      (remhash name *registered-systems*)
       (unset-asdf-cache-entry `(find-system ,name))
       (not (ensure-preloaded-system-registered name))))
 
-  (defun clear-defined-systems ()
+  (defun clear-registered-systems ()
     "Clear all currently registered defined systems.
 Preloaded systems (including immutable ones) will be reset, other systems will be de-registered."
-    (loop :for name :being :the :hash-keys :of *defined-systems* :do (clear-system name)))
+    (map () 'clear-system (registered-systems)))
 
 
   ;;; Searching for system definitions
@@ -211,7 +197,7 @@ with that name.")
   ;; it is to be called by locate-system.
   (defun search-for-system-definition (system)
     ;; Search for valid definitions of the system available in the current session.
-    ;; Previous definitions as registered in *defined-systems* MUST NOT be considered;
+    ;; Previous definitions as registered in *registered-systems* MUST NOT be considered;
     ;; they will be reconciled by locate-system then find-system.
     ;; There are two special treatments: first, specially search for objects being defined
     ;; in the current session, to avoid definition races between several files;
