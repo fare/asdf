@@ -44,7 +44,7 @@ and a class-name or class designates the canonical instance of the designated cl
   (defun action-component (action)
     (cdr action)))
 
-;;;; Reified representation for storage or debugging. Note: it drops the operation-original-initargs
+;;;; Reified representation for storage or debugging. Note: an action is identified by its class.
 (with-upgradability ()
   (defun action-path (action)
     "A readable data structure that identifies the action."
@@ -67,10 +67,8 @@ and a class-name or class designates the canonical instance of the designated cl
   ;; FORMALS is its list of arguments, which must include OPERATION and COMPONENT.
   ;; IF-NO-OPERATION is a form (defaults to NIL) describing what to do if no operation is found.
   ;; IF-NO-COMPONENT is a form (defaults to NIL) describing what to do if no component is found.
-  ;; If OPERATION-INITARGS is true, then for backward compatibility the function has
-  ;; a &rest argument that is passed into the operation's initargs if and when it is created.
   (defmacro define-convenience-action-methods
-      (function formals &key if-no-operation if-no-component operation-initargs)
+      (function formals &key if-no-operation if-no-component)
     (let* ((rest (gensym "REST"))
            (found (gensym "FOUND"))
            (keyp (equal (last formals) '(&key)))
@@ -95,9 +93,7 @@ and a class-name or class designates the canonical instance of the designated cl
            (defmethod ,function (,@prefix (,operation symbol) ,component ,@suffix ,@more-args)
              (if ,operation
                  ,(next-method
-                   (if operation-initargs ;backward-compatibility with ASDF1's operate. Yuck.
-                       `(apply 'make-operation ,operation :original-initargs ,rest ,rest)
-                       `(make-operation ,operation))
+                   `(make-operation ,operation)
                    `(or (find-component () ,component) ,if-no-component))
                  ,if-no-operation))
            (defmethod ,function (,@prefix (,operation operation) ,component ,@suffix ,@more-args)
@@ -117,7 +113,7 @@ on this component, e.g. \"loading /a/b/c\".
 You can put together sentences using this phrase."))
   (defmethod action-description (operation component)
     (format nil (compatfmt "~@<~A on ~A~@:>")
-            (type-of operation) component))
+            operation component))
 
   (defun format-action (stream action &optional colon-p at-sign-p)
     "FORMAT helper to display an action's action-description.
@@ -399,10 +395,10 @@ in some previous image, or T if it needs to be done.")
         (format stream "~@{~S~^ ~}" :stamp stamp :done-p done-p))))
 
   (defmethod component-operation-time ((o operation) (c component))
-    (gethash (type-of o) (component-operation-times c)))
+    (gethash o (component-operation-times c)))
 
   (defmethod (setf component-operation-time) (stamp (o operation) (c component))
-    (setf (gethash (type-of o) (component-operation-times c)) stamp))
+    (setf (gethash o (component-operation-times c)) stamp))
 
   (defmethod mark-operation-done ((o operation) (c component))
     (setf (component-operation-time o c) (compute-action-stamp nil o c :just-done t))))

@@ -23,11 +23,11 @@
 (defun simplify-pathname-directory-component (dir)
   (setf dir (normalize-pathname-directory-component dir))
   (loop
-   :with head = (progn
-                  (unless (and (consp dir) (cdr dir)) (return dir))
-                  (subseq dir 0 1))
-   :with tail = (rest dir)
-   :for (next rest) :on tail :do
+    :with head = (progn
+                   (unless (and (consp dir) (cdr dir)) (return dir))
+                   (subseq dir 0 1))
+    :with tail = (rest dir)
+    :for next :in tail :do
    (unless (equal next ".")
      (when (member next '(".." :up) :test 'equal) (setf next :back))
      (setf head (merge-pathname-directory-components (list :relative next) head)))
@@ -213,9 +213,7 @@
     asdf/action:done-p
     asdf/action:stamp
     asdf/bundle:prologue-code
-    asdf/bundle:build-args
     asdf/bundle:epilogue-code
-    asdf/bundle:name-suffix
     asdf/component:absolute-pathname
     asdf/component:around-compile
     asdf/component:author
@@ -242,9 +240,7 @@
     asdf/component:relative-pathname
     asdf/component:sideway-dependencies
     asdf/component:version
-    asdf/lisp-action:flags
     asdf/operation:feature
-    asdf/operation:original-initargs
     asdf/plan:index
     asdf/plan:forced
     asdf/plan:forced-not

@@ -3,18 +3,17 @@
 
 (uiop/package:define-package :asdf/lisp-action
   (:recycle :asdf/lisp-action :asdf)
-  (:intern #:proclamations #:flags)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/cache
    :asdf/component :asdf/system :asdf/find-component :asdf/find-system
    :asdf/operation :asdf/action)
   (:export
    #:try-recompiling
    #:cl-source-file #:cl-source-file.cl #:cl-source-file.lsp
-   #:basic-load-op #:basic-compile-op #:compile-op-flags #:compile-op-proclamations
+   #:basic-load-op #:basic-compile-op
    #:load-op #:prepare-op #:compile-op #:test-op #:load-source-op #:prepare-source-op
    #:call-with-around-compile-hook
    #:perform-lisp-compilation #:perform-lisp-load-fasl #:perform-lisp-load-source
-   #:lisp-compilation-output-files #:flags))
+   #:lisp-compilation-output-files))
 (in-package :asdf/lisp-action)
 
 
@@ -35,11 +34,7 @@
 (with-upgradability ()
   (defclass basic-load-op (operation) ()
     (:documentation "Base class for operations that apply the load-time effects of a file"))
-  (defclass basic-compile-op (operation)
-    ;; NB: These slots are deprecated. They are for backward compatibility only,
-    ;; and will be removed at some point in the future.
-    ((proclamations :initarg :proclamations :accessor compile-op-proclamations :initform nil)
-     (flags :initarg :flags :accessor compile-op-flags :initform nil))
+  (defclass basic-compile-op (operation) ()
     (:documentation "Base class for operations that apply the compile-time effects of a file")))
 
 
@@ -125,7 +120,7 @@ Note that it will NOT be called around the performing of LOAD-OP."))
                           (append
                            #+clisp (list :lib-file lib-file)
                            #+(or clasp ecl mkcl) (list :object-file object-file)
-                           flags (compile-op-flags o))))))
+                           flags)))))
         (check-lisp-compile-results output warnings-p failure-p
                                     "~/asdf-action::format-action/" (list (cons o c))))))
   (defun report-file-p (f)

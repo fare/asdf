@@ -49,20 +49,7 @@
                      :defaults *load-truename*)
       asdf:*central-registry*)
 
-(asdf:make-build :hellow
-                 :type :program
-                 :move-here "./"
-                 :prologue-code "printf(\"Good morning sunshine!\");"
-                 :epilogue-code '(progn
-                                  (format t "~%Good bye sunshine.~%")
-                                  (ext:quit 0))
-                 :ld-flags
-                 (list (namestring (compile-file-pathname "hello_aux.c" :type :object))))
-
-;; This doesn't seem to work
-;; (asdf:operate 'asdf:program-op :hellow
-;;               :ld-flags
-;;               (list (namestring (compile-file-pathname "hello_aux.c" :type :object))))
+(asdf:make "hellow")
 
 ;;
 ;; * Test the program

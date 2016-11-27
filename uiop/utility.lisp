@@ -461,18 +461,24 @@ A class object designates itself.
 NIL designates itself (no class).
 A symbol otherwise designates a class by name."
     (let* ((normalized
-             (typecase class
+            (typecase class
               (keyword (or (find-symbol* class package nil)
                            (find-symbol* class *package* nil)))
               (string (symbol-call :uiop :safe-read-from-string class :package package))
               (t class)))
            (found
-             (etypecase normalized
-               ((or standard-class built-in-class) normalized)
-               ((or null keyword) nil)
-               (symbol (find-class normalized nil nil)))))
+            (etypecase normalized
+              ((or standard-class built-in-class) normalized)
+              ((or null keyword) nil)
+              (symbol (find-class normalized nil nil))))
+           (super-class
+            (etypecase super
+              ((or standard-class built-in-class) super)
+              ((or null keyword) nil)
+              (symbol (find-class super nil nil)))))
+      #+allegro (when found (mop:finalize-inheritance found))
       (or (and found
-               (or (eq super t) (#-cormanlisp subtypep #+cormanlisp cl::subclassp found super))
+               (or (eq super t) (#-cormanlisp subtypep #+cormanlisp cl::subclassp found super-class))
                found)
           (call-function error "Can't coerce ~S to a ~:[class~;subclass of ~:*~S~]" class super)))))
 
