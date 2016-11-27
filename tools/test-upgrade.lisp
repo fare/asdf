@@ -58,7 +58,7 @@
     ((string-equal x :old)
      *obsolete-upgrade-test-tags*)
     ((string-equal x :all)
-     (mappend *default-upgrade-test-tags* *obsolete-upgrade-test-tags*))
+     (append *default-upgrade-test-tags* *obsolete-upgrade-test-tags*))
     (t x)))
 
 (defun extract-tagged-asdf (tag)
