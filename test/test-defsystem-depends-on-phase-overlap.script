@@ -1,0 +1,32 @@
+;;-*- Lisp -*-
+
+(in-package :asdf-test)
+
+(setf *central-registry* nil)
+
+(defparameter *od* 0)
+(def-test-system "overlapping-dependency"
+  :perform (load-op (o c) (incf *od*)))
+
+(defparameter *dd* 0)
+(def-test-system "defsystem-dependency"
+  :depends-on ("overlapping-dependency")
+  :perform (load-op (o c) (incf *dd*)))
+
+(defparameter *id* 0)
+(def-test-system "intermediate-dependency"
+  :defsystem-depends-on ("defsystem-dependency")
+  :perform (load-op (o c) (incf *id*)))
+
+(defparameter *ms* 0)
+(def-test-system "main-system"
+  :depends-on ("overlapping-dependency" "intermediate-dependency")
+  :perform (load-op (o c) (incf *ms*)))
+
+(DBG "Load it once")
+(load-system "main-system")
+(assert-equal (list *od* *dd* *id* *ms*) '(1 1 1 1))
+
+(DBG "Load it a second time, forcing od")
+(load-system "main-system" :force '("overlapping-dependency"))
+(assert-equal (list *od* *dd* *id* *ms*) '(2 2 2 2))
