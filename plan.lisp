@@ -9,7 +9,6 @@
         :asdf/component :asdf/operation :asdf/action :asdf/lisp-action
         :asdf/system :asdf/system-registry :asdf/find-component :asdf/forcing)
   (:export
-   #:component-operation-time
    #:plan #:plan-traversal #:sequential-plan #:*plan-class*
    #:action-status #:action-stamp #:action-done-p #:action-index #:action-planned-p
    #:action-already-done-p #:+action-status-out-of-date+
@@ -92,8 +91,8 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defmethod (setf action-status) (new-status (plan null) (o operation) (c component))
     (let ((times (component-operation-times c)))
       (if (action-done-p new-status)
-          (remhash o times)
-          (setf (gethash o times) (action-stamp new-status))))
+          (setf (gethash o times) (action-stamp new-status))
+          (remhash o times)))
     new-status))
 
 
@@ -178,26 +177,31 @@ initialized with SEED."
             (missing-out (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
             (earliest-out (stamps-earliest out-stamps)))
        (when (and missing-out (not just-done)) (return (values t nil))))
-     (let* (;; There are three kinds of actions:
-            (out-op (and out-files t)) ; those that create files on the filesystem
-            ;;(image-op (and in-files (null out-files))) ; those that load stuff into the image
-            ;;(null-op (and (null out-files) (null in-files))) ; placeholders that do nothing
-            ;; When was the thing last actually done? (Now, or ask.)
-            (op-time (or just-done (component-operation-time o c)))
-            ;; Time stamps from the files at hand, and whether any is missing
-            (all-present (not (or missing-in missing-out)))
-            ;; Has any input changed since we last generated the files?
-            (up-to-date-p (stamp<= latest-in earliest-out))
-            ;; If everything is up to date, the latest of inputs and outputs is our stamp
-            (done-stamp (stamps-latest (cons latest-in out-stamps))))
+     (let (;; Time stamps from the files at hand, and whether any is missing
+           (all-present (not (or missing-in missing-out)))
+           ;; Has any input changed since we last generated the files?
+           (up-to-date-p (stamp<= latest-in earliest-out))
+           ;; If everything is up to date, the latest of inputs and outputs is our stamp
+           (done-stamp (stamps-latest (cons latest-in out-stamps))))
        ;; Warn if some files are missing:
        ;; either our model is wrong or some other process is messing with our files.
        (when (and just-done (not all-present))
+         ;; Shouldn't that be an error instead?
          (warn "~A completed without ~:[~*~;~*its input file~:p~2:*~{ ~S~}~*~]~
                 ~:[~; or ~]~:[~*~;~*its output file~:p~2:*~{ ~S~}~*~]"
                (action-description o c)
                missing-in (length missing-in) (and missing-in missing-out)
                missing-out (length missing-out))))
+     (let (;; There are three kinds of actions:
+           (out-op (and out-files t)) ; those that create files on the filesystem
+           ;;(image-op (and in-files (null out-files))) ; those that load stuff into the image
+           ;;(null-op (and (null out-files) (null in-files))) ; placeholders that do nothing
+           ))
+     ;; Status of the action as previously performed in the image
+     (multiple-value-bind (perform-stamp perform-done-p)
+         (if just-done
+             (values done-stamp t)
+             (component-operation-time o c)))
      ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
      ;; Any race condition is intrinsic to the limited timestamp resolution.
      (if (or just-done ;; The done-stamp is valid: if we're just done, or
@@ -208,7 +212,7 @@ initialized with SEED."
                  (or just-done
                      out-op ;; a file-creating op is done when all files are up to date
                      ;; a image-effecting a placeholder op is done when it was actually run,
-                     (and op-time (eql op-time done-stamp)))) ;; with the matching stamp
+                     (and perform-done-p (equal perform-stamp done-stamp)))) ;; with the matching stamp
          ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
          (values t nil)))))
 
