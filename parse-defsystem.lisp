@@ -12,7 +12,7 @@
    #:defsystem #:register-system-definition
    #:class-for-type #:*default-component-class*
    #:determine-system-directory #:parse-component-form
-   #:non-toplevel-system #:non-system-system
+   #:non-toplevel-system #:non-system-system #:bad-system-name
    #:sysdef-error-component #:check-component-input))
 (in-package :asdf/parse-defsystem)
 
@@ -72,6 +72,17 @@
     (:report (lambda (c s)
                (format s (compatfmt "~@<Error while defining system: component ~S claims to have a system ~S as a child~@:>")
                        (non-toplevel-system-parent c) (non-toplevel-system-name c)))))
+
+  (define-condition bad-system-name (warning)
+    ((name :initarg :name :reader component-name)
+     (source-file :initarg :source-file :reader system-source-file))
+    (:report (lambda (c s)
+               (let* ((file (system-source-file c))
+                      (name (component-name c))
+                      (asd (pathname-name file)))
+                 (format s (compatfmt "~@<System definition file ~S contains definition for system ~S. ~
+Please only define ~S and secondary systems with a name starting with ~S (e.g. ~S) in that file.~@:>")
+                       file name asd (strcat asd "/") (strcat asd "/test"))))))
 
   (defun sysdef-error-component (msg type name value)
     (sysdef-error (strcat msg (compatfmt "~&~@<The value specified for ~(~A~) ~A is ~S~@:>"))
@@ -276,45 +287,49 @@ system names contained using COERCE-NAME. Return the result."
     ;; To avoid infinite recursion in cases where you defsystem a system
     ;; that is registered to a different location to find-system,
     ;; we also need to remember it in the asdf-cache.
-    (with-asdf-cache ()
-      (let* ((name (coerce-name name))
-             (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
-             ;; NB: handle defsystem-depends-on BEFORE to create the system object,
-             ;; so that in case it fails, there is no incomplete object polluting the build.
-             (checked-defsystem-depends-on
-               (let* ((dep-forms (parse-dependency-defs defsystem-depends-on))
-                      (deps (loop :for spec :in dep-forms
-                                  :when (resolve-dependency-spec nil spec)
-                                    :collect :it)))
-                 (load-systems* deps)
-                 dep-forms))
-             (registered (system-registered-p name))
-             (registered! (if registered
-                              (rplaca registered (get-file-stamp source-file))
-                              (register-system
-                               (make-instance 'system :name name :source-file source-file))))
-             (system (reset-system (cdr registered!)
-                                   :name name :source-file source-file))
-             (component-options
-              (append
-               (remove-plist-keys '(:defsystem-depends-on :class) options)
-               ;; cache defsystem-depends-on in canonical form
-               (when checked-defsystem-depends-on
-                 `(:defsystem-depends-on ,checked-defsystem-depends-on)))))
-        ;; This works hand in hand with asdf/find-system:find-system-if-being-defined:
-        (set-asdf-cache-entry `(find-system ,name) (list system))
-        ;; We change-class AFTER we loaded the defsystem-depends-on
-        ;; since the class might be defined as part of those.
-        (let ((class (class-for-type nil class)))
-          (unless (subtypep class 'system)
-            (error 'non-system-system :name name :class-name (class-name class)))
-          (unless (eq (type-of system) class)
-            (change-class system class)))
-        (parse-component-form
-         nil (list*
-              :module name
-              :pathname (determine-system-directory pathname)
-              component-options)))))
+    (nest
+     (with-asdf-cache ())
+     (let* ((name (coerce-name name))
+            (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
+            (asd-name (and source-file
+                           (equalp "asd" (pathname-type source-file))
+                           (pathname-name source-file)))
+            (primary-name (primary-system-name name)))
+       (when (and asd-name (not (equal asd-name primary-name)))
+         (warn (make-condition 'bad-system-name :source-file source-file :name name))))
+     (let* (;; NB: handle defsystem-depends-on BEFORE to create the system object,
+            ;; so that in case it fails, there is no incomplete object polluting the build.
+            (checked-defsystem-depends-on
+             (let* ((dep-forms (parse-dependency-defs defsystem-depends-on))
+                    (deps (loop :for spec :in dep-forms
+                            :when (resolve-dependency-spec nil spec)
+                            :collect :it)))
+               (load-systems* deps)
+               dep-forms))
+            (registered (system-registered-p name))
+            (registered! (if registered
+                             (rplaca registered (get-file-stamp source-file))
+                             (register-system
+                              (make-instance 'system :name name :source-file source-file))))
+            (system (reset-system (cdr registered!)
+                                  :name name :source-file source-file))
+            (component-options
+             (append
+              (remove-plist-keys '(:defsystem-depends-on :class) options)
+              ;; cache defsystem-depends-on in canonical form
+              (when checked-defsystem-depends-on
+                `(:defsystem-depends-on ,checked-defsystem-depends-on))))
+            (directory (determine-system-directory pathname)))
+       ;; This works hand in hand with asdf/find-system:find-system-if-being-defined:
+       (set-asdf-cache-entry `(find-system ,name) (list system)))
+     ;; We change-class AFTER we loaded the defsystem-depends-on
+     ;; since the class might be defined as part of those.
+     (let ((class (class-for-type nil class)))
+       (unless (subtypep class 'system)
+         (error 'non-system-system :name name :class-name (class-name class)))
+       (unless (eq (type-of system) class)
+         (change-class system class)))
+     (parse-component-form nil (list* :module name :pathname directory component-options))))
 
   (defmacro defsystem (name &body options)
     `(apply 'register-system-definition ',name ',options)))
