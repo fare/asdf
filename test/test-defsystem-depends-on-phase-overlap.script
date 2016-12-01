@@ -1,32 +1,47 @@
 ;;-*- Lisp -*-
 
+;; TODO: make it files, so that DEFINE-OP can propagate and cause reloading.
+
 (in-package :asdf-test)
 
-(setf *central-registry* nil)
+(setf *central-registry* (list (subpathname *test-directory* "defsystem-depends-on/")))
 
-(defparameter *od* 0)
-(def-test-system "overlapping-dependency"
-  :perform (load-op (o c) (incf *od*)))
+(defvar *od* 0)
+(defvar *dd* 0)
+(defvar *id* 0)
+(defvar *ms* 0)
+(defun reset-vars (&optional (x 0))
+  (setf *od* x *dd* x *id* x *ms* x))
+(assert-equal (list *od* *dd* *id* *ms*) '(0 0 0 0))
 
-(defparameter *dd* 0)
-(def-test-system "defsystem-dependency"
-  :depends-on ("overlapping-dependency")
-  :perform (load-op (o c) (incf *dd*)))
+(DBG "Finding main-system doesn't load defsystem-dependency")
+(reset-vars)
+(find-system "main-system")
+(assert-equal (list *od* *dd* *id* *ms*) '(0 0 0 0))
 
-(defparameter *id* 0)
-(def-test-system "intermediate-dependency"
-  :defsystem-depends-on ("defsystem-dependency")
-  :perform (load-op (o c) (incf *id*)))
+(DBG "Finding intermediate-dependency does load defsystem-dependency")
+(reset-vars)
+(find-system "intermediate-dependency")
+(assert-equal (list *od* *dd* *id* *ms*) '(1 1 0 0))
 
-(defparameter *ms* 0)
-(def-test-system "main-system"
-  :depends-on ("overlapping-dependency" "intermediate-dependency")
-  :perform (load-op (o c) (incf *ms*)))
-
-(DBG "Load it once")
+(DBG "Loading main-system doesn't reload defsystem-dependency or overlapping-dependency")
+(reset-vars)
 (load-system "main-system")
-(assert-equal (list *od* *dd* *id* *ms*) '(1 1 1 1))
+(assert-equal (list *od* *dd* *id* *ms*) '(0 0 1 1))
 
-(DBG "Load it a second time, forcing od")
-(load-system "main-system" :force '("overlapping-dependency"))
-(assert-equal (list *od* *dd* *id* *ms*) '(2 2 2 2))
+(DBG "Loading main-system a second time doesn't reload anything")
+(reset-vars)
+(load-system "main-system")
+(assert-equal (list *od* *dd* *id* *ms*) '(0 0 0 0))
+
+(DBG :foo
+     (component-sideway-dependencies (find-system "intermediate-dependency"))
+     (asdf::direct-dependencies 'prepare-op "intermediate-dependency")
+     (asdf::direct-dependencies 'load-op "intermediate-dependency")
+     (asdf::direct-dependencies 'compile-op "intermediate-dependency"))
+
+(DBG "Forcing overlapping-dependency causes a complete reload, but overlapping-dependency is only loaded once")
+(reset-vars)
+(with-asdf-session (:override t)
+  (load-system "main-system" :force '("overlapping-dependency")))
+(assert-equal (list *od* *dd* *id* *ms*) '(1 1 1 1))
