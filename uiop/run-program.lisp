@@ -1012,7 +1012,12 @@ or :error-output."
     (declare (ignorable keys directory input if-input-does-not-exist output
                         if-output-exists error-output if-error-output-exists))
     #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (let (#+(or abcl ecl mkcl) (version (parse-version (lisp-implementation-version))))
+    (let (#+(or abcl ecl mkcl)
+            (version (parse-version
+                      #-abcl
+                      (lisp-implementation-version)
+                      #+abcl
+                      (second (split-string (implementation-identifier) :separator '(#\-))))))
       (nest
        #+abcl (unless (lexicographic< '< version '(1 4 0)))
        #+ecl (unless (lexicographic<= '< version '(16 0 0)))
