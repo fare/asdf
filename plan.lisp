@@ -10,19 +10,16 @@
         :asdf/system :asdf/system-registry :asdf/find-component :asdf/forcing)
   (:export
    #:plan #:plan-traversal #:sequential-plan #:*plan-class*
-   #:action-status #:action-stamp #:action-done-p #:action-index #:action-planned-p
-   #:action-already-done-p #:+action-status-out-of-date+
+   #:action-status #:status-stamp #:status-done-p #:status-keep-p #:status-need-p
+   #:+status-good+ #:+status-todo+ #:+status-void+
+   #:system-out-of-date #:action-up-to-date-p
    #:circular-dependency #:circular-dependency-actions
    #:needed-in-image-p
-   #:record-dependency
    #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies
-   #:compute-action-stamp #:traverse-action #:action-up-to-date-p
-   #:make-plan #:plan-actions #:perform-plan #:plan-operates-on-p
-   #:planned-p #:index
-   #:plan-actions-r
+   #:compute-action-stamp #:traverse-action #:record-dependency
+   #:make-plan #:plan-actions #:plan-actions-r #:perform-plan
    #:required-components #:filtered-sequential-plan
-   #:plan-component-type #:plan-keep-operation #:plan-keep-component
-   ))
+   #:plan-component-type #:plan-keep-operation #:plan-keep-component))
 (in-package :asdf/plan)
 
 ;;;; Generic plan traversal class
@@ -33,67 +30,156 @@
     (;; The forcing parameters for this plan. Also indicates whether the plan is performable,
      ;; in which case the forcing is the same as for the entire session.
      (forcing :initform (forcing (toplevel-asdf-session)) :initarg :forcing :reader forcing))
-    (:documentation "Base class for plans that simply traverse dependencies")))
+    (:documentation "Base class for plans that simply traverse dependencies"))
+  ;; Sequential plans (the default)
+  (defclass sequential-plan (plan-traversal)
+    ((actions-r :initform nil :accessor plan-actions-r))
+    (:documentation "Simplest, default plan class, accumulating a sequence of actions"))
+
+  (defgeneric plan-actions (plan)
+    (:documentation "Extract from a plan a list of actions to perform in sequence"))
+  (defmethod plan-actions ((plan list))
+    plan)
+  (defmethod plan-actions ((plan sequential-plan))
+    (reverse (plan-actions-r plan)))
+
+  (defgeneric record-dependency (plan operation component)
+    (:documentation "Record an action as a dependency in the current plan"))
+
+  ;; No need to record a dependency to build a full graph, just accumulate nodes in order.
+  (defmethod record-dependency ((plan sequential-plan) (o operation) (c component))
+    (values)))
+
+(when-upgrading (:version "3.2.1")
+  (defmethod initialize-instance :after ((plan plan-traversal) &key &allow-other-keys)))
 
 
 ;;;; Planned action status
 (with-upgradability ()
   (defclass action-status ()
-    ((stamp
-      :initarg :stamp :reader action-stamp
+    ((bits
+      :type fixnum :initarg :bits :reader status-bits
+      :documentation "a fixnum, bitmap describing the status of the action.")
+     (stamp
+      :type (or integer boolean) :initarg :stamp :reader status-stamp
       :documentation "STAMP associated with the ACTION if it has been completed already
-in some previous image, or T if it needs to be done.")
-     (done-p
-      :initarg :done-p :reader action-done-p
-      :documentation "a boolean, true iff the action was already done (before any planned action).")
-     (planned-p
-      :initarg :planned-p :initform nil :reader action-planned-p
-      :documentation "a boolean, true iff the action was included in the plan.")
-     (index
-      :initarg :index :initform nil :reader action-index
-      :documentation "an integer, counting all traversed actions in traversal order, or NIL."))
+in some previous image, or T if it needs to be done."))
     (:documentation "Status of an action in a plan"))
 
-  (defparameter +action-status-out-of-date+ (make-instance 'action-status :stamp t :done-p nil))
+  ;; STAMP   KEEP-P DONE-P NEED-P     symbol bitmap  previously   currently
+  ;; not-nil   T      T      T     =>  GOOD     7    up-to-date   done
+  ;; not-nil   T      T     NIL    =>  HERE     6    up-to-date   unplanned yet done
+  ;; not-nil   T     NIL     T     =>  REDO     5    up-to-date   planned
+  ;; not-nil   T     NIL    NIL    =>  SKIP     4    up-to-date   unplanned
+  ;; not-nil  NIL     T      T     =>  DONE     3    out-of-date  done
+  ;; not-nil  NIL     T     NIL    =>  WHAT     2    out-of-date  unplanned yet done(?)
+  ;;  NIL     NIL    NIL     T     =>  TODO     1    out-of-date  planned
+  ;;  NIL     NIL    NIL    NIL    =>  VOID     0    out-of-date  unplanned
+  ;;
+  ;; Note that a VOID status cannot happen as part of a transitive dependency of a wanted node
+  ;; while traversing a node with TRAVERSE-ACTION; it can only happen while checking whether an
+  ;; action is up-to-date with ACTION-UP-TO-DATE-P.
+  ;;
+  ;; When traversing an action, the +need-bit+ is set,
+  ;; unless the action is up-to-date and not needed-in-image (HERE, SKIP).
+  ;; When PERFORMing an action, the +done-bit+ is set.
+  ;;
+  ;; Also, when no ACTION-STATUS is associated to an action yet, NIL serves as a bottom value.
+  ;;
+  (defparameter +keep-bit+ 4)
+  (defparameter +done-bit+ 2)
+  (defparameter +need-bit+ 1)
+  (defparameter +good-bits+ 7)
+  (defparameter +todo-bits+ 1)
+  (defparameter +void-bits+ 0)
 
-  (defun make-action-status (&key stamp done-p planned-p index)
-    (if (eq stamp t)
-        +action-status-out-of-date+
-        (make-instance 'action-status :stamp stamp :done-p done-p :planned-p planned-p :index index)))
+  (defparameter +status-good+
+    (make-instance 'action-status :bits +good-bits+ :stamp t))
+  (defparameter +status-todo+
+    (make-instance 'action-status :bits +todo-bits+ :stamp nil))
+  (defparameter +status-void+
+    (make-instance 'action-status :bits +void-bits+ :stamp nil)))
 
-  (defun action-status-out-of-date-p (status)
-    (eq (action-stamp status) t))
+(with-upgradability ()
+  (defun make-action-status (&key bits stamp)
+    (check-type bits (integer 0 7))
+    (check-type stamp (or integer boolean))
+    (assert (eq (null stamp) (zerop (logand bits #.(logior +keep-bit+ +done-bit+)))) ()
+            "Bad action-status :bits ~S :stamp ~S" bits stamp)
+    (case bits
+      (+void-bits+ +status-void+)
+      (+todo-bits+ +status-todo+)
+      (otherwise
+       (if (and (= bits +good-bits+) (eq stamp t))
+           +status-good+
+           (make-instance 'action-status :bits bits :stamp stamp)))))
+
+  (defun status-keep-p (status)
+    (plusp (logand (status-bits status) #.+keep-bit+)))
+  (defun status-done-p (status)
+    (plusp (logand (status-bits status) #.+done-bit+)))
+  (defun status-need-p (status)
+    (plusp (logand (status-bits status) #.+need-bit+)))
+
+  (defun merge-action-status (status1 status2)
+    "Return the latest status earlier than both status1 and status2"
+    (make-action-status
+     :bits (logand (status-bits status1) (status-bits status2))
+     :stamp (latest-stamp (status-stamp status1) (status-stamp status2))))
+
+  (defun mark-status-needed (status)
+    "Return the same status but with the need bit set"
+    (if (status-need-p status)
+        status
+        (make-action-status
+         :bits (logior (status-bits status) +need-bit+)
+         :stamp (status-stamp status))))
 
   (defmethod print-object ((status action-status) stream)
     (print-unreadable-object (status stream :type t)
-      (with-slots (stamp done-p planned-p index) status
-        (format stream "~{~S~^ ~}"
-                `(:stamp ,stamp :done-p ,done-p
-                         ,@(when planned-p `(:planned-p ,planned-p))
-                         ,@(when index `(:index ,index)))))))
+      (with-slots (bits stamp) status
+        (format stream "~{~S~^ ~}" `(:bits ,bits :stamp ,stamp)))))
 
   (defgeneric action-status (plan operation component)
-    (:documentation "Returns the ACTION-STATUS associated to
-the action of OPERATION on COMPONENT in the PLAN"))
+    (:documentation "Returns the ACTION-STATUS associated to the action of OPERATION on COMPONENT
+in the PLAN, or NIL if the action wasn't visited yet as part of the PLAN."))
 
   (defgeneric (setf action-status) (new-status plan operation component)
     (:documentation "Sets the ACTION-STATUS associated to
 the action of OPERATION on COMPONENT in the PLAN"))
 
-  (defun action-already-done-p (plan operation component)
-    "According to this plan, is this action already done and up to date?"
-    (action-done-p (action-status plan operation component)))
-
   (defmethod action-status ((plan null) (o operation) (c component))
     (multiple-value-bind (stamp done-p) (component-operation-time o c)
-      (make-action-status :stamp stamp :done-p done-p)))
+      (if done-p
+          (make-action-status :bits +good-bits+ :stamp stamp)
+          +status-void+)))
 
   (defmethod (setf action-status) (new-status (plan null) (o operation) (c component))
     (let ((times (component-operation-times c)))
-      (if (action-done-p new-status)
-          (setf (gethash o times) (action-stamp new-status))
+      (if (status-done-p new-status)
+          (setf (gethash o times) (status-stamp new-status))
           (remhash o times)))
-    new-status))
+    new-status)
+
+  ;; Handle FORCED-NOT: it makes an action return its current timestamp as status
+  (defmethod action-status ((p plan) (o operation) (c component))
+    ;; TODO: should we instead test something like:
+    ;; (action-forced-not-p plan operation (primary-system component))
+    (if (action-forced-not-p (forcing p) o c)
+        (let ((status (action-status nil o c)))
+          (if (= +good-bits+ (status-bits status))
+              status
+              (make-action-status :bits +good-bits+
+                                  :stamp (or (and status (status-stamp status)) t))))
+        (values (gethash (make-action o c) (visited-actions *asdf-session*)))))
+
+  (defmethod (setf action-status) (new-status (p plan) (o operation) (c component))
+    (setf (gethash (make-action o c) (visited-actions *asdf-session*)) new-status))
+
+  (defmethod (setf action-status) :after
+      (new-status (p sequential-plan) (o operation) (c component))
+    (unless (status-done-p new-status)
+      (push (make-action o c) (plan-actions-r p)))))
 
 
 ;;;; Is the action needed in this image?
@@ -146,40 +232,59 @@ initialized with SEED."
     ;; or if it has just been done, return the time that it has.
     ;; Returns two values:
     ;; 1- the TIMESTAMP of the action if it has already been done and is up to date,
-    ;;   or T is either hasn't been done or is out of date.
+    ;;   or NIL is either hasn't been done or is out of date.
+    ;;   (An ASDF extension could use a cryptographic digest instead.)
     ;; 2- the DONE-IN-IMAGE-P boolean flag that is T if the action has already been done
     ;;   in the current image, or NIL if it hasn't.
     ;; Note that if e.g. LOAD-OP only depends on up-to-date files, but
-    ;; hasn't been done in the current image yet, then it can have a non-T timestamp,
+    ;; hasn't been done in the current image yet, then it can have a non-NIL timestamp,
     ;; yet a NIL done-in-image-p flag: we can predict what timestamp it will have once loaded,
     ;; i.e. that of the input-files.
+    ;; If just-done is NIL, these values return are the notional fields of
+    ;; a KEEP, REDO or TODO status (VOID is possible, but probably an error).
+    ;; If just-done is T, they are the notional fields of DONE status
+    ;; (or, if something went wrong, TODO).
     (nest
      (block ())
-     (let ((dep-stamp ; collect timestamp from dependencies (or T if forced or out-of-date)
+     (let* ((dep-status ; collect timestamp from dependencies (or T if forced or out-of-date)
              (reduce-direct-dependencies
               o c
-              #'(lambda (o c stamp)
-                  (if-let (it (action-status plan o c))
-                    (latest-stamp stamp (action-stamp it))
-                    t))
-              nil)))
-       ;; out-of-date dependency: don't bother expensively querying the filesystem
-       (when (and (eq dep-stamp t) (not just-done)) (return (values t nil))))
-     ;; collect timestamps from inputs, and exit early if any is missing
-     (let* ((in-files (input-files o c))
+              #'(lambda (do dc status)
+                  ;; out-of-date dependency: don't bother looking further
+                  (let ((action-status (action-status plan do dc)))
+                    (cond
+                      ((and action-status (or (status-keep-p action-status)
+                                              (and just-done (status-stamp action-status))))
+                       (merge-action-status action-status status))
+                      (just-done
+                       ;; It's OK to lose some ASDF action stamps during self-upgrade
+                       (unless (equal "asdf" (primary-system-name dc))
+                         (warn "Computing just-done stamp in plan ~S for action ~S, but dependency ~S wasn't done yet!"
+                               plan
+                               (action-path (make-action o c))
+                               (action-path (make-action do dc))))
+                       status)
+                      (t
+                       (return (values nil nil))))))
+              +status-good+))
+            (dep-stamp (status-stamp dep-status))))
+     (let* (;; collect timestamps from inputs, and exit early if any is missing
+            (in-files (input-files o c))
             (in-stamps (mapcar #'get-file-stamp in-files))
             (missing-in (loop :for f :in in-files :for s :in in-stamps :unless s :collect f))
             (latest-in (stamps-latest (cons dep-stamp in-stamps))))
-       (when (and missing-in (not just-done)) (return (values t nil))))
-     ;; collect timestamps from outputs, and exit early if any is missing
-     (let* ((out-files (remove-if 'null (output-files o c)))
+       (when (and missing-in (not just-done)) (return (values nil nil))))
+     (let* (;; collect timestamps from outputs, and exit early if any is missing
+            (out-files (remove-if 'null (output-files o c)))
             (out-stamps (mapcar (if just-done 'register-file-stamp 'get-file-stamp) out-files))
             (missing-out (loop :for f :in out-files :for s :in out-stamps :unless s :collect f))
             (earliest-out (stamps-earliest out-stamps)))
-       (when (and missing-out (not just-done)) (return (values t nil))))
+       (when (and missing-out (not just-done)) (return (values nil nil))))
      (let (;; Time stamps from the files at hand, and whether any is missing
            (all-present (not (or missing-in missing-out)))
            ;; Has any input changed since we last generated the files?
+           ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
+           ;; Any race condition is intrinsic to the limited timestamp resolution.
            (up-to-date-p (stamp<= latest-in earliest-out))
            ;; If everything is up to date, the latest of inputs and outputs is our stamp
            (done-stamp (stamps-latest (cons latest-in out-stamps))))
@@ -197,112 +302,60 @@ initialized with SEED."
            ;;(image-op (and in-files (null out-files))) ; those that load stuff into the image
            ;;(null-op (and (null out-files) (null in-files))) ; placeholders that do nothing
            ))
-     ;; Status of the action as previously performed in the image
-     (multiple-value-bind (perform-stamp perform-done-p)
-         (if just-done
-             (values done-stamp t)
-             (component-operation-time o c)))
-     ;; Note that we use stamp<= instead of stamp< to play nice with generated files.
-     ;; Any race condition is intrinsic to the limited timestamp resolution.
      (if (or just-done ;; The done-stamp is valid: if we're just done, or
-             ;; if all filesystem effects are up-to-date and there's no invalidating reason.
-             (and all-present up-to-date-p (operation-done-p o c)
+             (and all-present ;; if all filesystem effects are up-to-date
+                  up-to-date-p
+                  (operation-done-p o c) ;; and there's no invalidating reason.
                   (not (action-forced-p (forcing (or plan *asdf-session*)) o c))))
          (values done-stamp ;; return the hard-earned timestamp
                  (or just-done
-                     out-op ;; a file-creating op is done when all files are up to date
-                     ;; a image-effecting a placeholder op is done when it was actually run,
-                     (and perform-done-p (equal perform-stamp done-stamp)))) ;; with the matching stamp
+                     out-op ;; A file-creating op is done when all files are up to date.
+                     ;; An image-effecting operation is done when
+                     (and (status-done-p dep-status) ;; all the dependencies were done, and
+                          (multiple-value-bind (perform-stamp perform-done-p)
+                              (component-operation-time o c)
+                            (and perform-done-p ;; the op was actually run,
+                                 (equal perform-stamp done-stamp)))))) ;; with a matching stamp.
          ;; done-stamp invalid: return a timestamp in an indefinite future, action not done yet
-         (values t nil)))))
+         (values nil nil)))))
 
 
-;;;; Generic support for plan-traversal
-(when-upgrading (:version "3.1.7.35")
-  (defmethod initialize-instance :after ((plan plan-traversal) &key &allow-other-keys)))
-
+;;;; The four different actual traversals:
+;; * TRAVERSE-ACTION o c T: Ensure all dependencies are either up-to-date in-image, or planned
+;; * TRAVERSE-ACTION o c NIL: Ensure all dependencies are up-to-date or planned, in-image or not
+;; * ACTION-UP-TO-DATE-P: Check whether some (defsystem-depends-on ?) dependencies are up to date
+;; * COLLECT-ACTION-DEPENDENCIES: Get the dependencies (filtered), don't change any status
 (with-upgradability ()
-  (defgeneric plan-actions (plan)
-    (:documentation "Extract from a plan a list of actions to perform in sequence"))
-  (defmethod plan-actions ((plan list))
-    plan)
 
-  (defmethod (setf action-status) (new-status (p plan) (o operation) (c component))
-    (setf (gethash (cons o c) (visited-actions *asdf-session*)) new-status))
-
-  (defmethod action-status ((p plan) (o operation) (c component))
-    (if (action-forced-not-p (forcing p) o c)
-        (action-status nil o c)
-        (values (gethash (cons o c) (visited-actions *asdf-session*)))))
-
-  (defgeneric record-dependency (plan operation component)
-    (:documentation "Record an action as a dependency in the current plan")))
-
-
-;;;; Actual traversal: traverse-action
-(with-upgradability ()
-  (defgeneric traverse-action (plan operation component needed-in-image-p))
+  ;; Compute the action status for a newly visited action.
+  (defun compute-action-status (plan operation component need-p)
+    (multiple-value-bind (stamp done-p)
+        (compute-action-stamp plan operation component)
+      (assert (or stamp (not done-p)))
+      (make-action-status
+       :bits (logior (if stamp #.+keep-bit+ 0)
+                     (if done-p #.+done-bit+ 0)
+                     (if need-p #.+need-bit+ 0))
+       :stamp stamp)))
 
   ;; TRAVERSE-ACTION, in the context of a given PLAN object that accumulates dependency data,
   ;; visits the action defined by its OPERATION and COMPONENT arguments,
   ;; and all its transitive dependencies (unless already visited),
   ;; in the context of the action being (or not) NEEDED-IN-IMAGE-P,
   ;; i.e. needs to be done in the current image vs merely have been done in a previous image.
-  ;; For actions that are up-to-date, it returns a STAMP identifying the state of the action
-  ;; (that's timestamp, but it could be a cryptographic digest in some ASDF extension),
-  ;; or T if the action needs to be done again.
+  ;;
+  ;; TRAVERSE-ACTION updates the VISITED-ACTIONS entries for the action and for all its
+  ;; transitive dependencies (that haven't been sufficiently visited so far).
+  ;; It does not return any usable value.
   ;;
   ;; Note that for an XCVB-like plan with one-image-per-file-outputting-action,
   ;; the below method would be insufficient, since it assumes a single image
   ;; to traverse each node at most twice; non-niip actions would be traversed only once,
   ;; but niip nodes could be traversed once per image, i.e. once plus once per non-niip action.
 
-  ;; Handle FORCED-NOT: it makes an action return its current timestamp as status
-  (defmethod action-status :around ((plan plan) operation component)
-    ;; TODO: should we instead test something like:
-    ;; (action-forced-not-p plan operation (primary-system component))
-    (if (action-forced-not-p (forcing plan) operation component)
-        (let ((status (action-status nil operation component)))
-          (if (and status (action-done-p status))
-              status
-              (let ((stamp (and status (action-stamp status))))
-                (make-action-status :done-p t :stamp stamp))))
-        (call-next-method)))
-
-  ;; Different traversals:
-  ;; * Get the dependencies (filtered), don't change any status
-  ;; * Check whether some (defsystem-depends-on ?) dependencies are up to date
-  ;; * Check that some dependencies are up-to-date, though not necessarily in image
-  ;; * Check that some dependencies are up-to-date and in image, or add them to the plan
-
-  (defun action-up-to-date-p (plan operation component)
-    "Check whether a node is up-to-date, and mark it so if such. But don't add anything to the plan."
+  (defun traverse-action (plan operation component needed-in-image-p)
     (block nil
-      (unless (action-valid-p operation component) (return nil))
-      (while-visiting-action (operation component) ; maintain context, handle circularity.
-        ;; Do NOT record the dependency: it might be out of date.
-        (let ((status (action-status plan operation component)))
-          (when status
-            (return (not (eq (action-stamp status) t)))))
-        (let* ((dependencies-up-to-date-p
-                (block nil
-                  (map-direct-dependencies ; recursively traverse dependencies
-                   operation component
-                   #'(lambda (o c) (unless (action-up-to-date-p plan o c) (return nil))))
-                  t))
-               (status
-                (if dependencies-up-to-date-p
-                    ;; If it's all up-to-date
-                    (multiple-value-bind (stamp done-p)
-                        (compute-action-stamp plan operation component) ; compute action stamp TODO: no plan!
-                      (make-action-status :stamp stamp :done-p done-p))
-                    +action-status-out-of-date+)))
-          (setf (action-status plan operation component) status)
-          (not (eq (action-stamp status) t))))))
-
-  (defmethod traverse-action (plan operation component needed-in-image-p)
-    (block nil
-      (unless (action-valid-p operation component) (return nil))
+      (unless (action-valid-p operation component) (return))
       ;; Record the dependency. This hook is needed by POIU, which tracks a full dependency graph,
       ;; instead of just a dependency order as in vanilla ASDF.
       ;; TODO: It is also needed to detect OPERATE-in-PERFORM.
@@ -315,97 +368,65 @@ initialized with SEED."
                (eniip (and aniip needed-in-image-p))
                ;; status: have we traversed that action previously, and if so what was its status?
                (status (action-status plan operation component)))
-          (when (and status (or (action-done-p status) (action-planned-p status) (not eniip)))
-            (return (action-stamp status))) ; Already visited with sufficient need-in-image level!
+          (when (and status
+                     (or (status-need-p status) ;; already visited
+                         (and (status-keep-p status) (not eniip)))) ;; up-to-date and not eniip
+            (return)) ; Already visited with sufficient need-in-image level!
           (labels ((visit-action (niip) ; We may visit the action twice, once with niip NIL, then T
                      (map-direct-dependencies ; recursively traverse dependencies
                       operation component #'(lambda (o c) (traverse-action plan o c niip)))
-                     (multiple-value-bind (stamp done-p) ; AFTER dependencies have been traversed,
-                         (compute-action-stamp plan operation component) ; compute action stamp
-                       (let ((add-to-plan-p (or (eql stamp t) (and niip (not done-p)))))
-                         (cond ; it needs be done if it's out of date or needed in image but absent
-                           ((and add-to-plan-p (not niip)) ; if we need to do it,
-                            (visit-action t)) ; then we need to do it *in the (current) image*!
-                           (t
-                            (setf (action-status plan operation component) ; update status:
-                                  (make-instance
-                                   'action-status
-                                   :stamp stamp ; computed stamp
-                                   :done-p (and done-p (not add-to-plan-p)) ; done *and* up-to-date?
-                                   :planned-p add-to-plan-p ; included in list of things to be done?
-                                   :index (if status ;; index of action among all nodes in traversal
-                                              (action-index status) ;; keep index if already visited
-                                               ;; else allocate a new session-wide index
-                                              (incf (total-action-count *asdf-session*)))))
-                            (when (and done-p (not add-to-plan-p))
-                              (setf (component-operation-time operation component) stamp))
-                            (when add-to-plan-p ; if it needs to be added to the plan,
-                              (incf (planned-action-count *asdf-session*)) ; count it
-                              (unless aniip ; if it's output-producing,
-                                (incf (planned-output-action-count *asdf-session*)))) ; count it
-                            stamp)))))) ; return the stamp
-            (visit-action eniip))))))) ; visit the action
+                     ;; AFTER dependencies have been traversed, compute action stamp
+                     (let* ((status (if status
+                                        (mark-status-needed status)
+                                        (compute-action-status plan operation component t)))
+                            (out-of-date-p (not (status-keep-p status)))
+                            (to-perform-p (or out-of-date-p (and niip (not (status-done-p status))))))
+                       (cond ; it needs be done if it's out of date or needed in image but absent
+                         ((and out-of-date-p (not niip)) ; if we need to do it,
+                          (visit-action t)) ; then we need to do it *in the (current) image*!
+                         (t
+                          (setf (action-status plan operation component) status)
+                          (when (status-done-p status)
+                            (setf (component-operation-time operation component)
+                                  (status-stamp status)))
+                          (when to-perform-p ; if it needs to be added to the plan, count it
+                            (incf (planned-action-count *asdf-session*))
+                            (unless aniip ; if it's output-producing, count it
+                              (incf (planned-output-action-count *asdf-session*)))))))))
+            (visit-action eniip)))))) ; visit the action
 
+  ;; NB: This is not an error, not a warning, but a normal expected condition,
+  ;; to be to signaled by FIND-SYSTEM when it detects an out-of-date system,
+  ;; *before* it tries to replace it with a new definition.
+  (define-condition system-out-of-date (condition)
+    ((name :initarg :name :reader component-name))
+    (:documentation "condition signaled when a system is detected as being out of date")
+    (:report (lambda (c s)
+               (format s "system ~A is out of date" (component-name c)))))
 
-;;;; Sequential plans (the default)
-(with-upgradability ()
-  (defclass sequential-plan (plan-traversal)
-    ((actions-r :initform nil :accessor plan-actions-r))
-    (:documentation "Simplest, default plan class, accumulating a sequence of actions"))
-
-  (defmethod plan-actions ((plan sequential-plan))
-    (reverse (plan-actions-r plan)))
-
-  ;; No need to record a dependency to build a full graph, just accumulate nodes in order.
-  (defmethod record-dependency ((plan sequential-plan) (o operation) (c component))
-    (values))
-
-  (defmethod (setf action-status) :after
-      (new-status (p sequential-plan) (o operation) (c component))
-    (when (action-planned-p new-status)
-      (push (make-action o c) (plan-actions-r p)))))
-
-
-;;;; High-level interface: traverse, perform-plan, plan-operates-on-p
-(with-upgradability ()
-  (defgeneric make-plan (plan-class operation component &key &allow-other-keys)
-    (:documentation "Generate and return a plan for performing OPERATION on COMPONENT."))
-  (define-convenience-action-methods make-plan (plan-class operation component &key))
-
-  (defgeneric perform-plan (plan &key)
-    (:documentation "Actually perform a plan and build the requested actions"))
-  (defgeneric plan-operates-on-p (plan component)
-    (:documentation "Does this PLAN include any operation on given COMPONENT?"))
-
-  (defparameter* *plan-class* 'sequential-plan
-    "The default plan class to use when building with ASDF")
-
-  (defmethod make-plan (plan-class (o operation) (c component) &rest keys &key &allow-other-keys)
-    (with-asdf-session ()
-      (let ((plan (apply 'make-instance (or plan-class *plan-class*) keys)))
-        (traverse-action plan o c t)
-        plan)))
-
-  (defmethod perform-plan :around ((plan t) &key)
-    (assert (performable-p (forcing plan)))
-    (let ((*package* *package*)
-          (*readtable* *readtable*))
-      (with-compilation-unit () ;; backward-compatibility.
-        (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
-
-  (defmethod perform-plan ((plan t) &key)
-    (loop :for action :in (plan-actions plan)
-      :as o = (action-operation action)
-      :as c = (action-component action) :do
-      (unless (nth-value 1 (compute-action-stamp plan o c))
-        (perform-with-restarts o c))))
-
-  (defmethod plan-operates-on-p ((plan plan-traversal) (component-path list))
-    (plan-operates-on-p (plan-actions plan) component-path))
-
-  (defmethod plan-operates-on-p ((plan list) (component-path list))
-    (find component-path (mapcar 'action-component plan)
-          :test 'equal :key 'component-find-path)))
+  (defun action-up-to-date-p (plan operation component)
+    "Check whether an action was up-to-date at the beginning of the session.
+Update the VISITED-ACTIONS table with the known status, but don't add anything to the PLAN."
+    (block nil
+      (unless (action-valid-p operation component) (return t))
+      (while-visiting-action (operation component) ; maintain context, handle circularity.
+        ;; Do NOT record the dependency: it might be out of date.
+        (let ((status (or (action-status plan operation component)
+                          (setf (action-status plan operation component)
+                                (let ((dependencies-up-to-date-p
+                                       (handler-case
+                                           (block nil
+                                             (map-direct-dependencies
+                                              operation component
+                                              #'(lambda (o c)
+                                                  (unless (action-up-to-date-p plan o c)
+                                                    (return nil))))
+                                             t)
+                                         (system-out-of-date () nil))))
+                                  (if dependencies-up-to-date-p
+                                      (compute-action-status plan operation component nil)
+                                      +status-void+))))))
+          (and (status-keep-p status) (status-stamp status)))))))
 
 
 ;;;; Incidental traversals
@@ -433,7 +454,7 @@ initialized with SEED."
         :as o = (action-operation action)
         :as c = (action-component action)
         :when (and (typep o keep-operation) (typep c keep-component))
-        :collect (cons o c))))
+        :collect (make-action o c))))
 
   (defun collect-action-dependencies (plan operation component)
     (when (action-valid-p operation component)
@@ -468,3 +489,43 @@ return a list of the components involved in building the desired action."
                       (remove-plist-key :goal-operation keys)))
        :from-end t))))
 
+
+;;;; High-level interface: make-plan, perform-plan
+(with-upgradability ()
+  (defgeneric make-plan (plan-class operation component &key &allow-other-keys)
+    (:documentation "Generate and return a plan for performing OPERATION on COMPONENT."))
+  (define-convenience-action-methods make-plan (plan-class operation component &key))
+
+  (defgeneric perform-plan (plan &key)
+    (:documentation "Actually perform a plan and build the requested actions"))
+
+  (defparameter* *plan-class* 'sequential-plan
+    "The default plan class to use when building with ASDF")
+
+  (defmethod make-plan (plan-class (o operation) (c component) &rest keys &key &allow-other-keys)
+    (with-asdf-session ()
+      (let ((plan (apply 'make-instance (or plan-class *plan-class*) keys)))
+        (traverse-action plan o c t)
+        plan)))
+
+  (defmethod perform-plan :around ((plan t) &key)
+    (assert (performable-p (forcing plan)) () "plan not performable")
+    (let ((*package* *package*)
+          (*readtable* *readtable*))
+      (with-compilation-unit () ;; backward-compatibility.
+        (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
+
+  (defmethod perform-plan ((plan t) &key)
+    (loop :for action :in (plan-actions plan)
+      :as o = (action-operation action)
+      :as c = (action-component action) :do
+      (let ((plan-status (action-status plan o c)))
+        (unless (status-done-p plan-status)
+          (perform-with-restarts o c)
+          (let ((perform-status (action-status nil o c)))
+            (assert (and (status-stamp perform-status) (status-done-p perform-status)) ()
+                    "Just performed ~A but failed to mark it done" (action-description o c))
+            (setf (action-status plan o c)
+                  (make-action-status
+                   :bits (logior (status-bits perform-status) +done-bit+)
+                   :stamp (status-stamp perform-status)))))))))

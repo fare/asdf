@@ -8,7 +8,7 @@
         :asdf/find-component :asdf/system-registry :asdf/plan :asdf/operate)
   (:export
    #:find-system #:locate-system #:load-asd #:define-op
-   #:load-system-definition-error #:error-name #:error-pathname #:error-condition #:system-out-of-date))
+   #:load-system-definition-error #:error-name #:error-pathname #:error-condition))
 (in-package :asdf/find-system)
 
 (with-upgradability ()
@@ -19,13 +19,6 @@
     (:report (lambda (c s)
                (format s (compatfmt "~@<Error while trying to load definition for system ~A from pathname ~A: ~3i~_~A~@:>")
                        (error-name c) (error-pathname c) (error-condition c)))))
-
-  (define-condition system-out-of-date (condition)
-    ;; NB: not an error, not a warning, but a normal expected condition
-    ((name :initarg :name :reader component-name))
-    (:documentation "condition signaled when a system is detected as being out of date")
-    (:report (lambda (c s)
-               (format s "system ~A is out of date" (component-name c)))))
 
 
   ;;; Methods for find-system
@@ -130,7 +123,7 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
             (progn
               ;; We already determine this to be obsolete ---
               ;; or should we move some tests from find-system to check for up-to-date-ness here?
-              (setf (component-operation-time operation system) nil
+              (setf (component-operation-time operation system) t
                     (definition-dependency-list system) nil
                     (definition-dependency-set system) (list-to-hash-set nil))
               (do-it operation system))
@@ -221,11 +214,28 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
   ;; reconcile the finding (if any) with any previous definition (in a previous session,
   ;; preloaded, with a previous configuration, or before filesystem changes), and
   ;; load a found .asd if appropriate. Finally, update registration table and return results.
+
+  (defun definition-dependencies-up-to-date-p (system)
+    (check-type system system)
+    (assert (primary-system-p system))
+    (handler-case
+        (loop :with plan = (make-instance *plan-class*)
+          :for action :in (definition-dependency-list system)
+          :always (action-up-to-date-p
+                   plan (action-operation action) (action-component action))
+          :finally
+          (let ((o (make-operation 'define-op)))
+            (multiple-value-bind (stamp done-p)
+                (compute-action-stamp plan o system)
+              (return (and (stamp<= stamp (component-operation-time o system))
+                           done-p)))))
+      (system-out-of-date () nil)))
+
   (defmethod find-system ((name string) &optional (error-p t))
     (nest
      (with-asdf-session (:key `(find-system ,name)))
-     (let* ((name-primary-p (primary-system-p name))
-            (primary-system (unless name-primary-p (find-system (primary-system-name name) nil)))))
+     (let ((name-primary-p (primary-system-p name)))
+       (unless name-primary-p (find-system (primary-system-name name) nil)))
      (or (and *immutable-systems* (gethash name *immutable-systems*) (registered-system name)))
      (multiple-value-bind (foundp found-system pathname previous previous-time)
          (locate-system name)
@@ -248,22 +258,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
                      ;; TODO: check that all dependencies are up-to-date.
                      ;; This necessitates traversing them without triggering
                      ;; the adding of nodes to the plan.
-                     (loop :with plan = (make-instance *plan-class*)
-                       :for action :in (definition-dependency-list previous)
-                       :always (handler-bind
-                                   ((system-out-of-date
-                                     (lambda (c) (declare (ignore c)) (return nil))))
-                                 (action-up-to-date-p plan
-                                                      (action-operation action)
-                                                      (action-component action)))
-                       :finally
-                       (let ((o (make-operation 'define-op))
-                             (s (if name-primary-p previous primary-system)))
-                         (when s
-                           (multiple-value-bind (stamp done-p)
-                               (compute-action-stamp plan o s)
-                             (return (and (stamp<= stamp (component-operation-time o s))
-                                          done-p)))))))))
+                     (or (not name-primary-p)
+                         (definition-dependencies-up-to-date-p previous)))))
            (unless up-to-date-p
              (restart-case
                  (signal 'system-out-of-date :name name)
@@ -280,8 +276,8 @@ PREVIOUS-TIME when not null is the time at which the PREVIOUS system was loaded.
       ;; Recurse to children, so asdf/plan will hopefully be happy.
       (map () 'mark-component-preloaded (component-children component))
       ;; Mark the timestamps of the common lisp-action operations as 0.
-      (let ((times (component-operation-times component)))
+      (let ((cot (component-operation-times component)))
         (dolist (o `(,@(when (primary-system-p component) '(define-op))
                        prepare-op compile-op load-op))
-          (setf (gethash (make-operation o) times) 0))))))
+          (setf (gethash (make-operation o) cot) 0))))))
 

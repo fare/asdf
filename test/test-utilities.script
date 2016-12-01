@@ -209,8 +209,6 @@
   '(;; slots names
     asdf/action:accept
     asdf/action:action
-    asdf/action:done-p
-    asdf/action:stamp
     asdf/bundle:prologue-code
     asdf/bundle:epilogue-code
     asdf/component:absolute-pathname
@@ -240,8 +238,6 @@
     asdf/component:sideway-dependencies
     asdf/component:version
     asdf/operation:feature
-    asdf/plan:index
-    asdf/plan:planned-p
     asdf/system:bug-tracker
     asdf/system:build-pathname
     asdf/system:system-defsystem-depends-on

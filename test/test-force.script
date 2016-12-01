@@ -6,9 +6,21 @@
 (assert (not (component-loaded-p 'test-asdf/force)))
 
 (defun force-plan (&rest forcing-options)
-  (asdf::plan-actions
-   (asdf::make-plan nil 'load-op 'test-asdf/force
-                    :forcing (apply 'asdf::make-forcing :system 'test-asdf/force forcing-options))))
+  (asdf::make-plan nil 'load-op 'test-asdf/force
+                   :forcing (apply 'asdf::make-forcing :system 'test-asdf/force forcing-options)))
+
+(defvar *plan* nil)
+
+(defun component-out-of-date-p (component)
+  (not
+   (asdf::action-up-to-date-p
+    *plan*
+    (make-operation 'load-op)
+    (find-component component nil :registered t))))
+
+(defun plan-loads-p (component)
+  (member (asdf::make-action (make-operation 'load-op) (find-component () component :registered t))
+          (asdf::plan-actions *plan*) :test 'equal))
 
 (with-asdf-session (:override t :override-forcing t)
   (load-system 'test-asdf/force))
@@ -28,50 +40,61 @@
 (reset-session-visited)
 (defparameter *plan* (force-plan :force t))
 (DBG "Check that :force t forces the current system but not its dependencies" *plan*)
-(assert (asdf::plan-operates-on-p *plan* '("test-asdf/force" "file4")))
-(assert (not (asdf::plan-operates-on-p *plan* '("file3-only" "file3"))))
-(assert (not (asdf::plan-operates-on-p *plan* '("test-asdf/force1" "file1"))))
+(assert (component-out-of-date-p '("test-asdf/force" "file4")))
+(assert (not (component-out-of-date-p '("file3-only" "file3"))))
+(assert (not (component-out-of-date-p '("test-asdf/force1" "file1"))))
 
 (reset-session-visited)
 (defparameter *plan* (force-plan :force :all))
 (DBG "Check that :force :all forces the current system and its dependencies" *plan*)
-(assert *plan*)
-(assert (asdf::plan-operates-on-p *plan* '("test-asdf/force" "file4")))
-(assert (asdf::plan-operates-on-p *plan* '("file3-only" "file3")))
-(assert (asdf::plan-operates-on-p *plan* '("test-asdf/force1" "file1")))
+(assert (asdf::plan-actions *plan*))
+(assert (component-out-of-date-p '("test-asdf/force" "file4")))
+(assert (component-out-of-date-p '("file3-only" "file3")))
+(assert (component-out-of-date-p '("test-asdf/force1" "file1")))
 
 (reset-session-visited)
 (defparameter *plan* (force-plan :force :all :force-not t))
 (DBG "Check that :force-not takes precedence over :force, with t means \"all but current system\"" *plan*)
-(assert *plan*)
-(assert (asdf::plan-operates-on-p *plan* '("test-asdf/force" "file4")))
-(assert (not (asdf::plan-operates-on-p *plan* '("file3-only" "file3"))))
-(assert (not (asdf::plan-operates-on-p *plan* '("test-asdf/force1" "file1"))))
+(assert (asdf::plan-actions *plan*))
+(assert (component-out-of-date-p '("test-asdf/force" "file4")))
+(assert (not (component-out-of-date-p '("file3-only" "file3"))))
+(assert (not (component-out-of-date-p '("test-asdf/force1" "file1"))))
 
 (reset-session-visited)
 (defparameter *plan* (force-plan :force-not :all))
 (DBG "Check that :force-not :all means \"all systems\"" *plan*)
-(assert (null *plan*))
+(assert (null (asdf::plan-actions *plan*)))
 
 (reset-session-visited)
 (defparameter *plan* (force-plan :force :all :force-not :all))
 (DBG "Check that :force-not :all takes precedence over :force" *plan*)
-(assert (null *plan*))
+(assert (null (asdf::plan-actions *plan*)))
 
 (reset-session-visited)
-(defparameter *plan* (force-plan :force :all :force-not '(:test-asdf/force :test-asdf/force1)))
+(defparameter *plan* (force-plan :force :all :force-not '(:test-asdf/force)))
 (DBG "Check that :force-not with a list takes precedence over :force" *plan*)
-(assert (null *plan*))
+(assert (null (asdf::plan-actions *plan*)))
+
+(reset-session-visited)
+(defparameter *plan* (force-plan :force :all :force-not '(:test-asdf/force1)))
+(DBG "Check that :force-not with a list takes precedence over :force, 2" *plan*)
+(assert (asdf::plan-actions *plan*))
+(assert (component-out-of-date-p '("test-asdf/force" "file4")))
+;; transitively included via test-asdf/force1 test-asdf/only, which blocks the traversal
+(assert (not (plan-loads-p '("file3-only" "file3"))))
+(assert (component-out-of-date-p '("file3-only" "file3")))
+(assert (not (component-out-of-date-p '("test-asdf/force1" "file1"))))
 
 (reset-session-visited)
 (let* ((asdf::*immutable-systems* (list-to-hash-set '("test-asdf/force1")))
-       (plan (force-plan :force :all)))
-  (DBG "Check that immutable-systems will block forcing" plan)
-  (assert plan)
-  (assert (asdf::plan-operates-on-p plan '("test-asdf/force" "file4")))
+       (*plan* (force-plan :force :all)))
+  (DBG "Check that immutable-systems will block forcing" *plan*)
+  (assert (asdf::plan-actions *plan*))
+  (assert (component-out-of-date-p '("test-asdf/force" "file4")))
   ;; transitively included via force1 test-asdf/only, which blocks the traversal
-  (assert (not (asdf::plan-operates-on-p plan '("file3-only" "file3"))))
-  (assert (not (asdf::plan-operates-on-p plan '("test-asdf/force1" "file1")))))
+  (assert (not (plan-loads-p '("file3-only" "file3"))))
+  (assert (component-out-of-date-p '("file3-only" "file3")))
+  (assert (not (component-out-of-date-p '("test-asdf/force1" "file1")))))
 
 ;; unforced, date should stay same
 (touch-file "test-asdf.asd" :timestamp date1)

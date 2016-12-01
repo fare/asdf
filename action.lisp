@@ -17,7 +17,7 @@
    #:action-operation #:action-component #:make-action
    #:component-operation-time #:mark-operation-done #:compute-action-stamp
    #:perform #:perform-with-restarts #:retry #:accept
-   #:action-path #:find-action #:stamp #:done-p
+   #:action-path #:find-action
    #:operation-definition-warning #:operation-definition-error ;; condition
    #:action-valid-p
    #:circular-dependency #:circular-dependency-actions
@@ -435,10 +435,13 @@ Returns two values:
     (gethash o (component-operation-times c)))
 
   (defmethod (setf component-operation-time) (stamp (o operation) (c component))
+    (assert stamp () "invalid null stamp for ~A" (action-description o c))
     (setf (gethash o (component-operation-times c)) stamp))
 
   (defmethod mark-operation-done ((o operation) (c component))
-    (setf (component-operation-time o c) (compute-action-stamp nil o c :just-done t))))
+    (let ((stamp (compute-action-stamp nil o c :just-done t)))
+      (assert stamp () "Failed to compute a stamp for completed action ~A" (action-description o c))1
+      (setf (component-operation-time o c) stamp))))
 
 
 ;;;; Perform

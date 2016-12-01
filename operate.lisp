@@ -163,7 +163,7 @@ defaults to LOAD-OP, to load it in current image."
     "Has the given COMPONENT been successfully loaded in the current image (yet)?
 Note that this returns true even if the component is not up to date."
     (if-let ((component (find-component component () :registered t)))
-      (action-already-done-p nil (make-operation 'load-op) component)))
+      (nth-value 1 (component-operation-time (make-operation 'load-op) component))))
 
   (defun already-loaded-systems ()
     "return a list of the names of the systems that have been successfully loaded so far"

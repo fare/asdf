@@ -148,7 +148,7 @@
   ;; Compute the file stamp for a normalized namestring
   (defun compute-file-stamp (normalized-namestring)
     (with-pathname-defaults ()
-      (safe-file-write-date normalized-namestring)))
+      (or (safe-file-write-date normalized-namestring) t)))
 
   ;; Override the time STAMP associated to a given FILE in the session cache.
   ;; If no STAMP is specified, recompute a new one from the filesystem.
