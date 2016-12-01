@@ -2,7 +2,6 @@
 
 (in-package :asdf-test)
 
-(uiop:uiop-debug)
 (enable-deferred-warnings-check)
 
 (def-test-system :unintern-foo

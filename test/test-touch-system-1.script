@@ -36,7 +36,7 @@
 (sleep 1)
 
 (clear-system :test1)
-(touch-file test1.asd :offset 600)
+(touch-file test1.asd :timestamp date4 :offset 600)
 (find-system :test1)
 (defparameter date6 (system-registered-time :test1))
 (assert-compare (> date6 date4))

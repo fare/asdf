@@ -4,12 +4,12 @@
 (assert (version< "3.0" (asdf-version))) ;; check that we have a recent enough ASDF
 (setf *asdf-session* nil)
 
+(defparameter *ticks* 0)
+(defun tick () (incf *ticks*))
 
 (DBG "Let's define some methods on input-files, to later check what an upgrade does to them.")
 (with-asdf-session (:override t)
   (def-test-system "fooey")
-  (defparameter *ticks* 0)
-  (defun tick () (incf *ticks*))
   (def-test-system "foo")
   (defmethod input-files :after ((o load-op) (c system))
     (tick))
