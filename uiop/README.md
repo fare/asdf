@@ -16,65 +16,86 @@ We recommend package `UIOP` be used to access all the symbols.
 
 The files that constitute UIOP are, in dependency loading order:
 
-* [package](package.lisp): deals with packages and their symbols, most notably including
-  `define-package`, a variant of `defpackage` capable of hot-upgrade, or
-  `symbol-call` and `find-symbol*` that are also useful for use in `.asd` files
-  before packages have been defined.
+* [package](package.lisp):
+  deals with packages and their symbols, most notably including
+  `define-package`, a variant of `defpackage` capable of hot-upgrade,
+  or `symbol-call` and `find-symbol*` that are also useful for use in `.asd`
+  files before packages have been defined.
 
-* [common-lisp](common-lisp.lisp): lets you paper over various sub-standard implementations.
-  Big offenders are Corman, GCL, Genera, MCL, all of them unmaintained.
+* [common-lisp](common-lisp.lisp):
+  lets you paper over various sub-standard implementations.
+  Big offenders are Corman, GCL, Genera, MCL, none of them regularly maintained.
   Supported without serious issues are:
   ABCL, Allegro, CCL, CMUCL, CLASP, CLISP, ECL, LispWorks, MKCL, SBCL, SCL, XCL.
 
-* [utility](utility.lisp): provides macros and functions that do not involve I/O; it handles
-  control-flow, (p)lists, characters, strings, functions, classes, conditions,
-  "stamps" (real number or boolean for +/- infinity), versions, etc.
+* [utility](utility.lisp):
+  provides macros and functions that do not involve I/O;
+  it handles control-flow, (p)lists, characters, strings, functions, classes,
+  conditions, "stamps" (real number or boolean for +/- infinity), etc.
   It also sports `uiop-debug`, a useful tool to help you debug programs.
 
-* [os](os.lisp): extracts information from your environment, including
-  an ABI identifier, features that distinguish Unix vs Windows,
+* [version](version.lisp):
+  manages ASDF-style versioning and a related `with-deprecation` facility
+  to gracefully declare that users should stop using some deprecated functions.
+
+* [os](os.lisp):
+  extracts information from your environment, including an ABI identifier,
+  features that distinguish Unix vs Windows,
   `getenv`, `hostname`, `getcwd` and `chdir`, etc.
 
-* [pathname](pathname.lisp): overcomes the gruesome non-portability trap that are CL pathnames
-  (and their lovecraftian "logical" variant), offering a vast array of
-  functions and a sensible, usable abstraction to specify relative pathnames.
+* [pathname](pathname.lisp):
+  overcomes the gruesome non-portability trap that are CL pathnames
+  (and their lovecraftian "logical" variant), offering a vast array of functions
+  and a sensible, usable abstraction to specify relative pathnames.
   It has a function `merge-pathnames*` to use instead of `merge-pathnames`, or
   even better, `subpathname` and its variant `subpathname*`; it has also plenty
   of functions for dealing with pathnames being directory vs file,
   physical vs logical, absolute vs relative, and more.
 
-* [filesystem](filesystem.lisp): provides portable access to the filesystem, inspecting it,
+* [filesystem](filesystem.lisp):
+  provides portable access to the filesystem, inspecting it,
   only using truename when desired, using native OS namestrings,
   atomic file renaming, creating or deleting directories, etc.
 
-* [stream](stream.lisp): portably deals with `*stderr*` vs `*error-output*`, character encodings
-  (external formats), element types, safe `read`ing and `write`ing, opening files
-  or temporary files, providing `format`-like designators for streams,
-  flushing output buffers, consuming or copying streams, concatenating streams
-  or files, copying files, etc.
+* [stream](stream.lisp):
+  portably deals with `*stderr*` vs `*error-output*`, character encodings
+  (external formats), element types, safe `read`ing and `write`ing,
+  opening files, using temporary files, flushing output buffers,
+  providing `format`-like designators for streams, consuming or copying streams,
+  concatenating streams or files, copying files, etc.
 
-* [image](image.lisp): portably deals with images, dumping them, restoring from them,
+* [image](image.lisp):
+  portably deals with images, dumping them, restoring from them,
   registering hooks to run at suitable events in the image lifetime,
   printing backtraces, handling fatal conditions, using or avoiding debug modes,
   accessing command line arguments or quitting the process.
 
-* [run-program](run-program.lisp): portably spawns external processes and captures their output.
-  Can also capture error-output, inject input, or let it all be interactive.
-
-* [lisp-build](lisp-build.lisp): portably compiles Common Lisp code, handles compilation results,
+* [lisp-build](lisp-build.lisp):
+  portably compiles Common Lisp code, handles compilation results,
   muffles uninteresting conditions, saves and restores deferred warnings,
   runs hooks around compilation (to e.g. control optimizations or syntax),
   identifies the pathname of the current file, combines FASLs, etc.
 
-* [configuration](configuration.lisp): portably locate and parse configuration files,
-  using best practices to define and validate syntax, search standard paths,
+* [launch-program](launch-program.lisp):
+  semi-portably launches a program as an asynchronous external subprocess.
+  Available functionality may depend on the underlying implementation.
+
+* [run-program](run-program.lisp):
+  fully portably runs a program as a synchronous external subprocess,
+  feed it input and capture its output.
+  Most implementations also allow interactive console subprocesses.
+
+* [configuration](configuration.lisp):
+  portably locates and parses configuration files, using best practices to
+  define and validate syntax, search standard paths,
   let users specify pathnames or pathname patterns, etc.
 
-* [backward-driver](backward-driver.lisp): provides backward-compatibility
-  with earlier incarnations of this library
+* [backward-driver](backward-driver.lisp):
+  provides backward-compatibility with earlier incarnations of this library
   (i.e. ASDF internals that have leaked, ASDF-UTILS, or older versions of UIOP).
 
-* [driver](driver.lisp): reexports all the above utilities in a single package `UIOP`.
+* [driver](driver.lisp):
+  reexports all the above utilities in a single package `UIOP`.
 
 
 Documentation
@@ -111,30 +132,41 @@ Using UIOP
 UIOP is part of ASDF 3, and any modern Common Lisp implementation
 will have all of UIOP available when you `(require "asdf")`.
 NB: `(require :asdf)` also works on all implementations but CLISP.
+Every implementation has sported ASDF 3 for years, and if yours only provides
+ASDF 2, we recommend you install ASDF 3 on top of it,
+using the facility in [tools/install-asdf.lisp](../tools/install-asdf.lisp).
+Every implementation has sported ASDF 3 for years, and if yours only provides
+ASDF 2, we recommend you install ASDF 3 on top of it,
+using the facility in [tools/install-asdf.lisp](../tools/install-asdf.lisp).
 
 If you need some functionality only available in a recent version of UIOP,
 but cannot or will not upgrade ASDF, UIOP is also distributed separately;
-see e.g. in Quicklisp. You may then have to load it like any other library:
+see e.g. in Quicklisp. You may then have to load it like any other library,
+by adding `"uiop"` or some versioned constraint `(:version "uiop" "3.2.0")`
+in your system's `:depends-on` declaration, or at the REPL using:
 
 	(asdf:load-system :uiop)
 
-If you want to use UIOP while preserving compatibility with ASDF 2,
-we recommend that in your ASDF system definition you may use the like of:
-
-	:depends-on (#-asdf3 :uiop)
+When refering to symbols in UIOP, we recommend you either have your package
+`:use` the package `:uiop` or `:import-from` it, or that you shall use `uiop:`
+as a prefix to the symbols. Please *DO NOT* refer to specific subpackages such as
+`uiop/run-program` from the outside of UIOP, because functions may occasionally
+be moved from one internal package to the other, without notification.
+They have in the past and will in the future.
 
 
 Some history
 ------------
 
-UIOP, formerly known as ASDF-DRIVER (the package and system nicknames live on),
-evolved from ASDF 2's internal utilities and portability layer.
+UIOP, formerly known as ASDF-DRIVER (the package and system nicknames are
+deprecated), evolved from ASDF 2's internal utilities and portability layer.
 It has since fully superseded functionality from the following libraries:
 ASDF-UTILS (UIOP carries on the ASDF 2 utilities that this exported),
-CL-FAD (UIOP's pathname and filesystem functions are much more portable),
+CL-FAD (UIOP completely replaces it with better design and implementation),
 CL-LAUNCH (UIOP took its image and command-line argument handling),
-EXTERNAL-PROGRAM, TRIVIAL-SHELL and XCVB-DRIVER (UIOP's run-program evolved
-from XCVB-DRIVER's, and so did its condition muffling),
+EXTERNAL-PROGRAM, TRIVIAL-SHELL and XCVB-DRIVER
+(UIOP's `run-program` and now `launch-program` evolved from XCVB-DRIVER,
+from which UIOP also initially got its condition muffling),
 SLIME's swank-loader (UIOP has better compilation and ABI identification),
 TRIVIAL-BACKTRACE (UIOP/IMAGE has all of it and more), etc.
 

@@ -568,6 +568,22 @@ Corman Common Lisp <admin@cormanlisp.com>
         <a id="news"></a>
         <h3>What is happening</h3>
         <dl>
+          <dt>December 2016</dt>
+          <dd>Release of 3.2.0, a release containing many notable improvements,
+            such as a new portable <tt>uiop:launch-program</tt> facility for
+            spawning asynchronous subprocesses
+            (with many thanks to Elias Pipping),
+            a <tt>uiop:with-deprecation</tt> facility to handle
+            progressive deprecation of functions,
+            a cleanup and tightening of the internal dependency model
+            (you are now required to use <tt>make-operation<tt>
+            to instantiate an operation class; also you'll be WARNed if your
+            <tt>.asd</tt> file contains improperly named secondary systems),
+            a systematic pass of adding documentation to all functions,
+            many fixes to small bugs and portability issues
+            across all underlying platforms and operating systems,
+            an improved test suite,
+            and the removal of some long deprecated functionality.</dd>
           <dt>March 2016</dt>
           <dd>Release of 3.1.7, another bug fix release for the 3.1.x series.</dd>
           <dt>October 2015</dt>

@@ -6238,7 +6238,8 @@ Also, bugs are currently tracked on launchpad:
   @url{http://xach.livejournal.com/}
 @item Francois-Rene Rideau and Robert Goldman:
   ``Evolving ASDF: More Cooperation, Less Coordination'', 2010.
-  This article describes the main issues solved by ASDF 2.
+  This article describes the main issues solved by ASDF 2,
+  and exposes its design principles.
   @url{https://common-lisp.net/project/asdf/doc/ilc2010draft.pdf}
   @url{https://gitlab.common-lisp.org/asdf/ilc2010}
 @item Francois-Rene Rideau and Spencer Brody:

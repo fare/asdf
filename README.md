@@ -160,6 +160,27 @@ you can either do something similar, or expand the source for `cl-launch` with
 `make -C ext/cl-launch source` so `cl-launch.asd` will be created.
 
 
+Using ASDF internals
+--------------------
+
+If you have to use or extend internal functionality not currently exported by
+ASDF, please contact us and have us negociate a proper, stable, tested interface
+that you can actually rely on. Also, please *DO NOT* refer to specific
+subpackages such as `asdf/find-system` from the outside of ASDF, because
+functions may occasionally be moved from one internal package to the other,
+without notification. They have in the past and will in the future.
+Instead, when refering to symbols in ASDF, we recommend you either have
+your package `:use` the package `:asdf` or `:import-from` it, or that you shall
+use `asdf:` or `asdf::` as a prefix to the symbols.
+And once again, please contact us if you have to use non-exported symbols.
+
+Also, the normal way of extending ASDF is to use our class hierarchies for
+`component` and `operation` and to define methods on `component-depends-on`,
+`perform`, `input-files`, `output-files`.
+It is usually a very bad idea that doesn't usually do what you mean
+to define methods on `operate`.
+
+
 How do I navigate this source tree?
 -----------------------------------
 
@@ -176,7 +197,7 @@ How do I navigate this source tree?
       and functions all have docstrings.
 
 * [Makefile](Makefile)
-    * a minimal `Makefile` for bootstrap and development purposes.
+    * A minimal `Makefile` for bootstrap and development purposes.
       Most of the logic is in the [asdf-tools](tools/asdf-tools.asd) system below.
 
 * [tools/](tools/)
@@ -185,7 +206,7 @@ How do I navigate this source tree?
         * [asdf-tools.bat](tools/asdf-tools.bat) -- a Windows batch file to run the above.
         * [asdf-tools.asd](tools/asdf-tools.asd) -- system definition for asdf-tools
         * `*.lisp` -- the source code for the `asdf-tools` system, except for the few files below.
-    * also a couple scripts to help ASDF users:
+    * Also a couple scripts to help ASDF users:
         * [load-asdf.lisp](tools/load-asdf.lisp) -- a working example script to load, configure and use ASDF in a self-contained project
         * [install-asdf.lisp](install-asdf.lisp) -- replace and update an implementation's ASDF
         * [cl-source-registry-cache.lisp](cl-source-registry-cache.lisp) -- update a cache for the source-registry as a standalone script.
@@ -200,7 +221,7 @@ How do I navigate this source tree?
             make bump
 
 * [doc/](doc/)
-    * documentation for ASDF, including:
+    * Documentation for ASDF, including:
         * [index.html](doc/index.html) -- the web page for <http://common-lisp.net/project/asdf/>
         * [asdf.texinfo](doc/asdf.texinfo) -- our manual
         * [Makefile](doc/Makefile) -- how to build the manual
@@ -209,20 +230,20 @@ How do I navigate this source tree?
           -- auxiliaries of [index.html](doc/index.html)
 
 * [test/](test/)
-    * regression test scripts (and ancillary files) for developers to check
+    * Regression test scripts (and ancillary files) for developers to check
       that they don't unintentionally break any of the functionality of ASDF.
-      Far from covering all of ASDF, but a good start.
+      They are far from covering all of ASDF, but they are a good start.
 
 * [contrib/](contrib/)
-    * a few contributed files that show case how to use ASDF
+    * A few contributed files that show case how to use ASDF
       or help with debugging it or debugging programs that use it.
 
 * [debian/](debian/)
-    * files for packaging on Debian, Ubuntu, etc.
+    * Files for packaging on Debian, Ubuntu, etc.
       (now only present in the debian branch).
 
 * [build/](build/)
-    * where the `Makefile` and `asdf-tools` store their output files, including
+    * Where the `Makefile` and `asdf-tools` store their output files, including
         * `asdf.lisp` -- the current one-file deliverable of ASDF
         * `asdf-*.lisp` -- for upgrade test purposes, old versions
         * `asdf-tools` -- the executable for asdf-tools (.exe on Windows)
@@ -230,16 +251,13 @@ How do I navigate this source tree?
         * `fasls/` -- output files while running tests
 
 * [ext/](ext/)
-    * external dependencies, that can be populated with `make ext`
+    * External dependencies, that can be populated with `make ext`
       or equivalently with `git submodule update --init`.
       Depopulate it with `make noext`
 	  or equivalently with: `submodule deinit .`
 
 * [README.md](README.md)
-    * this file.
+    * This file.
 
 * [TODO](TODO)
-    * plenty of ideas for how to further improve ASDF.
-
-
-Last updated Sunday, October 2nd, 2016.
+    * Plenty of ideas for how to further improve ASDF.
