@@ -404,8 +404,8 @@ might otherwise be irrevocably lost."
     #+sbcl (sb-ext:process-kill (slot-value process-info 'process) signal)
     #-(or allegro clozure cmucl sbcl scl)
     (if-let (pid (process-info-pid process-info))
-      (run-program (format nil "kill -~a ~a" signal pid)
-                   :ignore-error-status t)))
+      (symbol-call :uiop :run-program
+                   (format nil "kill -~a ~a" signal pid) :ignore-error-status t)))
 
   ;;; this function never gets called on Windows, but the compiler cannot tell
   ;;; that. [2016/09/25:rpg]
