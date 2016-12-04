@@ -52,14 +52,17 @@
     "1.85")) ;; (2004-05-16) the last release by Daniel Barlow (not 1.37, which is the README revision!)
 
 (defun get-upgrade-tags (&optional (x *upgrade-test-tags*))
-  (cond
-    ((string-equal x :default)
-     *default-upgrade-test-tags*)
-    ((string-equal x :old)
-     *obsolete-upgrade-test-tags*)
-    ((string-equal x :all)
-     (append *default-upgrade-test-tags* *obsolete-upgrade-test-tags*))
-    (t x)))
+  (etypecase x
+    (list x)
+    ((or string symbol)
+     (cond
+       ((string-equal x :default)
+        *default-upgrade-test-tags*)
+       ((string-equal x :old)
+        *obsolete-upgrade-test-tags*)
+       ((string-equal x :all)
+        (append *default-upgrade-test-tags* *obsolete-upgrade-test-tags*))
+       (t (ensure-list-of-strings (string x)))))))
 
 (defun extract-tagged-asdf (tag)
   "extract an asdf version from git
