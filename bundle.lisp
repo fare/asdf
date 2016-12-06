@@ -83,6 +83,13 @@ itself."))
   ;; and all transitive sub-components as required components (excluding other systems).
   (defmethod component-depends-on ((o gather-operation) (s system))
     (let* ((mono (operation-monolithic-p o))
+           (go (make-operation (or (gather-operation o) 'compile-op)))
+           (bundle-p (typep go 'bundle-op))
+           ;; In a non-mono operation, don't recurse to other systems.
+           ;; In a mono operation gathering bundles, don't recurse inside systems.
+           (component-type (if mono (if bundle-p 'system t) '(not system)))
+           ;; In the end, only keep system bundles or non-system bundles, depending.
+           (keep-component (if bundle-p 'system '(not system)))
            (deps
             ;; Required-components only looks at the dependencies of an action, excluding the action
             ;; itself, so it may be safely used by an action recursing on its dependencies (which
@@ -95,10 +102,9 @@ itself."))
             ;; Note that we use basic-compile-op rather than compile-op so it will still work on
             ;; systems when *load-system-operation* is load-bundle-op.
             (required-components
-             s :other-systems mono :component-type (if mono 'system '(not system))
+             s :other-systems mono :component-type component-type :keep-component keep-component
              :goal-operation 'load-op :keep-operation 'basic-compile-op)))
-      `((,(or (gather-operation o) (if mono 'lib-op 'compile-op)) ,@deps)
-        ,@(call-next-method))))
+      `((,go ,@deps) ,@(call-next-method))))
 
   ;; Create a single fasl for the entire library
   (defclass basic-compile-bundle-op (bundle-op)
@@ -126,13 +132,11 @@ On CLASP, ECL, MKCL, these object files _also_ include the contents of Lisp file
 themselves. In any case, this operation will produce what you need to further build
 a static runtime for your system, or a dynamic library to load in an existing runtime."))
 
-  ;; What works: On ECL (and CLASP?), we link the .a output of lib-op into a .so;
-  ;; on MKCL, we link the many .o files from the system directly into the .so;
+  ;; What works: on ECL, CLASP(?), MKCL, we link the many .o files from the system into the .so;
   ;; on other implementations, we combine (usually concatenate) the .fasl files into one.
-  (defclass compile-bundle-op (basic-compile-bundle-op selfward-operation
-                               #+(or clasp ecl mkcl) link-op #-(or clasp ecl) gather-operation)
-    ((selfward-operation :initform '(prepare-bundle-op #+(or clasp ecl) lib-op)
-                         :allocation :class))
+  (defclass compile-bundle-op (basic-compile-bundle-op selfward-operation gather-operation
+                                                       #+(or clasp ecl mkcl) link-op)
+    ((selfward-operation :initform '(prepare-bundle-op) :allocation :class))
     (:documentation "This operator is an alternative to COMPILE-OP. Build a system
 and all of its dependencies, but build only a single (\"monolithic\") FASL, instead
 of one per source file, which may be more resource efficient.  That monolithic
@@ -176,12 +180,7 @@ for all the linkable object files associated with the system. Compare with LIB-O
   (defclass monolithic-compile-bundle-op
       (basic-compile-bundle-op monolithic-bundle-op
        #+(or clasp ecl mkcl) link-op gather-operation non-propagating-operation)
-    ((gather-operation
-      :initform #-(or clasp ecl mkcl) 'compile-bundle-op #+(or clasp ecl mkcl) 'lib-op
-      :allocation :class)
-     (gather-type
-      :initform #-(or clasp ecl mkcl) :fasl #+(or clasp ecl mkcl) :static-library
-      :allocation :class))
+    ()
     (:documentation "Create a single fasl for the system and its dependencies."))
 
   (defclass monolithic-load-bundle-op (load-bundle-op monolithic-bundle-op)
@@ -189,18 +188,19 @@ for all the linkable object files associated with the system. Compare with LIB-O
     (:documentation "Load a single fasl for the system and its dependencies."))
 
   (defclass monolithic-lib-op (lib-op monolithic-bundle-op non-propagating-operation)
-    ((gather-type :initform :static-library :allocation :class))
+    ((gather-type :initform :object :allocation :class))
     (:documentation "Compile the system and produce a linkable static library (.a/.lib)
 for all the linkable object files associated with the system or its dependencies. See LIB-OP."))
 
   (defclass monolithic-dll-op (dll-op monolithic-bundle-op non-propagating-operation)
-    ((gather-type :initform :static-library :allocation :class))
+    ((gather-type :initform :object :allocation :class))
     (:documentation "Compile the system and produce a dynamic loadable library (.so/.dll)
 for all the linkable object files associated with the system or its dependencies. See LIB-OP"))
 
   (defclass image-op (monolithic-bundle-op selfward-operation
                       #+(or clasp ecl mkcl) link-op #+(or clasp ecl mkcl) gather-operation)
     ((bundle-type :initform :image :allocation :class)
+     (gather-operation :initform 'lib-op :allocation :class)
      #+(or clasp ecl mkcl) (gather-type :initform :static-library :allocation :class)
      (selfward-operation :initform '(#-(or clasp ecl mkcl) load-op) :allocation :class))
     (:documentation "create an image file from the system and its dependencies"))
