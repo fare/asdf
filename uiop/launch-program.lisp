@@ -138,35 +138,6 @@ by /bin/sh in POSIX"
 
 (with-upgradability ()
   ;;; Internal helpers for run-program
-  (defun %normalize-command (command)
-    "Given a COMMAND as a list or string, transform it in a format suitable
-for the implementation's underlying run-program function"
-    (etypecase command
-      #+os-unix (string `("/bin/sh" "-c" ,command))
-      #+os-unix (list command)
-      #+os-windows
-      (string
-       ;; NB: We add cmd /c here. Behavior without going through cmd is not well specified
-       ;; when the command contains spaces or special characters:
-       ;; IIUC, the system will use space as a separator, but the argv-decoding libraries won't,
-       ;; and you're supposed to use an extra argument to CreateProcess to bridge the gap,
-       ;; but neither allegro nor clisp provide access to that argument.
-       #+(or allegro clisp) (strcat "cmd /c " command)
-       ;; On ClozureCL for Windows, we assume you are using
-       ;; r15398 or later in 1.9 or later,
-       ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
-       ;; On SBCL, we assume the patch from https://bugs.launchpad.net/sbcl/+bug/1503496
-       #+(or clozure sbcl) (cons "cmd" (strcat "/c " command))
-       ;; NB: On other Windows implementations, this is utterly bogus
-       ;; except in the most trivial cases where no quoting is needed.
-       ;; Use at your own risk.
-       #-(or allegro clisp clozure sbcl)
-       (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S" '%normalize-command command))
-      #+os-windows
-      (list
-       #+allegro (escape-windows-command command)
-       #-allegro command)))
-
   (defun %normalize-io-specifier (specifier &optional role)
     "Normalizes a portable I/O specifier for LAUNCH-PROGRAM into an implementation-dependent
 argument to pass to the internal RUN-PROGRAM"
@@ -539,7 +510,32 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
            (output (%normalize-io-specifier output :output))
            (error-output (%normalize-io-specifier error-output :error-output))
            #+(and allegro os-windows) (interactive (%interactivep input output error-output))
-           (command (%normalize-command command))))
+           (command
+            (etypecase command
+              #+os-unix (string `("/bin/sh" "-c" ,command))
+              #+os-unix (list command)
+              #+os-windows
+              (string
+               ;; NB: We add cmd /c here. Behavior without going through cmd is not well specified
+               ;; when the command contains spaces or special characters:
+               ;; IIUC, the system will use space as a separator, but the argv-decoding libraries won't,
+               ;; and you're supposed to use an extra argument to CreateProcess to bridge the gap,
+               ;; but neither allegro nor clisp provide access to that argument.
+               #+(or allegro clisp) (strcat "cmd /c " command)
+               ;; On ClozureCL for Windows, we assume you are using
+               ;; r15398 or later in 1.9 or later,
+               ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
+               ;; On SBCL, we assume the patch from https://bugs.launchpad.net/sbcl/+bug/1503496
+               #+(or clozure sbcl) (cons "cmd" (strcat "/c " command))
+               ;; NB: On other Windows implementations, this is utterly bogus
+               ;; except in the most trivial cases where no quoting is needed.
+               ;; Use at your own risk.
+               #-(or allegro clisp clozure sbcl)
+               (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S" '%normalize-command command))
+              #+os-windows
+              (list
+               #+allegro (escape-windows-command command)
+               #-allegro command)))))
      #+(or abcl (and allegro os-unix) clozure cmucl ecl mkcl sbcl)
      (let ((program (car command))
            #-allegro (arguments (cdr command))))
