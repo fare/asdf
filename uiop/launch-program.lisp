@@ -540,6 +540,9 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
            (error-output (%normalize-io-specifier error-output :error-output))
            #+(and allegro os-windows) (interactive (%interactivep input output error-output))
            (command (%normalize-command command))))
+     #+(or abcl (and allegro os-unix) clozure cmucl ecl mkcl sbcl)
+     (let ((program (car command))
+           #-allegro (arguments (cdr command))))
      #-(or allegro mkcl sbcl) (with-current-directory (directory))
      (multiple-value-bind
        #+(or abcl clozure cmucl sbcl scl) (process)
@@ -547,34 +550,29 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
        #+ecl (stream code process)
        #+lispworks (io-or-pid err-or-nil #-lispworks7+ pid-or-nil)
        #+mkcl (stream process code)
-              (apply
-               #+abcl #'sys:run-program
-               #+allegro 'excl:run-shell-command
-               #+(and allegro os-unix) (coerce (cons (first command) command) 'vector)
-               #+(and allegro os-windows) command
-               #+clozure 'ccl:run-program
-               #+(or cmucl ecl scl) 'ext:run-program
-               #+lispworks 'system:run-shell-command
-               #+lispworks (cons "/usr/bin/env" command) ; LW wants a full path
-               #+mkcl 'mk-ext:run-program
-               #+sbcl 'sb-ext:run-program
-               (append
-                #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car command) ,(cdr command))
-                `(:input ,input :output ,output
-                  #.(or #+(or allegro lispworks) :error-output :error) ,error-output
-                  :wait nil :element-type ,element-type :external-format ,external-format
-                  :if-input-does-not-exist :error
-                  :if-output-exists :append
-                  #-(or allegro lispworks) :if-error-exists
-                  #+(or allegro lispworks) :if-error-output-exists :append
-                  :allow-other-keys t)
-                #+allegro `(:directory ,directory)
-                #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
-                #+lispworks `(:save-exit-status t)
-                #+mkcl `(:directory ,(native-namestring directory))
-                #+sbcl `(:search t)
-                #-sbcl keys ;; on SBCL, don't pass :directory nil but remove it from the keys
-                #+sbcl (if directory keys (remove-plist-key :directory keys)))))
+       #.`(apply
+           #+abcl 'sys:run-program
+           #+allegro ,@'('excl:run-shell-command
+                         #+os-unix (coerce (cons program command) 'vector)
+                         #+os-windows command)
+           #+clozure 'ccl:run-program
+           #+(or cmucl ecl scl) 'ext:run-program
+           #+lispworks ,@'('system:run-shell-command `("/usr/bin/env" ,@command)) ; full path needed
+           #+mkcl 'mk-ext:run-program
+           #+sbcl 'sb-ext:run-program
+           #+(or abcl clozure cmucl ecl mkcl sbcl) ,@'(program arguments)
+           :input input :if-input-does-not-exist :error
+           :output output :if-output-exists :append
+           ,(or #+(or allegro lispworks) :error-output :error) error-output
+           ,(or #+(or allegro lispworks) :if-error-output-exists :if-error-exists) :append
+           :wait nil :element-type element-type :external-format external-format
+           :allow-other-keys t
+           #+allegro ,@`(:directory directory
+                         #+os-windows ,@'(:show-window (if interactive nil :hide)))
+           #+lispworks ,@'(:save-exit-status t)
+           #+mkcl ,@'(:directory (native-namestring directory))
+           #-sbcl keys ;; on SBCL, don't pass :directory nil but remove it from the keys
+           #+sbcl ,@'(:search t (if directory keys (remove-plist-key :directory keys)))))
      (labels ((prop (key value) (setf (slot-value process-info key) value)))
        #+allegro
        (cond
