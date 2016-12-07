@@ -528,20 +528,21 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
                        'launch-program))
-    ;; see comments for these functions
-    (%handle-if-does-not-exist input if-input-does-not-exist)
-    (%handle-if-exists output if-output-exists)
-    (%handle-if-exists error-output if-error-output-exists)
     #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (let* ((command (%normalize-command command))
+    (nest
+     (progn ;; see comments for these functions
+       (%handle-if-does-not-exist input if-input-does-not-exist)
+       (%handle-if-exists output if-output-exists)
+       (%handle-if-exists error-output if-error-output-exists))
+     (let ((process-info (make-instance 'process-info))
            (input (%normalize-io-specifier input :input))
            (output (%normalize-io-specifier output :output))
            (error-output (%normalize-io-specifier error-output :error-output))
-           #+(and allegro os-windows)
-           (interactive (%interactivep input output error-output))
-           (process*
+           #+(and allegro os-windows) (interactive (%interactivep input output error-output))
+           (command (%normalize-command command))))
+     #-(or allegro mkcl sbcl) (with-current-directory (directory))
+     (multiple-value-bind (process*)
              (nest
-              #-(or allegro mkcl sbcl) (with-current-directory (directory))
               #+(or allegro ecl lispworks mkcl) (multiple-value-list)
               (apply
                #+abcl #'sys:run-program
@@ -571,8 +572,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                 #+sbcl `(:search t)
                 #-sbcl keys ;; on SBCL, don't pass :directory nil but remove it from the keys
                 #+sbcl (if directory keys (remove-plist-key :directory keys))))))
-           (process-info (make-instance 'process-info)))
-      (labels ((prop (key value) (setf (slot-value process-info key) value)))
+     (labels ((prop (key value) (setf (slot-value process-info key) value)))
         #+allegro
         (cond
           (separate-streams
@@ -634,5 +634,4 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                   (prop 'error-stream err)))
               ;; lispworks6 returns (pid), lispworks7 returns (io err pid) of which we keep io
               (prop 'process (first process*)))))
-      process-info)))
-
+     process-info)))
