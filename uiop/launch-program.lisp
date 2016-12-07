@@ -533,10 +533,10 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
     (%handle-if-exists output if-output-exists)
     (%handle-if-exists error-output if-error-output-exists)
     #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (let* ((%command (%normalize-command command))
-           (%input (%normalize-io-specifier input :input))
-           (%output (%normalize-io-specifier output :output))
-           (%error-output (%normalize-io-specifier error-output :error-output))
+    (let* ((command (%normalize-command command))
+           (input (%normalize-io-specifier input :input))
+           (output (%normalize-io-specifier output :output))
+           (error-output (%normalize-io-specifier error-output :error-output))
            #+(and allegro os-windows)
            (interactive (%interactivep input output error-output))
            (process*
@@ -546,18 +546,18 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
               (apply
                #+abcl #'sys:run-program
                #+allegro 'excl:run-shell-command
-               #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
-               #+(and allegro os-windows) %command
+               #+(and allegro os-unix) (coerce (cons (first command) command) 'vector)
+               #+(and allegro os-windows) command
                #+clozure 'ccl:run-program
                #+(or cmucl ecl scl) 'ext:run-program
                #+lispworks 'system:run-shell-command
-               #+lispworks (cons "/usr/bin/env" %command) ; LW wants a full path
+               #+lispworks (cons "/usr/bin/env" command) ; LW wants a full path
                #+mkcl 'mk-ext:run-program
                #+sbcl 'sb-ext:run-program
                (append
-                #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
-                `(:input ,%input :output ,%output
-                  #.(or #+(or allegro lispworks) :error-output :error) ,%error-output
+                #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car command) ,(cdr command))
+                `(:input ,input :output ,output
+                  #.(or #+(or allegro lispworks) :error-output :error) ,error-output
                   :wait nil :element-type ,element-type :external-format ,external-format
                   :if-input-does-not-exist :error
                   :if-output-exists :append
