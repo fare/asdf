@@ -14,6 +14,7 @@
    #:with-upgradability ;; (un)defining functions in an upgrade-friendly way
    #:defun* #:defgeneric*
    #:nest #:if-let ;; basic flow control
+   #:parse-body ;; macro definition helper
    #:while-collecting #:appendf #:length=n-p #:ensure-list ;; lists
    #:remove-plist-keys #:remove-plist-key ;; plists
    #:emptyp ;; sequences
@@ -22,7 +23,7 @@
    #:base-string-p #:strings-common-element-type #:reduce/strcat #:strcat ;; strings
    #:first-char #:last-char #:split-string #:stripln #:+cr+ #:+lf+ #:+crlf+
    #:string-prefix-p #:string-enclosed-p #:string-suffix-p
-   #:standard-case-symbol-name #:find-standard-case-symbol
+   #:standard-case-symbol-name #:find-standard-case-symbol ;; symbols
    #:coerce-class ;; CLOS
    #:stamp< #:stamps< #:stamp*< #:stamp<= ;; stamps
    #:earlier-stamp #:stamps-earliest #:earliest-stamp
@@ -31,7 +32,7 @@
    #:ensure-function #:access-at #:access-at-count ;; functions
    #:call-function #:call-functions #:register-hook-function
    #:lexicographic< #:lexicographic<= ;; version
-   #:parse-version #:unparse-version #:version< #:version<= #:version-compatible-p
+   #:simple-style-warning #:style-warn ;; simple style warnings
    #:match-condition-p #:match-any-condition-p ;; conditions
    #:call-with-muffled-conditions #:with-muffled-conditions
    #:not-implemented-error #:parameter-error))
@@ -117,6 +118,30 @@ to supersede any previous definition."
              ,then-form
              ,else-form)))))
 
+;;; Macro definition helper
+(with-upgradability ()
+  (defun parse-body (body &key documentation whole) ;; from alexandria
+    "Parses BODY into (values remaining-forms declarations doc-string).
+Documentation strings are recognized only if DOCUMENTATION is true.
+Syntax errors in body are signalled and WHOLE is used in the signal
+arguments when given."
+    (let ((doc nil)
+          (decls nil)
+          (current nil))
+      (tagbody
+       :declarations
+         (setf current (car body))
+         (when (and documentation (stringp current) (cdr body))
+           (if doc
+               (error "Too many documentation strings in ~S." (or whole body))
+               (setf doc (pop body)))
+           (go :declarations))
+         (when (and (listp current) (eql (first current) 'declare))
+           (push (pop body) decls)
+           (go :declarations)))
+      (values body (nreverse decls) doc))))
+
+
 ;;; List manipulation
 (with-upgradability ()
   (defmacro while-collecting ((&rest collectors) &body body)
@@ -153,7 +178,7 @@ Returns two values: \(A B C\) and \(1 2 3\)."
     (if (listp x) x (list x))))
 
 
-;;; remove a key from a plist, i.e. for keyword argument cleanup
+;;; Remove a key from a plist, i.e. for keyword argument cleanup
 (with-upgradability ()
   (defun remove-plist-key (key plist)
     "Remove a single key from a plist"
@@ -503,39 +528,8 @@ up to the given equality TEST"
     (dolist (x list h) (setf (gethash x h) t))))
 
 
-;;; Version handling
+;;; Lexicographic comparison of lists of numbers
 (with-upgradability ()
-  (defun unparse-version (version-list)
-    "From a parsed version (a list of natural numbers), compute the version string"
-    (format nil "~{~D~^.~}" version-list))
-
-  (defun parse-version (version-string &optional on-error)
-    "Parse a VERSION-STRING as a series of natural numbers separated by dots.
-Return a (non-null) list of integers if the string is valid;
-otherwise return NIL.
-
-When invalid, ON-ERROR is called as per CALL-FUNCTION before to return NIL,
-with format arguments explaining why the version is invalid.
-ON-ERROR is also called if the version is not canonical
-in that it doesn't print back to itself, but the list is returned anyway."
-    (block nil
-      (unless (stringp version-string)
-        (call-function on-error "~S: ~S is not a string" 'parse-version version-string)
-        (return))
-      (unless (loop :for prev = nil :then c :for c :across version-string
-                    :always (or (digit-char-p c)
-                                (and (eql c #\.) prev (not (eql prev #\.))))
-                    :finally (return (and c (digit-char-p c))))
-        (call-function on-error "~S: ~S doesn't follow asdf version numbering convention"
-                       'parse-version version-string)
-        (return))
-      (let* ((version-list
-               (mapcar #'parse-integer (split-string version-string :separator ".")))
-             (normalized-version (unparse-version version-list)))
-        (unless (equal version-string normalized-version)
-          (call-function on-error "~S: ~S contains leading zeros" 'parse-version version-string))
-        version-list)))
-
   (defun lexicographic< (element< x y)
     "Lexicographically compare two lists of using the function element< to compare elements.
 element< is a strict total order; the resulting order on X and Y will also be strict."
@@ -548,26 +542,20 @@ element< is a strict total order; the resulting order on X and Y will also be st
   (defun lexicographic<= (element< x y)
     "Lexicographically compare two lists of using the function element< to compare elements.
 element< is a strict total order; the resulting order on X and Y will be a non-strict total order."
-    (not (lexicographic< element< y x)))
+    (not (lexicographic< element< y x))))
 
-  (defun version< (version1 version2)
-    "Compare two version strings"
-    (let ((v1 (parse-version version1 nil))
-          (v2 (parse-version version2 nil)))
-      (lexicographic< '< v1 v2)))
 
-  (defun version<= (version1 version2)
-    "Compare two version strings"
-    (not (version< version2 version1)))
+;;; Simple style warnings
+(with-upgradability ()
+  (define-condition simple-style-warning
+      #+sbcl (sb-int:simple-style-warning) #-sbcl (simple-condition style-warning)
+    ())
 
-  (defun version-compatible-p (provided-version required-version)
-    "Is the provided version a compatible substitution for the required-version?
-If major versions differ, it's not compatible.
-If they are equal, then any later version is compatible,
-with later being determined by a lexicographical comparison of minor numbers."
-    (let ((x (parse-version provided-version nil))
-          (y (parse-version required-version nil)))
-      (and x y (= (car x) (car y)) (lexicographic<= '< (cdr y) (cdr x))))))
+  (defun style-warn (datum &rest arguments)
+    (etypecase datum
+      (string (warn (make-condition 'simple-style-warning :format-control datum :format-arguments arguments)))
+      (symbol (assert (subtypep datum 'style-warning)) (apply 'warn datum arguments))
+      (style-warning (apply 'warn datum arguments)))))
 
 
 ;;; Condition control

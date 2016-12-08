@@ -11,6 +11,7 @@
    #:upgrading-p #:when-upgrading #:upgrade-asdf #:defparameter*
    #:*post-upgrade-cleanup-hook* #:cleanup-upgraded-asdf
    ;; There will be no symbol left behind!
+   #:with-asdf-deprecation
    #:intern*)
   (:import-from :uiop/package #:intern* #:find-symbol*))
 (in-package :asdf/upgrade)
@@ -163,4 +164,9 @@ previously-loaded version of ASDF."
     (let ((*load-print* nil)
           (*compile-print* nil))
       (handler-bind (((or style-warning) #'muffle-warning))
-        (symbol-call :asdf :load-system :asdf :verbose nil)))))
+        (symbol-call :asdf :load-system :asdf :verbose nil))))
+
+  (defmacro with-asdf-deprecation ((&rest keys &key &allow-other-keys) &body body)
+    `(with-upgradability ()
+       (with-deprecation ((version-deprecation *asdf-version* ,@keys))
+         ,@body))))

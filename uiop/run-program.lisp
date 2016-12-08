@@ -3,7 +3,7 @@
 
 (uiop/package:define-package :uiop/run-program
   (:nicknames :asdf/run-program) ; OBSOLETE. Used by cl-sane, printv.
-  (:use :uiop/common-lisp :uiop/package :uiop/utility
+  (:use :uiop/common-lisp :uiop/package :uiop/utility :uiop/version
    :uiop/pathname :uiop/os :uiop/filesystem :uiop/stream :uiop/launch-program)
   (:export
    #:run-program

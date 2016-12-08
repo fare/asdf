@@ -291,7 +291,7 @@ or of opaque libraries shipped along the source code."))
 ;;; a FASL, a statically linked library, a shared library, etc.
 ;;; The different targets are defined by specialization.
 ;;;
-(when-upgrading (:version "3.1.9")
+(when-upgrading (:version "3.2.0")
   ;; Cancel any previously defined method
   (defmethod initialize-instance :after ((instance bundle-op) &rest initargs &key &allow-other-keys)
     (declare (ignore initargs))))

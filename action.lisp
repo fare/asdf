@@ -258,15 +258,23 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
              :format-arguments
              (list (type-of o)))))
 
+  (with-asdf-deprecation (:style-warning "3.2")
+    (defun backward-compatible-depends-on (o c)
+      "DEPRECATED: all subclasses of OPERATION used in ASDF should inherit from one of
+ DOWNWARD-OPERATION UPWARD-OPERATION SIDEWAY-OPERATION SELFWARD-OPERATION NON-PROPAGATING-OPERATION.
+ The function BACKWARD-COMPATIBLE-DEPENDS-ON temporarily provides ASDF2 behaviour for those that
+ don't. In the future this functionality will be removed, and the default will be no propagation."
+      `(,@(sideway-operation-depends-on o c)
+        ,@(when (typep c 'parent-component) (downward-operation-depends-on o c)))))
+
   (defmethod component-depends-on ((o operation) (c component))
     `(;; Normal behavior, to allow user-specified in-order-to dependencies
       ,@(cdr (assoc (type-of o) (component-in-order-to c)))
-      ;; For backward-compatibility with ASDF2, any operation that doesn't specify propagation
-      ;; or non-propagation through an appropriate mixin will be downward and sideway.
-      ,@(unless (typep o '(or downward-operation upward-operation sideway-operation
-                              selfward-operation non-propagating-operation))
-          `(,@(sideway-operation-depends-on o c)
-            ,@(when (typep c 'parent-component) (downward-operation-depends-on o c))))))
+        ;; For backward-compatibility with ASDF2, any operation that doesn't specify propagation
+        ;; or non-propagation through an appropriate mixin will be downward and sideway.
+        ,@(unless (typep o '(or downward-operation upward-operation sideway-operation
+                             selfward-operation non-propagating-operation))
+            (backward-compatible-depends-on o c))))
 
   (defmethod downward-operation ((o operation)) nil)
   (defmethod sideway-operation ((o operation)) nil))
