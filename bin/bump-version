@@ -26,7 +26,7 @@ our @transform_ref =
    [ "uiop/version.lisp", "(defparameter *uiop-version* \"", "\")" ],
    [ "asdf.asd", "  :version \"", "\" ;; to be automatically updated by make bump-version" ],
    [ "header.lisp", "This is ASDF ", ": Another System Definition Facility." ],
-   [ "upgrade.lisp", "\\(asdf-version \"", "\"\\)" ],
+   [ "upgrade.lisp", "(asdf-version \"", "\")" ],
    [ "doc/asdf.texinfo", "Manual for Version ", "" ], );
 
 if ($#ARGV == 1) {
@@ -67,7 +67,7 @@ sub transform_files {
     my $file = $entry[0];
     print STDERR "Modifying file $file\n";
     print STDERR "Prefix is $entry[1], suffix is $entry[2]\n";
-    my $regex = "(" . $entry[1] . ")" . "(([0-9]+\.)+[0-9]+)" . "(" . $entry[2] .")";
+    my $regex = "(" . quotemeta($entry[1]) . ")" . "((\\d+\\.)+\\d+)" . "(" . quotemeta($entry[2]) .")";
     my $filename = $asdf_dir . $file;
     my $data = read_text($filename);
     my $count = ($data =~ s/$regex/$1$new$4/g);
