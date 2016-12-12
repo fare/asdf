@@ -519,6 +519,14 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
               #+os-unix (list command)
               #+os-windows
               (string
+               ;; NB: On other Windows implementations, this is utterly bogus
+               ;; except in the most trivial cases where no quoting is needed.
+               ;; Use at your own risk.
+               #-(or allegro clisp clozure)
+               (nest
+                #+sbcl (unless (find-symbol* :escape-arguments :sb-impl nil))
+                (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S"
+                                 'launch-program command))
                ;; NB: We add cmd /c here. Behavior without going through cmd is not well specified
                ;; when the command contains spaces or special characters:
                ;; IIUC, the system will use space as a separator,
@@ -530,13 +538,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                ;; r15398 or later in 1.9 or later,
                ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
                ;; On SBCL, we assume the patch from fcae0fd (to be part of SBCL 1.3.13)
-               #+(or clozure sbcl) (cons "cmd" (strcat "/c " command))
-               ;; NB: On other Windows implementations, this is utterly bogus
-               ;; except in the most trivial cases where no quoting is needed.
-               ;; Use at your own risk.
-               #-(or allegro clisp clozure sbcl)
-               (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S"
-                                'launch-program command))
+               #+(or clozure sbcl) (cons "cmd" (strcat "/c " command)))
               #+os-windows
               (list
                #+allegro (escape-windows-command command)
