@@ -138,35 +138,6 @@ by /bin/sh in POSIX"
 
 (with-upgradability ()
   ;;; Internal helpers for run-program
-  (defun %normalize-command (command)
-    "Given a COMMAND as a list or string, transform it in a format suitable
-for the implementation's underlying run-program function"
-    (etypecase command
-      #+os-unix (string `("/bin/sh" "-c" ,command))
-      #+os-unix (list command)
-      #+os-windows
-      (string
-       ;; NB: We add cmd /c here. Behavior without going through cmd is not well specified
-       ;; when the command contains spaces or special characters:
-       ;; IIUC, the system will use space as a separator, but the argv-decoding libraries won't,
-       ;; and you're supposed to use an extra argument to CreateProcess to bridge the gap,
-       ;; but neither allegro nor clisp provide access to that argument.
-       #+(or allegro clisp) (strcat "cmd /c " command)
-       ;; On ClozureCL for Windows, we assume you are using
-       ;; r15398 or later in 1.9 or later,
-       ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
-       ;; On SBCL, we assume the patch from https://bugs.launchpad.net/sbcl/+bug/1503496
-       #+(or clozure sbcl) (cons "cmd" (strcat "/c " command))
-       ;; NB: On other Windows implementations, this is utterly bogus
-       ;; except in the most trivial cases where no quoting is needed.
-       ;; Use at your own risk.
-       #-(or allegro clisp clozure sbcl)
-       (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S" '%normalize-command command))
-      #+os-windows
-      (list
-       #+allegro (escape-windows-command command)
-       #-allegro command)))
-
   (defun %normalize-io-specifier (specifier &optional role)
     "Normalizes a portable I/O specifier for LAUNCH-PROGRAM into an implementation-dependent
 argument to pass to the internal RUN-PROGRAM"
@@ -528,111 +499,147 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                 (list input output error-output))
       (parameter-error "~S: Streams passed as I/O parameters need to be (synonymous with) file streams on this lisp"
                        'launch-program))
-    ;; see comments for these functions
-    (%handle-if-does-not-exist input if-input-does-not-exist)
-    (%handle-if-exists output if-output-exists)
-    (%handle-if-exists error-output if-error-output-exists)
     #+(or abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl)
-    (let* ((%command (%normalize-command command))
-           (%input (%normalize-io-specifier input :input))
-           (%output (%normalize-io-specifier output :output))
-           (%error-output (%normalize-io-specifier error-output :error-output))
-           #+(and allegro os-windows)
-           (interactive (%interactivep input output error-output))
-           (process*
-             (nest
-              #-(or allegro mkcl sbcl) (with-current-directory (directory))
-              #+(or allegro ecl lispworks mkcl) (multiple-value-list)
-              (apply
-               #+abcl #'sys:run-program
-               #+allegro 'excl:run-shell-command
-               #+(and allegro os-unix) (coerce (cons (first %command) %command) 'vector)
-               #+(and allegro os-windows) %command
-               #+clozure 'ccl:run-program
-               #+(or cmucl ecl scl) 'ext:run-program
-               #+lispworks 'system:run-shell-command
-               #+lispworks (cons "/usr/bin/env" %command) ; LW wants a full path
-               #+mkcl 'mk-ext:run-program
-               #+sbcl 'sb-ext:run-program
-               (append
-                #+(or abcl clozure cmucl ecl mkcl sbcl scl) `(,(car %command) ,(cdr %command))
-                `(:input ,%input :output ,%output
-                  #.(or #+(or allegro lispworks) :error-output :error) ,%error-output
-                  :wait nil :element-type ,element-type :external-format ,external-format
-                  :if-input-does-not-exist :error
-                  :if-output-exists :append
-                  #-(or allegro lispworks) :if-error-exists
-                  #+(or allegro lispworks) :if-error-output-exists :append
-                  :allow-other-keys t)
-                #+allegro `(:directory ,directory)
-                #+(and allegro os-windows) `(:show-window ,(if interactive nil :hide))
-                #+lispworks `(:save-exit-status t)
-                #+mkcl `(:directory ,(native-namestring directory))
-                #+sbcl `(:search t)
-                #-sbcl keys ;; on SBCL, don't pass :directory nil but remove it from the keys
-                #+sbcl (if directory keys (remove-plist-key :directory keys))))))
-           (process-info (make-instance 'process-info)))
-      (labels ((prop (key value) (setf (slot-value process-info key) value)))
-        #+allegro
-        (cond
-          (separate-streams
-           (destructuring-bind (in out err pid) process*
-             (prop 'process pid)
-             (when (eq input :stream) (prop 'input-stream in))
-             (when (eq output :stream) (prop 'output-stream out))
-             (when (eq error-output :stream) (prop 'error-stream err))))
-          (t
-           (prop 'process (third process*))
-           (let ((x (first process*)))
-             (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
-               (0)
-               (1 (prop 'input-stream x))
-               (2 (prop 'output-stream x))
-               (3 (prop 'bidir-stream x))))
-           (when (eq error-output :stream)
-             (prop 'error-stream (second process*)))))
-        #+(or abcl clozure cmucl sbcl scl)
-        (progn
-          (prop 'process process*)
-          (when (eq input :stream)
-            (prop 'input-stream
-                  #+abcl (symbol-call :sys :process-input process*)
-                  #+clozure (ccl:external-process-input-stream process*)
-                  #+(or cmucl scl) (ext:process-input process*)
-                  #+sbcl (sb-ext:process-input process*)))
-          (when (eq output :stream)
-            (prop 'output-stream
-                  #+abcl (symbol-call :sys :process-output process*)
-                  #+clozure (ccl:external-process-output-stream process*)
-                  #+(or cmucl scl) (ext:process-output process*)
-                  #+sbcl (sb-ext:process-output process*)))
+    (nest
+     (progn ;; see comments for these functions
+       (%handle-if-does-not-exist input if-input-does-not-exist)
+       (%handle-if-exists output if-output-exists)
+       (%handle-if-exists error-output if-error-output-exists))
+     (let ((process-info (make-instance 'process-info))
+           (input (%normalize-io-specifier input :input))
+           (output (%normalize-io-specifier output :output))
+           (error-output (%normalize-io-specifier error-output :error-output))
+           #+(and allegro os-windows) (interactive (%interactivep input output error-output))
+           (command
+            (etypecase command
+              #+os-unix (string `("/bin/sh" "-c" ,command))
+              #+os-unix (list command)
+              #+os-windows
+              (string
+               ;; NB: We add cmd /c here. Behavior without going through cmd is not well specified
+               ;; when the command contains spaces or special characters:
+               ;; IIUC, the system will use space as a separator,
+               ;; but the C++ argv-decoding libraries won't, and
+               ;; you're supposed to use an extra argument to CreateProcess to bridge the gap,
+               ;; yet neither allegro nor clisp provide access to that argument.
+               #+(or allegro clisp) (strcat "cmd /c " command)
+               ;; On ClozureCL for Windows, we assume you are using
+               ;; r15398 or later in 1.9 or later,
+               ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
+               ;; On SBCL, we assume the patch from fcae0fd (to be part of SBCL 1.3.13)
+               #+(or clozure sbcl) (cons "cmd" (strcat "/c " command))
+               ;; NB: On other Windows implementations, this is utterly bogus
+               ;; except in the most trivial cases where no quoting is needed.
+               ;; Use at your own risk.
+               #-(or allegro clisp clozure sbcl)
+               (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S"
+                                'launch-program command))
+              #+os-windows
+              (list
+               #+allegro (escape-windows-command command)
+               #-allegro command)))))
+     #+(or abcl (and allegro os-unix) clozure cmucl ecl mkcl sbcl)
+     (let ((program (car command))
+           #-allegro (arguments (cdr command))))
+     #+(and sbcl os-windows)
+     (multiple-value-bind (arguments escape-arguments)
+         (if (listp arguments)
+             (values arguments t)
+             (values (list arguments) nil)))
+     #-(or allegro mkcl sbcl) (with-current-directory (directory))
+     (multiple-value-bind
+       #+(or abcl clozure cmucl sbcl scl) (process)
+       #+allegro (in-or-io out-or-err err-or-pid pid-or-nil)
+       #+ecl (stream code process)
+       #+lispworks (io-or-pid err-or-nil #-lispworks7+ pid-or-nil)
+       #+mkcl (stream process code)
+       #.`(apply
+           #+abcl 'sys:run-program
+           #+allegro ,@'('excl:run-shell-command
+                         #+os-unix (coerce (cons program command) 'vector)
+                         #+os-windows command)
+           #+clozure 'ccl:run-program
+           #+(or cmucl ecl scl) 'ext:run-program
+           #+lispworks ,@'('system:run-shell-command `("/usr/bin/env" ,@command)) ; full path needed
+           #+mkcl 'mk-ext:run-program
+           #+sbcl 'sb-ext:run-program
+           #+(or abcl clozure cmucl ecl mkcl sbcl) ,@'(program arguments)
+           #+(and sbcl os-windows) ,@'(:escape-arguments escape-arguments)
+           :input input :if-input-does-not-exist :error
+           :output output :if-output-exists :append
+           ,(or #+(or allegro lispworks) :error-output :error) error-output
+           ,(or #+(or allegro lispworks) :if-error-output-exists :if-error-exists) :append
+           :wait nil :element-type element-type :external-format external-format
+           :allow-other-keys t
+           #+allegro ,@`(:directory directory
+                         #+os-windows ,@'(:show-window (if interactive nil :hide)))
+           #+lispworks ,@'(:save-exit-status t)
+           #+mkcl ,@'(:directory (native-namestring directory))
+           #-sbcl keys ;; on SBCL, don't pass :directory nil but remove it from the keys
+           #+sbcl ,@'(:search t (if directory keys (remove-plist-key :directory keys)))))
+     (labels ((prop (key value) (setf (slot-value process-info key) value)))
+       #+allegro
+       (cond
+         (separate-streams
+          (prop 'process pid-or-nil)
+          (when (eq input :stream) (prop 'input-stream in-or-io))
+          (when (eq output :stream) (prop 'output-stream out-or-err))
+          (when (eq error-output :stream) (prop 'error-stream err-or-pid)))
+         (t
+          (prop 'process err-or-pid)
+          (ecase (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))
+            (0)
+            (1 (prop 'input-stream in-or-io))
+            (2 (prop 'output-stream in-or-io))
+            (3 (prop 'bidir-stream in-or-io)))
           (when (eq error-output :stream)
-            (prop 'error-output-stream
-                  #+abcl (symbol-call :sys :process-error process*)
-                  #+clozure (ccl:external-process-error-stream process*)
-                  #+(or cmucl scl) (ext:process-error process*)
-                  #+sbcl (sb-ext:process-error process*))))
-        #+(or ecl mkcl)
-        (destructuring-bind #+ecl (stream code process) #+mkcl (stream process code) process*
-          (declare (ignore code))
-          (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-            (unless (zerop mode)
-              (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream)))
-          (prop 'process process))
-        #+lispworks
-        (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
-          (if (or (plusp mode) (eq error-output :stream))
-              (destructuring-bind (io err pid) process*
-                #+lispworks7+ (declare (ignore pid))
-                (prop 'process #+lispworks7+ io #-lispworks7+ pid)
-                (when (plusp mode)
-                  (prop (ecase mode
-                          (1 'input-stream)
-                          (2 'output-stream)
-                          (3 'bidir-stream)) io))
-                (when (eq error-output :stream)
-                  (prop 'error-stream err)))
-              ;; lispworks6 returns (pid), lispworks7 returns (io err pid) of which we keep io
-              (prop 'process (first process*)))))
-      process-info)))
+            (prop 'error-stream out-or-err))))
+       #+(or abcl clozure cmucl sbcl scl)
+       (progn
+         (prop 'process process)
+         (when (eq input :stream)
+           (nest
+            (prop 'input-stream)
+            #+abcl (symbol-call :sys :process-input)
+            #+clozure (ccl:external-process-input-stream)
+            #+(or cmucl scl) (ext:process-input)
+            #+sbcl (sb-ext:process-input)
+            process))
+         (when (eq output :stream)
+           (nest
+            (prop 'output-stream)
+            #+abcl (symbol-call :sys :process-output)
+            #+clozure (ccl:external-process-output-stream)
+            #+(or cmucl scl) (ext:process-output)
+            #+sbcl (sb-ext:process-output)
+            process))
+         (when (eq error-output :stream)
+           (nest
+            (prop 'error-output-stream)
+            #+abcl (symbol-call :sys :process-error)
+            #+clozure (ccl:external-process-error-stream)
+            #+(or cmucl scl) (ext:process-error)
+            #+sbcl (sb-ext:process-error)
+            process)))
+       #+(or ecl mkcl)
+       (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
+         code ;; ignore
+         (unless (zerop mode)
+           (prop (case mode (1 'input-stream) (2 'output-stream) (3 'bidir-stream)) stream))
+         (prop 'process process))
+       #+lispworks
+       (let ((mode (+ (if (eq input :stream) 1 0) (if (eq output :stream) 2 0))))
+         (cond
+           ((or (plusp mode) (eq error-output :stream))
+            (prop 'process #+lispworks7+ io-or-pid #-lispworks7+ pid-or-nil)
+            (when (plusp mode)
+              (prop (ecase mode
+                      (1 'input-stream)
+                      (2 'output-stream)
+                      (3 'bidir-stream)) io-or-pid))
+            (when (eq error-output :stream)
+              (prop 'error-stream err-or-nil)))
+           ;; lispworks6 returns (pid), lispworks7 returns (io err pid) of which we keep io
+           (t (prop 'process io-or-pid)))))
+     process-info)))
 
