@@ -12,7 +12,7 @@
 (in-package :uiop/version)
 
 (with-upgradability ()
-  (defparameter *uiop-version* "3.1.7.41")
+  (defparameter *uiop-version* "3.1.7.42")
 
   (defun unparse-version (version-list)
     "From a parsed version (a list of natural numbers), compute the version string"
