@@ -100,7 +100,7 @@ itself."))
             ;; Using load-op as the goal operation and basic-compile-op as the keep-operation works
             ;; for our needs of gathering all the files we want to include in a bundle.
             ;; Note that we use basic-compile-op rather than compile-op so it will still work on
-            ;; systems when *load-system-operation* is load-bundle-op.
+            ;; systems that would somehow load dependencies with load-bundle-op.
             (required-components
              s :other-systems mono :component-type component-type :keep-component keep-component
              :goal-operation 'load-op :keep-operation 'basic-compile-op)))
@@ -433,7 +433,7 @@ or of opaque libraries shipped along the source code."))
            (dependencies
              (if (operation-monolithic-p o)
                  ;; We want only dependencies, and we use basic-load-op rather than load-op so that
-                 ;; this will keep working on systems when *load-system-operation* is load-bundle-op
+                 ;; this will keep working on systems that load dependencies with load-bundle-op
                  (remove-if-not 'builtin-system-p
                                 (required-components s :component-type 'system
                                                        :keep-operation 'basic-load-op))
@@ -504,11 +504,6 @@ which is probably not what you want; you probably need to tweak your output tran
 
 #+(or clasp ecl mkcl)
 (with-upgradability ()
-
-  #+ecl ;; doesn't work on clasp or mkcl (yet?).
-  (unless (use-ecl-byte-compiler-p)
-    (setf *load-system-operation* 'load-bundle-op))
-
   (defun system-module-pathname (module)
     (let ((name (coerce-name module)))
       (some
