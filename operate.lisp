@@ -11,7 +11,7 @@
    #:build-op #:make
    #:load-system #:load-systems #:load-systems*
    #:compile-system #:test-system #:require-system
-   #:*load-system-operation* #:module-provide-asdf
+   #:module-provide-asdf
    #:component-loaded-p #:already-loaded-systems))
 (in-package :asdf/operate)
 
@@ -103,45 +103,34 @@ But do NOT depend on it, for this is deprecated behavior."))
 
 
 ;;;; Common operations
-(with-upgradability ()
-  (defvar *load-system-operation* 'load-op
-    "Operation used by ASDF:LOAD-SYSTEM. By default, ASDF:LOAD-OP.
-You may override it with e.g. ASDF:LOAD-BUNDLE-OP from asdf/bundle
-or ASDF:LOAD-SOURCE-OP if your fasl loading is somehow broken.
-
-The default operation may change in the future if we implement a
-component-directed strategy for how to load or compile systems.")
-
-  ;; In prepare-op for a system, propagate *load-system-operation* rather than load-op
+(when-upgrading ()
   (defmethod component-depends-on ((o prepare-op) (s system))
-    (loop :for (do . dc) :in (call-next-method)
-          :collect (cons (if (eq do 'load-op) *load-system-operation* do) dc)))
-
+    (call-next-method)))
+(with-upgradability ()
   (defclass build-op (non-propagating-operation) ()
     (:documentation "Since ASDF3, BUILD-OP is the recommended 'master' operation,
 to operate by default on a system or component, via the function BUILD.
 Its meaning is configurable via the :BUILD-OPERATION option of a component.
 which typically specifies the name of a specific operation to which to delegate the build,
 as a symbol or as a string later read as a symbol (after loading the defsystem-depends-on);
-if NIL is specified (the default), BUILD-OP falls back to the *LOAD-SYSTEM-OPERATION*
-that will load the system in the current image, and its typically LOAD-OP."))
+if NIL is specified (the default), BUILD-OP falls back to LOAD-OP,
+that will load the system in the current image."))
   (defmethod component-depends-on ((o build-op) (c component))
-    `((,(or (component-build-operation c) *load-system-operation*) ,c)
+    `((,(or (component-build-operation c) 'load-op) ,c)
       ,@(call-next-method)))
 
   (defun make (system &rest keys)
     "The recommended way to interact with ASDF3.1 is via (ASDF:MAKE :FOO).
 It will build system FOO using the operation BUILD-OP,
 the meaning of which is configurable by the system, and
-defaults to *LOAD-SYSTEM-OPERATION*, usually LOAD-OP,
-to load it in current image."
+defaults to LOAD-OP, to load it in current image."
     (apply 'operate 'build-op system keys)
     t)
 
   (defun load-system (system &rest keys &key force force-not verbose version &allow-other-keys)
     "Shorthand for `(operate 'asdf:load-op system)`. See OPERATE for details."
     (declare (ignore force force-not verbose version))
-    (apply 'operate *load-system-operation* system keys)
+    (apply 'operate 'load-op system keys)
     t)
 
   (defun load-systems* (systems &rest keys)
