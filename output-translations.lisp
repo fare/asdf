@@ -24,7 +24,6 @@
 
 ;; (setf output-translations) between 2.27 and 3.0.3 was using a defsetf macro
 ;; for the sake of obsolete versions of GCL 2.6. Make sure it doesn't come to haunt us.
-#-mkcl ; mkcl 1.1.9 can't fmakunbound a setf function.
 (when-upgrading (:version "3.1.2") (fmakunbound '(setf output-translations)))
 
 (with-upgradability ()
