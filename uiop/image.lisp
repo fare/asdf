@@ -78,7 +78,7 @@ This is designed to abstract away the implementation specific quit forms."
                  (exit `(,exit :code code :abort (not finish-output)))
                  (quit `(,quit :unix-status code :recklessly-p (not finish-output)))))
     #-(or abcl allegro clasp clisp clozure cmucl ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-    (error "~S called with exit code ~S but there's no quitting on this implementation" 'quit code))
+    (not-implemented-error 'quit "(called with exit code ~S)" code))
 
   (defun die (code format &rest arguments)
     "Die in error with some error message"
@@ -352,7 +352,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
     (setf *image-restored-p* nil)
     #-(or clisp clozure (and cmucl executable) lispworks sbcl scl)
     (when executable
-      (error "Dumping an executable is not supported on this implementation! Aborting."))
+      (not-implemented-error 'dump-image "dumping an executable"))
     #+allegro
     (progn
       (sys:resize-areas :global-gc t :pack-heap t :sift-old-areas t :tenure t) ; :new 5000000
@@ -410,8 +410,7 @@ or COMPRESSION on SBCL, and APPLICATION-TYPE on SBCL/Windows."
               ;; the default is :console - only works with SBCL 1.1.15 or later.
               (when application-type (list :application-type application-type)))))
     #-(or allegro clisp clozure cmucl gcl lispworks sbcl scl)
-    (error "Can't ~S ~S: UIOP doesn't support image dumping with ~A.~%"
-           'dump-image filename (nth-value 1 (implementation-type))))
+    (not-implemented-error 'dump-image))
 
   (defun create-image (destination lisp-object-files
                        &key kind output-name prologue-code epilogue-code extra-object-files

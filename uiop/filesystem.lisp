@@ -209,9 +209,10 @@ but the behavior in presence of symlinks is not portable. Use IOlib to handle su
         ;; logical pathnames have restrictions on wild patterns.
         ;; Not that the results are very portable when you use these patterns on physical pathnames.
         (when (wild-pathname-p dir)
-          (error "Invalid wild pattern in logical directory ~S" directory))
+          (parameter-error "~S: Invalid wild pattern in logical directory ~S"
+                           'directory-files directory))
         (unless (member (pathname-directory pattern) '(() (:relative)) :test 'equal)
-          (error "Invalid file pattern ~S for logical directory ~S" pattern directory))
+          (parameter-error "~S: Invalid file pattern ~S for logical directory ~S" 'directory-files pattern directory))
         (setf pattern (make-pathname-logical pattern (pathname-host dir))))
       (let* ((pat (merge-pathnames* pattern dir))
              (entries (ignore-errors (directory* pat))))
@@ -524,7 +525,7 @@ check constraints and normalize as per ENSURE-PATHNAME."
 check constraints and normalize each one as per ENSURE-PATHNAME.
        Any empty entries in the environment variable X will be returned as NILs."
     (unless (getf constraints :empty-is-nil t)
-      (error "Cannot have EMPTY-IS-NIL false for GETENV-PATHNAMES."))
+      (parameter-error "Cannot have EMPTY-IS-NIL false for ~S" 'getenv-pathnames))
     (apply 'split-native-pathnames-string (getenvp x)
            :on-error (or on-error
                          `(error "In (~S ~S), invalid pathname ~*~S: ~*~?" getenv-pathnames ,x))
@@ -641,13 +642,13 @@ If you're suicidal or extremely confident, just use :VALIDATE T."
     (cond
       ((not (and (pathnamep directory-pathname) (directory-pathname-p directory-pathname)
                  (physical-pathname-p directory-pathname) (not (wild-pathname-p directory-pathname))))
-       (error "~S was asked to delete ~S but it is not a physical non-wildcard directory pathname"
+       (parameter-error "~S was asked to delete ~S but it is not a physical non-wildcard directory pathname"
               'delete-directory-tree directory-pathname))
       ((not validatep)
-       (error "~S was asked to delete ~S but was not provided a validation predicate"
+       (parameter-error "~S was asked to delete ~S but was not provided a validation predicate"
               'delete-directory-tree directory-pathname))
       ((not (call-function validate directory-pathname))
-       (error "~S was asked to delete ~S but it is not valid ~@[according to ~S~]"
+       (parameter-error "~S was asked to delete ~S but it is not valid ~@[according to ~S~]"
               'delete-directory-tree directory-pathname validate))
       ((not (directory-exists-p directory-pathname))
        (ecase if-does-not-exist

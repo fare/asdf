@@ -26,7 +26,8 @@ as either a recognizing function or a sequence of characters."
     (some
      (cond
        ((and good-chars bad-chars)
-        (error "only one of good-chars and bad-chars can be provided"))
+        (parameter-error "~S: only one of good-chars and bad-chars can be provided"
+                         'requires-escaping-p))
        ((typep good-chars 'function)
         (complement good-chars))
        ((typep bad-chars 'function)
@@ -35,7 +36,7 @@ as either a recognizing function or a sequence of characters."
         #'(lambda (c) (not (find c good-chars))))
        ((and bad-chars (typep bad-chars 'sequence))
         #'(lambda (c) (find c bad-chars)))
-       (t (error "requires-escaping-p: no good-char criterion")))
+       (t (parameter-error "~S: no good-char criterion" 'requires-escaping-p)))
      token))
 
   (defun escape-token (token &key stream quote good-chars bad-chars escaper)

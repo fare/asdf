@@ -117,7 +117,7 @@ Programmers are encouraged to define their own methods for this generic function
         stream x
         :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
       (t
-       (error "Invalid ~S destination ~S" 'slurp-input-stream x)))))
+       (parameter-error "Invalid ~S destination ~S" 'slurp-input-stream x)))))
 
 ;;;; Vomiting a stream, typically into the input of another program.
 (with-upgradability ()
@@ -194,7 +194,7 @@ Programmers are encouraged to define their own methods for this generic function
         x stream
         :linewise linewise :prefix prefix :element-type element-type :buffer-size buffer-size))
       (t
-       (error "Invalid ~S source ~S" 'vomit-output-stream x)))))
+       (parameter-error "Invalid ~S source ~S" 'vomit-output-stream x)))))
 
 
 ;;;; Run-program: synchronously run a program in a subprocess, handling input, output and error-output.
@@ -250,8 +250,8 @@ or whether it's already taken care of by the implementation's underlying run-pro
            (activity-spec (if (eq actual-spec :output)
                               (ecase direction
                                 ((:input :output)
-                                 (error "~S not allowed as a ~S ~S spec"
-                                        :output 'run-program direction))
+                                 (parameter-error "~S does not allow ~S as a ~S spec"
+                                                  'run-program :output direction))
                                 ((:error-output)
                                  nil))
                               actual-spec)))
