@@ -1,13 +1,13 @@
 ASDF: Another System Definition Facility
 ========================================
 
-For all information about ASDF, see the web page:
+For general information about ASDF, consult the web page:
 <https://common-lisp.net/project/asdf/>
 
-Notably read the manual for instructions on how to use it:
+For instructions on how to use it, read the manual:
 <https://common-lisp.net/project/asdf/asdf.html>
 
-This file is only a guide for new developers.
+Below is a guide for ASDF developers; it is not meant for ASDF users.
 
 [TOC]
 
@@ -15,7 +15,7 @@ This file is only a guide for new developers.
 Building ASDF
 -------------
 
-First, make sure ASDF is checked out under a path registered by the source-registry,
+First, make sure ASDF is checked out under a path registered to the source-registry,
 if that isn't the case yet (see the [manual](http://common-lisp.net/project/asdf/asdf.html)).
 One place would be:
 
@@ -26,7 +26,7 @@ or, assuming your implementation provides ASDF 3.1 or later:
     ~/common-lisp/asdf/
 
 
-If you cloned our git repository, rather than extracted a tarball,
+If you cloned our git repository rather than extracted a tarball,
 bootstrap a copy of `build/asdf.lisp` with:
 
     make
@@ -71,11 +71,10 @@ If you are a CL developer, you may already have them, or may want
 to use your own tools to download a version of them you control.
 If you use [Quicklisp](https://www.quicklisp.org/), you may let
 Quicklisp download those you don't have.
-In these cases, you may NOT want to use the git submodules from `make ext`.
+In these cases, you may NOT want to use the git submodules from `make ext`;
+you may undo a `make ext` with `make noext`.
 Otherwise, if you want to let ASDF download known-working versions
-of its dependencies, you can do it with:
-
-    make ext
+of its dependencies, you can do it with `make ext`.
 
 Once you have all the required libraries and the asdf-tools script can find
 a suitable Common Lisp implementation, you may run all the tests
@@ -94,12 +93,16 @@ Lisp Scripting test system
 ASDF by default uses a shell script in `./test/run-tests.sh` to run the scripts
 that orchestrate its tests.
 
-An alternate build and test system using Common Lisp as a scripting language is available.
-It is disabled by default because the new maintainer is having trouble with it in his environments.
-It worked fine for the previous maintainer in his environments, and may be particularly useful
-on Windows if and when the shell-based test system fails.
+An alternate build and test system is available
+that uses Common Lisp as a scripting language.
+It is disabled by default because
+the new maintainer is having trouble with it in some of his environments.
+It worked fine for the previous maintainer in his environments,
+and may be particularly useful on Windows if and when
+the shell-based test system fails or is not available.
 Its source code is in [tools/](tools/) and
-it can invoke using the script [make-asdf.sh](make-asdf.sh),
+you can invoke it without going through GNU make,
+using the script [make-asdf.sh](make-asdf.sh),
 or, on Windows, [make-asdf.bat](make-asdf.bat).
 
 To use this alternate test system, pass to `make` the extra arguments `-f Makefile-lisp-scripting`
@@ -122,10 +125,12 @@ that points to the executable.
 To use a further Common Lisp implementation, suitably edit the script
 [`tools/asdf-tools`](tools/asdf-tools),
 or, on Windows, the batch file [`tools/asdf-tools.bat`](tools/asdf-tools.bat).
-(Note that as of SBCL 1.2.13, we recommend against using SBCL on Windows for that purpose.)
+(Note that we recommend SBCL 1.3.13 or later when on Windows.)
 
-Note that the executable `build/asdf-tools` is being built the first time you test ASDF.
-When you update ASDF, via e.g. `git pull` or a branch switch, you may have to update it, with:
+Note that the executable `build/asdf-tools` is built
+the first time you test ASDF.
+When you update ASDF, via e.g. `git pull` or a branch switch,
+you may have to update it, with:
 
     make -f Makefile-lisp-scripting build-asdf-tools
 
@@ -142,18 +147,13 @@ Debugging ASDF
 To interactively debug ASDF, you may load it in such a way that `M-.` will work,
 by installing the source code, and running:
 
-    (asdf:load-system :uiop) ;; loading uiop is simple
-    (map () 'load ;; loading asdf/defsystem is tricky
-     (asdf:input-files :concatenate-source-op "asdf/defsystem"))
-
-Note that the above can be adapted in a general recipe to get all the files in a system, in order.
-To also have the files in systems it transitively depends on, add the `:other-systems t` keyword
-argument to the call to `asdf::required-components`.
+    (map () 'load (asdf:input-files :monolithic-concatenate-source-op "asdf"))
 
 To interactively use the `asdf-tools`, you need to either have
 all its dependencies installed and configured.
 If you're using them through the `ext/` directory and `make ext`,
-then you may need to emulate what the script in [tools/asdf-tools](tools/asdf-tools) does
+then you may need to emulate
+what the script in [tools/asdf-tools](tools/asdf-tools) does
 with respect to initializing the source-registry.
 Note that it also declares a system for `cl-launch/dispatch`;
 you can either do something similar, or expand the source for `cl-launch` with
@@ -170,94 +170,124 @@ subpackages such as `asdf/find-system` from the outside of ASDF, because
 functions may occasionally be moved from one internal package to the other,
 without notification. They have in the past and will in the future.
 Instead, when refering to symbols in ASDF, we recommend you either have
-your package `:use` the package `:asdf` or `:import-from` it, or that you shall
-use `asdf:` or `asdf::` as a prefix to the symbols.
+your package `:use` the package `:asdf` or `:import-from` it, or that
+you shall use `asdf:` or `asdf::` as a prefix to the symbols.
 And once again, please contact us if you have to use non-exported symbols.
 
 Also, the normal way of extending ASDF is to use our class hierarchies for
 `component` and `operation` and to define methods on `component-depends-on`,
 `perform`, `input-files`, `output-files`.
-It is usually a very bad idea that doesn't usually do what you mean
-to define methods on `operate`.
+A common mistake seems to be that some people define methods on `operate`,
+which usually is not at all what they think it is.
 
 
 How do I navigate this source tree?
 -----------------------------------
 
-* [asdf.asd](asdf.asd)
-    * The system definition for building ASDF with ASDF.
+*   [asdf.asd](asdf.asd)
+    *   The system definition for building ASDF with ASDF.
 
-* `*.lisp`
-    * The source code files for `asdf/defsystem`.
-      See [asdf.asd](asdf.asd) for the order in which they are loaded.
+*   `*.lisp`
+    *   The source code files for `asdf/defsystem`.
+        See [asdf.asd](asdf.asd) for the order in which they are loaded.
+        All exported functions should have docstrings,
+        and all internal functions should have comments.
+        If any definition is insufficiently documented,
+        please tell us: that's a bug.
 
-* [uiop/](uiop/)
+*   [uiop/](uiop/)
     * Utilities of Implementation- and OS- Portability,
       the portability layer of ASDF. It has its own [README](uiop/README.md),
       and functions all have docstrings.
 
-* [Makefile](Makefile)
-    * A minimal `Makefile` for bootstrap and development purposes.
-      Most of the logic is in the [asdf-tools](tools/asdf-tools.asd) system below.
+*   [Makefile](Makefile)
+    *   The classical `Makefile` used for development purposes.
+        Regular users only need to call `make` with the default target.
+        Developers will typically use the like of
+        `make t l=sbcl` or `make u l=ccl`.
 
-* [tools/](tools/)
+*   [bin/](bin/)
+    *   [bump-version](bin/bump-version) --
+        a script to bump the version of ASDF, used by the classic `Makefile`.
+        Use it with e.g. `./bin/bump-version 3.3.0`
+        to test with the next version number before you release.
+        NB: ASDF's version number notably affect the behavior of ASDF
+        with respect to deprecated functions.
+
+*   [tools/](tools/)
     * `asdf-tools`, a system to build, test and release ASDF. It includes:
-        * [asdf-tools](tools/asdf-tools) -- a shell script to run it as a shell command.
-        * [asdf-tools.bat](tools/asdf-tools.bat) -- a Windows batch file to run the above.
-        * [asdf-tools.asd](tools/asdf-tools.asd) -- system definition for asdf-tools
-        * `*.lisp` -- the source code for the `asdf-tools` system, except for the few files below.
-    * Also a couple scripts to help ASDF users:
-        * [load-asdf.lisp](tools/load-asdf.lisp) -- a working example script to load, configure and use ASDF in a self-contained project
-        * [install-asdf.lisp](install-asdf.lisp) -- replace and update an implementation's ASDF
-        * [cl-source-registry-cache.lisp](cl-source-registry-cache.lisp) -- update a cache for the source-registry as a standalone script.
+        *   [asdf-tools](tools/asdf-tools) --
+            a shell script to run it as a shell command.
+        *   [asdf-tools.bat](tools/asdf-tools.bat) --
+            a Windows batch file to run the above.
+        *   [asdf-tools.asd](tools/asdf-tools.asd) --
+            system definition for asdf-tools
+        *   `*.lisp` -- the source code for the `asdf-tools` system,
+            except for the few files below.
+    *   Also a couple scripts to help ASDF users:
+        *   [load-asdf.lisp](tools/load-asdf.lisp) --
+            a working example script to load, configure and use ASDF
+            in a self-contained project
+        *   [install-asdf.lisp](install-asdf.lisp) --
+            replace and update an implementation's ASDF
+        *   [cl-source-registry-cache.lisp](cl-source-registry-cache.lisp) --
+            update a cache for the source-registry as a standalone script.
 
-* [Makefile-lisp-scripting](Makefile-lisp-scripting),
-  [make-asdf.sh](make-asdf.sh) and [make-asdf.bat](make-asdf.bat)
-    * Makefile and scripts to invoke the lisp scripting variants of the build system.
+*   [Makefile-lisp-scripting](Makefile-lisp-scripting),
+    [make-asdf.sh](make-asdf.sh) and [make-asdf.bat](make-asdf.bat)
+    *   Minimal Makefile and scripts to invoke
+        the lisp scripting variants of the build system.
 
-* [version.lisp-expr](version.lisp-expr)
-    * The current version. Bumped up every time the code changes, using:
+*   [version.lisp-expr](version.lisp-expr)
+    *   The current version. Bumped up every time the code changes, using:
 
             make bump
 
-* [doc/](doc/)
-    * Documentation for ASDF, including:
-        * [index.html](doc/index.html) -- the web page for <http://common-lisp.net/project/asdf/>
-        * [asdf.texinfo](doc/asdf.texinfo) -- our manual
-        * [Makefile](doc/Makefile) -- how to build the manual
-        * [cclan.png](doc/cclan.png) [lisp-logo120x80.png](doc/lisp-logo120x80.png)
-          [style.css](doc/style.css) [favicon.ico](doc/favicon.ico)
-          -- auxiliaries of [index.html](doc/index.html)
+*   [doc/](doc/)
+    *   Documentation for ASDF, including:
+        *   [index.html](doc/index.html) --
+            the web page for <http://common-lisp.net/project/asdf/>
+        *   [asdf.texinfo](doc/asdf.texinfo) -- our manual
+        *   [Makefile](doc/Makefile) -- how to build the manual
+        *   [cclan.png](doc/cclan.png) [lisp-logo120x80.png](doc/lisp-logo120x80.png)
+            [style.css](doc/style.css) [favicon.ico](doc/favicon.ico)
+            -- auxiliaries of [index.html](doc/index.html)
 
-* [test/](test/)
-    * Regression test scripts (and ancillary files) for developers to check
-      that they don't unintentionally break any of the functionality of ASDF.
-      They are far from covering all of ASDF, but they are a good start.
+*   [test/](test/)
+    *   Regression test scripts (and ancillary files) for developers to check
+        that they don't unintentionally break any of the functionality of ASDF.
+        They are far from covering all of ASDF, but they are a good start.
+        *   [script-support.lisp](test/script-support.lisp) --
+            the common test infrastructure used by our tests
+        *   [run-tests.sh](test/run-tests.sh) --
+            the shell script used by the classic `Makefile` to run tests.
+            It is not used by the Lisp scripting variant of the `Makefile`.
 
-* [contrib/](contrib/)
-    * A few contributed files that show case how to use ASDF
-      or help with debugging it or debugging programs that use it.
+*   [contrib/](contrib/)
+    *   A few contributed files that show case how to use ASDF
+        or help with debugging it or debugging programs that use it.
 
-* [debian/](debian/)
-    * Files for packaging on Debian, Ubuntu, etc.
-      (now only present in the debian branch).
+*   [debian/](debian/)
+    *   Files for packaging on Debian, Ubuntu, etc.
+        (now only present in the debian branch).
 
-* [build/](build/)
-    * Where the `Makefile` and `asdf-tools` store their output files, including
+*   [build/](build/)
+    *   Where the `Makefile` and `asdf-tools` store their output files,
+        including:
         * `asdf.lisp` -- the current one-file deliverable of ASDF
         * `asdf-*.lisp` -- for upgrade test purposes, old versions
         * `asdf-tools` -- the executable for asdf-tools (.exe on Windows)
         * `results/` -- logs of tests that have been run
         * `fasls/` -- output files while running tests
 
-* [ext/](ext/)
+*   [ext/](ext/)
     * External dependencies, that can be populated with `make ext`
       or equivalently with `git submodule update --init`.
       Depopulate it with `make noext`
 	  or equivalently with: `submodule deinit .`
 
-* [README.md](README.md)
+*   [README.md](README.md)
     * This file.
 
-* [TODO](TODO)
+*   [TODO](TODO)
     * Plenty of ideas for how to further improve ASDF.
