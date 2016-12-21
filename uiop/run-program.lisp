@@ -377,20 +377,10 @@ or whether it's already taken care of by the implementation's underlying run-pro
 
   (defun %normalize-system-command (command) ;; helper for %USE-SYSTEM
     (etypecase command
-      (string
-       (os-cond
-        ((os-windows-p)
-         #+(or allegro clisp ecl)
-         (strcat "cmd" " /c " command)
-         #-(or allegro clisp ecl) command)
-        (t command)))
+      (string command)
       (list (escape-shell-command
              (os-cond
               ((os-unix-p) (cons "exec" command))
-              ((os-windows-p)
-               #+(or allegro clisp ecl sbcl)
-               (list* "cmd" "/c" command)
-               #-(or allegro clisp ecl sbcl) command)
               (t command))))))
 
   (defun %redirected-system-command (command in out err directory) ;; helper for %USE-SYSTEM
