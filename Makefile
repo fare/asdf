@@ -122,7 +122,7 @@ defsystem-files:
 archive: build/asdf.lisp
 	$(eval UIOPDIR := "uiop-$(version)")
 	mkdir -p build/$(UIOPDIR) 	# UIOP tarball
-	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} version.lisp-expr build/$(UIOPDIR)
+	cp -pHux uiop/README.md uiop/uiop.asd uiop/asdf-driver.asd ${driver_lisp} contrib/debug.lisp build/$(UIOPDIR)
 	tar zcf "build/uiop-${version}.tar.gz" -C build $(UIOPDIR)
 	rm -r build/$(UIOPDIR)
 	$(eval ASDFDIR := "asdf-$(version)")

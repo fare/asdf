@@ -66,7 +66,8 @@
 
 (defun uiop-files ()
   "list files in uiop"
-  (list* "README.md" "uiop.asd" "asdf-driver.asd" (system-source-files "uiop")))
+  (list* "README.md" "uiop.asd" "asdf-driver.asd" "contrib/debug.lisp"
+         (system-source-files "uiop")))
 (defun uiop-name ()
   (format nil "uiop-~A" (version-from-file)))
 (deftestcmd make-uiop-tarball ()
