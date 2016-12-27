@@ -528,8 +528,13 @@ which is probably not what you want; you probably need to tweak your output tran
                      :static-library (resolve-symlinks* pathname))))
 
   (defmethod component-depends-on :around ((o image-op) (c system))
-    (destructuring-bind ((lib-op . deps)) (call-next-method)
-      (labels ((has-it-p (x) (find x deps :test 'equal :key 'coerce-name))
+    (let ((next (call-next-method))
+          (deps (make-hash-table :test 'equal)))
+      (loop* :for (do . dcs) :in next :do
+        (loop :for dc :in dcs
+          :for dep = (and dc (resolve-dependency-spec c dc))
+          :when dep :do (setf (gethash (coerce-name (component-system dep)) deps) t)))
+      (labels ((has-it-p (x) (gethash x deps))
                (ensure-linkable-system (x)
 		 (unless (has-it-p x)
                    (or (if-let (s (find-system x))
@@ -537,12 +542,12 @@ which is probably not what you want; you probably need to tweak your output tran
                               (list s)))
                        (if-let (p (system-module-pathname x))
                          (list (make-prebuilt-system x p)))))))
-        `((,lib-op
+        `((lib-op
            ,@(unless (no-uiop c)
                (append (ensure-linkable-system "cmp")
                        (or (ensure-linkable-system "uiop")
-                           (ensure-linkable-system "asdf"))))
-           ,@deps)))))
+                           (ensure-linkable-system "asdf")))))
+          ,@next))))
 
   (defmethod perform ((o link-op) (c system))
     (let* ((object-files (input-files o c))
