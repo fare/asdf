@@ -3642,8 +3642,13 @@ When looking in a tree, if one system is found, the search succeeds.
 If multiple systems are found, the consequences are unspecified:
 the search may succeed with any of the found systems,
 or an error may be raised.
-ASDF currently returns the first system found,
-XCVB currently raised an error.
+ASDF 3.2.1 or later returns the pathname whose normalized directory component
+has the shortest length (as a list), and breaks ties by choosing the system
+with the smallest @code{unix-namestring} when compared with @code{string<}.
+Earlier versions of ASDF return ASDF return the first system found,
+which is implementation-dependent, and may or may not be the pathname
+with the smallest @code{unix-namestring} when compared with @code{string<}.
+XCVB raises an error.
 If none is found, the search continues.
 
 Exclude statements specify patterns of subdirectories

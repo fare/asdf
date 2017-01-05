@@ -7,7 +7,7 @@
 # your normal CL source registry. Otherwise, it will use local copies of
 # everything.
 
-system	 	:= "asdf"
+system		:= "asdf"
 webhome_private := common-lisp.net:/project/asdf/public_html/
 webhome_public	:= "http://common-lisp.net/project/asdf/"
 clnet_home      := "/project/asdf/public_html/"
