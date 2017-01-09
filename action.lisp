@@ -258,14 +258,16 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
              :format-arguments
              (list (type-of o)))))
 
-  (with-asdf-deprecation (:style-warning "3.2")
-    (defun backward-compatible-depends-on (o c)
-      "DEPRECATED: all subclasses of OPERATION used in ASDF should inherit from one of
+  (defun backward-compatible-depends-on (o c)
+    "DEPRECATED: all subclasses of OPERATION used in ASDF should inherit from one of
  DOWNWARD-OPERATION UPWARD-OPERATION SIDEWAY-OPERATION SELFWARD-OPERATION NON-PROPAGATING-OPERATION.
  The function BACKWARD-COMPATIBLE-DEPENDS-ON temporarily provides ASDF2 behaviour for those that
  don't. In the future this functionality will be removed, and the default will be no propagation."
-      `(,@(sideway-operation-depends-on o c)
-        ,@(when (typep c 'parent-component) (downward-operation-depends-on o c)))))
+    (uiop/version::notify-deprecated-function
+     (version-deprecation *asdf-version* :style-warning "3.2")
+     'backward-compatible-depends-on)
+    `(,@(sideway-operation-depends-on o c)
+      ,@(when (typep c 'parent-component) (downward-operation-depends-on o c))))
 
   (defmethod component-depends-on ((o operation) (c component))
     `(;; Normal behavior, to allow user-specified in-order-to dependencies
