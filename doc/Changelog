@@ -1,3 +1,32 @@
+cl-asdf (2:3.2.0-1) unstable; urgency=low
+
+  New milestone:
+  * launch-program: new UIOP API for asynchronous subprocesses, now available
+    on: abcl allegro clozure cmucl ecl (and lispworks os-unix) mkcl sbcl scl.
+    Big thanks to Elias Pipping for this significant contribution!
+  * parameter-error, not-implemented-error: new UIOP functions to better signal
+    abuse of parameters in function calls, or lack of function implementation.
+  * with-deprecation macro in UIOP signals style-warnings, then warnings,
+    then errors when deprecated functions are used. This macro is now used
+    for all deprecated functions in ASDF.
+  * require-system, component-loaded-p fixed to not reload .asd files,
+    and to work in presence of preloaded-systems, that are now eagerly loaded.
+  * registered-system added as an abstraction for internals and extensions.
+  * make-operation is now the only supported way to create an operation;
+    calling make-instance directly will raise an error. Update your software!
+  * Removal of several obsolete backward-compatible internals:
+    if-component-dep-fails, operation-forced. Update SLIME!
+  * Robustness and portability fixes all around uiop, notably dealing with
+    directory access, bundles on ECL and MKCL or with cffi-toolchain,
+    dealing with a fatal-condition, surviving use of "logical" pathnames, etc.
+  * Tests improved and extensively run on Linux, macOS and, notably, Windows,
+    with recent versions of all the maintained CL implementations.
+  * Internals of ASDF systematically cleaned up and documented.
+  * Build, test, release infrastructure improved, both classic and asdf-tools.
+  * Documentation updated.
+
+ -- Francois-Rene Rideau <fare@tunes.org>  Sun, 08 Jan 2017 20:45:29 -0500
+
 cl-asdf (2:3.1.7-1) unstable; urgency=low
 
   Bug fix and portability release:
