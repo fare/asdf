@@ -1,6 +1,8 @@
 (unless (os-unix-p)
   (leave-test "This test can only be run on UNIX" 0))
 
+(chdir *test-directory*)
+
 #+abcl
 (unless (version-satisfies
          (second (split-string (implementation-identifier) :separator '(#\-)))
