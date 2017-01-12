@@ -155,6 +155,47 @@ be moved from one internal package to the other, without notification.
 They have in the past and will in the future.
 
 
+When to use UIOP
+----------------
+
+UIOP is the ideal tool to use when:
+
+*   You need utilities that are always available,
+    portably, with no installation needed.
+*   You work in a cooperative environment, where the user is a developer
+    who understands what he's doing and is trusted not to be malicious.
+*   You are writing a build system, build tools, developer-facing tools.
+*   You are writing bootstrap scripts, in which you cannot suppose
+    that any third-party library has been installed (yet),
+    much less a C compiler or any external tool.
+*   You are trying to make existing Common Lisp code more robust and portable,
+    or replacing developer "scripts"
+    (in shell, perl, python, ruby, js, and other blub languages)
+    with Common Lisp code, but without concerns about
+    either end-user usability or security
+    (at the very least, you, not end-users, are fully controlling pathnames,
+    and filtering off or portably encoding any unusual character, etc.)
+
+UIOP is the wrong tool when:
+
+*   You need to have total control on syscalls,
+    to use special characters in pathnames, to handle symlinks yourself,
+    or otherwise to have low-level system access.
+*   You work in an adversarial environment, where some users are stupid,
+    uneducated or outright malicious, and cannot be trusted not to try and
+    abuse the system with pathnames, symlinks, race conditions, etc.
+    (or be tricked into it by attackers).
+*   You are writing end-user facing tools that pass along user-provided
+    pathnames, with bad usability implications if a user tries to use weird
+    pathnames, or even security implications if an attackers crafts bad
+    pathnames or filesystem setups.
+
+In those latter cases, we recommend you use IOlib, or osicat,
+or some similar library that isn't as portable as UIOP,
+but provides fine-grained control over low-level system access.
+Also, please use extreme caution.
+
+
 Some history
 ------------
 
