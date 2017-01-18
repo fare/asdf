@@ -88,15 +88,18 @@ and a class-name or class designates the canonical instance of the designated cl
                    `(,function ,@prefix ,o ,c ,@suffix))))
         `(progn
            (defmethod ,function (,@prefix (,operation string) ,component ,@suffix ,@more-args)
+             (declare (notinline ,function))
              (let ((,component (find-component () ,component))) ;; do it first, for defsystem-depends-on
                ,(next-method `(safe-read-from-string ,operation :package :asdf/interface) component)))
            (defmethod ,function (,@prefix (,operation symbol) ,component ,@suffix ,@more-args)
+             (declare (notinline ,function))
              (if ,operation
                  ,(next-method
                    `(make-operation ,operation)
                    `(or (find-component () ,component) ,if-no-component))
                  ,if-no-operation))
            (defmethod ,function (,@prefix (,operation operation) ,component ,@suffix ,@more-args)
+             (declare (notinline ,function))
              (if (typep ,component 'component)
                  (error "No defined method for ~S on ~/asdf-action:format-action/"
                         ',function (make-action ,operation ,component))

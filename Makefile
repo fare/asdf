@@ -194,6 +194,7 @@ test-clean-load: build/asdf.lisp
 # test-glob has been replaced by t, and lisp by l, easier to type
 test-lisp: build/asdf.lisp
 	@cd test; ./run-tests.sh ${l} ${t}
+
 t: test-lisp
 
 test: doc test-lisp test-clean-load test-load-systems
