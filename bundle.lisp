@@ -21,7 +21,7 @@
 (in-package :asdf/bundle)
 
 (with-upgradability ()
-  (defclass bundle-op (basic-compile-op)
+  (defclass bundle-op (operation)
     ;; NB: use of instance-allocated slots for operations is DEPRECATED
     ;; and only supported in a temporary fashion for backward compatibility.
     ;; Supported replacement: Define slots on program-system instead.
@@ -107,7 +107,7 @@ itself."))
       `((,go ,@deps) ,@(call-next-method))))
 
   ;; Create a single fasl for the entire library
-  (defclass basic-compile-bundle-op (bundle-op)
+  (defclass basic-compile-bundle-op (bundle-op basic-compile-op)
     ((gather-type :initform #-(or clasp ecl mkcl) :fasl #+(or clasp ecl mkcl) :object
                   :allocation :class)
      (bundle-type :initform :fasl :allocation :class))
@@ -516,6 +516,7 @@ which is probably not what you want; you probably need to tweak your output tran
        (list
         #+clasp (compile-file-pathname (make-pathname :name name :defaults "sys:") :output-type :object)
         #+ecl (compile-file-pathname (make-pathname :name name :defaults "sys:") :type :lib)
+        #+ecl (compile-file-pathname (make-pathname :name (strcat "lib" name) :defaults "sys:") :type :lib)
         #+ecl (compile-file-pathname (make-pathname :name name :defaults "sys:") :type :object)
         #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:")
         #+mkcl (make-pathname :name name :type (bundle-pathname-type :lib) :defaults #p"sys:contrib;")))))
@@ -527,27 +528,30 @@ which is probably not what you want; you probably need to tweak your output tran
                      :name (coerce-name name)
                      :static-library (resolve-symlinks* pathname))))
 
+  (defun linkable-system (x)
+    (or (if-let (s (find-system x))
+          (and (system-source-file x) s))
+        (if-let (p (system-module-pathname (coerce-name x)))
+          (make-prebuilt-system x p))))
+
   (defmethod component-depends-on :around ((o image-op) (c system))
-    (let ((next (call-next-method))
-          (deps (make-hash-table :test 'equal)))
-      (loop* :for (do . dcs) :in next :do
-        (loop :for dc :in dcs
-          :for dep = (and dc (resolve-dependency-spec c dc))
-          :when dep :do (setf (gethash (coerce-name (component-system dep)) deps) t)))
-      (labels ((has-it-p (x) (gethash x deps))
-               (ensure-linkable-system (x)
-		 (unless (has-it-p x)
-                   (or (if-let (s (find-system x))
-                         (and (system-source-directory x)
-                              (list s)))
-                       (if-let (p (system-module-pathname x))
-                         (list (make-prebuilt-system x p)))))))
+    (let* ((next (call-next-method))
+           (deps (make-hash-table :test 'equal))
+           (linkable (loop* :for (do . dcs) :in next :collect
+                       (cons do
+                             (loop :for dc :in dcs
+                               :for dep = (and dc (resolve-dependency-spec c dc))
+                               :when dep
+                               :do (setf (gethash (coerce-name (component-system dep)) deps) t)
+                               :collect (or (and (typep dep 'system) (linkable-system dep)) dep))))))
         `((lib-op
            ,@(unless (no-uiop c)
-               (append (ensure-linkable-system "cmp")
-                       (or (ensure-linkable-system "uiop")
-                           (ensure-linkable-system "asdf")))))
-          ,@next))))
+               (list (linkable-system "cmp")
+                     (unless (or (gethash "uiop" deps) (gethash "asdf" deps))
+                       (or (linkable-system "uiop")
+                           (linkable-system "asdf")
+                           "asdf")))))
+          ,@linkable)))
 
   (defmethod perform ((o link-op) (c system))
     (let* ((object-files (input-files o c))

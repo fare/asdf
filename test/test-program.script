@@ -131,13 +131,49 @@
     :epilogue-code
     (progn
       (format t "~:[Look ma, no UIOP~;Oops, UIOP~]!~%" (find-package :uiop))
-      (format t "~:[But no TEST-PACKAGE :-(~;But TEST-PACKAGE~]!~%" (find-package :test-package))
+      (format t "~:[But no TEST-PACKAGE :-(~;And TEST-PACKAGE~]!~%" (find-package :test-package))
+      (format t "~:[And no ASDF~;But ASDF :-( ~]!~%" (find-package :asdf))
       #+ecl (si:quit 0) #+mkcl (mk-ext:quit :exit-code 0)))
   (operate 'program-op 'hello-no-uiop :force t)
   (DBG :run (output-file 'program-op 'hello-no-uiop))
   (assert-equal
    (run-program `(,(native-namestring (output-file 'program-op 'hello-no-uiop)))
                 :output :lines :error-output t)
-   '("Look ma, no UIOP!" "But TEST-PACKAGE!")))
+   '("Look ma, no UIOP!" "And TEST-PACKAGE!" "And no ASDF!"))
+
+  (DBG "Now create an program with explicit ASDF dependency, without registered ASDF (use implementation-provided prebuilt)")
+  (trace c::builder) ;; component-depends-on input-files output-files
+  (assert-pathname-equal
+   (truename (pathname-directory-pathname (output-file 'lib-op (asdf/bundle::linkable-system "asdf"))))
+   (truename (lisp-implementation-directory)))
+  (def-test-system hello-asdf
+    :class program-system
+    :depends-on ("asdf")
+    :components ((:file "file1"))
+    :epilogue-code
+    (progn
+      (format t "~:[~Oops, no ASDF~;Look ma, ASDF~]!~%" (find-package :asdf))
+      (format t "~:[But no TEST-PACKAGE :-( ~;And TEST-PACKAGE~]!~%" (find-package :test-package))
+      (uiop:quit 0)))
+  (operate 'program-op 'hello-asdf :force t)
+  (DBG :run (output-file 'program-op 'hello-asdf))
+  (assert-equal
+   (run-program `(,(native-namestring (output-file 'program-op 'hello-asdf)))
+                :output :lines :error-output t)
+   '("Look ma, ASDF!" "And TEST-PACKAGE!"))
+
+  (DBG "Now create an program with explicit ASDF dependency")
+  (register-directory *asdf-directory*)
+  (with-asdf-cache (:override t)
+    (load-asd (subpathname *asdf-directory* "asdf.asd")) ;; force re-loading ASDF, from source
+    (assert-pathname-equal
+     (truename (pathname-directory-pathname (output-file 'lib-op (asdf/bundle::linkable-system "asdf"))))
+     (truename (resolve-output "asdf/")))
+    (operate 'program-op 'hello-asdf :force t)
+    (DBG :run (output-file 'program-op 'hello-asdf))
+    (assert-equal
+     (run-program `(,(native-namestring (output-file 'program-op 'hello-asdf)))
+                  :output :lines :error-output t)
+     '("Look ma, ASDF!" "And TEST-PACKAGE!"))))
 
 ;;; TODO: include a regular system dependency and a prebuilt-system in the executable.
