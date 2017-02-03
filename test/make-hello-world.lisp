@@ -20,7 +20,7 @@
   ;; make sure mkcl-X.X.X.dll is the same directory as the executable
   (let* ((dll-orig (subpathname (si::self-truename)
                                 (strcat #-os-windows "../lib/"
-                                        "mkcl_" (lisp-implementation-version)
+                                        "mkcl_" (si:mkcl-version)
                                         "." (asdf/bundle:bundle-pathname-type :shared-library))))
          (dll-dest (subpathname pathname (strcat #-os-windows "../lib/" (file-namestring dll-orig)))))
     (ensure-directories-exist dll-dest)

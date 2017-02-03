@@ -122,8 +122,9 @@
 #+(or ecl mkcl)
 (progn
   (DBG "Now create an program without UIOP")
-  (assert (probe-file (asdf/bundle::system-module-pathname "asdf")))
-  (assert (probe-file (asdf/bundle::system-module-pathname "cmp")))
+  #+mkcl (assert (probe-file* (asdf/bundle::system-module-pathname "uiop")))
+  (assert (probe-file* (asdf/bundle::system-module-pathname "asdf")))
+  #+ecl (assert (probe-file* (asdf/bundle::system-module-pathname "cmp")))
   (def-test-system hello-no-uiop
     :class program-system
     :no-uiop t
@@ -142,10 +143,9 @@
    '("Look ma, no UIOP!" "And TEST-PACKAGE!" "And no ASDF!"))
 
   (DBG "Now create an program with explicit ASDF dependency, without registered ASDF (use implementation-provided prebuilt)")
-  (trace c::builder) ;; component-depends-on input-files output-files
   (assert-pathname-equal
    (truename (pathname-directory-pathname (output-file 'lib-op (asdf/bundle::linkable-system "asdf"))))
-   (truename (lisp-implementation-directory)))
+   (truename (subpathname (lisp-implementation-directory) #+mkcl "contrib/" #-mkcl nil)))
   (def-test-system hello-asdf
     :class program-system
     :depends-on ("asdf")

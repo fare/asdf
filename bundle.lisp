@@ -110,7 +110,7 @@ itself."))
   (defclass basic-compile-bundle-op (bundle-op basic-compile-op)
     ((gather-type :initform #-(or clasp ecl mkcl) :fasl #+(or clasp ecl mkcl) :object
                   :allocation :class)
-     (bundle-type :initform :fasl :allocation :class))
+     (bundle-type :initform :fasb :allocation :class))
     (:documentation "Base class for compiling into a bundle"))
 
   ;; Analog to prepare-op, for load-bundle-op and compile-bundle-op
@@ -217,6 +217,8 @@ for all the linkable object files associated with the system or its dependencies
       ((eql :no-output-file) ;; marker for a bundle-type that has NO output file
        (error "No output file, therefore no pathname type"))
       ((eql :fasl) ;; the type of a fasl
+       (compile-file-type)) ; on image-based platforms, used as input and output
+      ((eql :fasb) ;; the type of a fasl
        #-(or clasp ecl mkcl) (compile-file-type) ; on image-based platforms, used as input and output
        #+(or clasp ecl mkcl) "fasb") ; on C-linking platforms, only used as output for system bundles
       ((member :image)
@@ -274,7 +276,7 @@ e.g. as part of the implementation, of an outer build system that calls into ASD
 or of opaque libraries shipped along the source code."))
 
   (defclass precompiled-system (system)
-    ((build-pathname :initarg :fasl))
+    ((build-pathname :initarg :fasb :initarg :fasl))
     (:documentation "Class For a system that is delivered as a precompiled fasl"))
 
   (defclass prebuilt-system (system)
@@ -341,7 +343,7 @@ or of opaque libraries shipped along the source code."))
        (if monolithic 'monolithic-dll-op 'dll-op))
       ((:lib :static-library)
        (if monolithic 'monolithic-lib-op 'lib-op))
-      ((:fasl)
+      ((:fasb)
        (if monolithic 'monolithic-compile-bundle-op 'compile-bundle-op))
       ((:image)
        'image-op)
