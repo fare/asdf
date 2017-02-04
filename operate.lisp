@@ -203,8 +203,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
     (let* ((module (or (required-module s) (coerce-name s)))
            (*modules-being-required* (cons module *modules-being-required*)))
       (assert (null (component-children s)))
-      ;; CMUCL likes its module names to be all upcase.
-      (require (nest #+cmucl (string-upcase) module))))
+      (require module)))
 
   (defmethod resolve-dependency-combination (component (combinator (eql :require)) arguments)
     (unless (and (length=n-p arguments 1)
@@ -221,9 +220,11 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
     ;; cl:require and asdf:operate that could potentially blow up the stack,
     ;; all the while defeating the consistency of the dependency graph.
     (let* ((module (car arguments)) ;; NB: we already checked that it was not null
-           (name (string-downcase module))
-           (system (find-system name nil)))
-      (or system (let ((system (make-instance 'require-system :name name)))
+           ;; CMUCL, MKCL, SBCL like their module names to be all upcase.
+           (module-name (string module))
+           (system-name (string-downcase module))
+           (system (find-system system-name nil)))
+      (or system (let ((system (make-instance 'require-system :name system-name :module module-name)))
                    (register-system system)
                    system))))
 
@@ -233,10 +234,11 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
     ;; with a name that is traditionally in lowercase. Case is lost along the way. That's fine.
     ;; We could make complex, non-portable rules to try to preserve case, and just documenting
     ;; them would be a hell that it would be a disservice to inflict on users.
-    (let ((module (string-downcase name)))
-      (unless (member module *modules-being-required* :test 'equal)
-        (let ((*modules-being-required* (cons module *modules-being-required*))
-              #+sbcl (sb-impl::*requiring* (remove module sb-impl::*requiring* :test 'equal)))
+    (let ((module-name (string name))
+          (system-name (string-downcase name)))
+      (unless (member module-name *modules-being-required* :test 'equal)
+        (let ((*modules-being-required* (cons module-name *modules-being-required*))
+              #+sbcl (sb-impl::*requiring* (remove module-name sb-impl::*requiring* :test 'equal)))
           (handler-bind
               ((style-warning #'muffle-warning)
                (missing-component (constantly nil))
@@ -245,9 +247,9 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
                     (format *error-output* (compatfmt "~@<ASDF could not load ~(~A~) because ~A.~@:>~%")
                             name e))))
             (let ((*verbose-out* (make-broadcast-stream)))
-              (let ((system (find-system module nil)))
+              (let ((system (find-system system-name nil)))
                 (when system
-                  (require-system system :verbose nil)
+                  (require-system system-name :verbose nil)
                   t)))))))))
 
 
