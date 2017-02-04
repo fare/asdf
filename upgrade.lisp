@@ -46,9 +46,10 @@ You can compare this string with e.g.: (ASDF:VERSION-SATISFIES (ASDF:ASDF-VERSIO
   ;; This public variable will be bound shortly to the currently loaded version of ASDF.
   (defvar *asdf-version* nil)
   ;; We need to clear systems from versions older than the one in this (private) parameter.
-  ;; The latest incompatible defclass is 2.32.13 renaming a slot in component;
+  ;; The latest incompatible defclass is 2.32.13 renaming a slot in component,
+  ;; or 3.2.0.2 for CCL (incompatibly changing some superclasses).
   ;; the latest incompatible gf change is in 3.1.7.20 (see redefined-functions below).
-  (defparameter *oldest-forward-compatible-asdf-version* "3.1.7.20")
+  (defparameter *oldest-forward-compatible-asdf-version* "3.2.0.2")
   ;; Semi-private variable: a designator for a stream on which to output ASDF progress messages
   (defvar *verbose-out* nil)
   ;; Private function by which ASDF outputs progress messages and warning messages:
@@ -122,7 +123,15 @@ previously-loaded version of ASDF."
         (redefined-classes
          ;; redefining the classes causes interim circularities
          ;; with the old ASDF during upgrade, and many implementations bork
-         '((#:compile-concatenated-source-op (#:operation) ()))))
+         #-clozure ()
+         #+clozure
+         '((#:compile-concatenated-source-op (#:operation) ())
+           (#:compile-bundle-op (#:operation) ())
+           (#:concatenate-source-op (#:operation) ())
+           (#:dll-op (#:operation) ())
+           (#:lib-op (#:operation) ())
+           (#:monolithic-compile-bundle-op (#:operation) ())
+           (#:monolithic-concatenate-source-op (#:operation) ()))))
     (loop :for name :in redefined-functions
       :for sym = (find-symbol* name :asdf nil)
       :do (when sym (fmakunbound sym)))
