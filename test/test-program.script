@@ -1,7 +1,8 @@
 ;;; -*- Lisp -*-
 (DBG :foo (current-lisp-file-pathname))
 
-(unless (or #+(or allegro (and clisp os-unix) clozure cmucl (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
+(unless (or #+(or allegro (and clisp os-unix) clozure cmucl
+                  (and ecl (not ecl-bytecmp)) lispworks mkcl sbcl scl) t)
   (DBG "Creating images is not supported on your CL implementation")
   (leave-test "Skipping test" 0))
 
@@ -43,6 +44,7 @@
     (lisp-invocation:invoke-lisp
      :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
+     :console t
      :load (native-namestring (subpathname *test-directory* "make-hello-world.lisp"))
      :eval (format nil "(asdf-test::make-hello-~(~a~))" kind)
      :run-program-args
@@ -70,6 +72,7 @@
      :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
      :cross-compile nil
      :image-path (native-namestring img)
+     :console t
      :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
      :run-program-args '(:output :lines :error-output t)))
    '("hello, world"))
@@ -81,6 +84,7 @@
     :implementation-type (lisp-invocation/allegro-variants:current-lisp-variant)
     :image-path (native-namestring img)
     :cross-compile nil
+    :console t
     :eval "(uiop:restore-image :entry-point 'hello:entry-point :lisp-interaction nil)"
     :arguments '("a" "b c" "d")
     :run-program-args '(:output :lines :error-output t))

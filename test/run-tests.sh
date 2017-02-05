@@ -181,9 +181,9 @@ do_tests () {
 # not used currently but leave here for future reference.
 #
 case $(uname) in
-    CYGWIN*) os=windows ;;
-    Darwin) os=macos ;;
-    Linux) os=linux ;;
+    CYGWIN*|MSYS_NT*) os=windows ;;
+    Darwin*) os=macos ;;
+    Linux*) os=linux ;;
     *) os=unknown ;;
 esac
 
@@ -223,9 +223,9 @@ case "$lisp" in
     # echo ALLEGRO=$ALLEGRO
     flags="-q"
     nodebug="-batch"
-    if [ "$os" = windows ] && [ -z "$ALLEGRO_NOISY" ] ; then
+    if [ "$os" = windows ] ; then
         adir=$(dirname "${command}") ;
-        allegroName=$(basename "${command}") ;
+        allegroName=$(basename "${command}" ".exe") ;
         if [[ ${allegroName: -1} == "8" ]] ; then build=build ; else build=buildi ; fi ;
         # this takes somewhat unjustifiable advantage of the fact that
         # the Allegro images have the same name (with .dxl extension)
