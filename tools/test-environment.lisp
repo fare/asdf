@@ -136,7 +136,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
           (upgrade-methods ((upgrade-methods *upgrade-test-methods*))
            (setf upgrade-methods (get-upgrade-methods upgrade-methods)))
           (new-version (new-version)
-           (setf new-version (or new-version (next-version (version-from-file))))))
+           (setf new-version (or new-version (compute-next-version (version-from-file))))))
         :for arg :in args
         :for (found larg init) = (assoc arg argmap)
         :append (if found larg (list arg)) :into largs

@@ -51,7 +51,7 @@
 (defparameter *old-version* :default)
 (defparameter *new-version* :default)
 
-(defun next-version (v)
+(defun compute-next-version (v)
   (let ((pv (parse-version v 'error)))
     (assert (first pv))
     (assert (second pv))
@@ -70,7 +70,7 @@
       (v1 (check (version-from-file) v1))
       ((not (eq *new-version* :default)) *new-version*) ;; Ugly passing of argument from Makefile.
       (t (let ((old (version-from-file)))
-           (check old (next-version old)))))))
+           (check old (compute-next-version old)))))))
 
 (deftype byte-vector () '(array (unsigned-byte 8) (*)))
 
