@@ -1,8 +1,8 @@
 (defsystem "asdf-tools"
   :description "tools to build, test, maintain and release ASDF itself"
-  :depends-on ((:version "asdf" "3.1.6")
+  :depends-on ((:version "asdf" "3.2.0")
                (:version "inferior-shell" "2.0.3.4")
-               (:version "lisp-invocation/all" "1.0.12")
+               (:version "lisp-invocation/all" "1.0.14")
                (:version "cl-ppcre" "2.0.11")
                (:version "optima.ppcre" "1.0")
                (:version "cl-scripting" "0.2")

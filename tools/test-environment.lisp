@@ -157,7 +157,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
      (apply ',real args)))
 
 (deftestcmd interactive-command (lisp)
-  (let* ((command (lisp-invocation-arglist :implementation-type lisp :debugger t)))
+  (let* ((command (lisp-invocation-arglist :implementation-type lisp :debugger t :console t)))
     (return-from interactive-command (cons "rlwrap" command))))
 
 (defparameter *default-test-lisps*
@@ -222,7 +222,7 @@ and which systems to test loading with ASDF_TEST_SYSTEMS or s=
   (format t "~&Now ~A...~@[ (log in ~A)~]~%" activity log)
   (let* ((eval (compose-non-special-string forms)) ;; at least avoiding ~% is necessary on Windows.
          (command (lisp-invocation-arglist :implementation-type (get-lisp lisp)
-                                           :eval eval :debugger debugger))
+                                           :eval eval :debugger debugger :console t))
          (interactive (if (eq output :interactive) :interactive nil))
          (output (if (eq output t) *standard-output* output))
          (output (if (eq output *stdout*) :interactive output)))
