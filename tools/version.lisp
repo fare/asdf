@@ -2,7 +2,7 @@
 
 ;;; Extracting version information
 
-(defparameter *version-tag-glob* "[0-9][.][0-9]*")
+(defparameter *version-tag-glob* "[0-9][.][0-9]*") ;; NB: it's a glob, not regex
 
 (defun version-from-tag (&optional commit)
   ;; run-program issue: :output :line closes the fd, which causes the program to die in error.
@@ -144,3 +144,4 @@
     (git `(commit -a -m ("Bump version to ",v)))
     (git `(tag ,v))
     v))
+

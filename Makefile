@@ -36,6 +36,7 @@ version := $(shell cat "version.lisp-expr")
 #$(info $$version is [${version}])
 version := $(patsubst "%",%,$(version))
 #$(info $$version is [${version}])
+fullversion := $(shell git describe --tags --match "[0-9][.][0-9]*" 2> /dev/null || echo $(version))
 
 ## grep for #+/#- features in the test/ directory to see plenty of disabled tests on some platforms
 ## NOT SUPPORTED BY OUR AUTOMATED TESTS:
@@ -85,7 +86,7 @@ all_lisp := $(header_lisp) $(driver_lisp) $(defsystem_lisp)
 print-%  : ; @echo $* = $($*)
 
 # Making ASDF itself should be our first, default, target:
-build/asdf.lisp: $(all_lisp)
+build/asdf.lisp: show-version $(all_lisp)
 	mkdir -p build
 	rm -f $@
 	cat $(all_lisp) > $@
@@ -191,6 +192,9 @@ u: test-upgrade
 test-clean-load: build/asdf.lisp
 	./test/run-tests.sh -c ${l}
 
+show-version:
+	@echo "Building and testing asdf $(fullversion)"
+
 # test-glob has been replaced by t, and lisp by l, easier to type
 test-lisp: build/asdf.lisp
 	@cd test; ./run-tests.sh ${l} ${t}
@@ -276,7 +280,7 @@ TODO:
 
 release: TODO test-all test-on-other-machines-too debian-changelog debian-package send-mail-to-mailing-lists
 
-.PHONY: install archive push doc website clean mrproper \
+.PHONY: install archive push doc website clean mrproper show-version \
 	test-forward-references test test-lisp test-upgrade test-forward-references \
 	test-all test-all-lisps test-all-no-upgrade \
 	debian-package release \

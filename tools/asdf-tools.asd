@@ -21,6 +21,6 @@
    (:file "test-basic" :depends-on ("test-environment"))
    (:file "test-scripts" :depends-on ("test-environment"))
    (:file "test-upgrade" :depends-on ("test-environment" "git"))
-   (:file "test-all" :depends-on ("test-environment"))
+   (:file "test-all" :depends-on ("test-basic"))
    (:file "installation" :depends-on ("test-environment"))
    (:file "release" :depends-on ("version" "test-environment" "git"))))
