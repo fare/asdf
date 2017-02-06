@@ -48,10 +48,10 @@ The UNIX-y name will be downcased, and any % prefix will be dropped."
     ext-init ext-clear ext-reset ext-update ;; extension
     git-all-committed-p
     bump-version bump ;; version
-    test-load-systems test-clean-load test-basic test-ascii %load install-asdf ;; test-basic
+    test-load-systems test-clean-load test-basic test-ascii %load install-asdf show-version ;; test-basic
     test %t test-scripts ;; test-scripts
     test-upgrade u extract-tagged-asdf extract-all-tagged-asdf extract ;; test-upgrade
-    test-all-clean-load test-all-scripts test-all-no-upgrade test-all-upgrade ;; test-all
+    test-all-basic test-all-clean-load test-all-scripts test-all-no-upgrade test-all-upgrade ;; test-all
     test-all test-all-scripts-no-stop test-all-upgrade-no-stop
     test-all-no-upgrade-no-stop test-all-no-stop
     check-all-scripts-results check-all-upgrade-results check-all-results
