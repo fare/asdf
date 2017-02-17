@@ -223,7 +223,8 @@ then returning the non-empty string value of the variable"
                       (ecase ext:*case-mode* (:upper "") (:lower "l")))
         #+ecl (format nil "~A~@[-~A~]" s
                       (let ((vcs-id (ext:lisp-implementation-vcs-id)))
-                        (subseq vcs-id 0 (min (length vcs-id) 8))))
+                        (unless (equal vcs-id "UNKNOWN")
+                          (subseq vcs-id 0 (min (length vcs-id) 8)))))
         #+gcl (subseq s (1+ (position #\space s)))
         #+genera
         (multiple-value-bind (major minor) (sct:get-system-version "System")
