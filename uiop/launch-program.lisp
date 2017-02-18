@@ -522,10 +522,10 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                ;; NB: On other Windows implementations, this is utterly bogus
                ;; except in the most trivial cases where no quoting is needed.
                ;; Use at your own risk.
-               #-(or allegro clisp clozure)
+               #-(or allegro clisp clozure ecl)
                (nest
-                #+sbcl (unless (find-symbol* :escape-arguments :sb-impl nil))
-                (parameter-error "~S doesn't support string commands on Windows on this lisp: ~S"
+                #+(or ecl sbcl) (unless (find-symbol* :escape-arguments #+ecl :ext #+sbcl :sb-impl nil))
+                (parameter-error "~S doesn't support string commands on Windows on this Lisp"
                                  'launch-program command))
                ;; NB: We add cmd /c here. Behavior without going through cmd is not well specified
                ;; when the command contains spaces or special characters:
@@ -537,8 +537,9 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
                ;; On ClozureCL for Windows, we assume you are using
                ;; r15398 or later in 1.9 or later,
                ;; so that bug 858 is fixed http://trac.clozure.com/ccl/ticket/858
+               ;; On ECL, commit 2040629 https://gitlab.com/embeddable-common-lisp/ecl/issues/304
                ;; On SBCL, we assume the patch from fcae0fd (to be part of SBCL 1.3.13)
-               #+(or clozure sbcl) (cons "cmd" (strcat "/c " command)))
+               #+(or clozure ecl sbcl) (cons "cmd" (strcat "/c " command)))
               #+os-windows
               (list
                #+allegro (escape-windows-command command)
@@ -546,7 +547,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
      #+(or abcl (and allegro os-unix) clozure cmucl ecl mkcl sbcl)
      (let ((program (car command))
            #-allegro (arguments (cdr command))))
-     #+(and sbcl os-windows)
+     #+(and (or ecl sbcl) os-windows)
      (multiple-value-bind (arguments escape-arguments)
          (if (listp arguments)
              (values arguments t)
@@ -569,7 +570,7 @@ LAUNCH-PROGRAM returns a PROCESS-INFO object."
            #+mkcl 'mk-ext:run-program
            #+sbcl 'sb-ext:run-program
            #+(or abcl clozure cmucl ecl mkcl sbcl) ,@'(program arguments)
-           #+(and sbcl os-windows) ,@'(:escape-arguments escape-arguments)
+           #+(and (or ecl sbcl) os-windows) ,@'(:escape-arguments escape-arguments)
            :input input :if-input-does-not-exist :error
            :output output :if-output-exists :append
            ,(or #+(or allegro lispworks) :error-output :error) error-output
