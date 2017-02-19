@@ -124,8 +124,9 @@ Use at a given tag, put it under build/asdf-${tag}.lisp"
        :allegro_64_s :allegromodern_64_s :allegro8_64_s :allegromodern8_64_s)
       (version<= "2.27" tag))
 
-     ;; CCL fasl numbering broke loading of old asdf 2.0
-     ((:ccl) (or (version< tag "2.0") (version<= "2.20" tag)))
+     ;; CCL fasl numbering broke loading of old asdf 2.0, and the punting for 2.26 fails,
+     ;; but who cares since CCL has always been shipping recent versions of ASDF.
+     ((:ccl) (version<= "2.27" tag))
 
      ;; CLASP is only supported as of 3.1.4.3
      ((:clasp) (version<= "3.1.4.3" tag))
