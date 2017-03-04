@@ -14,7 +14,7 @@
 (in-package :uiop/backward-driver)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-(with-deprecation ((version-deprecation *uiop-version* :style-warning "3.2.0" :warning "3.2.1"))
+(with-deprecation ((version-deprecation *uiop-version* :style-warning "3.2"))
   ;; Backward compatibility with ASDF 2.000 to 2.26
 
   ;; For backward-compatibility only, for people using internals
