@@ -10,7 +10,7 @@
         :asdf/system :asdf/system-registry :asdf/find-component :asdf/forcing)
   (:export
    #:plan #:plan-traversal #:sequential-plan #:*plan-class*
-   #:action-status #:status-stamp #:status-done-p #:status-keep-p #:status-need-p
+   #:action-status #:status-stamp #:status-index #:status-done-p #:status-keep-p #:status-need-p
    #:+status-good+ #:+status-todo+ #:+status-void+
    #:system-out-of-date #:action-up-to-date-p
    #:circular-dependency #:circular-dependency-actions
@@ -63,7 +63,11 @@
      (stamp
       :type (or integer boolean) :initarg :stamp :reader status-stamp
       :documentation "STAMP associated with the ACTION if it has been completed already
-in some previous image, or T if it needs to be done."))
+in some previous image, or T if it needs to be done.")
+     (index
+      :type (or integer null) :initarg :index :initform nil :reader status-index
+      :documentation "INDEX associated with the ACTION in the current session,
+or NIL if no the status is considered outside of a specific plan."))
     (:documentation "Status of an action in a plan"))
 
   ;; STAMP   KEEP-P DONE-P NEED-P     symbol bitmap  previously   currently
@@ -101,18 +105,19 @@ in some previous image, or T if it needs to be done."))
     (make-instance 'action-status :bits +void-bits+ :stamp nil)))
 
 (with-upgradability ()
-  (defun make-action-status (&key bits stamp)
+  (defun make-action-status (&key bits stamp index)
     (check-type bits (integer 0 7))
     (check-type stamp (or integer boolean))
+    (check-type index (or integer null))
     (assert (eq (null stamp) (zerop (logand bits #.(logior +keep-bit+ +done-bit+)))) ()
             "Bad action-status :bits ~S :stamp ~S" bits stamp)
-    (case bits
-      (+void-bits+ +status-void+)
-      (+todo-bits+ +status-todo+)
-      (otherwise
-       (if (and (= bits +good-bits+) (eq stamp t))
-           +status-good+
-           (make-instance 'action-status :bits bits :stamp stamp)))))
+    (block nil
+      (when (null index)
+        (case bits
+          (#.+void-bits+ (return +status-void+))
+          (#.+todo-bits+ (return +status-todo+))
+          (#.+good-bits+ (when (eq stamp t) (return +status-good+)))))
+      (make-instance 'action-status :bits bits :stamp stamp :index index)))
 
   (defun status-keep-p (status)
     (plusp (logand (status-bits status) #.+keep-bit+)))
@@ -125,7 +130,8 @@ in some previous image, or T if it needs to be done."))
     "Return the latest status earlier than both status1 and status2"
     (make-action-status
      :bits (logand (status-bits status1) (status-bits status2))
-     :stamp (latest-stamp (status-stamp status1) (status-stamp status2))))
+     :stamp (latest-stamp (status-stamp status1) (status-stamp status2))
+     :index (or (status-index status1) (status-index status2))))
 
   (defun mark-status-needed (status)
     "Return the same status but with the need bit set"
@@ -133,7 +139,8 @@ in some previous image, or T if it needs to be done."))
         status
         (make-action-status
          :bits (logior (status-bits status) +need-bit+)
-         :stamp (status-stamp status))))
+         :stamp (status-stamp status)
+         :index (status-index status))))
 
   (defmethod print-object ((status action-status) stream)
     (print-unreadable-object (status stream :type t)
@@ -336,7 +343,8 @@ initialized with SEED."
        :bits (logior (if stamp #.+keep-bit+ 0)
                      (if done-p #.+done-bit+ 0)
                      (if need-p #.+need-bit+ 0))
-       :stamp stamp)))
+       :stamp stamp
+       :index (incf (total-action-count *asdf-session*)))))
 
   ;; TRAVERSE-ACTION, in the context of a given PLAN object that accumulates dependency data,
   ;; visits the action defined by its OPERATION and COMPONENT arguments,
@@ -528,4 +536,5 @@ return a list of the components involved in building the desired action."
             (setf (action-status plan o c)
                   (make-action-status
                    :bits (logior (status-bits perform-status) +done-bit+)
-                   :stamp (status-stamp perform-status)))))))))
+                   :stamp (status-stamp perform-status)
+                   :index (status-index plan-status)))))))))
