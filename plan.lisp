@@ -11,13 +11,14 @@
   (:export
    #:plan #:plan-traversal #:sequential-plan #:*plan-class*
    #:action-status #:status-stamp #:status-index #:status-done-p #:status-keep-p #:status-need-p
+   #:action-already-done-p
    #:+status-good+ #:+status-todo+ #:+status-void+
    #:system-out-of-date #:action-up-to-date-p
    #:circular-dependency #:circular-dependency-actions
    #:needed-in-image-p
    #:map-direct-dependencies #:reduce-direct-dependencies #:direct-dependencies
    #:compute-action-stamp #:traverse-action #:record-dependency
-   #:make-plan #:plan-actions #:plan-actions-r #:perform-plan
+   #:make-plan #:plan-actions #:plan-actions-r #:perform-plan #:mark-as-done
    #:required-components #:filtered-sequential-plan
    #:plan-component-type #:plan-keep-operation #:plan-keep-component))
 (in-package :asdf/plan)
@@ -172,13 +173,14 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defmethod action-status ((p plan) (o operation) (c component))
     ;; TODO: should we instead test something like:
     ;; (action-forced-not-p plan operation (primary-system component))
-    (if (action-forced-not-p (forcing p) o c)
-        (let ((status (action-status nil o c)))
-          (if (= +good-bits+ (status-bits status))
-              status
-              (make-action-status :bits +good-bits+
-                                  :stamp (or (and status (status-stamp status)) t))))
-        (values (gethash (make-action o c) (visited-actions *asdf-session*)))))
+    (or (gethash (make-action o c) (visited-actions *asdf-session*))
+        (when (action-forced-not-p (forcing p) o c)
+          (let ((status (action-status nil o c)))
+            (setf (gethash (make-action o c) (visited-actions *asdf-session*))
+                  (make-action-status
+                   :bits +good-bits+
+                   :stamp (or (and status (status-stamp status)) t)
+                   :index (incf (total-action-count *asdf-session*))))))))
 
   (defmethod (setf action-status) (new-status (p plan) (o operation) (c component))
     (setf (gethash (make-action o c) (visited-actions *asdf-session*)) new-status))
@@ -504,6 +506,10 @@ return a list of the components involved in building the desired action."
     (:documentation "Generate and return a plan for performing OPERATION on COMPONENT."))
   (define-convenience-action-methods make-plan (plan-class operation component &key))
 
+  (defgeneric mark-as-done (plan-class operation component)
+    (:documentation "Mark an action as done in a plan, after performing it."))
+  (define-convenience-action-methods mark-as-done (plan-class operation component))
+
   (defgeneric perform-plan (plan &key)
     (:documentation "Actually perform a plan and build the requested actions"))
 
@@ -523,18 +529,25 @@ return a list of the components involved in building the desired action."
       (with-compilation-unit () ;; backward-compatibility.
         (call-next-method))))   ;; Going forward, see deferred-warning support in lisp-build.
 
+  (defun action-already-done-p (plan operation component)
+    (if-let (status (action-status plan operation component))
+      (status-done-p status)))
+
   (defmethod perform-plan ((plan t) &key)
     (loop :for action :in (plan-actions plan)
       :as o = (action-operation action)
       :as c = (action-component action) :do
-      (let ((plan-status (action-status plan o c)))
-        (unless (status-done-p plan-status)
-          (perform-with-restarts o c)
-          (let ((perform-status (action-status nil o c)))
-            (assert (and (status-stamp perform-status) (status-done-p perform-status)) ()
-                    "Just performed ~A but failed to mark it done" (action-description o c))
-            (setf (action-status plan o c)
-                  (make-action-status
-                   :bits (logior (status-bits perform-status) +done-bit+)
-                   :stamp (status-stamp perform-status)
-                   :index (status-index plan-status)))))))))
+      (unless (action-already-done-p plan o c)
+        (perform-with-restarts o c)
+        (mark-as-done plan o c))))
+
+  (defmethod mark-as-done ((plan plan) (o operation) (c component))
+    (let ((plan-status (action-status plan o c))
+          (perform-status (action-status nil o c)))
+      (assert (and (status-stamp perform-status) (status-done-p perform-status)) ()
+              "Just performed ~A but failed to mark it done" (action-description o c))
+      (setf (action-status plan o c)
+            (make-action-status
+             :bits (logior (status-bits perform-status) +done-bit+)
+             :stamp (status-stamp perform-status)
+             :index (status-index plan-status))))))
