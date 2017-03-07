@@ -12,7 +12,8 @@
   (def-test-system "fooey")
   (def-test-system "foo")
   (defmethod input-files :after ((o load-op) (c system))
-    (tick))
+    (DBG :input-files-after-1 o c
+         (tick)))
   (assert-equal *ticks* 0)
   (input-files 'load-op "foo")
   (assert-equal *ticks* 1)
@@ -108,10 +109,10 @@
 (def-test-system "fooey")
 (setf *ticks* 10)
 (defmethod input-files :after ((o load-op) (c system))
-  (DBG :input-files o c)
-  (incf *ticks*))
+  (DBG :input-files-after-2 o c
+       (tick)))
 (input-files 'load-op "uiop")
-(assert-equal *ticks* 11)
+(assert-equal *ticks* 12)
 (with-expected-failure (#+xcl t)
   ;; expected-failure: XCL has trouble with the ASDF upgrade
   (load-system :asdf))

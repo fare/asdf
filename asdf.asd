@@ -21,7 +21,13 @@
 
 #+asdf3
 (defsystem "asdf/driver"
-  :depends-on ("uiop"))
+  ;; This is the same as "uiop", but used for transclusion in asdf.lisp.
+  ;; Because asdf.asd can't afford to depend on reading uiop.asd
+  ;; (which would cause circularity, since everything depends on reading asdf.asd),
+  ;; we can't "just" :depends-on ("uiop") like we used to do.
+  :pathname "uiop"
+  :around-compile call-without-redefinition-warnings ;; we need be the same as uiop
+  :components #.(getf (read-file-form (subpathname *load-pathname* "uiop/uiop.asd") :at 2) :components))
 
 #+asdf3
 (defsystem "asdf/defsystem"
@@ -40,7 +46,7 @@
   :build-operation monolithic-concatenate-source-op
   :build-pathname "build/asdf" ;; our target
   :around-compile call-without-redefinition-warnings ;; we need be the same as uiop
-  :depends-on ("asdf/prelude" "uiop")
+  :depends-on ("asdf/prelude" "asdf/driver")
   :encoding :utf-8
   :components
   ((:file "upgrade")
