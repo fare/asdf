@@ -468,8 +468,8 @@ Update the VISITED-ACTIONS table with the known status, but don't add anything t
     (when (action-valid-p operation component)
       (while-visiting-action (operation component) ; maintain context, handle circularity.
         (let ((action (make-action operation component)))
-          (unless (gethash action (visited-actions *asdf-session*))
-            (setf (gethash action (visited-actions *asdf-session*)) t)
+          (unless (nth-value 1 (gethash action (visited-actions *asdf-session*)))
+            (setf (gethash action (visited-actions *asdf-session*)) nil)
             (when (and (typep component (plan-component-type plan))
                        (not (action-forced-not-p (forcing plan) operation component)))
               (map-direct-dependencies operation component
