@@ -53,14 +53,17 @@
       (if-let ((action (first (visiting-action-list *asdf-session*))))
         (let ((parent-operation (action-operation action))
               (parent-component (action-component action)))
-          (unless (and (typep parent-operation 'define-op) (typep parent-component 'system))
-            (error "Invalid recursive use of (OPERATE ~S ~S) while visiting ~S ~
-- please use proper dependencies instead."
-                   operation component action))
-          (let ((action (cons operation component)))
-            (unless (gethash action (definition-dependency-set parent-component))
-              (push (cons operation component) (definition-dependency-list parent-component))
-              (setf (gethash action (definition-dependency-set parent-component)) t)))))))
+          (cond
+            ((and (typep parent-operation 'define-op)
+                  (typep parent-component 'system))
+             (let ((action (cons operation component)))
+               (unless (gethash action (definition-dependency-set parent-component))
+                 (push (cons operation component) (definition-dependency-list parent-component))
+                 (setf (gethash action (definition-dependency-set parent-component)) t))))
+            (t
+             (warn (compatfmt "~@<Deprecated recursive use of (~S '~S '~S) while visiting ~S ~
+- please use proper dependencies instead~@:>")
+                   'operate (type-of operation) (component-find-path component) (action-path action))))))))
 
   (defmethod component-depends-on ((o define-op) (s system))
     `(;;NB: 1- ,@(system-defsystem-depends-on s)) ; Should be already included in the below.
