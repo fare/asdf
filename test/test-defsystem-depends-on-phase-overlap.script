@@ -1,7 +1,5 @@
 ;;-*- Lisp -*-
 
-;; TODO: make it files, so that DEFINE-OP can propagate and cause reloading.
-
 (in-package :asdf-test)
 
 (setf *central-registry* (list (subpathname *test-directory* "defsystem-depends-on/")))
@@ -45,3 +43,13 @@
 (with-asdf-session (:override t)
   (load-system "main-system" :force '("overlapping-dependency")))
 (assert-equal (list *od* *dd* *id* *ms*) '(1 1 1 1))
+
+(DBG "actions marked as needed at one level should still be planned if needed at a higher level")
+(reset-vars)
+(setf (find-class 'asdf::my-cl-source-file) nil)
+(asdf::clear-registered-systems)
+(assert-equal *dd* 0)
+(with-asdf-session (:override t)
+  (test-system "defsystem-dependency"))
+(assert-equal *dd* 10)
+

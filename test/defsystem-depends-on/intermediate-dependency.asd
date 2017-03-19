@@ -1,3 +1,3 @@
 (defsystem "intermediate-dependency"
   :defsystem-depends-on ("defsystem-dependency")
-  :components ((:file "intermediate-dependency")))
+  :components ((:my-cl-source-file "intermediate-dependency")))
