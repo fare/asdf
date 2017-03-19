@@ -82,7 +82,11 @@ But do NOT depend on it, for this is deprecated behavior."))
      (let* ((*verbose-out* (and verbose *standard-output*))
             (*compile-file-warnings-behaviour* on-warnings)
             (*compile-file-failure-behaviour* on-failure)))
-     (call-next-method)))
+     (unwind-protect
+          (progn
+            (incf (operate-level))
+            (call-next-method))
+       (decf (operate-level)))))
 
   (defmethod operate :before ((operation operation) (component component)
                               &key version)

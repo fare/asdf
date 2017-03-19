@@ -15,6 +15,7 @@
    #:visited-actions #:visiting-action-set #:visiting-action-list
    #:total-action-count #:planned-action-count #:planned-output-action-count
    #:clear-configuration-and-retry #:retry
+   #:operate-level
    ;; conditions
    #:system-definition-error ;; top level, moved here because this is the earliest place for it.
    #:formatted-system-definition-error #:format-control #:format-arguments #:sysdef-error))
@@ -43,6 +44,11 @@
      (session-cache
       :initform (make-hash-table :test 'equal) :initarg :session-cache :reader session-cache
       :documentation "Memoize expensive computations")
+     (operate-level
+      :initform 0 :initarg :operate-level :accessor session-operate-level
+      :documentation "Number of nested calls to operate we're under (for toplevel session only)")
+     ;; shouldn't the below be superseded by the session-wide caching of action-status
+     ;; for (load-op "asdf") ?
      (asdf-upgraded-p
       :initform nil :initarg :asdf-upgraded-p :accessor asdf-upgraded-p
       :documentation "Was ASDF already upgraded in this session - only valid for toplevel-asdf-session.")
@@ -65,6 +71,12 @@
 
   (defun toplevel-asdf-session ()
     (when *asdf-session* (or (session-ancestor *asdf-session*) *asdf-session*)))
+
+  (defun operate-level ()
+    (session-operate-level (toplevel-asdf-session)))
+
+  (defun (setf operate-level) (new-level)
+    (setf (session-operate-level (toplevel-asdf-session)) new-level))
 
   (defun asdf-cache ()
     (session-cache *asdf-session*))

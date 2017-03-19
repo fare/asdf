@@ -60,11 +60,14 @@
   (defclass action-status ()
     ((bits
       :type fixnum :initarg :bits :reader status-bits
-      :documentation "a fixnum, bitmap describing the status of the action.")
+      :documentation "bitmap describing the status of the action.")
      (stamp
       :type (or integer boolean) :initarg :stamp :reader status-stamp
-      :documentation "STAMP associated with the ACTION if it has been completed already
-in some previous image, or T if it needs to be done.")
+      :documentation "STAMP associated with the ACTION if it has been completed already in some
+previous sessino or image, T if it was done and builtin the image, or NIL if it needs to be done.")
+     (level
+      :type fixnum :initarg :level :initform 0 :reader status-level
+      :documentation "the highest (operate-level) at which the action was needed")
      (index
       :type (or integer null) :initarg :index :initform nil :reader status-index
       :documentation "INDEX associated with the ACTION in the current session,
@@ -86,8 +89,12 @@ or NIL if no the status is considered outside of a specific plan."))
   ;; action is up-to-date with ACTION-UP-TO-DATE-P.
   ;;
   ;; When traversing an action, the +need-bit+ is set,
-  ;; unless the action is up-to-date and not needed-in-image (HERE, SKIP).
+  ;; unless the action is u  p-to-date and not needed-in-image (HERE, SKIP).
   ;; When PERFORMing an action, the +done-bit+ is set.
+  ;; When the +need-bit+ is set but not the +done-bit+, the level slot indicates which level of
+  ;; OPERATE it was last marked needed for; if it happens to be needed at a higher-level, then
+  ;; its urgency (and that of its transitive dependencies) must be escalated so that it will be
+  ;; done before the end of this level of operate.
   ;;
   ;; Also, when no ACTION-STATUS is associated to an action yet, NIL serves as a bottom value.
   ;;
@@ -106,19 +113,20 @@ or NIL if no the status is considered outside of a specific plan."))
     (make-instance 'action-status :bits +void-bits+ :stamp nil)))
 
 (with-upgradability ()
-  (defun make-action-status (&key bits stamp index)
+  (defun make-action-status (&key bits stamp (level 0) index)
     (check-type bits (integer 0 7))
     (check-type stamp (or integer boolean))
+    (check-type level (integer 0 #.most-positive-fixnum))
     (check-type index (or integer null))
     (assert (eq (null stamp) (zerop (logand bits #.(logior +keep-bit+ +done-bit+)))) ()
             "Bad action-status :bits ~S :stamp ~S" bits stamp)
     (block nil
-      (when (null index)
+      (when (and (null index) (zerop level))
         (case bits
           (#.+void-bits+ (return +status-void+))
           (#.+todo-bits+ (return +status-todo+))
           (#.+good-bits+ (when (eq stamp t) (return +status-good+)))))
-      (make-instance 'action-status :bits bits :stamp stamp :index index)))
+      (make-instance 'action-status :bits bits :stamp stamp :level level :index index)))
 
   (defun status-keep-p (status)
     (plusp (logand (status-bits status) #.+keep-bit+)))
@@ -132,21 +140,21 @@ or NIL if no the status is considered outside of a specific plan."))
     (make-action-status
      :bits (logand (status-bits status1) (status-bits status2))
      :stamp (latest-stamp (status-stamp status1) (status-stamp status2))
+     :level (max (status-level status1) (status-level status2))
      :index (or (status-index status1) (status-index status2))))
 
-  (defun mark-status-needed (status)
-    "Return the same status but with the need bit set"
-    (if (status-need-p status)
-        status
-        (make-action-status
-         :bits (logior (status-bits status) +need-bit+)
-         :stamp (status-stamp status)
-         :index (status-index status))))
+  (defun mark-status-needed (status &optional (level (operate-level)))
+    "Return the same status but with the need bit set, for the given level"
+    (merge-action-status
+     status
+     (make-action-status
+      :bits +need-bit+
+      :level level)))
 
   (defmethod print-object ((status action-status) stream)
     (print-unreadable-object (status stream :type t)
-      (with-slots (bits stamp) status
-        (format stream "~{~S~^ ~}" `(:bits ,bits :stamp ,stamp)))))
+      (with-slots (bits stamp level index) status
+        (format stream "~{~S~^ ~}" `(:bits ,bits :stamp ,stamp :level ,level :index ,index)))))
 
   (defgeneric action-status (plan operation component)
     (:documentation "Returns the ACTION-STATUS associated to the action of OPERATION on COMPONENT
@@ -159,7 +167,7 @@ the action of OPERATION on COMPONENT in the PLAN"))
   (defmethod action-status ((plan null) (o operation) (c component))
     (multiple-value-bind (stamp done-p) (component-operation-time o c)
       (if done-p
-          (make-action-status :bits +good-bits+ :stamp stamp)
+          (make-action-status :bits #.+keep-bit+ :stamp stamp)
           +status-void+)))
 
   (defmethod (setf action-status) (new-status (plan null) (o operation) (c component))
@@ -346,6 +354,7 @@ initialized with SEED."
                      (if done-p #.+done-bit+ 0)
                      (if need-p #.+need-bit+ 0))
        :stamp stamp
+       :level (operate-level)
        :index (incf (total-action-count *asdf-session*)))))
 
   ;; TRAVERSE-ACTION, in the context of a given PLAN object that accumulates dependency data,
@@ -377,9 +386,11 @@ initialized with SEED."
                ;; effective niip: meaningful for the action and required by the plan as traversed
                (eniip (and aniip needed-in-image-p))
                ;; status: have we traversed that action previously, and if so what was its status?
-               (status (action-status plan operation component)))
+               (status (action-status plan operation component))
+               (level (operate-level)))
           (when (and status
-                     (or (status-need-p status) ;; already visited
+                     (or (status-done-p status) ;; all done
+                         (and (status-need-p status) (<= level (status-level status))) ;; already visited
                          (and (status-keep-p status) (not eniip)))) ;; up-to-date and not eniip
             (return)) ; Already visited with sufficient need-in-image level!
           (labels ((visit-action (niip) ; We may visit the action twice, once with niip NIL, then T
@@ -387,7 +398,7 @@ initialized with SEED."
                       operation component #'(lambda (o c) (traverse-action plan o c niip)))
                      ;; AFTER dependencies have been traversed, compute action stamp
                      (let* ((status (if status
-                                        (mark-status-needed status)
+                                        (mark-status-needed status level)
                                         (compute-action-status plan operation component t)))
                             (out-of-date-p (not (status-keep-p status)))
                             (to-perform-p (or out-of-date-p (and niip (not (status-done-p status))))))
@@ -544,10 +555,11 @@ return a list of the components involved in building the desired action."
   (defmethod mark-as-done ((plan plan) (o operation) (c component))
     (let ((plan-status (action-status plan o c))
           (perform-status (action-status nil o c)))
-      (assert (and (status-stamp perform-status) (status-done-p perform-status)) ()
+      (assert (and (status-stamp perform-status) (status-keep-p perform-status)) ()
               "Just performed ~A but failed to mark it done" (action-description o c))
       (setf (action-status plan o c)
             (make-action-status
-             :bits (logior (status-bits perform-status) +done-bit+)
+             :bits (logior (status-bits plan-status) +done-bit+)
              :stamp (status-stamp perform-status)
+             :level (status-level plan-status)
              :index (status-index plan-status))))))

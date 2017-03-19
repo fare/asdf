@@ -50,6 +50,8 @@
 (asdf::clear-registered-systems)
 (assert-equal *dd* 0)
 (with-asdf-session (:override t)
+  ;; get this (and asdf) out of the way, for simpler traces when tracing what matters.
+  (load-system "overlapping-dependency")
+  ;; This is what causes an issue without phase escalation:
   (test-system "defsystem-dependency"))
 (assert-equal *dd* 10)
-
