@@ -10,7 +10,8 @@
    #:operate #:oos #:build-op #:make
    #:load-system #:load-systems #:load-systems*
    #:compile-system #:test-system #:require-system #:module-provide-asdf
-   #:component-loaded-p #:already-loaded-systems))
+   #:component-loaded-p #:already-loaded-systems
+   #:recursive-operate))
 (in-package :asdf/operate)
 
 (with-upgradability ()
@@ -106,8 +107,19 @@ But do NOT depend on it, for this is deprecated behavior."))
 
   (setf (documentation 'oos 'function)
         (format nil "Short for _operate on system_ and an alias for the OPERATE function.~%~%~a"
-                (documentation 'operate 'function))))
+                (documentation 'operate 'function)))
 
+  (define-condition recursive-operate (warning)
+    ((operation :initarg :operation :reader condition-operation)
+     (component :initarg :component :reader condition-component)
+     (action :initarg :action :reader condition-action))
+    (:report (lambda (c s)
+               (format s (compatfmt "~@<Deprecated recursive use of (~S '~S '~S) while visiting ~S ~
+- please use proper dependencies instead~@:>")
+                       'operate
+                       (type-of (condition-operation c))
+                       (component-find-path (condition-component c))
+                       (action-path (condition-action c)))))))
 
 ;;;; Common operations
 (when-upgrading ()
@@ -175,9 +187,10 @@ Note that this returns true even if the component is not up to date."
 
   (defun require-system (system &rest keys &key &allow-other-keys)
     "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but do not update the
-system or its dependencies if they have already been loaded."
+system or its dependencies if it has already been loaded."
+    (declare (ignore keys))
     (unless (component-loaded-p system)
-      (apply 'load-system system :force-not (already-loaded-systems) keys))))
+      (load-system system))))
 
 
 ;;;; Define the class REQUIRE-SYSTEM, to be hooked into CL:REQUIRE when possible,
@@ -236,7 +249,7 @@ the implementation's REQUIRE rather than by internal ASDF mechanisms."))
         (let ((*modules-being-required* (cons module-name *modules-being-required*))
               #+sbcl (sb-impl::*requiring* (remove module-name sb-impl::*requiring* :test 'equal)))
           (handler-bind
-              ((style-warning #'muffle-warning)
+              (((or style-warning recursive-operate) #'muffle-warning)
                (missing-component (constantly nil))
                (fatal-condition
                 #'(lambda (e)

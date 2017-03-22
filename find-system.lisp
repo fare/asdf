@@ -61,9 +61,8 @@
                  (push (cons operation component) (definition-dependency-list parent-component))
                  (setf (gethash action (definition-dependency-set parent-component)) t))))
             (t
-             (warn (compatfmt "~@<Deprecated recursive use of (~S '~S '~S) while visiting ~S ~
-- please use proper dependencies instead~@:>")
-                   'operate (type-of operation) (component-find-path component) (action-path action))))))))
+             (warn 'recursive-operate
+                   :operation operation :component component :action action)))))))
 
   (defmethod component-depends-on ((o define-op) (s system))
     `(;;NB: 1- ,@(system-defsystem-depends-on s)) ; Should be already included in the below.
