@@ -307,7 +307,7 @@ The class needs to be updated for ASDF 3.1 and specify appropriate propagation m
  don't. In the future this functionality will be removed, and the default will be no propagation."
     (uiop/version::notify-deprecated-function
      (version-deprecation *asdf-version* :style-warning "3.2")
-     'backward-compatible-depends-on)
+     `(backward-compatible-depends-on :for-operation ,o))
     `(,@(sideway-operation-depends-on o c)
       ,@(when (typep c 'parent-component) (downward-operation-depends-on o c))))
 
