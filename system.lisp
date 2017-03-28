@@ -5,7 +5,7 @@
   (:recycle :asdf :asdf/system :asdf/find-system)
   (:use :uiop/common-lisp :uiop :asdf/upgrade :asdf/session :asdf/component)
   (:export
-   #:system #:proto-system #:undefined-system #:reset-system
+   #:system #:proto-system #:undefined-system #:reset-system-class
    #:system-source-file #:system-source-directory #:system-relative-pathname
    #:system-description #:system-long-description
    #:system-author #:system-maintainer #:system-licence #:system-license
@@ -105,10 +105,10 @@ ASDF to build."))
   (defclass undefined-system (system) ()
     (:documentation "System that was not defined yet."))
 
-  (defun reset-system (system &rest keys &key &allow-other-keys)
+  (defun reset-system-class (system new-class &rest keys &key &allow-other-keys)
     "Erase any data from a SYSTEM except its basic identity, then reinitialize it
 based on supplied KEYS."
-    (change-class (change-class system 'proto-system) 'undefined-system)
+    (change-class (change-class system 'proto-system) new-class)
     (apply 'reinitialize-instance system keys)))
 
 

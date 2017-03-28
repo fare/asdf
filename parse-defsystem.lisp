@@ -310,7 +310,8 @@ system names contained using COERCE-NAME. Return the result."
                dep-forms))
             (system (or (find-system-if-being-defined name)
                         (if-let (registered (registered-system name))
-                          (reset-system registered :name name :source-file source-file)
+                          (reset-system-class registered 'undefined-system
+                                              :name name :source-file source-file)
                           (register-system (make-instance 'undefined-system
                                                           :name name :source-file source-file)))))
             (component-options
@@ -328,7 +329,7 @@ system names contained using COERCE-NAME. Return the result."
        (unless (subtypep class 'system)
          (error 'non-system-system :name name :class-name (class-name class)))
        (unless (eq (type-of system) class)
-         (change-class system class)))
+         (reset-system-class system class)))
      (parse-component-form nil (list* :module name :pathname directory component-options))))
 
   (defmacro defsystem (name &body options)
