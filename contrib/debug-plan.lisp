@@ -1,3 +1,5 @@
+(defpackage :asdf/contrib/plan (:use :cl)) ;; dummy, for use as package-inferred-system
+
 (in-package :asdf/plan)
 
 ;; NB: Whenever compute-action-stamp is changed, this file must be updated
@@ -45,7 +47,7 @@
                                (action-path (make-action do dc))))
                        status)
                       (t
-                       (DBG "compute-action-stamp: forced by out of date dependency" (action-path (make-action o c)) action-status)
+                       (DBG "compute-action-stamp: forced by out of date dependency" (action-path (make-action o c)) (action-path (make-action do dc)) action-status)
                        (return (values nil nil))))))
               +status-good+))
             (dep-stamp (status-stamp dep-status)))
