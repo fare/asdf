@@ -142,20 +142,25 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
   ;; Returns T if everything went right, NIL if the system was an ASDF of the same or older version,
   ;; that shall not be loaded. Also issue a warning if it was a strictly older version of ASDF.
   (defun check-not-old-asdf-system (name pathname)
-    (or (not (equal name "asdf"))
+    (or (not (member name '("asdf" "uiop") :test 'equal))
         (null pathname)
-        (let* ((version-pathname (subpathname pathname "version.lisp-expr"))
+        (let* ((asdfp (equal name "asdf")) ;; otherwise, it's uiop
+               (version-pathname
+                (subpathname pathname "version" :type (if asdfp "lisp-expr" "lisp")))
                (version (and (probe-file* version-pathname :truename nil)
-                             (read-file-form version-pathname)))
+                             (read-file-form version-pathname :at (if asdfp '(0) '(2 2 2)))))
                (old-version (asdf-version)))
           (cond
-            ((version<= old-version version) t) ;; newer or same version: good!
+            ;; Don't load UIOP of the exact same version: we already loaded it as part of ASDF.
+            ((and (equal old-version version) (equal name "uiop")) nil)
+            ((version<= old-version version) t) ;; newer or same version: Good!
             (t ;; old version: bad
              (ensure-gethash
               (list (namestring pathname) version) *old-asdf-systems*
               #'(lambda ()
-                 (let ((old-pathname (system-source-file (registered-system "asdf"))))
-                   (warn "~@<~
+                  (let ((old-pathname (system-source-file (registered-system "asdf"))))
+                    (if asdfp
+                        (warn "~@<~
         You are using ASDF version ~A ~:[(probably from (require \"asdf\") ~
         or loaded by quicklisp)~;from ~:*~S~] and have an older version of ASDF ~
         ~:[(and older than 2.27 at that)~;~:*~A~] registered at ~S. ~
@@ -177,7 +182,11 @@ Do NOT try to load a .asd file directly with CL:LOAD. Always use ASDF:LOAD-ASD."
         then you might indeed want to either install and register a more recent version, ~
         or use :ignore-inherited-configuration to avoid registering the old one. ~
         Please consult ASDF documentation and/or experts.~@:>~%"
-                         old-version old-pathname version pathname))))
+                              old-version old-pathname version pathname)
+                        ;; NB: for UIOP, don't warn, just ignore.
+                        (warn "ASDF ~A (from ~A), UIOP ~A (from ~A)"
+                              old-version old-pathname version pathname)
+                        ))))
              nil))))) ;; only issue the warning the first time, but always return nil
 
   (defun locate-system (name)
