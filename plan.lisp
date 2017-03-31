@@ -135,21 +135,24 @@ or NIL if no the status is considered outside of a specific plan."))
   (defun status-need-p (status)
     (plusp (logand (status-bits status) #.+need-bit+)))
 
-  (defun merge-action-status (status1 status2)
-    "Return the latest status earlier than both status1 and status2"
+  (defun merge-action-status (status1 status2) ;; status-and
+    "Return the earliest status later than both status1 and status2"
     (make-action-status
      :bits (logand (status-bits status1) (status-bits status2))
      :stamp (latest-stamp (status-stamp status1) (status-stamp status2))
-     :level (max (status-level status1) (status-level status2))
+     :level (min (status-level status1) (status-level status2))
      :index (or (status-index status1) (status-index status2))))
 
-  (defun mark-status-needed (status &optional (level (operate-level)))
+  (defun mark-status-needed (status &optional (level (operate-level))) ;; limited status-or
     "Return the same status but with the need bit set, for the given level"
-    (merge-action-status
-     status
-     (make-action-status
-      :bits +need-bit+
-      :level level)))
+    (if (and (status-need-p status)
+             (>= (status-level status) level))
+        status
+        (make-action-status
+         :bits (logior (status-bits status) +need-bit+)
+         :level (max level (status-level status))
+         :stamp (status-stamp status)
+         :index (status-index status))))
 
   (defmethod print-object ((status action-status) stream)
     (print-unreadable-object (status stream :type t)
