@@ -8,14 +8,16 @@
 (defvar *dd* 0)
 (defvar *id* 0)
 (defvar *ms* 0)
+(defvar *cod* 0)
+(defvar *cdd* 0)
 (defun reset-vars (&optional (x 0))
-  (setf *od* x *dd* x *id* x *ms* x))
-(assert-equal (list *od* *dd* *id* *ms*) '(0 0 0 0))
+  (setf *od* x *dd* x *id* x *ms* x *cod* x *cdd* x))
+(assert-equal (list *od* *dd* *id* *ms* *cod* *cdd*) '(0 0 0 0 0 0))
 
 (DBG "Finding main-system doesn't load defsystem-dependency")
 (reset-vars)
 (find-system "main-system")
-(assert-equal (list *od* *dd* *id* *ms*) '(0 0 0 0))
+(assert-equal (list *od* *dd* *id* *ms* *cod* *cdd*) '(0 0 0 0 0 0))
 
 (DBG "Finding intermediate-dependency does load defsystem-dependency")
 (reset-vars)
@@ -25,12 +27,18 @@
 (DBG "Loading main-system doesn't reload defsystem-dependency or overlapping-dependency")
 (reset-vars)
 (load-system "main-system")
-(assert-equal (list *od* *dd* *id* *ms*) '(0 0 1 1))
+(assert-equal (list *od* *dd* *id* *ms* *cod* *cdd*) '(0 0 1 1 0 0))
 
 (DBG "Loading main-system a second time doesn't reload anything")
 (reset-vars)
 (load-system "main-system")
-(assert-equal (list *od* *dd* *id* *ms*) '(0 0 0 0))
+(assert-equal (list *od* *dd* *id* *ms* *cod* *cdd*) '(0 0 0 0 0 0))
+
+(DBG "Loading main-system in a different session loads but doesn't recompile")
+(reset-vars)
+(asdf::clear-registered-systems)
+(load-system "main-system")
+(assert-equal (list *od* *dd* *id* *ms* *cod* *cdd*) '(1 1 1 1 0 0))
 
 (DBG :foo
      (component-sideway-dependencies (find-system "intermediate-dependency"))
@@ -55,3 +63,4 @@
   ;; This is what causes an issue without phase escalation:
   (test-system "defsystem-dependency"))
 (assert-equal *dd* 10)
+
