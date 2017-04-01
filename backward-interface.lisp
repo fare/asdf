@@ -16,7 +16,7 @@
    #:operation-on-failure #:operation-on-warnings #:on-failure #:on-warnings
    #:component-property
    #:run-shell-command
-   #:system-definition-pathname #:system-registered-p
+   #:system-definition-pathname #:system-registered-p #:require-system
    #:explain))
 (in-package :asdf/backward-interface)
 
@@ -218,5 +218,11 @@ The value returned if true is a pair of a timestamp and a system object."
     (if-let (system (registered-system name))
       (cons (if-let (primary-system (registered-system (primary-system-name name)))
               (component-operation-time 'define-op primary-system))
-            system))))
+            system)))
 
+  (defun require-system (system &rest keys &key &allow-other-keys)
+    "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but do not update the
+system or its dependencies if it has already been loaded."
+    (declare (ignore keys))
+    (unless (component-loaded-p system)
+      (load-system system))))

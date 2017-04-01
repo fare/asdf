@@ -183,14 +183,7 @@ Note that this returns true even if the component is not up to date."
 
   (defun already-loaded-systems ()
     "return a list of the names of the systems that have been successfully loaded so far"
-    (mapcar 'coerce-name (remove-if-not 'component-loaded-p (registered-systems*))))
-
-  (defun require-system (system &rest keys &key &allow-other-keys)
-    "Ensure the specified SYSTEM is loaded, passing the KEYS to OPERATE, but do not update the
-system or its dependencies if it has already been loaded."
-    (declare (ignore keys))
-    (unless (component-loaded-p system)
-      (load-system system))))
+    (mapcar 'coerce-name (remove-if-not 'component-loaded-p (registered-systems*)))))
 
 
 ;;;; Define the class REQUIRE-SYSTEM, to be hooked into CL:REQUIRE when possible,
