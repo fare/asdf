@@ -392,13 +392,14 @@ to ignore if URGENT is T. On some platforms, it may also be subject to
 race conditions."
     (declare (ignorable urgent))
     #+abcl (sys:process-kill (slot-value process-info 'process))
+    #+clasp (mp:process-kill (slot-value process-info 'process))
     ;; On ECL, this will only work on versions later than 2016-09-06,
     ;; but we still want to compile on earlier versions, so we use symbol-call
     #+ecl (symbol-call :ext :terminate-process (slot-value process-info 'process) urgent)
     #+lispworks7+ (sys:pipe-kill-process (slot-value process-info 'process))
     #+mkcl (mk-ext:terminate-process (slot-value process-info 'process)
                                      :force urgent)
-    #-(or abcl ecl lispworks7+ mkcl)
+    #-(or abcl clasp ecl lispworks7+ mkcl)
     (os-cond
      ((os-unix-p) (%posix-send-signal process-info (if urgent 9 15)))
      ((os-windows-p) (if-let (pid (process-info-pid process-info))
