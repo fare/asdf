@@ -318,7 +318,7 @@ MORE may contain specifications for a subpath relative to these directories: a
 subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
 also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
-            (or (getenv-absolute-directories "XDG_DATA_DIRS")
+            (or (remove nil (getenv-absolute-directories "XDG_DATA_DIRS"))
                 (os-cond
                  ((os-windows-p) (mapcar 'get-folder-path '(:appdata :common-appdata)))
                  (t (mapcar 'parse-unix-namestring '("/usr/local/share/" "/usr/share/")))))))
@@ -330,7 +330,7 @@ MORE may contain specifications for a subpath relative to these directories:
 subpathname specification and keyword arguments as per RESOLVE-LOCATION \(see
 also \"Configuration DSL\"\) in the ASDF manual."
     (mapcar #'(lambda (d) (resolve-location `(,d ,more)))
-            (or (getenv-absolute-directories "XDG_CONFIG_DIRS")
+            (or (remove nil (getenv-absolute-directories "XDG_CONFIG_DIRS"))
                 (os-cond
                  ((os-windows-p) (xdg-data-dirs "config/"))
                  (t (mapcar 'parse-unix-namestring '("/etc/xdg/")))))))

@@ -611,7 +611,8 @@ or a string describing the format-control of a simple-condition."
      (format-control :initarg :format-control)
      (format-arguments :initarg :format-arguments))
     (:report (lambda (condition stream)
-               (format stream "Not implemented: ~s~@[ ~?~]"
+               (format stream "Not (currently) implemented on ~A: ~S~@[ ~?~]"
+                       (nth-value 1 (symbol-call :uiop :implementation-type))
                        (slot-value condition 'functionality)
                        (slot-value condition 'format-control)
                        (slot-value condition 'format-arguments)))))

@@ -29,7 +29,7 @@ keywords explicitly."
       ((eq :not (car x)) (assert (null (cddr x))) (not (featurep (cadr x))))
       ((eq :or (car x)) (some #'featurep (cdr x)))
       ((eq :and (car x)) (every #'featurep (cdr x)))
-      (t (error "Malformed feature specification ~S" x))))
+      (t (parameter-error "~S: malformed feature specification ~S" 'featurep x))))
 
   ;; Starting with UIOP 3.1.5, these are runtime tests.
   ;; You may bind *features* with a copy of what your target system offers to test its properties.
@@ -112,7 +112,7 @@ use getenvp to return NIL in such a case."
     #+mkcl (#.(or (find-symbol* 'getenv :si nil) (find-symbol* 'getenv :mk-ext nil)) x)
     #+sbcl (sb-ext:posix-getenv x)
     #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mcl mkcl sbcl scl xcl)
-    (error "~S is not supported on your implementation" 'getenv))
+    (not-implemented-error 'getenv))
 
   (defsetf getenv (x) (val)
     "Set an environment variable."
@@ -126,7 +126,7 @@ use getenvp to return NIL in such a case."
     #+mkcl `(mkcl:setenv ,x ,val)
     #+sbcl `(progn (require :sb-posix) (symbol-call :sb-posix :setenv ,x ,val 1))
     #-(or allegro clisp clozure cmucl ecl lispworks mkcl sbcl)
-    '(error "~S ~S is not supported on your implementation" 'setf 'getenv))
+    '(not-implemented-error '(setf getenv)))
 
   (defun getenvp (x)
     "Predicate that is true if the named variable is present in the libc environment,
@@ -289,7 +289,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
         #+mkcl (mk-ext:getcwd)
         #+sbcl (sb-ext:parse-native-namestring (sb-unix:posix-getcwd/))
         #+xcl (extensions:current-directory)
-        (error "getcwd not supported on your implementation")))
+        (not-implemented-error 'getcwd)))
 
   (defun chdir (x)
     "Change current directory, as per POSIX chdir(2), to a given pathname object"
@@ -307,7 +307,7 @@ suitable for use as a directory name to segregate Lisp FASLs, C dynamic librarie
       #+mkcl (mk-ext:chdir x)
       #+sbcl (progn (require :sb-posix) (symbol-call :sb-posix :chdir (sb-ext:native-namestring x)))
       #-(or abcl allegro clasp clisp clozure cmucl cormanlisp ecl gcl genera lispworks mkcl sbcl scl xcl)
-      (error "chdir not supported on your implementation"))))
+      (not-implemented-error 'chdir))))
 
 
 ;;;; -----------------------------------------------------------------

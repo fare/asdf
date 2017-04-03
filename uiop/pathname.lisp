@@ -56,7 +56,8 @@ that is a list and not a string."
       ((consp directory)
        (cons :relative directory))
       (t
-       (error (compatfmt "~@<Unrecognized pathname directory component ~S~@:>") directory))))
+       (parameter-error (compatfmt "~@<~S: Unrecognized pathname directory component ~S~@:>")
+                        'normalize-pathname-directory-component directory))))
 
   (defun denormalize-pathname-directory-component (directory-component)
     "Convert the DIRECTORY-COMPONENT from a CLHS-standard format to a format usable
@@ -487,7 +488,8 @@ or if it is a PATHNAME but some of its components are not recognized."
       ((or null string) pathname)
       (pathname
        (with-output-to-string (s)
-         (flet ((err () #+lispworks (describe pathname) (error "Not a valid unix-namestring ~S" pathname)))
+         (flet ((err () (parameter-error "~S: invalid unix-namestring ~S"
+                                         'unix-namestring pathname)))
            (let* ((dir (normalize-pathname-directory-component (pathname-directory pathname)))
                   (name (pathname-name pathname))
                   (name (and (not (eq name :unspecific)) name))
@@ -721,7 +723,7 @@ In that last case, if ROOT is non-NIL, PATH is first transformated by DIRECTORIZ
       ((eq destination t)
        path)
       ((not (pathnamep destination))
-       (error "Invalid destination"))
+       (parameter-error "~S: Invalid destination" 'translate-pathname*))
       ((not (absolute-pathname-p destination))
        (translate-pathname path absolute-source (merge-pathnames* destination root)))
       (root
