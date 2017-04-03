@@ -302,6 +302,19 @@ after having found a .asd file? True by default.")
                         (collect (list directory :recurse recurse :exclude exclude))))))
      :test 'equal :from-end t))
 
+  ;; MAYBE: move this utility function to uiop/pathname and export it?
+  (defun pathname-directory-depth (p)
+    (length (normalize-pathname-directory-component (pathname-directory p))))
+
+  (defun preferred-source-path-p (x y)
+    "Return T iff X is to be preferred over Y as a source path"
+    (let ((lx (pathname-directory-depth x))
+          (ly (pathname-directory-depth y)))
+      (or (< lx ly)
+          (and (= lx ly)
+               (string< (namestring x)
+                        (namestring y))))))
+
   ;; Will read the configuration and initialize all internal variables.
   (defun compute-source-registry (&optional (parameter *source-registry-parameter*)
                                     (registry *source-registry*))
@@ -320,18 +333,21 @@ after having found a .asd file? True by default.")
                                 ;; instead of (load-system 'foo)
                                 (string-downcase name)
                                 name)))
-                 (cond
-                   ((gethash name registry) ; already shadowed by something else
-                    nil)
-                   ((gethash name h) ; conflict at current level
-                    (when *verbose-out*
-                      (warn (compatfmt "~@<In source-registry entry ~A~@[/~*~] ~
-                                found several entries for ~A - picking ~S over ~S~:>")
-                            directory recurse name (gethash name h) asd)))
-                   (t
-                    (setf (gethash name registry) asd)
-                    (setf (gethash name h) asd))))))
-          h)))
+                 (unless (gethash name registry) ; already shadowed by something else
+                   (if-let (old (gethash name h))
+                     ;; If the name appears multiple times,
+                     ;; prefer the one with the shallowest directory,
+                     ;; or if they have same depth, compare unix-namestring with string<
+                     (multiple-value-bind (better worse)
+                         (if (preferred-source-path-p asd old)
+                             (progn (setf (gethash name h) asd) (values asd old))
+                             (values old asd))
+                       (when *verbose-out*
+                         (warn (compatfmt "~@<In source-registry entry ~A~@[/~*~] ~
+                                              found several entries for ~A - picking ~S over ~S~:>")
+                               directory recurse name better worse)))
+                     (setf (gethash name h) asd))))))
+          (maphash #'(lambda (k v) (setf (gethash k registry) v)) h))))
     (values))
 
   (defun initialize-source-registry (&optional (parameter *source-registry-parameter*))
