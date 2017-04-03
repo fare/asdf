@@ -185,25 +185,25 @@ clean:
 mrproper:
 	git clean -xfd
 
-test-upgrade: build/asdf.lisp
+test-upgrade: build/asdf.lisp show-version
 	./test/run-tests.sh -u ${l}
 u: test-upgrade
 
-test-clean-load: build/asdf.lisp
+test-clean-load: build/asdf.lisp show-version
 	./test/run-tests.sh -c ${l}
 
 show-version:
 	@echo "Building and testing asdf $(fullversion)"
 
 # test-glob has been replaced by t, and lisp by l, easier to type
-test-lisp: build/asdf.lisp
+test-lisp: build/asdf.lisp show-version
 	@cd test; ./run-tests.sh ${l} ${t}
 
 t: test-lisp
 
 test: doc test-lisp test-clean-load test-load-systems
 
-test-load-systems: build/asdf.lisp
+test-load-systems: build/asdf.lisp show-version
 	./test/run-tests.sh -l ${l} ${s}
 
 test-all-lisps: test-load-systems test-all-clean-load test-all-lisp test-all-upgrade
