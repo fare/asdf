@@ -290,10 +290,11 @@ system names contained using COERCE-NAME. Return the result."
     (nest
      (with-asdf-cache ())
      (let* ((name (coerce-name name))
-            (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))
-            (asd-name (and source-file
-                           (equalp "asd" (pathname-type source-file))
-                           (pathname-name source-file)))
+            (source-file (if sfp source-file (resolve-symlinks* (load-pathname))))))
+     (flet ((fix-case (x) (if (logical-pathname-p source-file) (string-downcase x) x))))
+     (let* ((asd-name (and source-file
+                           (equal "asd" (fix-case (pathname-type source-file)))
+                           (fix-case (pathname-name source-file))))
             (primary-name (primary-system-name name)))
        (when (and asd-name (not (equal asd-name primary-name)))
          (warn (make-condition 'bad-system-name :source-file source-file :name name))))
