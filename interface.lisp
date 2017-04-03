@@ -105,7 +105,6 @@
    #:*compile-file-warnings-behaviour*
    #:*compile-file-failure-behaviour*
    #:*resolve-symlinks*
-   #:*load-system-operation*
    #:*asdf-verbose* ;; unused. For backward-compatibility only.
    #:*verbose-out*
 
