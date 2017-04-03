@@ -4,10 +4,10 @@ This document presents the current best practices and conventions
 for using ASDF 3, as of 2017.
 It is not a tutorial, though it starts like one,
 because it assumes for each category of ASDF user
-(beginner, simple user, more elaborate user, advanced user)
+(beginner, simple user, more elaborate user)
 that he already knows what seems to be common knowledge among such users,
 and tries to complete this knowledge with less obvious points
-that are often wrong in systems in the wild.
+that are often wrong in systems seen in the wild.
 
 [TOC]
 
@@ -42,13 +42,27 @@ The convention is that an error SHOULD be signalled if tests are unsuccessful.
 Using keywords to name systems is good and well at the REPL.
 However, when writing a program, a bootstrap script, or a system definition,
 you SHOULD follow the good style of writing names in the canonical way;
-and the canonical name of a system is a string, which by convention is in lower-case.
+and the canonical name of a system is a string, which by convention is in lower-case
+(indeed any symbol used as system designator is downcased by `asdf:coerce-name`).
 
 Thus, the proper way to designate a system in a program is with lower-case strings, as in:
 
     (asdf:load-system "foobar")
     (asdf:test-system "foobar")
 
+(Historical note: MK-DEFSYSTEM and before it Genera's SCT
+used string-upcase to normalize system names,
+and use that as filenames, which made sense on Genera's filesystem
+or using logical pathnames as common with MK-DEFSYSTEM.
+Dan Barlow's ASDF, to "Play Nice With Unix", preferred lower-case file names,
+and used string-downcase to normalize symbols into strings;
+at the same time, he allowed you to specify mixed case or upper-case names by using a string.
+The latter was probably a mistake, and I strongly recommend against using anything but lower-case.
+If that weren't allowed, there would be a case for making lower-case symbols the default syntax,
+and let the various case conversions do their job without quotes.
+But that is not where we are.
+In any case, system names designate `.asd` files, not Lisp bindings,
+and this determines their syntax.)
 
 ### Trivial System Definition
 
@@ -137,12 +151,14 @@ and would be colloquial for neither.
 
 But *friends don't let friends use ASDF 2*.
 ASDF 3 has been available since 2013, and
-all implementations have now provided it for a long time.
+all implementations have now been providing it for a long time.
 Many systems, and growing, assume ASDF 3, possibly some you depend on,
-and it's pointless to maintain compatibility with a moribund system.
+and it's pointless to maintain compatibility with a moribund system
+(especially so if you don't also check that all your dependencies do, too).
 Upgrade your implementations and/or at least your ASDF,
 and tell your friends to do as much.
-The very founding principle of ASDF 2 (and 3) was to provide users with
+The [very founding principle of ASDF 2](http://fare.livejournal.com/149264.html) (and 3)
+was to provide users with
 the ability to install a newer ASDF on top of an old one to fix its bugs
 (an ability that did not exist with ASDF 1);
 thus, users do not have to maintain compatibility with antique bugs.
@@ -150,27 +166,28 @@ thus, users do not have to maintain compatibility with antique bugs.
 These days, I even recommended that you should freely rely
 on features of ASDF 3.1 (2014) not present in ASDF 3.0 (2013), such as:
 `~/common-lisp/` being included in the source-registry by default;
-a full-fledged `run-program` with input and error-output support;
+`run-program` being full-fledged with input and error-output support;
 or the `package-inferred-system` feature.
-Indeed, if you want indefinite backward compatibility, why stop at ASDF 2?
+Conversely, if you want indefinite backward compatibility, why stop at ASDF 2?
 Why not also support ASDF 1, and MK-DEFSYSTEM, and
 the original Lisp Machine DEFSYSTEM?
 A good rule of thumb for me is that it is not worth writing workarounds
 for bugs that were fixed or features that were changed two years ago or more.
 Two years seems to be the time it takes for a release of ASDF
-to be ubiquitously available by default on all implementations;
+to become ubiquitously available by default on all implementations;
 and, remember, if a user must use an older implementation,
 he can always trivially install a newer ASDF on top of it.
 Thus, by 2019, people should not be shy about
-dropping support for versions older than 3.2 or 3.3.
+dropping support for ASDF versions older than 3.2 or 3.3.
 And even before then, if you need a recent ASDF, just document it,
-and tell your users to upgrade their implementation and/or their ASDF on top of it.
+and tell your users to upgrade their implementation and/or
+install a recent ASDF on top of their implementation's.
 
 
 ### Trivial Packaging
 
 In the previous testing code, `symbol-call` is a function defined in package `uiop`.
-It that allows to deal with the fact that the package `:fiveam` isn't defined yet
+It helps deal with the fact that the package `:fiveam` isn't defined yet
 at the time the `defsystem` form is read.
 Thus you can't simply write `(fiveam:run! :foobar)`, as
 this might cause a failure at read-time when file `foobar.asd` is first read
@@ -180,15 +197,19 @@ This of course also holds for packages defined by system `foobar` itself.
 To get a symbol in it that is not a function being called,
 you can also use `(find-symbol* :some-symbol :foobar)`,
 and you can use `symbol-value` to get the value bound to such a symbol as denoting a variable.
-For complex expressions, you can use `eval` and `read-from-string`, as in:
-`(eval (read-from-string "(foobar:some-fun foobar:*some-var*)"))`.
+For complex expressions, you can use `eval` and `read-from-string`,
+as in `(eval (read-from-string "(foobar:some-fun foobar:*some-var*)"))`,
+or equivalently, also from `uiop`: `(eval-input "(foobar:some-fun foobar:*some-var*)")`.
 
 System definition files are loaded with the current `*package*` bound to the package `:asdf-user`,
 that uses the packages `:cl`, `:asdf` and `:uiop`.
-Therefore, you don't need to specify `cl:`, `asdf:` or `uiop:` prefixes
+Therefore, you don't need to and you SHOULD NOT specify `cl:`, `asdf:` or `uiop:` prefixes
 when referring to symbols in these respective packages.
-It is considered bad form to do so, unless you change the package.
-You SHOULD NOT use `(in-package ...)` or `(defpackage ...)`
+It is considered bad form to do so, unless you changed the package,
+and even then, your package should probably use these packages, too.
+In particular you SHOULD NOT to write `(asdf:defsystem "foobar" ...)`
+instead of `(defsystem "foobar" ...)`.
+Also, you SHOULD NOT use `(in-package ...)` or `(defpackage ...)`
 if all you do can legitimately be done in package `ASDF-USER`.
 
 System definition files are loaded by a special function `asdf::load-asd`;
@@ -202,7 +223,8 @@ You SHOULD NOT encourage the illusion that a `.asd` file can be loaded with `cl:
 by using `(in-package :asdf-user)` or anything,
 or by using the package prefix `asdf:` for `defsystem` and other such symbols.
 You SHOULD be using the `slime-asdf` extension to SLIME
-if you are going to edit `.asd` file and then load them from SLIME.
+if you are going to edit `.asd` file and then load them from SLIME,
+as it will automatically use `load-asd` to load the file contents.
 
 #### Digression about symbols and packages
 
@@ -289,8 +311,8 @@ will ensure this operation is performed on that system
 (after all the necessary dependencies of such an action).
 A short-hand `asdf:oos` is available for `asdf:operate`
 (the name `oos` is an old acronym for `operate-on-system`,
-a function that existed in the old MK-DEFSYSTEM, but that doesn't exist in ASDF,
-that just has `operate`).
+and both functions existed as synonyms in the old MK-DEFSYSTEM;
+the latter function doesn't exist in ASDF, which instead has just `operate`).
 
 The operation is typically specified as a symbol that names the operation class.
 Since ASDF 3, you can also use a keyword to specify an action in the ASDF package.
@@ -328,7 +350,12 @@ in the trivial testing definition above.
 
 The convention above allows ASDF 3 and later to find a secondary system by name,
 by first looking for the associated primary system.
-ASDF 3.2 or later will issue a `style-warning` when you violate this naming convention.
+ASDF 3.2 or later will issue a `warning` when you violate this naming convention.
+
+(Historically, ASDF 1 (and 2) allowed arbitrary names for secondary systems,
+and in practice many people used `foo-test` or such for secondary system names in `foo.asd`;
+however, ASDF 1 (and 2) couldn't find those systems by name, and horrific bugs could happen
+if a system was simultaneously defined in multiple files.)
 
 ### Simple System Definition
 
@@ -402,7 +429,8 @@ with an `in-package` form, optionally preceded by a `defpackage` form
 You SHOULD NOT write `cl:in-package` or precede your `defpackage` with an `(in-package :cl-user)`
 (which is stupid, because to be pedantic you'd have to `(cl:in-package :cl-user)`,
 at which point you may as well `(cl:defpackage ...)` and `(cl:in-package ...)`).
-If it's a regular `cl-source-file`, it can assume the language is CL indeed.
+If it's a regular `cl-source-file`, it can assume the language is CL indeed,
+and that the readtable something reasonable, etc.
 
 #### Using symbols from ASDF and UIOP
 
@@ -415,6 +443,7 @@ or other deprecated functions that were once recommended in the time of ASDF 1.
 They will be removed in the near future (one to two year horizon).
 ASDF 3.2 will issue a `style-warning` when you do, and ASDF 3.3 will issue a full `warning`,
 which will break the SBCL build.
+See `backward-interface.lisp` for a list of deprecated function — or just heed the damn warnings.
 
 ### Simple Testing
 
@@ -464,17 +493,30 @@ by evaluating `(asdf:make :foobar/executable)`:
       :depends-on ("foobar")
       :components ((:file "main")))
 
+The `build-pathname` gives the name of the executable;
+a `.exe` type will be automatically added on Windows.
+As a horrible kluge that may go away in the future,
+the output will be created in the system's directory (where the `foobar.asd` file resides)
+when the `build-operation` matches the requested operation.
+A future version of ASDF will probably instead have some `:output` argument to `operate`,
+or some such thing, and drop this ugly special case.
+You have been warned. Contact me if you want that sooner, or not at all.
+
 There, file `main.lisp` defines a function `start-foobar` in package `foobar`,
-that takes no argument, and initializes and starts the executable;
-typically, it will be defined as something like:
+that takes no argument, and initializes and starts the executable ---
+after `uiop` calls its own `*image-restore-hook*` and evaluates any provided `*image-prelude*`.
+Importantly, libraries may register functions to call in the `*image-restore-hook*`
+using `register-image-restore-hook` (see also `register-image-dump-hook`);
+UIOP and ASDF themselves make use of this facility.
+Typically, `start-foobar` will be defined as something like:
 
     (defun start-foobar () (main (uiop:command-line-arguments)))
 
 Where function `main` parses the arguments
 (a list of strings, excluding the magic C `argv[0]`, which can be computed as `(uiop:argv0)`)
 and does whatever its magic.
-You may want to use `net.didierverna.clon` or `command-line-arguments` or a slew of others
-to parse the command-line arguments.
+You may want to use the full-featured `net.didierverna.clon` or my small `command-line-arguments`
+or one of a slew of other libraries to parse the command-line arguments.
 You may want to use `cl-scripting` to nicely wrap Lisp code into execution contexts
 that handle errors in a nice(r) user-visible way for the shell user.
 You may want to use `inferior-shell` if your program in turn invokes other shell programs.
@@ -507,7 +549,7 @@ to define such system connections that are *automatically* loaded
 when both the connected systems are loaded.
 While I debugged that mechanism and made sure it works with ASDF 3,
 I recommend against using it, because it introduces side-effects within the build.
-I recommend explicitly loading the system connections
+Instead I recommend explicitly loading the system connections
 as part of the larger system that will use them.
 
 ## More Elaborate Examples
@@ -669,7 +711,11 @@ ASDF currently allows arbitrary Lisp code in a `.asd` file.
 I would like to deprecate that in the future to make ASDF more declarative.
 In the meantime, here are some guidelines for how to write such code properly.
 
-First, `.asd` files are read with the current package being `asdf-user`.
+First, you SHOULD minimize the amount of such code and
+you SHOULD strongly consider defining an extension
+in a separate `.asd` file that you `:defsystem-depends-on`.
+
+Then, `.asd` files are read with the current package being `asdf-user`.
 You MAY use any symbols defined in packages `cl`, `asdf` and `uiop`,
 and you SHOULD stay in package `asdf-user` if it suffices;
 you SHOULD NOT needlessly create a package for you system definition file
@@ -750,10 +796,14 @@ Instead you SHOULD define methods on `asdf:perform`, `asdf:component-depends-on`
 ### Defining ASDF Extensions
 
 #### Source File Types
+
 You MUST NOT define methods on `source-file-type`. This bad ASDF 1 interface must die.
 Instead, override the slot `type` for your file class and provide a proper `:initform`, as in:
 
     (defclass cl-source-file.l (cl-source-file) ((type :initform "l")))
+
+You can then provide the name of that class as class name for individual components,
+or as `:default-component-class` to relevant systems or modules.
 
 #### Conditional Outputs and Conditional Perform
 
@@ -769,7 +819,7 @@ where the action is not performed.
 In that case, both the `output-files` and `input-files` methods
 should probably return `nil` when that condition is met.
 Alternatively, if avoiding some actions is uniform for all
-operations on a given component, you may want to override or wrap around
+operations on a given component, you MAY want to override or wrap around
 the `component-if-feature` method for that component instead of defining
 all those `perform`, `output-files` and `input-files` methods.
 
